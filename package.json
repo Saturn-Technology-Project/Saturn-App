@@ -1,0 +1,12 @@
+{
+  "name": "saturn-app",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "dev": "npm run dev --prefix runtime",
+    "test": "npm test --prefix runtime",
+    "desktop": "npm run dev --prefix desktop",
+    "dist:mac": "npm run dist:mac --prefix desktop",
+    "dist:win": "npm run dist:win --prefix desktop"
+  }
+}

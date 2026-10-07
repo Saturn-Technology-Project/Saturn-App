@@ -1,0 +1,74 @@
+{
+  "name": "@saturn/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "electron.cjs",
+  "scripts": {
+    "dev": "concurrently -k \"vite --port 5174\" \"wait-on http://127.0.0.1:5174 && electron electron.cjs\"",
+    "build": "vite build",
+    "build:runtime": "tsc -p ../runtime/tsconfig.build.json --pretty false",
+    "dist:mac": "npm run build && npm run build:runtime && electron-builder --mac",
+    "dist:win": "npm run build && npm run build:runtime && electron-builder --win"
+  },
+  "build": {
+    "appId": "inc.saturntechnology.desktop",
+    "productName": "Saturn",
+    "npmRebuild": false,
+    "icon": "build/icon.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron.cjs",
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../runtime/dist",
+        "to": "runtime/dist"
+      },
+      {
+        "from": "../runtime/node_modules",
+        "to": "runtime/node_modules"
+      },
+      {
+        "from": "../runtime/package.json",
+        "to": "runtime/package.json"
+      }
+    ],
+    "mac": {
+      "identity": null,
+      "target": [
+        "dir"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "signExecutable": false
+    }
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "electron": "^35.2.1",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.3",
+    "wait-on": "^8.0.3"
+  }
+}
