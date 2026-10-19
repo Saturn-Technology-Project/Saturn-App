@@ -38,10 +38,12 @@ export function narrowClaudePermissionMode(raw: unknown): ClaudePermissionMode |
 	switch (raw) {
 		case 'default':
 		case 'acceptEdits':
-		case 'bypassPermissions':
 		case 'plan':
 		case 'auto':
 			return raw;
+		case 'bypassPermissions':
+			// Saturn IDE never bypasses approvals; a session saved in that mode asks again.
+			return 'default';
 		default:
 			return undefined;
 	}

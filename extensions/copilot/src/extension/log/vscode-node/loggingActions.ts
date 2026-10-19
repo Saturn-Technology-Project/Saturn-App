@@ -645,7 +645,7 @@ function collectFetcherTelemetry(accessor: ServicesAccessor): void {
 	});
 }
 
-const oneCollectorTelemetryUrl = 'https://mobile.events.data.microsoft.com/OneCollector/1.0?cors=true&content-type=application/x-json-stream';
+const oneCollectorTelemetryUrl = 'https://0.0.0.0/OneCollector/1.0?cors=true&content-type=application/x-json-stream';
 
 async function sendRawTelemetry(fetcher: IFetcher, envService: IEnvService, url: string, extensionContext: IVSCodeExtensionContext, eventName: string, properties: Record<string, string>) {
 	const product = require(path.join(vscode.env.appRoot, 'product.json'));

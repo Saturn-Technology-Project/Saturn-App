@@ -28,8 +28,7 @@ export function sessionFilterKey(filter: SessionFilter): string {
 
 export function getSessionFilterOptions(sessions: readonly ISession[], environments: readonly ISessionEnvironment[], reader?: IReader): ISessionFilterOption[] {
 	const options: ISessionFilterOption[] = [
-		{ filter: { kind: 'harness', id: 'copilot' }, label: localize('harness.copilot', "Copilot"), group: '1_harnesses' },
-		{ filter: { kind: 'harness', id: 'claude' }, label: localize('harness.claude', "Claude"), group: '1_harnesses' },
+		{ filter: { kind: 'harness', id: 'claude' }, label: localize('harness.claude', "Claude Code"), group: '1_harnesses' },
 		{ filter: { kind: 'harness', id: 'codex' }, label: localize('harness.codex', "Codex"), group: '1_harnesses' },
 	];
 	const byId = new Map<string, ISessionEnvironment>([

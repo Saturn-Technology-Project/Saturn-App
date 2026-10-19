@@ -1,0 +1,241 @@
+{
+  "name": "saturn",
+  "displayName": "Saturn",
+  "description": "Saturn IDE defaults: the Saturn theme, a Cursor-style layout, Tab completion, inline edit (Cmd+I), and the Saturn Agent panel backed by the local Saturn runtime.",
+  "version": "0.1.0",
+  "publisher": "saturn",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Themes",
+    "AI",
+    "Chat"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "*"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "themes": [
+      {
+        "id": "Saturn Dark",
+        "label": "Saturn Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/saturn-dark.json"
+      },
+      {
+        "id": "Saturn Light",
+        "label": "Saturn Light",
+        "uiTheme": "vs",
+        "path": "./themes/saturn-light.json"
+      }
+    ],
+    "configurationDefaults": {
+      "workbench.colorTheme": "Saturn Dark",
+      "workbench.preferredDarkColorTheme": "Saturn Dark",
+      "workbench.preferredLightColorTheme": "Saturn Light",
+      "workbench.experimental.modernUI": true,
+      "workbench.modernUIFrostedGlass": true,
+      "workbench.experimental.modernUIEditorTabStyle": "connected",
+      "workbench.activityBar.location": "top",
+      "workbench.secondarySideBar.defaultVisibility": "visible",
+      "workbench.startupEditor": "none",
+      "workbench.tips.enabled": false,
+      "workbench.layoutControl.enabled": true,
+      "workbench.navigationControl.enabled": false,
+      "window.commandCenter": true,
+      "chat.disableAIFeatures": true,
+      "editor.fontFamily": "'SF Mono', 'JetBrains Mono', Menlo, Monaco, Consolas, monospace",
+      "editor.fontSize": 13,
+      "editor.lineHeight": 20,
+      "editor.minimap.enabled": false,
+      "editor.cursorBlinking": "smooth",
+      "editor.cursorSmoothCaretAnimation": "on",
+      "editor.smoothScrolling": true,
+      "editor.renderLineHighlight": "all",
+      "editor.guides.bracketPairs": "active",
+      "editor.stickyScroll.enabled": true,
+      "workbench.tree.indent": 14,
+      "workbench.tree.renderIndentGuides": "onHover",
+      "terminal.integrated.fontSize": 12,
+      "breadcrumbs.enabled": true,
+      "workbench.editor.enablePreview": true,
+      "workbench.editor.enablePreviewFromQuickOpen": true,
+      "files.autoSave": "afterDelay",
+      "files.autoSaveDelay": 1000,
+      "extensions.ignoreRecommendations": true,
+      "workbench.remoteIndicator.showExtensionRecommendations": false,
+      "workbench.editor.empty.hint": "hidden",
+      "workbench.settings.enableNaturalLanguageSearch": false,
+      "chat.titleBar.signIn.enabled": false,
+      "workbench.activity.showAccounts": false,
+      "workbench.layoutControl.type": "toggles",
+      "chat.agentHost.otel.enabled": true,
+      "chat.agentHost.otel.exporterType": "otlp-http",
+      "chat.agentHost.otel.otlpEndpoint": "http://127.0.0.1:4700",
+      "window.density.layout": "compact"
+    },
+    "configuration": {
+      "title": "Saturn",
+      "properties": {
+        "saturn.runtimeUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:4700",
+          "description": "Address of the local Saturn runtime the Agent panel talks to."
+        },
+        "saturn.completions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Suggest code as you type (Tab to accept), served by the completion model chosen in Saturn Settings → General."
+        }
+      }
+    },
+    "viewsContainers": {
+      "secondarySidebar": [
+        {
+          "id": "saturn",
+          "title": "Saturn",
+          "icon": "media/saturn.svg"
+        }
+      ]
+    },
+    "views": {
+      "saturn": [
+        {
+          "type": "webview",
+          "id": "saturn.agent",
+          "name": "Saturn"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "saturn.focusAgent",
+        "title": "Ask Saturn",
+        "category": "Saturn",
+        "icon": "media/saturn.svg"
+      },
+      {
+        "command": "saturn.newChat",
+        "title": "New Chat",
+        "category": "Saturn",
+        "icon": "$(add)"
+      },
+      {
+        "command": "saturn.openApp",
+        "title": "Open Saturn App",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.openAppSettings",
+        "title": "Open Saturn Settings",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.openAgentWindow",
+        "title": "Open Saturn Window",
+        "category": "Saturn",
+        "icon": "media/saturn.svg"
+      },
+      {
+        "command": "saturn.inlineEdit",
+        "title": "Edit with Saturn",
+        "category": "Saturn",
+        "icon": "media/saturn.svg"
+      },
+      {
+        "command": "saturn.inlineEdit.accept",
+        "title": "Accept AI Edit",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.inlineEdit.reject",
+        "title": "Reject AI Edit",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.inlineEdit.cancel",
+        "title": "Cancel AI Edit",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.toggleCompletions",
+        "title": "Toggle Tab Completion",
+        "category": "Saturn"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "saturn.newChat",
+          "when": "view == saturn.agent",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "saturn.inlineEdit",
+          "when": "editorTextFocus && !editorReadonly",
+          "group": "1_saturn"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "saturn.inlineEdit.accept",
+          "when": "saturn.inlineEditPending"
+        },
+        {
+          "command": "saturn.inlineEdit.reject",
+          "when": "saturn.inlineEditPending"
+        },
+        {
+          "command": "saturn.inlineEdit.cancel",
+          "when": "saturn.inlineEditBusy"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "saturn.focusAgent",
+        "key": "ctrl+l",
+        "mac": "cmd+l"
+      },
+      {
+        "command": "saturn.openAgentWindow",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n"
+      },
+      {
+        "command": "saturn.inlineEdit",
+        "key": "ctrl+i",
+        "mac": "cmd+i",
+        "when": "editorTextFocus && !editorReadonly && !saturn.inlineEditPending"
+      },
+      {
+        "command": "saturn.inlineEdit.accept",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "saturn.inlineEditPending && editorTextFocus"
+      },
+      {
+        "command": "saturn.inlineEdit.reject",
+        "key": "escape",
+        "when": "saturn.inlineEditPending && editorTextFocus && !suggestWidgetVisible && !findWidgetVisible && !inlineSuggestionVisible"
+      },
+      {
+        "command": "saturn.inlineEdit.cancel",
+        "key": "escape",
+        "when": "saturn.inlineEditBusy"
+      }
+    ]
+  }
+}

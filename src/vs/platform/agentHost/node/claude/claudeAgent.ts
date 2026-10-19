@@ -727,7 +727,7 @@ export class ClaudeAgent extends Disposable implements IAgent {
 	getDescriptor(): IAgentDescriptor {
 		return {
 			provider: this.id,
-			displayName: localize('claudeAgent.displayName', "Claude"),
+			displayName: localize('claudeAgent.displayName', "Claude Code"),
 			description: localize('claudeAgent.description', "Claude agent backed by the Anthropic Claude Agent SDK"),
 			capabilities: {
 				multipleChats: { fork: true, sideChat: true },
@@ -2266,20 +2266,19 @@ export class ClaudeAgent extends Disposable implements IAgent {
 				type: 'string',
 				title: localize('claude.sessionConfig.permissionMode', "Approvals"),
 				description: localize('claude.sessionConfig.permissionModeDescription', "How Claude handles tool approvals."),
-				enum: ['default', 'acceptEdits', 'plan', 'auto', 'bypassPermissions'],
+				// Saturn IDE: no Bypass Permissions; writes and commands always go through approvals.
+				enum: ['default', 'acceptEdits', 'plan', 'auto'],
 				enumLabels: [
 					localize('claude.sessionConfig.permissionMode.default', "Ask Before Edits"),
 					localize('claude.sessionConfig.permissionMode.acceptEdits', "Edit Automatically"),
 					localize('claude.sessionConfig.permissionMode.plan', "Plan Mode"),
 					localize('claude.sessionConfig.permissionMode.auto', "Auto Mode"),
-					localize('claude.sessionConfig.permissionMode.bypassPermissions', "Bypass Permissions"),
 				],
 				enumDescriptions: [
 					localize('claude.sessionConfig.permissionMode.defaultDescription', "Claude asks before editing files."),
 					localize('claude.sessionConfig.permissionMode.acceptEditsDescription', "Claude edits files without asking, and asks before using other tools."),
 					localize('claude.sessionConfig.permissionMode.planDescription', "Claude creates a plan before making changes."),
 					localize('claude.sessionConfig.permissionMode.autoDescription', "Claude decides whether to ask for each tool operation."),
-					localize('claude.sessionConfig.permissionMode.bypassPermissionsDescription', "Claude runs all tools without asking."),
 				],
 				default: 'default',
 				sessionMutable: true,

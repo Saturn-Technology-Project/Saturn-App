@@ -1,0 +1,479 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Saturn. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+/* =============================================================================
+ * Saturn Design System Tokens & Base Resets
+ * ========================================================================== */
+
+.monaco-workbench {
+	font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", sans-serif;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	letter-spacing: -0.011em;
+}
+
+/* Inline code in panels and hovers. The editor and terminal fonts stay with their settings
+ * (editor.fontFamily, terminal.integrated.fontFamily), which the Saturn defaults already set. */
+.monaco-workbench code,
+.monaco-workbench pre {
+	font-family: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+/* =============================================================================
+ * Titlebar & macOS Traffic Light Window Shell
+ * ========================================================================== */
+
+.monaco-workbench .part.titlebar {
+	border-bottom: 1px solid var(--vscode-titleBar-border, transparent) !important;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.monaco-workbench.mac .part.titlebar > .titlebar-container > .titlebar-left {
+	padding-left: 78px !important;
+}
+
+/* CommandCenter: Sleek Unified Capsule Search Container */
+.monaco-workbench .part.titlebar .command-center {
+	background: transparent !important;
+	border: none !important;
+	padding: 0 !important;
+	box-shadow: none !important;
+	height: 26px !important;
+}
+
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-center {
+	height: 26px !important;
+	width: 36vw !important;
+	min-width: 280px !important;
+	max-width: 560px !important;
+	border-radius: 8px !important;
+	border: 1px solid var(--vscode-commandCenter-border, rgba(255, 255, 255, 0.12)) !important;
+	background-color: var(--vscode-commandCenter-background, rgba(255, 255, 255, 0.04)) !important;
+	box-sizing: border-box !important;
+	font-size: 12px !important;
+	font-weight: 450 !important;
+	color: var(--vscode-commandCenter-foreground) !important;
+	transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease !important;
+	display: flex !important;
+	align-items: center !important;
+	padding: 0 10px !important;
+}
+
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-center:hover {
+	background-color: var(--vscode-commandCenter-activeBackground, rgba(255, 255, 255, 0.08)) !important;
+	border-color: var(--vscode-commandCenter-activeBorder, rgba(255, 255, 255, 0.22)) !important;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+}
+
+.monaco-workbench .part.titlebar.inactive .command-center .action-item.command-center-center {
+	border-color: var(--vscode-commandCenter-inactiveBorder, transparent) !important;
+	opacity: 0.7 !important;
+}
+
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-center .monaco-toolbar,
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-center .monaco-action-bar,
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-center .actions-container {
+	width: 100% !important;
+	height: 100% !important;
+	display: flex !important;
+	align-items: center !important;
+}
+
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-quick-pick {
+	width: 100% !important;
+	height: 100% !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: flex-start !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	cursor: pointer !important;
+}
+
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-quick-pick .search-icon {
+	display: inline-flex !important;
+	align-items: center !important;
+	font-size: 13px !important;
+	opacity: 0.65 !important;
+	margin-right: 6px !important;
+	color: var(--vscode-commandCenter-foreground) !important;
+}
+
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-quick-pick .search-label {
+	flex: 1 !important;
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+	white-space: nowrap !important;
+	font-size: 12px !important;
+	color: var(--vscode-commandCenter-foreground) !important;
+	text-align: left !important;
+}
+
+.monaco-workbench .part.titlebar .command-center .action-item.command-center-quick-pick .search-keybinding {
+	margin-left: auto !important;
+	font-size: 10.5px !important;
+	line-height: 14px !important;
+	padding: 1px 5px !important;
+	border-radius: 4px !important;
+	background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent) !important;
+	border: 1px solid color-mix(in srgb, var(--vscode-foreground) 14%, transparent) !important;
+	color: var(--vscode-descriptionForeground, rgba(255, 255, 255, 0.55)) !important;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+	font-weight: 500 !important;
+	letter-spacing: 0.5px !important;
+	user-select: none !important;
+	pointer-events: none !important;
+}
+
+/* Suppress redundant hover popup on title bar command center */
+.monaco-workbench .part.titlebar .command-center .monaco-hover,
+.monaco-workbench .workbench-hover-container:has([data-origin="commandCenterCenter"]),
+.monaco-workbench .workbench-hover-container:has([data-origin="commandCenter"]) {
+	display: none !important;
+}
+
+/* Layout Control Buttons */
+.monaco-workbench .part.titlebar .layout-controls-container .action-label {
+	border-radius: 6px !important;
+	padding: 3px 5px !important;
+	transition: background-color 120ms ease !important;
+}
+
+/* Suppress legacy sparkle icon or redundant action items in title bar */
+.monaco-workbench .part.titlebar .layout-controls-container .action-item:has(.codicon-sparkle),
+.monaco-workbench .part.titlebar .titlebar-right .action-item:has(.codicon-sparkle) {
+	display: none !important;
+}
+
+/* Agents Window Pill Button (Cursor Style) */
+.monaco-workbench .part.titlebar .titlebar-right .saturn-agents-window-pill {
+	display: inline-flex !important;
+	position: relative !important;
+	z-index: 2501 !important;
+	align-items: center !important;
+	justify-content: center !important;
+	gap: 4px !important;
+	height: 22px !important;
+	line-height: 22px !important;
+	padding: 0 9px 0 11px !important;
+	margin-left: 8px !important;
+	margin-right: 12px !important;
+	border-radius: 9999px !important;
+	background-color: #84a8c9 !important;
+	color: #0f172a !important;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, var(--vscode-font-family) !important;
+	font-size: 11.5px !important;
+	font-weight: 550 !important;
+	letter-spacing: -0.01em !important;
+	border: none !important;
+	outline: none !important;
+	cursor: pointer !important;
+	user-select: none !important;
+	-webkit-user-select: none !important;
+	white-space: nowrap !important;
+	-webkit-app-region: no-drag !important;
+	transition: background-color 140ms ease, transform 100ms ease, opacity 140ms ease !important;
+}
+
+.monaco-workbench .part.titlebar .titlebar-right .saturn-agents-window-pill:hover {
+	background-color: #97b9d8 !important;
+}
+
+.monaco-workbench .part.titlebar .titlebar-right .saturn-agents-window-pill:active {
+	background-color: #7296b8 !important;
+	transform: scale(0.97) !important;
+}
+
+.monaco-workbench .part.titlebar.inactive .titlebar-right .saturn-agents-window-pill {
+	opacity: 0.72 !important;
+}
+
+.monaco-workbench .part.titlebar .titlebar-right .saturn-agents-window-pill .saturn-agents-window-label {
+	line-height: 22px !important;
+	display: inline-block !important;
+	pointer-events: none !important;
+}
+
+.monaco-workbench .part.titlebar .titlebar-right .saturn-agents-window-pill .saturn-agents-window-icon {
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	font-size: 11px !important;
+	line-height: 1 !important;
+	font-weight: 600 !important;
+	transform: translateY(-0.5px) !important;
+	pointer-events: none !important;
+}
+
+@media (max-width: 680px) {
+	.monaco-workbench .part.titlebar .titlebar-right .saturn-agents-window-pill {
+		display: none !important;
+	}
+}
+
+/* Layout Control: Custom Code / Editor Icon for Toggle Panel (Middle Button) */
+.monaco-workbench .part.titlebar .action-label.codicon-layout-panel:before,
+.monaco-workbench .part.titlebar .action-label.codicon-layout-panel-off:before,
+.monaco-workbench .part.titlebar .action-label.codicon-panel-layout-icon:before,
+.monaco-workbench .part.titlebar .action-label.codicon-panel-layout-icon-off:before {
+	content: "" !important;
+	display: inline-block !important;
+	width: 16px !important;
+	height: 16px !important;
+	vertical-align: middle !important;
+	background-color: currentColor !important;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Crect x='1.5' y='1.5' width='13' height='13' rx='2.5' stroke='black' stroke-width='1.2'/%3E%3Cline x1='5.8' y1='1.5' x2='5.8' y2='14.5' stroke='black' stroke-width='1.2'/%3E%3Cline x1='7.4' y1='4.3' x2='11.4' y2='4.3' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='8.6' y1='6.4' x2='12.6' y2='6.4' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='8.6' y1='8.5' x2='12.6' y2='8.5' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='8.6' y1='10.6' x2='12.6' y2='10.6' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='7.4' y1='12.7' x2='11.4' y2='12.7' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / 16px 16px !important;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Crect x='1.5' y='1.5' width='13' height='13' rx='2.5' stroke='black' stroke-width='1.2'/%3E%3Cline x1='5.8' y1='1.5' x2='5.8' y2='14.5' stroke='black' stroke-width='1.2'/%3E%3Cline x1='7.4' y1='4.3' x2='11.4' y2='4.3' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='8.6' y1='6.4' x2='12.6' y2='6.4' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='8.6' y1='8.5' x2='12.6' y2='8.5' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='8.6' y1='10.6' x2='12.6' y2='10.6' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3Cline x1='7.4' y1='12.7' x2='11.4' y2='12.7' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center / 16px 16px !important;
+}
+
+.monaco-workbench .part.titlebar .action-label.codicon-layout-panel-off,
+.monaco-workbench .part.titlebar .action-label.codicon-panel-layout-icon-off {
+	opacity: 0.55 !important;
+}
+
+.monaco-workbench .part.titlebar .action-label.codicon-layout-panel,
+.monaco-workbench .part.titlebar .action-label.codicon-panel-layout-icon {
+	opacity: 1 !important;
+}
+
+/* =============================================================================
+ * Activity Bar & Navigation
+ * ========================================================================== */
+
+.monaco-workbench .part.activitybar {
+	border-right: 1px solid var(--vscode-activityBar-border, transparent) !important;
+}
+
+.monaco-workbench .part.activitybar .action-item {
+	border-radius: 7px !important;
+	transition: background-color 120ms ease, color 120ms ease !important;
+}
+
+.monaco-workbench .part.activitybar .action-item.checked {
+	background-color: var(--vscode-modernActivityBarItem-activeBackground, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.monaco-workbench .part.activitybar .action-item:hover:not(.checked) {
+	background-color: var(--vscode-modernActivityBarItem-hoverBackground, rgba(255, 255, 255, 0.04)) !important;
+}
+
+/* =============================================================================
+ * Sidebars & Pane Headers
+ * ========================================================================== */
+
+.monaco-workbench .part.sidebar,
+.monaco-workbench .part.auxiliarybar {
+	border-color: var(--vscode-sideBar-border, transparent) !important;
+}
+
+.monaco-workbench .pane-header {
+	height: 30px !important;
+	line-height: 30px !important;
+	font-size: 11px !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.04em !important;
+	text-transform: uppercase !important;
+	color: var(--vscode-sideBarSectionHeader-foreground) !important;
+}
+
+/* =============================================================================
+ * Editor Tabs & Tabs Container
+ * ========================================================================== */
+
+.monaco-workbench .part.editor .tabs-and-actions-container {
+	height: 36px !important;
+	border-bottom: 1px solid var(--vscode-editorGroupHeader-tabsBorder, transparent) !important;
+}
+
+.monaco-workbench .part.editor .tabs-container > .tab {
+	height: 35px !important;
+	border-radius: 6px 6px 0 0 !important;
+	font-size: 12.5px !important;
+	margin-right: 2px !important;
+	transition: background-color 120ms ease, color 120ms ease !important;
+}
+
+.monaco-workbench .part.editor .tabs-container > .tab.active {
+	font-weight: 500 !important;
+}
+
+.monaco-workbench .part.editor .tabs-container > .tab .tab-actions .action-label {
+	border-radius: 4px !important;
+	transition: background-color 120ms ease !important;
+}
+
+/* =============================================================================
+ * Quick Input / Command Palette / Suggest Widget / Menus
+ * ========================================================================== */
+
+.monaco-workbench .quick-input-widget {
+	border-radius: 12px !important;
+	padding: 8px !important;
+	background: var(--vscode-quickInput-background) !important;
+	border: 1px solid var(--vscode-widget-border, transparent) !important;
+	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--vscode-widget-border, transparent) !important;
+	backdrop-filter: blur(20px) saturate(180%) !important;
+	-webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+	overflow: hidden !important;
+}
+
+.monaco-workbench .quick-input-widget .monaco-inputbox {
+	border-radius: 8px !important;
+	padding: 6px 10px !important;
+	margin-bottom: 6px !important;
+	border: 1px solid var(--vscode-input-border) !important;
+	background: var(--vscode-input-background) !important;
+}
+
+.monaco-workbench .monaco-menu-container {
+	border-radius: 10px !important;
+	padding: 4px !important;
+	background: var(--vscode-menu-background) !important;
+	border: 1px solid var(--vscode-menu-border, transparent) !important;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--vscode-widget-border, transparent) !important;
+	backdrop-filter: blur(20px) saturate(180%) !important;
+	-webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+	overflow: hidden !important;
+}
+
+.monaco-workbench .monaco-menu .monaco-action-bar .action-item {
+	border-radius: 6px !important;
+	transition: background-color 80ms ease !important;
+}
+
+.monaco-workbench .editor-widget.suggest-widget {
+	border-radius: 10px !important;
+	background: var(--vscode-editorSuggestWidget-background) !important;
+	border: 1px solid var(--vscode-editorSuggestWidget-border, transparent) !important;
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25) !important;
+	backdrop-filter: blur(16px) !important;
+	-webkit-backdrop-filter: blur(16px) !important;
+	overflow: hidden !important;
+}
+
+.monaco-workbench .monaco-hover {
+	border-radius: 9px !important;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+	backdrop-filter: blur(16px) !important;
+	-webkit-backdrop-filter: blur(16px) !important;
+}
+
+.monaco-workbench .notifications-toasts .notification-toast {
+	border-radius: 12px !important;
+	border: 1px solid var(--vscode-notifications-border, transparent) !important;
+	box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3) !important;
+	backdrop-filter: blur(20px) !important;
+	-webkit-backdrop-filter: blur(20px) !important;
+}
+
+/* =============================================================================
+ * Lists & Trees (Explorer, SCM, Search, Symbols)
+ * ========================================================================== */
+
+.monaco-workbench .monaco-list .monaco-list-row {
+	transition: background-color 90ms ease, color 90ms ease !important;
+}
+
+/* Rounded rows only for floating menus, dropdowns, and quick input */
+.monaco-workbench .quick-input-widget .monaco-list .monaco-list-row,
+.monaco-workbench .monaco-menu .monaco-list-row {
+	border-radius: 6px !important;
+}
+
+/* Sidebar and panel lists are edge-to-edge; ensure 0 radius so rows sit flush */
+.monaco-workbench .part.sidebar .monaco-list .monaco-list-row,
+.monaco-workbench .part.panel .monaco-list .monaco-list-row,
+.monaco-workbench .part.auxiliarybar .monaco-list .monaco-list-row,
+.monaco-workbench .scm-view .monaco-list-row {
+	border-radius: 0 !important;
+}
+
+.monaco-workbench .monaco-list .monaco-list-row:not(.disabled):hover:not(.selected) {
+	background-color: var(--vscode-list-hoverBackground) !important;
+	color: var(--vscode-list-hoverForeground, var(--vscode-foreground)) !important;
+}
+
+.monaco-workbench .monaco-list .monaco-list-row.selected {
+	background-color: var(--vscode-list-activeSelectionBackground) !important;
+	color: var(--vscode-list-activeSelectionForeground) !important;
+}
+
+/* High contrast codicons across all list rows in light and dark modes */
+.monaco-workbench .monaco-list .monaco-list-row .codicon {
+	color: var(--vscode-icon-foreground);
+}
+
+.monaco-workbench .monaco-list:focus .monaco-list-row.selected .codicon,
+.monaco-workbench .monaco-list .monaco-list-row.selected .codicon {
+	color: var(--vscode-list-activeSelectionIconForeground, var(--vscode-list-activeSelectionForeground, inherit)) !important;
+}
+
+.monaco-workbench .monaco-list .monaco-list-row.focused .codicon,
+.monaco-workbench .monaco-list:not(:focus) .monaco-list-row.selected .codicon {
+	color: var(--vscode-list-inactiveSelectionIconForeground, var(--vscode-list-inactiveSelectionForeground, inherit)) !important;
+}
+
+/* Action toolbar items inside list rows and SCM views */
+.monaco-workbench .monaco-list .monaco-list-row .monaco-action-bar .codicon,
+.monaco-workbench .scm-view .scm-provider .monaco-action-bar .codicon,
+.monaco-workbench .scm-view .scm-provider .actions .codicon {
+	color: var(--vscode-icon-foreground, inherit) !important;
+}
+
+.monaco-workbench .monaco-list .monaco-list-row .monaco-action-bar .action-item:hover .codicon,
+.monaco-workbench .scm-view .scm-provider .monaco-action-bar .action-item:hover .codicon,
+.monaco-workbench .scm-view .scm-provider .actions .action-item:hover .codicon {
+	color: var(--vscode-foreground, inherit) !important;
+}
+
+/* =============================================================================
+ * Interactive Controls (Inputs, Buttons, Badges, Scrollbars)
+ * ========================================================================== */
+
+.monaco-workbench .monaco-inputbox {
+	border-radius: 8px !important;
+	padding: 4px 8px !important;
+	border: 1px solid var(--vscode-input-border, transparent) !important;
+	transition: border-color 120ms ease, box-shadow 120ms ease !important;
+}
+
+.monaco-workbench .monaco-inputbox.synthetic-focus {
+	border-color: var(--vscode-focusBorder) !important;
+	box-shadow: 0 0 0 1px var(--vscode-focusBorder) !important;
+}
+
+.monaco-workbench .monaco-button {
+	border-radius: 7px !important;
+	font-weight: 500 !important;
+	padding: 5px 12px !important;
+	transition: all 120ms ease !important;
+}
+
+.monaco-workbench .monaco-count-badge {
+	border-radius: 9999px !important;
+	font-size: 11px !important;
+	font-weight: 500 !important;
+	padding: 2px 7px !important;
+}
+
+.monaco-workbench .part.statusbar {
+	height: 26px !important;
+	line-height: 26px !important;
+	font-size: 11.5px !important;
+	border-top: 1px solid var(--vscode-statusBar-border, transparent) !important;
+}
+
+.monaco-workbench .part.statusbar .statusbar-item {
+	border-radius: 6px !important;
+	margin: 2px 2px !important;
+	transition: background-color 120ms ease !important;
+}
+
+/* Slim Smooth Scrollbars */
+.monaco-workbench .monaco-scrollable-element > .scrollbar > .slider {
+	border-radius: 9999px !important;
+	transition: background-color 150ms ease !important;
+}

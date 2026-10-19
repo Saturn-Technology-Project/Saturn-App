@@ -662,3 +662,13 @@
 .monaco-workbench.floating-panels.nopanel .monaco-sash.horizontal.maximum:not(.part .monaco-sash)::before {
 	top: calc(50% - (var(--vscode-sash-hover-size) / 2) - (var(--vscode-sash-size) / 2));
 }
+
+/* Saturn IDE: in compact density a single hairline divides the editor from the side bars, in place of
+ * the gap between floating cards. The facing edge takes the side bar border color. */
+.monaco-workbench.floating-panels.modern-ui-compact .part:is(.auxiliarybar, .sidebar).right {
+	--modern-ui-floating-card-seam-left-color: var(--vscode-sideBar-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.25)));
+}
+
+.monaco-workbench.floating-panels.modern-ui-compact .part:is(.auxiliarybar, .sidebar).left {
+	--modern-ui-floating-card-seam-right-color: var(--vscode-sideBar-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.25)));
+}

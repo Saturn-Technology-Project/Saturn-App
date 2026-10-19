@@ -53,7 +53,7 @@ import { IView } from '../../../../base/browser/ui/grid/grid.js';
 import { createInstantHoverDelegate } from '../../../../base/browser/ui/hover/hoverDelegateFactory.js';
 import { IBaseActionViewItemOptions } from '../../../../base/browser/ui/actionbar/actionViewItems.js';
 import { IHoverDelegate } from '../../../../base/browser/ui/hover/hoverDelegate.js';
-import { CommandsRegistry } from '../../../../platform/commands/common/commands.js';
+import { CommandsRegistry, ICommandService } from '../../../../platform/commands/common/commands.js';
 import { safeIntl } from '../../../../base/common/date.js';
 import { IsCompactTitleBarContext, TitleBarVisibleContext } from '../../../common/contextkeys.js';
 import { ServiceCollection } from '../../../../platform/instantiation/common/serviceCollection.js';
@@ -536,6 +536,27 @@ export class BrowserTitlebarPart extends Part implements ITitlebarPart {
 			this.actionToolBarElement = append(this.rightContent, $('div.action-toolbar-container'));
 			this.createActionToolBar();
 			this.createActionToolBarMenus();
+		}
+
+		// Saturn pill: opens the Saturn desktop app
+		if (hasCustomTitlebar(this.configurationService, this.titleBarStyle) && !this.isAuxiliary) {
+			const agentsWindowBtn = append(this.rightContent, $('button.saturn-agents-window-pill', {
+				type: 'button',
+				title: localize('saturn.openAppTitle', 'Open the Saturn app'),
+				'aria-label': localize('saturn.openAppAria', 'Open Saturn')
+			}));
+			const label = append(agentsWindowBtn, $('span.saturn-agents-window-label'));
+			label.textContent = localize('saturn.openAppLabel', 'Saturn');
+			const icon = append(agentsWindowBtn, $('span.saturn-agents-window-icon'));
+			icon.textContent = '↗';
+
+			this._register(addDisposableListener(agentsWindowBtn, EventType.CLICK, (e: MouseEvent) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.instantiationService.invokeFunction(accessor => {
+					accessor.get(ICommandService).executeCommand('saturn.openApp');
+				});
+			}));
 		}
 
 		// Window Controls Container

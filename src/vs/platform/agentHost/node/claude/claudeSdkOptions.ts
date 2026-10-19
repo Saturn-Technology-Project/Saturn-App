@@ -177,7 +177,8 @@ export async function buildOptions(
 		executable: process.execPath as 'node',
 		env: subprocessEnv,
 		abortController: input.abortController,
-		allowDangerouslySkipPermissions: true,
+		// Saturn IDE: never skip approvals (see claudeSessionConfigKeys.narrowClaudePermissionMode).
+		allowDangerouslySkipPermissions: false,
 		canUseTool: input.canUseTool,
 		onElicitation: input.onElicitation,
 		disallowedTools: ['WebSearch'],

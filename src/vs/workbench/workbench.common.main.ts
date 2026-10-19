@@ -351,6 +351,9 @@ import './contrib/tasks/browser/task.contribution.js';
 import './contrib/remote/common/remote.contribution.js';
 import './contrib/remote/browser/remote.contribution.js';
 
+// Saturn
+import './contrib/saturn/browser/saturn.contribution.js';
+
 // Emmet
 import './contrib/emmet/browser/emmet.contribution.js';
 

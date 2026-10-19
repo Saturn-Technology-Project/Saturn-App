@@ -28,7 +28,6 @@ import { compileNonNativeExtensionsBuildTask, compileNativeExtensionsBuildTask, 
 import { checkApiProposalNamesTask, copyCodiconsTask } from './lib/compilation.ts';
 import { ensureCopilotPlatformPackage, getCopilotExcludeFilter, getCopilotRuntimePrebuildFiles, getCopilotRuntimeVersion, getCopilotTgrepExcludeFilter, getRipgrepExcludeFilter, prepareBuiltInCopilotRipgrepShim, renderCopilotShimLauncher } from './lib/copilot.ts';
 import { ensureOSProxyResolverPlatformPackage, getOSProxyResolverExcludeFilter, getOSProxyResolverPlatformFiles } from './lib/osProxyResolver.ts';
-import { readAgentSdkResults } from './agent-sdk/common.ts';
 import { readDictationRuntimeResults } from './dictation-runtime/common.ts';
 import { promisify } from 'util';
 import globCallback from 'glob';
@@ -202,13 +201,6 @@ function packageTask(platform: string, arch: string, sourceFolderName: string, d
 					runtime: copilotRuntimeVersion,
 					sdk: getLockedPackageVersion('@github/copilot-sdk'),
 				};
-				// Stamp agentSdks from the per-platform results file produced
-				// by `build/agent-sdk/produce.ts` (an earlier pipeline step).
-				// Local dev: file absent → empty → not stamped.
-				const agentSdks = readAgentSdkResults();
-				if (Object.keys(agentSdks).length > 0) {
-					json.agentSdks = agentSdks;
-				}
 				// Stamp dictationRuntime from the per-platform results file
 				// produced by `build/dictation-runtime/produce.ts`. Local dev /
 				// unsupported target: file absent → undefined → not stamped.
@@ -558,6 +550,12 @@ function prepareCopilotRipgrepShimTask(platform: string, arch: string, destinati
 		const appNodeModulesDir = path.join(appBase, 'node_modules.asar.unpacked');
 
 		const builtInCopilotExtensionDir = path.join(appBase, 'extensions', 'copilot');
+		// Saturn IDE ships with AI features off (chat.disableAIFeatures), so a Copilot SDK whose layout differs
+		// from what this commit expects should not fail the whole build.
+		if (!fs.existsSync(path.join(builtInCopilotExtensionDir, 'node_modules', '@github', 'copilot', 'sdk'))) {
+			console.warn('[saturn] Copilot SDK not found in the packaged app; skipping the Copilot ripgrep shim.');
+			return;
+		}
 		prepareBuiltInCopilotRipgrepShim(platform, arch, builtInCopilotExtensionDir, appNodeModulesDir);
 	};
 }
@@ -625,7 +623,7 @@ BUILD_TARGETS.forEach(buildTarget => {
 			copyCodiconsTask,
 			cleanExtensionsBuildTask,
 			compileNonNativeExtensionsBuildTask,
-			compileCopilotExtensionBuildTask,
+			// Saturn IDE ships without GitHub Copilot: its harnesses are Local, Claude Code and Codex.
 			compileExtensionMediaBuildTask,
 			writeISODate('out-build'),
 			esbuildBundleTask,

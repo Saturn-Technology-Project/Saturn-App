@@ -23,10 +23,6 @@ import { IQuickInputService } from '../../../../platform/quickinput/common/quick
 import { WindowTitle } from './windowTitle.js';
 import { IEditorGroupsService } from '../../../services/editor/common/editorGroupsService.js';
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
-import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
-import { ChatAIDisabledSettingId } from '../../../../platform/chat/common/chatSettings.js';
-
-const AGENT_STATUS_ENABLED_SETTING = 'chat.agentsControl.enabled';
 
 export class CommandCenterControl {
 
@@ -104,7 +100,6 @@ class CommandCenterCenterViewItem extends BaseActionViewItem {
 		@IKeybindingService private _keybindingService: IKeybindingService,
 		@IInstantiationService private _instaService: IInstantiationService,
 		@IEditorGroupsService private _editorGroupService: IEditorGroupsService,
-		@IConfigurationService private _configurationService: IConfigurationService,
 	) {
 		super(undefined, _submenu.actions.find(action => action.id === 'workbench.action.quickOpenWithModes') ?? _submenu.actions[0], options);
 		this._hoverDelegate = options.hoverDelegate ?? getDefaultHoverDelegate('mouse');
@@ -117,7 +112,7 @@ class CommandCenterCenterViewItem extends BaseActionViewItem {
 
 		const hover = this._store.add(this._hoverService.setupManagedHover(this._hoverDelegate, container, this.getTooltip()));
 
-		// update label & tooltip when window title changes
+		// update the tooltip when the window title changes
 		this._store.add(this._windowTitle.onDidChange(() => {
 			hover.update(this.getTooltip());
 		}));
@@ -130,7 +125,6 @@ class CommandCenterCenterViewItem extends BaseActionViewItem {
 				groups.push([action]);
 			}
 		}
-
 
 		for (let i = 0; i < groups.length; i++) {
 			const group = groups[i];
@@ -159,51 +153,41 @@ class CommandCenterCenterViewItem extends BaseActionViewItem {
 
 						override render(container: HTMLElement): void {
 							super.render(container);
-							container.classList.toggle('command-center-quick-pick');
+							container.classList.toggle('command-center-quick-pick', true);
 							container.role = 'button';
-							container.setAttribute('aria-description', this.getTooltip());
+							container.setAttribute('aria-description', that.getTooltip());
 
-							// When agent control mode is 'compact', hide search icon and left-align the label
-							// Backward compat: the old boolean setting (true) and the new default (undefined) both map to compact
-							const aiFeaturesDisabled = that._configurationService.getValue<boolean>(ChatAIDisabledSettingId) === true;
-							const aiCustomizationsDisabled = that._configurationService.getValue<boolean>('disableAICustomizations') === true
-								|| that._configurationService.getValue<boolean>('workbench.disableAICustomizations') === true;
-							const forcedHidden = aiFeaturesDisabled && aiCustomizationsDisabled;
-							const agentControlValue = that._configurationService.getValue(AGENT_STATUS_ENABLED_SETTING);
-							const isCompactMode = !forcedHidden && (agentControlValue === true || agentControlValue === undefined || agentControlValue === 'compact');
-							container.classList.toggle('compact-mode', isCompactMode);
-
-							const action = this.action;
-
-							// icon (search) - hidden in compact mode
+							// icon (search)
 							const searchIcon = document.createElement('span');
 							searchIcon.ariaHidden = 'true';
-							searchIcon.className = action.class ?? '';
-							searchIcon.classList.add('search-icon');
+							searchIcon.className = 'codicon codicon-search search-icon';
 
-							// label: just workspace name and optional decorations
+							// label: "Search <workspace>"
 							const label = this._getLabel();
 							const labelElement = document.createElement('span');
 							labelElement.classList.add('search-label');
 							labelElement.textContent = label;
-							if (isCompactMode) {
-								reset(container, labelElement);
+
+							// shortcut, as the keybinding service renders it for this platform (⌘P, Ctrl+P, …)
+							// (the search field's own action, quickOpenWithModes, has no shortcut; Quick Open is what ⌘P runs)
+							const kb = that._keybindingService.lookupKeybinding('workbench.action.quickOpen')?.getLabel();
+							if (kb) {
+								const kbElement = document.createElement('span');
+								kbElement.classList.add('search-keybinding');
+								kbElement.textContent = kb;
+								reset(container, searchIcon, labelElement, kbElement);
 							} else {
 								reset(container, searchIcon, labelElement);
 							}
 
-							const hover = this._store.add(that._hoverService.setupManagedHover(that._hoverDelegate, container, this.getTooltip()));
-
-							// update label & tooltip when window title changes
+							// update label when window title changes
 							this._store.add(that._windowTitle.onDidChange(() => {
-								hover.update(this.getTooltip());
 								labelElement.textContent = this._getLabel();
 							}));
 
-							// update label & tooltip when tabs visibility changes
+							// update label when tabs visibility changes
 							this._store.add(that._editorGroupService.onDidChangeEditorPartOptions(({ newPartOptions, oldPartOptions }) => {
 								if (newPartOptions.showTabs !== oldPartOptions.showTabs) {
-									hover.update(this.getTooltip());
 									labelElement.textContent = this._getLabel();
 								}
 							}));
@@ -215,20 +199,18 @@ class CommandCenterCenterViewItem extends BaseActionViewItem {
 
 						private _getLabel(): string {
 							const { prefix, suffix } = that._windowTitle.getTitleDecorations();
-							let label = that._windowTitle.workspaceName;
+							const ws = that._windowTitle.workspaceName;
+							let label = ws ? localize('searchWorkspace', "Search {0}", ws) : localize('label.dfl', "Search files, commands...");
 							if (that._windowTitle.isCustomTitleFormat()) {
 								label = that._windowTitle.getWindowTitle();
-							} else if (that._editorGroupService.partOptions.showTabs === 'none') {
-								label = that._windowTitle.fileName ?? label;
-							}
-							if (!label) {
-								label = localize('label.dfl', "Search");
+							} else if (that._editorGroupService.partOptions.showTabs === 'none' && that._windowTitle.fileName) {
+								label = localize('searchFile', "Search {0}", that._windowTitle.fileName);
 							}
 							if (prefix) {
-								label = localize('label1', "{0} {1}", prefix, label);
+								label = `${prefix} ${label}`;
 							}
 							if (suffix) {
-								label = localize('label2', "{0} {1}", label, suffix);
+								label = `${label} ${suffix}`;
 							}
 
 							return label.replaceAll(/\r\n|\r|\n/g, '\u23CE');
@@ -238,7 +220,6 @@ class CommandCenterCenterViewItem extends BaseActionViewItem {
 			});
 			toolbar.setActions(group);
 			this._store.add(toolbar);
-
 
 			// spacer
 			if (i < groups.length - 1) {
@@ -252,14 +233,11 @@ class CommandCenterCenterViewItem extends BaseActionViewItem {
 	}
 
 	protected override getTooltip() {
-
-		// tooltip: full windowTitle
+		// tooltip: full window title
 		const kb = this._keybindingService.lookupKeybinding(this.action.id)?.getLabel();
-		const title = kb
+		return kb
 			? localize('title', "Search {0} ({1}) \u2014 {2}", this._windowTitle.workspaceName, kb, this._windowTitle.value)
 			: localize('title2', "Search {0} \u2014 {1}", this._windowTitle.workspaceName, this._windowTitle.value);
-
-		return title;
 	}
 }
 

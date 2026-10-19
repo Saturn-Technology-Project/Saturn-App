@@ -33,7 +33,7 @@ import { ChatAgentLocation, ChatModeKind } from '../common/constants.js';
 import { ChatViewId, ChatViewContainerId } from './chat.js';
 import { ChatViewPane } from './widgetHosts/viewPane/chatViewPane.js';
 import { ChatUpdateRequiredView } from './viewsWelcome/chatUpdateRequiredView.js';
-import { MANAGED_SETTINGS_UPDATE_VIEW_ID, ManagedSettingsUpdateRequiredContext } from '../../../services/policies/common/managedSettingsUpdate.js';
+import { MANAGED_SETTINGS_UPDATE_VIEW_ID } from '../../../services/policies/common/managedSettingsUpdate.js';
 
 // --- Chat Container &  View Registration
 
@@ -47,7 +47,9 @@ const chatViewContainer: ViewContainer = Registry.as<IViewContainersRegistry>(Vi
 	storageId: ChatViewContainerId,
 	hideIfEmpty: true,
 	order: 1,
-}, ViewContainerLocation.AuxiliaryBar, { isDefault: true, doNotRegisterOpenCommand: true });
+// Saturn IDE: not the default. Its only view is switched off, so as the default it opened an empty panel;
+// the Saturn Claude Code panel is the secondary side bar's default instead.
+}, ViewContainerLocation.AuxiliaryBar, { isDefault: false, doNotRegisterOpenCommand: true });
 
 const chatViewDescriptor: IViewDescriptor = {
 	id: ChatViewId,
@@ -70,17 +72,7 @@ const chatViewDescriptor: IViewDescriptor = {
 		order: 1
 	},
 	ctorDescriptor: new SyncDescriptor(ChatViewPane),
-	when: ContextKeyExpr.and(
-		ChatContextKeys.accountPolicyGateActive.negate(),
-		ContextKeyExpr.or(
-			ContextKeyExpr.and(
-				ChatContextKeys.Setup.hidden.negate(),
-				ChatContextKeys.Setup.disabledInWorkspace.negate(),
-			),
-			ChatContextKeys.panelParticipantRegistered,
-			ChatContextKeys.extensionInvalid
-		)
-	)
+	when: ContextKeyExpr.false()
 };
 Registry.as<IViewsRegistry>(ViewExtensions.ViewsRegistry).registerViews([chatViewDescriptor], chatViewContainer);
 
@@ -92,7 +84,7 @@ Registry.as<IViewsRegistry>(ViewExtensions.ViewsRegistry).registerViews([{
 	canToggleVisibility: false,
 	canMoveView: false,
 	ctorDescriptor: new SyncDescriptor(ChatUpdateRequiredView),
-	when: ManagedSettingsUpdateRequiredContext,
+	when: ContextKeyExpr.false(),
 	openCommandActionDescriptor: {
 		id: 'workbench.action.chat.showUpdateRequired',
 		title: localize2('chat.updateRequiredView', "Chat Update Requirement"),

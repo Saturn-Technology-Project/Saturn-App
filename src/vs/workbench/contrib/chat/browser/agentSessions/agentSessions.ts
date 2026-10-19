@@ -65,7 +65,7 @@ export function getAgentSessionProviderName(provider: AgentSessionTarget): strin
 		case AgentSessionProviders.Cloud:
 			return localize('chat.session.providerLabel.cloud', "Cloud");
 		case AgentSessionProviders.AgentHostClaude:
-			return 'Claude';
+			return 'Claude Code';
 		case AgentSessionProviders.Codex:
 		case AgentSessionProviders.AgentHostCodex:
 			return 'Codex';

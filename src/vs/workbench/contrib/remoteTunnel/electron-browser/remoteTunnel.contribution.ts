@@ -196,6 +196,9 @@ export class RemoteTunnelWorkbenchContribution extends Disposable implements IWo
 
 		const remoteExtension = this.serverConfiguration.extension;
 		const shouldRecommend = async () => {
+			if (!Boolean(remoteExtension)) {
+				return false;
+			}
 			if (this.storageService.getBoolean(REMOTE_TUNNEL_EXTENSION_RECOMMENDED_KEY, StorageScope.APPLICATION)) {
 				return false;
 			}
