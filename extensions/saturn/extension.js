@@ -13,8 +13,12 @@ const shared = { content: new agentTools.DiffContent(), terminal: new agentTools
 
 /** Talks to the local Saturn runtime (the same one the Saturn app uses). */
 class Runtime {
+	/** saturn.runtimeUrl when set; else the runtime that opened this IDE (SATURN_RUNTIME_PORT); else the default. */
 	base() {
-		return String(vscode.workspace.getConfiguration('saturn').get('runtimeUrl') || 'http://127.0.0.1:4700').replace(/\/$/, '');
+		const setting = vscode.workspace.getConfiguration('saturn').inspect('runtimeUrl');
+		const chosen = setting && (setting.workspaceFolderValue || setting.workspaceValue || setting.globalValue);
+		const port = process.env.SATURN_RUNTIME_PORT;
+		return String(chosen || (port ? `http://127.0.0.1:${port}` : 'http://127.0.0.1:4700')).replace(/\/$/, '');
 	}
 
 	/** The runtime session token, from the 0600 token file; the runtime rejects requests without it. */
@@ -3027,6 +3031,7 @@ function activate(context) {
 	const runtime = new Runtime();
 	const view = new AgentView(context, runtime);
 	registerEditorAi(context, runtime);
+	reportToRuntime(context, runtime);
 	// The side bar is laid out before extensions load, so it starts hidden as an empty container. Show the
 	// Saturn panel once on the first launch; after that the user's own layout is remembered.
 	if (!context.globalState.get('saturn.panelRevealed')) {
@@ -3073,6 +3078,25 @@ function activate(context) {
 			});
 		}),
 	);
+}
+
+/**
+ * Tells the runtime this IDE window is open (every 15 s, and once more on close), so the Saturn app keeps the
+ * runtime running while the IDE uses it and stops it once every Saturn window and IDE window is closed.
+ * @param {vscode.ExtensionContext} context @param {Runtime} runtime
+ */
+function reportToRuntime(context, runtime) {
+	// vscode.env.sessionId is a fixed placeholder in this build, so each window makes its own id.
+	const id = `ide:${process.pid}:${Math.random().toString(36).slice(2, 10)}`;
+	const beat = () => runtime.request('/runtime/clients', { method: 'POST', body: JSON.stringify({ id, kind: 'ide' }) }).catch(() => undefined);
+	void beat();
+	const timer = setInterval(beat, 15000);
+	context.subscriptions.push({
+		dispose: () => {
+			clearInterval(timer);
+			void runtime.request(`/runtime/clients/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => undefined);
+		},
+	});
 }
 
 /** @type {vscode.WebviewPanel | undefined} */
