@@ -1,32 +1,91 @@
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
-import { GENERAL_SKILLS_ID, SATURN_AGENT_ID } from "../domain/builtin.js";
-import type { Agent, ModelConnection, Run, RunAction } from "../domain/model.js";
-import { autonomyLine, behaviorOf, chatReply, clip, explainRunError, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
-import { DISCONNECT_ERROR, type ToolCall } from "./runtime-state.js";
-import { runGeneralSkill } from "../infrastructure/skills.js";
-import { completeChat } from "../infrastructure/llm.js";
+import { GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID } from "../domain/builtin.js";
+import type { Agent, Conversation, ModelConnection, Run, RunAction } from "../domain/model.js";
+import { autonomyLine, autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isSensitiveOperation, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
+import type { ToolCall } from "./runtime-state.js";
+import type { ChatMessage } from "../infrastructure/llm.js";
+import { runGeneralSkill, runComputerUseSkill, runOriginSkill, runAntigravitySkill } from "../infrastructure/skills.js";
+import { SpanKind, instruments, seconds, traced } from "../infrastructure/telemetry.js";
+import { budgetHistory, compactActions } from "../domain/context.js";
 import type { RuntimeKernel } from "./kernel.js";
 
-/** One agent turn: the model call, built-in skills, MCP, and approval. */
+/** computer_wait up to this long blocks inline; longer waits suspend the run and the scheduler resumes it. */
+export const INLINE_WAIT_MS = 30_000;
+/** One computer_wait call may suspend the run for at most an hour (the same ceiling as Claude Code's scheduled wake-ups). */
+export const MAX_WAIT_MS = 3_600_000;
+/** Long waits per run, so a polling loop cannot run (and bill) forever. */
+export const MAX_SLEEPS = 48;
+
+/** One agent turn: the model call, built-in skills, and MCP. */
 export class RunService {
   constructor(private readonly kernel: RuntimeKernel) {}
 
-  async startRun(agentId: string, input: string): Promise<Run> {
+  async startRun(agentId: string, input: string, threadId?: string, projectId?: string): Promise<Run> {
     const agent = this.kernel.getAgent(agentId);
     this.kernel.guard(agent.id);
     const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
     if (!model) throw new HttpError(409, "Agent has no model connection");
-    const account = this.kernel.store.state.account;
+    this.kernel.llm.requireKey(model);
+
+    // A project chat only runs once the user has allowed access to its folder.
+    const threadProject = threadId ? (this.kernel.store.state.threads ?? []).find((t) => t.id === threadId)?.projectId : projectId;
+    if (threadProject) this.kernel.projects.workdir(threadProject);
+
+    const now = new Date().toISOString();
+    let effectiveThreadId = threadId;
+
+    if (!effectiveThreadId && projectId) {
+      effectiveThreadId = (await this.createThread(agentId, input.trim().split("\n")[0].slice(0, 45) || "New Chat", projectId)).id;
+    } else if (!effectiveThreadId) {
+      const existingThread = (this.kernel.store.state.threads ?? []).find((t) => t.agentId === agentId && !t.projectId);
+      if (existingThread) {
+        effectiveThreadId = existingThread.id;
+      } else {
+        const title = input.trim().split("\n")[0].slice(0, 45) || "Conversation";
+        const thread: Conversation = {
+          id: newId("thread"),
+          agentId,
+          title,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await this.kernel.store.update((state) => {
+          if (!state.threads) state.threads = [];
+          state.threads.unshift(thread);
+        });
+        effectiveThreadId = thread.id;
+      }
+    } else {
+      await this.kernel.store.update((state) => {
+        if (!state.threads) state.threads = [];
+        const thread = state.threads.find((t) => t.id === effectiveThreadId);
+        if (thread) {
+          thread.updatedAt = now;
+          if (thread.title === "New Conversation" || thread.title === "New Chat" || thread.title === "Untitled Chat") {
+            thread.title = input.trim().split("\n")[0].slice(0, 45) || thread.title;
+          }
+        } else {
+          state.threads.unshift({
+            id: effectiveThreadId!,
+            agentId,
+            title: input.trim().split("\n")[0].slice(0, 45) || "Conversation",
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+      });
+    }
+
     const run: Run = {
       id: newId("run"),
       agentId,
-      userId: account?.userId,
-      organizationId: account?.organizationId,
+      threadId: effectiveThreadId,
       input,
       status: "running",
       output: "",
       thinking: "",
+      thoughts: [],
       actions: [],
       generation: 0,
     };
@@ -34,14 +93,73 @@ export class RunService {
       state.runs.unshift(run);
     });
     void this.advance(run.id);
-    void this.pushMessage(run);
     return run;
   }
 
+  /**
+   * One agent's turn in a group chat. It belongs to no chat thread: the group transcript travels in `input`,
+   * so earlier turns are not replayed as history.
+   */
+  async startGroupRun(agentId: string, input: string, groupId: string, groupMessageId: string): Promise<Run> {
+    const agent = this.kernel.getAgent(agentId);
+    this.kernel.guard(agent.id);
+    const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
+    if (!model) throw new HttpError(409, "Agent has no model connection");
+    this.kernel.llm.requireKey(model);
+    const run: Run = {
+      id: newId("run"),
+      agentId,
+      groupId,
+      groupMessageId,
+      input,
+      status: "running",
+      output: "",
+      thinking: "",
+      thoughts: [],
+      actions: [],
+      generation: 0,
+    };
+    await this.kernel.store.update((state) => {
+      state.runs.unshift(run);
+    });
+    void this.advance(run.id);
+    return run;
+  }
+
+  /**
+   * Runs still marked running or queued at startup were cut off when the runtime last stopped;
+   * nothing resumes them, so they are failed with the reason instead of spinning forever.
+   */
+  async recoverInterrupted(): Promise<number> {
+    // A Claude Code run waiting on an approval lived in an SDK process the restart ended, so it is stuck too.
+    const claudeCodeAgents = new Set(
+      this.kernel.store.state.agents
+        .filter((agent) => this.kernel.store.state.models.find((model) => model.id === agent.modelConnectionId)?.provider === "claude-code")
+        .map((agent) => agent.id),
+    );
+    const stuck = this.kernel.store.state.runs.filter(
+      (run) => run.status === "running" || run.status === "queued" || (run.status === "waiting_approval" && claudeCodeAgents.has(run.agentId)),
+    );
+    if (!stuck.length) return 0;
+    const ids = new Set(stuck.map((run) => run.id));
+    await this.kernel.store.update((state) => {
+      for (const run of state.runs) {
+        if (!ids.has(run.id)) continue;
+        run.status = "failed";
+        run.error = "Interrupted when the runtime restarted. Send the message again to rerun it.";
+        run.generation = (run.generation ?? 0) + 1;
+      }
+    });
+    for (const run of stuck) {
+      const name = this.kernel.store.state.agents.find((agent) => agent.id === run.agentId)?.name ?? run.agentId;
+      this.kernel.log("agent", "warning", `${name}: a run was interrupted by the last restart and marked failed`, { "saturn.run.id": run.id });
+    }
+    return stuck.length;
+  }
+
   async pendingTasks(): Promise<{ id: string; agentId: string; agentName: string; input: string; toolId: string }[]> {
-    await this.syncSignedInState();
     return this.kernel.store.state.runs
-      .filter((run) => run.status === "waiting_approval" && this.ownsRun(run))
+      .filter((run) => run.status === "waiting_approval")
       .map((run) => ({
         id: run.id,
         agentId: run.agentId,
@@ -51,29 +169,94 @@ export class RunService {
       }));
   }
 
-  async messagesFor(agentId: string): Promise<Run[]> {
+  async messagesFor(agentId: string, threadId?: string): Promise<Run[]> {
     this.kernel.getAgent(agentId);
-    await this.syncSignedInState();
-    return this.kernel.store.state.runs.filter((item) => item.agentId === agentId && this.ownsRun(item)).slice().reverse();
+    let list = this.kernel.store.state.runs.filter((item) => item.agentId === agentId && !item.groupId);
+    if (threadId) {
+      list = list.filter((item) => item.threadId === threadId);
+    }
+    return list.slice().reverse();
   }
 
-  async syncSignedInState(): Promise<void> {
-    if (!this.kernel.store.state.account || !this.kernel.store.secret("saturn-account") || !this.kernel.store.state.session.apiBase) return;
-    if (Date.now() - this.kernel.syncedAt < 8000) return;
-    this.kernel.syncedAt = Date.now();
-    try {
-      await this.kernel.session.refreshAccount();
-    } catch (error) {
-      this.kernel.log("cloud", "warning", error instanceof Error ? error.message : "Could not refresh the account");
+  async listThreads(agentId: string): Promise<Conversation[]> {
+    this.kernel.getAgent(agentId);
+    let threads = (this.kernel.store.state.threads ?? []).filter((t) => t.agentId === agentId);
+    const legacyRuns = this.kernel.store.state.runs.filter((r) => r.agentId === agentId && !r.threadId && !r.groupId);
+    if (legacyRuns.length > 0) {
+      const now = new Date().toISOString();
+      const firstRun = legacyRuns.at(-1);
+      const title = firstRun?.input.trim().split("\n")[0].slice(0, 45) || "Previous Conversation";
+      const legacyThread: Conversation = {
+        id: `legacy_${agentId}`,
+        agentId,
+        title,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await this.kernel.store.update((state) => {
+        if (!state.threads) state.threads = [];
+        if (!state.threads.some((t) => t.id === legacyThread.id)) {
+          state.threads.unshift(legacyThread);
+        }
+        for (const run of state.runs) {
+          if (run.agentId === agentId && !run.threadId && !run.groupId) {
+            run.threadId = legacyThread.id;
+          }
+        }
+      });
+      threads = (this.kernel.store.state.threads ?? []).filter((t) => t.agentId === agentId);
     }
-    await this.pullMessages();
+    return threads.slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  }
+
+  async createThread(agentId: string, title?: string, projectId?: string): Promise<Conversation> {
+    this.kernel.getAgent(agentId);
+    if (projectId && !(this.kernel.store.state.projects ?? []).some((project) => project.id === projectId)) {
+      throw new HttpError(404, "Project not found");
+    }
+    const now = new Date().toISOString();
+    const thread: Conversation = {
+      id: newId("thread"),
+      agentId,
+      ...(projectId ? { projectId } : {}),
+      title: title?.trim() || "New Chat",
+      createdAt: now,
+      updatedAt: now,
+    };
+    await this.kernel.store.update((state) => {
+      if (!state.threads) state.threads = [];
+      state.threads.unshift(thread);
+    });
+    return thread;
+  }
+
+  async renameThread(threadId: string, title: string): Promise<Conversation> {
+    const trimmed = title.trim();
+    if (!trimmed) throw new HttpError(400, "Title is required");
+    let updated: Conversation | undefined;
+    await this.kernel.store.update((state) => {
+      const thread = (state.threads ?? []).find((t) => t.id === threadId);
+      if (!thread) throw new HttpError(404, "Conversation not found");
+      thread.title = trimmed;
+      thread.updatedAt = new Date().toISOString();
+      updated = thread;
+    });
+    return updated!;
+  }
+
+  async deleteThread(threadId: string): Promise<void> {
+    const removed = this.kernel.store.state.runs.filter((r) => r.threadId === threadId).map((r) => r.id);
+    await this.kernel.store.update((state) => {
+      state.threads = (state.threads ?? []).filter((t) => t.id !== threadId);
+      state.runs = state.runs.filter((r) => r.threadId !== threadId);
+    });
+    await this.kernel.checkpoints.forget(removed);
   }
 
   async reviseRun(id: string, input: string): Promise<{ run: Run; removed: string[] }> {
     const text = input.trim();
     if (!text) throw new HttpError(400, "Message is empty");
     const existing = this.kernel.getRun(id);
-    if (!this.ownsRun(existing)) throw new HttpError(404, "Run not found");
     this.kernel.guard(existing.agentId);
     const agent = this.kernel.getAgent(existing.agentId);
     if (!this.kernel.store.state.models.some((item) => item.id === agent.modelConnectionId)) {
@@ -84,50 +267,180 @@ export class RunService {
       const index = state.runs.findIndex((item) => item.id === id);
       const run = state.runs[index];
       if (!run) return;
-      const later = state.runs.slice(0, index).filter((item) => item.agentId === run.agentId && (item.userId ?? "") === (run.userId ?? "") && (item.organizationId ?? "") === (run.organizationId ?? ""));
+      const later = state.runs.slice(0, index).filter((item) => item.agentId === run.agentId && (run.threadId ? item.threadId === run.threadId : true));
       removed.push(...later.map((item) => item.id));
       if (removed.length) state.runs = state.runs.filter((item) => !removed.includes(item.id));
       run.input = text;
       run.output = "";
       run.thinking = "";
+      run.thoughts = [];
       run.actions = [];
       delete run.error;
       run.status = "running";
       run.generation = (run.generation ?? 0) + 1;
     });
-    this.kernel.dropFlight([id, ...removed]);
     const run = this.kernel.getRun(id);
+    const dropped = removed.length ? `, dropping ${removed.length} later ${removed.length === 1 ? "turn" : "turns"}` : "";
+    this.kernel.log("agent", "info", `${agent.name}: message edited, rerunning that turn${dropped}`, { "saturn.run.id": id });
     void this.advance(run.id);
-    void this.pushMessage(run);
     return { run, removed };
+  }
+
+  private wakeTimer: NodeJS.Timeout | null = null;
+
+  /** Resumes sleeping runs whose wake time has come; also catches up on runs that slept through a restart. */
+  startWakeups(intervalMs = 5_000): void {
+    if (this.wakeTimer) return;
+    void this.wakeDue();
+    this.wakeTimer = setInterval(() => void this.wakeDue(), intervalMs);
+    this.wakeTimer.unref();
+  }
+
+  stopWakeups(): void {
+    if (this.wakeTimer) clearInterval(this.wakeTimer);
+    this.wakeTimer = null;
+  }
+
+  async wakeDue(now = new Date()): Promise<string[]> {
+    const due = this.kernel.store.state.runs.filter((run) => run.status === "sleeping" && run.wake && Date.parse(run.wake.at) <= now.getTime());
+    for (const run of due) await this.resume(run.id, now, "on_time");
+    return due.map((run) => run.id);
+  }
+
+  /** Wakes a sleeping run now (the user's "Wake now"), handing the model how long it actually waited. */
+  async wakeRun(id: string, now = new Date()): Promise<Run> {
+    const run = this.kernel.getRun(id);
+    if (run.status !== "sleeping") throw new HttpError(409, "This run is not waiting");
+    await this.resume(id, now, "early");
+    return this.kernel.getRun(id);
+  }
+
+  private async resume(id: string, now: Date, how: "on_time" | "early"): Promise<void> {
+    let resumed = false;
+    await this.kernel.store.update((state) => {
+      const run = state.runs.find((item) => item.id === id);
+      if (!run || run.status !== "sleeping" || !run.wake) return;
+      const wake = run.wake;
+      const action = run.actions.find((item) => item.id === wake.actionId);
+      if (action) {
+        action.status = "completed";
+        action.result = {
+          waited_ms: Math.max(0, now.getTime() - Date.parse(wake.since)),
+          requested_ms: wake.requestedMs,
+          ...(wake.reason ? { reason: wake.reason } : {}),
+          woke: how === "early" ? "early, by the user" : "on time",
+          now: now.toISOString(),
+        };
+      }
+      run.status = "running";
+      run.sleeps = (run.sleeps ?? 0) + 1;
+      delete run.wake;
+      resumed = true;
+    });
+    if (!resumed) return;
+    const run = this.kernel.getRun(id);
+    const name = this.kernel.store.state.agents.find((agent) => agent.id === run.agentId)?.name ?? run.agentId;
+    this.kernel.log("agent", "info", `${name} resumed after waiting${how === "early" ? " (woken early)" : ""}`, { "saturn.run.id": id });
+    void this.advance(id);
+  }
+
+  /** Suspends the run on a long computer_wait. Returns the action recorded in its place. */
+  private async sleep(agent: Agent, runId: string, generation: number, call: ToolCall, actions: RunAction[]): Promise<RunAction> {
+    const run = this.kernel.getRun(runId);
+    const requested = Math.min(MAX_WAIT_MS, Math.max(0, Number(call.arguments.ms ?? call.arguments.duration_ms ?? 0)));
+    const reason = typeof call.arguments.reason === "string" ? call.arguments.reason.slice(0, 300) : undefined;
+    const action: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "sleeping", ...(reason ? { reason } : {}) };
+    if (call.thoughtSignature) action.thoughtSignature = call.thoughtSignature;
+    if ((run.sleeps ?? 0) >= MAX_SLEEPS) {
+      action.status = "completed";
+      action.result = { error: `This run has already waited ${MAX_SLEEPS} times; finish with what you have or ask the user.` };
+      return action;
+    }
+    const since = new Date();
+    const at = new Date(since.getTime() + requested);
+    actions.push(action);
+    await this.kernel.store.update((state) => {
+      const current = state.runs.find((item) => item.id === runId);
+      if (!current || (current.generation ?? 0) !== generation) return;
+      current.actions = [...actions];
+      current.status = "sleeping";
+      current.wake = { at: at.toISOString(), since: since.toISOString(), actionId: action.id, requestedMs: requested, ...(reason ? { reason } : {}) };
+    });
+    const minutes = Math.round(requested / 6_000) / 10;
+    this.kernel.log("agent", "info", `${agent.name} is waiting ${minutes} min${reason ? `: ${clip(reason, 80)}` : ""}`, { "saturn.run.id": runId });
+    return action;
   }
 
   async stopRun(id: string): Promise<Run> {
     const run = this.kernel.getRun(id);
-    if (!this.ownsRun(run)) throw new HttpError(404, "Run not found");
-    if (run.status !== "running" && run.status !== "queued" && run.status !== "waiting_approval") return run;
+    if (run.status !== "running" && run.status !== "queued" && run.status !== "waiting_approval" && run.status !== "sleeping") return run;
     const name = this.kernel.store.state.agents.find((item) => item.id === run.agentId)?.name ?? run.agentId;
     for (const [key, controller] of this.kernel.stops) {
       if (!key.startsWith(`${id}:`)) continue;
       controller.abort();
       this.kernel.stops.delete(key);
     }
-    this.kernel.dropFlight([id]);
     await this.kernel.store.update((state) => {
       const current = state.runs.find((item) => item.id === id);
       if (!current) return;
-      if (current.status !== "running" && current.status !== "queued" && current.status !== "waiting_approval") return;
+      if (current.status !== "running" && current.status !== "queued" && current.status !== "waiting_approval" && current.status !== "sleeping") return;
       current.status = "cancelled";
+      delete current.wake;
       current.generation = (current.generation ?? 0) + 1;
       current.error = undefined;
     });
     const stopped = this.kernel.getRun(id);
     this.kernel.log("agent", "info", `${name} stopped`);
-    void this.pushMessage(stopped);
     return stopped;
   }
 
+  /** One tool call, as an "execute_tool <tool>" span plus saturn.tool.calls / saturn.tool.duration. */
   async executeTool(input: {
+    agentId: string;
+    toolId: string;
+    arguments: Record<string, unknown>;
+    runId: string;
+    actionId: string;
+    signal?: AbortSignal;
+  }): Promise<RunAction> {
+    const agent = this.kernel.store.state.agents.find((item) => item.id === input.agentId);
+    const server = agent ? this.toolServer(agent, input.toolId) : null;
+    const kind = server === GENERAL_SKILLS_ID ? "general_skill" : server ? "mcp" : "unknown";
+    return traced(`execute_tool ${input.toolId}`, {
+      attributes: {
+        "gen_ai.operation.name": "execute_tool",
+        "gen_ai.tool.name": input.toolId,
+        "gen_ai.tool.call.id": input.actionId,
+        "gen_ai.agent.id": input.agentId,
+        "saturn.run.id": input.runId,
+        "saturn.tool.kind": kind,
+        ...(server ? { "saturn.tool.server": server } : {}),
+      },
+    }, async (span) => {
+      const startedAt = performance.now();
+      let status = "failed";
+      try {
+        const action = await this.runTool(input);
+        status = action.status;
+        span.setAttribute("saturn.tool.status", status);
+        if (action.reason) span.setAttribute("saturn.tool.reason", clip(action.reason, 200));
+        return action;
+      } finally {
+        const attributes = { "gen_ai.tool.name": input.toolId, "saturn.tool.kind": kind, "saturn.tool.status": status };
+        instruments().tools.add(1, attributes);
+        instruments().toolDuration.record(seconds(startedAt), attributes);
+      }
+    });
+  }
+
+  /** The project folder a run works in, or undefined for chats outside a project (the private sandbox). */
+  private workdirOf(runId: string): string | undefined {
+    const run = this.kernel.store.state.runs.find((item) => item.id === runId);
+    const projectId = run?.threadId ? (this.kernel.store.state.threads ?? []).find((t) => t.id === run.threadId)?.projectId : undefined;
+    return projectId ? this.kernel.projects.workdir(projectId) : undefined;
+  }
+
+  private async runTool(input: {
     agentId: string;
     toolId: string;
     arguments: Record<string, unknown>;
@@ -143,11 +456,12 @@ export class RunService {
     }
     if (serverId === GENERAL_SKILLS_ID) {
       try {
+        const workdir = this.workdirOf(input.runId);
         const result = await runGeneralSkill(this.kernel.store.root, input.toolId, input.arguments, async (toolId, args) => {
           const action = await this.executeTool({ ...input, toolId, arguments: args, actionId: newId("act") });
           if (action.status !== "completed") throw new Error(action.reason || "MCP call failed");
           return action.result;
-        }, input.signal);
+        }, input.signal, workdir, workdir ? this.kernel.checkpoints.forRun(input.runId, workdir) : undefined);
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
         return {
@@ -159,13 +473,98 @@ export class RunService {
         };
       }
     }
+    if (serverId === CURSOR_COMPUTER_USE_ID || serverId === "cursor-computer-use") {
+      try {
+        const result = await runComputerUseSkill(this.kernel.store.root, input.toolId, input.arguments, input.signal);
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
+      } catch (error) {
+        return {
+          id: input.actionId,
+          toolId: input.toolId,
+          arguments: input.arguments,
+          status: "failed",
+          reason: error instanceof Error ? error.message : "Computer Use skill failed",
+        };
+      }
+    }
+    if (serverId === CURSOR_ORIGIN_ID || serverId === "cursor-origin") {
+      try {
+        const workdir = this.workdirOf(input.runId);
+        const result = await runOriginSkill(this.kernel.store.root, input.toolId, input.arguments, input.signal, {
+          secret: (id) => this.kernel.store.secret(id),
+          ...(workdir ? { repoDir: workdir } : {}),
+        });
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
+      } catch (error) {
+        return {
+          id: input.actionId,
+          toolId: input.toolId,
+          arguments: input.arguments,
+          status: "failed",
+          reason: error instanceof Error ? error.message : "Origin skill failed",
+        };
+      }
+    }
+    if (serverId === ANTIGRAVITY_SKILLS_ID || serverId === "antigravity-skills") {
+      try {
+        const result = await runAntigravitySkill(this.kernel.store.root, input.toolId, input.arguments, input.signal, {
+          automations: this.kernel.automations,
+          agentId: input.agentId,
+        });
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
+      } catch (error) {
+        return {
+          id: input.actionId,
+          toolId: input.toolId,
+          arguments: input.arguments,
+          status: "failed",
+          reason: error instanceof Error ? error.message : "Automations skill failed",
+        };
+      }
+    }
     return this.callMcp(serverId, input, input.signal);
   }
 
+  /**
+   * One pass of a run, as an "invoke_agent <agent>" span. When the pass ends the run's state is counted
+   * in saturn.agent.runs (completed, failed, cancelled, waiting_approval, or superseded by an edit).
+   */
   async advance(runId: string): Promise<void> {
     const current = this.kernel.getRun(runId);
     if (current.status === "cancelled") return;
     const generation = current.generation ?? 0;
+    const agent = this.kernel.store.state.agents.find((item) => item.id === current.agentId);
+    const model = this.kernel.store.state.models.find((item) => item.id === agent?.modelConnectionId);
+    await traced(`invoke_agent ${agent?.name ?? current.agentId}`, {
+      kind: SpanKind.INTERNAL,
+      attributes: {
+        "gen_ai.operation.name": "invoke_agent",
+        "gen_ai.agent.id": current.agentId,
+        "gen_ai.agent.name": agent?.name ?? "",
+        "saturn.run.id": runId,
+        "saturn.run.generation": generation,
+        ...(model ? { "gen_ai.request.model": model.model || model.name, "gen_ai.provider.name": model.provider } : {}),
+        ...(agent?.autonomy ? { "saturn.agent.autonomy": agent.autonomy } : {}),
+      },
+    }, async (span) => {
+      const startedAt = performance.now();
+      try {
+        await this.pass(runId, generation);
+      } finally {
+        const run = this.kernel.store.state.runs.find((item) => item.id === runId);
+        const status = !run ? "deleted" : (run.generation ?? 0) !== generation ? "superseded" : run.status;
+        span.setAttribute("saturn.run.status", status);
+        span.setAttribute("saturn.run.actions", run?.actions.length ?? 0);
+        if (status === "failed") span.setAttribute("error.type", "run_failed");
+        if (run?.error) span.setAttribute("saturn.run.error", clip(run.error, 200));
+        const attributes = { "saturn.run.status": status, ...(model ? { "gen_ai.provider.name": model.provider } : {}) };
+        instruments().runs.add(1, attributes);
+        instruments().runDuration.record(seconds(startedAt), attributes);
+      }
+    });
+  }
+
+  private async pass(runId: string, generation: number): Promise<void> {
     const signal = this.kernel.track(runId, generation);
     try {
       if (!this.kernel.alive(runId, generation)) return;
@@ -174,17 +573,30 @@ export class RunService {
       const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
       if (!model) throw new Error("Agent has no model connection");
       this.kernel.guard(agent.id);
+      if (model.provider === "claude-code") {
+        // The official Agent SDK runs the whole agent loop (tools, approvals, session) itself.
+        await this.kernel.claudeCode.run(runId, generation, agent, model, signal);
+        return;
+      }
       const context = await this.ragContext(agent, run.input, signal);
       if (!this.kernel.alive(runId, generation)) return;
       const tools = this.toolList(agent);
+      if (run.actions.length) {
+        // Resuming (after a wait): continue from the actions already taken instead of starting over.
+        await this.finishFromModel(runId, generation, agent, model, context, tools, [...run.actions], signal);
+        return;
+      }
       this.kernel.log("agent", "info", `${agent.name} asked ${model.model || model.name}: ${clip(run.input)}`);
+      const startedAt = performance.now();
       const first = await this.complete(model, agent, runId, run.input, context, tools, [], signal);
       if (!this.kernel.alive(runId, generation)) return;
-      await this.noteThinking(runId, generation, first);
+      await this.noteThinking(runId, generation, first, seconds(startedAt));
       const actions: RunAction[] = [];
-      const waiting = await this.runTools(agent, runId, generation, toolCalls(first), actions, signal);
+      const calls = toolCalls(first);
+      const waiting = await this.runTools(agent, runId, generation, calls, actions, signal);
       if (waiting || !this.kernel.alive(runId, generation)) return;
-      await this.finishFromModel(runId, generation, agent, model, context, tools, actions, signal);
+      // A reply with no tool calls is already the answer; asking again would only double the cost.
+      await this.finishFromModel(runId, generation, agent, model, context, tools, actions, signal, calls.length ? undefined : first);
     } catch (error) {
       if (!this.kernel.alive(runId, generation) || signal.aborted) return;
       await this.finish(runId, generation, "failed", "", explainRunError(error));
@@ -194,10 +606,56 @@ export class RunService {
   }
 
   async runTools(agent: Agent, runId: string, generation: number, calls: ToolCall[], actions: RunAction[], signal: AbortSignal): Promise<boolean> {
+    const mode = autonomyOf(agent.autonomy);
     for (let index = 0; index < calls.length; index += 1) {
       if (!this.kernel.alive(runId, generation) || signal.aborted) return true;
       this.kernel.guard(agent.id);
       const call = calls[index];
+
+      // Antigravity guardrail enforcement
+      let requiresApproval = false;
+      let approvalReason = "";
+
+      if (mode === "review") {
+        requiresApproval = true;
+        approvalReason = "Request Review mode: every command requires approval";
+      } else if (mode === "default") {
+        if (isSensitiveOperation(call.name, call.arguments)) {
+          requiresApproval = true;
+          approvalReason = `Sensitive operation requires approval: ${call.name}`;
+        }
+      }
+
+      if (requiresApproval) {
+        const action: RunAction = {
+          id: newId("act"),
+          toolId: call.name,
+          arguments: call.arguments,
+          status: "waiting_approval",
+          reason: approvalReason,
+        };
+        if (call.thoughtSignature) action.thoughtSignature = call.thoughtSignature;
+        actions.push(action);
+        this.kernel.log("agent", "info", `${agent.name} ${action.toolId} waiting_approval: ${approvalReason}`);
+        if (this.kernel.alive(runId, generation)) {
+          await this.kernel.store.update((state) => {
+            const current = state.runs.find((item) => item.id === runId);
+            if (!current || (current.generation ?? 0) !== generation) return;
+            current.actions = [...actions];
+            current.status = "waiting_approval";
+          });
+        }
+        return true;
+      }
+
+      if (call.name === "computer_wait" && Number(call.arguments.ms ?? call.arguments.duration_ms ?? 0) > INLINE_WAIT_MS) {
+        const slept = await this.sleep(agent, runId, generation, call, actions);
+        // Suspended: the round ends here, with no model call while the run waits.
+        if (slept.status === "sleeping") return true;
+        actions.push(slept);
+        continue;
+      }
+
       const action = await this.executeTool({
         agentId: agent.id,
         toolId: call.name,
@@ -210,92 +668,21 @@ export class RunService {
       actions.push(action);
       const detail = action.reason ? `: ${clip(action.reason, 80)}` : "";
       this.kernel.log("agent", action.status === "failed" || action.status === "denied" ? "warning" : "info", `${agent.name} ${action.toolId} ${action.status}${detail}`);
-      if (action.status === "waiting_approval") {
-        if (!this.kernel.alive(runId, generation)) return true;
-        this.kernel.inflight.set(action.id, {
-          runId,
-          agentId: agent.id,
-          actions,
-          remaining: calls.slice(index + 1),
-        });
+      if (this.kernel.alive(runId, generation)) {
         await this.kernel.store.update((state) => {
           const current = state.runs.find((item) => item.id === runId);
-          if (!current || (current.generation ?? 0) !== generation || current.error === DISCONNECT_ERROR) return;
-          current.status = "waiting_approval";
-          current.actions = actions;
+          if (!current || (current.generation ?? 0) !== generation) return;
+          current.actions = [...actions];
+          if (action.status === "waiting_approval") {
+            current.status = "waiting_approval";
+          }
         });
+      }
+      if (action.status === "waiting_approval") {
         return true;
       }
     }
     return false;
-  }
-
-  async onCloud(message: Record<string, unknown>): Promise<void> {
-    const payload =
-      message.payload && typeof message.payload === "object"
-        ? (message.payload as Record<string, unknown>)
-        : {};
-    const kind = String(message.type || "");
-    const command = String(message.command || payload.command || "");
-    const resume =
-      kind === "command.resume" ||
-      kind === "approval.granted" ||
-      kind === "approval.approved" ||
-      (kind === "command" && command === "resume") ||
-      command === "resume";
-    if (kind === "approval.rejected") {
-      const runId = String(message.run_id || payload.run_id || "");
-      const actionId = String(message.action_id || payload.action_id || "");
-      if (!runId) return;
-      this.kernel.pending.delete(actionId);
-      this.kernel.inflight.delete(actionId);
-      const run = this.kernel.store.state.runs.find((item) => item.id === runId);
-      if (!run) return;
-      await this.finish(runId, run.generation ?? 0, "cancelled", "", "Approval rejected");
-      return;
-    }
-    if (!resume) return;
-    const runId = String(message.run_id || payload.run_id || "");
-    const actionId = String(message.action_id || payload.action_id || "");
-    if (!runId || !actionId) return;
-    await this.resume(runId, actionId);
-  }
-
-  async resume(runId: string, actionId: string): Promise<void> {
-    const pending = this.kernel.pending.get(actionId);
-    if (!pending || pending.runId !== runId) return;
-    this.kernel.pending.delete(actionId);
-    const flight = this.kernel.inflight.get(actionId);
-    this.kernel.inflight.delete(actionId);
-    const generation = this.kernel.getRun(runId).generation ?? 0;
-    const signal = this.kernel.track(runId, generation);
-    try {
-      if (!this.kernel.alive(runId, generation)) return;
-      this.kernel.guard(pending.agentId);
-      const completed = await this.callMcp(pending.serverId, pending, signal);
-      const actions = flight?.actions ?? this.kernel.getRun(runId).actions.map((item) => ({ ...item }));
-      const current = actions.find((item) => item.id === actionId);
-      if (current) {
-        current.status = completed.status;
-        current.result = completed.result;
-        current.reason = completed.reason;
-      } else {
-        actions.push(completed);
-      }
-      if (!this.kernel.alive(runId, generation)) return;
-      const agent = this.kernel.getAgent(pending.agentId);
-      const waiting = await this.runTools(agent, runId, generation, flight?.remaining ?? [], actions, signal);
-      if (waiting || !this.kernel.alive(runId, generation)) return;
-      const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
-      if (!model) throw new Error("Agent has no model connection");
-      const context = await this.ragContext(agent, this.kernel.getRun(runId).input, signal);
-      await this.finishFromModel(runId, generation, agent, model, context, this.toolList(agent), actions, signal);
-    } catch (error) {
-      if (!this.kernel.alive(runId, generation) || signal.aborted) return;
-      await this.finish(runId, generation, "failed", "", explainRunError(error));
-    } finally {
-      this.kernel.stops.delete(`${runId}:${generation}`);
-    }
   }
 
   async callMcp(
@@ -312,24 +699,14 @@ export class RunService {
       "X-Saturn-Run-Id": input.runId,
       "X-Saturn-Action-Id": input.actionId,
     };
-    if (server.id.startsWith("saturn:")) {
-      const token = this.kernel.store.secret("saturn-account");
-      if (token) headers.authorization = `Bearer ${token}`;
-    }
     try {
-      const result = await this.kernel.mcp.call(server.url, input.toolId, input.arguments, signal, headers);
+      const remote = server.tools.find((tool) => tool.toolId === input.toolId)?.remoteName ?? input.toolId;
+      const target = { id: server.id, url: server.url, auth: server.auth ?? "none" };
+      const result = await this.kernel.mcp.call(target, remote, input.arguments, signal, headers);
       return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
     } catch (error) {
       const message = error instanceof Error ? error.message : "MCP call failed";
       if (message === "approval_required") {
-        this.kernel.pending.set(input.actionId, {
-          agentId: input.agentId,
-          toolId: input.toolId,
-          arguments: input.arguments,
-          runId: input.runId,
-          actionId: input.actionId,
-          serverId: server.id,
-        });
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "waiting_approval" };
       }
       if (message === "policy_denied") {
@@ -347,7 +724,7 @@ export class RunService {
 
   toolServer(agent: Agent, toolId: string): string | null {
     const attached = this.kernel.store.state.mcp.filter((item) => agent.mcpConnectionIds.includes(item.id));
-    return attached.find((server) => server.tools.some((tool) => tool.toolId === toolId))?.id ?? null;
+    return attached.find((server) => server.tools.some((tool) => tool.toolId === toolId && !server.disabledTools?.includes(toolId)))?.id ?? null;
   }
 
   async finishFromModel(
@@ -359,27 +736,33 @@ export class RunService {
     tools: unknown[],
     actions: RunAction[],
     signal?: AbortSignal,
+    answered?: Record<string, unknown>,
   ): Promise<void> {
     if (!this.kernel.alive(runId, generation)) return;
     const run = this.kernel.getRun(runId);
-    let response = await this.complete(model, agent, runId, run.input, context, tools, actions, signal);
-    await this.noteThinking(runId, generation, response);
+    let response = answered;
+    if (!response) {
+      const startedAt = performance.now();
+      response = await this.complete(model, agent, runId, run.input, context, tools, actions, signal);
+      await this.noteThinking(runId, generation, response, seconds(startedAt));
+    }
     let rounds = 0;
-    while (agent.mcpConnectionIds.includes(GENERAL_SKILLS_ID) && rounds < 5) {
+    while (agent.mcpConnectionIds.length > 0 && rounds < 25) {
       const calls = toolCalls(response);
       if (!calls.length || !this.kernel.alive(runId, generation)) break;
       rounds += 1;
       const waiting = await this.runTools(agent, runId, generation, calls, actions, signal ?? new AbortController().signal);
       if (waiting || !this.kernel.alive(runId, generation)) return;
+      const startedAt = performance.now();
       response = await this.complete(model, agent, runId, run.input, context, tools, actions, signal);
-      await this.noteThinking(runId, generation, response);
+      await this.noteThinking(runId, generation, response, seconds(startedAt));
     }
     let saved = false;
     await this.kernel.store.update((state) => {
       const current = state.runs.find((item) => item.id === runId);
-      if (!current || (current.generation ?? 0) !== generation || current.error === DISCONNECT_ERROR) return;
+      if (!current || (current.generation ?? 0) !== generation) return;
       current.actions = actions;
-      current.output = textOf(response) || chatReply(actions);
+      current.output = textOf(response);
       current.status = actions.some((item) => item.status === "denied" || item.status === "failed")
         ? "failed"
         : "completed";
@@ -388,23 +771,36 @@ export class RunService {
     if (!saved) return;
     const current = this.kernel.getRun(runId);
     this.kernel.log("agent", current.status === "failed" ? "error" : "info", `${agent.name} ${current.status}`);
-    void this.pushMessage(current);
   }
 
   toolList(agent: Agent) {
     return this.kernel.store.state.mcp
       .filter((item) => agent.mcpConnectionIds.includes(item.id))
       .flatMap((server) =>
-        server.tools.map((tool) => ({
-          type: "function",
-          function: { name: tool.toolId, description: tool.description, parameters: tool.inputSchema },
-        })),
+        server.tools
+          .filter((tool) => !server.disabledTools?.includes(tool.toolId))
+          .map((tool) => ({
+            type: "function",
+            function: { name: tool.toolId, description: tool.description, parameters: tool.inputSchema },
+          })),
       );
   }
 
   async ragContext(agent: Agent, query: string, signal?: AbortSignal): Promise<string> {
     this.kernel.guard(agent.id);
     const servers = this.kernel.store.state.rag.filter((item) => agent.ragConnectionIds.includes(item.id));
+    if (!servers.length) return "";
+    return traced("retrieve", {
+      kind: SpanKind.CLIENT,
+      attributes: { "gen_ai.operation.name": "retrieve", "gen_ai.agent.id": agent.id, "saturn.rag.sources": servers.length },
+    }, async (span) => {
+      const context = await this.fetchRag(servers, query, signal);
+      span.setAttribute("saturn.rag.context_chars", context.length);
+      return context;
+    });
+  }
+
+  private async fetchRag(servers: { name: string; url: string }[], query: string, signal?: AbortSignal): Promise<string> {
     const chunks: string[] = [];
     for (const server of servers) {
       const response = await fetch(server.url, {
@@ -413,21 +809,34 @@ export class RunService {
         body: JSON.stringify({ query }),
         signal,
       });
-      chunks.push(await response.text());
+      if (!response.ok) {
+        // An error page is not knowledge; leave it out of the model's context.
+        this.kernel.log("agent", "warning", `Knowledge source ${server.name} answered ${response.status}; its context was skipped`);
+        continue;
+      }
+      const text = await response.text();
+      if (!text.trim()) this.kernel.log("agent", "debug", `Knowledge source ${server.name} returned nothing for this query`);
+      chunks.push(text);
     }
     return chunks.join("\n");
   }
 
-  priorMessages(agentId: string, runId: string): { role: "user" | "assistant"; content: string }[] {
-    const turns = this.kernel.store.state.runs.filter((item) => item.agentId === agentId);
+  priorMessages(agentId: string, runId: string): ChatMessage[] {
+    const currentRun = this.kernel.store.state.runs.find((item) => item.id === runId);
+    const threadId = currentRun?.threadId;
+    // A group turn carries the group transcript in its input.
+    if (currentRun?.groupId) return [];
+    const turns = this.kernel.store.state.runs.filter((item) =>
+      item.agentId === agentId && (threadId ? item.threadId === threadId : true)
+    );
     const index = turns.findIndex((item) => item.id === runId);
     const older = (index < 0 ? [] : turns.slice(index + 1))
       .filter((item) => item.status === "completed" || item.status === "failed" || item.status === "cancelled")
       .reverse();
-    const messages: { role: "user" | "assistant"; content: string }[] = [];
+    const messages: ChatMessage[] = [];
     for (const turn of older) {
       messages.push({ role: "user", content: turn.input });
-      if (turn.output) messages.push({ role: "assistant", content: turn.output });
+      if (turn.output) messages.push({ role: "assistant", content: turn.output, reasoning: turn.thinking });
     }
     return messages;
   }
@@ -444,34 +853,58 @@ export class RunService {
   ): Promise<Record<string, unknown>> {
     this.kernel.guard(agent.id);
     const behavior = behaviorOf(agent);
-    const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-      { role: "system", content: [agent.instructions, styleLine(behavior.responseStyle), autonomyLine(behavior.autonomy), context].filter(Boolean).join("\n") },
-      ...this.priorMessages(agent.id, runId),
+    const workdir = this.workdirOf(runId);
+    const systemPrompt = buildSystemPrompt({
+      agent,
+      context: workdir
+        ? `Working directory: ${workdir}\nThis chat belongs to the project in that folder. The files and code tools read, write and run commands there; paths are relative to it.${context ? `\n\n${context}` : ""}`
+        : context,
+      serverIds: agent.mcpConnectionIds,
+    });
+    // Earlier turns newest-first within a budget, so a long thread does not grow every request.
+    const history = budgetHistory(this.priorMessages(agent.id, runId));
+    const messages: ChatMessage[] = [
+      { role: "system", content: systemPrompt },
+      ...(history.omitted
+        ? [{ role: "user" as const, content: `[${history.omitted} earlier messages in this conversation are omitted to save context.]` }]
+        : []),
+      ...history.kept,
       { role: "user", content: input },
     ];
     if (actions.length) {
-      messages.push({ role: "assistant", content: JSON.stringify(actions) });
+      const thinking = this.kernel.store.state.runs.find((item) => item.id === runId)?.thinking;
+      // Latest tool results whole (capped); older ones cleared to a stub. The run keeps the originals.
+      // Screenshots become placeholders first (their pixels go as images), so trimming never clips base64.
+      const sanitized = compactActions(sanitizeActionsForText(actions) as RunAction[]);
+      messages.push({ role: "assistant", content: JSON.stringify(sanitized), reasoning: thinking });
+
+      const screenshots = extractScreenshots(actions);
+      if (screenshots.length > 0) {
+        messages.push({
+          role: "user",
+          content: "Observation from computer_screenshot (attached as multimodal image input):",
+          images: screenshots,
+        });
+      }
     }
-    return completeChat({
-      provider: model.provider || "openai",
-      model: model.model || model.name,
-      baseUrl: model.baseUrl,
-      apiKey: this.kernel.store.secret(model.brokerConnectionId),
+    return this.kernel.llm.complete(model, {
+      context: { agentId: agent.id, agentName: agent.name, runId, purpose: "run" },
       messages,
-      tools: behavior.autonomy === "suggest_only" ? [] : tools,
+      tools,
       temperature: behavior.temperature,
       maxOutput: behavior.maxOutput,
       signal,
     });
   }
 
-  async noteThinking(runId: string, generation: number, body: Record<string, unknown>): Promise<void> {
+  async noteThinking(runId: string, generation: number, body: Record<string, unknown>, elapsed = 0): Promise<void> {
     const next = thinkingOf(body);
     if (!next) return;
     await this.kernel.store.update((state) => {
       const run = state.runs.find((item) => item.id === runId);
-      if (!run || (run.generation ?? 0) !== generation || run.error === DISCONNECT_ERROR) return;
+      if (!run || (run.generation ?? 0) !== generation) return;
       run.thinking = joinThinking(run.thinking, next);
+      run.thoughts = [...(run.thoughts ?? []), { text: next, seconds: Math.round(elapsed * 10) / 10, at: run.actions.length }];
     });
   }
 
@@ -479,7 +912,7 @@ export class RunService {
     let saved = false;
     await this.kernel.store.update((state) => {
       const run = state.runs.find((item) => item.id === runId);
-      if (!run || (run.generation ?? 0) !== generation || run.error === DISCONNECT_ERROR) return;
+      if (!run || (run.generation ?? 0) !== generation) return;
       run.status = status;
       run.output = output;
       run.error = error;
@@ -492,179 +925,46 @@ export class RunService {
       const name = this.kernel.store.state.agents.find((item) => item.id === run.agentId)?.name ?? run.agentId;
       this.kernel.log("agent", "error", `${name} failed: ${clip(error || "Run failed")}`);
     }
-    void this.pushMessage(run);
   }
+}
 
-  ownsRun(run: Run): boolean {
-    const account = this.kernel.store.state.account;
-    if (!account) return !run.userId;
-    if (run.userId && run.userId !== account.userId) return false;
-    if (run.organizationId && run.organizationId !== account.organizationId) return false;
-    return true;
-  }
-
-  async pushMessage(run: Run): Promise<void> {
-    if (run.agentId === SATURN_AGENT_ID || this.kernel.messagesUnavailable || !this.kernel.store.state.account || !this.kernel.store.secret("saturn-account") || !this.ownsRun(run)) return;
-    let response: Response;
-    try {
-      response = await this.kernel.session.cloudFetch(`/agents/${encodeURIComponent(run.agentId)}/messages/${encodeURIComponent(run.id)}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          input: run.input,
-          output: run.output,
-          status: run.status,
-          actions: run.actions.map((action) => ({ toolId: action.toolId, status: action.status })),
-          error: run.error ?? null,
-        }),
-      });
-    } catch (error) {
-      this.kernel.log("cloud", "warning", error instanceof Error ? error.message : "Could not sync the message");
-      return;
-    }
-    if (response.status === 404) {
-      const body = (await response.json().catch(() => ({}))) as { detail?: string };
-      if (body.detail === "Not Found") this.kernel.messagesUnavailable = true;
-      return;
-    }
-    if (response.status === 409) return;
-    if (!response.ok) {
-      this.kernel.log("cloud", "warning", "Could not sync the message");
-    }
-  }
-
-  async pullMessages(): Promise<void> {
-    if (this.kernel.messagesUnavailable || !this.kernel.store.state.account || !this.kernel.store.secret("saturn-account")) return;
-    for (const agent of this.kernel.store.state.agents) {
-      if (agent.id === SATURN_AGENT_ID) continue;
-      let response: Response;
-      try {
-        response = await this.kernel.session.cloudFetch(`/agents/${encodeURIComponent(agent.id)}/messages`);
-      } catch {
-        continue;
-      }
-      if (response.status === 404) {
-        const body = (await response.json().catch(() => ({}))) as { detail?: string };
-        if (body.detail === "Not Found") {
-          this.kernel.messagesUnavailable = true;
-          return;
+function extractScreenshots(actions: RunAction[]): { mimeType: string; base64: string }[] {
+  const images: { mimeType: string; base64: string }[] = [];
+  for (const action of actions) {
+    if (action.toolId !== "computer_screenshot" && !action.toolId.includes("screenshot")) continue;
+    const res = action.result as Record<string, unknown> | undefined;
+    if (!res) continue;
+    const raw = res.image || res.screenshot || res.base64;
+    if (typeof raw === "string" && raw) {
+      if (raw.startsWith("data:")) {
+        const match = raw.match(/^data:([^;]+);base64,(.+)$/);
+        if (match && match[1] && match[2]) {
+          images.push({ mimeType: match[1], base64: match[2] });
         }
-        continue;
-      }
-      if (!response.ok) continue;
-      const remote = (await response.json()) as {
-        id: string;
-        agent_id: string;
-        input: string;
-        output: string;
-        status: Run["status"];
-        actions?: { toolId?: string; status?: RunAction["status"] }[];
-        error?: string | null;
-      }[];
-      const queued: typeof remote = [];
-      await this.kernel.store.update((state) => {
-        const local = state.runs.filter((item) => item.agentId === agent.id && this.ownsRun(item));
-        const byId = new Map(local.map((item) => [item.id, item]));
-        const merged: Run[] = [];
-        for (const message of remote) {
-          const existing = byId.get(message.id);
-          if (message.status === "queued" && (!existing || existing.status === "queued")) {
-            queued.push(message);
-            if (existing) merged.push(existing);
-            byId.delete(message.id);
-            continue;
-          }
-          if (existing?.status === "cancelled" || (existing && (existing.status === "running" || existing.status === "queued" || existing.status === "waiting_approval"))) {
-            merged.push(existing);
-          } else if (existing) {
-            existing.input = message.input;
-            existing.output = message.output || "";
-            existing.thinking = existing.thinking ?? "";
-            existing.status = message.status;
-            existing.error = message.error || undefined;
-            existing.actions = (message.actions ?? []).map((action, index) => ({
-              id: existing.actions[index]?.id ?? `${message.id}_${index}`,
-              toolId: action.toolId ?? "tool",
-              arguments: existing.actions[index]?.arguments ?? {},
-              status: action.status ?? "completed",
-            }));
-            merged.push(existing);
-          } else {
-            merged.push({
-              id: message.id,
-              agentId: agent.id,
-              userId: this.kernel.store.state.account?.userId,
-              organizationId: this.kernel.store.state.account?.organizationId,
-              input: message.input,
-              output: message.output || "",
-              thinking: "",
-              status: message.status,
-              error: message.error || undefined,
-              actions: (message.actions ?? []).map((action, index) => ({
-                id: `${message.id}_${index}`,
-                toolId: action.toolId ?? "tool",
-                arguments: {},
-                status: action.status ?? "completed",
-              })),
-              generation: 0,
-            });
-          }
-          byId.delete(message.id);
-        }
-        for (const leftover of byId.values()) merged.push(leftover);
-        const kept = new Set(local.map((item) => item.id));
-        const others = state.runs.filter((item) => !kept.has(item.id));
-        state.runs = [...merged.reverse(), ...others];
-      });
-      for (const message of queued) {
-        void this.claimMessage(agent.id, message);
+      } else if (raw.length > 200 && !raw.includes(" ") && !raw.includes("\n")) {
+        images.push({ mimeType: "image/jpeg", base64: raw });
       }
     }
   }
+  return images.slice(-2);
+}
 
-  async claimMessage(agentId: string, message: { id: string; input: string }): Promise<void> {
-    let response: Response;
-    try {
-      response = await this.kernel.session.cloudFetch(`/agents/${encodeURIComponent(agentId)}/messages/${encodeURIComponent(message.id)}`, {
-        method: "PUT",
-        body: JSON.stringify({ input: message.input, output: "", status: "running", actions: [], error: null }),
-      });
-    } catch {
-      return;
+function sanitizeActionsForText(actions: RunAction[]): unknown[] {
+  return actions.map((action) => {
+    if (action.toolId === "computer_screenshot" || action.toolId.includes("screenshot")) {
+      const res = action.result as Record<string, unknown> | undefined;
+      if (res && (res.image || res.screenshot || res.base64)) {
+        return {
+          ...action,
+          result: {
+            ...res,
+            image: "[screenshot attached as multimodal image input]",
+            screenshot: undefined,
+            base64: undefined,
+          },
+        };
+      }
     }
-    if (!response.ok) return;
-    const existing = this.kernel.store.state.runs.find((item) => item.id === message.id);
-    if (existing && (existing.status === "running" || existing.status === "waiting_approval" || existing.status === "cancelled")) return;
-    if (existing) {
-      await this.kernel.store.update((state) => {
-        const run = state.runs.find((item) => item.id === message.id);
-        if (!run) return;
-        run.input = message.input;
-        run.output = "";
-        run.thinking = "";
-        run.actions = [];
-        run.error = undefined;
-        run.status = "running";
-        run.generation = (run.generation ?? 0) + 1;
-      });
-      void this.advance(message.id);
-      return;
-    }
-    const account = this.kernel.store.state.account;
-    const run: Run = {
-      id: message.id,
-      agentId,
-      userId: account?.userId,
-      organizationId: account?.organizationId,
-      input: message.input,
-      status: "running",
-      output: "",
-      thinking: "",
-      actions: [],
-      generation: 0,
-    };
-    await this.kernel.store.update((state) => {
-      state.runs.unshift(run);
-    });
-    void this.advance(run.id);
-  }
+    return action;
+  });
 }

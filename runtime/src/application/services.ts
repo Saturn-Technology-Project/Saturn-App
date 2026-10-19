@@ -1,6 +1,7 @@
-import type { Agent, AppSettings, McpConnection, ModelConnection, RagConnection, Run, RunAction } from "../domain/model.js";
-import { Broker } from "../infrastructure/broker.js";
-import { CloudSession } from "../infrastructure/cloud.js";
+import type { AutomationView } from "./automations.js";
+import type { GroupTranscript, GroupView } from "./groups.js";
+import type { RunChanges } from "./checkpoints.js";
+import type { Agent, Automation, AppSettings, Conversation, Group, McpConnection, ModelConnection, Project, RagConnection, Run, RunAction } from "../domain/model.js";
 import { McpClient } from "../infrastructure/mcp.js";
 import { FileStore } from "../infrastructure/store.js";
 import { RuntimeKernel } from "./kernel.js";
@@ -9,12 +10,8 @@ import { RuntimeKernel } from "./kernel.js";
 export class AppServices {
   readonly kernel: RuntimeKernel;
 
-  constructor(store: FileStore, broker: Broker, mcp: McpClient, cloud: CloudSession) {
-    this.kernel = new RuntimeKernel(store, broker, mcp, cloud);
-  }
-
-  get cloud(): CloudSession {
-    return this.kernel.cloud;
+  constructor(store: FileStore, mcp: McpClient) {
+    this.kernel = new RuntimeKernel(store, mcp);
   }
 
   health() {
@@ -49,13 +46,13 @@ export class AppServices {
     return await this.kernel.catalog.lmStudioModels(baseUrl);
   }
 
-  async createModel(input: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string }) {
+  async createModel(input: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string; effort?: string }) {
     return await this.kernel.catalog.createModel(input);
   }
 
   async updateModel(
     id: string,
-    patch: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string },
+    patch: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string; effort?: string | null },
   ): Promise<ModelConnection> {
     return await this.kernel.catalog.updateModel(id, patch);
   }
@@ -78,7 +75,7 @@ export class AppServices {
 
   async updateMcp(
     id: string,
-    patch: { name?: string; url?: string; tools?: { toolId: string; description?: string }[] },
+    patch: { name?: string; url?: string; tools?: { toolId: string; description?: string }[]; disabledTools?: string[] },
   ): Promise<McpConnection> {
     return await this.kernel.catalog.updateMcp(id, patch);
   }
@@ -99,75 +96,72 @@ export class AppServices {
     return this.kernel.getRun(id);
   }
 
-  async startRun(agentId: string, input: string): Promise<Run> {
-    return await this.kernel.runs.startRun(agentId, input);
+  /** Files the run changed in its project folder, with a diff each. */
+  async runChanges(id: string): Promise<RunChanges> {
+    return await this.kernel.checkpoints.changes(id);
+  }
+
+  /** Restores one file (or all) to how it was before the run. */
+  async revertRunChanges(id: string, path?: string): Promise<RunChanges> {
+    return await this.kernel.checkpoints.revert(id, path);
+  }
+
+  async keepRunChanges(id: string): Promise<RunChanges> {
+    return await this.kernel.checkpoints.keep(id);
+  }
+
+  /** Restores the chat's files to before this turn (this run and every later one in the chat). */
+  async restoreToRun(id: string): Promise<{ reverted: string[]; files: string[] }> {
+    return await this.kernel.checkpoints.restoreTo(id);
+  }
+
+  async startRun(agentId: string, input: string, threadId?: string, projectId?: string): Promise<Run> {
+    return await this.kernel.runs.startRun(agentId, input, threadId, projectId);
+  }
+
+  async listThreads(agentId: string): Promise<Conversation[]> {
+    return await this.kernel.runs.listThreads(agentId);
+  }
+
+  async createThread(agentId: string, title?: string, projectId?: string): Promise<Conversation> {
+    return await this.kernel.runs.createThread(agentId, title, projectId);
+  }
+
+  async renameThread(threadId: string, title: string): Promise<Conversation> {
+    return await this.kernel.runs.renameThread(threadId, title);
+  }
+
+  async deleteThread(threadId: string): Promise<void> {
+    return await this.kernel.runs.deleteThread(threadId);
   }
 
   async pendingTasks(): Promise<{ id: string; agentId: string; agentName: string; input: string; toolId: string }[]> {
     return await this.kernel.runs.pendingTasks();
   }
 
-  async messagesFor(agentId: string): Promise<Run[]> {
-    return await this.kernel.runs.messagesFor(agentId);
-  }
-
-  async syncSignedInState(): Promise<void> {
-    return await this.kernel.runs.syncSignedInState();
+  async messagesFor(agentId: string, threadId?: string): Promise<Run[]> {
+    return await this.kernel.runs.messagesFor(agentId, threadId);
   }
 
   async reviseRun(id: string, input: string): Promise<{ run: Run; removed: string[] }> {
     return await this.kernel.runs.reviseRun(id, input);
   }
 
+  /** Ends a run's computer_wait early and lets it continue now. */
+  async wakeRun(id: string): Promise<Run> {
+    return await this.kernel.runs.wakeRun(id);
+  }
+
   async stopRun(id: string): Promise<Run> {
     return await this.kernel.runs.stopRun(id);
   }
 
-  async unpair(): Promise<void> {
-    return await this.kernel.session.unpair();
+  usage() {
+    return this.kernel.usage.records();
   }
 
-  session() {
-    return this.kernel.session.session();
-  }
-
-  async login(apiBase: string, email: string, password: string) {
-    return await this.kernel.session.login(apiBase, email, password);
-  }
-
-  async refreshAccount() {
-    return await this.kernel.session.refreshAccount();
-  }
-
-  async accountProfile() {
-    return await this.kernel.session.accountProfile();
-  }
-
-  async updateAccountProfile(input: { name?: string; title?: string }) {
-    return await this.kernel.session.updateAccountProfile(input);
-  }
-
-  async teamMembers() {
-    return await this.kernel.session.teamMembers();
-  }
-
-  async updateTeamMember(employeeId: string, input: {
-    name?: string;
-    title?: string;
-    role?: string;
-    status?: string;
-    agent_ids?: string[];
-    agent_edit_ids?: string[];
-  }) {
-    return await this.kernel.session.updateTeamMember(employeeId, input);
-  }
-
-  async inviteTeamMember(input: { email: string; name: string; role: string }) {
-    return await this.kernel.session.inviteTeamMember(input);
-  }
-
-  async logout(): Promise<void> {
-    return await this.kernel.session.logout();
+  usageSummary() {
+    return this.kernel.usage.summary();
   }
 
   async executeTool(input: {
@@ -181,38 +175,60 @@ export class AppServices {
     return await this.kernel.runs.executeTool(input);
   }
 
+  listGroups(): GroupView[] {
+    return this.kernel.groups.list();
+  }
+
+  async createGroup(input: { name?: string; agentIds?: string[] }): Promise<Group> {
+    return await this.kernel.groups.create(input);
+  }
+
+  async updateGroup(id: string, patch: { name?: string; agentIds?: string[] }): Promise<Group> {
+    return await this.kernel.groups.update(id, patch);
+  }
+
+  async deleteGroup(id: string): Promise<void> {
+    return await this.kernel.groups.remove(id);
+  }
+
+  groupTranscript(id: string): GroupTranscript {
+    return this.kernel.groups.transcript(id);
+  }
+
+  async postGroupMessage(id: string, text: string): Promise<GroupTranscript> {
+    return await this.kernel.groups.post(id, text);
+  }
+
+  listAutomations(): AutomationView[] {
+    return this.kernel.automations.list();
+  }
+
+  async createAutomation(input: Partial<Automation>): Promise<AutomationView> {
+    return await this.kernel.automations.create(input);
+  }
+
+  async updateAutomation(id: string, patch: Partial<Automation>): Promise<AutomationView> {
+    return await this.kernel.automations.update(id, patch);
+  }
+
+  async deleteAutomation(id: string): Promise<void> {
+    return await this.kernel.automations.remove(id);
+  }
+
+  async runAutomation(id: string): Promise<AutomationView> {
+    return await this.kernel.automations.runNow(id);
+  }
+
+  async draftAutomation(input: { text?: string; agentId?: string }) {
+    return await this.kernel.automations.draft(input);
+  }
+
   settings(): AppSettings {
     return this.kernel.admin.settings();
   }
 
   async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
     return await this.kernel.admin.updateSettings(patch);
-  }
-
-  listKeys() {
-    return this.kernel.admin.listKeys();
-  }
-
-  async createKey(input: {
-    name?: string;
-    secretName?: string;
-    baseUrl?: string;
-    allowedPaths?: string | string[];
-    value?: string;
-  }) {
-    return await this.kernel.admin.createKey(input);
-  }
-
-  async rotateKey(id: string, value: string) {
-    return await this.kernel.admin.rotateKey(id, value);
-  }
-
-  async clearKey(id: string) {
-    return await this.kernel.admin.clearKey(id);
-  }
-
-  async deleteKey(id: string) {
-    return await this.kernel.admin.deleteKey(id);
   }
 
   information() {
@@ -223,7 +239,55 @@ export class AppServices {
     return this.kernel.admin.listLogs(query);
   }
 
-  diagnostics() {
-    return this.kernel.admin.diagnostics();
+  async listProjects(): Promise<Project[]> {
+    return await this.kernel.projects.list();
+  }
+
+  async getActiveProject(): Promise<Project> {
+    return await this.kernel.projects.getActive();
+  }
+
+  async createProject(input: { name?: string; path?: string; folders?: string[]; description?: string; rules?: string; grant?: boolean }): Promise<Project> {
+    return await this.kernel.projects.create(input);
+  }
+
+  async setActiveProject(id: string): Promise<Project> {
+    return await this.kernel.projects.setActive(id);
+  }
+
+  async updateProject(id: string, patch: Partial<Project>): Promise<Project> {
+    return await this.kernel.projects.update(id, patch);
+  }
+
+  async setProjectAccess(id: string, granted: boolean): Promise<Project> {
+    return await this.kernel.projects.setAccess(id, granted);
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    return await this.kernel.projects.delete(id);
+  }
+
+  async openProjectEditor(id: string) {
+    return await this.kernel.projects.openEditor(id);
+  }
+
+  async openProjectTerminal(id: string) {
+    return await this.kernel.projects.openTerminal(id);
+  }
+
+  async openProjectFolder(id: string) {
+    return await this.kernel.projects.openFolder(id);
+  }
+
+  async getProjectRules(id: string) {
+    return await this.kernel.projects.getRules(id);
+  }
+
+  async saveProjectRules(id: string, content: string, targetFile?: "cursorrules" | "agents") {
+    return await this.kernel.projects.saveRules(id, content, targetFile);
+  }
+
+  async wakeupDefaultApp(): Promise<{ target: "ide" | "agent"; opened: boolean }> {
+    return await this.kernel.projects.wakeupDefaultApp();
   }
 }

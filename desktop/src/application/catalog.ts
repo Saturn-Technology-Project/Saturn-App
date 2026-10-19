@@ -1,4 +1,4 @@
-import type { Agent, Mcp, Model, PendingTask, Profile, Rag, Run } from "../domain/model.js";
+import type { Agent, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export type WorkspaceSnapshot = {
@@ -61,7 +61,31 @@ export class CatalogService {
     return this.runtime.request(`/agents/${id}`, { method: "DELETE" });
   }
 
-  messages(agentId: string): Promise<Run[]> {
-    return this.runtime.request<Run[]>(`/agents/${agentId}/messages`);
+  listThreads(agentId: string): Promise<Conversation[]> {
+    return this.runtime.request<Conversation[]>(`/agents/${agentId}/threads`);
+  }
+
+  /** A new chat; with a project it works in that project's folder. */
+  createThread(agentId: string, title?: string, projectId?: string): Promise<Conversation> {
+    return this.runtime.request<Conversation>(`/agents/${agentId}/threads`, {
+      method: "POST",
+      body: JSON.stringify({ title, ...(projectId ? { projectId } : {}) }),
+    });
+  }
+
+  renameThread(threadId: string, title: string): Promise<Conversation> {
+    return this.runtime.request<Conversation>(`/threads/${threadId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
+  }
+
+  deleteThread(threadId: string): Promise<void> {
+    return this.runtime.request(`/threads/${threadId}`, { method: "DELETE" });
+  }
+
+  messages(agentId: string, threadId?: string): Promise<Run[]> {
+    const query = threadId ? `?threadId=${encodeURIComponent(threadId)}` : "";
+    return this.runtime.request<Run[]>(`/agents/${agentId}/messages${query}`);
   }
 }

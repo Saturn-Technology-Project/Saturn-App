@@ -3,6 +3,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
+    "start": "npm run dev --prefix runtime",
     "dev": "npm run dev --prefix runtime",
     "test": "npm test --prefix runtime",
     "desktop": "npm run dev --prefix desktop",

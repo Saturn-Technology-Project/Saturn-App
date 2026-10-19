@@ -33,15 +33,40 @@ export const LLM_PROVIDERS: LlmProvider[] = [
     ],
   },
   {
+    // Runs through the official Claude Agent SDK and `claude` program on the user's own Claude login
+    // (see application/claude-code.ts). Saturn holds no key and never sees the login.
+    id: "claude-code",
+    label: "Claude Code (your Claude plan)",
+    needsKey: false,
+    baseUrl: "",
+    models: [
+      { id: "claude-opus-5-5", label: "Claude Opus 5.5" },
+      { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5" },
+      { id: "claude-fable-5-1", label: "Claude Fable 5.1" },
+      { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+    ],
+  },
+  {
     id: "gemini",
     label: "Gemini",
     needsKey: true,
     baseUrl: "https://generativelanguage.googleapis.com",
     models: [
+      { id: "gemini-4-argon", label: "Gemini 4 Argon" },
       { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
       { id: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
       { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro" },
       { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+    ],
+  },
+  {
+    id: "deepseek",
+    label: "DeepSeek",
+    needsKey: true,
+    baseUrl: "https://api.deepseek.com",
+    models: [
+      { id: "deepseek-flash", label: "DeepSeek Flash (V4.1)" },
+      { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
     ],
   },
   {
@@ -52,6 +77,14 @@ export const LLM_PROVIDERS: LlmProvider[] = [
     models: [],
   },
 ];
+
+/** Reasoning effort the Claude Agent SDK accepts. */
+export const CLAUDE_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+export type ClaudeEffort = (typeof CLAUDE_EFFORTS)[number];
+
+export function claudeEffort(value: unknown): ClaudeEffort | undefined {
+  return CLAUDE_EFFORTS.includes(value as ClaudeEffort) ? (value as ClaudeEffort) : undefined;
+}
 
 export function llmProvider(id: string): LlmProvider | undefined {
   return LLM_PROVIDERS.find((item) => item.id === id);

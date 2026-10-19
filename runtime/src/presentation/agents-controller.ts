@@ -3,11 +3,8 @@ import type { AppServices } from "../application/services.js";
 import { param, respond } from "./http.js";
 
 export function mountAgents(app: Express, services: AppServices): void {
-  app.get("/agents", (req, res, next) => {
-    respond(res, next, async () => {
-      await services.syncSignedInState();
-      return services.listAgents();
-    });
+  app.get("/agents", (_req, res, next) => {
+    respond(res, next, () => services.listAgents());
   });
 
   app.post("/agents", (req, res, next) => {
@@ -15,7 +12,7 @@ export function mountAgents(app: Express, services: AppServices): void {
   });
 
   app.get("/agents/:id/messages", (req, res, next) => {
-    respond(res, next, () => services.messagesFor(param(req.params.id)));
+    respond(res, next, () => services.messagesFor(param(req.params.id), req.query.threadId ? String(req.query.threadId) : undefined));
   });
 
   app.get("/agents/:id", (req, res, next) => {

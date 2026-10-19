@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { FileCheckpoint } from "../../domain/skills/checkpoint.js";
 import { TaskPlan } from "../../domain/skills/plan.js";
 import { Workspace } from "../../domain/skills/workspace.js";
 import { CodeSkill } from "./code-skill.js";
@@ -6,11 +7,11 @@ import { FileSkill } from "./file-skill.js";
 import { text } from "./text.js";
 import { WebSkill } from "./web-skill.js";
 
-const DIRECT_SKILLS = ["chat", "files", "code", "mcp", "web", "multi_step"];
+const DIRECT_SKILLS = ["files", "code", "mcp", "web", "multi_step"];
 
 export type ToolCaller = (toolId: string, args: Record<string, unknown>) => Promise<unknown>;
 
-/** The six built-in skills. Each one is its own object; this class only chooses which to run. */
+/** The built-in skills. Each one is its own object; this class only chooses which to run. */
 export class GeneralSkills {
   private readonly workspace: Workspace;
   private readonly files: FileSkill;
@@ -21,14 +22,16 @@ export class GeneralSkills {
     dataDir: string,
     private readonly callTool?: ToolCaller,
     private readonly signal?: AbortSignal,
+    /** The project folder the chat works in; without one, the agent's private sandbox. */
+    workdir?: string,
+    checkpoint?: FileCheckpoint,
   ) {
-    this.workspace = new Workspace(path.join(dataDir, "workspace"));
-    this.files = new FileSkill(this.workspace);
+    this.workspace = new Workspace(workdir ?? path.join(dataDir, "workspace"));
+    this.files = new FileSkill(this.workspace, checkpoint);
     this.code = new CodeSkill(this.workspace);
   }
 
   async run(toolId: string, args: Record<string, unknown>): Promise<unknown> {
-    if (toolId === "chat") return { message: text(args.message) };
     if (toolId === "files") return this.files.run(args);
     if (toolId === "code") return this.code.run(args, this.signal);
     if (toolId === "web") return this.web.run(args, this.signal);

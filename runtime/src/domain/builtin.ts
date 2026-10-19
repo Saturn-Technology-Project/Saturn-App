@@ -1,8 +1,60 @@
-import type { Agent, McpConnection, ToolRoute } from "./model.js";
+import type { McpConnection, ToolRoute } from "./model.js";
 
 export const SATURN_AGENT_ID = "saturn-agent";
 export const GENERAL_SKILLS_ID = "general-skills";
 export const BUILTIN_MCP_URL = "builtin://general-skills";
+
+import {
+  COMPUTER_USE_ID,
+  COMPUTER_USE_URL,
+  CURSOR_COMPUTER_USE_ID,
+  CURSOR_COMPUTER_USE_URL,
+  ORIGIN_ID,
+  ORIGIN_URL,
+  CURSOR_ORIGIN_ID,
+  CURSOR_ORIGIN_URL,
+  COMPUTER_USE_TOOLS,
+  ORIGIN_TOOLS,
+  cursorComputerUseSkills,
+  cursorOriginSkills,
+} from "./cursor-tools.js";
+
+import {
+  AUTOMATIONS_SKILLS_ID,
+  AUTOMATIONS_SKILLS_URL,
+  ANTIGRAVITY_SKILLS_ID,
+  ANTIGRAVITY_SKILLS_URL,
+  ANTIGRAVITY_TOOLS,
+  antigravitySkills,
+} from "./antigravity-tools.js";
+
+export {
+  COMPUTER_USE_ID,
+  COMPUTER_USE_URL,
+  CURSOR_COMPUTER_USE_ID,
+  CURSOR_COMPUTER_USE_URL,
+  ORIGIN_ID,
+  ORIGIN_URL,
+  CURSOR_ORIGIN_ID,
+  CURSOR_ORIGIN_URL,
+  COMPUTER_USE_TOOLS,
+  ORIGIN_TOOLS,
+  cursorComputerUseSkills,
+  cursorOriginSkills,
+  AUTOMATIONS_SKILLS_ID,
+  AUTOMATIONS_SKILLS_URL,
+  ANTIGRAVITY_SKILLS_ID,
+  ANTIGRAVITY_SKILLS_URL,
+  ANTIGRAVITY_TOOLS,
+  antigravitySkills,
+};
+
+export const DEFAULT_BUILTIN_MCP_IDS: readonly string[] = [
+  GENERAL_SKILLS_ID,
+  COMPUTER_USE_ID,
+  ORIGIN_ID,
+  AUTOMATIONS_SKILLS_ID,
+];
 
 export function withGeneralSkills(ids: string[]): string[] {
   return ids.includes(GENERAL_SKILLS_ID) ? ids : [...ids, GENERAL_SKILLS_ID];
@@ -14,7 +66,6 @@ const skill = (toolId: string, description: string, properties: Record<string, u
   description,
   inputSchema: { type: "object", properties, required, additionalProperties: false },
   environments: ["production"],
-  organizationId: null,
 });
 
 export function generalSkills(): McpConnection {
@@ -23,7 +74,6 @@ export function generalSkills(): McpConnection {
     name: "General Skills",
     url: BUILTIN_MCP_URL,
     tools: [
-      skill("chat", "Record the reply the user should see.", { message: { type: "string" } }, ["message"]),
       skill(
         "files",
         "List, read, write, or patch files in the workspace. A patch starts with *** Begin Patch and ends with *** End Patch. File sections are *** Add File, *** Update File, or *** Delete File. Update hunks use @@ and lines that start with a space, + or -.",
@@ -70,25 +120,5 @@ export function generalSkills(): McpConnection {
         ["steps"],
       ),
     ],
-  };
-}
-
-export function saturnAgent(current: Agent | undefined, modelConnectionId: string | null, canEdit: boolean): Agent {
-  return {
-    id: SATURN_AGENT_ID,
-    name: "Saturn Agents",
-    description: current?.description || "General assistant built into Saturn Runtime.",
-    instructions:
-      current?.instructions ||
-      "You are Saturn Agents, the general assistant built into Saturn Runtime. Reply with chat. Use files to list, read, write, and patch the workspace, code to run a command there, web for a public page, and mcp for another enabled tool. For work that takes more than one action, keep a multi_step plan with exactly one step in progress until it is finished.",
-    responseStyle: current?.responseStyle ?? "professional",
-    autonomy: current?.autonomy ?? "execute_when_allowed",
-    temperature: current?.temperature ?? 0.2,
-    maxOutput: current?.maxOutput ?? 4000,
-    status: current?.status ?? "active",
-    canEdit,
-    modelConnectionId,
-    mcpConnectionIds: withGeneralSkills((current?.mcpConnectionIds ?? []).filter((id) => id !== SATURN_AGENT_ID)),
-    ragConnectionIds: current?.ragConnectionIds ?? [],
   };
 }

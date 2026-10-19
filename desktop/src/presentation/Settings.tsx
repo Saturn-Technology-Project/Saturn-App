@@ -1,182 +1,254 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
-import type { Agent, Check, CloudLink, Key, LlmProvider, LogLine, Mcp, Model, Profile, Rag, RuntimeInfo } from "../domain/model";
+import type { Agent, LaunchApp, LlmProvider, LogLine, Mcp, Model, Profile, Project, Rag, RuntimeInfo, UsageSummary } from "../domain/model";
+import { UsageBilling } from "./UsageBilling";
+import { Telemetry } from "./Telemetry";
+import { ConfigureMcpModal } from "./ConfigureMcpModal";
 
-type Page = "overview" | "runtime" | "mcp" | "keys" | "llm" | "information" | "logs" | "diagnostics" | "settings";
+export type SettingsPage =
+  | "settings"
+  | "usage"
+  | "llm"
+  | "mcp"
+  | "telemetry"
+  | "logs"
+  | "information"
+  | "shortcuts";
 
-const PAGES: [Page, string][] = [
-  ["overview", "Overview"],
-  ["runtime", "Runtime"],
-  ["mcp", "MCP"],
-  ["keys", "API Keys"],
-  ["llm", "LLM"],
-  ["information", "Information"],
-  ["logs", "Logs"],
-  ["diagnostics", "Diagnostics"],
-  ["settings", "Settings"],
+const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
+  {
+    title: "Settings",
+    items: [
+      ["settings", "General", "Execution, appearance, and workspace"],
+      ["llm", "Models", "LLM providers & models"],
+      ["mcp", "MCP & Skills", "Tool servers & knowledge sources"],
+      ["usage", "Usage & Billing", "Token spend & costs"],
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      ["telemetry", "Telemetry", "OpenTelemetry traces & logs"],
+      ["logs", "Logs", "Live runtime event stream"],
+      ["information", "About", "Port, version & identity"],
+    ],
+  },
 ];
 
 export function Settings(props: {
+  initialPage?: SettingsPage;
   agents: { id: string; name: string; status: string }[];
   agent: Agent | null;
   models: Model[];
   mcp: Mcp[];
   rag: Rag[];
-  cloud: CloudLink;
+  projects?: Project[];
   onClose: () => void;
   onChanged: () => Promise<void>;
   onPatchAgent: (patch: Partial<Agent>) => Promise<void>;
-  onCloud: (health: CloudLink) => void;
-  onLogout: () => void;
   onProfile: (profile: Profile) => void;
-  canRemove?: boolean;
+  theme?: "light" | "dark";
+  onSetTheme?: (theme: "light" | "dark") => void;
+  onToggleTheme?: () => void;
+  /** Shown as its own window (opened from Saturn IDE) instead of a dialog over the Agent App. */
+  standalone?: boolean;
 }) {
-  const [page, setPage] = useState<Page>("overview");
+  const [page, setPage] = useState<SettingsPage>(props.initialPage ?? "settings");
+  const paneRef = useRef<HTMLDivElement | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [keys, setKeys] = useState<Key[]>([]);
   const [info, setInfo] = useState<RuntimeInfo | null>(null);
   const [logs, setLogs] = useState<LogLine[]>([]);
-  const [checks, setChecks] = useState<Check[]>([]);
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [error, setError] = useState("");
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (props.initialPage) {
+      setPage(props.initialPage);
+      setSelectedProjectId(null);
+    }
+  }, [props.initialPage]);
+
+  // Each page starts at its top.
+  useEffect(() => {
+    paneRef.current?.scrollTo({ top: 0 });
+  }, [page, selectedProjectId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        props.onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [props.onClose]);
 
   async function load() {
     const next = await desktop.admin.console();
     setProfile(next.profile);
     props.onProfile(next.profile);
-    setKeys(next.keys);
     setInfo(next.information);
     setLogs(next.logs);
-    setChecks(next.checks);
+    setUsage(await desktop.admin.usageSummary());
   }
 
   useEffect(() => {
     void load().catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not load settings"));
   }, [props.models, props.agents]);
 
-  const cloudLabel = props.cloud.connected ? "Connected" : props.cloud.paired ? "Paused" : "Not connected";
-  const cloudOk = props.cloud.connected;
+  const selectedProject = selectedProjectId ? props.projects?.find((p) => p.id === selectedProjectId) : null;
+  const currentMeta = selectedProject
+    ? ["project", selectedProject.name, `Project configuration & custom rules (${selectedProject.path})`]
+    : page === "shortcuts"
+      ? ["shortcuts", "Shortcuts", "Quick keyboard shortcuts for Saturn"]
+      : GROUPS.flatMap((group) => group.items).find(([id]) => id === page);
 
   return (
-    <section className="settings">
-      <div className="settings-head">
-        <h2>Settings</h2>
-        <button className="btn ghost" type="button" onClick={props.onClose}>Back to chat</button>
+    <div className={props.standalone ? "settings-modal-overlay standalone" : "settings-modal-overlay"} onMouseDown={props.standalone ? undefined : props.onClose}>
+      <div
+        className="settings-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {props.standalone ? null : (
+          <button
+            className="settings-modal-close"
+            type="button"
+            onClick={props.onClose}
+            title="Close (Esc)"
+            aria-label="Close settings"
+          >
+            <CloseIcon />
+          </button>
+        )}
+
+        <aside className="settings-rail">
+          <div className="settings-rail-scroll">
+            {GROUPS.map((group) => (
+              <div className="settings-group" key={group.title}>
+                <div className="settings-group-label">{group.title}</div>
+                {group.items.map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={page === id && !selectedProjectId ? "settings-link active" : "settings-link"}
+                    onClick={() => { setPage(id); setSelectedProjectId(null); setError(""); }}
+                  >
+                    <span>{label}</span>
+                    {id === "llm" ? <small className="rail-count">{props.models.length}</small> : null}
+                    {id === "mcp" ? <small className="rail-count">{props.mcp.length}</small> : null}
+                  </button>
+                ))}
+              </div>
+            ))}
+
+            {props.projects && props.projects.length > 0 ? (
+              <div className="settings-group">
+                <div className="settings-group-label">Projects</div>
+                {props.projects.map((proj) => (
+                  <button
+                    key={proj.id}
+                    type="button"
+                    className={selectedProjectId === proj.id ? "settings-link active" : "settings-link"}
+                    onClick={() => { setSelectedProjectId(proj.id); setError(""); }}
+                  >
+                    <span>{proj.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="settings-rail-foot">
+            <button
+              type="button"
+              className={page === "shortcuts" && !selectedProjectId ? "settings-link active" : "settings-link"}
+              onClick={() => { setPage("shortcuts"); setSelectedProjectId(null); setError(""); }}
+            >
+              <span>Shortcuts</span>
+            </button>
+            <div className="settings-user-pill">
+              <div className="settings-user-avatar">
+                {(profile?.name || "Saturn").slice(0, 1).toUpperCase()}
+              </div>
+              <div className="settings-user-meta">
+                <span className="settings-user-name">{profile?.name || "Saturn"}</span>
+                <span className="settings-user-sub">{info ? `Local runtime · ${info.listen.replace(/^https?:\/\//, "")}` : "Local runtime"}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="settings-Pane" ref={paneRef}>
+          <header className="settings-pane-head">
+            <div>
+              <h2 id="settings-dialog-title">{currentMeta?.[1] ?? "Settings"}</h2>
+              {currentMeta?.[2] ? <p className="hint">{currentMeta[2]}</p> : null}
+            </div>
+          </header>
+
+          {error ? <p className="error">{error}</p> : null}
+
+          <div className={page === "telemetry" ? "settings-body wide" : "settings-body"}>
+            {selectedProject ? (
+              <ProjectSettingsTab
+                project={selectedProject}
+                onError={setError}
+              />
+            ) : page === "shortcuts" ? (
+              <ShortcutsTab />
+            ) : (
+              <>
+                {page === "usage" ? <UsageBilling summary={usage} /> : null}
+                {page === "mcp" ? (
+                  <McpPage
+                    agent={props.agent}
+                    mcp={props.mcp}
+                    rag={props.rag}
+                    onToggle={props.onPatchAgent}
+                    onChanged={async () => { await props.onChanged(); await load(); }}
+                    onError={setError}
+                  />
+                ) : null}
+                {page === "llm" ? (
+                  <LlmPage
+                    models={props.models}
+                    onChanged={async () => { await props.onChanged(); await load(); }}
+                    onError={setError}
+                  />
+                ) : null}
+                {page === "information" && info ? <Information info={info} /> : null}
+                {page === "logs" ? <Logs lines={logs} onReload={() => void load()} /> : null}
+                {page === "telemetry" ? <Telemetry /> : null}
+                {page === "settings" && profile ? (
+                  <General
+                    profile={profile}
+                    models={props.models}
+                    theme={props.theme}
+                    onSetTheme={props.onSetTheme}
+                    onToggleTheme={props.onToggleTheme}
+                    onSaved={async (next) => { setProfile(next); props.onProfile(next); await load(); }}
+                    onError={setError}
+                  />
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
       </div>
-      <nav className="settings-nav">
-        {PAGES.map(([id, label]) => (
-          <button key={id} type="button" className={page === id ? "active" : ""} onClick={() => setPage(id)}>{label}</button>
-        ))}
-      </nav>
-      {error ? <p className="error">{error}</p> : null}
-      <div className="settings-body">
-        {page === "overview" ? <Overview cloudLabel={cloudLabel} cloudOk={cloudOk} profile={profile} agents={props.agents.length} models={props.models.length} mcp={props.mcp.length} tools={props.mcp.reduce((sum, item) => sum + item.tools.length, 0)} checks={checks} /> : null}
-        {page === "runtime" ? <Runtime agents={props.agents} /> : null}
-        {page === "mcp" ? (
-          <McpPage
-            agent={props.agent}
-            mcp={props.mcp}
-            rag={props.rag}
-            canRemove={props.canRemove === true}
-            onToggle={props.onPatchAgent}
-            onChanged={async () => { await props.onChanged(); await load(); }}
-            onError={setError}
-          />
-        ) : null}
-        {page === "keys" ? (
-          <KeysPage
-            keys={keys}
-            selected={selectedKey}
-            onSelect={setSelectedKey}
-            onChanged={async () => { await load(); await props.onChanged(); }}
-            onError={setError}
-          />
-        ) : null}
-        {page === "llm" ? (
-          <LlmPage
-            agent={props.agent}
-            models={props.models}
-            onPatch={props.onPatchAgent}
-            onChanged={async () => { await props.onChanged(); await load(); }}
-            onError={setError}
-          />
-        ) : null}
-        {page === "information" && info ? <Information info={info} /> : null}
-        {page === "logs" ? <Logs lines={logs} onReload={() => void load()} /> : null}
-        {page === "diagnostics" ? <Diagnostics checks={checks} onRun={() => void load()} /> : null}
-        {page === "settings" && profile ? (
-          <General
-            profile={profile}
-            info={info}
-            cloud={props.cloud}
-            onCloud={props.onCloud}
-            onLogout={props.onLogout}
-            onSaved={async (next) => { setProfile(next); props.onProfile(next); await load(); }}
-            onError={setError}
-          />
-        ) : null}
-      </div>
-    </section>
+    </div>
   );
 }
 
 function Status({ ok, label }: { ok: boolean; label: string }) {
-  return <span className="status"><span className={`dot ${ok ? "ok" : "off"}`} />{label}</span>;
-}
-
-function Overview(props: {
-  cloudLabel: string;
-  cloudOk: boolean;
-  profile: Profile | null;
-  agents: number;
-  models: number;
-  mcp: number;
-  tools: number;
-  checks: Check[];
-}) {
   return (
-    <>
-      <section className="card">
-        <div className="label">Connection</div>
-        <Status ok={props.cloudOk} label={props.cloudLabel} />
-        <div className="kv" style={{ marginTop: 12 }}>
-          <span>Environment</span><div>{props.profile?.environment ?? "—"}</div>
-          <span>Name</span><div>{props.profile?.name ?? "—"}</div>
-        </div>
-      </section>
-      <section className="card">
-        <div className="label">Components</div>
-        {props.checks.map((item) => (
-          <div className="row" key={item.name}><span>{item.name}</span><Status ok={item.ok} label={item.ok ? "Healthy" : "Offline"} /></div>
-        ))}
-      </section>
-      <section className="card">
-        <div className="label">Resources</div>
-        <div className="kv">
-          <span>Agents</span><div>{props.agents}</div>
-          <span>LLM</span><div>{props.models}</div>
-          <span>MCP servers</span><div>{props.mcp}</div>
-          <span>Tools</span><div>{props.tools}</div>
-        </div>
-      </section>
-    </>
-  );
-}
-
-function Runtime(props: { agents: { id: string; name: string; status: string }[] }) {
-  return (
-    <>
-      <h3 className="page-title">Agent Runtime</h3>
-      {props.agents.length === 0 ? <p className="hint">No agent yet.</p> : props.agents.map((item) => (
-        <section className="card" key={item.id}>
-          <div className="row">
-            <strong>{item.name}</strong>
-            <Status ok={item.status !== "paused"} label={item.status === "paused" ? "Paused" : "Healthy"} />
-          </div>
-          <div className="hint">{item.id}</div>
-        </section>
-      ))}
-    </>
+    <span className={`status-pill ${ok ? "ok" : "off"}`}>
+      <span className={`dot ${ok ? "ok" : "off"}`} />
+      {label}
+    </span>
   );
 }
 
@@ -184,7 +256,6 @@ function McpPage(props: {
   agent: Agent | null;
   mcp: Mcp[];
   rag: Rag[];
-  canRemove: boolean;
   onToggle: (patch: Partial<Agent>) => Promise<void>;
   onChanged: () => Promise<void>;
   onError: (message: string) => void;
@@ -193,6 +264,8 @@ function McpPage(props: {
   const [ragUrl, setRagUrl] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [configuringServer, setConfiguringServer] = useState<Mcp | null>(null);
+
   async function removeServer(id: string) {
     try {
       await desktop.admin.deleteMcp(id);
@@ -203,6 +276,7 @@ function McpPage(props: {
       props.onError(reason instanceof Error ? reason.message : "Could not remove the MCP server");
     }
   }
+
   async function addMcp() {
     try {
       const created = await desktop.admin.createMcp(url);
@@ -214,6 +288,7 @@ function McpPage(props: {
       props.onError(reason instanceof Error ? reason.message : "Could not connect MCP");
     }
   }
+
   async function addRag() {
     try {
       await desktop.admin.createRag(ragUrl);
@@ -224,208 +299,177 @@ function McpPage(props: {
       props.onError(reason instanceof Error ? reason.message : "Could not connect knowledge");
     }
   }
+
+  const isBuiltin = (item: Mcp) =>
+    item.url.startsWith("builtin:") ||
+    ["general-skills", "computer-use", "origin", "automations", "cursor-computer-use", "cursor-origin", "antigravity-skills"].includes(item.id);
+
+  const builtinServers = props.mcp.filter(isBuiltin);
+  const installedServers = props.mcp.filter((item) => !isBuiltin(item));
+
+  function renderMcpCard(item: Mcp) {
+    const on = props.agent?.mcpConnectionIds.includes(item.id) ?? false;
+    const builtin = isBuiltin(item);
+    const removable = !builtin;
+    const expanded = open[item.id] ?? false;
+    return (
+      <section className="card mcp-card" key={item.id}>
+        <div className="row">
+          <button
+            className="fold"
+            type="button"
+            aria-expanded={expanded}
+            onClick={() => setOpen((current) => ({ ...current, [item.id]: !current[item.id] }))}
+          >
+            <Chevron open={expanded} />
+            <span>
+              <strong>{item.name}</strong>
+              <span className="hint">{item.tools.length} tools · {builtin ? "Built-in workspace skills" : item.url}</span>
+            </span>
+          </button>
+          <span className="actions">
+            <button
+              className="btn ghost tiny"
+              type="button"
+              onClick={() => setConfiguringServer(item)}
+              title={`Configure ${item.name}`}
+            >
+              Configure
+            </button>
+            {removable ? (
+              confirming === item.id ? (
+                <>
+                  <button className="btn ghost tiny" type="button" onClick={() => setConfirming(null)}>Cancel</button>
+                  <button className="btn danger tiny" type="button" onClick={() => void removeServer(item.id)}>Remove</button>
+                </>
+              ) : (
+                <button className="btn ghost tiny" type="button" onClick={() => setConfirming(item.id)}>Remove</button>
+              )
+            ) : null}
+            {!builtin ? (
+              <button
+                className={on ? "btn tiny primary-btn" : "btn ghost tiny"}
+                type="button"
+                disabled={!props.agent}
+                onClick={() =>
+                  void props.onToggle({
+                    mcpConnectionIds: on
+                      ? props.agent!.mcpConnectionIds.filter((id) => id !== item.id)
+                      : [...(props.agent?.mcpConnectionIds ?? []), item.id],
+                  })
+                }
+              >
+                {on ? "Enabled" : "Disabled"}
+              </button>
+            ) : null}
+          </span>
+        </div>
+        {expanded ? (
+          <div className="tool-chip-grid">
+            {item.tools.map((tool) => (
+              <code className="tool-chip" key={tool.toolId}>{tool.toolId}</code>
+            ))}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
   return (
     <>
-      <h3 className="page-title">MCP Servers</h3>
-      <p className="hint">Connect your own MCP. The agent calls it directly. Saturn MCP is added only when the organization assigns a tool set.</p>
-      {props.mcp.length === 0 ? <p className="hint">No MCP server has registered yet.</p> : props.mcp.map((item) => {
-        const on = props.agent?.mcpConnectionIds.includes(item.id) ?? false;
-        const builtin = item.url.startsWith("builtin:");
-        const saturn = item.origin === "saturn" || item.id.startsWith("saturn:");
-        const removable = !builtin && !saturn && (item.origin !== "organization" || props.canRemove);
-        const expanded = open[item.id] ?? false;
-        return (
-          <section className="card mcp-card" key={item.id}>
-            <div className="row">
-              <button
-                className="fold"
-                type="button"
-                aria-expanded={expanded}
-                onClick={() => setOpen((current) => ({ ...current, [item.id]: !current[item.id] }))}
-              >
-                <Chevron open={expanded} />
-                <span>
-                  <strong>{item.name}</strong>
-                  <span className="hint">{item.tools.length} tools · {builtin ? "Built in" : item.url}</span>
-                </span>
-              </button>
-              <span className="actions">
-                {removable ? (
-                  confirming === item.id ? (
-                    <>
-                      <button className="btn ghost tiny" type="button" onClick={() => setConfirming(null)}>Cancel</button>
-                      <button className="btn danger tiny" type="button" onClick={() => void removeServer(item.id)}>Remove</button>
-                    </>
-                  ) : (
-                    <button className="btn ghost tiny" type="button" onClick={() => setConfirming(item.id)}>Remove</button>
-                  )
-                ) : null}
-                {builtin ? (
-                  <button className="btn tiny" type="button" disabled>On</button>
-                ) : (
-                  <button className={on ? "btn tiny" : "btn ghost tiny"} type="button" disabled={!props.agent} onClick={() => void props.onToggle({ mcpConnectionIds: on ? props.agent!.mcpConnectionIds.filter((id) => id !== item.id) : [...(props.agent?.mcpConnectionIds ?? []), item.id] })}>{on ? "On" : "Off"}</button>
-                )}
-              </span>
-            </div>
-            {expanded ? (
-              <ul className="tool-list">
-                {item.tools.map((tool) => <li key={tool.toolId}>{tool.toolId}</li>)}
-              </ul>
-            ) : null}
-          </section>
-        );
-      })}
       <section className="card">
-        <div className="label">MCP URL</div>
-        <input value={url} placeholder="http://127.0.0.1:3000/mcp" onChange={(event) => setUrl(event.target.value)} />
-        <div className="actions"><button className="btn" type="button" disabled={!url.trim()} onClick={() => void addMcp()}>Connect MCP</button></div>
+        <div className="label">Connect MCP Server</div>
+        <p className="hint">Register a local or HTTP MCP endpoint. Tools will be discovered automatically.</p>
+        <div className="inline-form">
+          <input value={url} placeholder="http://127.0.0.1:3000/mcp" onChange={(event) => setUrl(event.target.value)} />
+          <button className="btn primary-btn" type="button" disabled={!url.trim()} onClick={() => void addMcp()}>
+            Connect MCP
+          </button>
+        </div>
       </section>
-      <h3 className="page-title">Knowledge</h3>
+
+      <div className="section-subtitle">Built in</div>
+      {builtinServers.length === 0 ? (
+        <p className="hint">No built-in skills available.</p>
+      ) : (
+        builtinServers.map(renderMcpCard)
+      )}
+
+      <div className="section-subtitle" style={{ marginTop: 24 }}>Installed MCP Servers</div>
+      {installedServers.length === 0 ? (
+        <p className="hint">No external MCP servers installed yet.</p>
+      ) : (
+        installedServers.map(renderMcpCard)
+      )}
+
+      {configuringServer && (
+        <ConfigureMcpModal
+          server={configuringServer}
+          onClose={() => setConfiguringServer(null)}
+          onSave={async (disabledTools) => {
+            try {
+              await desktop.admin.updateMcp(configuringServer.id, { disabledTools });
+              props.onError("");
+              await props.onChanged();
+            } catch (reason) {
+              props.onError(reason instanceof Error ? reason.message : "Could not save tool configuration");
+            }
+          }}
+          onReload={async () => {
+            try {
+              await desktop.admin.discoverMcp(configuringServer.id);
+              props.onError("");
+              await props.onChanged();
+            } catch (reason) {
+              props.onError(reason instanceof Error ? reason.message : "Could not reload tools");
+            }
+          }}
+        />
+      )}
+
+      <div className="section-subtitle" style={{ marginTop: 24 }}>Knowledge & RAG Endpoints</div>
+      <section className="card">
+        <div className="label">Connect Knowledge URL</div>
+        <div className="inline-form">
+          <input value={ragUrl} placeholder="http://127.0.0.1:4200/search" onChange={(event) => setRagUrl(event.target.value)} />
+          <button className="btn primary-btn" type="button" disabled={!ragUrl.trim()} onClick={() => void addRag()}>
+            Connect Knowledge
+          </button>
+        </div>
+      </section>
       {props.rag.map((item) => {
         const on = props.agent?.ragConnectionIds.includes(item.id) ?? false;
         return (
           <section className="card" key={item.id}>
             <div className="row">
-              <div><strong>{item.name}</strong><div className="hint">{item.url}</div></div>
-              <button className={on ? "btn tiny" : "btn ghost tiny"} type="button" disabled={!props.agent} onClick={() => void props.onToggle({ ragConnectionIds: on ? props.agent!.ragConnectionIds.filter((id) => id !== item.id) : [...(props.agent?.ragConnectionIds ?? []), item.id] })}>{on ? "On" : "Off"}</button>
+              <div>
+                <strong>{item.name}</strong>
+                <div className="hint">{item.url}</div>
+              </div>
+              <button
+                className={on ? "btn tiny primary-btn" : "btn ghost tiny"}
+                type="button"
+                disabled={!props.agent}
+                onClick={() =>
+                  void props.onToggle({
+                    ragConnectionIds: on
+                      ? props.agent!.ragConnectionIds.filter((id) => id !== item.id)
+                      : [...(props.agent?.ragConnectionIds ?? []), item.id],
+                  })
+                }
+              >
+                {on ? "Enabled" : "Disabled"}
+              </button>
             </div>
           </section>
         );
       })}
-      <section className="card">
-        <div className="label">RAG URL</div>
-        <input value={ragUrl} onChange={(event) => setRagUrl(event.target.value)} />
-        <div className="actions"><button className="btn" type="button" disabled={!ragUrl.trim()} onClick={() => void addRag()}>Connect knowledge</button></div>
-      </section>
-    </>
-  );
-}
-
-function KeysPage(props: {
-  keys: Key[];
-  selected: string | null;
-  onSelect: (id: string | null) => void;
-  onChanged: () => Promise<void>;
-  onError: (message: string) => void;
-}) {
-  const current = props.keys.find((item) => item.id === props.selected) ?? null;
-  const [value, setValue] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", secretName: "", baseUrl: "", paths: "", value: "" });
-  const emptyForm = { name: "", secretName: "", baseUrl: "", paths: "", value: "" };
-  async function save() {
-    if (!current) return;
-    try {
-      await desktop.admin.rotateKey(current.id, value);
-      setValue("");
-      props.onError("");
-      await props.onChanged();
-    } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not save the key");
-    }
-  }
-  async function clear() {
-    if (!current) return;
-    await desktop.admin.clearKey(current.id);
-    await props.onChanged();
-  }
-  async function remove() {
-    if (!current) return;
-    try {
-      await desktop.admin.deleteKey(current.id);
-      props.onSelect(null);
-      await props.onChanged();
-    } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not remove the key");
-    }
-  }
-  async function add() {
-    try {
-      const created = await desktop.admin.createKey({
-        name: form.name,
-        secretName: form.secretName,
-        baseUrl: form.baseUrl,
-        allowedPaths: form.paths,
-        value: form.value,
-      });
-      setForm(emptyForm);
-      setAdding(false);
-      props.onError("");
-      props.onSelect(created.id);
-      await props.onChanged();
-    } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not add the key");
-    }
-  }
-  if (current) {
-    return (
-      <>
-        <button className="btn ghost tiny" type="button" onClick={() => props.onSelect(null)}>← API Keys</button>
-        <h3 className="page-title">{current.name}</h3>
-        <section className="card">
-          <div className="kv">
-            <span>Key</span><div><code>{current.secretName}</code></div>
-            <span>Status</span><div><Status ok={current.status === "configured"} label={current.status === "configured" ? "Configured" : "Missing"} /></div>
-            <span>Used by</span><div>{current.allowedCallers.join(", ") || "—"}</div>
-            <span>Host</span><div>{current.baseUrl || "—"}</div>
-          </div>
-          <hr />
-          <div className="label">{current.hasSecret ? "Rotate" : "Configure"} {current.secretName}</div>
-          <input type="password" value={value} autoComplete="off" placeholder="Value" onChange={(event) => setValue(event.target.value)} />
-          <p className="hint">The value is written to the Credential Broker only. It is never shown again.</p>
-          <div className="actions">
-            <button className="btn" type="button" disabled={!value} onClick={() => void save()}>Save</button>
-            <button className="btn ghost" type="button" onClick={() => void clear()}>Clear</button>
-            {current.native ? null : <button className="btn danger" type="button" onClick={() => void remove()}>Remove</button>}
-          </div>
-        </section>
-      </>
-    );
-  }
-  return (
-    <>
-      <h3 className="page-title">API Keys</h3>
-      <p className="hint">API keys are shared with your organization. They stay in the Credential Broker and are never returned to the chat.</p>
-      {props.keys.map((item) => (
-        <button key={item.id} type="button" className="card key-card" onClick={() => props.onSelect(item.id)}>
-          <div className="row">
-            <div>
-              <strong>{item.name}</strong>
-              <div className="hint"><code>{item.secretName}</code>{item.required ? " · required" : " · optional"}</div>
-            </div>
-            <Status ok={item.status === "configured"} label={item.status === "configured" ? "Configured" : item.required ? "Missing" : "Not set"} />
-          </div>
-        </button>
-      ))}
-      {adding ? (
-        <section className="card">
-          <div className="label">Name</div>
-          <input value={form.name} placeholder="ERP" onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
-          <div className="label">Key name</div>
-          <input value={form.secretName} placeholder="ERP_API_KEY" onChange={(event) => setForm((current) => ({ ...current, secretName: event.target.value }))} />
-          <div className="label">Base URL</div>
-          <input value={form.baseUrl} placeholder="https://erp.example.com" onChange={(event) => setForm((current) => ({ ...current, baseUrl: event.target.value }))} />
-          <div className="label">Allowed paths</div>
-          <input value={form.paths} placeholder="/v1/*, /orders/*" onChange={(event) => setForm((current) => ({ ...current, paths: event.target.value }))} />
-          <div className="label">Value</div>
-          <input type="password" value={form.value} autoComplete="off" onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} />
-          <p className="hint">The value is stored in-process and is not shown again.</p>
-          <div className="actions">
-            <button className="btn ghost" type="button" onClick={() => { setForm(emptyForm); setAdding(false); }}>Cancel</button>
-            <button className="btn" type="button" disabled={!form.secretName.trim()} onClick={() => void add()}>Save</button>
-          </div>
-        </section>
-      ) : (
-        <button className="btn" type="button" onClick={() => setAdding(true)}>Add</button>
-      )}
     </>
   );
 }
 
 function LlmPage(props: {
-  agent: Agent | null;
   models: Model[];
-  onPatch: (patch: Partial<Agent>) => Promise<void>;
   onChanged: () => Promise<void>;
   onError: (message: string) => void;
 }) {
@@ -434,7 +478,10 @@ function LlmPage(props: {
   const [modelId, setModelId] = useState("");
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:1234");
   const [secret, setSecret] = useState("");
+  const [effort, setEffort] = useState("");
   const [studioModels, setStudioModels] = useState<{ id: string; label: string }[]>([]);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [keyDraft, setKeyDraft] = useState("");
   const provider = providers.find((item) => item.id === providerId) ?? providers[0];
 
   useEffect(() => {
@@ -474,6 +521,7 @@ function LlmPage(props: {
         model: modelId,
         baseUrl: providerId === "lmstudio" ? baseUrl : undefined,
         secret: secret || undefined,
+        effort: providerId === "claude-code" && effort ? effort : undefined,
       });
       setSecret("");
       props.onError("");
@@ -483,61 +531,177 @@ function LlmPage(props: {
     }
   }
 
+  async function bindKey(id: string) {
+    try {
+      await desktop.admin.updateModelKey(id, keyDraft.trim());
+      setEditingKey(null);
+      setKeyDraft("");
+      props.onError("");
+      await props.onChanged();
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : "Could not save the API key");
+    }
+  }
+
   const choices = providerId === "lmstudio" ? studioModels : provider?.models ?? [];
   const needsKey = provider?.needsKey ?? true;
+  const savedKey = props.models.some((item) => item.provider === providerId && item.hasSecret);
 
   return (
     <>
-      <h3 className="page-title">LLM</h3>
-      <p className="hint">Model connections and their keys are shared with your organization. The chat never receives the key.</p>
-      {props.models.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          className={props.agent?.modelConnectionId === item.id ? "card key-card on" : "card key-card"}
-          onClick={() => void props.onPatch({ modelConnectionId: item.id })}
-        >
-          <div className="row">
-            <div>
-              <strong>{item.name}</strong>
-              <div className="hint">{providerLabel(providers, item)}{item.model ? ` · ${item.model}` : ""}</div>
+      <div className="section-subtitle">Connected Models</div>
+      {props.models.length === 0 ? (
+        <p className="hint" style={{ marginBottom: 14 }}>No models connected yet. Add a cloud or local LM Studio model below.</p>
+      ) : (
+        props.models.map((item) => {
+          return (
+            <div
+              key={item.id}
+              className="card key-card"
+            >
+              <div className="row">
+                <div>
+                  <div className="model-card-title">
+                    <strong>{item.name}</strong>
+                  </div>
+                  <div className="hint">{providerLabel(providers, item)}{item.model ? ` · ${item.model}` : ""}{item.effort ? ` · ${EFFORT_LABELS[item.effort] ?? item.effort} effort` : ""}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Status
+                    ok={item.provider === "lmstudio" || item.provider === "claude-code" || item.hasSecret}
+                    label={item.provider === "lmstudio" ? "Local Server" : item.provider === "claude-code" ? "Claude plan" : item.hasSecret ? "Key stored" : "No key"}
+                  />
+                  {item.provider !== "lmstudio" && item.provider !== "claude-code" && editingKey !== item.id ? (
+                    <button
+                      className="btn ghost tiny"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingKey(item.id);
+                        setKeyDraft("");
+                      }}
+                    >
+                      {item.hasSecret ? "Replace Key" : "Add Key"}
+                    </button>
+                  ) : null}
+                  <button
+                    className="btn ghost tiny danger"
+                    type="button"
+                    title="Remove model"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!window.confirm(`Remove ${item.name}? Agents using it will need another model.`)) return;
+                      try {
+                        await desktop.admin.deleteModel(item.id);
+                        await props.onChanged();
+                      } catch (err) {
+                        props.onError(err instanceof Error ? err.message : "Failed to remove model");
+                      }
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              {editingKey === item.id ? (
+                <form
+                  className="model-key-row"
+                  onClick={(e) => e.stopPropagation()}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void bindKey(item.id);
+                  }}
+                >
+                  <input
+                    type="password"
+                    autoFocus
+                    autoComplete="off"
+                    aria-label={`API key for ${item.name}`}
+                    placeholder={`Paste ${providerLabel(providers, item)} API key…`}
+                    value={keyDraft}
+                    onChange={(event) => setKeyDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setEditingKey(null);
+                    }}
+                  />
+                  <button className="btn ghost tiny" type="button" onClick={() => setEditingKey(null)}>Cancel</button>
+                  <button className="btn primary-btn tiny" type="submit" disabled={!keyDraft.trim()}>Save Key</button>
+                </form>
+              ) : null}
             </div>
-            <Status ok={item.provider === "lmstudio" || item.hasSecret} label={item.provider === "lmstudio" ? "Local" : item.hasSecret ? "Key stored" : "No key"} />
-          </div>
-        </button>
-      ))}
+          );
+        })
+      )}
+
+      <div className="section-subtitle" style={{ marginTop: 20 }}>Add Model Connection</div>
       <section className="card">
-        <label className="label" htmlFor="llm-provider">Provider</label>
-        <select id="llm-provider" value={providerId} onChange={(event) => chooseProvider(event.target.value)}>
-          {providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-        </select>
+        <div className="form-grid-2">
+          <div>
+            <label className="label" htmlFor="llm-provider">Provider</label>
+            <select id="llm-provider" value={providerId} onChange={(event) => chooseProvider(event.target.value)}>
+              {providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="llm-model">Model</label>
+            {providerId === "lmstudio" && choices.length === 0 ? (
+              <input id="llm-model" value={modelId} placeholder="Model identifier in LM Studio" onChange={(event) => setModelId(event.target.value)} />
+            ) : (
+              <select id="llm-model" value={modelId} onChange={(event) => setModelId(event.target.value)}>
+                {choices.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+
+        {providerId === "claude-code" ? (
+          <div>
+            <label className="label" htmlFor="llm-effort">Effort</label>
+            <select id="llm-effort" value={effort} onChange={(event) => setEffort(event.target.value)}>
+              <option value="">Model default</option>
+              {Object.entries(EFFORT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <p className="hint">Runs through the official Claude Code on your own Claude login (Settings → General → Claude Code). No API key.</p>
+          </div>
+        ) : null}
+
         {providerId === "lmstudio" ? (
-          <>
-            <label className="label" htmlFor="llm-host">LM Studio</label>
+          <div>
+            <label className="label" htmlFor="llm-host">LM Studio Endpoint</label>
             <input id="llm-host" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-          </>
+          </div>
         ) : null}
-        <label className="label" htmlFor="llm-model">Model</label>
-        {providerId === "lmstudio" && choices.length === 0 ? (
-          <input id="llm-model" value={modelId} placeholder="Model key in LM Studio" onChange={(event) => setModelId(event.target.value)} />
-        ) : (
-          <select id="llm-model" value={modelId} onChange={(event) => setModelId(event.target.value)}>
-            {choices.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-          </select>
-        )}
+
         {needsKey ? (
-          <>
-            <label className="label" htmlFor="llm-key">API key</label>
-            <input id="llm-key" type="password" value={secret} autoComplete="off" onChange={(event) => setSecret(event.target.value)} />
-          </>
+          <div>
+            <label className="label" htmlFor="llm-key">API Key</label>
+            <input
+              id="llm-key"
+              type="password"
+              value={secret}
+              placeholder={savedKey ? `Using your saved ${provider?.label ?? ""} key — paste to replace` : "Paste provider API key…"}
+              autoComplete="off"
+              onChange={(event) => setSecret(event.target.value)}
+            />
+          </div>
         ) : null}
+
         <div className="actions">
-          <button className="btn" type="button" disabled={!modelId.trim() || (needsKey && !secret.trim())} onClick={() => void add()}>Connect model</button>
+          <button
+            className="btn primary-btn"
+            type="button"
+            disabled={!modelId.trim() || (needsKey && !savedKey && !secret.trim())}
+            onClick={() => void add()}
+          >
+            Connect Model
+          </button>
         </div>
       </section>
     </>
   );
 }
+
+const EFFORT_LABELS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra High", max: "Max" };
 
 function providerLabel(providers: LlmProvider[], model: Model) {
   return providers.find((item) => item.id === model.provider)?.label ?? model.provider ?? "Model";
@@ -545,20 +709,15 @@ function providerLabel(providers: LlmProvider[], model: Model) {
 
 function Information(props: { info: RuntimeInfo }) {
   const rows: [string, string][] = [
-    ["Listen", props.info.listen],
-    ["Runtime", props.info.runtimeId],
+    ["Listen Address", props.info.listen],
+    ["Runtime ID", props.info.runtimeId],
     ["Version", props.info.version],
-    ["Name", props.info.name],
-    ["Environment", props.info.environment],
-    ["Organization", props.info.organizationId || "—"],
-    ["Session", props.info.sessionId || "—"],
-    ["Saturn", props.info.saturnEndpoint || "—"],
-    ["Credential Broker", props.info.broker],
-    ["MCP servers", props.info.mcpServers.join(", ") || "—"],
+    ["Workspace Name", props.info.name],
+    ["Active MCP Servers", props.info.mcpServers.join(", ") || "—"],
   ];
   return (
     <section className="card">
-      <div className="label">Identity</div>
+      <div className="label">Runtime Identity</div>
       <div className="kv">
         {rows.map(([label, value]) => (
           <Fragment key={label}>
@@ -574,10 +733,11 @@ function Information(props: { info: RuntimeInfo }) {
 function Logs(props: { lines: LogLine[]; onReload: () => void }) {
   const [service, setService] = useState("");
   const [level, setLevel] = useState("");
+  const services = [...new Set(props.lines.map((item) => item.service))].sort();
+  const rank = { debug: 0, info: 1, warning: 2, error: 3 } as const;
   const shown = props.lines.filter((item) => {
     if (service && item.service !== service) return false;
-    if (level === "error" && item.level !== "error") return false;
-    if (level === "warning" && item.level === "info") return false;
+    if (level && rank[item.level] < rank[level as keyof typeof rank]) return false;
     return true;
   });
   return (
@@ -585,116 +745,422 @@ function Logs(props: { lines: LogLine[]; onReload: () => void }) {
       <div className="log-toolbar">
         <select value={service} onChange={(event) => setService(event.target.value)}>
           <option value="">All services</option>
-          <option value="agent">agent</option>
-          <option value="runtime">runtime</option>
-          <option value="broker">broker</option>
-          <option value="cloud">cloud</option>
+          {services.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
         <select value={level} onChange={(event) => setLevel(event.target.value)}>
           <option value="">All levels</option>
+          <option value="info">info+</option>
           <option value="warning">warning+</option>
           <option value="error">error</option>
         </select>
         <button className="btn ghost" type="button" onClick={props.onReload}>Refresh</button>
       </div>
       <div className="log-stream">
-        {shown.length === 0 ? <div className="hint">No log lines yet.</div> : shown.map((item) => (
+        {shown.length === 0 ? <div className="hint">No log lines matching filter.</div> : shown.map((item) => (
           <div className={`log-line ${item.level}`} key={item.seq}>
-            <span>{item.ts.slice(11, 23)}</span>
-            <span>{item.service}</span>
-            <span>{item.level}</span>
-            <span>{item.message}</span>
+            <span className="log-ts">{item.ts.slice(11, 23)}</span>
+            <span className="log-svc">{item.service}</span>
+            <span className="log-lvl">{item.level}</span>
+            <span className="log-msg">{item.message}</span>
           </div>
         ))}
       </div>
-    </>
-  );
-}
-
-function Diagnostics(props: { checks: Check[]; onRun: () => void }) {
-  return (
-    <>
-      <div className="row"><h3 className="page-title">Diagnostics</h3><button className="btn" type="button" onClick={props.onRun}>Run Diagnostics</button></div>
-      <section className="card">
-        {props.checks.map((item) => (
-          <div className="row" key={item.name}>
-            <div>
-              <div>{item.ok ? "✓" : "✗"} {item.name}</div>
-              <div className="hint">{item.detail}</div>
-            </div>
-            <Status ok={item.ok} label={item.ok ? "Pass" : "Fail"} />
-          </div>
-        ))}
-      </section>
     </>
   );
 }
 
 function General(props: {
   profile: Profile;
-  info: RuntimeInfo | null;
-  cloud: CloudLink;
-  onCloud: (health: CloudLink) => void;
-  onLogout: () => void;
+  models: Model[];
   onSaved: (profile: Profile) => Promise<void>;
   onError: (message: string) => void;
+  theme?: "light" | "dark";
+  onSetTheme?: (theme: "light" | "dark") => void;
+  onToggleTheme?: () => void;
 }) {
   const [name, setName] = useState(props.profile.name);
-  const [environment, setEnvironment] = useState(props.profile.environment);
-  const [heartbeat, setHeartbeat] = useState(String(props.profile.heartbeatSeconds));
   const [logging, setLogging] = useState(props.profile.logging);
+  const [launchApp, setLaunchApp] = useState<LaunchApp>(props.profile.launchApp ?? "agent");
+  const [completionModelId, setCompletionModelId] = useState(props.profile.completionModelId ?? "");
   const [saved, setSaved] = useState(false);
+  // Claude Code models run an agent loop on the user's plan; completions need a plain API call.
+  const completionChoices = props.models.filter((item) => item.provider !== "claude-code");
+
+  async function chooseCompletionModel(next: string) {
+    const previous = completionModelId;
+    setCompletionModelId(next);
+    try {
+      await props.onSaved(await desktop.admin.updateSettings({ completionModelId: next || null }));
+      props.onError("");
+    } catch (reason) {
+      setCompletionModelId(previous);
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
+
+  // Saved on click, like the theme: it only matters at the next launch, so there is nothing to confirm.
+  async function chooseLaunchApp(next: LaunchApp) {
+    if (next === launchApp) return;
+    const previous = launchApp;
+    setLaunchApp(next);
+    try {
+      await props.onSaved(await desktop.admin.updateSettings({ launchApp: next }));
+      props.onError("");
+    } catch (reason) {
+      setLaunchApp(previous);
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
+
   async function save() {
     try {
-      const next = await desktop.admin.updateSettings({ name, environment, heartbeatSeconds: Number(heartbeat), logging });
+      const next = await desktop.admin.updateSettings({ name, logging });
       setSaved(true);
       props.onError("");
       await props.onSaved(next);
+      setTimeout(() => setSaved(false), 2000);
     } catch (reason) {
       props.onError(reason instanceof Error ? reason.message : "Could not save");
     }
   }
-  async function reconnect() {
+
+  const themeButtons = (
+    <div className="segmented-pill" role="radiogroup" aria-label="Theme">
+      {([["light", "Light", <SunIcon key="sun" />], ["dark", "Dark", <MoonIcon key="moon" />]] as const).map(([value, label, icon]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={props.theme === value}
+          className={props.theme === value ? "active" : ""}
+          onClick={() => {
+            if (props.onSetTheme) props.onSetTheme(value);
+            else if (props.theme !== value) props.onToggleTheme?.();
+          }}
+        >
+          {icon} {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="settings-section-list">
+      <div className="settings-section">
+        <div className="settings-section-title">General</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Open at Launch</span>
+              <span className="settings-row-desc">
+                {launchApp === "ide"
+                  ? "Saturn opens Saturn IDE when it starts and stays in the Dock; click the Dock icon for the Agent App."
+                  : "Saturn opens the Agent App when it starts. Open IDE is always one click away."}
+              </span>
+            </div>
+            <div className="segmented-pill" role="radiogroup" aria-label="Open at launch">
+              {([["agent", "Agent App"], ["ide", "Saturn IDE"]] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={launchApp === value}
+                  className={launchApp === value ? "active" : ""}
+                  onClick={() => void chooseLaunchApp(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Theme</span>
+              <span className="settings-row-desc">Light or dark appearance for the Agent App.</span>
+            </div>
+            {themeButtons}
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Claude Code</div>
+        <div className="settings-card">
+          <ClaudeCodeLogin />
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Saturn IDE</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Completion Model</span>
+              <span className="settings-row-desc">
+                {completionModelId
+                  ? "Serves Tab completion and Cmd+K inline edit in Saturn IDE. A small, fast model works best."
+                  : completionChoices.length
+                    ? "Choose a model to turn on Tab completion and Cmd+K inline edit in Saturn IDE."
+                    : "Connect an API or LM Studio model in Models to use Tab completion and Cmd+K in Saturn IDE."}
+              </span>
+            </div>
+            <select
+              className="input tiny settings-select"
+              aria-label="Completion model"
+              value={completionModelId}
+              disabled={!completionChoices.length && !completionModelId}
+              onChange={(event) => void chooseCompletionModel(event.target.value)}
+            >
+              <option value="">Off</option>
+              {completionChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Workspace</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Workspace Name</span>
+              <span className="settings-row-desc">Shown in the title bar and settings.</span>
+            </div>
+            <form
+              className="settings-inline-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void save();
+              }}
+            >
+              <input
+                className="input tiny"
+                aria-label="Workspace name"
+                value={name}
+                onChange={(event) => { setName(event.target.value); setSaved(false); }}
+              />
+              <button type="submit" className="btn tiny" disabled={!name.trim() || name === props.profile.name}>
+                {saved ? "Saved ✓" : "Save"}
+              </button>
+            </form>
+          </div>
+
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Log Level</span>
+              <span className="settings-row-desc">How much the runtime writes to Logs.</span>
+            </div>
+            <div className="segmented-pill" role="radiogroup" aria-label="Log level">
+              {[["debug", "Debug"], ["info", "Info"], ["warning", "Warning"], ["error", "Error"]].map(([level, label]) => (
+                <button
+                  key={level}
+                  type="button"
+                  role="radio"
+                  aria-checked={logging === level}
+                  className={logging === level ? "active" : ""}
+                  onClick={() => {
+                    const previous = logging;
+                    setLogging(level);
+                    desktop.admin.updateSettings({ logging: level }).then(props.onSaved, (reason: unknown) => {
+                      setLogging(previous);
+                      props.onError(reason instanceof Error ? reason.message : "Could not save");
+                    });
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">API Keys</span>
+              <span className="settings-row-desc">Kept on this Mac in a file only your user account can read.</span>
+            </div>
+            <code className="settings-path">~/.saturn-app/secrets.json</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectSettingsTab(props: {
+  project: Project;
+  onError: (message: string) => void;
+}) {
+  const [rules, setRules] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    desktop.projects
+      .getRules(props.project.id)
+      .then((result) => {
+        if (!active) return;
+        setRules(result.content);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [props.project.id]);
+
+  async function saveRules() {
+    setSaving(true);
     try {
-      const next = await desktop.session.refresh();
-      props.onCloud(next);
-      props.onError(next.connected ? "" : "Saturn Cloud is not connected");
+      await desktop.projects.saveRules(props.project.id, rules);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not reconnect");
+      props.onError(reason instanceof Error ? reason.message : "Failed to save project rules");
+    } finally {
+      setSaving(false);
     }
   }
-  async function unpair() {
-    props.onLogout();
-  }
+
   return (
-    <section className="card">
-      <div className="label">App</div>
-      <div className="label">Name</div>
-      <input value={name} onChange={(event) => setName(event.target.value)} />
-      <div className="label">Environment</div>
-      <input value={environment} onChange={(event) => setEnvironment(event.target.value)} />
-      <div className="label">Saturn</div>
-      <div>{props.cloud.connected ? "Paired" : props.cloud.paired ? "Paused" : "Not paired"}</div>
-      <p className="hint">Signing in pairs this app. The connection token stays in the runtime.</p>
-      <div className="label">Credential Broker</div>
-      <div><code>in-process</code></div>
-      <p className="hint">Signed-in keys are shared with your organization. The chat never receives them.</p>
-      <div className="label">Heartbeat</div>
-      <input type="number" min={5} value={heartbeat} onChange={(event) => setHeartbeat(event.target.value)} />
-      <p className="hint">Seconds</p>
-      <div className="label">Logging</div>
-      <select value={logging} onChange={(event) => setLogging(event.target.value)}>
-        {["debug", "info", "warning", "error"].map((level) => <option key={level} value={level}>{level}</option>)}
-      </select>
-      <div className="actions">
-        <button className="btn" type="button" onClick={() => void save()}>Save Changes</button>
-        {props.cloud.connected ? null : (
-          <button className="btn ghost" type="button" onClick={() => void reconnect()}>Reconnect</button>
-        )}
-        <button className="btn ghost" type="button" onClick={() => void unpair()}>Sign out</button>
+    <div className="settings-section-list">
+      <div className="settings-section">
+        <div className="settings-section-title">Project Details</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Project Name</span>
+              <span className="settings-row-desc">{props.project.name}</span>
+            </div>
+          </div>
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Workspace Path</span>
+              <span className="settings-row-desc" style={{ fontFamily: "monospace" }}>{props.project.path}</span>
+            </div>
+          </div>
+          {props.project.gitBranch ? (
+            <div className="settings-card-row">
+              <div className="settings-row-text">
+                <span className="settings-row-label">Git Branch</span>
+                <span className="settings-row-desc" style={{ fontFamily: "monospace" }}>{props.project.gitBranch}</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
-      {saved ? <p className="hint">Saved.</p> : null}
-    </section>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Project Rules & Custom Instructions</div>
+        <div className="settings-card">
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <span className="settings-row-desc">Custom instructions for agents working in this project (.cursorrules / AGENTS.md).</span>
+            <textarea
+              className="input"
+              rows={7}
+              style={{ width: "100%", fontFamily: "monospace", fontSize: "12px", resize: "vertical" }}
+              value={rules}
+              disabled={loading}
+              placeholder={loading ? "Loading project rules…" : "Add custom instructions for this project…"}
+              onChange={(event) => {
+                setRules(event.target.value);
+                setSaved(false);
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button type="button" className="btn primary-btn tiny" disabled={saving || loading} onClick={() => void saveRules()}>
+                {saving ? "Saving…" : saved ? "Saved ✓" : "Save Rules"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Actions</div>
+        <div className="settings-card" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button type="button" className="btn ghost tiny" onClick={() => void desktop.projects.openInEditor(props.project.id)}>
+            Open in Saturn IDE
+          </button>
+          <button type="button" className="btn ghost tiny" onClick={() => void desktop.projects.openInTerminal(props.project.id)}>
+            Open in Terminal
+          </button>
+          <button type="button" className="btn ghost tiny" onClick={() => void desktop.projects.openInFolder(props.project.id)}>
+            Reveal in Finder
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShortcutsTab() {
+  const shortcuts = [
+    ["⌘ ,", "Open Settings"],
+    ["⌘ K", "Open Command Palette"],
+    ["⌘ N", "New Conversation"],
+    ["⌘ B", "Toggle Left Sidebar"],
+    ["⌘ L", "Focus Chat Prompt Input"],
+    ["Enter", "Send Message"],
+    ["Shift + Enter", "New Line in Chat Prompt"],
+    ["Esc", "Close Popups & Modals"],
+  ];
+  return (
+    <div className="settings-section-list">
+      <div className="settings-section">
+        <div className="settings-section-title">Keyboard Shortcuts</div>
+        <div className="settings-card">
+          {shortcuts.map(([keys, label]) => (
+            <div className="settings-card-row" key={keys}>
+              <div className="settings-row-text">
+                <span className="settings-row-label">{label}</span>
+              </div>
+              <kbd
+                style={{
+                  padding: "3px 8px",
+                  background: "var(--card-active, rgba(255,255,255,0.08))",
+                  border: "1px solid var(--line)",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontFamily: "monospace",
+                }}
+              >
+                {keys}
+              </kbd>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M8 1.6v1.7M8 12.7v1.7M1.6 8h1.7M12.7 8h1.7M3.3 3.3l1.2 1.2M11.5 11.5l1.2 1.2M12.7 3.3l-1.2 1.2M4.5 11.5l-1.2 1.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M9.2 2.2a4.8 4.8 0 1 0 4.6 6.2 3.8 3.8 0 0 1-4.6-6.2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -703,5 +1169,97 @@ function Chevron(props: { open: boolean }) {
     <svg className={props.open ? "chevron open" : "chevron"} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+/**
+ * Claude Code models run on the user's own Claude login, made once with the official `claude` program in a
+ * terminal. Saturn shows what that program reports, the command to run, and signing out through the same
+ * program; it never handles the credential itself.
+ */
+function ClaudeCodeLogin() {
+  const [status, setStatus] = useState<Awaited<ReturnType<typeof desktop.admin.claudeCodeStatus>> | null>(null);
+  const [busy, setBusy] = useState<"checking" | "signing_out" | null>("checking");
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+
+  async function check() {
+    setBusy("checking");
+    setError("");
+    try {
+      setStatus(await desktop.admin.claudeCodeStatus());
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not reach the runtime");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    void check();
+  }, []);
+
+  async function signOut() {
+    if (!window.confirm("Sign Saturn out of Claude Code? Claude Code models stop working until you sign in again. Your other Claude apps stay signed in.")) return;
+    setBusy("signing_out");
+    setError("");
+    try {
+      setStatus(await desktop.admin.claudeCodeLogout());
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not sign out");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copy() {
+    if (!status?.loginCommand) return;
+    try {
+      await navigator.clipboard.writeText(status.loginCommand);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  const plan = status?.subscriptionType ? `${status.subscriptionType.charAt(0).toUpperCase()}${status.subscriptionType.slice(1)} plan` : "";
+  return (
+    <>
+      <div className="settings-card-row">
+        <div className="settings-row-text">
+          <span className="settings-row-label">Claude Account</span>
+          <span className="settings-row-desc">
+            {status === null
+              ? busy ? "Checking…" : "Status unavailable."
+              : status.loggedIn
+                ? [status.email ?? "Signed in", plan].filter(Boolean).join(" · ")
+                : "Not signed in. Claude Code models run on your own Claude login; Saturn never sees your credentials."}
+          </span>
+        </div>
+        <div className="settings-row-actions">
+          {status ? <Status ok={status.loggedIn} label={status.loggedIn ? "Signed in" : "Signed out"} /> : null}
+          {status?.loggedIn ? (
+            <button type="button" className="btn tiny" disabled={busy !== null} onClick={() => void signOut()}>
+              {busy === "signing_out" ? "Signing out…" : "Sign Out"}
+            </button>
+          ) : (
+            <button type="button" className="btn ghost tiny" disabled={busy !== null} onClick={() => void check()}>
+              {busy === "checking" ? "Checking…" : "Check Again"}
+            </button>
+          )}
+        </div>
+      </div>
+      {status && !status.loggedIn && status.loginCommand ? (
+        <div className="settings-card-row settings-card-stack">
+          <span className="settings-row-desc">To sign in, run this in Terminal. It opens your browser to sign in to Claude, then click Check Again.</span>
+          <div className="claude-login-command">
+            <code>{status.loginCommand}</code>
+            <button type="button" className="btn ghost tiny" onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</button>
+          </div>
+        </div>
+      ) : null}
+      {error || status?.error ? <p className="settings-row-error">{error || status?.error}</p> : null}
+    </>
   );
 }

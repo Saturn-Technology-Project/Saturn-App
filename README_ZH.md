@@ -4,12 +4,10 @@
 
 Saturn App 是在你自己的電腦上跑的代理程式。它包含兩個行程：
 
-- **Saturn Desktop**：Electron 視窗。登入、對話、連線模型與 MCP、查看日誌。
+- **Saturn Desktop**：Electron 視窗。對話、連線模型與 MCP、查看日誌。
 - **Saturn Runtime**：本機核心。真正呼叫模型、執行內建技能、連接 MCP，並保存這台機器的狀態。
 
 Desktop 只透過 `http://127.0.0.1:4700` 操作 Runtime。Runtime 不依賴 Electron，可以單獨啟動。
-
-Saturn Cloud（組織、團隊、帳號與遠端政策）是另一套控制平面，不在這個專案裡。Runtime 只透過 `SessionService` 與它通訊，不引用控制平面的程式。沒有登入時，Runtime 仍可用本機的代理、模型與 MCP。
 
 ## 內建技能
 
@@ -17,7 +15,6 @@ Saturn Cloud（組織、團隊、帳號與遠端政策）是另一套控制平�
 
 | 技能 | 做什麼 |
 |------|--------|
-| `chat` | 寫給使用者看的回覆 |
 | `files` | 在工作區列出、讀取、寫入或套用補丁 |
 | `code` | 在工作區裡執行指令 |
 | `web` | 讀取公開網頁。本機與私有網址會被拒絕 |
@@ -37,12 +34,12 @@ Saturn App/
     src/presentation/   React 畫面
   runtime/          本機核心
     src/presentation/   HTTP。路由只轉給控制器
-    src/application/    用例。目錄、執行、帳號、設定
+    src/application/    用例。目錄、執行、設定
     src/domain/         代理、技能與路徑規則
-    src/infrastructure/ 模型、MCP、檔案、雲端連線
+    src/infrastructure/ 模型、MCP、檔案
 ```
 
-領域物件不依賴 Express 或 React。基礎設施負責檔案系統、殼層指令、模型 API，以及對 Saturn Cloud 的連線。
+領域物件不依賴 Express 或 React。基礎設施負責檔案系統、殼層指令與模型 API。
 
 ## 需求
 
@@ -81,7 +78,7 @@ npm run dev
 | `SATURN_DATA_DIR` | `~/.saturn-app` | 狀態、密鑰與工作區 |
 | `SATURN_NODE` | 從 `PATH` 尋找 | Desktop 用來啟動 Runtime 的 `node` |
 
-模型金鑰放在本機的 Credential Broker，API 不會把明文回給畫面。
+模型金鑰保存在本機金鑰庫中，呼叫模型時直接帶給供應商，API 不會把明文回給畫面。支援 OpenAI、Claude、Gemini、DeepSeek 及本機 LM Studio。
 
 ## 測試
 
@@ -109,15 +106,10 @@ Runtime 只接受來自 loopback 的瀏覽器來源。常用路徑：
 | 方法 | 路徑 | 用途 |
 |------|------|------|
 | GET | `/health` | 核心是否在跑 |
-| GET | `/session` | 目前登入狀態。不連雲端 |
-| POST | `/session/login` | 以帳號登入 |
-| POST | `/session/refresh` | 向雲端更新帳號。失敗時保留本機狀態 |
 | GET、POST | `/agents` | 列出或建立代理 |
 | POST | `/agents/:id/runs` | 對代理下達任務 |
 | GET | `/runs/:id` | 讀取這一輪的狀態 |
 | POST | `/runs/:id/stop` | 停止這一輪 |
-
-登入後的其餘路徑需要已登入的工作階段。`GET /health`、`GET /session`、`POST /session/login` 與 `DELETE /session` 不需要。
 
 ## 授權
 

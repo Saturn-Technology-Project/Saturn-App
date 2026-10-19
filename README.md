@@ -4,12 +4,10 @@
 
 Saturn App is an agent that runs on your own computer. It is two processes:
 
-- **Saturn Desktop**: the Electron window. Sign in, chat, connect models and MCP servers, and read logs.
+- **Saturn Desktop**: the Electron window. Chat, connect models and MCP servers, and read logs.
 - **Saturn Runtime**: the local core. It calls models, runs the built-in skills, connects to MCP, and stores this machine's state.
 
 Desktop talks to Runtime only through `http://127.0.0.1:4700`. Runtime does not depend on Electron and can be started on its own.
-
-Saturn Cloud (organizations, teams, accounts, and remote policy) is a separate control plane and is not part of this project. Runtime reaches it only through `SessionService` and does not import control-plane code. Without a sign-in, Runtime still runs local agents, models, and MCP servers.
 
 ## Built-in skills
 
@@ -17,7 +15,6 @@ Every agent includes General Skills. The tool ids are fixed:
 
 | Skill | What it does |
 |-------|----------------|
-| `chat` | Write the reply the user should see |
 | `files` | List, read, write, or patch files in the workspace |
 | `code` | Run a command in the workspace |
 | `web` | Read a public web page. Local and private addresses are refused |
@@ -37,12 +34,12 @@ Saturn App/
     src/presentation/   React screens
   runtime/          Local core
     src/presentation/   HTTP. Routes only forward to controllers
-    src/application/    Use cases: catalog, runs, account, settings
+    src/application/    Use cases: catalog, runs, settings
     src/domain/         Agents, skills, and path rules
-    src/infrastructure/ Models, MCP, files, and the cloud connection
+    src/infrastructure/ Models, MCP, and files
 ```
 
-Domain objects do not depend on Express or React. Infrastructure owns the file system, shell commands, model APIs, and the connection to Saturn Cloud.
+Domain objects do not depend on Express or React. Infrastructure owns the file system, shell commands, and model APIs.
 
 ## Requirements
 
@@ -81,7 +78,7 @@ Local state is stored in `~/.saturn-app`. Override it with:
 | `SATURN_DATA_DIR` | `~/.saturn-app` | State, secrets, and the workspace |
 | `SATURN_NODE` | Found on `PATH` | The `node` binary Desktop uses to start Runtime |
 
-Model keys stay in the local Credential Broker. The API does not return the secret to the UI.
+Model keys stay in the local secure keystore and are passed directly to providers when dispatching calls. The API does not return secrets to the UI. Supports OpenAI, Claude, Gemini, DeepSeek, and local LM Studio.
 
 ## Test
 
@@ -109,15 +106,10 @@ Runtime accepts browser calls only from loopback origins. Common routes:
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | Whether the core is running |
-| GET | `/session` | Current sign-in. Does not call the cloud |
-| POST | `/session/login` | Sign in with an account |
-| POST | `/session/refresh` | Refresh the account from the cloud. On failure, the local session stays |
 | GET, POST | `/agents` | List or create agents |
 | POST | `/agents/:id/runs` | Give an agent a task |
 | GET | `/runs/:id` | Read that turn |
 | POST | `/runs/:id/stop` | Stop that turn |
-
-Other routes require a signed-in session. `GET /health`, `GET /session`, `POST /session/login`, and `DELETE /session` do not.
 
 ## License
 

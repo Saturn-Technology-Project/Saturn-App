@@ -3,6 +3,8 @@ export type RunStatus =
   | "queued"
   | "running"
   | "waiting_approval"
+  /** Suspended by a long computer_wait; the scheduler resumes the same run at `wake.at`. */
+  | "sleeping"
   | "completed"
   | "failed"
   | "cancelled";
@@ -13,7 +15,9 @@ export type ToolRoute = {
   description: string;
   inputSchema: Record<string, unknown>;
   environments: string[];
-  organizationId: string | null;
+  category?: "read" | "write";
+  /** The tool's name on its MCP server when `toolId` was prefixed to keep names unique. */
+  remoteName?: string;
 };
 
 export type ModelConnection = {
@@ -22,11 +26,12 @@ export type ModelConnection = {
   provider: string;
   model: string;
   baseUrl: string;
-  brokerConnectionId: string;
   hasSecret: boolean;
+  /** Reasoning effort for Claude Code models (low … max); unset uses the model's default. */
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
 };
 
-export type McpOrigin = "local" | "organization" | "saturn";
+export type McpOrigin = "local";
 
 export type McpConnection = {
   id: string;
@@ -34,6 +39,15 @@ export type McpConnection = {
   url: string;
   tools: ToolRoute[];
   origin?: McpOrigin;
+  disabledTools?: string[];
+  /** How Saturn signs in: none, OAuth in the browser, or a pasted bearer token. Unset means none. */
+  auth?: "none" | "oauth" | "token";
+  /** Set when installed from Customizations. */
+  marketplaceId?: string;
+  status?: "connecting" | "signing_in" | "ready" | "error";
+  statusDetail?: string;
+  /** While signing in: the provider page the browser was sent to. */
+  authorizationUrl?: string;
 };
 
 export type RagConnection = {
@@ -43,7 +57,15 @@ export type RagConnection = {
 };
 
 export type ResponseStyle = "concise" | "professional" | "detailed";
-export type Autonomy = "suggest_only" | "execute_when_allowed" | "fully_autonomous";
+export type Autonomy =
+  | "default"
+  | "bypass"
+  | "auto"
+  | "turbo"
+  | "review"
+  | "suggest_only"
+  | "execute_when_allowed"
+  | "fully_autonomous";
 
 export type Agent = {
   id: string;
@@ -57,7 +79,6 @@ export type Agent = {
   status: AgentStatus;
   canEdit?: boolean;
   modelConnectionId: string | null;
-  toolSetId?: string | null;
   mcpConnectionIds: string[];
   ragConnectionIds: string[];
 };
@@ -66,76 +87,191 @@ export type RunAction = {
   id: string;
   toolId: string;
   arguments: Record<string, unknown>;
-  status: "completed" | "denied" | "waiting_approval" | "failed";
+  status: "completed" | "denied" | "waiting_approval" | "sleeping" | "failed";
   result?: unknown;
   reason?: string;
   thoughtSignature?: string;
 };
 
+/**
+ * The reasoning returned by one model call, with how long that call took and how many actions the run
+ * had when it came back, so the conversation can place "Thought for Xs" between the tool calls.
+ */
+export type RunThought = {
+  text: string;
+  seconds: number;
+  /** Number of run actions that came before this thought. */
+  at: number;
+};
+
+export type Conversation = {
+  id: string;
+  agentId: string;
+  /** The project folder this chat works in; chats without one use the agent's private sandbox. */
+  projectId?: string;
+  /** The Claude Agent SDK session behind this chat (Claude Code models), resumed on the next message. */
+  claudeSessionId?: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Run = {
   id: string;
   agentId: string;
-  userId?: string;
-  organizationId?: string;
+  threadId?: string;
   input: string;
   status: RunStatus;
   output: string;
   thinking?: string;
+  thoughts?: RunThought[];
   actions: RunAction[];
   error?: string;
   generation: number;
+  /** While sleeping: when to resume, why, and which computer_wait action receives the result. */
+  wake?: { at: string; since: string; reason?: string; actionId: string; requestedMs: number };
+  /** Long waits taken so far; capped so a run cannot poll forever. */
+  sleeps?: number;
+  /** Files this run changed in its project folder; the originals are kept under the data dir (see CheckpointService). */
+  checkpoint?: RunCheckpoint;
+  /** Set on a group chat turn: the group, and the message the agent was asked to consider. */
+  groupId?: string;
+  groupMessageId?: string;
 };
 
-export type BrokerConnection = {
+/** A group chat: the user and several agents. Every message is shown to the members, who decide whether to reply. */
+export type Group = {
   id: string;
   name: string;
-  baseUrl: string;
-  secretName: string;
-  allowedCallers: string[];
-  allowedTools: string[];
-  allowedPaths: string[];
-  hasSecret: boolean;
+  agentIds: string[];
+  createdAt: string;
+  updatedAt: string;
 };
 
-export type Caller = {
-  callerId: string;
-  callerType: "runtime" | "mcp" | "admin";
-  admin: boolean;
+export type GroupMessage = {
+  id: string;
+  groupId: string;
+  /** The agent that wrote it; absent for the user. */
+  agentId?: string;
+  text: string;
+  createdAt: string;
+  /** The run that produced an agent's message. */
+  runId?: string;
+  /** The agent's turn failed; `text` is the reason. Not shown to other agents. */
+  error?: boolean;
+  /** Agent-to-agent hops since the user's message (0 for the user's own). */
+  depth: number;
+};
+
+/** The project folder a run wrote in and each file it touched there. */
+export type RunCheckpoint = { root: string; files: FileChange[] };
+
+/**
+ * One file a run changed: sha256 of its bytes before the run's first write and after its last one
+ * (null when the file did not exist: created by the run, or deleted by it). `review` is the user's call.
+ */
+export type FileChange = { path: string; before: string | null; after: string | null; review?: "kept" | "reverted" };
+
+/**
+ * One LLM call's tokens and cost, fixed when the call is made: the agent and model that actually ran it
+ * and the official rate in force at that moment. Later model switches, renames, deletions or price
+ * changes do not rewrite it. Fields marked optional are missing on records from before they existed.
+ */
+export type UsageRecord = {
+  id: string;
+  /** Empty for calls outside a run, such as drafting an automation. */
+  runId: string;
+  agentId: string;
+  agentName?: string;
+  /** The model connection used (Settings → Models). */
+  modelId: string;
+  modelName?: string;
+  provider: string;
+  /** The model id sent to the provider. */
+  model: string;
+  purpose?: "run" | "automation_draft" | "completion";
+  inputTokens: number;
+  outputTokens: number;
+  /** USD per 1M tokens; null when the model has no official price (custom endpoints, unlisted models). */
+  inputRate?: number | null;
+  outputRate?: number | null;
+  /** Which price applied: standard, long context, peak, off-peak, local, a dated rate, or unpriced. */
+  pricing?: string;
+  costUsd?: number | null;
+  createdAt: string;
 };
 
 export type AppSettings = {
   name: string;
   environment: string;
-  heartbeatSeconds: number;
   logging: "debug" | "info" | "warning" | "error";
+  /** What opens when Saturn starts: the Agent App window, or Saturn IDE (the app then stays in the Dock). */
+  launchApp: LaunchApp;
+  /** How Saturn IDE's Claude Code signs in: the user's own `claude` login (subscription), or the saved API key. */
+  claudeCodeAuth?: ClaudeCodeAuth;
+  /** The model connection Saturn IDE's Tab completion and Cmd+K inline edit use; unset turns them off. */
+  completionModelId?: string | null;
+};
+
+export type ClaudeCodeAuth = "subscription" | "api-key";
+
+export type LaunchApp = "agent" | "ide";
+
+export type AutomationFrequency = "hourly" | "daily" | "weekdays" | "weekly";
+
+export type AutomationTrigger = {
+  frequency: AutomationFrequency;
+  /** Local "HH:MM"; hourly automations only use the minutes. */
+  time: string;
+  /** 0 = Sunday. Weekly automations only. */
+  weekday: number;
+};
+
+export type Automation = {
+  id: string;
+  name: string;
+  agentId: string;
+  prompt: string;
+  trigger: AutomationTrigger;
+  timeZone: string;
+  enabled: boolean;
+  createdAt: string;
+  /** Local-minute index of the last slot that was handled, so each slot fires once. */
+  lastSlot: number;
+  lastRunAt?: string;
+  lastRunId?: string;
+  lastError?: string;
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  /** The primary folder: where agents run, and what the IDE and terminal open. Always folders[0]. */
+  path: string;
+  /** Every folder in this workspace, primary first. */
+  folders?: string[];
+  /** Set when the user allowed agents to read, change and run commands in this folder. */
+  access?: { grantedAt: string } | null;
+  gitBranch?: string | null;
+  gitStatus?: string | null;
+  description?: string;
+  rules?: string;
+  lastOpenedAt?: string;
+  isDefault?: boolean;
 };
 
 export type AppState = {
+  projects?: Project[];
+  activeProjectId?: string | null;
   agents: Agent[];
+  automations: Automation[];
   models: ModelConnection[];
   mcp: McpConnection[];
   rag: RagConnection[];
   runs: Run[];
-  broker: BrokerConnection[];
+  threads?: Conversation[];
+  groups?: Group[];
+  groupMessages?: GroupMessage[];
+  usage: UsageRecord[];
   settings: AppSettings;
-  account: {
-    userId: string;
-    email: string;
-    name: string;
-    title: string;
-    organizationId: string;
-    organizationName: string;
-    role: string | null;
-    team: "none" | "read" | "write";
-    agents: "none" | "read" | "write";
-    agentEditIds: string[] | null;
-  } | null;
-  session: {
-    paired: boolean;
-    connected: boolean;
-    sessionId: string | null;
-    organizationId: string | null;
-    apiBase: string | null;
-    wsUrl: string | null;
-  };
 };

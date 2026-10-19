@@ -1,14 +1,34 @@
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
-import { LLM_PROVIDERS, llmProvider } from "../domain/llm/catalog.js";
-import { GENERAL_SKILLS_ID, SATURN_AGENT_ID, withGeneralSkills } from "../domain/builtin.js";
-import type { Agent, McpConnection, ModelConnection, RagConnection } from "../domain/model.js";
-import { RUNTIME_CALLER } from "./runtime-state.js";
+import { LLM_PROVIDERS, claudeEffort, llmProvider } from "../domain/llm/catalog.js";
+import {
+  GENERAL_SKILLS_ID,
+  withGeneralSkills,
+  CURSOR_COMPUTER_USE_ID,
+  CURSOR_ORIGIN_ID,
+  cursorComputerUseSkills,
+  cursorOriginSkills,
+  ANTIGRAVITY_SKILLS_ID,
+  antigravitySkills,
+} from "../domain/builtin.js";
+import type { Agent, McpConnection, ModelConnection, RagConnection, ToolRoute } from "../domain/model.js";
 import { listLmStudioModels } from "../infrastructure/llm.js";
+import { errorText, logger } from "../infrastructure/logger.js";
+import { namespacedTool } from "../domain/marketplace.js";
 import type { RuntimeKernel } from "./kernel.js";
 
-/** Local agents and the model, MCP, and knowledge connections they use. Cloud writes go through SessionService. */
+/** Host only: MCP and RAG URLs can carry tokens in their path or query. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host || url.split("/")[0];
+  } catch {
+    return "(invalid url)";
+  }
+}
+
+/** Local agents and the model, MCP, and knowledge connections they use. */
 export class CatalogService {
+
   constructor(private readonly kernel: RuntimeKernel) {}
 
   async listAgents(): Promise<Agent[]> {
@@ -18,9 +38,8 @@ export class CatalogService {
 
   async createAgent(input: Partial<Agent> & { name: string }): Promise<Agent> {
     await this.kernel.ensureBuiltins();
-    const cloudId = await this.kernel.session.createCloudAgent(input.name, input.description ?? "");
     const agent: Agent = {
-      id: cloudId ?? newId("agent"),
+      id: newId("agent"),
       name: input.name,
       description: input.description ?? "",
       instructions: input.instructions ?? "",
@@ -29,6 +48,7 @@ export class CatalogService {
       temperature: input.temperature ?? 0.2,
       maxOutput: input.maxOutput ?? 4000,
       status: "active",
+      canEdit: true,
       modelConnectionId: input.modelConnectionId ?? null,
       mcpConnectionIds: withGeneralSkills(input.mcpConnectionIds ?? this.kernel.store.state.mcp.map((item) => item.id).filter((id) => id !== GENERAL_SKILLS_ID)),
       ragConnectionIds: input.ragConnectionIds ?? [],
@@ -36,16 +56,13 @@ export class CatalogService {
     await this.kernel.store.update((state) => {
       state.agents.push(agent);
     });
-    this.kernel.session.announce();
-    await this.kernel.session.syncAppMcp();
+    const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
+    this.kernel.log("catalog", "info", `Agent "${agent.name}" created${model ? ` on ${model.name}` : " with no model"}`, { "gen_ai.agent.id": agent.id });
     return agent;
   }
 
   async updateAgent(id: string, patch: Partial<Agent>): Promise<Agent> {
     const current = this.kernel.getAgent(id);
-    if (this.kernel.store.state.account && current.canEdit === false) {
-      throw new HttpError(403, "You cannot modify this agent");
-    }
     const next: Agent = {
       ...current,
       name: patch.name ?? current.name,
@@ -56,23 +73,27 @@ export class CatalogService {
       temperature: patch.temperature ?? current.temperature ?? 0.2,
       maxOutput: patch.maxOutput ?? current.maxOutput ?? 4000,
       status: patch.status ?? current.status,
+      canEdit: true,
       modelConnectionId: patch.modelConnectionId === undefined ? current.modelConnectionId : patch.modelConnectionId,
-      toolSetId: patch.toolSetId === undefined ? current.toolSetId : patch.toolSetId,
       mcpConnectionIds: withGeneralSkills(patch.mcpConnectionIds ?? current.mcpConnectionIds),
       ragConnectionIds: patch.ragConnectionIds ?? current.ragConnectionIds,
     };
-    await this.kernel.session.syncCloudAgent(next);
+    // Compared before saving: `current` is the stored object and is updated in place.
+    const changed = (Object.keys(next) as (keyof Agent)[]).filter((key) => JSON.stringify(next[key]) !== JSON.stringify(current[key]));
     await this.kernel.store.update((state) => {
       const agent = state.agents.find((item) => item.id === id);
       if (agent) Object.assign(agent, next);
     });
-    this.kernel.session.announce();
-    await this.kernel.session.syncAppMcp();
+    if (changed.length) {
+      // Field names only: instructions and descriptions can be long or private.
+      this.kernel.log("catalog", "info", `Agent "${next.name}" updated: ${changed.join(", ")}`, { "gen_ai.agent.id": id });
+    }
     return this.kernel.getAgent(id);
   }
 
   async listConnections(kind: "models" | "mcp" | "rag") {
     if (kind === "mcp") await this.kernel.ensureBuiltins();
+    if (kind === "models") return this.kernel.store.state.models.map((model) => this.withKey(model));
     return this.kernel.store.state[kind];
   }
 
@@ -82,50 +103,49 @@ export class CatalogService {
 
   async lmStudioModels(baseUrl: string) {
     const provider = llmProvider("lmstudio");
+    const url = baseUrl || provider?.baseUrl || "http://127.0.0.1:1234";
     try {
-      return await listLmStudioModels(baseUrl || provider?.baseUrl || "http://127.0.0.1:1234");
-    } catch {
+      return await listLmStudioModels(url);
+    } catch (error) {
+      // Polled while the LM Studio form is open, so only at debug.
+      this.kernel.log("catalog", "debug", `LM Studio at ${url} did not list models: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
 
-  async createModel(input: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string }) {
+  async createModel(input: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string; effort?: string }) {
     const provider = llmProvider(input.provider || "openai");
-    if (!provider) throw new HttpError(400, "Choose OpenAI, Claude, Gemini, or LM Studio");
+    if (!provider) throw new HttpError(400, "Choose OpenAI, Claude, Claude Code, Gemini, DeepSeek, or LM Studio");
+    const effort = claudeEffort(input.effort);
     const modelId = (input.model || input.name || "").trim();
     if (!modelId) throw new HttpError(400, "Choose a model");
     const known = provider.models.find((item) => item.id === modelId);
-    const brokerId = newId("sec");
+    const id = newId("mdl");
     const model: ModelConnection = {
-      id: newId("mdl"),
+      id,
       name: (input.name || known?.label || modelId).trim(),
       provider: provider.id,
       model: modelId,
       baseUrl: (input.baseUrl || provider.baseUrl).replace(/\/$/, ""),
-      brokerConnectionId: brokerId,
       hasSecret: Boolean(input.secret),
+      ...(effort ? { effort } : {}),
     };
-    await this.kernel.session.upsertOrgCredential(this.kernel.session.modelCredential(model, input.secret));
     await this.kernel.store.update((state) => {
-      state.broker.push({
-        id: brokerId,
-        name: model.name,
-        baseUrl: model.baseUrl,
-        secretName: "AGENTS_API_KEY",
-        allowedCallers: [RUNTIME_CALLER.callerId],
-        allowedTools: [],
-        allowedPaths: ["/chat/completions", "/v1/chat/completions"],
-        hasSecret: Boolean(input.secret),
-      });
       state.models.push(model);
     });
-    if (input.secret) await this.kernel.store.putSecret(brokerId, input.secret);
-    return model;
+    if (input.secret) await this.kernel.llm.saveKey(model, input.secret);
+    const keyed = this.withKey(model);
+    const key = input.secret ? "key entered" : keyed.hasSecret ? `using the saved ${provider.label} key` : provider.needsKey ? "no key" : "no key needed";
+    this.kernel.log("catalog", "info", `Model ${model.name} connected (${provider.label}, ${key})`, { "gen_ai.provider.name": provider.id, "gen_ai.request.model": modelId });
+    if (provider.needsKey && !keyed.hasSecret) {
+      this.kernel.log("catalog", "warning", `${model.name} has no ${provider.label} API key; runs on it will be refused until one is added`);
+    }
+    return keyed;
   }
 
   async updateModel(
     id: string,
-    patch: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string },
+    patch: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string; effort?: string | null },
   ): Promise<ModelConnection> {
     const current = this.kernel.store.state.models.find((item) => item.id === id);
     if (!current) throw new HttpError(404, "Model connection not found");
@@ -136,51 +156,56 @@ export class CatalogService {
       model: typeof patch.model === "string" && patch.model.trim() ? patch.model.trim() : current.model,
       baseUrl: patch.baseUrl ?? current.baseUrl,
       hasSecret: patch.secret ? true : current.hasSecret,
+      effort: patch.effort === null ? undefined : claudeEffort(patch.effort) ?? current.effort,
     };
-    await this.kernel.session.upsertOrgCredential(this.kernel.session.modelCredential(next, patch.secret));
+    // Compared before saving: `current` is the stored object and is updated in place.
+    const fields: string[] = (["name", "provider", "model", "baseUrl", "effort"] as const).filter((key) => next[key] !== current[key]);
     let updated: ModelConnection | undefined;
     await this.kernel.store.update((state) => {
       const model = state.models.find((item) => item.id === id);
-      const broker = state.broker.find((item) => item.id === current.brokerConnectionId);
-      if (!model || !broker) return;
+      if (!model) return;
       Object.assign(model, next);
-      broker.name = model.name;
-      broker.baseUrl = model.baseUrl;
-      broker.hasSecret = model.hasSecret;
       updated = model;
     });
     if (!updated) throw new HttpError(404, "Model connection not found");
-    if (patch.secret) await this.kernel.store.putSecret(current.brokerConnectionId, patch.secret);
-    return updated;
+    if (patch.secret) await this.kernel.llm.saveKey(updated, patch.secret);
+    if (patch.secret) fields.push("API key");
+    if (fields.length) {
+      // Never the key itself; for a key, only that one was saved and that it now serves the whole provider.
+      const shared = patch.secret ? ` (now the saved ${updated.provider} key)` : "";
+      this.kernel.log("catalog", "info", `Model ${updated.name} updated: ${fields.join(", ")}${shared}`, { "gen_ai.provider.name": updated.provider });
+    }
+    return this.withKey(updated);
   }
 
   async deleteAgent(id: string): Promise<void> {
-    if (id === SATURN_AGENT_ID) throw new HttpError(403, "Saturn Agents is built in");
-    this.kernel.session.requireAdmin();
-    this.kernel.getAgent(id);
-    await this.kernel.session.removeOnCloud(`/agents/${encodeURIComponent(id)}`);
+    const agent = this.kernel.getAgent(id);
+    const runs = this.kernel.store.state.runs.filter((item) => item.agentId === id).length;
+    const automations = this.kernel.store.state.automations.filter((item) => item.agentId === id).length;
     await this.kernel.store.update((state) => {
       state.agents = state.agents.filter((item) => item.id !== id);
       state.runs = state.runs.filter((item) => item.agentId !== id);
+      state.threads = (state.threads ?? []).filter((item) => item.agentId !== id);
+      state.automations = state.automations.filter((item) => item.agentId !== id);
     });
+    this.kernel.log("catalog", "info", `Agent "${agent.name}" deleted with ${runs} runs and ${automations} automations`, { "gen_ai.agent.id": id });
   }
 
   async deleteMcpServer(id: string): Promise<void> {
-    if (id === GENERAL_SKILLS_ID) throw new HttpError(403, "General Skills is built in");
-    if (id.startsWith("saturn:")) throw new HttpError(403, "Saturn MCP follows the organization tool set");
+    if (id === GENERAL_SKILLS_ID || id === CURSOR_COMPUTER_USE_ID || id === CURSOR_ORIGIN_ID) {
+      throw new HttpError(403, "Built-in server cannot be removed");
+    }
     const server = this.kernel.store.state.mcp.find((item) => item.id === id);
     if (!server) throw new HttpError(404, "MCP server not found");
-    if (server.origin === "organization") {
-      this.kernel.session.requireAdmin();
-      await this.kernel.session.removeOnCloud(`/mcp-servers/${encodeURIComponent(id)}`);
-    }
     await this.kernel.store.update((state) => {
       state.mcp = state.mcp.filter((item) => item.id !== id);
       for (const agent of state.agents) {
         agent.mcpConnectionIds = agent.mcpConnectionIds.filter((item) => item !== id);
       }
     });
-    await this.kernel.session.syncAppMcp();
+    // Its session and any saved sign-in (OAuth tokens, client, pasted token) go with it.
+    await this.kernel.mcp.forget(id);
+    this.kernel.log("catalog", "info", `MCP server ${server.name} (${hostOf(server.url)}) removed and detached from all agents`);
   }
 
   async deleteConnection(kind: "models" | "mcp" | "rag", id: string): Promise<void> {
@@ -190,14 +215,22 @@ export class CatalogService {
       return agent.ragConnectionIds.includes(id);
     });
     if (used) throw new HttpError(409, "Connection is still used by an agent");
-    const model = kind === "models" ? this.kernel.store.state.models.find((item) => item.id === id) : undefined;
-    if (model) await this.kernel.session.deleteOrgCredential(model.id);
+    const removed = (this.kernel.store.state[kind] as { id: string; name: string }[]).find((item) => item.id === id);
     await this.kernel.store.update((state) => {
       state[kind] = state[kind].filter((item) => item.id !== id) as never;
-      if (model) state.broker = state.broker.filter((item) => item.id !== model.brokerConnectionId);
+      // Saturn IDE's completions turn off rather than point at a model that is gone.
+      if (kind === "models" && state.settings.completionModelId === id) state.settings.completionModelId = null;
     });
-    if (model) await this.kernel.store.deleteSecret(model.brokerConnectionId);
-    this.kernel.session.announce();
+    if (kind === "models") await this.kernel.store.deleteSecret(id);
+    if (removed) {
+      const label = kind === "models" ? "Model" : kind === "mcp" ? "MCP server" : "Knowledge source";
+      // The provider's shared key stays, so other models of that provider keep working.
+      this.kernel.log("catalog", "info", `${label} ${removed.name} removed`);
+    }
+  }
+
+  private withKey(model: ModelConnection): ModelConnection {
+    return { ...model, hasSecret: this.kernel.llm.hasKey(model) };
   }
 
   async createMcp(input: { name: string; url: string; tools?: { toolId: string; description?: string }[] }) {
@@ -207,30 +240,37 @@ export class CatalogService {
     await this.kernel.store.update((state) => {
       state.mcp.push(connection);
     });
-    this.kernel.session.announce();
-    await this.kernel.session.syncAppMcp();
+    this.kernel.log("catalog", "info", `MCP server ${connection.name} added at ${hostOf(connection.url)} with ${tools.length} tools`);
     return connection;
   }
 
   async updateMcp(
     id: string,
-    patch: { name?: string; url?: string; tools?: { toolId: string; description?: string }[] },
+    patch: { name?: string; url?: string; tools?: { toolId: string; description?: string }[]; disabledTools?: string[] },
   ): Promise<McpConnection> {
-    if (id === GENERAL_SKILLS_ID) throw new HttpError(403, "General Skills is built in");
+    if ((patch.name !== undefined || patch.url !== undefined || patch.tools !== undefined) && id === GENERAL_SKILLS_ID) {
+      throw new HttpError(403, "General Skills is built in");
+    }
     let updated: McpConnection | undefined;
     await this.kernel.store.update((state) => {
       const current = state.mcp.find((item) => item.id === id);
       if (!current) return;
-      current.name = patch.name ?? current.name;
-      current.url = patch.url ?? current.url;
+      if (patch.name !== undefined) current.name = patch.name;
+      if (patch.url !== undefined) current.url = patch.url;
+      if (patch.disabledTools !== undefined) current.disabledTools = patch.disabledTools;
       if (patch.tools) {
         current.tools = patch.tools.map((tool) => this.kernel.route(id, tool.toolId, tool.description ?? ""));
       }
       updated = current;
     });
     if (!updated) throw new HttpError(404, "MCP connection not found");
-    this.kernel.session.announce();
-    await this.kernel.session.syncAppMcp();
+    const fields = [
+      patch.name !== undefined && "name",
+      patch.url !== undefined && "url",
+      patch.tools && "tools",
+      patch.disabledTools && "disabledTools",
+    ].filter(Boolean);
+    this.kernel.log("catalog", "info", `MCP server ${updated.name} updated: ${fields.join(", ") || "nothing"}`);
     return updated;
   }
 
@@ -238,17 +278,31 @@ export class CatalogService {
     if (id === GENERAL_SKILLS_ID) throw new HttpError(403, "General Skills is built in");
     const server = this.kernel.store.state.mcp.find((item) => item.id === id);
     if (!server) throw new HttpError(404, "MCP connection not found");
-    const tools = (await this.kernel.mcp.listTools(server.url)).map((tool) => ({
-      ...tool,
-      serverId: id,
-      organizationId: this.kernel.store.state.session.organizationId,
-    }));
+    let tools: ToolRoute[] = [];
+    if (id === CURSOR_COMPUTER_USE_ID) {
+      tools = cursorComputerUseSkills().tools;
+    } else if (id === CURSOR_ORIGIN_ID) {
+      tools = cursorOriginSkills().tools;
+    } else if (id === ANTIGRAVITY_SKILLS_ID) {
+      tools = antigravitySkills().tools;
+    } else {
+      tools = (await this.kernel.mcp.listTools({ id, url: server.url, auth: server.auth ?? "none" })).map((tool) =>
+        server.marketplaceId
+          ? { ...tool, serverId: id, toolId: namespacedTool(server.marketplaceId, tool.toolId), remoteName: tool.toolId }
+          : { ...tool, serverId: id },
+      );
+    }
+    const before = new Set(server.tools.map((tool) => tool.toolId));
+    const after = new Set(tools.map((tool) => tool.toolId));
+    const added = [...after].filter((tool) => !before.has(tool));
+    const gone = [...before].filter((tool) => !after.has(tool));
     await this.kernel.store.update((state) => {
       const current = state.mcp.find((item) => item.id === id);
       if (current) current.tools = tools;
     });
-    this.kernel.session.announce();
-    await this.kernel.session.syncAppMcp();
+    const diff = [added.length && `+${added.join(", +")}`, gone.length && `-${gone.join(", -")}`].filter(Boolean).join("; ");
+    this.kernel.log("catalog", "info", `MCP server ${server.name} lists ${tools.length} tools${diff ? ` (${diff})` : " (unchanged)"}`);
+    if (!tools.length) this.kernel.log("catalog", "warning", `MCP server ${server.name} at ${hostOf(server.url)} returned no tools`);
     return this.kernel.store.state.mcp.find((item) => item.id === id);
   }
 
@@ -257,6 +311,7 @@ export class CatalogService {
     await this.kernel.store.update((state) => {
       state.rag.push(connection);
     });
+    this.kernel.log("catalog", "info", `Knowledge source ${connection.name} added at ${hostOf(connection.url)}`);
     return connection;
   }
 
@@ -270,6 +325,7 @@ export class CatalogService {
       updated = current;
     });
     if (!updated) throw new HttpError(404, "RAG connection not found");
+    this.kernel.log("catalog", "info", `Knowledge source ${updated.name} updated`);
     return updated;
   }
 }

@@ -1,11 +1,26 @@
 import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { FileCheckpoint } from "../../domain/skills/checkpoint.js";
 import { PatchDocument, splitLines } from "../../domain/skills/patch.js";
 import { Workspace } from "../../domain/skills/workspace.js";
 import { TEXT_LIMIT, clip, integer, text } from "./text.js";
 
 export class FileSkill {
-  constructor(private readonly workspace: Workspace) {}
+  constructor(
+    private readonly workspace: Workspace,
+    /** Keeps originals so the user can review and revert the edits (project folders only). */
+    private readonly checkpoint?: FileCheckpoint,
+  ) {}
+
+  /** Runs one write between the checkpoint's before and after captures of the files it touches. */
+  private async tracked<T>(targets: string[], write: () => Promise<T>): Promise<T> {
+    for (const target of targets) await this.checkpoint?.before(target);
+    try {
+      return await write();
+    } finally {
+      for (const target of targets) await this.checkpoint?.after(target);
+    }
+  }
 
   async run(args: Record<string, unknown>): Promise<unknown> {
     await mkdir(this.workspace.root, { recursive: true });
@@ -31,7 +46,7 @@ export class FileSkill {
       const content = text(args.content);
       if (content.length > TEXT_LIMIT) throw new Error("File is too large");
       await mkdir(path.dirname(target), { recursive: true });
-      await writeFile(target, content, "utf8");
+      await this.tracked([target], () => writeFile(target, content, "utf8"));
       return { path: this.workspace.relative(target), bytes: Buffer.byteLength(content) };
     }
     throw new Error("Use list, read, write, or patch");
@@ -48,13 +63,13 @@ export class FileSkill {
         await mkdir(path.dirname(target), { recursive: true });
         const content = `${change.lines.join("\n")}${change.lines.length ? "\n" : ""}`;
         if (content.length > TEXT_LIMIT) throw new Error("File is too large");
-        await writeFile(target, content, "utf8");
+        await this.tracked([target], () => writeFile(target, content, "utf8"));
         applied.push({ path: this.workspace.relative(target), action: "add" });
         continue;
       }
       if (change.kind === "delete") {
         const target = this.workspace.resolve(change.path);
-        await rm(target);
+        await this.tracked([target], () => rm(target));
         applied.push({ path: this.workspace.relative(target), action: "delete" });
         continue;
       }
@@ -64,8 +79,10 @@ export class FileSkill {
       if (next.length > TEXT_LIMIT) throw new Error("File is too large");
       const destination = change.moveTo ? this.workspace.resolve(change.moveTo) : target;
       if (destination !== target) await mkdir(path.dirname(destination), { recursive: true });
-      await writeFile(destination, next, "utf8");
-      if (destination !== target) await rm(target);
+      await this.tracked(destination === target ? [target] : [target, destination], async () => {
+        await writeFile(destination, next, "utf8");
+        if (destination !== target) await rm(target);
+      });
       applied.push({ path: this.workspace.relative(destination), action: change.moveTo ? "move" : "update" });
     }
     return { applied };

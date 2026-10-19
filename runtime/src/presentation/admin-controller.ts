@@ -15,26 +15,6 @@ export function mountAdmin(app: Express, services: AppServices): void {
     respond(res, next, () => services.updateSettings(req.body));
   });
 
-  app.get("/keys", (_req, res) => {
-    res.json(services.listKeys());
-  });
-
-  app.post("/keys", (req, res, next) => {
-    respond(res, next, () => services.createKey(req.body), 201);
-  });
-
-  app.put("/keys/:id/secret", (req, res, next) => {
-    respond(res, next, () => services.rotateKey(param(req.params.id), String(req.body.value ?? "")));
-  });
-
-  app.delete("/keys/:id/secret", (req, res, next) => {
-    respond(res, next, () => services.clearKey(param(req.params.id)));
-  });
-
-  app.delete("/keys/:id", (req, res, next) => {
-    respond(res, next, () => services.deleteKey(param(req.params.id)), 204);
-  });
-
   app.get("/information", (_req, res) => {
     res.json(services.information());
   });
@@ -45,9 +25,5 @@ export function mountAdmin(app: Express, services: AppServices): void {
       level: typeof req.query.level === "string" ? req.query.level : "",
       q: typeof req.query.q === "string" ? req.query.q : "",
     }));
-  });
-
-  app.get("/diagnostics", (_req, res) => {
-    res.json(services.diagnostics());
   });
 }

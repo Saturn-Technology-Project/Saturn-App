@@ -1,47 +1,38 @@
-import type { Check, Key, LlmChoice, LlmProvider, LogLine, Mcp, Profile, RuntimeInfo } from "../domain/model.js";
+import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, Profile, RuntimeInfo, UsageSummary } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
+import { userAction } from "../infrastructure/telemetry.js";
 
 export type ConsoleSnapshot = {
   profile: Profile;
-  keys: Key[];
   information: RuntimeInfo;
   logs: LogLine[];
-  checks: Check[];
 };
 
-/** Local settings, keys, logs, and model or MCP connections edited from Settings. */
+/** Local settings, logs, and model or MCP connections edited from Settings. */
 export class AdminService {
   constructor(private readonly runtime: RuntimeClient) {}
 
   async console(): Promise<ConsoleSnapshot> {
-    const [profile, keys, information, logs, diagnostics] = await Promise.all([
+    const [profile, information, logs] = await Promise.all([
       this.runtime.request<Profile>("/settings"),
-      this.runtime.request<Key[]>("/keys"),
       this.runtime.request<RuntimeInfo>("/information"),
       this.runtime.request<LogLine[]>("/logs"),
-      this.runtime.request<{ checks: Check[] }>("/diagnostics"),
     ]);
-    return { profile, keys, information, logs, checks: diagnostics.checks };
+    return { profile, information, logs };
   }
 
-  updateSettings(patch: { name: string; environment: string; heartbeatSeconds: number; logging: string }): Promise<Profile> {
+  /** Claude Code's login, as the official `claude` program reports it; Saturn never handles the credential. */
+  claudeCodeStatus(): Promise<{ loggedIn: boolean; authMethod: string; email?: string; subscriptionType?: string; loginCommand: string; configDir: string; error?: string }> {
+    return this.runtime.request("/claude-code/status");
+  }
+
+  /** Signs Saturn's Claude Code out through the official program; returns the new status. */
+  claudeCodeLogout(): Promise<Awaited<ReturnType<AdminService["claudeCodeStatus"]>>> {
+    return this.runtime.request("/claude-code/logout", { method: "POST" });
+  }
+
+  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null }): Promise<Profile> {
     return this.runtime.request<Profile>("/settings", { method: "PATCH", body: JSON.stringify(patch) });
-  }
-
-  createKey(input: { name: string; secretName: string; baseUrl: string; allowedPaths: string; value: string }): Promise<Key> {
-    return this.runtime.request<Key>("/keys", { method: "POST", body: JSON.stringify(input) });
-  }
-
-  rotateKey(id: string, value: string): Promise<void> {
-    return this.runtime.request(`/keys/${id}/secret`, { method: "PUT", body: JSON.stringify({ value }) });
-  }
-
-  clearKey(id: string): Promise<void> {
-    return this.runtime.request(`/keys/${id}/secret`, { method: "DELETE" });
-  }
-
-  deleteKey(id: string): Promise<void> {
-    return this.runtime.request(`/keys/${id}`, { method: "DELETE" });
   }
 
   providers(): Promise<LlmProvider[]> {
@@ -52,8 +43,25 @@ export class AdminService {
     return this.runtime.request<LlmChoice[]>(`/llm/lmstudio/models?baseUrl=${encodeURIComponent(baseUrl)}`);
   }
 
-  createModel(input: { provider: string; model: string; baseUrl?: string; secret?: string }): Promise<void> {
-    return this.runtime.request("/connections/models", { method: "POST", body: JSON.stringify(input) });
+  usageSummary(): Promise<UsageSummary> {
+    return this.runtime.request<UsageSummary>("/usage/summary");
+  }
+
+  createModel(input: { provider: string; model: string; baseUrl?: string; secret?: string; effort?: string }): Promise<void> {
+    const attributes = { "gen_ai.provider.name": input.provider, "gen_ai.request.model": input.model };
+    return userAction("ui.connect_model", attributes, () =>
+      this.runtime.request("/connections/models", { method: "POST", body: JSON.stringify(input) }),
+    );
+  }
+
+  updateModelKey(id: string, secret: string): Promise<void> {
+    return userAction("ui.save_model_key", { "saturn.model.id": id }, () =>
+      this.runtime.request(`/connections/models/${id}`, { method: "PATCH", body: JSON.stringify({ secret }) }),
+    );
+  }
+
+  deleteModel(id: string): Promise<void> {
+    return this.runtime.request(`/connections/models/${id}`, { method: "DELETE" });
   }
 
   createMcp(url: string): Promise<Mcp> {
@@ -66,6 +74,10 @@ export class AdminService {
 
   deleteMcp(id: string): Promise<void> {
     return this.runtime.request(`/mcp/${id}`, { method: "DELETE" });
+  }
+
+  updateMcp(id: string, patch: { name?: string; url?: string; disabledTools?: string[] }): Promise<Mcp> {
+    return this.runtime.request<Mcp>(`/connections/mcp/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
   }
 
   createRag(url: string): Promise<void> {

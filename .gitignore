@@ -3,3 +3,13 @@ dist/
 release/
 *.log
 .DS_Store
+# Saturn IDE: the Code-OSS fork is its own git repository; its builds are large
+Saturn-IDE/
+VSCode-darwin-*/
+
+# Linked worktrees created for side sessions
+.claude/worktrees/
+# Local runtime working data (generated when running the dev runtime from this folder)
+runtime/.artifacts/
+runtime/.agents/
+runtime/plugins/

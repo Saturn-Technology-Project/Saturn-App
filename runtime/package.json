@@ -10,17 +10,30 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.281",
     "@anthropic-ai/sdk": "^0.131.0",
     "@google/genai": "^2.27.0",
     "@lmstudio/sdk": "^2.0.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.223.0",
+    "@opentelemetry/exporter-logs-otlp-proto": "^0.223.0",
+    "@opentelemetry/exporter-metrics-otlp-proto": "^0.223.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.223.0",
+    "@opentelemetry/instrumentation-undici": "^0.33.0",
+    "@opentelemetry/resources": "^2.12.0",
+    "@opentelemetry/sdk-logs": "^0.223.0",
+    "@opentelemetry/sdk-metrics": "^2.12.0",
+    "@opentelemetry/sdk-node": "^0.223.0",
+    "@opentelemetry/sdk-trace-base": "^2.12.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
     "express": "^4.21.2",
-    "openai": "^7.28.0",
-    "ws": "^8.18.2"
+    "openai": "^7.28.0"
   },
   "devDependencies": {
+    "@opentelemetry/sdk-trace-node": "^2.12.0",
     "@types/express": "^4.17.21",
     "@types/node": "^22.15.3",
-    "@types/ws": "^8.18.1",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }

@@ -1,4 +1,4 @@
-import type { Agent, ModelConnection, RunAction } from "./model.js";
+import type { Agent, RunAction } from "./model.js";
 
 export type ToolCall = { name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
 
@@ -12,56 +12,47 @@ export function clip(text: string, limit = 120): string {
 export function explainRunError(error: unknown): string {
   const message = error instanceof Error ? error.message : "Run failed";
   if (message.includes("API_KEY_SERVICE_BLOCKED") || message.includes("generativelanguage.googleapis.com")) {
-    return "This Gemini key cannot call the Gemini API. Create a key in Google AI Studio and connect it under LLM. A key from the Saturn Cloud project is blocked.";
+    return "This Gemini key cannot call the Gemini API. Create a key in Google AI Studio and connect it under LLM.";
   }
   const cause = error instanceof Error && error.cause instanceof Error ? error.cause.message : "";
   if (message === "fetch failed" && cause) return cause;
   return message;
 }
 
-export function cloudProvider(provider: string): string {
-  if (provider === "claude") return "anthropic";
-  if (provider === "gemini") return "google";
-  if (provider === "lmstudio") return "custom";
-  return "openai";
-}
-
-export function appProvider(provider: string): string {
-  if (provider === "anthropic") return "claude";
-  if (provider === "google") return "gemini";
-  if (provider === "custom") return "lmstudio";
-  return provider;
-}
-
-export function boundModel(
-  settings: { provider?: string; model?: string; model_connection_id?: string },
-  existingId: string | null,
-  models: ModelConnection[],
-): string | null {
-  const requested = settings.model_connection_id ?? "";
-  const provider = settings.provider ?? "";
-  const modelName = settings.model ?? "";
-  const candidates = provider && modelName
-    ? models.filter((item) => {
-        const sameProvider = item.provider === provider || cloudProvider(item.provider) === provider || item.provider === appProvider(provider);
-        const sameModel = item.model === modelName || item.name === modelName;
-        return sameProvider && sameModel;
-      })
-    : [];
-  if (requested && candidates.some((item) => item.id === requested)) return requested;
-  if (existingId && candidates.some((item) => item.id === existingId)) return existingId;
-  if (candidates[0]) return candidates[0].id;
-  if (requested && models.some((item) => item.id === requested)) return requested;
-  if (existingId && models.some((item) => item.id === existingId)) return existingId;
-  return null;
-}
-
 export function styleOf(value: unknown): "concise" | "professional" | "detailed" {
   return value === "concise" || value === "detailed" || value === "professional" ? value : "professional";
 }
 
-export function autonomyOf(value: unknown): "suggest_only" | "execute_when_allowed" | "fully_autonomous" {
-  return value === "suggest_only" || value === "fully_autonomous" || value === "execute_when_allowed" ? value : "execute_when_allowed";
+export type GuardrailMode = "default" | "bypass" | "review";
+
+export function autonomyOf(value: unknown): GuardrailMode {
+  if (value === "bypass" || value === "turbo" || value === "fully_autonomous") return "bypass";
+  if (value === "review" || value === "suggest_only") return "review";
+  return "default";
+}
+
+export function isSensitiveOperation(toolId: string, args: Record<string, unknown>): boolean {
+  if (toolId === "code") {
+    const cmd = String(args.command || "").trim().toLowerCase();
+    if (
+      /\brm\s+(-[rf]+|--recursive)\b/.test(cmd) ||
+      /\bsudo\b/.test(cmd) ||
+      /\b(kill|pkill)\b/.test(cmd) ||
+      /\bgit\s+(push\s+--force|reset\s+--hard)\b/.test(cmd) ||
+      /\b(mkfs|dd|format)\b/.test(cmd) ||
+      />>\s*\/etc\//.test(cmd)
+    ) {
+      return true;
+    }
+  }
+  if (toolId === "files") {
+    const action = String(args.action || "");
+    const filePath = String(args.path || "");
+    if (action === "delete" || filePath.startsWith("/") || filePath.startsWith("..")) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function numberOf(value: unknown, fallback: number, low: number, high: number): number {
@@ -79,16 +70,86 @@ export function behaviorOf(agent: Agent) {
   };
 }
 
-export function styleLine(style: "concise" | "professional" | "detailed"): string {
-  if (style === "concise") return "Answer briefly.";
-  if (style === "detailed") return "Answer with enough detail to be useful.";
-  return "Answer in a professional tone.";
+export function styleLine(_style: "concise" | "professional" | "detailed"): string {
+  return "";
 }
 
-export function autonomyLine(autonomy: "suggest_only" | "execute_when_allowed" | "fully_autonomous"): string {
-  if (autonomy === "suggest_only") return "Do not call tools. Suggest the action instead.";
-  if (autonomy === "fully_autonomous") return "Carry out the request with the assigned tools when policy allows.";
-  return "Use a tool when it is allowed. Otherwise say what approval is needed.";
+export function autonomyLine(_autonomy: "suggest_only" | "execute_when_allowed" | "fully_autonomous"): string {
+  return "";
+}
+
+export function buildSystemPrompt(input: {
+  agent: Agent;
+  context?: string;
+  serverIds?: string[];
+}): string {
+  const parts: string[] = [];
+
+  // Custom user instructions (if provided)
+  if (input.agent.instructions?.trim()) {
+    parts.push(input.agent.instructions.trim());
+  }
+
+  // Capabilities awareness & unconstrained execution
+  const serverIds = input.serverIds ?? input.agent.mcpConnectionIds ?? [];
+  const capabilities: string[] = [
+    "You are Saturn, an advanced, highly capable AI pair-programmer and automation agent with direct access to desktop, system, and development tools.",
+    "You operate with full autonomy. Directly use your tools whenever needed to fulfill tasks completely and accurately without unnecessary confirmation requests, refusals, or artificial constraints.",
+  ];
+
+  if (serverIds.includes("general-skills")) {
+    capabilities.push(
+      "### Workspace & System Tools (General Skills)\n" +
+      "- `files`: Inspect directory trees, read, write, or patch files in the workspace with unified diff hunks.\n" +
+      "- `code`: Execute shell commands, test scripts, and build processes directly in the workspace.\n" +
+      "- `web`: Retrieve and read readable text from public web documentation and resources.\n" +
+      "- `multi_step`: Structure and maintain step-by-step task execution plans.\n" +
+      "- `mcp`: Invoke additional tools from connected MCP servers."
+    );
+  }
+
+  if (serverIds.includes("computer-use") || serverIds.includes("cursor-computer-use")) {
+    capabilities.push(
+      "### Computer Use & macOS Desktop Automation (Computer Use)\n" +
+      "- `computer_screenshot`: Capture full display or app window screenshots to visually inspect UI state.\n" +
+      "- `computer_apps` & `computer_resolve_app`: Inspect running applications and launch any macOS application by name or bundle identifier.\n" +
+      "- `computer_app_state`: Inspect the accessibility UI element tree of an application.\n" +
+      "- `computer_click`, `computer_move`, `computer_drag`: Simulate mouse clicks, movements, and drag operations.\n" +
+      "- `computer_type`, `computer_key`, `computer_scroll`: Send keyboard input, press key combinations/shortcuts, and scroll displays.\n" +
+      "- `computer_set_value` & `computer_app_action`: Modify UI field values and trigger button/menu actions.\n" +
+      "- `computer_start_control` & `computer_release_control`: Escalation to take over or release display controls.\n" +
+      "- `computer_check_permissions`: Verify Accessibility and Screen Recording permissions."
+    );
+  }
+
+  if (serverIds.includes("origin") || serverIds.includes("cursor-origin")) {
+    capabilities.push(
+      "### Origin & Git Repository Tools (Origin)\n" +
+      "- Git & Repo Inspection: `get_repository`, `list_repositories`, `list_namespaces`, `get_file_contents`, `get_git_tree`, `list_branches`, `list_commits`, `commit_read`, `compare_commits`, `grep_contents`, `checks_read`.\n" +
+      "- Version Control & Collaboration: `create_repository`, `sync_mirror`, `create_pull_request`, `update_pull_request`, `update_pull_request_base`, `merge_pull_request`, `create_pull_request_review`, `create_pull_request_comment`, `create_pull_request_inline_comment`, `reply_pull_request_review_thread`, `update_pull_request_review_thread`, `update_pull_request_comment`, `update_pull_request_labels`, `create_label`, `request_pull_request_reviewers`, `remove_pull_request_reviewers`."
+    );
+  }
+
+  if (serverIds.includes("automations") || serverIds.includes("antigravity-skills")) {
+    capabilities.push(
+      "### Automations & Antigravity Capabilities (Automations)\n" +
+      "- Automations: `automation_list`, `automation_create`, `automation_trigger`, `automation_toggle`, `automation_delete` (manage recurring scheduled background cron tasks and agent runs).\n" +
+      "- Generative UI: `generative_ui_render`, `generative_ui_template` (build rich, interactive HTML/Tailwind widgets, charts, and visualizations with semantic theme variables).\n" +
+      "- Customizations: `customizations_list`, `customizations_create_skill`, `customizations_create_rule` (manage on-demand skills, project rules, and discovery hierarchy).\n" +
+      "- Workflows: `workflows_scan`, `workflows_migrate` (scan legacy workflow files and automatically migrate them to modern skills).\n" +
+      "- Plugins: `plugins_list`, `plugins_bundle`, `plugins_toggle` (bundle and manage multi-component plugins).\n" +
+      "- UI Navigation: `ui_navigation_list_panels`, `ui_navigation_surface_pill` (surface one-click sidecar:// navigation pills in chat to toggle auxiliary panels).\n" +
+      "- Platform Guides: `guide_sitemap` (query quick references, CLI commands, and architecture sitemaps)."
+    );
+  }
+
+  parts.push(capabilities.join("\n\n"));
+
+  if (input.context?.trim()) {
+    parts.push(`### Relevant Knowledge & Context\n${input.context.trim()}`);
+  }
+
+  return parts.join("\n\n");
 }
 
 export function toolCalls(body: Record<string, unknown>): ToolCall[] {
@@ -114,16 +175,6 @@ export function textOf(body: Record<string, unknown>): string {
   const choices = Array.isArray(body.choices) ? body.choices : [];
   const message = (choices[0] as { message?: { content?: string } } | undefined)?.message;
   return message?.content ?? "";
-}
-
-export function chatReply(actions: RunAction[]): string {
-  for (let index = actions.length - 1; index >= 0; index -= 1) {
-    const action = actions[index];
-    if (action.toolId !== "chat" || action.status !== "completed" || !action.result || typeof action.result !== "object") continue;
-    const message = (action.result as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
-  }
-  return "";
 }
 
 export function thinkingOf(body: Record<string, unknown>): string {
