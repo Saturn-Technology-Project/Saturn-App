@@ -16,6 +16,8 @@ export const INLINE_WAIT_MS = 30_000;
 export const MAX_WAIT_MS = 3_600_000;
 /** Long waits per run, so a polling loop cannot run (and bill) forever. */
 export const MAX_SLEEPS = 48;
+/** The reason recorded when the user turns down an approval; the run continues and is not counted as failed. */
+const DENIED_BY_USER = "Denied by the user";
 
 /** One agent turn: the model call, built-in skills, and MCP. */
 export class RunService {
@@ -394,6 +396,57 @@ export class RunService {
     return stopped;
   }
 
+  /**
+   * The user's answer to an approval card on a local (non-Claude Code) run. The waiting tool call runs, or is
+   * denied, and the turn continues from there as a new generation, so nothing from the paused pass can resume.
+   */
+  async decide(runId: string, actionId: string, allow: boolean): Promise<Run> {
+    const run = this.kernel.getRun(runId);
+    const index = run.actions.findIndex((item) => item.id === actionId && item.status === "waiting_approval");
+    if (run.status !== "waiting_approval" || index < 0) throw new HttpError(409, "This approval is no longer waiting");
+    this.kernel.guard(run.agentId);
+    const pending = run.actions[index]!;
+    const generation = (run.generation ?? 0) + 1;
+    const actions = run.actions.slice(0, index);
+    await this.kernel.store.update((state) => {
+      const current = state.runs.find((item) => item.id === runId);
+      if (!current) return;
+      current.status = "running";
+      current.generation = generation;
+      current.actions = [...actions];
+    });
+    void this.continueAfterDecision(runId, generation, pending, allow, actions);
+    return this.kernel.getRun(runId);
+  }
+
+  private async continueAfterDecision(runId: string, generation: number, pending: RunAction, allow: boolean, actions: RunAction[]): Promise<void> {
+    const signal = this.kernel.track(runId, generation);
+    try {
+      const run = this.kernel.getRun(runId);
+      const agent = this.kernel.getAgent(run.agentId);
+      const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
+      if (!model) throw new Error("Agent has no model connection");
+      const done: RunAction = allow
+        ? await this.executeTool({ agentId: agent.id, toolId: pending.toolId, arguments: pending.arguments, runId, actionId: pending.id, signal })
+        : { ...pending, status: "denied", reason: DENIED_BY_USER };
+      if (pending.thoughtSignature) done.thoughtSignature = pending.thoughtSignature;
+      actions.push(done);
+      this.kernel.log("agent", "info", `${agent.name} ${pending.toolId} ${allow ? "approved" : "denied"} by the user`, { "saturn.run.id": runId });
+      if (!this.kernel.alive(runId, generation)) return;
+      await this.kernel.store.update((state) => {
+        const current = state.runs.find((item) => item.id === runId);
+        if (current && (current.generation ?? 0) === generation) current.actions = [...actions];
+      });
+      const context = await this.ragContext(agent, run.input, signal);
+      await this.finishFromModel(runId, generation, agent, model, context, this.toolList(agent), actions, signal);
+    } catch (error) {
+      if (!this.kernel.alive(runId, generation) || signal.aborted) return;
+      await this.finish(runId, generation, "failed", "", explainRunError(error));
+    } finally {
+      this.kernel.stops.delete(`${runId}:${generation}`);
+    }
+  }
+
   /** One tool call, as an "execute_tool <tool>" span plus saturn.tool.calls / saturn.tool.duration. */
   async executeTool(input: {
     agentId: string;
@@ -763,7 +816,7 @@ export class RunService {
       if (!current || (current.generation ?? 0) !== generation) return;
       current.actions = actions;
       current.output = textOf(response);
-      current.status = actions.some((item) => item.status === "denied" || item.status === "failed")
+      current.status = actions.some((item) => item.status === "failed" || (item.status === "denied" && item.reason !== DENIED_BY_USER))
         ? "failed"
         : "completed";
       saved = true;

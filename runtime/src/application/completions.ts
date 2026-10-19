@@ -8,9 +8,18 @@ import type { RuntimeKernel } from "./kernel.js";
 export const IDE_AGENT_ID = "saturn-ide";
 const IDE_AGENT_NAME = "Saturn IDE";
 
-/** The two editor features: Tab (fill in at the cursor) and Cmd+K (rewrite the selection). */
+/**
+ * The editor features: Tab (fill in at the cursor), Cmd+K (rewrite the selection), Apply (merge a chat code block
+ * into a file) and next edit (after an edit, predict the next one nearby).
+ */
 export type CompletionRequest = {
-  kind: "inline" | "edit";
+  kind: "inline" | "edit" | "apply" | "next";
+  /** Inline only: "block" when the cursor opens a block, so a whole body may be suggested. */
+  mode?: "line" | "block";
+  /** Apply: the whole current file. Next: the lines around the last edit, numbered. */
+  file?: string;
+  /** Next only: the edit the user just made, as before/after text of the changed lines. */
+  edit?: { before: string; after: string; line: number };
   language?: string;
   path?: string;
   /** Text before the cursor, or before the selection for an edit. */
@@ -28,7 +37,10 @@ export type CompletionRequest = {
 
 export type CompletionResult = { text: string; modelId: string; model: string };
 
-const LIMITS = { prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000 };
+const LIMITS = { prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000, file: 60000, window: 12000 };
+const KINDS = ["inline", "edit", "apply", "next"] as const;
+/** Output budget per kind; Apply returns a whole file. */
+const MAX_OUTPUT = { inline: 128, block: 384, edit: 2048, apply: 16000, next: 512 };
 
 /** One plain model call, no tools and no agent loop, for the editor's Tab completion and Cmd+K edit. */
 export class CompletionService {
@@ -46,23 +58,28 @@ export class CompletionService {
   }
 
   async complete(input: CompletionRequest, signal?: AbortSignal): Promise<CompletionResult> {
-    const kind = input.kind === "edit" ? "edit" : input.kind === "inline" ? "inline" : null;
-    if (!kind) throw new HttpError(400, "kind must be \"inline\" or \"edit\"");
+    const kind = KINDS.find((item) => item === input.kind);
+    if (!kind) throw new HttpError(400, "kind must be inline, edit, apply or next");
     if (kind === "edit" && !String(input.instruction ?? "").trim()) throw new HttpError(400, "Type an instruction for the edit");
+    if (kind === "apply" && !String(input.selection ?? "").trim()) throw new HttpError(400, "Nothing to apply");
+    if (kind === "next" && !input.edit) throw new HttpError(400, "Describe the edit that was just made");
     const model = this.model(input.modelId);
-    const fallback = kind === "edit" ? 2048 : 128;
-    const maxOutput = Math.min(Math.max(Number(input.maxTokens) || fallback, 16), 4096);
+    const budget = kind === "inline" && input.mode === "block" ? MAX_OUTPUT.block : MAX_OUTPUT[kind];
+    const maxOutput = Math.min(Math.max(Number(input.maxTokens) || budget, 16), MAX_OUTPUT.apply);
+    const messages = kind === "edit" ? editPrompt(input) : kind === "apply" ? applyPrompt(input) : kind === "next" ? nextPrompt(input) : inlinePrompt(input);
     const body = await this.kernel.llm.complete(model, {
       context: { agentId: IDE_AGENT_ID, agentName: IDE_AGENT_NAME, purpose: "completion" },
-      temperature: kind === "edit" ? 0.2 : 0,
+      temperature: kind === "inline" || kind === "next" ? 0 : 0.2,
       maxOutput,
-      messages: kind === "edit" ? editPrompt(input) : inlinePrompt(input),
+      messages,
       signal,
     });
     const raw = textOf(body);
-    const text = kind === "edit"
-      ? stripFences(raw).replace(/^\n+/, "").replace(/\s+$/, "")
-      : trimInline(stripFences(raw).replace(/\n+$/, ""), String(input.suffix ?? ""));
+    let text: string;
+    if (kind === "edit") text = stripFences(raw).replace(/^\n+/, "").replace(/\s+$/, "");
+    else if (kind === "apply") text = stripFences(raw).replace(/^\n+/, "");
+    else if (kind === "next") text = JSON.stringify(parseNextEdit(raw));
+    else text = trimInline(stripFences(raw).replace(/\n+$/, ""), String(input.suffix ?? ""));
     return { text, modelId: model.id, model: model.model || model.name };
   }
 }
@@ -87,7 +104,9 @@ function inlinePrompt(input: CompletionRequest): ChatMessage[] {
       content: [
         "You are a code completion engine inside an editor.",
         "Reply with only the text to insert at <CURSOR>: no explanation, no markdown fences, no repetition of the code around it.",
-        "Prefer a short completion: finish the current line, or at most a few lines when a block is clearly started.",
+        input.mode === "block"
+          ? "The cursor opens a block: you may suggest the whole block body (several lines), matching the surrounding style and indentation."
+          : "Prefer a short completion: finish the current line, or at most a few lines when a block is clearly started.",
         "Reply with nothing when no completion is useful.",
       ].join("\n"),
     },
@@ -129,6 +148,83 @@ function editPrompt(input: CompletionRequest): ChatMessage[] {
       ].join("\n"),
     },
   ];
+}
+
+function applyPrompt(input: CompletionRequest): ChatMessage[] {
+  const file = clip(input.file, LIMITS.file, "start");
+  const snippet = clip(input.selection, LIMITS.selection, "start");
+  const instruction = clip(input.instruction, LIMITS.instruction, "start").trim();
+  return [
+    {
+      role: "system",
+      content: [
+        "You merge a code change into a file inside an editor.",
+        "You get the current file and a snippet from a chat reply. The snippet may be partial: comments such as",
+        "\"// ...existing code...\" or \"...\" stand for unchanged parts.",
+        "Reply with the complete updated file and nothing else: no explanation, no markdown fences.",
+        "Keep every part the snippet does not change exactly as it is, including formatting and comments.",
+        "If the snippet is a whole new version of the file, reply with it as is.",
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: [fileLine(input), "", "<file>", file, "</file>", "<snippet>", snippet, "</snippet>", ...(instruction ? ["", `Note: ${instruction}`] : [])].join("\n"),
+    },
+  ];
+}
+
+function nextPrompt(input: CompletionRequest): ChatMessage[] {
+  const window = clip(input.file, LIMITS.window, "start");
+  const edit = input.edit ?? { before: "", after: "", line: 0 };
+  return [
+    {
+      role: "system",
+      content: [
+        "You predict a programmer's next edit, like an IDE's next-edit suggestion.",
+        "You get numbered lines around the cursor and the edit just made. If that edit implies another one nearby",
+        "(the same rename, a matching change, an obvious follow-up), name it. Otherwise say there is none.",
+        "Reply with JSON only: {\"line\": <line number>, \"find\": \"<exact text on that line to replace>\", \"replace\": \"<new text>\"}",
+        "or {} when there is no clear next edit. Never repeat the edit that was just made.",
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: [
+        fileLine(input),
+        "",
+        `Edit just made at line ${edit.line}:`,
+        "<before>",
+        clip(edit.before, 2000, "start"),
+        "</before>",
+        "<after>",
+        clip(edit.after, 2000, "start"),
+        "</after>",
+        "",
+        "<lines>",
+        window,
+        "</lines>",
+      ].join("\n"),
+    },
+  ];
+}
+
+export type NextEdit = { line: number; find: string; replace: string } | Record<string, never>;
+
+/** The model's next-edit answer, or {} when it is missing, malformed, or a no-op. */
+export function parseNextEdit(raw: string): NextEdit {
+  const body = stripFences(raw).trim();
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  if (start < 0 || end <= start) return {};
+  try {
+    const value = JSON.parse(body.slice(start, end + 1)) as { line?: unknown; find?: unknown; replace?: unknown };
+    const line = Number(value.line);
+    if (!Number.isInteger(line) || line < 1 || typeof value.find !== "string" || typeof value.replace !== "string") return {};
+    if (!value.find || value.find === value.replace) return {};
+    return { line, find: value.find, replace: value.replace };
+  } catch {
+    return {};
+  }
 }
 
 /** Models often wrap code in a fence despite being told not to; keep just what's inside. */

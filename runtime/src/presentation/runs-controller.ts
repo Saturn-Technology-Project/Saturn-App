@@ -67,12 +67,31 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.restoreToRun(param(req.params.id)));
   });
 
-  // Answers an approval card (Claude Code runs wait on it while the SDK holds the tool call).
+  // Answers an approval card: a Claude Code run waits on it while the SDK holds the tool call; a local run
+  // paused at the card runs (or skips) that call and continues.
   app.post("/runs/:id/actions/:actionId/decision", (req, res, next) => {
-    respond(res, next, () => {
-      services.kernel.claudeCode.decide(param(req.params.id), param(req.params.actionId), req.body?.allow === true);
+    respond(res, next, async () => {
+      const runId = param(req.params.id);
+      const actionId = param(req.params.actionId);
+      const allow = req.body?.allow === true;
+      if (services.kernel.claudeCode.waiting(runId, actionId)) {
+        services.kernel.claudeCode.decide(runId, actionId, allow);
+      } else {
+        await services.kernel.runs.decide(runId, actionId, allow);
+      }
       return { ok: true };
     });
+  });
+
+  // One changed file's text before or after the run, for the editor's side-by-side diff.
+  app.get("/runs/:id/changes/file", (req, res, next) => {
+    respond(res, next, () =>
+      services.kernel.checkpoints.fileContent(
+        param(req.params.id),
+        String(req.query.path ?? ""),
+        req.query.side === "before" ? "before" : "after",
+      ),
+    );
   });
 
   app.get("/claude-code/status", (_req, res, next) => {

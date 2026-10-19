@@ -133,6 +133,11 @@ export class ClaudeCodeService {
     return await this.status();
   }
 
+  /** True while the SDK holds this tool call open waiting for the user's answer. */
+  waiting(runId: string, actionId: string): boolean {
+    return this.pending.has(`${runId}:${actionId}`);
+  }
+
   /** The user's answer to an approval card. */
   decide(runId: string, actionId: string, allow: boolean): void {
     const resolve = this.pending.get(`${runId}:${actionId}`);

@@ -160,6 +160,16 @@ export class CheckpointService {
     };
   }
 
+  /** One changed file's text before or after the run, for the editor's diff view. */
+  async fileContent(runId: string, file: string, side: "before" | "after"): Promise<{ path: string; content: string; exists: boolean; binary: boolean }> {
+    const entry = this.kernel.getRun(runId).checkpoint?.files.find((item) => item.path === file);
+    if (!entry) throw new HttpError(404, "That file is not among this run's changes");
+    const bytes = await this.blob(runId, side === "before" ? entry.before : entry.after);
+    if (!bytes) return { path: file, content: "", exists: false, binary: false };
+    const binary = bytes.includes(0);
+    return { path: file, content: binary ? "" : bytes.toString("utf8"), exists: true, binary };
+  }
+
   /** Puts back the original bytes of one file, or of every file the run changed; files the run created are deleted. */
   async revert(runId: string, file?: string): Promise<RunChanges> {
     const run = this.kernel.getRun(runId);
