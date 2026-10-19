@@ -1683,7 +1683,8 @@ class AgentView {
 		background: rgba(210, 153, 34, 0.08);
 		font-size: 12px;
 	}
-	.approval-bar .approval-text { flex: 1; min-width: 140px; }
+	.approval-bar .approval-text { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+	.approval-actions { display: inline-flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
 	.approval-bar code { font-family: var(--vscode-editor-font-family); font-size: 11.5px; }
 	.btn-small {
 		border: 1px solid var(--vscode-button-border, transparent);
@@ -2414,7 +2415,9 @@ class AgentView {
 			};
 			deny.onclick = () => answer(false);
 			allow.onclick = () => answer(true);
-			bar.append(deny, allow);
+			const buttons = el('span', 'approval-actions');
+			buttons.append(deny, allow);
+			bar.append(buttons);
 		}
 		return bar;
 	}
