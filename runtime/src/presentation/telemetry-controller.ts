@@ -4,10 +4,24 @@ import { telemetryBuffer, telemetryFile, telemetryStatus } from "../infrastructu
 import { EXPORT_FORMATS, exportFormat, render } from "../infrastructure/telemetry-formats.js";
 import { telemetryDocument } from "../infrastructure/telemetry-file.js";
 import { HttpError } from "../domain/errors.js";
+import { logger } from "../infrastructure/logger.js";
 import { param, respond } from "./http.js";
 
 /** Read-only views of the runtime's recent OpenTelemetry data, for the desktop Telemetry page. */
 export function mountTelemetry(app: Express): void {
+  // Saturn IDE (the Code-OSS fork) sends its built-in telemetry here instead of to Microsoft; each event
+  // is recorded in the runtime log so it stays on this machine and shows on the Logs/Telemetry page.
+  app.post("/telemetry/vscode", (req, res, next) => {
+    respond(res, next, () => {
+      const events = Array.isArray(req.body?.events) ? (req.body.events as { name?: unknown; data?: unknown }[]) : [];
+      for (const event of events.slice(0, 200)) {
+        const name = typeof event?.name === "string" ? event.name : "event";
+        logger.log("ide-telemetry", "info", name, { "ide.event": name, "ide.data": safeJson(event?.data) });
+      }
+      return { received: events.length };
+    });
+  });
+
   app.get("/telemetry/status", (_req, res) => {
     const traces = telemetryBuffer.summaries();
     res.json({
@@ -245,4 +259,14 @@ function parseOtlpAttributes(attrs: any[] | undefined): Record<string, any> {
     }
   }
   return result;
+}
+
+/** VS Code telemetry `data` is an arbitrary bag; keep it as one capped JSON string for the log attribute. */
+function safeJson(value: unknown): string {
+  try {
+    const text = JSON.stringify(value ?? {});
+    return text.length > 4000 ? `${text.slice(0, 4000)}…` : text;
+  } catch {
+    return "{}";
+  }
 }
