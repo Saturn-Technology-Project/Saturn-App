@@ -182,7 +182,9 @@ export const gemini: ProviderAdapter = {
         temperature: request.temperature,
         maxOutputTokens: request.maxOutput,
         abortSignal: request.signal,
-        thinkingConfig: includeThoughts ? { includeThoughts: true, ...thinkingLevel(request.model) } : undefined,
+        thinkingConfig: request.thinking === "low"
+          ? (includeThoughts ? lowThinking(request.model) : undefined)
+          : includeThoughts ? { includeThoughts: true, ...thinkingLevel(request.model) } : undefined,
         tools: request.tools.length
           ? [{
               functionDeclarations: request.tools.map((tool) => ({
@@ -242,4 +244,14 @@ export const gemini: ProviderAdapter = {
  */
 function thinkingLevel(model: string): { thinkingLevel?: ThinkingLevel } {
   return /^gemini-4/.test(model) ? { thinkingLevel: ThinkingLevel.MEDIUM } : {};
+}
+
+/**
+ * Little or no thinking, for editor completions where a few output tokens must be the answer. Gemini 2.5 takes a
+ * thinking budget (0 turns it off on Flash); 3.x and 4 take a level. A model that refuses is retried without it.
+ */
+function lowThinking(model: string): { includeThoughts: false; thinkingBudget?: number; thinkingLevel?: ThinkingLevel } {
+  return /^gemini-2\.5/.test(model)
+    ? { includeThoughts: false, thinkingBudget: /pro/.test(model) ? 128 : 0 }
+    : { includeThoughts: false, thinkingLevel: /^gemini-3/.test(model) ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL };
 }

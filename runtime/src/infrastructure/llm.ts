@@ -36,6 +36,8 @@ export type CompletionInput = {
   tools?: unknown[];
   temperature?: number;
   maxOutput?: number;
+  /** See ChatRequest.thinking. */
+  thinking?: "low";
   signal?: AbortSignal;
 };
 
@@ -152,6 +154,7 @@ export class LlmBroker {
           tools,
           temperature: input.temperature,
           maxOutput: input.maxOutput,
+          ...(input.thinking ? { thinking: input.thinking } : {}),
           signal: input.signal,
         });
         const usage = (body.usage ?? {}) as { input_tokens?: number; output_tokens?: number };

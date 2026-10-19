@@ -40,7 +40,7 @@ export type CompletionResult = { text: string; modelId: string; model: string };
 const LIMITS = { prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000, file: 60000, window: 12000 };
 const KINDS = ["inline", "edit", "apply", "next"] as const;
 /** Output budget per kind; Apply returns a whole file. */
-const MAX_OUTPUT = { inline: 128, block: 384, edit: 2048, apply: 16000, next: 512 };
+const MAX_OUTPUT = { inline: 1024, block: 2048, edit: 4096, apply: 16000, next: 1024 };
 
 /** One plain model call, no tools and no agent loop, for the editor's Tab completion and Cmd+K edit. */
 export class CompletionService {
@@ -70,7 +70,10 @@ export class CompletionService {
     const body = await this.kernel.llm.complete(model, {
       context: { agentId: IDE_AGENT_ID, agentName: IDE_AGENT_NAME, purpose: "completion" },
       temperature: kind === "inline" || kind === "next" ? 0 : 0.2,
+      // The prompts ask for short answers; the budget is generous because thinking models spend part of it
+      // reasoning, and a cut-off completion (half an expression) is worse than none.
       maxOutput,
+      ...(kind === "inline" || kind === "next" ? { thinking: "low" as const } : {}),
       messages,
       signal,
     });
