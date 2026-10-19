@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { errorText, logger } from "./logger.js";
+import { launchEnv } from "./launch-env.js";
 
 /** Opens a URL in the user's default browser (used for provider sign-in pages). */
 export function openInBrowser(url: string): void {
@@ -9,7 +10,7 @@ export function openInBrowser(url: string): void {
       : process.platform === "win32"
         ? ["cmd.exe", ["/c", "start", "", url]]
         : ["xdg-open", [url]];
-  const child = spawn(command, args, { detached: true, stdio: "ignore" });
+  const child = spawn(command, args, { detached: true, stdio: "ignore", env: launchEnv() });
   child.on("error", (error) => logger.warn("mcp", `Could not open the browser for sign-in: ${errorText(error)}`));
   child.unref();
 }

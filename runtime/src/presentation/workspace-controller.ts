@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import type { Express } from "express";
 import type { AppServices } from "../application/services.js";
 import { respond } from "./http.js";
+import { launchEnv } from "../infrastructure/launch-env.js";
 
 const runExec = promisify(execFile);
 const CWD_MARKER = "__SATURN_CWD__:";
@@ -17,7 +18,7 @@ const CWD_MARKER = "__SATURN_CWD__:";
  * as an "error" event on the child; without a listener it would crash the runtime, so it is logged instead.
  */
 function launch(what: string, command: string, args: string[]): void {
-  const child = spawn(command, args, { detached: true, stdio: "ignore" });
+  const child = spawn(command, args, { detached: true, stdio: "ignore", env: launchEnv() });
   child.on("error", (error) => logger.warn("workspace", `Could not open ${what} with ${command}: ${errorText(error)}`));
   child.unref();
 }
@@ -90,7 +91,7 @@ export function mountWorkspace(app: Express, services: AppServices): void {
       const shellArgs = isWin ? ["/d", "/s", "/c", wrappedCommand] : ["-c", wrappedCommand];
 
       const env = {
-        ...process.env,
+        ...launchEnv(),
         PATH: `${process.env.PATH || ""}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
         TERM: "xterm-256color",
       };
@@ -166,6 +167,22 @@ export function mountWorkspace(app: Express, services: AppServices): void {
     respond(res, next, async () => {
       return await services.wakeupDefaultApp();
     });
+  });
+
+  // Saturn IDE windows report in every 15 s; the desktop app quits (and stops this runtime) only once none is open.
+  app.post("/runtime/clients", (req, res, next) => {
+    respond(res, next, () => {
+      services.kernel.clients.beat(String(req.body?.id ?? ""), String(req.body?.kind ?? "ide"));
+      return { ok: true };
+    });
+  });
+
+  app.delete("/runtime/clients/:id", (req, res, next) => {
+    respond(res, next, () => services.kernel.clients.leave(String(req.params.id)), 204);
+  });
+
+  app.get("/runtime/clients", (_req, res, next) => {
+    respond(res, next, () => services.kernel.clients.list());
   });
 
   app.get("/runtime/wakeup", (_req, res, next) => {

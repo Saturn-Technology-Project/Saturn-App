@@ -8,10 +8,20 @@ const path = require("node:path");
 const { startTelemetry, traced } = require("./telemetry.cjs");
 
 const HOST = "127.0.0.1";
-const PORT = 4700;
+// SATURN_RUNTIME_PORT moves the runtime (and lets a second copy run beside another, e.g. for testing).
+const PORT = Number(process.env.SATURN_RUNTIME_PORT) || 4700;
 
 let runtime;
 let ownsRuntime = false;
+
+// The data folder was named after the npm package; keep it (it holds the window's local settings) while the
+// app and its menus say "Saturn". SATURN_USER_DATA_DIR gives a separate profile, e.g. for a second test copy.
+app.setPath("userData", process.env.SATURN_USER_DATA_DIR || path.join(app.getPath("appData"), "@saturn", "desktop"));
+app.setName("Saturn");
+
+// One Saturn at a time (on Windows each click on the .exe would start another); a second launch shows this one.
+const primary = app.requestSingleInstanceLock();
+if (!primary) app.quit();
 
 const telemetry = startTelemetry();
 
@@ -65,7 +75,11 @@ function startRuntime() {
     SATURN_DESKTOP_ATTACHED: "1",
     SATURN_DESKTOP_PID: String(process.pid),
   };
-  if (packaged) env.ELECTRON_RUN_AS_NODE = "1";
+  if (packaged) {
+    env.ELECTRON_RUN_AS_NODE = "1";
+    // Electron's fs treats .asar files as folders; the runtime copies and deletes bundles that contain them.
+    env.ELECTRON_NO_ASAR = "1";
+  }
   // The bundled Saturn IDE (see scripts/bundle-ide.cjs); in development the runtime finds the local build.
   const ide = path.join(process.resourcesPath, "Saturn IDE.app");
   if (packaged && !env.SATURN_IDE_APP && fs.existsSync(ide)) env.SATURN_IDE_APP = ide;
@@ -171,11 +185,11 @@ function runtimeToken() {
 }
 
 /** GET/POST against the local runtime from the main process; resolves undefined when it does not answer. */
-function runtimeRequest(method, route) {
+function runtimeRequest(method, route, timeout = 30_000) {
   const token = runtimeToken();
   const headers = token ? { authorization: `Bearer ${token}` } : {};
   return new Promise((resolve) => {
-    const req = http.request({ host: HOST, port: PORT, path: route, method, timeout: 30_000, headers }, (res) => {
+    const req = http.request({ host: HOST, port: PORT, path: route, method, timeout, headers }, (res) => {
       let body = "";
       res.on("data", (chunk) => (body += chunk));
       res.on("end", () => {
@@ -312,21 +326,51 @@ if (telemetry.enabled) {
   });
 }
 
+/** True while a Saturn IDE window uses the runtime (it reports in every 15 s, and counts while starting up). */
+async function ideOpen() {
+  const clients = await runtimeRequest("GET", "/runtime/clients", 5_000);
+  return Array.isArray(clients) && clients.some((client) => client.kind === "ide");
+}
+
+let ideWatch = null;
+
+/**
+ * With no Saturn window on screen (the IDE opened at launch, or the user closed the Agent App while the IDE was
+ * open), Saturn only keeps the runtime alive for Saturn IDE. Once no IDE is open any more, Saturn quits and the
+ * runtime stops with it. A window on screen, or Saturn hidden by the user (⌘H), keeps it running.
+ */
+function watchForIde() {
+  if (ideWatch || !ownsRuntime) return;
+  ideWatch = setInterval(async () => {
+    const onScreen = BrowserWindow.getAllWindows().some((window) => !window.isDestroyed() && window.isVisible());
+    const hiddenByUser = process.platform === "darwin" && app.isHidden();
+    if (onScreen || hiddenByUser) return;
+    if (await ideOpen()) return;
+    clearInterval(ideWatch);
+    ideWatch = null;
+    app.quit();
+  }, 10_000);
+}
+
 app.whenReady().then(() =>
-  traced("desktop.startup", ROOT_CONTEXT, async (span, context) => {
+  primary && traced("desktop.startup", ROOT_CONTEXT, async (span, context) => {
     span.setAttribute("saturn.desktop.packaged", app.isPackaged);
     // 1. Start Runtime first
     await waitForRuntime(context);
-    // 2. Runtime wakes up Saturn IDE or Agent App based on settings.launchApp
-    // A settings link came from Saturn IDE, which is already open: do not wake an app.
-    const wakeup = pendingLink ? null : (await runtimeRequest("GET", "/runtime/wakeup")) || (await runtimeRequest("GET", "/settings"));
-    // Launched by a saturn://settings link: only the Settings window shows; the Agent App stays hidden in the Dock.
-    const launchIde = pendingLink !== null || (wakeup?.target || wakeup?.launchApp) === "ide";
+    // 2. Open the default app (Settings → General → Open at Launch). The runtime opens Saturn IDE and says whether
+    //    it did; the first run may also install the bundled IDE, hence the long timeout. A settings link came from
+    //    Saturn IDE, which is already open, so nothing is woken then.
+    const wakeup = pendingLink ? null : await runtimeRequest("POST", "/runtime/wakeup", 180_000);
+    // The Agent App hides only when the IDE really opened (or for a settings link); if waking failed, it shows,
+    // so a launch never ends with nothing on screen.
+    const launchIde = pendingLink !== null || (wakeup?.target === "ide" && wakeup?.opened === true);
     span.setAttribute("saturn.desktop.launch_app", launchIde ? "ide" : "agent");
     await createWindow(context, { show: !launchIde });
     if (!launchIde) {
       mainWindow?.show();
       mainWindow?.focus();
+    } else {
+      watchForIde();
     }
     startedUp = true;
     if (pendingLink) {
@@ -347,9 +391,29 @@ app.on("activate", () => {
   }
 });
 
-app.on("window-all-closed", () => {
+app.on("window-all-closed", async () => {
+  // Saturn IDE still uses the runtime: stay in the background (Dock) and quit once the IDE closes too.
+  if (ownsRuntime && (await ideOpen())) {
+    watchForIde();
+    return;
+  }
   if (ownsRuntime) runtime?.kill();
   app.quit();
+});
+
+// A second launch (Windows .exe, `open -n`): bring this Saturn forward, or open the settings link it carried.
+app.on("second-instance", (_event, argv) => {
+  const link = argv.map(settingsLink).find(Boolean);
+  if (link && startedUp) {
+    void openSettingsWindow(link.page);
+    return;
+  }
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  } else if (app.isReady()) {
+    void createWindow(ROOT_CONTEXT);
+  }
 });
 
 // Quitting (⌘Q, Dock > Quit) skips window-all-closed, so the runtime Saturn started is stopped here too.

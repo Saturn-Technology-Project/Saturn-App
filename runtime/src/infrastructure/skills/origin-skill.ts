@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { launchEnv } from "../launch-env.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -156,7 +157,7 @@ export class OriginSkill {
 
   private async git(cwd: string, args: string[], signal?: AbortSignal, allowExit1 = false): Promise<string> {
     try {
-      const { stdout } = await execFileAsync("git", args, { cwd, maxBuffer: 32 * 1024 * 1024, signal, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
+      const { stdout } = await execFileAsync("git", args, { cwd, maxBuffer: 32 * 1024 * 1024, signal, env: { ...launchEnv(), GIT_TERMINAL_PROMPT: "0" } });
       return stdout;
     } catch (error) {
       const failed = error as { code?: number | string; stderr?: string; stdout?: string; message?: string };

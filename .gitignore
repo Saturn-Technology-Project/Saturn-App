@@ -13,3 +13,6 @@ VSCode-darwin-*/
 runtime/.artifacts/
 runtime/.agents/
 runtime/plugins/
+
+# Lifecycle test package (electron-builder --config.directories.output=release-test)
+desktop/release-test/

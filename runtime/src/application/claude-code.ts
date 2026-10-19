@@ -72,7 +72,8 @@ export class ClaudeCodeService {
   environment(): Record<string, string> {
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(process.env)) {
-      if (value !== undefined && !CREDENTIAL_VARIABLES.includes(key)) env[key] = value;
+      // ELECTRON_* belong to the packaged runtime itself; commands the agent runs must not inherit them.
+      if (value !== undefined && !CREDENTIAL_VARIABLES.includes(key) && !key.startsWith("ELECTRON_")) env[key] = value;
     }
     env.CLAUDE_CONFIG_DIR = this.configDir();
     return env;

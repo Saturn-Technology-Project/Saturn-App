@@ -31,6 +31,7 @@ import { ClaudeCodeService } from "./claude-code.js";
 import { CheckpointService } from "./checkpoints.js";
 import { CompletionService } from "./completions.js";
 import { GroupService } from "./groups.js";
+import { ClientRegistry } from "./clients.js";
 
 /** Shared local runtime state. */
 export class RuntimeKernel {
@@ -47,6 +48,7 @@ export class RuntimeKernel {
   readonly checkpoints: CheckpointService;
   readonly completions: CompletionService;
   readonly groups: GroupService;
+  readonly clients = new ClientRegistry();
 
   constructor(
     readonly store: FileStore,
