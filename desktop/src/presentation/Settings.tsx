@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
 import type { Agent, LaunchApp, LlmProvider, LogLine, Mcp, Model, Profile, Project, Rag, RuntimeInfo, UsageSummary } from "../domain/model";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
 import { ConfigureMcpModal } from "./ConfigureMcpModal";
+import { About } from "./About";
 
 export type SettingsPage =
   | "settings"
@@ -30,7 +31,7 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
     items: [
       ["telemetry", "Telemetry", "OpenTelemetry traces & logs"],
       ["logs", "Logs", "Live runtime event stream"],
-      ["information", "About", "Port, version & identity"],
+      ["information", "About", "What Saturn is and how it fits together"],
     ],
   },
 ];
@@ -170,15 +171,6 @@ export function Settings(props: {
             >
               <span>Shortcuts</span>
             </button>
-            <div className="settings-user-pill">
-              <div className="settings-user-avatar">
-                {(profile?.name || "Saturn").slice(0, 1).toUpperCase()}
-              </div>
-              <div className="settings-user-meta">
-                <span className="settings-user-name">{profile?.name || "Saturn"}</span>
-                <span className="settings-user-sub">{info ? `Local runtime · ${info.listen.replace(/^https?:\/\//, "")}` : "Local runtime"}</span>
-              </div>
-            </div>
           </div>
         </aside>
 
@@ -220,7 +212,7 @@ export function Settings(props: {
                     onError={setError}
                   />
                 ) : null}
-                {page === "information" && info ? <Information info={info} /> : null}
+                {page === "information" && info ? <About info={info} /> : null}
                 {page === "logs" ? <Logs lines={logs} onReload={() => void load()} /> : null}
                 {page === "telemetry" ? <Telemetry /> : null}
                 {page === "settings" && profile ? (
@@ -705,29 +697,6 @@ const EFFORT_LABELS: Record<string, string> = { low: "Low", medium: "Medium", hi
 
 function providerLabel(providers: LlmProvider[], model: Model) {
   return providers.find((item) => item.id === model.provider)?.label ?? model.provider ?? "Model";
-}
-
-function Information(props: { info: RuntimeInfo }) {
-  const rows: [string, string][] = [
-    ["Listen Address", props.info.listen],
-    ["Runtime ID", props.info.runtimeId],
-    ["Version", props.info.version],
-    ["Workspace Name", props.info.name],
-    ["Active MCP Servers", props.info.mcpServers.join(", ") || "—"],
-  ];
-  return (
-    <section className="card">
-      <div className="label">Runtime Identity</div>
-      <div className="kv">
-        {rows.map(([label, value]) => (
-          <Fragment key={label}>
-            <span>{label}</span>
-            <div><code>{value}</code></div>
-          </Fragment>
-        ))}
-      </div>
-    </section>
-  );
 }
 
 function Logs(props: { lines: LogLine[]; onReload: () => void }) {
