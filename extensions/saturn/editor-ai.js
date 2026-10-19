@@ -14,6 +14,23 @@ const DEBOUNCE_MS = 300;
 /** After a failure, Tab completion pauses this long so a stopped runtime is not hit on every keystroke. */
 const ERROR_PAUSE_MS = 15000;
 const SCHEMES = new Set(['file', 'untitled', 'vscode-remote', 'vscode-userdata', 'vscode-notebook-cell']);
+const CACHE_SIZE = 20;
+/** After an edit, wait this long for the user to pause before asking for the next edit. */
+const NEXT_EDIT_DELAY_MS = 900;
+/** Lines on each side of the edit that the next-edit prediction sees (and may point to). */
+const NEXT_EDIT_WINDOW = 40;
+
+/** True when the cursor sits right after something that opens a block, so a whole body may be suggested. */
+function opensBlock(document, position) {
+	const before = document.lineAt(position.line).text.slice(0, position.character).trimEnd();
+	if (/[{(\[:]$|=>$|\bthen$|\bdo$/.test(before)) {
+		return true;
+	}
+	if (before === '' && position.line > 0) {
+		return /[{(\[:]$|=>$/.test(document.lineAt(position.line - 1).text.trimEnd());
+	}
+	return false;
+}
 
 /**
  * @typedef {{ request: (path: string, init?: RequestInit) => Promise<any> }} RuntimeLike
@@ -110,8 +127,12 @@ class TabCompletions {
 		this.runtime = runtime;
 		this.status = status;
 		this.pausedUntil = 0;
-		/** @type {{ uri: string, prefix: string, suffix: string, text: string } | undefined} */
-		this.last = undefined;
+		/**
+		 * Recent completions, newest last: typing into one, deleting back over it, or returning to the same spot
+		 * reuses it without another model call.
+		 * @type {{ uri: string, prefix: string, suffix: string, text: string }[]}
+		 */
+		this.recent = [];
 	}
 
 	/**
@@ -150,6 +171,7 @@ class TabCompletions {
 				signal: abort.signal,
 				body: JSON.stringify({
 					kind: 'inline',
+					mode: opensBlock(document, position) ? 'block' : 'line',
 					language: document.languageId,
 					path: vscode.workspace.asRelativePath(document.uri),
 					prefix,
@@ -159,7 +181,7 @@ class TabCompletions {
 			this.status.ok();
 			this.pausedUntil = 0;
 			const text = String((result && result.text) || '');
-			this.last = { uri, prefix, suffix, text };
+			this.recent = this.recent.filter((item) => !(item.uri === uri && item.prefix === prefix)).concat({ uri, prefix, suffix, text }).slice(-CACHE_SIZE);
 			if (token.isCancellationRequested || !text.trim()) {
 				return undefined;
 			}
@@ -176,17 +198,19 @@ class TabCompletions {
 		}
 	}
 
-	/** The rest of the last completion when the user typed into it; undefined when a new call is needed. */
+	/** The rest of a recent completion that still fits where the cursor is; undefined when a new call is needed. */
 	fromCache(uri, prefix, suffix) {
-		const last = this.last;
-		if (!last || last.uri !== uri || last.suffix !== suffix) {
-			return undefined;
+		for (let index = this.recent.length - 1; index >= 0; index--) {
+			const item = this.recent[index];
+			if (item.uri !== uri || item.suffix !== suffix) {
+				continue;
+			}
+			const whole = item.prefix + item.text;
+			if (prefix.length >= item.prefix.length && whole.startsWith(prefix)) {
+				return whole.slice(prefix.length);
+			}
 		}
-		const whole = last.prefix + last.text;
-		if (prefix.length < last.prefix.length || !whole.startsWith(prefix)) {
-			return undefined;
-		}
-		return whole.slice(prefix.length);
+		return undefined;
 	}
 }
 
@@ -443,14 +467,201 @@ class InlineEdit {
 	}
 }
 
+/**
+ * Next edit: after the user changes a line and pauses, ask the completion model whether that edit implies another
+ * one nearby (the same rename, a matching change). The suggestion is shown on its line; Tab jumps there and applies
+ * it, Esc dismisses it. Like Cursor's Tab, but only within a window around the edit.
+ */
+class NextEdit {
+	/** @param {RuntimeLike} runtime @param {AiStatus} status */
+	constructor(runtime, status) {
+		this.runtime = runtime;
+		this.status = status;
+		/** Each open document's text before its latest change, to know what a changed line used to say. @type {Map<string, string>} */
+		this.snapshots = new Map();
+		/** @type {NodeJS.Timeout | undefined} */
+		this.timer = undefined;
+		/** @type {AbortController | undefined} */
+		this.inflight = undefined;
+		/** @type {{ uri: string; line: number; find: string; replace: string; version: number } | undefined} */
+		this.pending = undefined;
+		/** Set while the extension applies a suggestion itself, so that change does not trigger another prediction. */
+		this.applying = false;
+		this.decoration = vscode.window.createTextEditorDecorationType({
+			after: { margin: '0 0 0 2em', color: new vscode.ThemeColor('editorCodeLens.foreground'), fontStyle: 'italic' },
+			backgroundColor: new vscode.ThemeColor('diffEditor.insertedTextBackground'),
+			isWholeLine: true,
+		});
+	}
+
+	enabled() {
+		return this.status.enabled() && vscode.workspace.getConfiguration('saturn').get('nextEdit.enabled', true) !== false;
+	}
+
+	/** @param {vscode.TextDocument} document */
+	remember(document) {
+		if (SCHEMES.has(document.uri.scheme) && document.getText().length < 400000) {
+			this.snapshots.set(document.uri.toString(), document.getText());
+		}
+	}
+
+	/** @param {vscode.TextDocumentChangeEvent} event */
+	onChange(event) {
+		const document = event.document;
+		const uri = document.uri.toString();
+		const before = this.snapshots.get(uri);
+		this.remember(document);
+		if (this.applying || !this.enabled() || before === undefined || !event.contentChanges.length) {
+			return;
+		}
+		const editor = vscode.window.activeTextEditor;
+		if (!editor || editor.document !== document) {
+			return;
+		}
+		this.clear();
+		const change = event.contentChanges[0];
+		const line = change.range.start.line;
+		const oldLines = before.split('\n');
+		const oldText = oldLines.slice(line, change.range.end.line + 1).join('\n');
+		const newText = document.getText(new vscode.Range(line, 0, Math.min(document.lineCount - 1, line + change.text.split('\n').length - 1), Number.MAX_SAFE_INTEGER));
+		if (oldText.trim() === newText.trim()) {
+			return;
+		}
+		if (this.timer) {
+			clearTimeout(this.timer);
+		}
+		this.timer = setTimeout(() => void this.predict(document, line, oldText, newText), NEXT_EDIT_DELAY_MS);
+	}
+
+	async predict(document, line, oldText, newText) {
+		if (this.inflight) {
+			this.inflight.abort();
+		}
+		const controller = new AbortController();
+		this.inflight = controller;
+		const version = document.version;
+		const first = Math.max(0, line - NEXT_EDIT_WINDOW);
+		const last = Math.min(document.lineCount - 1, line + NEXT_EDIT_WINDOW);
+		const numbered = [];
+		for (let index = first; index <= last; index++) {
+			numbered.push(`${index + 1}: ${document.lineAt(index).text}`);
+		}
+		try {
+			const result = await this.runtime.request('/complete', {
+				method: 'POST',
+				signal: controller.signal,
+				body: JSON.stringify({
+					kind: 'next',
+					language: document.languageId,
+					path: vscode.workspace.asRelativePath(document.uri),
+					file: numbered.join('\n'),
+					edit: { before: oldText, after: newText, line: line + 1 },
+				}),
+			});
+			const next = JSON.parse(String((result && result.text) || '{}'));
+			if (controller.signal.aborted || document.version !== version || !next || !next.line) {
+				return;
+			}
+			const target = next.line - 1;
+			if (target < first || target > last || target === line) {
+				return;
+			}
+			const text = document.lineAt(target).text;
+			if (!text.includes(next.find)) {
+				return;
+			}
+			this.pending = { uri: document.uri.toString(), line: target, find: next.find, replace: next.replace, version };
+			this.render();
+			void vscode.commands.executeCommand('setContext', 'saturn.nextEditPending', true);
+		} catch {
+			// A failed prediction is silent: Tab completion reports runtime problems already.
+		} finally {
+			if (this.inflight === controller) {
+				this.inflight = undefined;
+			}
+		}
+	}
+
+	render() {
+		for (const editor of vscode.window.visibleTextEditors) {
+			const pending = this.pending;
+			if (pending && editor.document.uri.toString() === pending.uri) {
+				const preview = pending.replace.length > 60 ? pending.replace.slice(0, 57) + '…' : pending.replace;
+				editor.setDecorations(this.decoration, [{
+					range: new vscode.Range(pending.line, 0, pending.line, 0),
+					renderOptions: { after: { contentText: `⇥ Tab: ${pending.find.trim().slice(0, 40)} → ${preview.trim()}` } },
+				}]);
+			} else {
+				editor.setDecorations(this.decoration, []);
+			}
+		}
+	}
+
+	clear() {
+		if (this.pending) {
+			this.pending = undefined;
+			this.render();
+			void vscode.commands.executeCommand('setContext', 'saturn.nextEditPending', false);
+		}
+	}
+
+	/** Tab: go to the suggested line and make the change there. */
+	async accept() {
+		const pending = this.pending;
+		const editor = vscode.window.activeTextEditor;
+		this.clear();
+		if (!pending || !editor || editor.document.uri.toString() !== pending.uri || editor.document.version !== pending.version) {
+			return;
+		}
+		const text = editor.document.lineAt(pending.line).text;
+		const at = text.indexOf(pending.find);
+		if (at < 0) {
+			return;
+		}
+		const range = new vscode.Range(pending.line, at, pending.line, at + pending.find.length);
+		this.applying = true;
+		try {
+			await editor.edit((builder) => builder.replace(range, pending.replace));
+		} finally {
+			this.applying = false;
+		}
+		const end = range.start.translate(0, pending.replace.length);
+		editor.selection = new vscode.Selection(end, end);
+		editor.revealRange(new vscode.Range(end, end), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+		this.remember(editor.document);
+	}
+
+	dispose() {
+		if (this.timer) {
+			clearTimeout(this.timer);
+		}
+		this.decoration.dispose();
+	}
+}
+
 /** @param {vscode.ExtensionContext} context @param {RuntimeLike} runtime */
 function registerEditorAi(context, runtime) {
 	const status = new AiStatus();
 	const tab = new TabCompletions(runtime, status);
 	const edit = new InlineEdit(runtime, status);
+	const next = new NextEdit(runtime, status);
+	for (const document of vscode.workspace.textDocuments) {
+		next.remember(document);
+	}
 	context.subscriptions.push(
 		status,
 		edit,
+		next,
+		vscode.workspace.onDidOpenTextDocument((document) => next.remember(document)),
+		vscode.workspace.onDidCloseTextDocument((document) => next.snapshots.delete(document.uri.toString())),
+		vscode.window.onDidChangeTextEditorSelection((event) => {
+			// Moving away from the suggestion's line by clicking elsewhere keeps it; switching files drops it.
+			if (next.pending && event.textEditor.document.uri.toString() !== next.pending.uri) {
+				next.clear();
+			}
+		}),
+		vscode.commands.registerCommand('saturn.nextEdit.accept', () => next.accept()),
+		vscode.commands.registerCommand('saturn.nextEdit.dismiss', () => next.clear()),
 		vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, tab),
 		vscode.languages.registerCodeLensProvider({ pattern: '**' }, edit),
 		vscode.commands.registerCommand('saturn.inlineEdit', () => edit.start()),
@@ -466,8 +677,14 @@ function registerEditorAi(context, runtime) {
 				status.render();
 			}
 		}),
-		vscode.workspace.onDidChangeTextDocument((event) => edit.onChange(event)),
-		vscode.window.onDidChangeVisibleTextEditors(() => edit.render()),
+		vscode.workspace.onDidChangeTextDocument((event) => {
+			edit.onChange(event);
+			next.onChange(event);
+		}),
+		vscode.window.onDidChangeVisibleTextEditors(() => {
+			edit.render();
+			next.render();
+		}),
 	);
 }
 

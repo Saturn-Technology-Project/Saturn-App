@@ -6,6 +6,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const nodePath = require('node:path');
 const { registerEditorAi } = require('./editor-ai');
+const agentTools = require('./agent-tools');
+
+/** Editor-side helpers shared by the sidebar panel and the Agent window: diff documents and the agent terminal. */
+const shared = { content: new agentTools.DiffContent(), terminal: new agentTools.AgentTerminal() };
 
 /** Talks to the local Saturn runtime (the same one the Saturn app uses). */
 class Runtime {
@@ -200,7 +204,58 @@ class AgentView {
 			return;
 		}
 		const runs = await this.runtime.request(`/agents/${encodeURIComponent(this.agentId)}/messages?threadId=${encodeURIComponent(this.threadId)}`);
+		shared.terminal.markSeen(runs || []);
 		this.post({ type: 'history', runs: runs || [] });
+	}
+
+	/** The open workspace folder: where codebase search and attached context come from. */
+	workspaceFolder() {
+		const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
+		return folder ? folder.uri.fsPath : undefined;
+	}
+
+	/** Re-reads one run and shows it (after keeping or reverting its changes). @param {string} runId */
+	async refreshRun(runId) {
+		this.post({ type: 'run', run: await this.runtime.request(`/runs/${encodeURIComponent(runId)}`) });
+	}
+
+	/**
+	 * The message as the agent receives it: the user's text, then (in one <saturn_context> block the chat hides)
+	 * the editor context, the codebase search results and any attached files, folder, web page or git changes.
+	 * @param {{ text: string; withContext?: boolean; codebase?: boolean; contextItems?: any[] }} message
+	 */
+	async buildInput(message) {
+		const folder = this.workspaceFolder();
+		const sections = [];
+		const sources = [];
+		if (message.withContext) {
+			const editor = editorContext();
+			if (editor) {
+				sections.push(`<editor_context>\n${editor}\n</editor_context>`);
+				sources.push('active file');
+			}
+		}
+		const codebaseOn = vscode.workspace.getConfiguration('saturn').get('codebase.enabled', true) !== false;
+		if (message.codebase !== false && codebaseOn && folder) {
+			const found = await agentTools.retrieve(message.text, folder).catch(() => ({ text: '', files: [] }));
+			if (found.text) {
+				sections.push(`<codebase_context>\n${found.text}\n</codebase_context>`);
+				sources.push(`codebase: ${found.files.length} file${found.files.length === 1 ? '' : 's'}`);
+			}
+		}
+		const items = Array.isArray(message.contextItems) ? message.contextItems : [];
+		if (items.length) {
+			const attached = await agentTools.expandContext(items, folder);
+			if (attached) {
+				sections.push(`<attached_context>\n${attached}\n</attached_context>`);
+				sources.push(...items.map((item) => String(item.label)));
+			}
+		}
+		if (!sections.length) {
+			return message.text;
+		}
+		const label = sources.join('; ').replace(/"/g, "'");
+		return `${message.text}\n\n<saturn_context sources="${label}">\n${sections.join('\n')}\n</saturn_context>`;
 	}
 
 	/** @param {any} message */
@@ -243,8 +298,7 @@ class AgentView {
 						this.post({ type: 'project', state: 'needs-access', name: this.project.name, path: this.project.path });
 						break;
 					}
-					const context = message.withContext ? editorContext() : '';
-					const input = context ? `${message.text}\n\n<editor_context>\n${context}\n</editor_context>` : message.text;
+					const input = await this.buildInput(message);
 					if (!this.threadId || this.agentId !== message.agentId) {
 						// New Chat starts a real conversation on its first message, in this workspace's project.
 						const thread = await this.runtime.request(`/agents/${encodeURIComponent(message.agentId)}/threads`, {
@@ -264,8 +318,7 @@ class AgentView {
 					break;
 				}
 				case 'revise': {
-					const context = message.withContext ? editorContext() : '';
-					const input = context ? `${message.text}\n\n<editor_context>\n${context}\n</editor_context>` : message.text;
+					const input = await this.buildInput(message);
 					const result = await this.runtime.request(`/runs/${encodeURIComponent(message.runId)}`, {
 						method: 'PATCH',
 						body: JSON.stringify({ input }),
@@ -284,6 +337,59 @@ class AgentView {
 				case 'wake-watch':
 					this.watch(message.runId);
 					break;
+				case 'decide':
+					await this.runtime.request(`/runs/${encodeURIComponent(message.runId)}/actions/${encodeURIComponent(message.actionId)}/decision`, {
+						method: 'POST',
+						body: JSON.stringify({ allow: message.allow === true }),
+					});
+					this.watch(message.runId);
+					break;
+				case 'openDiff':
+					await agentTools.openRunDiff(this.runtime, shared.content, message.runId, message.root, message.path);
+					break;
+				case 'revertFile':
+				case 'revertAll':
+					await this.runtime.request(`/runs/${encodeURIComponent(message.runId)}/changes/revert`, {
+						method: 'POST',
+						body: JSON.stringify(message.type === 'revertFile' ? { path: message.path } : {}),
+					});
+					await this.refreshRun(message.runId);
+					break;
+				case 'keepAll':
+					await this.runtime.request(`/runs/${encodeURIComponent(message.runId)}/changes/keep`, { method: 'POST' });
+					await this.refreshRun(message.runId);
+					break;
+				case 'restore': {
+					const answer = await vscode.window.showWarningMessage(
+						'Restore the project files to how they were before this turn?',
+						{ modal: true, detail: 'Every file the agent changed in this turn and in later turns of this chat goes back to its earlier version.' },
+						'Restore',
+					);
+					if (answer !== 'Restore') {
+						break;
+					}
+					const result = await this.runtime.request(`/runs/${encodeURIComponent(message.runId)}/restore`, { method: 'POST' });
+					await this.loadMessages();
+					const count = result && Array.isArray(result.reverted) ? result.reverted.length : 0;
+					vscode.window.setStatusBarMessage(`$(history) Saturn restored ${count} file${count === 1 ? '' : 's'}`, 6000);
+					break;
+				}
+				case 'apply':
+					await agentTools.applyCode(this.runtime, shared.content, String(message.code || ''), String(message.lang || ''), this.workspaceFolder());
+					break;
+				case 'runInTerminal':
+					shared.terminal.runInTerminal(String(message.command || ''), (this.project && this.project.path) || this.workspaceFolder());
+					break;
+				case 'showTerminal':
+					shared.terminal.ensure().show(true);
+					break;
+				case 'pickContext': {
+					const items = await agentTools.pickContext(this.workspaceFolder());
+					if (items.length) {
+						this.post({ type: 'contextItems', items });
+					}
+					break;
+				}
 				case 'openApp':
 					await vscode.commands.executeCommand('saturn.openApp');
 					break;
@@ -331,10 +437,14 @@ class AgentView {
 			try {
 				const run = await this.runtime.request(`/runs/${encodeURIComponent(runId)}`);
 				this.post({ type: 'run', run });
+				shared.terminal.feed(run);
 				if (run.status === 'running' || run.status === 'queued') {
 					this.poll = setTimeout(tick, 400);
 				} else if (run.status === 'sleeping') {
 					this.poll = setTimeout(tick, 3000);
+				} else if (run.status === 'waiting_approval') {
+					// The card may also be answered in the Saturn app; keep checking so the panel follows.
+					this.poll = setTimeout(tick, 1500);
 				}
 			} catch (error) {
 				this.post({ type: 'error', message: error instanceof Error ? error.message : String(error) });
@@ -1560,6 +1670,130 @@ class AgentView {
 		font-size: 12px;
 		padding: 0 12px 6px;
 	}
+	/* ─── Approvals, change review, context chips, code block actions ─── */
+	.approval-bar {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+		margin-top: 8px;
+		padding: 8px 10px;
+		border: 1px solid var(--vscode-editorWarning-foreground, #d29922);
+		border-radius: 8px;
+		background: rgba(210, 153, 34, 0.08);
+		font-size: 12px;
+	}
+	.approval-bar .approval-text { flex: 1; min-width: 140px; }
+	.approval-bar code { font-family: var(--vscode-editor-font-family); font-size: 11.5px; }
+	.btn-small {
+		border: 1px solid var(--vscode-button-border, transparent);
+		border-radius: 5px;
+		padding: 3px 10px;
+		font: inherit;
+		font-size: 12px;
+		cursor: pointer;
+		background: var(--vscode-button-secondaryBackground, rgba(127, 127, 127, 0.18));
+		color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+	}
+	.btn-small.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+	.btn-small:hover { filter: brightness(1.12); }
+	.btn-small:disabled { opacity: 0.5; cursor: default; }
+	.changes-card {
+		margin-top: 8px;
+		border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+		border-radius: 8px;
+		overflow: hidden;
+		font-size: 12px;
+	}
+	.changes-head {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 10px;
+		background: rgba(127, 127, 127, 0.08);
+	}
+	.changes-head .changes-title { flex: 1; font-weight: 600; }
+	.change-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 10px;
+		border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.18));
+	}
+	.change-row:hover { background: rgba(127, 127, 127, 0.08); }
+	.change-kind { width: 14px; text-align: center; font-weight: 700; font-family: var(--vscode-editor-font-family); }
+	.change-kind.added { color: var(--vscode-gitDecoration-addedResourceForeground, #3fb950); }
+	.change-kind.modified { color: var(--vscode-gitDecoration-modifiedResourceForeground, #d29922); }
+	.change-kind.deleted { color: var(--vscode-gitDecoration-deletedResourceForeground, #f85149); }
+	.change-path {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		cursor: pointer;
+		font-family: var(--vscode-editor-font-family);
+		font-size: 11.5px;
+	}
+	.change-path:hover { text-decoration: underline; }
+	.change-state { color: var(--vscode-descriptionForeground); font-size: 11px; }
+	.user-turn { flex-wrap: wrap; }
+	.user-context {
+		flex-basis: 100%;
+		text-align: right;
+		margin-top: 2px;
+		font-size: 11px;
+		color: var(--vscode-descriptionForeground);
+		max-width: 90%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.user-restore-btn {
+		background: none;
+		border: 0;
+		cursor: pointer;
+		color: var(--vscode-descriptionForeground);
+		font-size: 13px;
+		padding: 2px 4px;
+		border-radius: 4px;
+		opacity: 0;
+	}
+	.user-block:hover .user-restore-btn { opacity: 1; }
+	.user-restore-btn:hover { color: var(--vscode-foreground); background: rgba(127, 127, 127, 0.15); }
+	.context-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 0; }
+	.context-chips:empty { display: none; }
+	.context-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		max-width: 220px;
+		padding: 1px 4px 1px 7px;
+		border-radius: 10px;
+		font-size: 11px;
+		background: rgba(127, 127, 127, 0.15);
+	}
+	.context-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.context-chip button { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 2px; opacity: 0.7; }
+	.codebase-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		border: 1px solid transparent;
+		border-radius: 10px;
+		padding: 1px 8px;
+		font: inherit;
+		font-size: 11px;
+		cursor: pointer;
+		background: none;
+		color: var(--vscode-descriptionForeground);
+	}
+	.codebase-toggle.on {
+		color: var(--vscode-foreground);
+		border-color: var(--saturn-ring);
+		background: var(--saturn-accent-subtle);
+	}
+	.code-actions { display: inline-flex; gap: 2px; }
 </style>
 </head>
 <body>
@@ -1614,6 +1848,7 @@ class AgentView {
 <!-- Composer Card (Red-boxed in screenshot) -->
 <footer>
 	<form class="composer-card" id="form">
+		<div class="context-chips" id="contextChips"></div>
 		<div class="composer-input-row">
 			<textarea id="input" rows="1" placeholder="Ask Saturn anything, / for commands..."></textarea>
 		</div>
@@ -1625,6 +1860,13 @@ class AgentView {
 						<path d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2z"/>
 					</svg>
 				</button>
+				<button type="button" class="composer-btn" id="atBtn" title="Attach files, a folder, a web page or git changes (@)">
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+						<circle cx="8" cy="8" r="2.6"/>
+						<path d="M10.6 8v1.1a1.9 1.9 0 0 0 3.8 0V8a6.4 6.4 0 1 0-2.5 5.1"/>
+					</svg>
+				</button>
+				<button type="button" class="codebase-toggle on" id="codebaseBtn" title="Search the project for code related to your message and include it">Codebase</button>
 				<button type="button" class="composer-btn" id="slashBtn" title="Slash commands (/help, /clear, /compact)">
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
 						<rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/>
@@ -1688,6 +1930,9 @@ class AgentView {
 	const sessionTitle = $('sessionTitle'), sessionTitleInput = $('sessionTitleInput');
 	const contextPill = $('contextPill'), pillFileName = $('pillFileName'), pillRemoveBtn = $('pillRemoveBtn');
 	const attachBtn = $('attachBtn'), slashBtn = $('slashBtn'), slashPopup = $('slashPopup');
+	const atBtn = $('atBtn'), codebaseBtn = $('codebaseBtn'), contextChips = $('contextChips');
+	/** Files, folders, pages and git changes attached to the next message. */
+	let pendingContext = [];
 	const modelPickerBtn = $('modelPickerBtn'), modelBadgeName = $('modelBadgeName'), modelBadgeLevel = $('modelBadgeLevel'), modelPopover = $('modelPopover');
 	// The open/closed checks below read el.style.display, so start every toggled element at an explicit 'none'.
 	for (const id of ['sessionTitleInput', 'historyPopover', 'slashPopup', 'modelPopover', 'agent']) {
@@ -1741,7 +1986,15 @@ class AgentView {
 	}
 
 	const busy = (run) => run && (run.status === 'running' || run.status === 'queued' || run.status === 'sleeping');
-	const shown = (text) => String(text || '').replace(/\\n\\n<editor_context>[\\s\\S]*<\\/editor_context>$/, '');
+	const shown = (text) => String(text || '').replace(/\\n\\n<saturn_context[\\s\\S]*<\\/saturn_context>$/, '').replace(/\\n\\n<editor_context>[\\s\\S]*<\\/editor_context>$/, '');
+	/** What was attached to a message (shown under it), from the hidden context block. */
+	const contextSources = (text) => {
+		const match = /<saturn_context sources="([^"]*)">/.exec(String(text || ''));
+		return match ? match[1] : '';
+	};
+	/** Files this run changed that are still different from their originals. */
+	const changedFiles = (run) => (run && run.checkpoint && Array.isArray(run.checkpoint.files) ? run.checkpoint.files.filter((file) => file.before !== file.after) : []);
+	const SHELL_LANGS = ['sh', 'bash', 'zsh', 'shell', 'console', 'terminal', 'fish'];
 	const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = text; return node; };
 
 	function countdown(at) {
@@ -1965,7 +2218,22 @@ class AgentView {
 					setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1800);
 				});
 			};
-			head.append(copyBtn);
+			const actionsWrap = el('span', 'code-actions');
+			if (SHELL_LANGS.includes(String(lang).toLowerCase())) {
+				const runBtn = el('button', 'code-copy', 'Run');
+				runBtn.type = 'button';
+				runBtn.title = 'Open a terminal with this command typed in (you press Enter)';
+				runBtn.onclick = () => vscode.postMessage({ type: 'runInTerminal', command: code.replace(/^\\$\\s+/gm, '') });
+				actionsWrap.append(runBtn);
+			} else {
+				const applyBtn = el('button', 'code-copy', 'Apply');
+				applyBtn.type = 'button';
+				applyBtn.title = 'Merge this code into its file and review the diff';
+				applyBtn.onclick = () => vscode.postMessage({ type: 'apply', code, lang });
+				actionsWrap.append(applyBtn);
+			}
+			actionsWrap.append(copyBtn);
+			head.append(actionsWrap);
 			block.append(head);
 			const pre = el('pre', '');
 			pre.append(el('code', '', code));
@@ -2119,6 +2387,106 @@ class AgentView {
 		return wrap;
 	}
 
+	/** The tool call waiting for the user, with Approve and Deny. */
+	function renderApproval(run) {
+		const action = (run.actions || []).find((item) => item.status === 'waiting_approval');
+		const bar = el('div', 'approval-bar');
+		const text = el('span', 'approval-text');
+		if (action) {
+			const args = action.arguments || {};
+			const target = typeof args.command === 'string' ? args.command : args.file_path || args.path || args.url || actionLine(action).target || '';
+			text.append(document.createTextNode(typeof args.command === 'string' ? 'Run ' : 'Allow ' + action.toolId + (target ? ' on ' : '')));
+			if (target) text.append(el('code', '', String(target).slice(0, 160)));
+			text.append(document.createTextNode('?'));
+		} else {
+			text.append(document.createTextNode('Waiting for your approval'));
+		}
+		bar.append(text);
+		if (action) {
+			const deny = el('button', 'btn-small', 'Deny');
+			deny.type = 'button';
+			const allow = el('button', 'btn-small primary', 'Approve');
+			allow.type = 'button';
+			const answer = (value) => {
+				allow.disabled = true;
+				deny.disabled = true;
+				vscode.postMessage({ type: 'decide', runId: run.id, actionId: action.id, allow: value });
+			};
+			deny.onclick = () => answer(false);
+			allow.onclick = () => answer(true);
+			bar.append(deny, allow);
+		}
+		return bar;
+	}
+
+	/** The files a run changed: open a diff, revert one, or keep / revert them all. */
+	function renderChanges(run) {
+		const files = changedFiles(run);
+		if (!files.length) return null;
+		const root = run.checkpoint.root;
+		const card = el('div', 'changes-card');
+		const head = el('div', 'changes-head');
+		head.append(el('span', 'changes-title', files.length + (files.length === 1 ? ' file changed' : ' files changed')));
+		const pending = files.filter((file) => !file.review);
+		if (pending.length) {
+			const keep = el('button', 'btn-small', 'Keep All');
+			keep.type = 'button';
+			keep.onclick = () => vscode.postMessage({ type: 'keepAll', runId: run.id });
+			const revert = el('button', 'btn-small', 'Revert All');
+			revert.type = 'button';
+			revert.onclick = () => vscode.postMessage({ type: 'revertAll', runId: run.id });
+			head.append(keep, revert);
+		}
+		card.append(head);
+		files.forEach((file) => {
+			const kind = file.before === null ? 'added' : file.after === null ? 'deleted' : 'modified';
+			const row = el('div', 'change-row');
+			row.append(el('span', 'change-kind ' + kind, kind === 'added' ? 'A' : kind === 'deleted' ? 'D' : 'M'));
+			const name = el('span', 'change-path', file.path);
+			name.title = 'Show the diff';
+			name.onclick = () => vscode.postMessage({ type: 'openDiff', runId: run.id, root, path: file.path });
+			row.append(name);
+			if (file.review) {
+				row.append(el('span', 'change-state', file.review === 'kept' ? 'Kept' : 'Reverted'));
+			} else {
+				const revertOne = el('button', 'code-copy', 'Revert');
+				revertOne.type = 'button';
+				revertOne.onclick = () => vscode.postMessage({ type: 'revertFile', runId: run.id, path: file.path });
+				row.append(revertOne);
+			}
+			card.append(row);
+		});
+		return card;
+	}
+
+	/** The attached-context chips above the input. */
+	function renderChips() {
+		contextChips.replaceChildren();
+		pendingContext.forEach((item, index) => {
+			const chip = el('span', 'context-chip');
+			chip.title = item.path || item.url || item.label;
+			chip.append(el('span', '', '@' + item.label));
+			const remove = el('button', '', '✕');
+			remove.type = 'button';
+			remove.title = 'Remove';
+			remove.onclick = () => {
+				pendingContext.splice(index, 1);
+				renderChips();
+			};
+			chip.append(remove);
+			contextChips.append(chip);
+		});
+	}
+
+	function setCodebase(on) {
+		state.codebase = on;
+		vscode.setState(state);
+		codebaseBtn.classList.toggle('on', on);
+		codebaseBtn.title = on
+			? 'Codebase search is on: code related to your message is found and included. Click to turn off.'
+			: 'Codebase search is off. Click to turn on.';
+	}
+
 	function renderSaturnEmptyState() {
 		const empty = el('div', 'saturn-empty-state');
 		empty.id = 'emptyState';
@@ -2213,7 +2581,7 @@ class AgentView {
 						if (text && !busy(current)) {
 							saveBtn.disabled = true;
 							cancelBtn.disabled = true;
-							vscode.postMessage({ type: 'revise', runId: run.id, text, withContext: contextAttached });
+							vscode.postMessage({ type: 'revise', runId: run.id, text, withContext: contextAttached, codebase: state.codebase !== false });
 						}
 					}
 				});
@@ -2224,7 +2592,7 @@ class AgentView {
 					if (text && !busy(current)) {
 						saveBtn.disabled = true;
 						cancelBtn.disabled = true;
-						vscode.postMessage({ type: 'revise', runId: run.id, text, withContext: contextAttached });
+						vscode.postMessage({ type: 'revise', runId: run.id, text, withContext: contextAttached, codebase: state.codebase !== false });
 					}
 				};
 
@@ -2255,7 +2623,21 @@ class AgentView {
 					userBlock.append(editBtn);
 				}
 
+				const laterChanges = runs.slice(runIdx).some((item) => changedFiles(item).length > 0);
+				if (!busy(run) && laterChanges && !runs.slice(runIdx).some((item) => busy(item))) {
+					const restoreBtn = el('button', 'user-restore-btn', '↺');
+					restoreBtn.type = 'button';
+					restoreBtn.title = 'Restore files to before this turn';
+					restoreBtn.setAttribute('aria-label', 'Restore files to before this turn');
+					restoreBtn.onclick = () => vscode.postMessage({ type: 'restore', runId: run.id });
+					userBlock.append(restoreBtn);
+				}
+
 				turnWrap.append(userBlock);
+				const sources = contextSources(run.input);
+				if (sources) {
+					turnWrap.append(el('div', 'user-context', 'Context · ' + sources));
+				}
 				log.append(turnWrap);
 			}
 
@@ -2271,10 +2653,14 @@ class AgentView {
 				const status = el('div', 'status'); status.append(el('span', 'dot'), el('span', '', 'Waiting · resumes in ' + countdown(run.wake.at) + (run.wake.reason ? ' · ' + run.wake.reason : '')));
 				const wake = el('button', 'link', 'Wake now'); wake.onclick = () => vscode.postMessage({ type: 'wake', runId: run.id });
 				status.append(wake); reply.append(status);
+			} else if (run.status === 'waiting_approval') {
+				reply.append(renderApproval(run));
 			} else if (run.status === 'failed') {
 				const status = el('div', 'status failed'); status.append(document.createTextNode('Failed · ' + (run.error || 'unknown error')));
 				reply.append(status);
 			}
+			const changesNode = !busy(run) && run.status !== 'waiting_approval' ? renderChanges(run) : null;
+			if (changesNode) reply.append(changesNode);
 			log.append(reply);
 		}
 
@@ -2390,6 +2776,15 @@ class AgentView {
 			showTitle('New Chat');
 			render();
 			input.focus();
+		} else if (data.type === 'contextItems') {
+			for (const item of data.items || []) {
+				const key = item.kind + ':' + (item.path || item.url || item.label);
+				if (!pendingContext.some((existing) => existing.kind + ':' + (existing.path || existing.url || existing.label) === key)) {
+					pendingContext.push(item);
+				}
+			}
+			renderChips();
+			input.focus();
 		} else if (data.type === 'focus') {
 			input.focus();
 		} else if (data.type === 'error') {
@@ -2459,6 +2854,9 @@ class AgentView {
 		contextAttached = !contextAttached;
 		updateContextPill();
 	};
+	atBtn.onclick = () => vscode.postMessage({ type: 'pickContext' });
+	codebaseBtn.onclick = () => setCodebase(!(state.codebase !== false));
+	setCodebase(state.codebase !== false);
 
 
 
@@ -2585,7 +2983,11 @@ class AgentView {
 			agentId: agentSelect.value,
 			text,
 			withContext: contextAttached,
+			codebase: state.codebase !== false,
+			contextItems: pendingContext,
 		});
+		pendingContext = [];
+		renderChips();
 	});
 
 	input.addEventListener('keydown', (event) => {
@@ -2596,6 +2998,13 @@ class AgentView {
 	});
 	input.addEventListener('input', () => {
 		input.rows = Math.min(6, Math.max(1, input.value.split('\\n').length));
+		// Typing "@" at the start of a word opens the context picker (the "@" itself is removed).
+		const caret = input.selectionStart || 0;
+		if (input.value.charAt(caret - 1) === '@' && (caret === 1 || /\\s/.test(input.value.charAt(caret - 2)))) {
+			input.value = input.value.slice(0, caret - 1) + input.value.slice(caret);
+			input.setSelectionRange(caret - 1, caret - 1);
+			vscode.postMessage({ type: 'pickContext' });
+		}
 		if (input.value === '/') {
 			slashPopup.style.display = 'flex';
 		} else if (slashPopup.style.display !== 'none' && !input.value.startsWith('/')) {
@@ -2622,6 +3031,9 @@ function activate(context) {
 		void vscode.commands.executeCommand('saturn.agent.focus');
 	}
 	context.subscriptions.push(
+		vscode.workspace.registerTextDocumentContentProvider(shared.content.scheme, shared.content),
+		shared.terminal,
+		vscode.commands.registerCommand('saturn.showAgentTerminal', () => shared.terminal.ensure().show()),
 		vscode.window.registerWebviewViewProvider('saturn.agent', view, { webviewOptions: { retainContextWhenHidden: true } }),
 		{ dispose: () => view.dispose() },
 		vscode.commands.registerCommand('saturn.focusAgent', async () => {

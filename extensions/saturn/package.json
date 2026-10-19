@@ -96,6 +96,21 @@
           "type": "boolean",
           "default": true,
           "description": "Suggest code as you type (Tab to accept), served by the completion model chosen in Saturn Settings → General."
+        },
+        "saturn.codebase.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Search the open folder for code related to each Agent panel message (ripgrep and workspace symbols) and include the best matches. Nothing leaves this machine except to your agent."
+        },
+        "saturn.nextEdit.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "After you change a line, suggest the next related edit nearby (press Tab to apply). Uses the completion model."
+        },
+        "saturn.agentTerminal.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Mirror the commands agents run, with their output, into the read-only \"Saturn Agent\" terminal."
         }
       }
     },
@@ -171,6 +186,21 @@
         "command": "saturn.toggleCompletions",
         "title": "Toggle Tab Completion",
         "category": "Saturn"
+      },
+      {
+        "command": "saturn.showAgentTerminal",
+        "title": "Show Agent Terminal",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.nextEdit.accept",
+        "title": "Accept Next Edit Suggestion",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.nextEdit.dismiss",
+        "title": "Dismiss Next Edit Suggestion",
+        "category": "Saturn"
       }
     ],
     "menus": {
@@ -235,6 +265,16 @@
         "command": "saturn.inlineEdit.cancel",
         "key": "escape",
         "when": "saturn.inlineEditBusy"
+      },
+      {
+        "key": "tab",
+        "command": "saturn.nextEdit.accept",
+        "when": "saturn.nextEditPending && editorTextFocus && !inlineSuggestionVisible && !suggestWidgetVisible && !inSnippetMode && !editorHasSelection"
+      },
+      {
+        "key": "escape",
+        "command": "saturn.nextEdit.dismiss",
+        "when": "saturn.nextEditPending && editorTextFocus && !inlineSuggestionVisible && !suggestWidgetVisible"
       }
     ]
   }
