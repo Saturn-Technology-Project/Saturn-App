@@ -15,6 +15,7 @@ import { AccessDialog, EditWorkspaceDialog, FolderIcon as WorkspaceFolderIcon, L
 import { ProjectsMenu, arrangeProjects, useProjectView } from "./ProjectsMenu";
 import { Onboarding } from "./Onboarding";
 import { RunImages } from "./RunImages";
+import { ContextPicker } from "./ContextPicker";
 import {
   extractPlanSteps,
   countdown,
@@ -24,7 +25,7 @@ import {
   upsertRun,
   visibleThread,
 } from "../domain/conversation";
-import type { Agent, Autonomy, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode } from "../domain/model";
+import type { Agent, Autonomy, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode } from "../domain/model";
 
 const isElectron =
   typeof window !== "undefined" &&
@@ -72,6 +73,18 @@ function storedInspectorWidth(): number {
   return !isNaN(num) && num >= 320 && num <= 1000 ? num : DEFAULT_INSPECTOR_WIDTH;
 }
 
+/** The user's own words: what they typed, without the attached-context block the chat sends along. */
+function shownInput(input: string): string {
+  const at = input.indexOf("\n\n<saturn_context");
+  return at >= 0 ? input.slice(0, at) : input;
+}
+
+/** The "sources" a message's attached-context block names, for a small line under the bubble. */
+function contextSources(input: string): string {
+  const match = /<saturn_context sources="([^"]*)">/.exec(input);
+  return match?.[1] ?? "";
+}
+
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const MAX_IMAGES = 4;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -91,6 +104,13 @@ export function App() {
   const [task, setTask] = useState("");
   /** Images pasted or dropped into the composer, as data URLs (at most 4, 5 MB each; the runtime checks too). */
   const [pendingImages, setPendingImages] = useState<string[]>([]);
+  /** Files, folders, git changes, pages… attached to the next message with "@" (project chats only). */
+  const [pendingContext, setPendingContext] = useState<ContextItem[]>([]);
+  const [contextOpen, setContextOpen] = useState(false);
+  /** The rule files agents follow in the current chat's project (the "§ Rules" chip). */
+  const [ruleSources, setRuleSources] = useState<{ path: string; chars: number }[]>([]);
+  /** Opens Settings on one project's page (the rules chip). */
+  const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
   /** What the next message may do; remembered across launches. */
   const [mode, setMode] = useState<RunMode>(() => (localStorage.getItem("saturn-mode") === "ask" || localStorage.getItem("saturn-mode") === "plan" ? (localStorage.getItem("saturn-mode") as RunMode) : "agent"));
   const [editing, setEditing] = useState<string | null>(null);
@@ -631,12 +651,17 @@ export function App() {
 
   async function send() {
     if (!agent || (!task.trim() && !pendingImages.length) || busy || editing) return;
-    const input = task.trim() || `Look at the attached image${pendingImages.length === 1 ? "" : "s"}.`;
+    let input = task.trim() || `Look at the attached image${pendingImages.length === 1 ? "" : "s"}.`;
     const images = pendingImages;
     isNearBottomRef.current = true;
     scrollToBottom(false);
     let started: Run;
     try {
+      // The "@" attachments go with the message, in a block the chat hides, as the IDE's chat does.
+      if (pendingContext.length && currentConversation?.projectId) {
+        const attached = await desktop.projects.expandContext(currentConversation.projectId, pendingContext);
+        if (attached.text) input = `${input}\n\n<saturn_context sources="${attached.sources.join("; ").replace(/"/g, "'")}">\n<attached_context>\n${attached.text}\n</attached_context>\n</saturn_context>`;
+      }
       started = await desktop.runs.start(agent.id, input, selectedThreadId || undefined, { images, mode });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Run failed");
@@ -645,6 +670,7 @@ export function App() {
     setNotice("");
     setTask("");
     setPendingImages([]);
+    setPendingContext([]);
     const effectiveKey = started.threadId || selectedThreadId || `agent_${agent.id}`;
     if (!selectedThreadId && started.threadId) {
       setSelectedThreadId(started.threadId);
@@ -736,6 +762,21 @@ export function App() {
 
   const currentConversation = selected && selectedThreadId ? (agentThreads[selected] ?? []).find((conv) => conv.id === selectedThreadId) ?? null : null;
   const [worktreeBusy, setWorktreeBusy] = useState(false);
+
+  const currentProjectId = currentConversation?.projectId ?? null;
+  useEffect(() => {
+    if (!currentProjectId) {
+      setRuleSources([]);
+      setPendingContext([]);
+      return;
+    }
+    let stale = false;
+    desktop.projects.ruleSources(currentProjectId).then((list) => { if (!stale) setRuleSources(list); }, () => setRuleSources([]));
+    return () => {
+      stale = true;
+    };
+  }, [currentProjectId, thread.length]);
+
 
   /** Gives the chat its own git worktree and branch; the agent's changes then stay off the project checkout. */
   async function isolateThread(threadId: string) {
@@ -1744,6 +1785,19 @@ export function App() {
 
           <div className="stage-topbar-right">
             {currentConversation?.projectId ? (
+              <button
+                type="button"
+                className="titlebar-pill-btn rules-chip"
+                title={ruleSources.length ? `Agents follow: ${ruleSources.map((item) => item.path).join(", ")}. Click to edit.` : "No project rules yet. Click to add instructions every agent gets in this project."}
+                onClick={() => {
+                  setSettingsProjectId(currentConversation.projectId ?? null);
+                  setSettingsOpen(true);
+                }}
+              >
+                § Rules{ruleSources.length ? ` · ${ruleSources.length}` : ""}
+              </button>
+            ) : null}
+            {currentConversation?.projectId ? (
               <WorktreeControl
                 conversation={currentConversation}
                 busy={worktreeBusy}
@@ -2053,7 +2107,8 @@ export function App() {
                             <div className="user-block">
                               {run.mode && run.mode !== "agent" ? <span className="user-mode">{run.mode === "ask" ? "Ask" : "Plan"}</span> : null}
                               {run.automatic ? <span className="user-mode">Sent by Saturn</span> : null}
-                              <p>{run.input}</p>
+                              <p>{shownInput(run.input)}</p>
+                              {contextSources(run.input) ? <span className="user-context">Context · {contextSources(run.input)}</span> : null}
                               {run.inputImages?.length ? <RunImages runId={run.id} count={run.inputImages.length} /> : null}
                               {isBusy(run) ? null : (
                                 <button
@@ -2095,6 +2150,13 @@ export function App() {
                           <RunSteps run={run} busy={run.status === "running" || run.status === "queued"} />
 
                           <RunChangesCard run={run} />
+                          {run.verification ? (
+                            <div className={run.verification.ok ? "verify-line ok" : "verify-line failed"} title={run.verification.output.slice(0, 2000)}>
+                              {run.verification.ok
+                                ? `✓ ${run.verification.command} passed after these changes`
+                                : `${run.verification.command} failed (exit ${run.verification.code ?? "?"})${run.automatic ? "" : " · Saturn asked the agent to fix it"}`}
+                            </div>
+                          ) : null}
 
                           {run.status === "sleeping" && run.wake ? (
                             <WaitingLine wake={run.wake} onWake={() => void wakeRun(run)} onStop={() => void stopRun(run)} />
@@ -2134,6 +2196,16 @@ export function App() {
                 }}
               >
                 {notice ? <p className="error composer-notice">{notice}</p> : null}
+                {pendingContext.length ? (
+                  <div className="composer-chips">
+                    {pendingContext.map((item, index) => (
+                      <span className="context-chip" key={`${item.kind}-${index}`} title={"path" in item ? item.path : "url" in item ? item.url : item.label}>
+                        @{item.label}
+                        <button type="button" title="Remove" aria-label={`Remove ${item.label}`} onClick={() => setPendingContext((current) => current.filter((_, at) => at !== index))}>✕</button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 {pendingImages.length ? (
                   <div className="composer-images">
                     {pendingImages.map((url, index) => (
@@ -2150,7 +2222,17 @@ export function App() {
                   value={task}
                   disabled={!agent || busy || editing !== null}
                   placeholder={agent ? `Ask ${agent.name} to inspect files, run commands, or execute tools… (paste a screenshot to include it)` : "Create or choose an agent to get started…"}
-                  onChange={(event) => setTask(event.target.value)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const caret = event.target.selectionStart ?? value.length;
+                    // "@" at the start of a word opens the picker (the "@" itself is removed), in a project chat.
+                    if (currentConversation?.projectId && value.charAt(caret - 1) === "@" && (caret === 1 || /\s/.test(value.charAt(caret - 2)))) {
+                      setTask(value.slice(0, caret - 1) + value.slice(caret));
+                      setContextOpen(true);
+                      return;
+                    }
+                    setTask(value);
+                  }}
                   onPaste={(event) => {
                     const files = [...event.clipboardData.files];
                     if (files.some((file) => IMAGE_TYPES.has(file.type))) {
@@ -2177,6 +2259,27 @@ export function App() {
                 />
                 <div className="composer-bar">
                   <div className="composer-controls">
+                    <div className="context-anchor">
+                      <button
+                        type="button"
+                        className={pendingContext.length ? "composer-pill-btn on" : "composer-pill-btn"}
+                        title={currentConversation?.projectId ? "Attach files, a folder, git changes, the terminal or a web page (@)" : "Start a chat in a project to attach its files"}
+                        disabled={!agent || !currentConversation?.projectId}
+                        onClick={() => setContextOpen((open) => !open)}
+                      >
+                        @
+                      </button>
+                      {contextOpen && currentConversation?.projectId ? (
+                        <ContextPicker
+                          projectId={currentConversation.projectId}
+                          onPick={(items) => setPendingContext((current) => [...current, ...items.filter((item) => !current.some((existing) => existing.kind === item.kind && ("path" in existing ? existing.path === ("path" in item ? item.path : "") : "url" in existing ? existing.url === ("url" in item ? item.url : "") : true)))])}
+                          onClose={() => {
+                            setContextOpen(false);
+                            composerInputRef.current?.focus();
+                          }}
+                        />
+                      ) : null}
+                    </div>
                     {models.length > 0 ? (
                       <ModelSelector
                         models={models}
@@ -2438,13 +2541,17 @@ export function App() {
       {settingsOpen ? (
         <Settings
           initialPage={settingsPage}
+          initialProjectId={settingsProjectId}
           agents={agents}
           agent={agent}
           models={models}
           mcp={mcp}
           rag={rag}
           projects={projects}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false);
+            setSettingsProjectId(null);
+          }}
           onChanged={reload}
           onPatchAgent={patchAgent}
           onProfile={setProfile}

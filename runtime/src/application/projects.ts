@@ -427,6 +427,7 @@ export class ProjectService {
         name: patch.name !== undefined ? patch.name.trim() : existing.name,
         description: patch.description !== undefined ? patch.description.trim() : existing.description,
         rules: patch.rules !== undefined ? patch.rules : existing.rules,
+        verifyCommand: patch.verifyCommand !== undefined ? patch.verifyCommand.trim() || undefined : existing.verifyCommand,
         gitBranch: patch.gitBranch !== undefined ? patch.gitBranch : existing.gitBranch,
         ...(folders ? { folders, path: folders[0]! } : {}),
       };

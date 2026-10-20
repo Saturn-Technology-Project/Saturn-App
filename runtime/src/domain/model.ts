@@ -145,6 +145,10 @@ export type Run = {
   inputImages?: string[];
   /** What this turn may do: change things (agent, the default), only read and answer (ask), or only read and plan. */
   mode?: RunMode;
+  /** Saturn sent this message itself: an automatic fix round after the check command failed. */
+  automatic?: boolean;
+  /** The project's check command after this turn's changes (see verify.ts). */
+  verification?: { command: string; ok: boolean; code: number | null; output: string };
 };
 
 export type RunMode = "agent" | "ask" | "plan";
@@ -305,6 +309,8 @@ export type Project = {
   gitStatus?: string | null;
   description?: string;
   rules?: string;
+  /** Run after an agent changes files here: a shell command, or "auto" for package.json's typecheck/lint script. */
+  verifyCommand?: string;
   lastOpenedAt?: string;
   isDefault?: boolean;
 };

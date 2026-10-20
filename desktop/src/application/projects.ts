@@ -1,4 +1,4 @@
-import type { Project } from "../domain/model.js";
+import type { ContextItem, Project } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export class ProjectService {
@@ -79,4 +79,20 @@ export class ProjectService {
       body: JSON.stringify({ content, targetFile }),
     });
   }
+
+  /** The text an "@" attachment adds to a message (files, a folder, git changes, a page, the terminal, problems). */
+  expandContext(id: string, items: ContextItem[]): Promise<{ text: string; sources: string[] }> {
+    return this.runtime.request(`/projects/${encodeURIComponent(id)}/context`, { method: "POST", body: JSON.stringify({ items }) });
+  }
+
+  /** Files in the project whose path contains `query`, for the "@" picker. */
+  files(id: string, query: string): Promise<string[]> {
+    return this.runtime.request(`/projects/${encodeURIComponent(id)}/files?q=${encodeURIComponent(query)}&limit=60`);
+  }
+
+  /** Every rule file agents follow in this project, besides the editable text. */
+  ruleSources(id: string): Promise<{ path: string; chars: number }[]> {
+    return this.runtime.request<{ sources?: { path: string; chars: number }[] }>(`/projects/${encodeURIComponent(id)}/rules`).then((found) => found.sources ?? []);
+  }
+
 }

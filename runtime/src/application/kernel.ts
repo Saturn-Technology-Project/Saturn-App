@@ -35,6 +35,8 @@ import { MemoryService } from "./memory.js";
 import { BROWSER_ID, BROWSER_URL, browserSkills } from "../domain/browser-tools.js";
 import { IDE_ID, IDE_URL, ideSkills } from "../domain/ide-tools.js";
 import { IdeBridge } from "./ide-bridge.js";
+import { ContextService } from "./context.js";
+import { VerifyService } from "./verify.js";
 import { CheckpointService } from "./checkpoints.js";
 import { CompletionService } from "./completions.js";
 import { GroupService } from "./groups.js";
@@ -56,6 +58,8 @@ export class RuntimeKernel {
   readonly index: IndexService;
   readonly worktrees: WorktreeService;
   readonly memory: MemoryService;
+  readonly context: ContextService;
+  readonly verify: VerifyService;
   readonly checkpoints: CheckpointService;
   readonly completions: CompletionService;
   readonly groups: GroupService;
@@ -80,6 +84,8 @@ export class RuntimeKernel {
     this.usage = new UsageService(this);
     this.marketplace = new MarketplaceService(this);
     this.projects = new ProjectService(this);
+    this.context = new ContextService(this);
+    this.verify = new VerifyService(this);
     this.claudeCode = new ClaudeCodeService(this);
     this.codex = new CodexService(this);
     this.index = new IndexService(this);

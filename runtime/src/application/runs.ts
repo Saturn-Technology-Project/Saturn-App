@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
+import { errorText } from "../infrastructure/logger.js";
 import { GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID } from "../domain/builtin.js";
 import { BROWSER_ID } from "../domain/browser-tools.js";
 import { IDE_ID } from "../domain/ide-tools.js";
@@ -62,7 +63,7 @@ const SEES_IMAGES = new Set(["claude", "openai", "gemini", "lmstudio", "claude-c
 export class RunService {
   constructor(private readonly kernel: RuntimeKernel) {}
 
-  async startRun(agentId: string, input: string, threadId?: string, projectId?: string, options: { images?: ImagePart[]; mode?: RunMode } = {}): Promise<Run> {
+  async startRun(agentId: string, input: string, threadId?: string, projectId?: string, options: { images?: ImagePart[]; mode?: RunMode; automatic?: boolean } = {}): Promise<Run> {
     const agent = this.kernel.getAgent(agentId);
     this.kernel.guard(agent.id);
     const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
@@ -136,6 +137,7 @@ export class RunService {
     };
     if (images.length) run.inputImages = await saveImages(this.kernel.store.root, run.id, images);
     if (options.mode && options.mode !== "agent") run.mode = options.mode;
+    if (options.automatic) run.automatic = true;
     await this.kernel.store.update((state) => {
       state.runs.unshift(run);
     });
@@ -986,12 +988,15 @@ export class RunService {
     const current = this.kernel.getRun(runId);
     this.kernel.log("agent", current.status === "failed" ? "error" : "info", `${agent.name} ${current.status}`);
     void this.kernel.memory.noteRun(current);
+    void this.kernel.verify.afterRun(current).catch((error) => this.kernel.log("agent", "warning", `Verification failed to run: ${errorText(error)}`, { "saturn.run.id": runId }));
   }
 
   /** A Claude Code or Codex turn that completed feeds memory, as a local run's does when it finishes. */
   private noteFinished(runId: string, generation: number): void {
     const run = this.kernel.store.state.runs.find((item) => item.id === runId);
-    if (run && (run.generation ?? 0) === generation && run.status === "completed") void this.kernel.memory.noteRun(run);
+    if (!run || (run.generation ?? 0) !== generation || run.status !== "completed") return;
+    void this.kernel.memory.noteRun(run);
+    void this.kernel.verify.afterRun(run).catch((error) => this.kernel.log("agent", "warning", `Verification failed to run: ${errorText(error)}`, { "saturn.run.id": runId }));
   }
 
   /** The tools the model is offered; an Ask or Plan turn gets only those that can read without changing anything. */

@@ -41,6 +41,8 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
 
 export function Settings(props: {
   initialPage?: SettingsPage;
+  /** Opens on one project's page (the chat's rules chip). */
+  initialProjectId?: string | null;
   agents: { id: string; name: string; status: string }[];
   agent: Agent | null;
   models: Model[];
@@ -68,9 +70,9 @@ export function Settings(props: {
   useEffect(() => {
     if (props.initialPage) {
       setPage(props.initialPage);
-      setSelectedProjectId(null);
+      setSelectedProjectId(props.initialProjectId ?? null);
     }
-  }, [props.initialPage]);
+  }, [props.initialPage, props.initialProjectId]);
 
   // Each page starts at its top.
   useEffect(() => {
@@ -1186,6 +1188,18 @@ function ProjectSettingsTab(props: {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [verifyCommand, setVerifyCommand] = useState(props.project.verifyCommand ?? "");
+  const [verifySaved, setVerifySaved] = useState(false);
+
+  async function saveVerify() {
+    try {
+      await desktop.projects.update(props.project.id, { verifyCommand: verifyCommand.trim() });
+      setVerifySaved(true);
+      setTimeout(() => setVerifySaved(false), 2000);
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -1243,6 +1257,22 @@ function ProjectSettingsTab(props: {
               </div>
             </div>
           ) : null}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Check After Changes</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Verify command</span>
+              <span className="settings-row-desc">Run after an agent changes files here; a failure goes straight back to the agent to fix (at most twice per message). Use "auto" for package.json's typecheck or lint script, or leave empty to skip.</span>
+            </div>
+            <form className="settings-inline-form" onSubmit={(event) => { event.preventDefault(); void saveVerify(); }}>
+              <input className="input tiny" aria-label="Verify command" value={verifyCommand} placeholder="auto, or e.g. npm test" onChange={(event) => setVerifyCommand(event.target.value)} />
+              <button type="submit" className="btn tiny" disabled={(props.project.verifyCommand ?? "") === verifyCommand.trim()}>{verifySaved ? "Saved" : "Save"}</button>
+            </form>
+          </div>
         </div>
       </div>
 

@@ -58,6 +58,8 @@ export type Project = {
   gitStatus?: string | null;
   description?: string;
   rules?: string;
+  /** Run after an agent changes files here: a shell command, or "auto" for package.json's typecheck/lint script. */
+  verifyCommand?: string;
   lastOpenedAt?: string;
   isDefault?: boolean;
 };
@@ -105,6 +107,8 @@ export type Run = {
   mode?: RunMode;
   /** Saturn sent this message itself (an automatic fix round after verification). */
   automatic?: boolean;
+  /** The project's check command after this turn's changes. */
+  verification?: { command: string; ok: boolean; code: number | null; output: string };
   /** Set on a group chat turn: the group and the message the agent was asked to consider. */
   groupId?: string;
   groupMessageId?: string;
@@ -302,3 +306,13 @@ export type MarketplaceEntry = {
   };
 };
 export type InstallRequest = { name?: string; token?: string; clientId?: string; clientSecret?: string; attach?: "all" | "none" };
+
+/** One thing attached to a message with "@". */
+export type ContextItem =
+  | { kind: "file"; path: string; label: string }
+  | { kind: "folder"; path: string; label: string }
+  | { kind: "git"; label: string }
+  | { kind: "web"; url: string; label: string }
+  | { kind: "terminal"; label: string }
+  | { kind: "problems"; label: string };
+

@@ -65,6 +65,17 @@ export function mountProjects(app: Express, services: AppServices): void {
     respond(res, next, () => services.kernel.index.search(param(req.params.id), String(req.query.q ?? ""), limit));
   });
 
+  // The Agent App's "@" attachments: files, a folder, git changes, a page, the terminal, the check command's output.
+  app.post("/projects/:id/context", (req, res, next) => {
+    const stop = new AbortController();
+    req.on("close", () => stop.abort());
+    respond(res, next, () => services.kernel.context.expand(param(req.params.id), Array.isArray(req.body?.items) ? req.body.items : [], stop.signal));
+  });
+
+  app.get("/projects/:id/files", (req, res, next) => {
+    respond(res, next, () => services.kernel.context.files(param(req.params.id), typeof req.query.q === "string" ? req.query.q : "", Number(req.query.limit) || 200));
+  });
+
   app.get("/projects/:id/rules", (req, res, next) => {
     respond(res, next, () => services.getProjectRules(param(req.params.id)));
   });
