@@ -88,3 +88,56 @@ test("POST /complete serves Tab and Cmd+K from the completion model and records 
     provider.close();
   }
 });
+
+test("POST /complete writes a commit message from the diff, recent commits and draft", async () => {
+  const bodies: { messages: { role: string; content: string }[] }[] = [];
+  const replies = ["```\nCommit message: \"Math: add subtraction\n\nAdds sub() next to add().\"\n```"];
+  const provider = createServer((req, res) => {
+    let data = "";
+    req.on("data", (chunk) => (data += chunk));
+    req.on("end", () => {
+      bodies.push(JSON.parse(data));
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({
+        choices: [{ message: { role: "assistant", content: replies[bodies.length - 1] ?? "" } }],
+        usage: { prompt_tokens: 80, completion_tokens: 12 },
+      }));
+    });
+  });
+  const providerUrl = await listen(provider);
+  const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-app-")));
+  await store.load();
+  const { app, services } = createApp(store);
+  const runtime = createServer(app);
+  const url = await listen(runtime);
+  useRuntimeAuth(url);
+  const post = (body: unknown) =>
+    fetch(`${url}/complete`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  try {
+    const fast = await services.createModel({ name: "Fast", provider: "openai", model: "fast-local", baseUrl: providerUrl });
+    await services.updateSettings({ completionModelId: fast.id });
+
+    assert.equal((await post({ kind: "commit", diff: " ", files: "" })).status, 400);
+
+    const commit = await post({
+      kind: "commit",
+      branch: "main",
+      files: "M src/math.ts",
+      diff: "diff --git a/src/math.ts b/src/math.ts\n+export const sub = (a, b) => a - b;\n",
+      recentCommits: ["Math: add add()\n\nlong body", "Docs: explain math"],
+      draft: "add sub",
+      instruction: "Write in English.",
+    });
+    assert.equal(commit.status, 200);
+    assert.equal((await commit.json()).text, "Math: add subtraction\n\nAdds sub() next to add().");
+    const prompt = bodies[0]!.messages[1]!.content;
+    assert.match(prompt, /Branch: main/);
+    assert.match(prompt, /<recent_commits>\n- Math: add add\(\)\n- Docs: explain math\n<\/recent_commits>/);
+    assert.match(prompt, /<files>\nM src\/math\.ts\n<\/files>/);
+    assert.match(prompt, /<draft>\nadd sub\n<\/draft>/);
+    assert.match(prompt, /Instructions: Write in English\./);
+  } finally {
+    runtime.close();
+    provider.close();
+  }
+});

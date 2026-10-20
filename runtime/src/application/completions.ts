@@ -10,10 +10,11 @@ const IDE_AGENT_NAME = "Saturn IDE";
 
 /**
  * The editor features: Tab (fill in at the cursor), Cmd+K (rewrite the selection), Apply (merge a chat code block
- * into a file) and next edit (after an edit, predict the next one nearby).
+ * into a file), next edit (after an edit, predict the next one nearby) and commit (write a commit message for the
+ * changes in the Source Control view).
  */
 export type CompletionRequest = {
-  kind: "inline" | "edit" | "apply" | "next";
+  kind: "inline" | "edit" | "apply" | "next" | "commit";
   /** Inline only: "block" when the cursor opens a block, so a whole body may be suggested. */
   mode?: "line" | "block";
   /** Apply: the whole current file. Next: the lines around the last edit, numbered. */
@@ -28,8 +29,18 @@ export type CompletionRequest = {
   suffix?: string;
   /** Edit only: the code to rewrite (may be empty when the cursor is just placed). */
   selection?: string;
-  /** Edit only: what the user typed into the Cmd+K box. */
+  /** Edit: what the user typed into the Cmd+K box. Commit: the user's standing instructions for commit messages. */
   instruction?: string;
+  /** Commit only: the changes to describe, as a unified diff. */
+  diff?: string;
+  /** Commit only: the changed files, one "status path" per line, so the model sees every file even when the diff is cut. */
+  files?: string;
+  /** Commit only: recent commit subjects, newest first, so the message matches the repository's style. */
+  recentCommits?: string[];
+  /** Commit only: the branch being committed to. */
+  branch?: string;
+  /** Commit only: what the user already typed in the commit box, to keep their intent. */
+  draft?: string;
   /** Overrides Settings → General → Completion model. */
   modelId?: string;
   maxTokens?: number;
@@ -37,10 +48,10 @@ export type CompletionRequest = {
 
 export type CompletionResult = { text: string; modelId: string; model: string };
 
-const LIMITS = { prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000, file: 60000, window: 12000 };
-const KINDS = ["inline", "edit", "apply", "next"] as const;
+const LIMITS = { prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000, file: 60000, window: 12000, diff: 60000, files: 8000, draft: 2000 };
+const KINDS = ["inline", "edit", "apply", "next", "commit"] as const;
 /** Output budget per kind; Apply returns a whole file. */
-const MAX_OUTPUT = { inline: 1024, block: 2048, edit: 4096, apply: 16000, next: 1024 };
+const MAX_OUTPUT = { inline: 1024, block: 2048, edit: 4096, apply: 16000, next: 1024, commit: 2048 };
 
 /** One plain model call, no tools and no agent loop, for the editor's Tab completion and Cmd+K edit. */
 export class CompletionService {
@@ -60,21 +71,23 @@ export class CompletionService {
 
   async complete(input: CompletionRequest, signal?: AbortSignal): Promise<CompletionResult> {
     const kind = KINDS.find((item) => item === input.kind);
-    if (!kind) throw new HttpError(400, "kind must be inline, edit, apply or next");
+    if (!kind) throw new HttpError(400, "kind must be inline, edit, apply, next or commit");
     if (kind === "edit" && !String(input.instruction ?? "").trim()) throw new HttpError(400, "Type an instruction for the edit");
     if (kind === "apply" && !String(input.selection ?? "").trim()) throw new HttpError(400, "Nothing to apply");
     if (kind === "next" && !input.edit) throw new HttpError(400, "Describe the edit that was just made");
+    if (kind === "commit" && !String(input.diff ?? "").trim() && !String(input.files ?? "").trim()) throw new HttpError(400, "There are no changes to describe");
     const model = this.model(input.modelId);
     const budget = kind === "inline" && input.mode === "block" ? MAX_OUTPUT.block : MAX_OUTPUT[kind];
     const maxOutput = Math.min(Math.max(Number(input.maxTokens) || budget, 16), MAX_OUTPUT.apply);
-    const messages = kind === "edit" ? editPrompt(input) : kind === "apply" ? applyPrompt(input) : kind === "next" ? nextPrompt(input) : inlinePrompt(input);
+    const messages =
+      kind === "edit" ? editPrompt(input) : kind === "apply" ? applyPrompt(input) : kind === "next" ? nextPrompt(input) : kind === "commit" ? commitPrompt(input) : inlinePrompt(input);
     const body = await this.kernel.llm.complete(model, {
       context: { agentId: IDE_AGENT_ID, agentName: IDE_AGENT_NAME, purpose: "completion" },
       temperature: kind === "inline" || kind === "next" ? 0 : 0.2,
       // The prompts ask for short answers; the budget is generous because thinking models spend part of it
       // reasoning, and a cut-off completion (half an expression) is worse than none.
       maxOutput,
-      ...(kind === "inline" || kind === "next" ? { thinking: "low" as const } : {}),
+      ...(kind === "inline" || kind === "next" || kind === "commit" ? { thinking: "low" as const } : {}),
       messages,
       signal,
     });
@@ -83,6 +96,7 @@ export class CompletionService {
     if (kind === "edit") text = stripFences(raw).replace(/^\n+/, "").replace(/\s+$/, "");
     else if (kind === "apply") text = stripFences(raw).replace(/^\n+/, "");
     else if (kind === "next") text = JSON.stringify(parseNextEdit(raw));
+    else if (kind === "commit") text = cleanCommitMessage(raw);
     else text = trimInline(stripFences(raw).replace(/\n+$/, ""), String(input.suffix ?? ""));
     return { text, modelId: model.id, model: model.model || model.name };
   }
@@ -210,6 +224,53 @@ function nextPrompt(input: CompletionRequest): ChatMessage[] {
       ].join("\n"),
     },
   ];
+}
+
+function commitPrompt(input: CompletionRequest): ChatMessage[] {
+  const recent = (Array.isArray(input.recentCommits) ? input.recentCommits : [])
+    .map((subject) => String(subject ?? "").split("\n")[0]!.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+  const instruction = clip(input.instruction, LIMITS.instruction, "start").trim();
+  const draft = clip(input.draft, LIMITS.draft, "start").trim();
+  const files = clip(input.files, LIMITS.files, "start").trim();
+  return [
+    {
+      role: "system",
+      content: [
+        "You write git commit messages for the changes about to be committed.",
+        "Reply with only the commit message: no explanation, no markdown fences, no quotes around it, no trailers such as Co-authored-by.",
+        "First line: a subject that says what the change does, in the imperative mood, at most 72 characters, without a trailing period.",
+        "When the change is more than a one-liner, add a blank line and a short body (wrapped at 72 characters) saying what changed and why;",
+        "use \"- \" bullets only for several distinct changes. Describe the change itself, not the diff (no \"modified file X\" lists).",
+        "When the recent commits share a style (a prefix such as \"feat:\" or \"Area:\", capitalization, language), follow it; never copy them.",
+        "When a draft is given, keep its intent and wording where it is right, and complete or correct it from the changes.",
+        "The user's instructions, when given, take precedence over these rules.",
+      ].join("\n"),
+    },
+    {
+      role: "user",
+      content: [
+        ...(input.branch ? [`Branch: ${clip(input.branch, 200, "start")}`, ""] : []),
+        ...(recent.length ? ["<recent_commits>", ...recent.map((subject) => `- ${subject}`), "</recent_commits>", ""] : []),
+        ...(files ? ["<files>", files, "</files>", ""] : []),
+        "<diff>",
+        clip(input.diff, LIMITS.diff, "start"),
+        "</diff>",
+        ...(draft ? ["", "<draft>", draft, "</draft>"] : []),
+        ...(instruction ? ["", `Instructions: ${instruction}`] : []),
+      ].join("\n"),
+    },
+  ];
+}
+
+/** The model's commit message without fences, wrapping quotes, a "Commit message:" label or trailing blank lines. */
+export function cleanCommitMessage(raw: string): string {
+  let text = stripFences(raw).trim();
+  text = text.replace(/^(?:\*\*)?(?:suggested )?commit message(?:\*\*)?:?\s*\n?/i, "").trim();
+  text = stripFences(text).trim();
+  if (text.length > 1 && /^(["'`])[\s\S]*\1$/.test(text) && !text.slice(1, -1).includes(text[0]!)) text = text.slice(1, -1).trim();
+  return text.replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n");
 }
 
 export type NextEdit = { line: number; find: string; replace: string } | Record<string, never>;

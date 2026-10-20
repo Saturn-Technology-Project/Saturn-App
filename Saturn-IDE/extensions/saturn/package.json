@@ -15,6 +15,9 @@
     "Chat"
   ],
   "main": "./extension.js",
+  "enabledApiProposals": [
+    "contribSourceControlInputBoxMenu"
+  ],
   "activationEvents": [
     "*"
   ],
@@ -107,6 +110,13 @@
           "default": true,
           "description": "After you change a line, suggest the next related edit nearby (press Tab to apply). Uses the completion model."
         },
+        "saturn.commitMessage.instructions": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "editPresentation": "multilineText",
+          "markdownDescription": "Extra guidance for **Generate Commit Message** in the Source Control view, e.g. `Use Conventional Commits` or `Write in Traditional Chinese`. Without it, Saturn follows the style of the repository's recent commits."
+        },
         "saturn.agentTerminal.enabled": {
           "type": "boolean",
           "default": true,
@@ -183,6 +193,12 @@
         "category": "Saturn"
       },
       {
+        "command": "saturn.git.generateCommitMessage",
+        "title": "Generate Commit Message",
+        "category": "Saturn",
+        "icon": "$(sparkle)"
+      },
+      {
         "command": "saturn.toggleCompletions",
         "title": "Toggle Tab Completion",
         "category": "Saturn"
@@ -211,6 +227,12 @@
           "group": "navigation"
         }
       ],
+      "scm/inputBox": [
+        {
+          "command": "saturn.git.generateCommitMessage",
+          "when": "scmProvider == git"
+        }
+      ],
       "editor/context": [
         {
           "command": "saturn.inlineEdit",
@@ -219,6 +241,10 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "saturn.git.generateCommitMessage",
+          "when": "config.git.enabled && !git.missing && gitOpenRepositoryCount != 0"
+        },
         {
           "command": "saturn.inlineEdit.accept",
           "when": "saturn.inlineEditPending"

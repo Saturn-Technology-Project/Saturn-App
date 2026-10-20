@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const nodePath = require('node:path');
 const { registerEditorAi } = require('./editor-ai');
+const { registerGitAi } = require('./git-ai');
 const agentTools = require('./agent-tools');
 
 /** Editor-side helpers shared by the sidebar panel and the Agent window: diff documents and the agent terminal. */
@@ -3050,6 +3051,7 @@ function activate(context) {
 	const runtime = new Runtime();
 	const view = new AgentView(context, runtime);
 	registerEditorAi(context, runtime);
+	registerGitAi(context, runtime);
 	reportToRuntime(context, runtime);
 	// The side bar is laid out before extensions load, so it starts hidden as an empty container. Show the
 	// Saturn panel once on the first launch; after that the user's own layout is remembered.

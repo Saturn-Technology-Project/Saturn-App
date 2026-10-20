@@ -688,4 +688,4 @@ function registerEditorAi(context, runtime) {
 	);
 }
 
-module.exports = { registerEditorAi };
+module.exports = { registerEditorAi, errorText };
