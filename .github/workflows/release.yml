@@ -1,0 +1,203 @@
+name: Release
+
+# Builds Saturn for macOS (Apple Silicon) and Windows (x64), each with Saturn IDE inside, tests both, and publishes a
+# GitHub release with the downloads. Saturn IDE's native modules must be compiled on each platform, so each build
+# runs on its own runner.
+#
+#   Push a tag:   git tag v0.2.0 && git push origin v0.2.0
+#   Or run it:    Actions → Release → Run workflow (version, and whether to publish or only build)
+#
+# Versions below 1.0.0 and versions with a suffix (v1.2.0-rc.1) are published as pre-releases.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the v (for example 0.2.0)"
+        required: true
+      publish:
+        description: "Publish the GitHub release (off: only build and keep the files as workflow artifacts)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  VERSION: ${{ inputs.version || github.ref_name }}
+
+jobs:
+  macos:
+    name: macOS (arm64)
+    runs-on: macos-14
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: version
+        run: echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: Saturn-IDE/.nvmrc
+
+      - name: Install the IDE's dependencies
+        working-directory: Saturn-IDE
+        run: npm ci
+        env:
+          npm_config_foreground_scripts: "1"
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+      - name: Build Saturn IDE (darwin-arm64)
+        working-directory: Saturn-IDE
+        run: npm run gulp vscode-darwin-arm64-min
+
+      - name: Runtime and desktop dependencies
+        run: |
+          npm ci --prefix runtime
+          npm ci --prefix desktop
+
+      - name: Tests and type checks
+        run: |
+          npm test --prefix runtime
+          npm run typecheck
+          npm run test:ide
+
+      - name: IDE smoke test
+        run: node Saturn-IDE/test/smoke/smoke.mjs "VSCode-darwin-arm64/Saturn IDE.app"
+
+      - name: Package Saturn.app
+        working-directory: desktop
+        run: |
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+          npm run build
+          npm run build:runtime
+          npm run fetch:model
+          npx electron-builder --mac --publish never
+          npm run archive:mac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: saturn-macos
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.dmg.sha256
+            desktop/release/*.zip
+            desktop/release/*.zip.sha256
+          if-no-files-found: error
+
+  windows:
+    name: Windows (x64)
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: version
+        shell: bash
+        run: echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: Saturn-IDE/.nvmrc
+
+      - name: Install the IDE's dependencies
+        working-directory: Saturn-IDE
+        shell: pwsh
+        run: npm ci
+        env:
+          npm_config_foreground_scripts: "1"
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+      - name: Build Saturn IDE (win32-x64)
+        working-directory: Saturn-IDE
+        shell: pwsh
+        run: npm run gulp vscode-win32-x64-min
+
+      - name: Runtime and desktop dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix runtime
+          npm ci --prefix desktop
+
+      - name: Tests and type checks
+        shell: pwsh
+        run: |
+          npm test --prefix runtime
+          npm run typecheck
+          npm run test:ide
+
+      - name: IDE smoke test
+        shell: pwsh
+        run: node Saturn-IDE/test/smoke/smoke.mjs VSCode-win32-x64
+
+      - name: Package the Saturn installer
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+          npm run dist:win
+
+      - name: Checksums
+        working-directory: desktop/release
+        shell: bash
+        run: |
+          for file in *.exe; do sha256sum "$file" > "$file.sha256"; done
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: saturn-windows
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.exe.sha256
+            desktop/release/*.exe.blockmap
+            desktop/release/latest.yml
+          if-no-files-found: error
+
+  release:
+    name: Publish the release
+    needs: [macos, windows]
+    if: github.event_name == 'push' || inputs.publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${VERSION#v}"
+          tag="v$version"
+          # 0.x and suffixed versions (1.2.0-rc.1) are pre-releases; 1.0.0 and later without a suffix are not.
+          prerelease=""
+          if [[ "$version" == 0.* || "$version" == *-* ]]; then prerelease="--prerelease"; fi
+          sed "s/__VERSION__/$version/g" .github/release-notes.md > notes.md
+          ls -la dist
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # Re-running for an existing release replaces its files and keeps its notes.
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* \
+              --title "Saturn $tag" \
+              --target "$GITHUB_SHA" \
+              --notes-file notes.md \
+              --generate-notes \
+              $prerelease
+          fi
+          gh release view "$tag" --json url --jq .url
