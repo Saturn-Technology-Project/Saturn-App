@@ -341,7 +341,12 @@ class SharedProcessMain extends Disposable implements IClientConnectionFilter {
 			appenders.push(logAppender);
 			// Saturn: send the IDE's telemetry to the local Saturn runtime, never to Microsoft. This replaces
 			// the 1DS/Microsoft collector; events stay on this machine (the endpoint is on 127.0.0.1).
-			const saturnEndpoint = (productService as { saturnTelemetryEndpoint?: string }).saturnTelemetryEndpoint;
+			// The runtime that started this IDE says its port in SATURN_RUNTIME_PORT (a second copy, or a moved one).
+			const configuredEndpoint = (productService as { saturnTelemetryEndpoint?: string }).saturnTelemetryEndpoint;
+			const runtimePort = process.env['SATURN_RUNTIME_PORT'];
+			const saturnEndpoint = configuredEndpoint && runtimePort && /^\d{2,5}$/.test(runtimePort)
+				? configuredEndpoint.replace(/^(http:\/\/127\.0\.0\.1):\d+/, `$1:${runtimePort}`)
+				: configuredEndpoint;
 			if (saturnEndpoint) {
 				const saturnAppender = new SaturnTelemetryAppender(saturnEndpoint, requestService);
 				this._register(toDisposable(() => saturnAppender.flush())); // flush any queued events on dispose

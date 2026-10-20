@@ -356,6 +356,41 @@ function watchForIde() {
   }, 10_000);
 }
 
+/**
+ * Updates from GitHub Releases (electron-updater): downloaded in the background and installed when Saturn quits.
+ * On macOS this needs a Developer ID signature (Squirrel.Mac refuses ad-hoc builds), so an unsigned build skips it
+ * and says why in the log; Windows checks either way.
+ */
+function checkForUpdates() {
+  if (!app.isPackaged || process.env.SATURN_NO_UPDATES) return;
+  if (process.platform === "darwin" && !signedWithDeveloperId()) {
+    console.log("[updates] skipped: this build is not signed with a Developer ID, which macOS updates require");
+    return;
+  }
+  try {
+    const { autoUpdater } = require("electron-updater");
+    // Saturn's releases are pre-releases for now.
+    autoUpdater.allowPrerelease = true;
+    autoUpdater.on("error", (error) => console.log(`[updates] ${error?.message ?? error}`));
+    autoUpdater.on("update-downloaded", (info) => console.log(`[updates] ${info.version} downloaded; it installs when Saturn quits`));
+    void autoUpdater.checkForUpdatesAndNotify().catch((error) => console.log(`[updates] check failed: ${error?.message ?? error}`));
+  } catch (error) {
+    console.log(`[updates] unavailable: ${error?.message ?? error}`);
+  }
+}
+
+/** Whether the running app bundle carries a Developer ID signature (an ad-hoc one has no team). */
+function signedWithDeveloperId() {
+  try {
+    const bundle = path.resolve(path.dirname(process.execPath), "..", "..");
+    const result = require("node:child_process").spawnSync("codesign", ["-dv", bundle], { encoding: "utf8" });
+    const team = /TeamIdentifier=(\S+)/.exec(`${result.stdout}${result.stderr}`);
+    return Boolean(team && team[1] !== "not" && team[1] !== "not set");
+  } catch {
+    return false;
+  }
+}
+
 app.whenReady().then(() =>
   primary && traced("desktop.startup", ROOT_CONTEXT, async (span, context) => {
     span.setAttribute("saturn.desktop.packaged", app.isPackaged);
@@ -377,6 +412,7 @@ app.whenReady().then(() =>
       watchForIde();
     }
     startedUp = true;
+    checkForUpdates();
     if (pendingLink) {
       const { page } = pendingLink;
       pendingLink = null;

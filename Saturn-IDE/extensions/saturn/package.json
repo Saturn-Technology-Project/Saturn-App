@@ -19,7 +19,7 @@
     "contribSourceControlInputBoxMenu"
   ],
   "activationEvents": [
-    "*"
+    "onStartupFinished"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
