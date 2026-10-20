@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdir, stat } from "node:fs/promises";
 import { promisify } from "node:util";
 import type { Workspace } from "../../domain/skills/workspace.js";
+import { commandEnv, shellInvocation } from "../shell.js";
 import { TEXT_LIMIT, clip, integer, text } from "./text.js";
 
 const runCommand = promisify(execFile);
@@ -19,15 +20,15 @@ export class CodeSkill {
     const info = await stat(cwd);
     if (!info.isDirectory()) throw new Error("cwd is not a directory");
     const timeout = Math.min(CODE_TIMEOUT_MAX, Math.max(1_000, integer(args.timeout, CODE_TIMEOUT)));
-    const shell = process.platform === "win32" ? process.env.ComSpec || "cmd.exe" : "/bin/sh";
-    const shellArgs = process.platform === "win32" ? ["/d", "/s", "/c", command] : ["-c", command];
+    const shell = shellInvocation(command, "/bin/sh");
     try {
-      const { stdout, stderr } = await runCommand(shell, shellArgs, {
+      const { stdout, stderr } = await runCommand(shell.file, shell.args, {
         cwd,
         timeout,
         signal,
         maxBuffer: TEXT_LIMIT,
-        env: { PATH: process.env.PATH || "/usr/bin:/bin" },
+        env: commandEnv(),
+        windowsVerbatimArguments: shell.windowsVerbatimArguments,
       });
       return { stdout: clip(stdout), stderr: clip(stderr), exitCode: 0 };
     } catch (error) {

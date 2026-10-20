@@ -9,6 +9,7 @@ import type { Express } from "express";
 import type { AppServices } from "../application/services.js";
 import { respond } from "./http.js";
 import { launchEnv } from "../infrastructure/launch-env.js";
+import { shellInvocation, terminalEnv } from "../infrastructure/shell.js";
 
 const runExec = promisify(execFile);
 const CWD_MARKER = "__SATURN_CWD__:";
@@ -84,17 +85,12 @@ export function mountWorkspace(app: Express, services: AppServices): void {
       }
 
       const isWin = process.platform === "win32";
-      const shell = isWin ? process.env.ComSpec || "cmd.exe" : process.env.SHELL || "/bin/zsh";
       const wrappedCommand = isWin
         ? `${rawCommand} & echo ${CWD_MARKER}%CD%`
         : `${rawCommand}\n__saturn_ec=$?\nprintf "\\n${CWD_MARKER}%s\\n" "$(pwd)"\nexit $__saturn_ec`;
-      const shellArgs = isWin ? ["/d", "/s", "/c", wrappedCommand] : ["-c", wrappedCommand];
-
-      const env = {
-        ...launchEnv(),
-        PATH: `${process.env.PATH || ""}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
-        TERM: "xterm-256color",
-      };
+      const invocation = shellInvocation(wrappedCommand, process.env.SHELL || "/bin/zsh");
+      const shell = invocation.file;
+      const env = terminalEnv(launchEnv());
 
       // Only the program name is recorded; arguments may carry secrets.
       return traced("workspace.exec", {
@@ -104,11 +100,12 @@ export function mountWorkspace(app: Express, services: AppServices): void {
         },
       }, async (span) => {
         try {
-          const { stdout, stderr } = await runExec(shell, shellArgs, {
+          const { stdout, stderr } = await runExec(shell, invocation.args, {
             cwd,
             timeout: 30_000,
             maxBuffer: 512 * 1024,
             env,
+            windowsVerbatimArguments: invocation.windowsVerbatimArguments,
           });
           const parsed = extractCwd(stdout, cwd);
           span.setAttribute("process.exit.code", 0);

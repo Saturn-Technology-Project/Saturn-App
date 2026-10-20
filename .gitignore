@@ -17,3 +17,6 @@ runtime/plugins/
 
 # Lifecycle test package (electron-builder --config.directories.output=release-test)
 desktop/release-test/
+
+# Runtime node_modules installed for another platform (desktop: npm run stage:runtime:win)
+desktop/.staging/

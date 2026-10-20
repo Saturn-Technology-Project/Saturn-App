@@ -344,7 +344,8 @@ export class ClaudeCodeService {
 
 /** "Ask for risky actions": a destructive shell command, or an edit outside the working folder. */
 function risky(toolName: string, input: Record<string, unknown>, workdir: string): boolean {
-  if (toolName === "Bash") return isSensitiveOperation("code", { command: input.command });
+  // Claude Code on Windows runs shell commands through Bash (Git Bash) or PowerShell.
+  if (toolName === "Bash" || toolName === "PowerShell") return isSensitiveOperation("code", { command: input.command });
   const requested = FILE_TOOLS[toolName] ? input[FILE_TOOLS[toolName]] : undefined;
   if (typeof requested === "string") {
     const relative = path.relative(workdir, path.resolve(workdir, requested));
