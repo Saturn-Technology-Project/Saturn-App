@@ -58,8 +58,12 @@ jobs:
           npm_config_foreground_scripts: "1"
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-          # Native modules (@vscode/policy-watcher) use std::variant, which needs macOS 10.13 or later.
+          # Native modules (@vscode/policy-watcher) use std::variant, which needs macOS 10.13 or later, but gyp
+          # compiles them with -mmacosx-version-min=10.7. These flags come after gyp's, and the last one wins.
           MACOSX_DEPLOYMENT_TARGET: "11.0"
+          CFLAGS: "-mmacosx-version-min=11.0"
+          CXXFLAGS: "-mmacosx-version-min=11.0"
+          LDFLAGS: "-mmacosx-version-min=11.0"
 
       - name: Build Saturn IDE (darwin-arm64)
         working-directory: Saturn-IDE
