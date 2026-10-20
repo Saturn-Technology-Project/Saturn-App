@@ -6,8 +6,10 @@ import { promisify } from "node:util";
 import { query, type CanUseTool, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
-import type { Agent, ModelConnection, Run, RunAction } from "../domain/model.js";
+import type { Agent, GroupAutonomy, ModelConnection, Run, RunAction } from "../domain/model.js";
 import { errorText, logger } from "../infrastructure/logger.js";
+import { isSensitiveOperation } from "../domain/policies.js";
+import { saveSession, savedSession } from "./agent-sessions.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 const exec = promisify(execFile);
@@ -154,6 +156,7 @@ export class ClaudeCodeService {
     await mkdir(workdir, { recursive: true });
     await mkdir(this.configDir(), { recursive: true, mode: 0o700 });
 
+    const resumeId = savedSession(this.kernel, run, "claudeSessionId");
     const abortController = new AbortController();
     const abort = () => abortController.abort();
     signal.addEventListener("abort", abort, { once: true });
@@ -182,8 +185,26 @@ export class ClaudeCodeService {
       return action;
     };
 
+    // Outside a group every tool that is not read-only asks; a group can let its agents work on their own.
+    const group = run.groupId ? (this.kernel.store.state.groups ?? []).find((item) => item.id === run.groupId) : undefined;
+    const mode: GroupAutonomy = group?.autonomy ?? "review";
+    // Before an edit runs, keep the file's original for the diff and revert.
+    const keepOriginal = async (actionId: string, toolName: string, input: Record<string, unknown>) => {
+      const requested = FILE_TOOLS[toolName] ? input[FILE_TOOLS[toolName]] : undefined;
+      if (checkpoint && typeof requested === "string") {
+        const target = path.resolve(workdir, requested);
+        await checkpoint.before(target);
+        edited.set(actionId, target);
+      }
+    };
+
     const canUseTool: CanUseTool = async (toolName, input, options) => {
       if (READ_ONLY_TOOLS.has(toolName)) return { behavior: "allow", updatedInput: input };
+      if (mode === "bypass" || (mode === "default" && !risky(toolName, input, workdir))) {
+        const action = actionFor(options.toolUseID || newId("act"), toolName, input);
+        await keepOriginal(action.id, toolName, input);
+        return { behavior: "allow", updatedInput: input };
+      }
       const action = actionFor(options.toolUseID || newId("act"), toolName, input);
       action.status = "waiting_approval";
       action.reason = `${toolName} needs your approval`;
@@ -198,12 +219,7 @@ export class ClaudeCodeService {
       }).finally(() => this.pending.delete(`${runId}:${action.id}`));
       action.status = allow ? "completed" : "denied";
       action.reason = allow ? undefined : "Denied by the user";
-      const requested = FILE_TOOLS[toolName] ? input[FILE_TOOLS[toolName]] : undefined;
-      if (allow && checkpoint && typeof requested === "string") {
-        const target = path.resolve(workdir, requested);
-        await checkpoint.before(target);
-        edited.set(action.id, target);
-      }
+      if (allow) await keepOriginal(action.id, toolName, input);
       await save((current) => {
         current.status = "running";
       });
@@ -217,7 +233,7 @@ export class ClaudeCodeService {
       settingSources: [],
       model: model.model,
       ...(model.effort ? { effort: model.effort } : {}),
-      ...(thread?.claudeSessionId ? { resume: thread.claudeSessionId } : {}),
+      ...(resumeId ? { resume: resumeId } : {}),
       permissionMode: "default",
       canUseTool,
       disallowedTools: DISALLOWED_TOOLS,
@@ -229,7 +245,7 @@ export class ClaudeCodeService {
 
     this.kernel.log("agent", "info", `${agent.name} asked Claude Code (${model.model}${model.effort ? `, ${model.effort} effort` : ""}) in ${workdir}`, { "saturn.run.id": runId });
     const startedAt = Date.now();
-    let sessionId = thread?.claudeSessionId;
+    let sessionId = resumeId;
     let failure: string | undefined;
     try {
       for await (const message of query({ prompt: run.input, options })) {
@@ -276,12 +292,7 @@ export class ClaudeCodeService {
       if (checkpoint) for (const target of edited.values()) await checkpoint.after(target).catch(() => undefined);
     }
 
-    if (sessionId && thread) {
-      await this.kernel.store.update((state) => {
-        const current = (state.threads ?? []).find((item) => item.id === thread.id);
-        if (current) current.claudeSessionId = sessionId;
-      });
-    }
+    if (sessionId && sessionId !== resumeId) await saveSession(this.kernel, run, "claudeSessionId", sessionId);
     if (!this.kernel.alive(runId, generation)) return;
     const seconds = Math.round((Date.now() - startedAt) / 100) / 10;
     if (failure) {
@@ -329,6 +340,17 @@ export class ClaudeCodeService {
       })
       .catch((error: unknown) => logger.warn("usage", `Could not record Claude Code usage: ${errorText(error)}`));
   }
+}
+
+/** "Ask for risky actions": a destructive shell command, or an edit outside the working folder. */
+function risky(toolName: string, input: Record<string, unknown>, workdir: string): boolean {
+  if (toolName === "Bash") return isSensitiveOperation("code", { command: input.command });
+  const requested = FILE_TOOLS[toolName] ? input[FILE_TOOLS[toolName]] : undefined;
+  if (typeof requested === "string") {
+    const relative = path.relative(workdir, path.resolve(workdir, requested));
+    return relative.startsWith("..") || path.isAbsolute(relative);
+  }
+  return false;
 }
 
 function sessionOf(message: SDKMessage): string | undefined {

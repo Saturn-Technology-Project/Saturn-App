@@ -10,6 +10,7 @@ import { newId } from "../domain/ids.js";
 import type { Agent, ModelConnection, Run, RunAction } from "../domain/model.js";
 import { openInBrowser } from "../infrastructure/browser.js";
 import { errorText, logger } from "../infrastructure/logger.js";
+import { saveSession, savedSession } from "./agent-sessions.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 const exec = promisify(execFile);
@@ -250,14 +251,15 @@ export class CodexService {
       ...(model.effort ? { modelReasoningEffort: model.effort } : {}),
     };
     const codex = new Codex({ codexPathOverride: this.cli(), env: this.environment() });
-    const session = thread?.codexThreadId ? codex.resumeThread(thread.codexThreadId, options) : codex.startThread(options);
+    const resumeId = savedSession(this.kernel, run, "codexThreadId");
+    const session = resumeId ? codex.resumeThread(resumeId, options) : codex.startThread(options);
     // The agent's instructions open a new Codex thread; a resumed thread already has them.
     const instructions = agent.instructions.trim();
-    const prompt = !thread?.codexThreadId && instructions ? `<instructions>\n${instructions}\n</instructions>\n\n${run.input}` : run.input;
+    const prompt = !resumeId && instructions ? `<instructions>\n${instructions}\n</instructions>\n\n${run.input}` : run.input;
 
     this.kernel.log("agent", "info", `${agent.name} asked Codex (${options.model ?? "default model"}${model.effort ? `, ${model.effort} effort` : ""}) in ${workdir}`, { "saturn.run.id": runId });
     const startedAt = Date.now();
-    let threadId = thread?.codexThreadId;
+    let threadId = resumeId;
     let failure: string | undefined;
     try {
       const { events } = await session.runStreamed(prompt, { signal });
@@ -285,12 +287,7 @@ export class CodexService {
       failure = errorText(error);
     }
 
-    if (threadId && thread) {
-      await this.kernel.store.update((state) => {
-        const current = (state.threads ?? []).find((item) => item.id === thread.id);
-        if (current) current.codexThreadId = threadId;
-      });
-    }
+    if (threadId && threadId !== resumeId) await saveSession(this.kernel, run, "codexThreadId", threadId);
     if (!this.kernel.alive(runId, generation)) return;
     const seconds = Math.round((Date.now() - startedAt) / 100) / 10;
     if (failure) {

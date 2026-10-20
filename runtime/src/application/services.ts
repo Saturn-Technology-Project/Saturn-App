@@ -184,7 +184,7 @@ export class AppServices {
     return await this.kernel.groups.create(input);
   }
 
-  async updateGroup(id: string, patch: { name?: string; agentIds?: string[] }): Promise<Group> {
+  async updateGroup(id: string, patch: { name?: string; agentIds?: string[]; autonomy?: string | null }): Promise<Group> {
     return await this.kernel.groups.update(id, patch);
   }
 

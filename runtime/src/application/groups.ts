@@ -1,6 +1,6 @@
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
-import type { Agent, Group, GroupMessage, Run } from "../domain/model.js";
+import type { Agent, Group, GroupAutonomy, GroupMessage, Run } from "../domain/model.js";
 import { errorText } from "../infrastructure/logger.js";
 import type { RuntimeKernel } from "./kernel.js";
 
@@ -11,6 +11,9 @@ const TRANSCRIPT_MESSAGES = 40;
 /** What an agent replies when the message is not for it. */
 const PASS = /^\W*pass\W*$/i;
 const SETTLED: Run["status"][] = ["completed", "failed", "cancelled"];
+const AUTONOMY: GroupAutonomy[] = ["review", "default", "bypass"];
+/** Providers whose agent keeps one SDK session per group, resumed turn after turn. */
+const SESSION_PROVIDERS = new Set(["claude-code", "codex"]);
 
 export type GroupView = Group & { lastMessage?: GroupMessage };
 export type GroupTranscript = { group: Group; messages: GroupMessage[]; runs: Run[] };
@@ -19,10 +22,14 @@ export type GroupTranscript = { group: Group; messages: GroupMessage[]; runs: Ru
  * Group chats, Grok-bot style: every member agent sees the conversation and decides for itself whether a
  * message needs it (replying PASS when not). A user message goes to every member, or only to the ones it
  * @mentions; an agent's reply goes only to the agents it @mentions, which is how agents hand work to each other.
+ * Each member takes one turn at a time: a message that reaches it mid-turn waits, and its next turn covers
+ * everything said in between. Claude Code and Codex members keep one session per group for all their turns.
  */
 export class GroupService {
   /** Group turns still running, checked until they settle and their reply is posted. */
   private readonly pending = new Set<string>();
+  /** The newest message waiting for a member that is still on its turn, by `${groupId}:${agentId}`. */
+  private readonly queued = new Map<string, GroupMessage>();
   private timer: NodeJS.Timeout | null = null;
 
   constructor(private readonly kernel: RuntimeKernel) {}
@@ -55,16 +62,25 @@ export class GroupService {
     return group;
   }
 
-  async update(id: string, patch: { name?: string; agentIds?: string[] }): Promise<Group> {
+  async update(id: string, patch: { name?: string; agentIds?: string[]; autonomy?: string | null }): Promise<Group> {
     this.get(id);
     const name = patch.name?.trim();
     const agentIds = patch.agentIds ? this.members(patch.agentIds) : undefined;
+    if (patch.autonomy !== undefined && patch.autonomy !== null && !AUTONOMY.includes(patch.autonomy as GroupAutonomy)) {
+      throw new HttpError(400, "autonomy must be review, default, bypass, or null");
+    }
     let updated: Group | undefined;
     await this.kernel.store.update((state) => {
       const group = (state.groups ?? []).find((item) => item.id === id);
       if (!group) throw new HttpError(404, "Group not found");
       if (name) group.name = name;
-      if (agentIds) group.agentIds = agentIds;
+      if (agentIds) {
+        group.agentIds = agentIds;
+        // A member that leaves takes its session with it; rejoining starts fresh.
+        for (const agentId of Object.keys(group.sessions ?? {})) if (!agentIds.includes(agentId)) delete group.sessions![agentId];
+      }
+      if (patch.autonomy === null) delete group.autonomy;
+      else if (patch.autonomy) group.autonomy = patch.autonomy as GroupAutonomy;
       group.updatedAt = new Date().toISOString();
       updated = group;
     });
@@ -78,6 +94,7 @@ export class GroupService {
       await this.kernel.runs.stopRun(run.id).catch(() => undefined);
       this.pending.delete(run.id);
     }
+    for (const key of [...this.queued.keys()]) if (key.startsWith(`${id}:`)) this.queued.delete(key);
     await this.kernel.store.update((state) => {
       state.groups = (state.groups ?? []).filter((item) => item.id !== id);
       state.groupMessages = (state.groupMessages ?? []).filter((item) => item.groupId !== id);
@@ -133,14 +150,47 @@ export class GroupService {
   private async dispatch(group: Group, message: GroupMessage): Promise<void> {
     for (const agent of this.recipients(group, message)) {
       if (agent.status === "paused") continue;
-      try {
-        const run = await this.kernel.runs.startGroupRun(agent.id, this.prompt(group, agent, message), group.id, message.id);
-        this.pending.add(run.id);
-      } catch (error) {
-        // No model, no key: say so in the chat instead of failing the whole message.
-        await this.append({ groupId: group.id, agentId: agent.id, text: errorText(error), error: true, depth: message.depth + 1 });
+      if (this.busy(group.id, agent.id)) {
+        // Still on its turn: its next turn answers the newest message and sees everything before it.
+        this.queued.set(`${group.id}:${agent.id}`, message);
+        continue;
       }
+      await this.start(group, agent, message);
     }
+    this.watch();
+  }
+
+  /** True while the agent has a turn in this group that has not settled. */
+  busy(groupId: string, agentId: string): boolean {
+    return this.kernel.store.state.runs.some((run) => run.groupId === groupId && run.agentId === agentId && !SETTLED.includes(run.status));
+  }
+
+  private async start(group: Group, agent: Agent, message: GroupMessage): Promise<void> {
+    try {
+      const run = await this.kernel.runs.startGroupRun(agent.id, this.prompt(group, agent, message), group.id, message.id);
+      this.pending.add(run.id);
+      await this.kernel.store.update((state) => {
+        const current = (state.groups ?? []).find((item) => item.id === group.id);
+        if (!current) return;
+        current.sessions ??= {};
+        current.sessions[agent.id] = { ...current.sessions[agent.id], seenAt: message.createdAt };
+      });
+    } catch (error) {
+      // No model, no key: say so in the chat instead of failing the whole message.
+      await this.append({ groupId: group.id, agentId: agent.id, text: errorText(error), error: true, depth: message.depth + 1 });
+    }
+  }
+
+  /** After an agent's turn settles, its next turn takes the message that waited for it, if any. */
+  private async next(groupId: string, agentId: string): Promise<void> {
+    const key = `${groupId}:${agentId}`;
+    const message = this.queued.get(key);
+    if (!message || this.busy(groupId, agentId)) return;
+    this.queued.delete(key);
+    const group = (this.kernel.store.state.groups ?? []).find((item) => item.id === groupId);
+    const agent = this.kernel.store.state.agents.find((item) => item.id === agentId);
+    if (!group || !agent || !group.agentIds.includes(agentId) || agent.status === "paused") return;
+    await this.start(group, agent, message);
     this.watch();
   }
 
@@ -156,7 +206,9 @@ export class GroupService {
       const run = this.kernel.store.state.runs.find((item) => item.id === runId);
       if (run && !SETTLED.includes(run.status)) continue;
       this.pending.delete(runId);
-      if (run) await this.settle(run).catch((error) => this.kernel.log("agent", "error", `Group reply failed: ${errorText(error)}`));
+      if (!run) continue;
+      await this.settle(run).catch((error) => this.kernel.log("agent", "error", `Group reply failed: ${errorText(error)}`));
+      if (run.groupId) await this.next(run.groupId, run.agentId).catch((error) => this.kernel.log("agent", "error", `Group turn failed to start: ${errorText(error)}`));
     }
     if (!this.pending.size) this.stop();
   }
@@ -192,6 +244,15 @@ export class GroupService {
     return [...new Set(agentIds)].filter((agentId) => known.has(agentId));
   }
 
+  /** When the agent will resume its group session: the time of the last message it saw; otherwise undefined. */
+  private resumes(group: Group, agent: Agent): string | undefined {
+    const provider = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId)?.provider;
+    if (!provider || !SESSION_PROVIDERS.has(provider)) return undefined;
+    const session = group.sessions?.[agent.id];
+    const id = provider === "codex" ? session?.codexThreadId : session?.claudeSessionId;
+    return id ? session?.seenAt : undefined;
+  }
+
   /** The turn's whole input: who is in the group, how to take part, the conversation, and the message to consider. */
   prompt(group: Group, agent: Agent, message: GroupMessage): string {
     const agents = this.kernel.store.state.agents;
@@ -200,11 +261,24 @@ export class GroupService {
       .map((agentId) => agents.find((item) => item.id === agentId))
       .filter((item): item is Agent => Boolean(item))
       .map((item) => `- @${item.name}${item.id === agent.id ? " (you)" : ""}${item.description ? ` — ${item.description}` : ""}`);
-    const earlier = (this.kernel.store.state.groupMessages ?? [])
-      .filter((item) => item.groupId === group.id && item.id !== message.id && !item.error && item.createdAt <= message.createdAt)
-      .slice(-TRANSCRIPT_MESSAGES)
-      .map((item) => `[${nameOf(item)}]: ${item.text}`);
     const addressed = mentions(message.text, agent.name) || /(^|\s)@(all|everyone)\b/i.test(message.text);
+    const all = (this.kernel.store.state.groupMessages ?? []).filter(
+      (item) => item.groupId === group.id && item.id !== message.id && !item.error && item.createdAt <= message.createdAt,
+    );
+    // An agent resuming its group session already has the rules and everything up to its last turn.
+    const resumed = this.resumes(group, agent);
+    if (resumed) {
+      const since = all.filter((item) => item.createdAt > resumed && item.agentId !== agent.id).map((item) => `[${nameOf(item)}]: ${item.text}`);
+      return [
+        `New in the group "${group.name}" since your last turn. Same rules as before: reply exactly PASS if this does not need you, and @mention an agent only to hand it work.`,
+        ...(addressed ? ["You were @mentioned in the latest message, so answer it unless it clearly is not meant for you."] : []),
+        "",
+        ...(since.length ? [`Said in between (oldest first):\n${since.join("\n")}`, ""] : []),
+        `Latest message, from ${nameOf(message)}:`,
+        message.text,
+      ].join("\n");
+    }
+    const earlier = all.slice(-TRANSCRIPT_MESSAGES).map((item) => `[${nameOf(item)}]: ${item.text}`);
     return [
       `You are ${agent.name}, one of the AI agents in the group chat "${group.name}" with the user.`,
       "",

@@ -142,10 +142,25 @@ export type Run = {
 };
 
 /** A group chat: the user and several agents. Every message is shown to the members, who decide whether to reply. */
+/** How much a group's agents may do without asking: every tool, risky ones only, or nothing. */
+export type GroupAutonomy = "review" | "default" | "bypass";
+
+/** One agent's standing session in a group: the SDK session it resumes, and the last message it has seen. */
+export type GroupSession = {
+  claudeSessionId?: string;
+  codexThreadId?: string;
+  /** createdAt of the newest group message already given to this agent. */
+  seenAt?: string;
+};
+
 export type Group = {
   id: string;
   name: string;
   agentIds: string[];
+  /** Overrides each member's own approval setting while it works in this group; unset keeps theirs. */
+  autonomy?: GroupAutonomy;
+  /** By agent id. */
+  sessions?: Record<string, GroupSession>;
   createdAt: string;
   updatedAt: string;
 };

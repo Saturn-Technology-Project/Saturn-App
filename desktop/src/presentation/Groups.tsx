@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
-import type { Agent, Group, GroupMessage, GroupTranscript, Run } from "../domain/model";
+import type { Agent, Group, GroupMessage, GroupTranscript, Run, GroupAutonomy } from "../domain/model";
 import { FormattedOutput } from "./FormattedOutput";
 import { RunSteps } from "./RunSteps";
 
@@ -16,6 +16,14 @@ function draggedAgent(event: React.DragEvent): string | null {
 }
 
 /** Sidebar section: the groups, each a drop target for agents dragged from the Agents list. */
+/** What each group approval setting means, shown on hover. */
+const AUTONOMY_HINTS: Record<string, string> = {
+  "": "Each agent asks for approval the way it does in its own chats (Claude Code agents ask before every edit or command).",
+  default: "Agents edit files in their folder and run commands on their own; they still ask before destructive commands or edits outside the folder.",
+  bypass: "Agents use every tool without asking. Only for groups you trust with your files.",
+  review: "Agents ask before every action that is not read-only.",
+};
+
 export function GroupsNav(props: {
   groups: Group[];
   activeGroupId: string | null;
@@ -130,7 +138,7 @@ export function GroupChat(props: { groupId: string; agents: Agent[]; onChanged: 
     lastCount.current = count;
   }, [transcript, working.length]);
 
-  async function save(patch: { name?: string; agentIds?: string[] }) {
+  async function save(patch: { name?: string; agentIds?: string[]; autonomy?: GroupAutonomy | null }) {
     try {
       await desktop.groups.update(props.groupId, patch);
       await refresh();
@@ -248,9 +256,23 @@ export function GroupChat(props: { groupId: string; agents: Agent[]; onChanged: 
               {group.name}
             </button>
           )}
-          <button type="button" className="btn ghost tiny group-delete" onClick={() => void remove()}>
-            Delete
-          </button>
+          <div className="group-head-actions">
+            <select
+              className="input tiny group-autonomy"
+              aria-label="What agents may do without asking"
+              title={AUTONOMY_HINTS[group.autonomy ?? ""]}
+              value={group.autonomy ?? ""}
+              onChange={(event) => void save({ autonomy: (event.target.value || null) as GroupAutonomy | null })}
+            >
+              <option value="">Each agent's own approvals</option>
+              <option value="default">Ask only for risky actions</option>
+              <option value="bypass">Full autonomy, never ask</option>
+              <option value="review">Ask before every action</option>
+            </select>
+            <button type="button" className="btn ghost tiny group-delete" onClick={() => void remove()}>
+              Delete
+            </button>
+          </div>
         </div>
         <div className="group-members">
           {members.map((agent) => (

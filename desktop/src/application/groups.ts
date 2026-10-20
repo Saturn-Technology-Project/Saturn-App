@@ -1,4 +1,4 @@
-import type { Group, GroupTranscript } from "../domain/model.js";
+import type { Group, GroupTranscript, GroupAutonomy } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -16,7 +16,7 @@ export class GroupService {
     );
   }
 
-  update(id: string, patch: { name?: string; agentIds?: string[] }): Promise<Group> {
+  update(id: string, patch: { name?: string; agentIds?: string[]; autonomy?: GroupAutonomy | null }): Promise<Group> {
     return this.runtime.request<Group>(`/groups/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) });
   }
 

@@ -664,7 +664,10 @@ export class RunService {
   }
 
   async runTools(agent: Agent, runId: string, generation: number, calls: ToolCall[], actions: RunAction[], signal: AbortSignal): Promise<boolean> {
-    const mode = autonomyOf(agent.autonomy);
+    // In a group, the group's approval setting (when it has one) replaces the agent's own.
+    const groupId = this.kernel.store.state.runs.find((item) => item.id === runId)?.groupId;
+    const groupAutonomy = groupId ? (this.kernel.store.state.groups ?? []).find((item) => item.id === groupId)?.autonomy : undefined;
+    const mode = groupAutonomy ?? autonomyOf(agent.autonomy);
     for (let index = 0; index < calls.length; index += 1) {
       if (!this.kernel.alive(runId, generation) || signal.aborted) return true;
       this.kernel.guard(agent.id);

@@ -157,3 +157,38 @@ test("a Codex turn that fails for want of a login says how to sign in", async ()
   assert.equal(done.status, "failed");
   assert.match(done.error ?? "", /Codex isn't signed in for Saturn/);
 });
+
+test("in a group, a Codex member resumes one thread for all its turns and gets only what is new", async () => {
+  const { directory, services } = await setup();
+  const { bin, argsFile } = await fakeCodex(directory, [
+    { type: "thread.started", thread_id: "thr_group" },
+    { type: "item.completed", item: { id: "m1", type: "agent_message", text: "done" } },
+    { type: "turn.completed", usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1, reasoning_output_tokens: 0 } },
+  ]);
+  services.kernel.codex.cliPath = () => bin;
+  const model = await services.createModel({ provider: "codex", model: "default" });
+  const agent = await services.createAgent({ name: "Coder", modelConnectionId: model.id });
+  const group = await services.createGroup({ name: "Team", agentIds: [agent.id] });
+  const settleGroup = async () => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      await services.kernel.groups.check();
+      if (services.groupTranscript(group.id).runs.every((run) => ["completed", "failed", "cancelled"].includes(run.status))) return;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    throw new Error("group did not settle");
+  };
+
+  await services.postGroupMessage(group.id, "first task");
+  await settleGroup();
+  const first = JSON.parse(await readFile(argsFile, "utf8")) as { args: string[] };
+  assert.equal(first.args.includes("resume"), false, "the first turn starts the thread");
+  assert.equal(services.kernel.store.state.groups?.[0]?.sessions?.[agent.id]?.codexThreadId, "thr_group");
+
+  await services.postGroupMessage(group.id, "second task");
+  await settleGroup();
+  const second = JSON.parse(await readFile(argsFile, "utf8")) as { args: string[] };
+  assert.ok(second.args.includes("resume") && second.args.includes("thr_group"), `resumes the same thread: ${second.args.join(" ")}`);
+  const turn = services.groupTranscript(group.id).runs.find((run) => run.input.endsWith("second task"));
+  assert.match(turn?.input ?? "", /^New in the group "Team" since your last turn/);
+  assert.doesNotMatch(turn?.input ?? "", /first task/, "what the session already saw is not sent again");
+});

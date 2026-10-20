@@ -103,7 +103,9 @@ export type Run = {
 };
 
 /** A group chat of the user and several agents; each agent decides whether a message needs it. */
-export type Group = { id: string; name: string; agentIds: string[]; createdAt: string; updatedAt: string; lastMessage?: GroupMessage };
+/** How much a group's agents may do without asking; unset keeps each agent's own setting. */
+export type GroupAutonomy = "review" | "default" | "bypass";
+export type Group = { id: string; name: string; agentIds: string[]; autonomy?: GroupAutonomy; createdAt: string; updatedAt: string; lastMessage?: GroupMessage };
 export type GroupMessage = {
   id: string;
   groupId: string;

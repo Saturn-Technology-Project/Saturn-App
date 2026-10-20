@@ -8304,6 +8304,17 @@ button.trace-row:hover {
   gap: 12px;
 }
 
+.group-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-autonomy {
+  width: auto;
+  max-width: 220px;
+}
+
 .group-name {
   background: none;
   border: none;
