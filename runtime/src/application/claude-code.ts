@@ -9,7 +9,8 @@ import { newId } from "../domain/ids.js";
 import type { Agent, GroupAutonomy, ModelConnection, Run, RunAction } from "../domain/model.js";
 import { errorText, logger } from "../infrastructure/logger.js";
 import { autonomyOf, isSensitiveOperation } from "../domain/policies.js";
-import { saveSession, savedSession } from "./agent-sessions.js";
+import { SKILLS_SERVER, bridgedTools, skillsServer } from "./agent-skills.js";
+import { saveSession, savedSession, turnContext, withKnowledge } from "./agent-sessions.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 const exec = promisify(execFile);
@@ -34,6 +35,8 @@ const READ_ONLY_TOOLS = new Set(["Read", "Glob", "Grep", "LS", "NotebookRead", "
 const FILE_TOOLS: Record<string, string> = { Write: "file_path", Edit: "file_path", MultiEdit: "file_path", NotebookEdit: "notebook_path" };
 /** No general network tools (see the Claude Code architecture doc). */
 const DISALLOWED_TOOLS = ["WebSearch", "WebFetch"];
+/** How Claude Code names a tool of Saturn's skills server. */
+const SKILL_PREFIX = `mcp__${SKILLS_SERVER}__`;
 
 export type ClaudeCodeStatus = {
   loggedIn: boolean;
@@ -157,6 +160,10 @@ export class ClaudeCodeService {
     await mkdir(this.configDir(), { recursive: true, mode: 0o700 });
 
     const resumeId = savedSession(this.kernel, run, "claudeSessionId");
+    const { memory, knowledge } = await turnContext(this.kernel, agent, run, signal);
+    // Memory and the agent's instructions go after Claude Code's own prompt on every turn, so edits to either
+    // reach a resumed session too.
+    const append = [memory, agent.instructions.trim()].filter(Boolean).join("\n\n");
     const abortController = new AbortController();
     const abort = () => abortController.abort();
     signal.addEventListener("abort", abort, { once: true });
@@ -176,9 +183,11 @@ export class ClaudeCodeService {
         current.thoughts = [...thoughts];
         patch(current);
       });
-    const actionFor = (id: string, toolId: string, input: Record<string, unknown>): RunAction => {
+    const actionFor = (id: string, toolName: string, input: Record<string, unknown>): RunAction => {
       let action = actions.find((item) => item.id === id);
       if (!action) {
+        // A Saturn skill shows under its own name, as it does for every other provider.
+        const toolId = toolName.startsWith(SKILL_PREFIX) ? toolName.slice(SKILL_PREFIX.length) : toolName;
         action = { id, toolId, arguments: input, status: "completed" };
         actions.push(action);
       }
@@ -207,11 +216,11 @@ export class ClaudeCodeService {
       }
       const action = actionFor(options.toolUseID || newId("act"), toolName, input);
       action.status = "waiting_approval";
-      action.reason = `${toolName} needs your approval`;
+      action.reason = `${action.toolId} needs your approval`;
       await save((current) => {
         current.status = "waiting_approval";
       });
-      this.kernel.log("agent", "info", `${agent.name} ${toolName} waiting_approval`, { "saturn.run.id": runId });
+      this.kernel.log("agent", "info", `${agent.name} ${action.toolId} waiting_approval`, { "saturn.run.id": runId });
       const allow = await new Promise<boolean>((resolve) => {
         const key = `${runId}:${action.id}`;
         this.pending.set(key, resolve);
@@ -226,6 +235,12 @@ export class ClaudeCodeService {
       return allow ? { behavior: "allow", updatedInput: input } : { behavior: "deny", message: "The user denied this action." };
     };
 
+    // The agent's Saturn skills and MCP servers, in-process. Their calls pass canUseTool like any other tool,
+    // so they follow the same approval setting, and run through Saturn's own tool path.
+    const skills = bridgedTools(this.kernel, agent);
+    const skillsCall = (toolId: string, args: Record<string, unknown>) =>
+      this.kernel.runs.executeTool({ agentId: agent.id, toolId, arguments: args, runId, actionId: newId("act"), signal });
+
     const options: Options = {
       cwd: workdir,
       env: this.environment(),
@@ -237,10 +252,9 @@ export class ClaudeCodeService {
       permissionMode: "default",
       canUseTool,
       disallowedTools: DISALLOWED_TOOLS,
+      ...(skills.length ? { mcpServers: { [SKILLS_SERVER]: { type: "sdk", name: SKILLS_SERVER, instance: skillsServer(skills, skillsCall) } } } : {}),
       abortController,
-      systemPrompt: agent.instructions.trim()
-        ? { type: "preset", preset: "claude_code", append: agent.instructions.trim() }
-        : { type: "preset", preset: "claude_code" },
+      systemPrompt: append ? { type: "preset", preset: "claude_code", append } : { type: "preset", preset: "claude_code" },
     };
 
     this.kernel.log("agent", "info", `${agent.name} asked Claude Code (${model.model}${model.effort ? `, ${model.effort} effort` : ""}) in ${workdir}`, { "saturn.run.id": runId });
@@ -248,7 +262,7 @@ export class ClaudeCodeService {
     let sessionId = resumeId;
     let failure: string | undefined;
     try {
-      for await (const message of query({ prompt: run.input, options })) {
+      for await (const message of query({ prompt: withKnowledge(run.input, knowledge), options })) {
         if (!this.kernel.alive(runId, generation)) break;
         sessionId = sessionOf(message) ?? sessionId;
         if (message.type === "assistant") {

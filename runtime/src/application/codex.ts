@@ -1,4 +1,5 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, readdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -8,9 +9,12 @@ import { Codex, type ThreadItem, type ThreadOptions, type Usage } from "@openai/
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
 import type { Agent, ModelConnection, Run, RunAction } from "../domain/model.js";
+import { tokenMatches } from "../infrastructure/auth.js";
 import { openInBrowser } from "../infrastructure/browser.js";
 import { errorText, logger } from "../infrastructure/logger.js";
-import { saveSession, savedSession } from "./agent-sessions.js";
+import { SKILLS_SERVER, bridgedTools, runtimeOrigin, type BridgedCall, type BridgedTool } from "./agent-skills.js";
+import { saveSession, savedSession, turnContext, withKnowledge } from "./agent-sessions.js";
+import { approvalMode } from "./claude-code.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 const exec = promisify(execFile);
@@ -22,6 +26,11 @@ const exec = promisify(execFile);
 const CREDENTIAL_VARIABLES = ["OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN"];
 /** A sign-in nobody finishes is ended after this long (a device code expires after 15 minutes). */
 const SIGN_IN_TIMEOUT_MS = 15 * 60_000;
+/**
+ * Carries the skills endpoint's token to Codex, which sends it as a bearer token. The name contains TOKEN, so
+ * Codex's default shell environment policy keeps it out of the commands it runs.
+ */
+const SKILLS_TOKEN_VARIABLE = "SATURN_SKILLS_TOKEN";
 /** The catalog's "use Codex's own default" model id. */
 export const CODEX_DEFAULT_MODEL = "default";
 
@@ -52,6 +61,10 @@ export type CodexStatus = {
 export class CodexService {
   private signIn?: { child: ChildProcess; info: CodexSignIn; timer: NodeJS.Timeout };
   private lastSignIn?: CodexSignIn;
+  /** Saturn skills endpoints open for running turns, by the token each turn holds. */
+  private readonly bridges = new Map<string, { tools: BridgedTool[]; call: BridgedCall }>();
+  /** Approvals waiting on the user, by `${runId}:${actionId}`. */
+  private readonly pending = new Map<string, (allow: boolean) => void>();
 
   constructor(private readonly kernel: RuntimeKernel) {}
 
@@ -215,10 +228,29 @@ export class CodexService {
     return await this.status();
   }
 
+  /** The skills endpoint a bearer token opens, while the turn that holds it is running. */
+  bridge(token: string | undefined): { tools: BridgedTool[]; call: BridgedCall } | undefined {
+    for (const [key, bridge] of this.bridges) if (tokenMatches(key, token)) return bridge;
+    return undefined;
+  }
+
+  /** True while a skill call holds Codex waiting for the user's answer. */
+  waiting(runId: string, actionId: string): boolean {
+    return this.pending.has(`${runId}:${actionId}`);
+  }
+
+  /** The user's answer to an approval card. */
+  decide(runId: string, actionId: string, allow: boolean): void {
+    const resolve = this.pending.get(`${runId}:${actionId}`);
+    if (!resolve) throw new HttpError(409, "This approval is no longer waiting");
+    resolve(allow);
+  }
+
   /**
    * One turn of a Codex chat; the Codex thread is resumed from the chat's last turn. Codex's exec mode has no
    * per-command approval, so its guard rails are its own sandbox: writes only inside the chat's project
-   * folder, and no network for the commands it runs.
+   * folder, and no network for the commands it runs. The agent's Saturn skills are the exception: they run
+   * in Saturn, which asks for them by the agent's approval setting.
    */
   async run(runId: string, generation: number, agent: Agent, model: ModelConnection, signal: AbortSignal): Promise<void> {
     const run = this.kernel.getRun(runId);
@@ -250,12 +282,76 @@ export class CodexService {
       ...(model.model && model.model !== CODEX_DEFAULT_MODEL ? { model: model.model } : {}),
       ...(model.effort ? { modelReasoningEffort: model.effort } : {}),
     };
-    const codex = new Codex({ codexPathOverride: this.cli(), env: this.environment() });
+
+    // The agent's Saturn skills and MCP servers, over the runtime's /agent-mcp endpoint with a token only this
+    // turn holds. Codex approves every call itself ("approve"); Saturn asks the user here when the agent's
+    // setting is Review, as it does for the same tools on every other provider.
+    const group = run.groupId ? (this.kernel.store.state.groups ?? []).find((item) => item.id === run.groupId) : undefined;
+    const mode = approvalMode(agent, group?.autonomy);
+    const skills = bridgedTools(this.kernel, agent);
+    const bridged = { aliases: new Map<string, string>(), orphans: new Set<string>() };
+    const skillsCall: BridgedCall = async (toolId, args) => {
+      if (mode === "review") {
+        // The card goes on the action Codex already reported for this call, or on one its report adopts later.
+        let action = [...actions].reverse().find((item) => item.result === undefined && item.status === "completed" && sameCall(item, toolId, args));
+        if (!action) {
+          action = { id: newId("act"), toolId, arguments: args, status: "completed" };
+          actions.push(action);
+          bridged.orphans.add(action.id);
+        }
+        const waiting = action;
+        waiting.status = "waiting_approval";
+        waiting.reason = `${toolId} needs your approval`;
+        await save((current) => {
+          current.status = "waiting_approval";
+        });
+        this.kernel.log("agent", "info", `${agent.name} ${toolId} waiting_approval`, { "saturn.run.id": runId });
+        const key = `${runId}:${waiting.id}`;
+        const allow = await new Promise<boolean>((resolve) => {
+          this.pending.set(key, resolve);
+          signal.addEventListener("abort", () => resolve(false), { once: true });
+        }).finally(() => this.pending.delete(key));
+        waiting.status = allow ? "completed" : "denied";
+        waiting.reason = allow ? undefined : "Denied by the user";
+        await save((current) => {
+          current.status = "running";
+        });
+        if (!allow) return { ...waiting };
+      }
+      return await this.kernel.runs.executeTool({ agentId: agent.id, toolId, arguments: args, runId, actionId: newId("act"), signal });
+    };
+    const token = skills.length ? randomBytes(32).toString("hex") : undefined;
+    const codex = new Codex({
+      codexPathOverride: this.cli(),
+      env: token ? { ...this.environment(), [SKILLS_TOKEN_VARIABLE]: token } : this.environment(),
+      ...(token
+        ? {
+            config: {
+              mcp_servers: {
+                [SKILLS_SERVER]: {
+                  url: `${runtimeOrigin()}/agent-mcp`,
+                  bearer_token_env_var: SKILLS_TOKEN_VARIABLE,
+                  default_tools_approval_mode: "approve",
+                  // A Review card can wait on the user for a while.
+                  tool_timeout_sec: 3600,
+                },
+              },
+            },
+          }
+        : {}),
+    });
+    if (token) this.bridges.set(token, { tools: skills, call: skillsCall });
     const resumeId = savedSession(this.kernel, run, "codexThreadId");
     const session = resumeId ? codex.resumeThread(resumeId, options) : codex.startThread(options);
-    // The agent's instructions open a new Codex thread; a resumed thread already has them.
+    // Memory and the agent's instructions open a new Codex thread; a resumed thread already has them. What the
+    // knowledge sources return goes with every message.
+    const { memory, knowledge } = await turnContext(this.kernel, agent, run, signal);
     const instructions = agent.instructions.trim();
-    const prompt = !resumeId && instructions ? `<instructions>\n${instructions}\n</instructions>\n\n${run.input}` : run.input;
+    const opening = resumeId
+      ? ""
+      : [memory ? `<memory>\n${memory}\n</memory>` : "", instructions ? `<instructions>\n${instructions}\n</instructions>` : ""].filter(Boolean).join("\n\n");
+    const message = withKnowledge(run.input, knowledge);
+    const prompt = opening ? `${opening}\n\n${message}` : message;
 
     this.kernel.log("agent", "info", `${agent.name} asked Codex (${options.model ?? "default model"}${model.effort ? `, ${model.effort} effort` : ""}) in ${workdir}`, { "saturn.run.id": runId });
     const startedAt = Date.now();
@@ -272,7 +368,7 @@ export class CodexService {
           if (item.type === "agent_message" && done && item.text.trim()) output = output ? `${output}\n\n${item.text}` : item.text;
           else if (item.type === "reasoning" && done && item.text.trim()) thoughts.push({ text: item.text, seconds: 0, at: actions.length });
           else if (item.type === "error") logger.warn("agent", `Codex: ${item.message}`);
-          else track(actions, item);
+          else track(actions, item, bridged);
           await save(() => undefined);
         } else if (event.type === "turn.completed") {
           await this.recordUsage(runId, agent, model, event.usage);
@@ -285,6 +381,8 @@ export class CodexService {
     } catch (error) {
       if (signal.aborted) return;
       failure = errorText(error);
+    } finally {
+      if (token) this.bridges.delete(token);
     }
 
     if (threadId && threadId !== resumeId) await saveSession(this.kernel, run, "codexThreadId", threadId);
@@ -335,8 +433,11 @@ export class CodexService {
   }
 }
 
-/** Shows Codex's commands, file changes and MCP calls as the run's actions, in the chat's tool-call shape. */
-function track(actions: RunAction[], item: ThreadItem): void {
+/**
+ * Shows Codex's commands, file changes and MCP calls as the run's actions, in the chat's tool-call shape.
+ * A Saturn skill call keeps the action its approval card went on (`bridged`), under the skill's own name.
+ */
+function track(actions: RunAction[], item: ThreadItem, bridged?: { aliases: Map<string, string>; orphans: Set<string> }): void {
   let toolId: string;
   let input: Record<string, unknown>;
   let result: unknown;
@@ -352,23 +453,38 @@ function track(actions: RunAction[], item: ThreadItem): void {
     result = { output: item.changes.map((change) => `${change.kind} ${change.path}`).join("\n") };
     failed = item.status === "failed";
   } else if (item.type === "mcp_tool_call") {
-    toolId = `${item.server}.${item.tool}`;
+    toolId = item.server === SKILLS_SERVER ? item.tool : `${item.server}.${item.tool}`;
     input = (item.arguments && typeof item.arguments === "object" ? item.arguments : { value: item.arguments }) as Record<string, unknown>;
-    result = item.error ? { output: item.error.message } : { output: clipText(JSON.stringify(item.result?.content ?? ""), 4000) };
+    // No result while the call is in flight, so a Review card for it can find this action.
+    result = item.status === "in_progress" ? undefined : item.error ? { output: item.error.message } : { output: clipText(JSON.stringify(item.result?.content ?? ""), 4000) };
     failed = item.status === "failed";
   } else {
     return;
   }
-  let action = actions.find((entry) => entry.id === item.id);
+  const id = bridged?.aliases.get(item.id) ?? item.id;
+  let action = actions.find((entry) => entry.id === id);
+  if (!action && bridged && item.type === "mcp_tool_call" && item.server === SKILLS_SERVER) {
+    action = actions.find((entry) => bridged.orphans.has(entry.id) && sameCall(entry, toolId, input));
+    if (action) {
+      bridged.orphans.delete(action.id);
+      bridged.aliases.set(item.id, action.id);
+    }
+  }
   if (!action) {
     action = { id: item.id, toolId, arguments: input, status: "completed" };
     actions.push(action);
   }
   action.arguments = input;
+  // An approval card stays until the user answers it, and a denied call stays denied.
+  if (action.status === "denied" || (action.status === "waiting_approval" && item.status === "in_progress")) return;
   action.result = result;
   action.status = failed ? "failed" : "completed";
   if (failed) action.reason = clipText(typeof (result as { output?: unknown }).output === "string" ? (result as { output: string }).output : "failed", 300);
   else delete action.reason;
+}
+
+function sameCall(action: RunAction, toolId: string, args: Record<string, unknown>): boolean {
+  return action.toolId === toolId && JSON.stringify(action.arguments) === JSON.stringify(args);
 }
 
 /** The link and one-time code `codex login` prints. */
