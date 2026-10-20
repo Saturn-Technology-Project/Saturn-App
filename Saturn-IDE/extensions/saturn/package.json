@@ -1,7 +1,7 @@
 {
   "name": "saturn",
   "displayName": "Saturn",
-  "description": "Saturn IDE defaults: the Saturn theme, a Cursor-style layout, Tab completion, inline edit (Cmd+I), and the Saturn Agent panel backed by the local Saturn runtime.",
+  "description": "%description%",
   "version": "0.1.0",
   "publisher": "saturn",
   "license": "MIT",
@@ -88,54 +88,54 @@
       "window.density.layout": "compact"
     },
     "configuration": {
-      "title": "Saturn",
+      "title": "%configuration.title%",
       "properties": {
         "saturn.runtimeUrl": {
           "type": "string",
           "default": "http://127.0.0.1:4700",
-          "description": "Address of the local Saturn runtime the Agent panel talks to."
+          "description": "%saturn.runtimeUrl%"
         },
         "saturn.completions.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Suggest code as you type (Tab to accept), served by the completion model chosen in Saturn Settings → General."
+          "description": "%saturn.completions.enabled%"
         },
         "saturn.codebase.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Search the open folder for code related to each Agent panel message (ripgrep and workspace symbols) and include the best matches. Nothing leaves this machine except to your agent."
+          "description": "%saturn.codebase.enabled%"
         },
         "saturn.codebase.index": {
           "type": "boolean",
           "default": true,
-          "description": "Keep a semantic index of the project (built by the Saturn runtime with an embedding model in LM Studio), so codebase search also finds code by meaning. Everything stays on this machine."
+          "description": "%saturn.codebase.index%"
         },
         "saturn.nextEdit.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "After you change a line, suggest the next related edit nearby (press Tab to apply). Uses the completion model."
+          "description": "%saturn.nextEdit.enabled%"
         },
         "saturn.commitMessage.instructions": {
           "type": "string",
           "default": "",
           "scope": "resource",
           "editPresentation": "multilineText",
-          "markdownDescription": "Extra guidance for **Generate Commit Message** in the Source Control view, e.g. `Use Conventional Commits` or `Write in Traditional Chinese`. Without it, Saturn follows the style of the repository's recent commits."
+          "markdownDescription": "%saturn.commitMessage.instructions%"
         },
         "saturn.agentTerminal.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Mirror the commands agents run, with their output, into the read-only \"Saturn Agent\" terminal."
+          "description": "%saturn.agentTerminal.enabled%"
         },
         "saturn.verify.auto": {
           "type": "boolean",
           "default": true,
-          "description": "After an agent changes files, check the changed files for new errors and, if there are any, ask the agent to fix them (at most two rounds)."
+          "description": "%saturn.verify.auto%"
         },
         "saturn.verify.command": {
           "type": "string",
           "default": "",
-          "markdownDescription": "A command that also has to pass after an agent's changes, run in the project folder (for example `npm run typecheck`). `auto` uses the project's `typecheck` or `lint` script from package.json; empty runs only the editor's own error check."
+          "markdownDescription": "%saturn.verify.command%"
         }
       }
     },
@@ -143,7 +143,7 @@
       "secondarySidebar": [
         {
           "id": "saturn",
-          "title": "Saturn",
+          "title": "%viewsContainers.saturn%",
           "icon": "media/saturn.svg"
         }
       ]
@@ -153,13 +153,13 @@
         {
           "type": "webview",
           "id": "saturn.agent",
-          "name": "Saturn"
+          "name": "%views.saturn.agent%"
         }
       ],
       "explorer": [
         {
           "id": "saturn.runs",
-          "name": "Saturn Agents",
+          "name": "%views.saturn.runs%",
           "visibility": "collapsed"
         }
       ]
@@ -167,92 +167,92 @@
     "commands": [
       {
         "command": "saturn.focusAgent",
-        "title": "Ask Saturn",
+        "title": "%command.saturn.focusAgent%",
         "category": "Saturn",
         "icon": "media/saturn.svg"
       },
       {
         "command": "saturn.newChat",
-        "title": "New Chat",
+        "title": "%command.saturn.newChat%",
         "category": "Saturn",
         "icon": "$(add)"
       },
       {
         "command": "saturn.openApp",
-        "title": "Open Saturn App",
+        "title": "%command.saturn.openApp%",
         "category": "Saturn"
       },
       {
         "command": "saturn.openAppSettings",
-        "title": "Open Saturn Settings",
+        "title": "%command.saturn.openAppSettings%",
         "category": "Saturn"
       },
       {
         "command": "saturn.openAgentWindow",
-        "title": "Open Saturn Window",
+        "title": "%command.saturn.openAgentWindow%",
         "category": "Saturn",
         "icon": "media/saturn.svg"
       },
       {
         "command": "saturn.inlineEdit",
-        "title": "Edit with Saturn",
+        "title": "%command.saturn.inlineEdit%",
         "category": "Saturn",
         "icon": "media/saturn.svg"
       },
       {
         "command": "saturn.inlineEdit.accept",
-        "title": "Accept AI Edit",
+        "title": "%command.saturn.inlineEdit.accept%",
         "category": "Saturn"
       },
       {
         "command": "saturn.inlineEdit.reject",
-        "title": "Reject AI Edit",
+        "title": "%command.saturn.inlineEdit.reject%",
         "category": "Saturn"
       },
       {
         "command": "saturn.inlineEdit.cancel",
-        "title": "Cancel AI Edit",
+        "title": "%command.saturn.inlineEdit.cancel%",
         "category": "Saturn"
       },
       {
         "command": "saturn.git.generateCommitMessage",
-        "title": "Generate Commit Message",
+        "title": "%command.saturn.git.generateCommitMessage%",
         "category": "Saturn",
         "icon": "$(sparkle)"
       },
       {
         "command": "saturn.toggleCompletions",
-        "title": "Toggle Tab Completion",
+        "title": "%command.saturn.toggleCompletions%",
         "category": "Saturn"
       },
       {
         "command": "saturn.showAgentTerminal",
-        "title": "Show Agent Terminal",
+        "title": "%command.saturn.showAgentTerminal%",
         "category": "Saturn"
       },
       {
         "command": "saturn.nextEdit.accept",
-        "title": "Accept Next Edit Suggestion",
+        "title": "%command.saturn.nextEdit.accept%",
         "category": "Saturn"
       },
       {
         "command": "saturn.nextEdit.dismiss",
-        "title": "Dismiss Next Edit Suggestion",
+        "title": "%command.saturn.nextEdit.dismiss%",
         "category": "Saturn"
       },
       {
         "command": "saturn.editRules",
-        "title": "Edit Project Rules",
+        "title": "%command.saturn.editRules%",
         "category": "Saturn"
       },
       {
         "command": "saturn.openAgentChat",
-        "title": "Open Agent Chat",
+        "title": "%command.saturn.openAgentChat%",
         "category": "Saturn"
       },
       {
         "command": "saturn.fixWithAgent",
-        "title": "Fix with Saturn",
+        "title": "%command.saturn.fixWithAgent%",
         "category": "Saturn"
       }
     ],
@@ -347,6 +347,94 @@
         "command": "saturn.nextEdit.dismiss",
         "when": "saturn.nextEditPending && editorTextFocus && !inlineSuggestionVisible && !suggestWidgetVisible"
       }
+    ],
+    "walkthroughs": [
+      {
+        "id": "saturn.welcome",
+        "title": "%walkthrough.title%",
+        "description": "%walkthrough.description%",
+        "steps": [
+          {
+            "id": "connect",
+            "title": "%walkthrough.connect.title%",
+            "description": "%walkthrough.connect.description%",
+            "media": {
+              "markdown": "media/walkthrough/connect.md"
+            },
+            "completionEvents": [
+              "onContext:saturn.runtimeConnected"
+            ]
+          },
+          {
+            "id": "chat",
+            "title": "%walkthrough.chat.title%",
+            "description": "%walkthrough.chat.description%",
+            "media": {
+              "markdown": "media/walkthrough/chat.md"
+            },
+            "completionEvents": [
+              "onCommand:saturn.focusAgent"
+            ]
+          },
+          {
+            "id": "inline",
+            "title": "%walkthrough.inline.title%",
+            "description": "%walkthrough.inline.description%",
+            "media": {
+              "markdown": "media/walkthrough/inline.md"
+            },
+            "completionEvents": [
+              "onCommand:saturn.inlineEdit"
+            ]
+          },
+          {
+            "id": "tab",
+            "title": "%walkthrough.tab.title%",
+            "description": "%walkthrough.tab.description%",
+            "media": {
+              "markdown": "media/walkthrough/tab.md"
+            },
+            "completionEvents": [
+              "onCommand:saturn.openAppSettings",
+              "onSettingChanged:saturn.completions.enabled"
+            ]
+          },
+          {
+            "id": "index",
+            "title": "%walkthrough.index.title%",
+            "description": "%walkthrough.index.description%",
+            "media": {
+              "markdown": "media/walkthrough/index.md"
+            },
+            "completionEvents": [
+              "onContext:saturn.indexReady"
+            ]
+          },
+          {
+            "id": "rules",
+            "title": "%walkthrough.rules.title%",
+            "description": "%walkthrough.rules.description%",
+            "media": {
+              "markdown": "media/walkthrough/rules.md"
+            },
+            "completionEvents": [
+              "onCommand:saturn.editRules"
+            ]
+          },
+          {
+            "id": "background",
+            "title": "%walkthrough.background.title%",
+            "description": "%walkthrough.background.description%",
+            "media": {
+              "markdown": "media/walkthrough/background.md"
+            },
+            "completionEvents": [
+              "onView:saturn.runs"
+            ]
+          }
+        ]
+      }
     ]
-  }
+  },
+  "l10n": "./l10n"
 }

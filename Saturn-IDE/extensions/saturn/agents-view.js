@@ -82,7 +82,7 @@ class AgentsView {
 					// Asked once per run: the approval card is in its chat.
 					if (!this.followed.get(runId)?.asked) {
 						this.followed.set(runId, { ...where, asked: true });
-						void vscode.window.showInformationMessage(`A background agent needs your approval: ${run.threadTitle.replace(/^⧉ /, '')}`, 'Open Chat').then((choice) => {
+						void vscode.window.showInformationMessage(vscode.l10n.t('A background agent needs your approval: {0}', run.threadTitle.replace(/^⧉ /, '')), vscode.l10n.t('Open Chat')).then((choice) => {
 							if (choice) void this.openChat(where.agentId, where.threadId);
 						});
 					}
@@ -99,10 +99,12 @@ class AgentsView {
 	/** @param {RunSummary} run @param {{ threadId: string, agentId: string }} where */
 	async announce(run, where) {
 		const title = run.threadTitle.replace(/^⧉ /, '');
-		const files = run.changedFiles ? ` · ${run.changedFiles} file${run.changedFiles === 1 ? '' : 's'} changed${run.branch ? ` on ${run.branch}` : ''}` : '';
-		const message = run.status === 'completed' ? `Background agent finished: ${title}${files}` : `Background agent ${run.status === 'failed' ? 'failed' : 'stopped'}: ${title}`;
+		const files = run.changedFiles ? ` · ${vscode.l10n.t('{0} file(s) changed', run.changedFiles)}${run.branch ? ` (${run.branch})` : ''}` : '';
+		const message = run.status === 'completed'
+			? vscode.l10n.t('Background agent finished: {0}', title) + files
+			: run.status === 'failed' ? vscode.l10n.t('Background agent failed: {0}', title) : vscode.l10n.t('Background agent stopped: {0}', title);
 		const show = run.status === 'completed' ? vscode.window.showInformationMessage : vscode.window.showWarningMessage;
-		const choice = await show(message, 'Open Chat');
+		const choice = await show(message, vscode.l10n.t('Open Chat'));
 		if (choice) {
 			await this.openChat(where.agentId, where.threadId);
 		}
@@ -111,7 +113,7 @@ class AgentsView {
 	/** @param {RunSummary} run */
 	getTreeItem(run) {
 		const item = new vscode.TreeItem(run.threadTitle.replace(/^⧉ /, ''), vscode.TreeItemCollapsibleState.None);
-		const state = { running: 'working', queued: 'queued', waiting_approval: 'needs approval', sleeping: 'waiting', completed: 'done', failed: 'failed', cancelled: 'stopped' }[run.status] || run.status;
+		const state = vscode.l10n.t({ running: 'working', queued: 'queued', waiting_approval: 'needs approval', sleeping: 'waiting', completed: 'done', failed: 'failed', cancelled: 'stopped' }[run.status] || run.status);
 		item.description = `${run.agentName} · ${state}${run.changedFiles ? ` · ${run.changedFiles} file${run.changedFiles === 1 ? '' : 's'}` : ''}`;
 		item.tooltip = new vscode.MarkdownString(`**${run.agentName}** — ${state}${run.branch ? `\n\nBranch \`${run.branch}\`` : ''}\n\n${run.input}`);
 		item.iconPath = new vscode.ThemeIcon(
@@ -163,7 +165,7 @@ const RULES_TEMPLATE = `# Instructions for agents
  */
 async function editRules(folder) {
 	if (!folder) {
-		void vscode.window.showInformationMessage('Open a folder first: project rules live in the project.');
+		void vscode.window.showInformationMessage(vscode.l10n.t('Open a folder first: project rules live in the project.'));
 		return;
 	}
 	const root = vscode.Uri.file(folder);

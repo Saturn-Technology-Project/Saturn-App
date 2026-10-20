@@ -235,15 +235,15 @@ async function symbolFiles(words) {
  */
 async function pickContext(folder) {
 	const choice = await vscode.window.showQuickPick([
-		{ label: '$(file) Files…', description: 'Attach files from the project', kind: 'files' },
-		{ label: '$(folder) Folder…', description: 'Attach a folder\'s file list', kind: 'folder' },
-		{ label: '$(git-compare) Git changes', description: 'Attach the uncommitted diff', kind: 'git' },
-		{ label: '$(error) Problems in this file', description: 'Errors and warnings the language servers report for the open file', kind: 'problems-file' },
-		{ label: '$(warning) All problems', description: 'Every error and warning in the workspace (the Problems panel)', kind: 'problems' },
-		{ label: '$(terminal) Terminal output', description: 'The last commands run in the terminal, with exit codes and output', kind: 'terminal' },
-		{ label: '$(files) Open editors', description: 'The files open in editor tabs', kind: 'open-editors' },
-		{ label: '$(globe) Web page…', description: 'Attach the text of a URL', kind: 'web' },
-	], { placeHolder: 'Attach context to the next message' });
+		{ label: `$(file) ${vscode.l10n.t('Files…')}`, description: vscode.l10n.t('Attach files from the project'), kind: 'files' },
+		{ label: `$(folder) ${vscode.l10n.t('Folder…')}`, description: vscode.l10n.t("Attach a folder's file list"), kind: 'folder' },
+		{ label: `$(git-compare) ${vscode.l10n.t('Git changes')}`, description: vscode.l10n.t('Attach the uncommitted diff'), kind: 'git' },
+		{ label: `$(error) ${vscode.l10n.t('Problems in this file')}`, description: vscode.l10n.t('Errors and warnings the language servers report for the open file'), kind: 'problems-file' },
+		{ label: `$(warning) ${vscode.l10n.t('All problems')}`, description: vscode.l10n.t('Every error and warning in the workspace (the Problems panel)'), kind: 'problems' },
+		{ label: `$(terminal) ${vscode.l10n.t('Terminal output')}`, description: vscode.l10n.t('The last commands run in the terminal, with exit codes and output'), kind: 'terminal' },
+		{ label: `$(files) ${vscode.l10n.t('Open editors')}`, description: vscode.l10n.t('The files open in editor tabs'), kind: 'open-editors' },
+		{ label: `$(globe) ${vscode.l10n.t('Web page…')}`, description: vscode.l10n.t('Attach the text of a URL'), kind: 'web' },
+	], { placeHolder: vscode.l10n.t('Attach context to the next message') });
 	if (!choice) {
 		return [];
 	}
