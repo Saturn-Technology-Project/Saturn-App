@@ -1,7 +1,9 @@
 import { HttpError } from "../domain/errors.js";
 import type { ModelConnection } from "../domain/model.js";
 import { textOf } from "../domain/policies.js";
+import { cutAtStop, fimFormat } from "../domain/fim.js";
 import type { ChatMessage } from "../infrastructure/llm.js";
+import { logger } from "../infrastructure/logger.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 /** Usage from Saturn IDE's editor features is filed under this pseudo-agent. */
@@ -41,6 +43,11 @@ export type CompletionRequest = {
   branch?: string;
   /** Commit only: what the user already typed in the commit box, to keep their intent. */
   draft?: string;
+  /**
+   * Inline only: the user's last few edits in this file (newest last), as the changed lines before and after.
+   * What the user is doing, not only where the cursor is: a rename in progress predicts the next occurrence.
+   */
+  recentEdits?: { line: number; before: string; after: string }[];
   /** Overrides Settings → General → Completion model. */
   modelId?: string;
   maxTokens?: number;
@@ -48,7 +55,7 @@ export type CompletionRequest = {
 
 export type CompletionResult = { text: string; modelId: string; model: string };
 
-const LIMITS = { prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000, file: 60000, window: 12000, diff: 60000, files: 8000, draft: 2000 };
+const LIMITS = { edits: 1200, prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000, file: 60000, window: 12000, diff: 60000, files: 8000, draft: 2000 };
 const KINDS = ["inline", "edit", "apply", "next", "commit"] as const;
 /** Output budget per kind; Apply returns a whole file. */
 const MAX_OUTPUT = { inline: 1024, block: 2048, edit: 4096, apply: 16000, next: 1024, commit: 2048 };
@@ -67,6 +74,64 @@ export class CompletionService {
       throw new HttpError(409, `${model.name} runs through ${through} and cannot serve completions. Choose an API model.`);
     }
     return model;
+  }
+
+  /**
+   * Tab completion, streamed line by line so the editor can show the first line while the rest is generated. A
+   * fill-in-the-middle model (Qwen-Coder, Codestral, DeepSeek-Coder…) gets its native FIM prompt through the
+   * provider's raw completion endpoint; any other model gets the chat prompt. Either way the stream ends at the
+   * first line that repeats what already follows the cursor.
+   */
+  async *completeInlineStream(input: CompletionRequest, signal?: AbortSignal): AsyncGenerator<{ text: string; done?: boolean; model?: string }> {
+    const model = this.model(input.modelId);
+    const maxOutput = input.mode === "block" ? MAX_OUTPUT.block : MAX_OUTPUT.inline;
+    const suffix = String(input.suffix ?? "");
+    const adapter = this.kernel.llm.adapterFor(model);
+    const fim = fimFormat(model.model || model.name);
+    const stream = fim && adapter.completeRaw
+      ? adapter.completeRaw({
+          model: model.model || model.name,
+          baseUrl: model.baseUrl,
+          apiKey: this.kernel.llm.keyFor(model),
+          prompt: fim.prompt(fimPrefix(input), clip(suffix, LIMITS.suffix, "start")),
+          stops: fim.stops,
+          maxOutput,
+          temperature: 0,
+          signal,
+        })
+      : this.chatStream(model, inlinePrompt(input), maxOutput, signal);
+    logger.debug("completions", `inline via ${fim && adapter.completeRaw ? `FIM (${fim.family})` : "chat"} on ${model.model || model.name}`);
+    let buffer = "";
+    let sent = 0;
+    for await (const piece of stream) {
+      if (signal?.aborted) return;
+      buffer += piece;
+      if (fim) buffer = cutAtStop(buffer, fim.stops);
+      // Hand over whole lines as they complete; the last (unterminated) line waits for the next piece.
+      const trimmed = trimInline(buffer, suffix);
+      const stoppedEarly = trimmed.length < buffer.length;
+      const complete = stoppedEarly ? trimmed : trimmed.slice(0, trimmed.lastIndexOf("\n") + 1);
+      if (complete.length > sent) {
+        yield { text: complete.slice(sent) };
+        sent = complete.length;
+      }
+      if (stoppedEarly || (fim && buffer.length < cutAtStop(buffer, fim.stops).length)) break;
+    }
+    const final = trimInline(fim ? cutAtStop(buffer, fim.stops) : stripFences(buffer), suffix).replace(/\n+$/, "");
+    yield { text: final.length > sent ? final.slice(sent) : "", done: true, model: model.model || model.name };
+  }
+
+  /** A chat model's answer as a stream of text (whole at once when the adapter cannot stream). */
+  private async *chatStream(model: ModelConnection, messages: ChatMessage[], maxOutput: number, signal?: AbortSignal): AsyncGenerator<string> {
+    const body = await this.kernel.llm.complete(model, {
+      context: { agentId: IDE_AGENT_ID, agentName: IDE_AGENT_NAME, purpose: "completion" },
+      temperature: 0,
+      maxOutput,
+      thinking: "low",
+      messages,
+      signal,
+    });
+    yield stripFences(textOf(body));
   }
 
   async complete(input: CompletionRequest, signal?: AbortSignal): Promise<CompletionResult> {
@@ -113,9 +178,31 @@ function fileLine(input: CompletionRequest): string {
   return input.path ? `File: ${input.path}${language}` : `Language: ${input.language || "plain text"}`;
 }
 
+/** The user's recent edits in this file as a short unified-diff-like note, for the model to read intent from. */
+function recentEditsText(input: CompletionRequest): string {
+  const edits = (input.recentEdits ?? []).filter((edit) => edit.before.trim() !== edit.after.trim()).slice(-4);
+  if (!edits.length) return "";
+  const lines = edits.flatMap((edit) => [
+    `@@ line ${edit.line} @@`,
+    ...edit.before.split("\n").filter((line) => line.trim()).map((line) => `- ${line}`),
+    ...edit.after.split("\n").filter((line) => line.trim()).map((line) => `+ ${line}`),
+  ]);
+  return clip(lines.join("\n"), LIMITS.edits, "end");
+}
+
+/** The FIM prefix: the file's recent edits as a comment header (code models read diffs well), then the code. */
+function fimPrefix(input: CompletionRequest): string {
+  const prefix = clip(input.prefix, LIMITS.prefix, "end");
+  const edits = recentEditsText(input);
+  if (!edits) return prefix;
+  const header = `// Recent edits in this file:\n${edits.split("\n").map((line) => `// ${line}`).join("\n")}\n\n`;
+  return header + prefix;
+}
+
 function inlinePrompt(input: CompletionRequest): ChatMessage[] {
   const prefix = clip(input.prefix, LIMITS.prefix, "end");
   const suffix = clip(input.suffix, LIMITS.suffix, "start");
+  const edits = recentEditsText(input);
   return [
     {
       role: "system",
@@ -128,7 +215,7 @@ function inlinePrompt(input: CompletionRequest): ChatMessage[] {
         "Reply with nothing when no completion is useful.",
       ].join("\n"),
     },
-    { role: "user", content: `${fileLine(input)}\n\n${prefix}<CURSOR>${suffix}` },
+    { role: "user", content: `${fileLine(input)}${edits ? `\n\nThe user's recent edits in this file (what they are doing now):\n${edits}` : ""}\n\n${prefix}<CURSOR>${suffix}` },
   ];
 }
 

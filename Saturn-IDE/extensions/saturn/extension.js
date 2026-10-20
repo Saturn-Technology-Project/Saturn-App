@@ -32,6 +32,41 @@ class Runtime {
 		}
 	}
 
+	/**
+	 * A streaming request: the runtime answers with one JSON object per line (NDJSON); each is yielded as it
+	 * arrives. A line with `error` ends the stream with that error.
+	 * @param {string} path @param {RequestInit} [init]
+	 */
+	async *stream(path, init) {
+		const token = this.token();
+		const response = await fetch(this.base() + path, {
+			...init,
+			headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...(init && init.headers) },
+		});
+		if (!response.ok || !response.body) {
+			const text = await response.text().catch(() => '');
+			let body;
+			try { body = text ? JSON.parse(text) : undefined; } catch { body = undefined; }
+			throw new Error((body && (body.error || body.message)) || `Saturn runtime returned ${response.status}`);
+		}
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let buffered = '';
+		for (;;) {
+			const { value, done } = await reader.read();
+			buffered += decoder.decode(value || new Uint8Array(), { stream: !done });
+			const lines = buffered.split('\n');
+			buffered = lines.pop() || '';
+			for (const line of lines) {
+				if (!line.trim()) { continue; }
+				const item = JSON.parse(line);
+				if (item && item.error) { throw new Error(String(item.error)); }
+				yield item;
+			}
+			if (done) { return; }
+		}
+	}
+
 	/** @param {string} path @param {RequestInit} [init] */
 	async request(path, init) {
 		const token = this.token();
@@ -144,6 +179,19 @@ class AgentView {
 		);
 	}
 
+	/**
+	 * Keeps the project's semantic index current: a (incremental) pass when the project is known, and the saved
+	 * file after each save. Failures are the runtime's to log; the index is a help, not a requirement.
+	 * @param {string[]} [paths]
+	 */
+	reindex(paths) {
+		const projectId = this.projectId();
+		if (!projectId || vscode.workspace.getConfiguration('saturn').get('codebase.index', true) === false) {
+			return;
+		}
+		void this.runtime.request(`/projects/${encodeURIComponent(projectId)}/index`, { method: 'POST', body: JSON.stringify(paths ? { paths } : {}) }).catch(() => undefined);
+	}
+
 	/** The project id runs are sent with: only once the workspace folder is a Saturn project with access. */
 	projectId() {
 		return this.project && this.project.id && this.project.access ? this.project.id : undefined;
@@ -164,6 +212,7 @@ class AgentView {
 			? { id: match.id, name: match.name, path: match.path, access: Boolean(match.access) }
 			: { name: folder.name, path: folderPath, access: false };
 		this.post({ type: 'project', state: this.projectId() ? 'ready' : 'needs-access', name: this.project.name, path: this.project.path });
+		this.reindex();
 	}
 
 	/** The user's consent, in a native modal, before agents may read, change or run anything in the folder. */
@@ -242,7 +291,12 @@ class AgentView {
 		}
 		const codebaseOn = vscode.workspace.getConfiguration('saturn').get('codebase.enabled', true) !== false;
 		if (message.codebase !== false && codebaseOn && folder) {
-			const found = await agentTools.retrieve(message.text, folder).catch(() => ({ text: '', files: [] }));
+			const projectId = this.projectId();
+			// The project's semantic index, when the runtime has one (LM Studio with an embedding model).
+			const semantic = projectId
+				? (/** @param {string} query */ (query) => this.runtime.request(`/projects/${encodeURIComponent(projectId)}/index/search?q=${encodeURIComponent(query)}&limit=12`))
+				: undefined;
+			const found = await agentTools.retrieve(message.text, folder, undefined, semantic).catch(() => ({ text: '', files: [] }));
 			if (found.text) {
 				sections.push(`<codebase_context>\n${found.text}\n</codebase_context>`);
 				sources.push(`codebase: ${found.files.length} file${found.files.length === 1 ? '' : 's'}`);
@@ -3086,6 +3140,11 @@ function activate(context) {
 		shared.terminal,
 		vscode.commands.registerCommand('saturn.showAgentTerminal', () => shared.terminal.ensure().show()),
 		vscode.window.registerWebviewViewProvider('saturn.agent', view, { webviewOptions: { retainContextWhenHidden: true } }),
+		vscode.workspace.onDidSaveTextDocument((document) => {
+			if (document.uri.scheme === 'file') {
+				view.reindex([vscode.workspace.asRelativePath(document.uri)]);
+			}
+		}),
 		{ dispose: () => view.dispose() },
 		vscode.commands.registerCommand('saturn.focusAgent', async () => {
 			await vscode.commands.executeCommand('saturn.agent.focus');

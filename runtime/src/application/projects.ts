@@ -344,6 +344,13 @@ export class ProjectService {
    * The folder a project's chats work in. Refuses until the user has granted access, so an agent never
    * touches a folder the user did not explicitly allow.
    */
+  /** Where a chat's agent works: the chat's own worktree when it has one, else the project folder. */
+  workdirFor(thread: { projectId?: string; id: string; worktree?: { branch: string; base: string } } | undefined): string | undefined {
+    if (!thread?.projectId) return undefined;
+    const root = this.workdir(thread.projectId);
+    return this.kernel.worktrees.pathOf(thread) ?? root;
+  }
+
   workdir(projectId: string): string {
     const project = (this.kernel.store.state.projects ?? []).find((item) => item.id === projectId);
     if (!project) throw new HttpError(404, "This chat's project was removed. Add the folder again to keep working in it.");

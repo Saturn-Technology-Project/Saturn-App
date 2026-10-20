@@ -223,7 +223,7 @@ export class CodexService {
   async run(runId: string, generation: number, agent: Agent, model: ModelConnection, signal: AbortSignal): Promise<void> {
     const run = this.kernel.getRun(runId);
     const thread = run.threadId ? (this.kernel.store.state.threads ?? []).find((item) => item.id === run.threadId) : undefined;
-    const workdir = thread?.projectId ? this.kernel.projects.workdir(thread.projectId) : path.join(this.kernel.store.root, "workspace");
+    const workdir = this.kernel.projects.workdirFor(thread) ?? path.join(this.kernel.store.root, "workspace");
     await mkdir(workdir, { recursive: true });
     await mkdir(this.configDir(), { recursive: true, mode: 0o700 });
 

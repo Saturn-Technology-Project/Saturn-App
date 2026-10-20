@@ -105,6 +105,11 @@
           "default": true,
           "description": "Search the open folder for code related to each Agent panel message (ripgrep and workspace symbols) and include the best matches. Nothing leaves this machine except to your agent."
         },
+        "saturn.codebase.index": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep a semantic index of the project (built by the Saturn runtime with an embedding model in LM Studio), so codebase search also finds code by meaning. Everything stays on this machine."
+        },
         "saturn.nextEdit.enabled": {
           "type": "boolean",
           "default": true,

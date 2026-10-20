@@ -141,3 +141,114 @@ test("POST /complete writes a commit message from the diff, recent commits and d
     provider.close();
   }
 });
+
+test("Tab completion streams line by line, speaks a code model's FIM format, and stops where the suffix resumes", async () => {
+  const { fimFormat, cutAtStop } = await import("../src/domain/fim.js");
+  assert.equal(fimFormat("qwen2.5-coder-7b-instruct")?.family, "qwen-coder");
+  assert.equal(fimFormat("Codestral-22B-v0.1")?.family, "codestral");
+  assert.equal(fimFormat("gpt-4.1-mini"), undefined);
+  assert.equal(cutAtStop("foo();\n<|fim_pad|>bar", ["<|fim_pad|>"]), "foo();\n");
+
+  // A raw-completion server (the legacy /completions endpoint) that records the prompt and streams a body.
+  const prompts: string[] = [];
+  const server = createServer((req, res) => {
+    let raw = "";
+    req.on("data", (chunk) => (raw += chunk));
+    req.on("end", () => {
+      const body = JSON.parse(raw) as { prompt: string; stop: string[] };
+      prompts.push(body.prompt);
+      res.setHeader("content-type", "text/event-stream");
+      const pieces = ["  return a", " + b;\n", "}\n", "\nfunction next() {}", "<|fim_pad|>junk"];
+      for (const text of pieces) res.write(`data: ${JSON.stringify({ choices: [{ text, index: 0 }] })}\n\n`);
+      res.write("data: [DONE]\n\n");
+      res.end();
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("no port");
+    const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-fim-")));
+    await store.load();
+    const { app, services } = createApp(store);
+    const model = await services.createModel({ name: "Coder", provider: "openai", model: "qwen2.5-coder-1.5b", baseUrl: `http://127.0.0.1:${address.port}` });
+    await services.updateSettings({ completionModelId: model.id });
+
+    const listening = app.listen(0, "127.0.0.1");
+    await new Promise<void>((resolve) => listening.once("listening", () => resolve()));
+    try {
+      const port = (listening.address() as { port: number }).port;
+      useRuntimeAuth(`http://127.0.0.1:${port}`);
+      const response = await fetch(`http://127.0.0.1:${port}/complete/stream`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          language: "typescript",
+          path: "src/add.ts",
+          prefix: "function add(a: number, b: number) {\n",
+          suffix: "\nfunction next() {}\n",
+          recentEdits: [{ line: 1, before: "function sum(a, b) {", after: "function add(a: number, b: number) {" }],
+        }),
+      });
+      assert.equal(response.headers.get("content-type"), "application/x-ndjson");
+      const lines = (await response.text()).trim().split("\n").map((line) => JSON.parse(line) as { text: string; done?: boolean; model?: string });
+      assert.deepEqual(lines.map((line) => line.text), ["  return a + b;\n", "}\n", ""], "whole lines as they arrive; the echoed suffix and the stop token are cut");
+      assert.equal(lines.at(-1)?.done, true);
+      assert.equal(lines.at(-1)?.model, "qwen2.5-coder-1.5b");
+    } finally {
+      await new Promise((resolve) => listening.close(() => resolve(undefined)));
+    }
+    assert.equal(prompts.length, 1);
+    assert.match(prompts[0]!, /^<\|fim_prefix\|>\/\/ Recent edits in this file:\n\/\/ @@ line 1 @@\n\/\/ - function sum\(a, b\) \{\n\/\/ \+ function add/, "recent edits lead the FIM prefix");
+    assert.match(prompts[0]!, /<\|fim_prefix\|>[\s\S]*<\|fim_suffix\|>\nfunction next\(\) \{\}\n<\|fim_middle\|>$/, "Qwen's FIM tokens");
+  } finally {
+    server.close();
+  }
+});
+
+test("the code index splits files into declarations, ranks chunks by cosine similarity, and reports its state", async () => {
+  const { chunkFile } = await import("../src/domain/chunks.js");
+  const { cosine } = await import("../src/application/index.js");
+  const source = [
+    "import x from 'x';",
+    "",
+    "/** Adds two numbers. */",
+    "export function add(a: number, b: number) {",
+    "  return a + b;",
+    "}",
+    "",
+    "export class Counter {",
+    "  count = 0;",
+    "  bump() { this.count += 1; }",
+    "}",
+    "",
+    "const helper = () => 1;",
+  ].join("\n");
+  const chunks = chunkFile("src/math.ts", source);
+  assert.deepEqual(chunks.map((chunk) => [chunk.name, chunk.start, chunk.end]), [[undefined, 1, 2], ["add", 3, 7], ["Counter", 8, 12], ["helper", 13, 13]], "one chunk per declaration, with its doc comment");
+  assert.equal(chunks[1]!.text.split("\n")[0], "/** Adds two numbers. */");
+  const windows = chunkFile("notes.md", Array.from({ length: 130 }, (_, i) => `line ${i + 1}`).join("\n"));
+  assert.deepEqual(windows.map((chunk) => [chunk.start, chunk.end]), [[1, 60], [51, 110], [101, 130]], "files without declarations get overlapping windows");
+  assert.equal(cosine(new Float32Array([1, 0]), new Float32Array([1, 0])), 1);
+  assert.equal(Math.round(cosine(new Float32Array([1, 0]), new Float32Array([0, 1])) * 100), 0);
+
+  const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-index-")));
+  await store.load();
+  const { app, services } = createApp(store);
+  const folder = await mkdtemp(path.join(os.tmpdir(), "saturn-index-project-"));
+  const project = await services.createProject({ name: "P", path: folder });
+  const listening = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => listening.once("listening", () => resolve()));
+  try {
+    const port = (listening.address() as { port: number }).port;
+    useRuntimeAuth(`http://127.0.0.1:${port}`);
+    const status = (await (await fetch(`http://127.0.0.1:${port}/projects/${project.id}/index`)).json()) as { state: string; files: number };
+    assert.deepEqual([status.state, status.files], ["empty", 0]);
+    // No LM Studio in tests: a search says so instead of failing silently.
+    const search = await fetch(`http://127.0.0.1:${port}/projects/${project.id}/index/search?q=adds+numbers`);
+    assert.equal(search.status, 503);
+    assert.match(((await search.json()) as { error: string }).error, /LM Studio is not running/);
+  } finally {
+    await new Promise((resolve) => listening.close(() => resolve(undefined)));
+  }
+});

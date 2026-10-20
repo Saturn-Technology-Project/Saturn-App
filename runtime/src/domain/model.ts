@@ -113,6 +113,8 @@ export type Conversation = {
   claudeSessionId?: string;
   /** The Codex thread behind this chat (Codex models), resumed on the next message. */
   codexThreadId?: string;
+  /** Set while this chat works in its own git worktree and branch (see application/worktrees.ts). */
+  worktree?: { branch: string; base: string };
   title: string;
   createdAt: string;
   updatedAt: string;

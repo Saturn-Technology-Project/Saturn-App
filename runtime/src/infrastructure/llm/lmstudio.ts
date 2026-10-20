@@ -1,6 +1,6 @@
 import { LMStudioClient } from "@lmstudio/sdk";
 import { choice, plainMessages, untilAbort } from "./shared.js";
-import type { ProviderAdapter } from "./types.js";
+import type { ProviderAdapter, RawRequest } from "./types.js";
 
 function socket(baseUrl: string): string {
   if (baseUrl.startsWith("ws://") || baseUrl.startsWith("wss://")) return baseUrl.replace(/\/$/, "");
@@ -12,6 +12,7 @@ function socket(baseUrl: string): string {
 /** LM Studio runs locally and does not take tool definitions here. */
 export const lmStudio: ProviderAdapter = {
   id: "lmstudio",
+  completeRaw: lmStudioRaw,
   async complete(request) {
     const client = new LMStudioClient({
       baseUrl: socket(request.baseUrl),
@@ -36,6 +37,26 @@ export const lmStudio: ProviderAdapter = {
     }
   },
 };
+
+/** The model's raw completion of `prompt`, fragment by fragment. */
+export async function* lmStudioRaw(request: RawRequest): AsyncIterable<string> {
+  const client = new LMStudioClient({ baseUrl: socket(request.baseUrl), apiToken: request.apiKey || undefined });
+  try {
+    const model = await client.llm.model(request.model);
+    const prediction = model.complete(request.prompt, {
+      maxTokens: request.maxOutput,
+      stopStrings: request.stops,
+      temperature: request.temperature === undefined ? undefined : Math.min(1, request.temperature),
+    });
+    request.signal?.addEventListener("abort", () => prediction.cancel(), { once: true });
+    for await (const fragment of prediction) {
+      if (request.signal?.aborted) return;
+      if (fragment.content) yield fragment.content;
+    }
+  } finally {
+    void client[Symbol.asyncDispose]().catch(() => undefined);
+  }
+}
 
 export async function listLmStudioModels(baseUrl: string): Promise<{ id: string; label: string }[]> {
   const client = new LMStudioClient({ baseUrl: socket(baseUrl) });

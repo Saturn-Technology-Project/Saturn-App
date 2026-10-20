@@ -53,4 +53,20 @@ export type ChatRequest = {
 export type ProviderAdapter = {
   id: string;
   complete(request: ChatRequest): Promise<Record<string, unknown>>;
+  /**
+   * A raw text completion of `prompt` (no chat turns), streamed as it is generated and ended by any of `stops`.
+   * For fill-in-the-middle code models; adapters whose provider has no raw endpoint leave it out.
+   */
+  completeRaw?(request: RawRequest): AsyncIterable<string>;
+};
+
+export type RawRequest = {
+  model: string;
+  baseUrl: string;
+  apiKey?: string;
+  prompt: string;
+  stops: string[];
+  maxOutput: number;
+  temperature?: number;
+  signal?: AbortSignal;
 };

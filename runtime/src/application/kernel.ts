@@ -29,6 +29,8 @@ import { MarketplaceService } from "./marketplace.js";
 import { ProjectService } from "./projects.js";
 import { ClaudeCodeService } from "./claude-code.js";
 import { CodexService } from "./codex.js";
+import { IndexService } from "./index.js";
+import { WorktreeService } from "./worktrees.js";
 import { CheckpointService } from "./checkpoints.js";
 import { CompletionService } from "./completions.js";
 import { GroupService } from "./groups.js";
@@ -47,6 +49,8 @@ export class RuntimeKernel {
   readonly projects: ProjectService;
   readonly claudeCode: ClaudeCodeService;
   readonly codex: CodexService;
+  readonly index: IndexService;
+  readonly worktrees: WorktreeService;
   readonly checkpoints: CheckpointService;
   readonly completions: CompletionService;
   readonly groups: GroupService;
@@ -71,6 +75,8 @@ export class RuntimeKernel {
     this.projects = new ProjectService(this);
     this.claudeCode = new ClaudeCodeService(this);
     this.codex = new CodexService(this);
+    this.index = new IndexService(this);
+    this.worktrees = new WorktreeService(this);
     this.checkpoints = new CheckpointService(this);
     this.completions = new CompletionService(this);
     this.groups = new GroupService(this);

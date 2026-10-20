@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { HttpError } from "../domain/errors.js";
 import type { AppServices } from "../application/services.js";
 import { param, respond } from "./http.js";
 
@@ -20,6 +21,28 @@ export function mountRuns(app: Express, services: AppServices): void {
       if (!res.writableEnded) stop.abort();
     });
     respond(res, next, () => services.kernel.completions.complete(req.body ?? {}, stop.signal));
+  });
+
+  // Tab completion as a stream: one JSON line per piece of text, the last with done: true (or an error line).
+  app.post("/complete/stream", async (req, res) => {
+    const stop = new AbortController();
+    res.on("close", () => {
+      if (!res.writableEnded) stop.abort();
+    });
+    res.setHeader("content-type", "application/x-ndjson");
+    res.setHeader("cache-control", "no-cache");
+    try {
+      for await (const piece of services.kernel.completions.completeInlineStream({ ...(req.body ?? {}), kind: "inline" }, stop.signal)) {
+        if (stop.signal.aborted) break;
+        res.write(`${JSON.stringify(piece)}\n`);
+      }
+    } catch (error) {
+      if (!stop.signal.aborted) {
+        const status = error instanceof HttpError ? error.status : 500;
+        res.write(`${JSON.stringify({ error: error instanceof Error ? error.message : String(error), status })}\n`);
+      }
+    }
+    res.end();
   });
 
   app.get("/tasks", (_req, res, next) => {
@@ -44,6 +67,23 @@ export function mountRuns(app: Express, services: AppServices): void {
 
   app.delete("/threads/:id", (req, res, next) => {
     respond(res, next, () => services.deleteThread(param(req.params.id)), 204);
+  });
+
+  // A chat's own git worktree: create it, read its state, and finish it (merge, keep the branch, or discard).
+  app.post("/threads/:id/worktree", (req, res, next) => {
+    respond(res, next, () => services.kernel.worktrees.create(param(req.params.id)), 201);
+  });
+
+  app.get("/threads/:id/worktree", (req, res, next) => {
+    respond(res, next, () => services.kernel.worktrees.status(param(req.params.id)));
+  });
+
+  app.post("/threads/:id/worktree/finish", (req, res, next) => {
+    const how = req.body?.how;
+    respond(res, next, () => {
+      if (how !== "merge" && how !== "keep" && how !== "discard") throw new HttpError(400, "how must be merge, keep or discard");
+      return services.kernel.worktrees.finish(param(req.params.id), how, req.body?.message ? String(req.body.message) : undefined);
+    });
   });
 
   app.get("/runs/:id", (req, res, next) => {

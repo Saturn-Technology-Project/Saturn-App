@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { choice, joinThinking, parseArguments, plainMessages, systemText, withOptionalFields } from "./shared.js";
-import type { ChatMessage, ChatRequest, Effort, ProviderAdapter, ToolCall } from "./types.js";
+import type { ChatMessage, ChatRequest, Effort, ProviderAdapter, RawRequest, ToolCall } from "./types.js";
 
 /** OpenAI reasoning models (o-series, GPT-5 family): they take a reasoning effort and reject sampling settings. */
 function reasons(model: string): boolean {
@@ -15,7 +15,7 @@ function openAIEffort(request: ChatRequest): "low" | "medium" | "high" | undefin
   return effort === "low" || effort === "medium" ? effort : "high";
 }
 
-function client(request: ChatRequest): OpenAI {
+function client(request: { apiKey?: string; baseUrl: string }): OpenAI {
   return new OpenAI({
     apiKey: request.apiKey || "local",
     baseURL: request.baseUrl.replace(/\/$/, ""),
@@ -49,9 +49,29 @@ function toOpenAIMessages(messages: ChatMessage[]) {
   });
 }
 
+/** The legacy /completions endpoint (raw prompt in, text out), which OpenAI-compatible local servers still serve. */
+async function* openAIRaw(request: RawRequest): AsyncIterable<string> {
+  const stream = await client(request).completions.create(
+    {
+      model: request.model,
+      prompt: request.prompt,
+      max_tokens: request.maxOutput,
+      stop: request.stops.slice(0, 4),
+      temperature: request.temperature ?? 0,
+      stream: true,
+    },
+    { signal: request.signal },
+  );
+  for await (const chunk of stream) {
+    const text = chunk.choices?.[0]?.text;
+    if (text) yield text;
+  }
+}
+
 /** Chat Completions, for OpenAI-compatible servers that are not api.openai.com. */
 export const openAIChat: ProviderAdapter = {
   id: "openai-chat",
+  completeRaw: openAIRaw,
   async complete(request) {
     // Compatible servers vary: reasoning_effort is sent only when asked for, and dropped if the server rejects it.
     const effort = openAIEffort(request);

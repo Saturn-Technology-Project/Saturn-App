@@ -258,6 +258,8 @@ export class RunService {
   }
 
   async deleteThread(threadId: string): Promise<void> {
+    const thread = (this.kernel.store.state.threads ?? []).find((t) => t.id === threadId);
+    if (thread?.worktree) await this.kernel.worktrees.finish(threadId, "discard").catch(() => undefined);
     const removed = this.kernel.store.state.runs.filter((r) => r.threadId === threadId).map((r) => r.id);
     await this.kernel.store.update((state) => {
       state.threads = (state.threads ?? []).filter((t) => t.id !== threadId);
@@ -500,8 +502,8 @@ export class RunService {
   /** The project folder a run works in, or undefined for chats outside a project (the private sandbox). */
   private workdirOf(runId: string): string | undefined {
     const run = this.kernel.store.state.runs.find((item) => item.id === runId);
-    const projectId = run?.threadId ? (this.kernel.store.state.threads ?? []).find((t) => t.id === run.threadId)?.projectId : undefined;
-    return projectId ? this.kernel.projects.workdir(projectId) : undefined;
+    const thread = run?.threadId ? (this.kernel.store.state.threads ?? []).find((t) => t.id === run.threadId) : undefined;
+    return this.kernel.projects.workdirFor(thread);
   }
 
   private async runTool(input: {

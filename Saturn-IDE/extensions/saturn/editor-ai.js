@@ -10,7 +10,10 @@
 
 const vscode = require('vscode');
 
-const DEBOUNCE_MS = 300;
+/** Keystrokes closer together than this share one request (the previous request is cancelled either way). */
+const SETTLE_MS = 60;
+/** Edits remembered per file for the completion model. */
+const RECENT_EDITS = 4;
 /** After a failure, Tab completion pauses this long so a stopped runtime is not hit on every keystroke. */
 const ERROR_PAUSE_MS = 15000;
 const SCHEMES = new Set(['file', 'untitled', 'vscode-remote', 'vscode-userdata', 'vscode-notebook-cell']);
@@ -120,19 +123,56 @@ class AiStatus {
 	}
 }
 
-/** Tab completion: debounced, cancelled by the next keystroke, and served from the last result while it still fits. */
+/** The last few edits the user made in each file (newest last), for the completion model to read intent from. */
+class RecentEdits {
+	constructor() {
+		/** @type {Map<string, { line: number; before: string; after: string }[]>} */
+		this.byUri = new Map();
+	}
+
+	/** @param {string} uri @param {number} line @param {string} before @param {string} after */
+	note(uri, line, before, after) {
+		if (before.trim() === after.trim()) {
+			return;
+		}
+		const list = this.byUri.get(uri) || [];
+		const last = list[list.length - 1];
+		// Keystrokes on one line are one edit: keep its original "before", update its "after".
+		if (last && last.line === line) {
+			last.after = after;
+		} else {
+			list.push({ line, before, after });
+		}
+		this.byUri.set(uri, list.slice(-RECENT_EDITS));
+	}
+
+	/** @param {string} uri */
+	for(uri) {
+		return (this.byUri.get(uri) || []).map((edit) => ({ line: edit.line + 1, before: edit.before.slice(0, 400), after: edit.after.slice(0, 400) }));
+	}
+}
+
+/**
+ * Tab completion. Every keystroke asks the runtime (the previous request is cancelled), the answer streams in
+ * line by line and shows as soon as its first line is there, and typing into a suggestion, deleting back over it,
+ * or returning to the same spot reuses it without another model call.
+ */
 class TabCompletions {
-	/** @param {RuntimeLike} runtime @param {AiStatus} status */
-	constructor(runtime, status) {
+	/** @param {RuntimeLike} runtime @param {AiStatus} status @param {RecentEdits} edits */
+	constructor(runtime, status, edits) {
 		this.runtime = runtime;
 		this.status = status;
+		this.edits = edits;
 		this.pausedUntil = 0;
-		/**
-		 * Recent completions, newest last: typing into one, deleting back over it, or returning to the same spot
-		 * reuses it without another model call.
-		 * @type {{ uri: string, prefix: string, suffix: string, text: string }[]}
-		 */
+		/** @type {{ uri: string, prefix: string, suffix: string, text: string }[]} */
 		this.recent = [];
+		/** The request in flight, so the next keystroke ends it. @type {AbortController | undefined} */
+		this.inflight = undefined;
+		/** @type {{ uri: string; prefix: string; suffix: string; text: string; done: boolean; at: number } | undefined} */
+		this.partial = undefined;
+		this.changed = new vscode.EventEmitter();
+		/** The editor asks for completions again when this fires (more of the stream arrived). */
+		this.onDidChangeInlineCompletions = this.changed.event;
 	}
 
 	/**
@@ -152,41 +192,80 @@ class TabCompletions {
 		const end = document.lineAt(Math.min(document.lineCount - 1, position.line + 40)).range.end;
 		const suffix = document.getText(new vscode.Range(position, end)).slice(0, 2000);
 		const uri = document.uri.toString();
+		const item = (text) => [new vscode.InlineCompletionItem(text, new vscode.Range(position, position))];
 
 		const cached = this.fromCache(uri, prefix, suffix);
 		if (cached !== undefined) {
-			return cached ? [new vscode.InlineCompletionItem(cached, new vscode.Range(position, position))] : undefined;
+			return cached ? item(cached) : undefined;
+		}
+		// The stream for this very spot is still arriving: show what it has so far.
+		const partial = this.partial;
+		if (partial && partial.uri === uri && partial.prefix === prefix && partial.suffix === suffix) {
+			return partial.text ? item(partial.text) : undefined;
 		}
 		if (Date.now() < this.pausedUntil && context.triggerKind === vscode.InlineCompletionTriggerKind.Automatic) {
 			return undefined;
 		}
-		if (!(await pause(DEBOUNCE_MS, token))) {
+		// A short settle, so a burst of keystrokes sends one request, not one per key.
+		if (!(await pause(SETTLE_MS, token))) {
 			return undefined;
 		}
 
-		const abort = abortOn(token);
+		if (this.inflight) {
+			this.inflight.abort();
+		}
+		const controller = new AbortController();
+		this.inflight = controller;
+		const listener = token.onCancellationRequested(() => controller.abort());
+		const started = Date.now();
+		const state = { uri, prefix, suffix, text: '', done: false, at: started };
+		this.partial = state;
 		try {
-			const result = await this.runtime.request('/complete', {
+			const stream = this.runtime.stream('/complete/stream', {
 				method: 'POST',
-				signal: abort.signal,
+				signal: controller.signal,
 				body: JSON.stringify({
-					kind: 'inline',
 					mode: opensBlock(document, position) ? 'block' : 'line',
 					language: document.languageId,
 					path: vscode.workspace.asRelativePath(document.uri),
 					prefix,
 					suffix,
+					recentEdits: this.edits.for(uri),
 				}),
 			});
+			let first = true;
+			for await (const piece of stream) {
+				if (controller.signal.aborted) {
+					return undefined;
+				}
+				if (piece.text) {
+					state.text += piece.text;
+				}
+				if (piece.done) {
+					state.done = true;
+					break;
+				}
+				if (first && state.text.trim()) {
+					// The first line is in: return it now; later lines arrive through onDidChangeInlineCompletions.
+					first = false;
+					this.status.ok();
+					this.pausedUntil = 0;
+					this.remember(uri, prefix, suffix, state);
+					queueMicrotask(() => this.changed.fire());
+					return item(state.text);
+				}
+			}
 			this.status.ok();
 			this.pausedUntil = 0;
-			const text = String((result && result.text) || '');
-			this.recent = this.recent.filter((item) => !(item.uri === uri && item.prefix === prefix)).concat({ uri, prefix, suffix, text }).slice(-CACHE_SIZE);
-			if (token.isCancellationRequested || !text.trim()) {
+			this.remember(uri, prefix, suffix, state);
+			if (!first) {
+				this.changed.fire();
+			}
+			return state.text.trim() ? item(state.text) : undefined;
+		} catch (error) {
+			if (controller.signal.aborted) {
 				return undefined;
 			}
-			return [new vscode.InlineCompletionItem(text, new vscode.Range(position, position))];
-		} catch (error) {
 			const message = errorText(error);
 			if (message) {
 				this.pausedUntil = Date.now() + ERROR_PAUSE_MS;
@@ -194,8 +273,19 @@ class TabCompletions {
 			}
 			return undefined;
 		} finally {
-			abort.dispose();
+			listener.dispose();
+			if (this.inflight === controller) {
+				this.inflight = undefined;
+			}
+			if (this.partial === state && state.done) {
+				this.partial = undefined;
+			}
 		}
+	}
+
+	/** Keeps a (possibly still growing) completion for reuse at the same spot. */
+	remember(uri, prefix, suffix, state) {
+		this.recent = this.recent.filter((item) => !(item.uri === uri && item.prefix === prefix)).concat(state).slice(-CACHE_SIZE);
 	}
 
 	/** The rest of a recent completion that still fits where the cursor is; undefined when a new call is needed. */
@@ -206,7 +296,7 @@ class TabCompletions {
 				continue;
 			}
 			const whole = item.prefix + item.text;
-			if (prefix.length >= item.prefix.length && whole.startsWith(prefix)) {
+			if (prefix.length >= item.prefix.length && whole.startsWith(prefix) && prefix !== item.prefix) {
 				return whole.slice(prefix.length);
 			}
 		}
@@ -473,10 +563,11 @@ class InlineEdit {
  * it, Esc dismisses it. Like Cursor's Tab, but only within a window around the edit.
  */
 class NextEdit {
-	/** @param {RuntimeLike} runtime @param {AiStatus} status */
-	constructor(runtime, status) {
+	/** @param {RuntimeLike} runtime @param {AiStatus} status @param {RecentEdits} [edits] */
+	constructor(runtime, status, edits) {
 		this.runtime = runtime;
 		this.status = status;
+		this.edits = edits;
 		/** Each open document's text before its latest change, to know what a changed line used to say. @type {Map<string, string>} */
 		this.snapshots = new Map();
 		/** @type {NodeJS.Timeout | undefined} */
@@ -511,7 +602,19 @@ class NextEdit {
 		const uri = document.uri.toString();
 		const before = this.snapshots.get(uri);
 		this.remember(document);
-		if (this.applying || !this.enabled() || before === undefined || !event.contentChanges.length) {
+		if (before === undefined || !event.contentChanges.length) {
+			return;
+		}
+		const change = event.contentChanges[0];
+		const line = change.range.start.line;
+		const oldLines = before.split('\n');
+		const oldText = oldLines.slice(line, change.range.end.line + 1).join('\n');
+		const newText = document.getText(new vscode.Range(line, 0, Math.min(document.lineCount - 1, line + change.text.split('\n').length - 1), Number.MAX_SAFE_INTEGER));
+		// Tab completion reads the user's recent edits whether or not next-edit suggestions are on.
+		if (this.edits && !this.applying) {
+			this.edits.note(uri, line, oldText, newText);
+		}
+		if (this.applying || !this.enabled()) {
 			return;
 		}
 		const editor = vscode.window.activeTextEditor;
@@ -519,11 +622,6 @@ class NextEdit {
 			return;
 		}
 		this.clear();
-		const change = event.contentChanges[0];
-		const line = change.range.start.line;
-		const oldLines = before.split('\n');
-		const oldText = oldLines.slice(line, change.range.end.line + 1).join('\n');
-		const newText = document.getText(new vscode.Range(line, 0, Math.min(document.lineCount - 1, line + change.text.split('\n').length - 1), Number.MAX_SAFE_INTEGER));
 		if (oldText.trim() === newText.trim()) {
 			return;
 		}
@@ -642,9 +740,10 @@ class NextEdit {
 /** @param {vscode.ExtensionContext} context @param {RuntimeLike} runtime */
 function registerEditorAi(context, runtime) {
 	const status = new AiStatus();
-	const tab = new TabCompletions(runtime, status);
+	const edits = new RecentEdits();
+	const tab = new TabCompletions(runtime, status, edits);
 	const edit = new InlineEdit(runtime, status);
-	const next = new NextEdit(runtime, status);
+	const next = new NextEdit(runtime, status, edits);
 	for (const document of vscode.workspace.textDocuments) {
 		next.remember(document);
 	}

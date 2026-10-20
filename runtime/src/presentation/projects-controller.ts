@@ -43,6 +43,28 @@ export function mountProjects(app: Express, services: AppServices): void {
     respond(res, next, () => services.openProjectFolder(param(req.params.id)));
   });
 
+  // The project's local semantic code index: build (incrementally), status, cancel, and search.
+  app.get("/projects/:id/index", (req, res, next) => {
+    respond(res, next, () => services.kernel.index.status(param(req.params.id)));
+  });
+
+  app.post("/projects/:id/index", (req, res, next) => {
+    const paths = Array.isArray(req.body?.paths) ? (req.body.paths as unknown[]).map(String) : undefined;
+    respond(res, next, () => services.kernel.index.build(param(req.params.id), paths));
+  });
+
+  app.delete("/projects/:id/index", (req, res, next) => {
+    respond(res, next, () => {
+      services.kernel.index.cancel(param(req.params.id));
+      return services.kernel.index.status(param(req.params.id));
+    });
+  });
+
+  app.get("/projects/:id/index/search", (req, res, next) => {
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 12));
+    respond(res, next, () => services.kernel.index.search(param(req.params.id), String(req.query.q ?? ""), limit));
+  });
+
   app.get("/projects/:id/rules", (req, res, next) => {
     respond(res, next, () => services.getProjectRules(param(req.params.id)));
   });

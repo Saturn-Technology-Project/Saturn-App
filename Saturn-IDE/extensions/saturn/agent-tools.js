@@ -115,19 +115,29 @@ function windows(lines, total, pad = 3, max = 3) {
  * (and whether their path or a workspace symbol names them), then returns the best files with numbered snippets.
  * Lexical + symbol search, not embeddings: fast, offline, and nothing leaves the machine.
  */
-async function retrieve(query, folder, budget = RETRIEVAL_BUDGET) {
+async function retrieve(query, folder, budget = RETRIEVAL_BUDGET, semantic = undefined) {
 	const words = terms(query);
-	if (!words.length || !folder) {
+	if (!folder || (!words.length && !semantic)) {
 		return { text: '', files: [] };
 	}
 	const controller = new AbortController();
-	const [matches, symbols] = await Promise.all([
-		rgSearch(folder, words, controller.signal),
-		symbolFiles(words.slice(0, 4)),
+	const [matches, symbols, hits] = await Promise.all([
+		words.length ? rgSearch(folder, words, controller.signal) : new Map(),
+		words.length ? symbolFiles(words.slice(0, 4)) : new Map(),
+		semantic ? semantic(query).catch(() => []) : Promise.resolve([]),
 	]);
+	/** Semantic hits by file: the chunks' lines, and the best rank, for fusion with the lexical ranking. */
+	/** @type {Map<string, { rank: number; lines: number[] }>} */
+	const semanticByFile = new Map();
+	hits.forEach((hit, index) => {
+		const file = nodePath.join(folder, hit.path);
+		const entry = semanticByFile.get(file) || { rank: index + 1, lines: [] };
+		entry.lines.push(hit.start);
+		semanticByFile.set(file, entry);
+	});
 	/** @type {{ file: string; score: number; lines: number[] }[]} */
 	const ranked = [];
-	const consider = new Set([...matches.keys(), ...symbols.keys()]);
+	const consider = new Set([...matches.keys(), ...symbols.keys(), ...semanticByFile.keys()]);
 	for (const file of consider) {
 		const relative = nodePath.relative(folder, file);
 		if (relative.startsWith('..') || relative.split(nodePath.sep).some((part) => SKIP_DIRS.has(part))) {
@@ -140,9 +150,19 @@ async function retrieve(query, folder, budget = RETRIEVAL_BUDGET) {
 		const pathHits = words.filter((word) => pathLower.includes(word.toLowerCase())).length;
 		const symbolLines = symbols.get(file) || [];
 		const score = distinct * 4 + Math.min(total, 20) * 0.5 + pathHits * 5 + symbolLines.length * 6;
-		ranked.push({ file, score, lines: [...(entry ? entry.lines : []), ...symbolLines] });
+		const found = semanticByFile.get(file);
+		ranked.push({ file, score, lines: [...(entry ? entry.lines : []), ...symbolLines, ...(found ? found.lines : [])], semanticRank: found ? found.rank : 0 });
 	}
 	ranked.sort((a, b) => b.score - a.score);
+	if (semanticByFile.size) {
+		// Reciprocal rank fusion: a file near the top of either list (keywords, or meaning) comes first; one near
+		// the top of both comes before both. The 60 is the usual damping constant.
+		ranked.forEach((item, index) => { item.lexicalRank = item.score > 0 ? index + 1 : 0; });
+		for (const item of ranked) {
+			item.score = (item.lexicalRank ? 1 / (60 + item.lexicalRank) : 0) + (item.semanticRank ? 1 / (60 + item.semanticRank) : 0);
+		}
+		ranked.sort((a, b) => b.score - a.score);
+	}
 	const parts = [];
 	const files = [];
 	let used = 0;
@@ -176,7 +196,7 @@ async function retrieve(query, folder, budget = RETRIEVAL_BUDGET) {
 		return { text: '', files: [] };
 	}
 	return {
-		text: `Files in this project that look relevant to the request (search terms: ${words.join(', ')}). Line numbers are the file's own; read whole files with your tools when you need more.\n${parts.join('\n')}`,
+		text: `Files in this project that look relevant to the request (${semanticByFile.size ? 'by meaning and ' : ''}search terms: ${words.join(', ') || 'none'}). Line numbers are the file's own; read whole files with your tools when you need more.\n${parts.join('\n')}`,
 		files,
 	};
 }
