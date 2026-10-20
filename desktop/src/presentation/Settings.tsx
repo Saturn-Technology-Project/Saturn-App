@@ -865,6 +865,7 @@ function General(props: {
   const [logging, setLogging] = useState(props.profile.logging);
   const [launchApp, setLaunchApp] = useState<LaunchApp>(props.profile.launchApp ?? "agent");
   const [memory, setMemory] = useState(props.profile.memory !== false);
+  const [notify, setNotify] = useState(localStorage.getItem("saturn-notify") !== "off");
   const [planApproval, setPlanApproval] = useState(props.profile.planApproval === true);
   // Settings from before the source could be chosen (a model name only) meant LM Studio.
   const savedSource: EmbeddingSource = props.profile.embeddingSource ?? (props.profile.embeddingModel && !BUILTIN_EMBEDDING_MODELS.some((item) => item.id === props.profile.embeddingModel) ? "lmstudio" : "builtin");
@@ -1051,6 +1052,13 @@ function General(props: {
               <span className="settings-row-desc">Every few turns, Saturn notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.</span>
             </div>
             <Toggle on={memory} label="Memory" onChange={(next) => void chooseFlag("memory", next)} />
+          </div>
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Notifications</span>
+              <span className="settings-row-desc">A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.</span>
+            </div>
+            <Toggle on={notify} label="Notifications" onChange={(next) => { setNotify(next); localStorage.setItem("saturn-notify", next ? "on" : "off"); }} />
           </div>
           <div className="settings-card-row">
             <div className="settings-row-text">

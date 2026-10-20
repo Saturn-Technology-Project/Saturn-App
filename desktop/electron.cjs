@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, Notification, dialog, ipcMain } = require("electron");
 const { ROOT_CONTEXT, SpanStatusCode, propagation } = require("@opentelemetry/api");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
@@ -311,6 +311,28 @@ ipcMain.on("saturn:telemetry:enabled", (event) => {
 // The renderer reads the runtime token from here (it has no filesystem access) and sends it on every request.
 ipcMain.on("saturn:runtime-token", (event) => {
   event.returnValue = runtimeToken();
+});
+
+ipcMain.on("saturn:window-focused", (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  event.returnValue = Boolean(window && window.isFocused() && window.isVisible());
+});
+
+// A system notification from the renderer (an agent finished, failed, or needs an approval). Clicking it brings
+// the window that sent it forward and tells it which chat to open.
+ipcMain.on("saturn:notify", (event, options) => {
+  if (!Notification.isSupported()) return;
+  const sender = BrowserWindow.fromWebContents(event.sender);
+  const notification = new Notification({ title: String(options.title || "Saturn"), body: String(options.body || ""), silent: Boolean(options.silent) });
+  notification.on("click", () => {
+    const window = sender && !sender.isDestroyed() ? sender : mainWindow;
+    if (!window) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+    if (options.threadId) window.webContents.send("saturn:open-thread", { agentId: options.agentId, threadId: options.threadId });
+  });
+  notification.show();
 });
 
 // Workspace folders: the native picker, attached to the window that asked.

@@ -4,7 +4,12 @@ import type { Project } from "../domain/model";
 declare global {
   interface Window {
     /** Exposed by preload.cjs in the desktop app; absent in a plain browser. */
-    saturnDesktop?: { pickFolders(options?: { title?: string; multiple?: boolean }): Promise<string[]> };
+    saturnDesktop?: {
+      pickFolders(options?: { title?: string; multiple?: boolean }): Promise<string[]>;
+      notify?(options: { title: string; body?: string; agentId?: string; threadId?: string; silent?: boolean }): void;
+      onOpenThread?(listener: (payload: { agentId?: string; threadId?: string }) => void): () => void;
+      isFocused?(): boolean;
+    };
   }
 }
 

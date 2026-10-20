@@ -1,4 +1,4 @@
-import type { Run, RunChanges, RunMode } from "../domain/model.js";
+import type { Run, RunChanges, RunMode, RunSummary } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -19,6 +19,11 @@ export class RunService {
       span.setAttribute("saturn.run.id", run.id);
       return run;
     });
+  }
+
+  /** Every run still going, then the latest finished ones (the Agents board). */
+  recent(limit = 30): Promise<RunSummary[]> {
+    return this.runtime.request<RunSummary[]>(`/runs?limit=${limit}`);
   }
 
   get(id: string): Promise<Run> {

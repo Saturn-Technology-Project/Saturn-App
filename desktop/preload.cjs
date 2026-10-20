@@ -6,6 +6,16 @@ contextBridge.exposeInMainWorld("saturnDesktop", {
   pickFolders: (options) => ipcRenderer.invoke("saturn:pick-folders", options ?? {}),
   /** The runtime session token, read from the 0600 token file; every runtime request carries it. */
   runtimeToken: () => ipcRenderer.sendSync("saturn:runtime-token") || "",
+  /** A system notification; clicking it brings Saturn forward and opens the chat named by `threadId`. */
+  notify: (options) => ipcRenderer.send("saturn:notify", options ?? {}),
+  /** Called with { agentId, threadId } when a notification is clicked. */
+  onOpenThread: (listener) => {
+    const handler = (_event, payload) => listener(payload);
+    ipcRenderer.on("saturn:open-thread", handler);
+    return () => ipcRenderer.removeListener("saturn:open-thread", handler);
+  },
+  /** Whether this window is the one the user is looking at (notifications are skipped then). */
+  isFocused: () => ipcRenderer.sendSync("saturn:window-focused") === true,
 });
 
 // Renderer spans reach the exporter in main only while telemetry is exported.

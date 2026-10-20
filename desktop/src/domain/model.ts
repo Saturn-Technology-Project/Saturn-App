@@ -316,3 +316,18 @@ export type ContextItem =
   | { kind: "terminal"; label: string }
   | { kind: "problems"; label: string };
 
+/** One row of the Agents board (GET /runs): a run and the chat it belongs to. */
+export type RunSummary = {
+  id: string;
+  agentId: string;
+  agentName: string;
+  threadId: string;
+  threadTitle: string;
+  projectId?: string;
+  branch?: string;
+  status: Run["status"];
+  input: string;
+  changedFiles: number;
+  updatedAt?: string;
+};
+

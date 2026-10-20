@@ -16,6 +16,7 @@ import { ProjectsMenu, arrangeProjects, useProjectView } from "./ProjectsMenu";
 import { Onboarding } from "./Onboarding";
 import { RunImages } from "./RunImages";
 import { ContextPicker } from "./ContextPicker";
+import { AgentsBoard } from "./AgentsBoard";
 import {
   extractPlanSteps,
   countdown,
@@ -25,7 +26,7 @@ import {
   upsertRun,
   visibleThread,
 } from "../domain/conversation";
-import type { Agent, Autonomy, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode } from "../domain/model";
+import type { Agent, Autonomy, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode, RunSummary } from "../domain/model";
 
 const isElectron =
   typeof window !== "undefined" &&
@@ -111,6 +112,12 @@ export function App() {
   const [ruleSources, setRuleSources] = useState<{ path: string; chars: number }[]>([]);
   /** Opens Settings on one project's page (the rules chip). */
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
+  /** The Agents board and inbox: every run still going plus the latest finished, polled while the app is open. */
+  const [boardRuns, setBoardRuns] = useState<RunSummary[]>([]);
+  /** Runs that ended or started waiting since the user last looked at them. */
+  const [unread, setUnread] = useState<Set<string>>(() => new Set(JSON.parse(localStorage.getItem("saturn-unread") || "[]") as string[]));
+  const [notifyEnabled] = useState(() => localStorage.getItem("saturn-notify") !== "off");
+  const boardStatus = useRef<Map<string, string> | null>(null);
   /** What the next message may do; remembered across launches. */
   const [mode, setMode] = useState<RunMode>(() => (localStorage.getItem("saturn-mode") === "ask" || localStorage.getItem("saturn-mode") === "plan" ? (localStorage.getItem("saturn-mode") as RunMode) : "agent"));
   const [editing, setEditing] = useState<string | null>(null);
@@ -130,7 +137,7 @@ export function App() {
   const [projectMenu, setProjectMenu] = useState<{ project: Project; x: number; y: number } | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [projectView, patchProjectView, resetProjectView] = useProjectView();
-  const [view, setView] = useState<"workspace" | "settings" | "automations" | "customizations" | "project" | "group">("workspace");
+  const [view, setView] = useState<"workspace" | "agents" | "settings" | "automations" | "customizations" | "project" | "group">("workspace");
   const [settingsPage, setSettingsPage] = useState<SettingsPage>("settings");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(true);
@@ -142,7 +149,7 @@ export function App() {
   const [theme, setTheme] = useState<"light" | "dark">(storedTheme);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [navHistory, setNavHistory] = useState<
-    Array<{ view: "workspace" | "settings" | "automations" | "customizations" | "project" | "group"; agentId: string | null; settingsPage?: SettingsPage }>
+    Array<{ view: "workspace" | "agents" | "settings" | "automations" | "customizations" | "project" | "group"; agentId: string | null; settingsPage?: SettingsPage }>
   >([{ view: "workspace", agentId: null }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -620,6 +627,100 @@ export function App() {
     }
   }, [thread.length, latest?.output, latest?.actions?.length, latest?.status, busy]);
 
+  /** Opens one chat from the board, the bell or a notification. */
+  async function openThread(agentId: string, threadId: string) {
+    const list = await desktop.catalog.listThreads(agentId).catch(() => [] as Conversation[]);
+    setAgentThreads((prev) => ({ ...prev, [agentId]: list }));
+    const conv = list.find((item) => item.id === threadId);
+    const project = conv?.projectId ? projects.find((item) => item.id === conv.projectId) : undefined;
+    if (conv && project) openProjectChat(project, conv);
+    else selectAgent(agentId, threadId);
+    setView("workspace");
+    setUnread((prev) => {
+      const next = new Set(prev);
+      for (const run of boardRuns) if (run.threadId === threadId) next.delete(run.id);
+      return next;
+    });
+  }
+
+  /** Starts a task in a new chat (on its own branch in a project) and stays where the user is. */
+  async function dispatchInBackground(agentId: string, text: string, projectId: string | null) {
+    const title = `⧉ ${text.split("\n")[0].slice(0, 40)}`;
+    const conv = await desktop.catalog.createThread(agentId, title, projectId ?? undefined);
+    if (projectId) await desktop.catalog.isolateThread(conv.id).catch(() => undefined);
+    setAgentThreads((prev) => ({ ...prev, [agentId]: [conv, ...(prev[agentId] ?? [])] }));
+    const started = await desktop.runs.start(agentId, text, conv.id);
+    boardStatus.current?.set(started.id, started.status);
+    setNotice("");
+  }
+
+  useEffect(() => {
+    localStorage.setItem("saturn-unread", JSON.stringify([...unread]));
+  }, [unread]);
+
+  // Looking at a chat clears its unread marks.
+  useEffect(() => {
+    if (view !== "workspace" || !selectedThreadId) return;
+    setUnread((prev) => {
+      if (![...prev].some((id) => boardRuns.some((run) => run.id === id && run.threadId === selectedThreadId))) return prev;
+      const next = new Set(prev);
+      for (const run of boardRuns) if (run.threadId === selectedThreadId) next.delete(run.id);
+      return next;
+    });
+  }, [view, selectedThreadId, boardRuns]);
+
+  // The board's list every few seconds; a change of state since the last look becomes an unread mark and, when the
+  // window is not in front (or the chat is not the open one), a system notification.
+  useEffect(() => {
+    let stopped = false;
+    const tick = async () => {
+      let list: RunSummary[];
+      try {
+        list = await desktop.runs.recent(30);
+      } catch {
+        return;
+      }
+      if (stopped) return;
+      setBoardRuns(list);
+      const previous = boardStatus.current;
+      const next = new Map(list.map((run) => [run.id, run.status]));
+      if (previous) {
+        for (const run of list) {
+          const before = previous.get(run.id);
+          if (!before || before === run.status) continue;
+          const settled = run.status === "completed" || run.status === "failed" || run.status === "waiting_approval";
+          if (!settled) continue;
+          const focused = window.saturnDesktop?.isFocused?.() ?? document.hasFocus();
+          const lookingAtIt = focused && view === "workspace" && selectedThreadId === run.threadId;
+          if (lookingAtIt) continue;
+          setUnread((prev) => new Set(prev).add(run.id));
+          if (notifyEnabled && window.saturnDesktop?.notify) {
+            const title = run.threadTitle.replace(/^⧉ /, "");
+            window.saturnDesktop.notify({
+              title: run.status === "completed" ? `${run.agentName} finished: ${title}` : run.status === "failed" ? `${run.agentName} failed: ${title}` : `${run.agentName} needs your approval`,
+              body: run.status === "waiting_approval" ? title : run.changedFiles ? `${run.changedFiles} file${run.changedFiles === 1 ? "" : "s"} changed${run.branch ? ` on ${run.branch}` : ""}` : run.input,
+              agentId: run.agentId,
+              threadId: run.threadId,
+            });
+          }
+        }
+      }
+      boardStatus.current = next;
+    };
+    void tick();
+    const timer = window.setInterval(() => void tick(), 3000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [view, selectedThreadId, notifyEnabled]);
+
+  useEffect(() => {
+    return window.saturnDesktop?.onOpenThread?.((payload) => {
+      if (payload.agentId && payload.threadId) void openThread(payload.agentId, payload.threadId);
+    });
+  }, [projects, boardRuns]);
+
   /** Adds image files from a paste or drop to the next message; anything unusable is explained, not dropped silently. */
   function attachImages(files: File[]) {
     const images = files.filter((file) => IMAGE_TYPES.has(file.type));
@@ -897,7 +998,7 @@ export function App() {
   }
 
   function pushNav(next: {
-    view: "workspace" | "settings" | "automations" | "customizations" | "project" | "group";
+    view: "workspace" | "agents" | "settings" | "automations" | "customizations" | "project" | "group";
     agentId: string | null;
     settingsPage?: SettingsPage;
   }) {
@@ -1096,6 +1197,7 @@ export function App() {
 
   const breadcrumbRoot = (() => {
     if (view === "settings") return "Settings";
+    if (view === "agents") return "Agents";
     if (view === "automations") return "Automations";
     if (view === "customizations") return "Customizations";
     if (view === "project") return selectedProject?.name || "Project";
@@ -1284,7 +1386,7 @@ export function App() {
   const layoutClass = [
     "app",
     !sidebarOpen ? "no-sidebar" : "",
-    view === "automations" || view === "customizations" || view === "project" || view === "group"
+    view === "agents" || view === "automations" || view === "customizations" || view === "project" || view === "group"
       ? ""
       : inspectorOpen && agent
         ? "with-inspector"
@@ -1383,6 +1485,19 @@ export function App() {
               >
                 <PlusIcon />
                 <span>New Agent</span>
+              </button>
+              <button
+                type="button"
+                className={view === "agents" ? "side-link active" : "side-link"}
+                onClick={() => {
+                  setView("agents");
+                  pushNav({ view: "agents", agentId: selected });
+                }}
+              >
+                <EmployeeIcon />
+                <span>Agents</span>
+                {boardRuns.some((run) => run.status === "running" || run.status === "queued") ? <span className="count-pill">{boardRuns.filter((run) => run.status === "running" || run.status === "queued").length}</span> : null}
+                {unread.size ? <span className="count-pill warn">{unread.size}</span> : null}
               </button>
               <button
                 type="button"
@@ -1784,6 +1899,19 @@ export function App() {
           </div>
 
           <div className="stage-topbar-right">
+            <button
+              type="button"
+              className={unread.size ? "titlebar-btn bell active" : "titlebar-btn bell"}
+              title={unread.size ? `${unread.size} agent${unread.size === 1 ? "" : "s"} finished or need you` : "Agents board"}
+              aria-label="Agents board"
+              onClick={() => {
+                setView("agents");
+                pushNav({ view: "agents", agentId: selected });
+              }}
+            >
+              <BellIcon />
+              {unread.size ? <span className="bell-count">{unread.size}</span> : null}
+            </button>
             {currentConversation?.projectId ? (
               <button
                 type="button"
@@ -1994,6 +2122,16 @@ export function App() {
               setView("workspace");
               void syncGroups();
             }}
+          />
+        ) : view === "agents" ? (
+          <AgentsBoard
+            runs={boardRuns}
+            agents={agents}
+            projects={projects.map((item) => ({ id: item.id, name: item.name, access: Boolean(item.access) }))}
+            projectNames={Object.fromEntries(projects.map((item) => [item.id, item.name]))}
+            unread={unread}
+            onOpen={(run) => void openThread(run.agentId, run.threadId)}
+            onDispatch={dispatchInBackground}
           />
         ) : view === "automations" ? (
           <Automations
@@ -2320,6 +2458,20 @@ export function App() {
                       onChange={(mode) => void patchAgent({ autonomy: mode })}
                     />
                     <button
+                      type="button"
+                      className="composer-pill-btn"
+                      title={agent ? "Run in the background: a new chat (on its own branch in a project) so you can keep working here; you are told when it finishes." : "Choose an agent first"}
+                      disabled={!agent || editing !== null || !task.trim()}
+                      onClick={() => {
+                        if (!agent || !task.trim()) return;
+                        const text = task.trim();
+                        setTask("");
+                        void dispatchInBackground(agent.id, text, currentConversation?.projectId ?? null).catch((error) => setNotice(error instanceof Error ? error.message : "Could not start the agent"));
+                      }}
+                    >
+                      ⧉
+                    </button>
+                    <button
                       className={busy ? "send stop" : "send"}
                       type="submit"
                       disabled={!agent || editing !== null || (!busy && !task.trim() && !pendingImages.length)}
@@ -2568,6 +2720,15 @@ function storedTheme(): "light" | "dark" {
   const saved = localStorage.getItem("saturn-theme");
   if (saved === "light" || saved === "dark") return saved;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function BellIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 11V7a4 4 0 0 1 8 0v4l1.2 1.5H2.8L4 11z" />
+      <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0" />
+    </svg>
+  );
 }
 
 function PlusIcon() {
