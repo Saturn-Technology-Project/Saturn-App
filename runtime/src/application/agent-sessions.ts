@@ -1,5 +1,6 @@
 import type { Agent, Run } from "../domain/model.js";
 import { errorText } from "../infrastructure/logger.js";
+import { projectRules } from "./rules.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 /** Which SDK session id a provider keeps: Claude Code's session, or Codex's thread. */
@@ -35,16 +36,32 @@ export async function saveSession(kernel: RuntimeKernel, run: Run, key: SessionK
  * for the chat's project and the user, and what the agent's knowledge sources return for this message. A
  * knowledge source that cannot be reached is logged and left out, so the turn still runs.
  */
-export async function turnContext(kernel: RuntimeKernel, agent: Agent, run: Run, signal?: AbortSignal): Promise<{ memory: string; knowledge: string }> {
+export async function turnContext(kernel: RuntimeKernel, agent: Agent, run: Run, signal?: AbortSignal, skipRules: readonly string[] = []): Promise<{ memory: string; knowledge: string; rules: string }> {
   const thread = run.threadId ? (kernel.store.state.threads ?? []).find((item) => item.id === run.threadId) : undefined;
-  const [memory, knowledge] = await Promise.all([
+  const [memory, rules, knowledge] = await Promise.all([
     kernel.memory.forPrompt(thread?.projectId),
+    rulesFor(kernel, run, skipRules),
     kernel.runs.ragContext(agent, run.input, signal).catch((error: unknown) => {
       if (!signal?.aborted) kernel.log("agent", "warning", `${agent.name}: knowledge sources skipped: ${errorText(error)}`, { "saturn.run.id": run.id });
       return "";
     }),
   ]);
-  return { memory: memory.trim(), knowledge: knowledge.trim() };
+  return { memory: memory.trim(), knowledge: knowledge.trim(), rules };
+}
+
+/** The rules of the project a run's chat works in (see rules.ts); nothing outside a project. */
+export async function rulesFor(kernel: RuntimeKernel, run: Run, skip: readonly string[] = []): Promise<string> {
+  const thread = run.threadId ? (kernel.store.state.threads ?? []).find((item) => item.id === run.threadId) : undefined;
+  if (!thread?.projectId) return "";
+  let root: string | undefined;
+  try {
+    root = kernel.projects.workdirFor(thread);
+  } catch {
+    return "";
+  }
+  if (!root) return "";
+  const project = (kernel.store.state.projects ?? []).find((item) => item.id === thread.projectId);
+  return (await projectRules(root, project?.rules ?? "", skip)).text;
 }
 
 /** The user's message, after what the knowledge sources returned for it. */

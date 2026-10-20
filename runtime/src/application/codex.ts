@@ -15,6 +15,8 @@ import { errorText, logger } from "../infrastructure/logger.js";
 import { SKILLS_SERVER, bridgedTools, runtimeOrigin, type BridgedCall, type BridgedTool } from "./agent-skills.js";
 import { saveSession, savedSession, turnContext, withKnowledge } from "./agent-sessions.js";
 import { approvalMode } from "./claude-code.js";
+import { imagePath } from "./run-images.js";
+import { isReadOnlyCall, modeInstructions, readOnlyRefusal } from "../domain/policies.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 const exec = promisify(execFile);
@@ -275,7 +277,8 @@ export class CodexService {
     const options: ThreadOptions = {
       workingDirectory: workdir,
       skipGitRepoCheck: true,
-      sandboxMode: "workspace-write",
+      // Ask and Plan turns only read: Codex's own read-only sandbox refuses edits and writing commands.
+      sandboxMode: run.mode === "ask" || run.mode === "plan" ? "read-only" : "workspace-write",
       approvalPolicy: "never",
       networkAccessEnabled: false,
       webSearchMode: "disabled",
@@ -288,9 +291,12 @@ export class CodexService {
     // setting is Review, as it does for the same tools on every other provider.
     const group = run.groupId ? (this.kernel.store.state.groups ?? []).find((item) => item.id === run.groupId) : undefined;
     const mode = approvalMode(agent, group?.autonomy);
-    const skills = bridgedTools(this.kernel, agent);
+    const skills = bridgedTools(this.kernel, agent, thread?.projectId ? workdir : undefined);
     const bridged = { aliases: new Map<string, string>(), orphans: new Set<string>() };
     const skillsCall: BridgedCall = async (toolId, args) => {
+      if ((run.mode === "ask" || run.mode === "plan") && !isReadOnlyCall(toolId, args, this.kernel.runs.toolCategory(agent, toolId))) {
+        return { id: newId("act"), toolId, arguments: args, status: "denied", reason: readOnlyRefusal(run.mode) };
+      }
       if (mode === "review") {
         // The card goes on the action Codex already reported for this call, or on one its report adopts later.
         let action = [...actions].reverse().find((item) => item.result === undefined && item.status === "completed" && sameCall(item, toolId, args));
@@ -345,13 +351,18 @@ export class CodexService {
     const session = resumeId ? codex.resumeThread(resumeId, options) : codex.startThread(options);
     // Memory and the agent's instructions open a new Codex thread; a resumed thread already has them. What the
     // knowledge sources return goes with every message.
-    const { memory, knowledge } = await turnContext(this.kernel, agent, run, signal);
+    // Codex reads AGENTS.md from its working folder itself; the other rule files come from Saturn.
+    const { memory, knowledge, rules } = await turnContext(this.kernel, agent, run, signal, ["AGENTS.md"]);
     const instructions = agent.instructions.trim();
     const opening = resumeId
       ? ""
-      : [memory ? `<memory>\n${memory}\n</memory>` : "", instructions ? `<instructions>\n${instructions}\n</instructions>` : ""].filter(Boolean).join("\n\n");
-    const message = withKnowledge(run.input, knowledge);
-    const prompt = opening ? `${opening}\n\n${message}` : message;
+      : [memory ? `<memory>\n${memory}\n</memory>` : "", rules ? `<project_rules>\n${rules}\n</project_rules>` : "", instructions ? `<instructions>\n${instructions}\n</instructions>` : ""].filter(Boolean).join("\n\n");
+    const note = modeInstructions(run.mode);
+    const message = withKnowledge(note ? `${note}\n\n${run.input}` : run.input, knowledge);
+    const text = opening ? `${opening}\n\n${message}` : message;
+    // Attached images go to Codex as files it reads itself.
+    const images = (run.inputImages ?? []).map((relative) => ({ type: "local_image" as const, path: imagePath(this.kernel.store.root, relative) }));
+    const prompt = images.length ? [{ type: "text" as const, text }, ...images] : text;
 
     this.kernel.log("agent", "info", `${agent.name} asked Codex (${options.model ?? "default model"}${model.effort ? `, ${model.effort} effort` : ""}) in ${workdir}`, { "saturn.run.id": runId });
     const startedAt = Date.now();

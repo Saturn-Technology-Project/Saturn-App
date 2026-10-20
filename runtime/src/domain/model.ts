@@ -141,7 +141,13 @@ export type Run = {
   /** Set on a group chat turn: the group, and the message the agent was asked to consider. */
   groupId?: string;
   groupMessageId?: string;
+  /** Images the user attached to this message: paths under the data directory (see run-images.ts). */
+  inputImages?: string[];
+  /** What this turn may do: change things (agent, the default), only read and answer (ask), or only read and plan. */
+  mode?: RunMode;
 };
+
+export type RunMode = "agent" | "ask" | "plan";
 
 /** A group chat: the user and several agents. Every message is shown to the members, who decide whether to reply. */
 /** How much a group's agents may do without asking: every tool, risky ones only, or nothing. */
@@ -183,7 +189,14 @@ export type GroupMessage = {
 };
 
 /** The project folder a run wrote in and each file it touched there. */
-export type RunCheckpoint = { root: string; files: FileChange[] };
+export type RunCheckpoint = {
+  root: string;
+  files: FileChange[];
+  /** Each tool step's first write to a file, in order, with the file's sha256 just before it (null: absent). */
+  steps?: CheckpointStep[];
+};
+
+export type CheckpointStep = { actionId: string; path: string; hash: string | null };
 
 /**
  * One file a run changed: sha256 of its bytes before the run's first write and after its last one
@@ -234,11 +247,20 @@ export type AppSettings = {
   memory?: boolean;
   /** Agents write a plan and wait for the user's go-ahead before changing anything (default off). */
   planApproval?: boolean;
-  /** The LM Studio embedding model behind the code index. */
+  /**
+   * What embeds the code index: Saturn's built-in model (default), LM Studio, or an OpenAI-compatible endpoint
+   * (the model connection `embeddingConnectionId`). Unset with an `embeddingModel` means LM Studio, as before.
+   */
+  embeddingSource?: EmbeddingSource;
+  /** The embedding model's name for that source. */
   embeddingModel?: string;
+  /** For the "openai" source: the model connection whose endpoint and key are used. */
+  embeddingConnectionId?: string;
 };
 
 export type ClaudeCodeAuth = "subscription" | "api-key";
+
+export type EmbeddingSource = "builtin" | "lmstudio" | "openai";
 
 export type LaunchApp = "agent" | "ide";
 

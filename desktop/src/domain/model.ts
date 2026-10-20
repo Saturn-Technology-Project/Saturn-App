@@ -160,9 +160,14 @@ export type Profile = {
   memory?: boolean;
   /** Agents write a plan and wait for a go-ahead before changing anything. */
   planApproval?: boolean;
-  /** The LM Studio embedding model behind the code index. */
+  /** What embeds the code index: the built-in model (default), LM Studio, or an OpenAI-compatible connection. */
+  embeddingSource?: EmbeddingSource;
+  /** The embedding model's name for that source. */
   embeddingModel?: string;
+  /** For the OpenAI-compatible source: the model connection whose endpoint and key are used. */
+  embeddingConnectionId?: string;
 };
+export type EmbeddingSource = "builtin" | "lmstudio" | "openai";
 export type PendingTask = { id: string; agentId: string; agentName: string; input: string; toolId: string };
 
 export type LlmProvider = { id: string; label: string; needsKey: boolean; baseUrl: string; models: { id: string; label: string }[] };

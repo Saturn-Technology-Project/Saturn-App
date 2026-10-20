@@ -1,11 +1,18 @@
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
 import { GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID } from "../domain/builtin.js";
 import { BROWSER_ID } from "../domain/browser-tools.js";
-import type { Agent, Conversation, ModelConnection, Run, RunAction } from "../domain/model.js";
-import { autonomyLine, autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isSensitiveOperation, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
+import { IDE_ID } from "../domain/ide-tools.js";
+import type { Agent, Conversation, ModelConnection, Run, RunAction, RunMode } from "../domain/model.js";
+import { autonomyLine, autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isReadOnlyCall, isSensitiveOperation, mayReadOnly, readOnlyRefusal, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
 import type { ToolCall } from "./runtime-state.js";
 import type { ChatMessage } from "../infrastructure/llm.js";
+import type { ImagePart } from "../infrastructure/llm/types.js";
+import type { FileCheckpoint } from "../domain/skills/checkpoint.js";
+import { forgetImages, loadImages, saveImages } from "./run-images.js";
+import { rulesFor } from "./agent-sessions.js";
 import { runGeneralSkill, runComputerUseSkill, runOriginSkill, runAntigravitySkill, runBrowserSkill } from "../infrastructure/skills.js";
 import { SpanKind, instruments, seconds, traced } from "../infrastructure/telemetry.js";
 import { budgetHistory, compactActions } from "../domain/context.js";
@@ -32,15 +39,23 @@ export function stepLimitNote(): string {
 }
 
 const CONTINUE_AFTER_TOOLS = "Continue from the tool results above: use more tools if the task needs them, otherwise give your answer.";
+
+/** Providers whose Saturn adapter sends a user's images to the model. DeepSeek's API takes text only. */
+const SEES_IMAGES = new Set(["claude", "openai", "gemini", "lmstudio", "claude-code", "codex"]);
+
 export class RunService {
   constructor(private readonly kernel: RuntimeKernel) {}
 
-  async startRun(agentId: string, input: string, threadId?: string, projectId?: string): Promise<Run> {
+  async startRun(agentId: string, input: string, threadId?: string, projectId?: string, options: { images?: ImagePart[]; mode?: RunMode } = {}): Promise<Run> {
     const agent = this.kernel.getAgent(agentId);
     this.kernel.guard(agent.id);
     const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
     if (!model) throw new HttpError(409, "Agent has no model connection");
     this.kernel.llm.requireKey(model);
+    const images = options.images ?? [];
+    if (images.length && !SEES_IMAGES.has(model.provider)) {
+      throw new HttpError(409, `${model.name} cannot take images. Remove them, or switch the agent to a model that can see (Claude, OpenAI, Gemini, Claude Code, Codex, or a vision model in LM Studio).`);
+    }
 
     // A project chat only runs once the user has allowed access to its folder.
     const threadProject = threadId ? (this.kernel.store.state.threads ?? []).find((t) => t.id === threadId)?.projectId : projectId;
@@ -103,6 +118,8 @@ export class RunService {
       actions: [],
       generation: 0,
     };
+    if (images.length) run.inputImages = await saveImages(this.kernel.store.root, run.id, images);
+    if (options.mode && options.mode !== "agent") run.mode = options.mode;
     await this.kernel.store.update((state) => {
       state.runs.unshift(run);
     });
@@ -270,6 +287,7 @@ export class RunService {
       state.runs = state.runs.filter((r) => r.threadId !== threadId);
     });
     await this.kernel.checkpoints.forget(removed);
+    await forgetImages(this.kernel.store.root, removed);
   }
 
   async reviseRun(id: string, input: string): Promise<{ run: Run; removed: string[] }> {
@@ -298,6 +316,7 @@ export class RunService {
       run.status = "running";
       run.generation = (run.generation ?? 0) + 1;
     });
+    if (removed.length) await forgetImages(this.kernel.store.root, removed);
     const run = this.kernel.getRun(id);
     const dropped = removed.length ? `, dropping ${removed.length} later ${removed.length === 1 ? "turn" : "turns"}` : "";
     this.kernel.log("agent", "info", `${agent.name}: message edited, rerunning that turn${dropped}`, { "saturn.run.id": id });
@@ -455,7 +474,7 @@ export class RunService {
         if (current && (current.generation ?? 0) === generation) current.actions = [...actions];
       });
       const context = await this.ragContext(agent, run.input, signal);
-      await this.finishFromModel(runId, generation, agent, model, context, this.toolList(agent), actions, signal);
+      await this.finishFromModel(runId, generation, agent, model, context, this.toolList(agent, this.kernel.getRun(runId).mode, runId), actions, signal);
     } catch (error) {
       if (!this.kernel.alive(runId, generation) || signal.aborted) return;
       await this.finish(runId, generation, "failed", "", explainRunError(error));
@@ -510,6 +529,36 @@ export class RunService {
     return this.kernel.projects.workdirFor(thread);
   }
 
+  /**
+   * One editor tool, answered by the Saturn IDE window that has the chat's project open. Paths stay inside the
+   * project; a rename comes back as each file's new content and is written here, through the run's checkpoint,
+   * so it shows in the review and can be reverted like any other edit.
+   */
+  private async runIdeTool(input: { toolId: string; arguments: Record<string, unknown>; runId: string; actionId: string; signal?: AbortSignal }): Promise<unknown> {
+    const workdir = this.workdirOf(input.runId);
+    if (!workdir) throw new Error("Editor tools work in a project chat: this chat has no project folder.");
+    const inside = (file: string) => {
+      const full = path.resolve(workdir, file);
+      if (full !== workdir && !full.startsWith(workdir + path.sep)) throw new Error(`${file} is outside the project folder`);
+      return full;
+    };
+    const args = { ...input.arguments };
+    if (typeof args.path === "string") args.path = inside(args.path);
+    const result = await this.kernel.ide.call(workdir, input.toolId, args, input.signal);
+    if (input.toolId !== "ide_rename") return relativize(result, workdir);
+    const edits = (result as { files?: { path: string; content: string }[] } | undefined)?.files ?? [];
+    const checkpoint = withStep(this.kernel.checkpoints.forRun(input.runId, workdir), input.actionId);
+    const changed: string[] = [];
+    for (const edit of edits) {
+      const target = inside(edit.path);
+      await checkpoint.before(target);
+      await writeFile(target, edit.content, "utf8");
+      await checkpoint.after(target);
+      changed.push(path.relative(workdir, target).split(path.sep).join("/"));
+    }
+    return { renamed: input.arguments.symbol, to: input.arguments.newName, files: changed };
+  }
+
   private async runTool(input: {
     agentId: string;
     toolId: string;
@@ -531,7 +580,7 @@ export class RunService {
           const action = await this.executeTool({ ...input, toolId, arguments: args, actionId: newId("act") });
           if (action.status !== "completed") throw new Error(action.reason || "MCP call failed");
           return action.result;
-        }, input.signal, workdir, workdir ? this.kernel.checkpoints.forRun(input.runId, workdir) : undefined);
+        }, input.signal, workdir, workdir ? withStep(this.kernel.checkpoints.forRun(input.runId, workdir), input.actionId) : undefined);
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
         return {
@@ -541,6 +590,14 @@ export class RunService {
           status: "failed",
           reason: error instanceof Error ? error.message : "Skill failed",
         };
+      }
+    }
+    if (serverId === IDE_ID) {
+      try {
+        const result = await this.runIdeTool(input);
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
+      } catch (error) {
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: error instanceof Error ? error.message : "Editor tool failed" };
       }
     }
     if (serverId === BROWSER_ID) {
@@ -665,7 +722,7 @@ export class RunService {
       }
       const context = await this.ragContext(agent, run.input, signal);
       if (!this.kernel.alive(runId, generation)) return;
-      const tools = this.toolList(agent);
+      const tools = this.toolList(agent, run.mode, runId);
       if (run.actions.length) {
         // Resuming (after a wait): continue from the actions already taken instead of starting over.
         await this.finishFromModel(runId, generation, agent, model, context, tools, [...run.actions], signal);
@@ -695,10 +752,19 @@ export class RunService {
     const groupId = this.kernel.store.state.runs.find((item) => item.id === runId)?.groupId;
     const groupAutonomy = groupId ? (this.kernel.store.state.groups ?? []).find((item) => item.id === groupId)?.autonomy : undefined;
     const mode = groupAutonomy ?? autonomyOf(agent.autonomy);
+    const turnMode = this.kernel.store.state.runs.find((item) => item.id === runId)?.mode;
     for (let index = 0; index < calls.length; index += 1) {
       if (!this.kernel.alive(runId, generation) || signal.aborted) return true;
       this.kernel.guard(agent.id);
       const call = calls[index];
+
+      // An Ask or Plan turn only reads: a tool that would change something is refused, and the model is told why.
+      if ((turnMode === "ask" || turnMode === "plan") && !isReadOnlyCall(call.name, call.arguments, this.toolCategory(agent, call.name))) {
+        const refused: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "denied", reason: readOnlyRefusal(turnMode) };
+        if (call.thoughtSignature) refused.thoughtSignature = call.thoughtSignature;
+        actions.push(refused);
+        continue;
+      }
 
       // Antigravity guardrail enforcement
       let requiresApproval = false;
@@ -810,6 +876,16 @@ export class RunService {
     }
   }
 
+  /** A tool's declared read/write category, when its server declares one. */
+  toolCategory(agent: Agent, toolId: string): "read" | "write" | undefined {
+    for (const server of this.kernel.store.state.mcp) {
+      if (!agent.mcpConnectionIds.includes(server.id)) continue;
+      const tool = server.tools.find((item) => item.toolId === toolId);
+      if (tool) return tool.category;
+    }
+    return undefined;
+  }
+
   toolServer(agent: Agent, toolId: string): string | null {
     const attached = this.kernel.store.state.mcp.filter((item) => agent.mcpConnectionIds.includes(item.id));
     return attached.find((server) => server.tools.some((tool) => tool.toolId === toolId && !server.disabledTools?.includes(toolId)))?.id ?? null;
@@ -854,7 +930,7 @@ export class RunService {
       if (!current || (current.generation ?? 0) !== generation) return;
       current.actions = actions;
       current.output = cutOff ? [textOf(response).trim(), stepLimitNote()].filter(Boolean).join("\n\n") : textOf(response);
-      current.status = actions.some((item) => item.status === "failed" || (item.status === "denied" && item.reason !== DENIED_BY_USER))
+      current.status = actions.some((item) => item.status === "failed" || (item.status === "denied" && item.reason !== DENIED_BY_USER && !item.reason?.includes("mode only reads")))
         ? "failed"
         : "completed";
       saved = true;
@@ -871,12 +947,18 @@ export class RunService {
     if (run && (run.generation ?? 0) === generation && run.status === "completed") void this.kernel.memory.noteRun(run);
   }
 
-  toolList(agent: Agent) {
+  /** The tools the model is offered; an Ask or Plan turn gets only those that can read without changing anything. */
+  toolList(agent: Agent, mode?: RunMode, runId?: string) {
+    const readOnly = mode === "ask" || mode === "plan";
+    // The editor tools only when Saturn IDE has this chat's project open.
+    const ide = this.kernel.ide.available(runId ? this.workdirOf(runId) : undefined);
     return this.kernel.store.state.mcp
       .filter((item) => agent.mcpConnectionIds.includes(item.id))
+      .filter((item) => item.id !== IDE_ID || ide)
       .flatMap((server) =>
         server.tools
           .filter((tool) => !server.disabledTools?.includes(tool.toolId))
+          .filter((tool) => !readOnly || mayReadOnly(tool.toolId, tool.category))
           .map((tool) => ({
             type: "function",
             function: { name: tool.toolId, description: tool.description, parameters: tool.inputSchema },
@@ -933,7 +1015,8 @@ export class RunService {
       .reverse();
     const messages: ChatMessage[] = [];
     for (const turn of older) {
-      messages.push({ role: "user", content: turn.input });
+      const attached = turn.inputImages?.length ? `\n[${turn.inputImages.length} ${turn.inputImages.length === 1 ? "image was" : "images were"} attached to this message]` : "";
+      messages.push({ role: "user", content: turn.input + attached });
       if (turn.output) messages.push({ role: "assistant", content: turn.output, reasoning: turn.thinking });
     }
     return messages;
@@ -956,10 +1039,15 @@ export class RunService {
     const projectForPrompt = threadForPrompt ? (this.kernel.store.state.threads ?? []).find((t) => t.id === threadForPrompt)?.projectId : undefined;
     const memory = await this.kernel.memory.forPrompt(projectForPrompt);
     const planApproval = this.kernel.store.state.settings.planApproval === true;
+    const current = this.kernel.store.state.runs.find((item) => item.id === runId);
+    const images = await loadImages(this.kernel.store.root, current?.inputImages);
+    const rules = current ? await rulesFor(this.kernel, current) : "";
     const systemPrompt = buildSystemPrompt({
       agent,
       memory,
+      rules,
       planApproval,
+      mode: current?.mode,
       context: workdir
         ? `Working directory: ${workdir}\nThis chat belongs to the project in that folder. The files and code tools read, write and run commands there; paths are relative to it.${context ? `\n\n${context}` : ""}`
         : context,
@@ -973,7 +1061,7 @@ export class RunService {
         ? [{ role: "user" as const, content: `[${history.omitted} earlier messages in this conversation are omitted to save context.]` }]
         : []),
       ...history.kept,
-      { role: "user", content: input },
+      images.length ? { role: "user", content: input, images } : { role: "user", content: input },
     ];
     if (actions.length) {
       const thinking = this.kernel.store.state.runs.find((item) => item.id === runId)?.thinking;
@@ -1080,4 +1168,17 @@ function sanitizeActionsForText(actions: RunAction[]): unknown[] {
     }
     return action;
   });
+}
+
+/** A run's checkpoint hooks, tagging each write with the tool step that makes it. */
+function withStep(checkpoint: FileCheckpoint, actionId: string): FileCheckpoint {
+  return { before: (target) => checkpoint.before(target, actionId), after: (target) => checkpoint.after(target) };
+}
+
+/** An editor answer with the project folder taken off its paths, as the agent's other tools report them. */
+function relativize(value: unknown, root: string): unknown {
+  if (typeof value === "string") return value.startsWith(root + path.sep) ? value.slice(root.length + 1).split(path.sep).join("/") : value;
+  if (Array.isArray(value)) return value.map((item) => relativize(item, root));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, relativize(item, root)]));
+  return value;
 }

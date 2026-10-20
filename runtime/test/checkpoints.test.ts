@@ -262,3 +262,28 @@ test("an agent's edit in a granted project shows up as a diff and reverts to the
     model.server.close();
   }
 });
+
+test("restoring to a step puts each file back to just before that step, and deletes what it or later steps created", async () => {
+  const { folder, kernel, store } = await setup();
+  const workdir = kernel.projects.workdir(kernel.store.state.projects![0]!.id);
+  await writeFile(path.join(folder, "notes.md"), "original\n");
+  const step = (actionId: string) => {
+    const checkpoint = kernel.checkpoints.forRun("run_1", workdir);
+    return new FileSkill(new Workspace(workdir), { before: (target) => checkpoint.before(target, actionId), after: (target) => checkpoint.after(target) });
+  };
+  await step("act_a").run({ action: "write", path: "notes.md", content: "v1\n" });
+  await step("act_b").run({ action: "write", path: "notes.md", content: "v2\n" });
+  await step("act_b").run({ action: "write", path: "src/new.ts", content: "export {};\n" });
+  await step("act_c").run({ action: "write", path: "notes.md", content: "v3\n" });
+  await store.update((state) => {
+    state.runs.find((item) => item.id === "run_1")!.actions = ["act_a", "act_b", "act_c"].map((id) => ({ id, toolId: "files", arguments: {}, status: "completed" as const }));
+  });
+
+  const result = await kernel.checkpoints.restoreToStep("run_1", "act_b");
+  assert.deepEqual(result.files.sort(), ["notes.md", "src/new.ts"]);
+  assert.equal(await readFile(path.join(folder, "notes.md"), "utf8"), "v1\n", "act_a's edit stays; act_b's and act_c's are undone");
+  await assert.rejects(() => stat(path.join(folder, "src", "new.ts")), "the file act_b created is gone");
+  const entry = kernel.getRun("run_1").checkpoint!.files.find((item) => item.path === "notes.md")!;
+  assert.deepEqual([entry.before, entry.after], [sha("original\n"), sha("v1\n")], "the run's change now ends at act_a's result");
+  assert.deepEqual(kernel.getRun("run_1").checkpoint!.steps!.map((item) => item.actionId), ["act_a"]);
+});

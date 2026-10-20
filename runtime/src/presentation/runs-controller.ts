@@ -1,4 +1,6 @@
 import type { Express } from "express";
+import { parseImages } from "../application/run-images.js";
+import type { RunMode } from "../domain/model.js";
 import { HttpError } from "../domain/errors.js";
 import type { AppServices } from "../application/services.js";
 import { param, respond } from "./http.js";
@@ -50,7 +52,10 @@ export function mountRuns(app: Express, services: AppServices): void {
   });
 
   app.post("/agents/:id/runs", (req, res, next) => {
-    respond(res, next, () => services.startRun(param(req.params.id), String(req.body.input ?? ""), req.body?.threadId ? String(req.body.threadId) : undefined, req.body?.projectId ? String(req.body.projectId) : undefined), 201);
+    respond(res, next, () => services.startRun(param(req.params.id), String(req.body.input ?? ""), req.body?.threadId ? String(req.body.threadId) : undefined, req.body?.projectId ? String(req.body.projectId) : undefined, {
+      images: parseImages(req.body?.images),
+      mode: parseMode(req.body?.mode),
+    }), 201);
   });
 
   app.get("/agents/:id/threads", (req, res, next) => {
@@ -106,7 +111,7 @@ export function mountRuns(app: Express, services: AppServices): void {
 
   // "Restore to before this turn": reverts this run and every later run in its chat.
   app.post("/runs/:id/restore", (req, res, next) => {
-    respond(res, next, () => services.restoreToRun(param(req.params.id)));
+    respond(res, next, () => services.restoreToRun(param(req.params.id), typeof req.body?.actionId === "string" ? req.body.actionId : undefined));
   });
 
   // Answers an approval card: a Claude Code or Codex run waits on it while the program holds the tool call; a
@@ -182,4 +187,10 @@ export function mountRuns(app: Express, services: AppServices): void {
   app.patch("/runs/:id", (req, res, next) => {
     respond(res, next, () => services.reviseRun(param(req.params.id), String(req.body.input ?? "")));
   });
+}
+
+function parseMode(value: unknown): RunMode | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (value === "agent" || value === "ask" || value === "plan") return value;
+  throw new HttpError(400, "mode must be agent, ask or plan");
 }

@@ -2,7 +2,8 @@ import type { UsageRange } from "./usage.js";
 import type { AutomationView } from "./automations.js";
 import type { GroupTranscript, GroupView } from "./groups.js";
 import type { RunChanges } from "./checkpoints.js";
-import type { Agent, Automation, AppSettings, Conversation, Group, McpConnection, ModelConnection, Project, RagConnection, Run, RunAction } from "../domain/model.js";
+import type { Agent, Automation, AppSettings, Conversation, Group, McpConnection, ModelConnection, Project, RagConnection, Run, RunAction, RunMode } from "../domain/model.js";
+import type { ImagePart } from "../infrastructure/llm/types.js";
 import { McpClient } from "../infrastructure/mcp.js";
 import { FileStore } from "../infrastructure/store.js";
 import { RuntimeKernel } from "./kernel.js";
@@ -112,12 +113,12 @@ export class AppServices {
   }
 
   /** Restores the chat's files to before this turn (this run and every later one in the chat). */
-  async restoreToRun(id: string): Promise<{ reverted: string[]; files: string[] }> {
-    return await this.kernel.checkpoints.restoreTo(id);
+  async restoreToRun(id: string, actionId?: string): Promise<{ reverted: string[]; files: string[] }> {
+    return actionId ? await this.kernel.checkpoints.restoreToStep(id, actionId) : await this.kernel.checkpoints.restoreTo(id);
   }
 
-  async startRun(agentId: string, input: string, threadId?: string, projectId?: string): Promise<Run> {
-    return await this.kernel.runs.startRun(agentId, input, threadId, projectId);
+  async startRun(agentId: string, input: string, threadId?: string, projectId?: string, options?: { images?: ImagePart[]; mode?: RunMode }): Promise<Run> {
+    return await this.kernel.runs.startRun(agentId, input, threadId, projectId, options);
   }
 
   async listThreads(agentId: string): Promise<Conversation[]> {

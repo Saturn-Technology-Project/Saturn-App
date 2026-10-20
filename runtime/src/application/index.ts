@@ -2,10 +2,10 @@ import { createHash } from "node:crypto";
 import { readFile, readdir, stat, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { LMStudioClient } from "@lmstudio/sdk";
 import { chunkFile } from "../domain/chunks.js";
 import { HttpError } from "../domain/errors.js";
 import { errorText, logger } from "../infrastructure/logger.js";
+import { DEFAULT_BUILTIN_MODEL, LmStudioEmbedder, OnnxEmbedder, OpenAiEmbedder, isBuiltinModel, type EmbedKind, type Embedder } from "../infrastructure/embeddings.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 /** Folders never indexed. */
@@ -15,8 +15,9 @@ const EXTENSIONS = new Set(["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"
 const MAX_FILE_BYTES = 1_000_000;
 /** Chunks embedded per request to the embedding model. */
 const BATCH = 32;
-/** The default embedding model (any one loaded in LM Studio works; this one is small and trained on code). */
+/** The default LM Studio embedding model, when the LM Studio source is chosen without naming one. */
 export const DEFAULT_EMBEDDING_MODEL = "text-embedding-nomic-embed-text-v1.5";
+const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
 
 export type IndexStatus = {
   projectId: string;
@@ -44,6 +45,9 @@ export class IndexService {
   private readonly databases = new Map<string, DatabaseSync>();
   private readonly building = new Map<string, { pending: number; abort: AbortController }>();
   private readonly errors = new Map<string, string>();
+  private readonly builtins = new Map<string, OnnxEmbedder>();
+  /** Set by tests: an embedder used instead of the configured one. */
+  private override: Embedder | undefined;
 
   constructor(private readonly kernel: RuntimeKernel) {}
 
@@ -67,30 +71,47 @@ export class IndexService {
     return db;
   }
 
-  /** The embedding model: Settings → General → Embedding model, else the default. Needs LM Studio running. */
-  private embeddingModel(): { baseUrl: string; model: string } {
-    const settings = this.kernel.store.state.settings;
-    const lmstudio = this.kernel.store.state.models.find((item) => item.provider === "lmstudio");
-    return { baseUrl: lmstudio?.baseUrl || "http://127.0.0.1:1234", model: settings.embeddingModel || DEFAULT_EMBEDDING_MODEL };
+  useEmbedder(embedder: Embedder | undefined): void {
+    this.override = embedder;
   }
 
-  private async embed(texts: string[], signal?: AbortSignal): Promise<Float32Array[]> {
-    const { baseUrl, model: key } = this.embeddingModel();
-    const url = new URL(baseUrl);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const client = new LMStudioClient({ baseUrl: url.toString().replace(/\/$/, "") });
-    try {
-      const model = await client.embedding.model(key, { signal });
-      const results = await model.embed(texts);
-      return results.map((item) => Float32Array.from(item.embedding));
-    } catch (error) {
-      const text = errorText(error);
-      if (/ECONNREFUSED|not running|connect/i.test(text)) throw new HttpError(503, "LM Studio is not running. Start it (with an embedding model downloaded) to build or search the code index.");
-      if (/not found|no model|unknown model|does not exist/i.test(text)) throw new HttpError(409, `The embedding model "${key}" is not downloaded in LM Studio. Download it there, or choose another in Settings → General.`);
-      throw error;
-    } finally {
-      void client[Symbol.asyncDispose]().catch(() => undefined);
+  /**
+   * What embeds the index (Settings → General): the built-in model unless the user chose LM Studio or an
+   * OpenAI-compatible connection. Settings from before the choice existed (a model name, no source) mean LM Studio.
+   */
+  embedder(): Embedder {
+    if (this.override) return this.override;
+    const settings = this.kernel.store.state.settings;
+    const source = settings.embeddingSource ?? (settings.embeddingModel && !isBuiltinModel(settings.embeddingModel) ? "lmstudio" : "builtin");
+    if (source === "lmstudio") {
+      const lmstudio = this.kernel.store.state.models.find((item) => item.provider === "lmstudio");
+      return new LmStudioEmbedder(lmstudio?.baseUrl || "http://127.0.0.1:1234", settings.embeddingModel || DEFAULT_EMBEDDING_MODEL);
     }
+    if (source === "openai") {
+      const connection = this.kernel.store.state.models.find((item) => item.id === settings.embeddingConnectionId)
+        ?? this.kernel.store.state.models.find((item) => item.provider === "openai");
+      if (!connection) throw new HttpError(409, "Choose the OpenAI-compatible connection for embeddings in Settings → General.");
+      return new OpenAiEmbedder(connection.baseUrl || undefined, this.kernel.llm.keyFor(connection), settings.embeddingModel || DEFAULT_OPENAI_EMBEDDING_MODEL);
+    }
+    const name = settings.embeddingModel && isBuiltinModel(settings.embeddingModel) ? settings.embeddingModel : DEFAULT_BUILTIN_MODEL;
+    let embedder = this.builtins.get(name);
+    if (!embedder) {
+      embedder = new OnnxEmbedder(this.kernel.store.root, name);
+      this.builtins.set(name, embedder);
+    }
+    return embedder;
+  }
+
+  private async embed(texts: string[], kind: EmbedKind, signal?: AbortSignal): Promise<Float32Array[]> {
+    return await this.embedder().embed(texts, kind, signal);
+  }
+
+  /** Which embedder built this index ("model" alone on indexes from before there was a choice: LM Studio). */
+  private builtWith(db: DatabaseSync): string | undefined {
+    const embedder = db.prepare("SELECT value FROM meta WHERE key = 'embedder'").get() as { value: string } | undefined;
+    if (embedder) return embedder.value;
+    const model = db.prepare("SELECT value FROM meta WHERE key = 'model'").get() as { value: string } | undefined;
+    return model ? `lmstudio:${model.value}` : undefined;
   }
 
   async status(projectId: string): Promise<IndexStatus> {
@@ -98,7 +119,7 @@ export class IndexService {
     const files = (db.prepare("SELECT COUNT(*) AS n FROM files").get() as { n: number }).n;
     const chunks = (db.prepare("SELECT COUNT(*) AS n FROM chunks").get() as { n: number }).n;
     const updated = db.prepare("SELECT value FROM meta WHERE key = 'updated_at'").get() as { value: string } | undefined;
-    const model = db.prepare("SELECT value FROM meta WHERE key = 'model'").get() as { value: string } | undefined;
+    const model = this.builtWith(db);
     const building = this.building.get(projectId);
     const error = this.errors.get(projectId);
     return {
@@ -107,7 +128,7 @@ export class IndexService {
       files,
       chunks,
       ...(building ? { pending: building.pending } : {}),
-      ...(model ? { model: model.value } : {}),
+      ...(model ? { model } : {}),
       ...(updated ? { updatedAt: updated.value } : {}),
       ...(error ? { error } : {}),
     };
@@ -128,6 +149,16 @@ export class IndexService {
     this.errors.delete(projectId);
     void (async () => {
       try {
+        // Vectors from another model mean nothing next to this one's: start the index over.
+        const current = this.embedder().id;
+        const previous = this.builtWith(db);
+        if (previous && previous !== current) {
+          db.exec("DELETE FROM chunks; DELETE FROM files;");
+          logger.info("index", `The embedding model changed (${previous} → ${current}); rebuilding the index of ${path.basename(root)}`);
+          if (paths) {
+            paths = undefined;
+          }
+        }
         const files = paths ? paths.map((item) => path.resolve(root, item)).filter((item) => item.startsWith(root)) : await this.walk(root);
         const known = new Map((db.prepare("SELECT path, hash FROM files").all() as { path: string; hash: string }[]).map((row) => [row.path, row.hash]));
         const todo: { relative: string; hash: string; content: string }[] = [];
@@ -152,14 +183,14 @@ export class IndexService {
           for (const gone of [...known.keys()].filter((item) => !seen.has(item))) this.forget(db, gone);
         }
         job.pending = todo.length;
-        const { model } = this.embeddingModel();
+        const model = current;
         for (const file of todo) {
           if (abort.signal.aborted) return;
           const chunks = chunkFile(file.relative, file.content);
           const vectors: Float32Array[] = [];
           for (let at = 0; at < chunks.length; at += BATCH) {
             const batch = chunks.slice(at, at + BATCH);
-            vectors.push(...(await this.embed(batch.map((chunk) => `${file.relative}${chunk.name ? ` ${chunk.name}` : ""}\n${chunk.text}`), abort.signal)));
+            vectors.push(...(await this.embed(batch.map((chunk) => `${file.relative}${chunk.name ? ` ${chunk.name}` : ""}\n${chunk.text}`), "passage", abort.signal)));
           }
           this.forget(db, file.relative);
           const insert = db.prepare("INSERT INTO chunks (path, start, end, name, text, vector) VALUES (?, ?, ?, ?, ?, ?)");
@@ -175,7 +206,8 @@ export class IndexService {
           job.pending -= 1;
         }
         db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('updated_at', ?)").run(new Date().toISOString());
-        db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('model', ?)").run(model);
+        db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('embedder', ?)").run(model);
+        db.prepare("DELETE FROM meta WHERE key = 'model'").run();
         if (todo.length) logger.info("index", `Indexed ${todo.length} changed ${todo.length === 1 ? "file" : "files"} of ${path.basename(root)}`);
       } catch (error) {
         this.errors.set(projectId, errorText(error));
@@ -196,7 +228,13 @@ export class IndexService {
     const db = await this.open(projectId);
     const text = query.trim();
     if (!text) return [];
-    const [vector] = await this.embed([text]);
+    const current = this.embedder().id;
+    const previous = this.builtWith(db);
+    if (previous && previous !== current) {
+      void this.build(projectId);
+      throw new HttpError(409, `The code index was built with ${previous}; it is being rebuilt with ${current}. Search again in a moment.`);
+    }
+    const [vector] = await this.embed([text], "query");
     const rows = db.prepare("SELECT id, path, start, end, name, text, vector FROM chunks").all() as unknown as Row[];
     const scored = rows.map((row) => ({ row, score: cosine(vector!, new Float32Array(row.vector.buffer, row.vector.byteOffset, row.vector.byteLength / 4)) }));
     scored.sort((a, b) => b.score - a.score);

@@ -176,6 +176,28 @@ export function mountWorkspace(app: Express, services: AppServices): void {
     });
   });
 
+  // An IDE window's request stream for editor tools (diagnostics, definitions, renames; see ide-bridge.ts).
+  app.get("/runtime/clients/:id/requests", (req, res) => {
+    const raw = req.query.folder;
+    const folders = (Array.isArray(raw) ? raw : raw === undefined ? [] : [raw]).map(String).filter((item) => path.isAbsolute(item));
+    services.kernel.ide.connect(String(req.params.id), folders, res);
+  });
+
+  app.post("/runtime/clients/:id/folders", (req, res, next) => {
+    respond(res, next, () => {
+      const folders = Array.isArray(req.body?.folders) ? req.body.folders.map(String).filter((item: string) => path.isAbsolute(item)) : [];
+      services.kernel.ide.setFolders(String(req.params.id), folders);
+      return { ok: true };
+    });
+  });
+
+  app.post("/runtime/clients/:id/responses/:requestId", (req, res, next) => {
+    respond(res, next, () => {
+      services.kernel.ide.respond(String(req.params.id), String(req.params.requestId), { result: req.body?.result, error: req.body?.error });
+      return { ok: true };
+    });
+  });
+
   app.delete("/runtime/clients/:id", (req, res, next) => {
     respond(res, next, () => services.kernel.clients.leave(String(req.params.id)), 204);
   });

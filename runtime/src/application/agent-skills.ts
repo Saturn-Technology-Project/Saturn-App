@@ -1,3 +1,4 @@
+import { IDE_ID } from "../domain/ide-tools.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { GENERAL_SKILLS_ID } from "../domain/builtin.js";
@@ -21,9 +22,12 @@ export function runtimeOrigin(): string {
  * The Saturn tools a Claude Code or Codex agent gets: every skill and MCP server attached to the agent, except
  * General Skills, whose files, shell, web, MCP and plan tools are the program's own tools under other names.
  */
-export function bridgedTools(kernel: RuntimeKernel, agent: Agent): BridgedTool[] {
+export function bridgedTools(kernel: RuntimeKernel, agent: Agent, workdir?: string): BridgedTool[] {
+  // The editor tools only when Saturn IDE has the project open.
+  const ide = kernel.ide.available(workdir);
   return kernel.store.state.mcp
     .filter((server) => server.id !== GENERAL_SKILLS_ID && agent.mcpConnectionIds.includes(server.id))
+    .filter((server) => server.id !== IDE_ID || ide)
     .flatMap((server) =>
       server.tools
         .filter((tool) => !server.disabledTools?.includes(tool.toolId))

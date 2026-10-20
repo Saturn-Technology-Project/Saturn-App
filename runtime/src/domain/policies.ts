@@ -73,6 +73,47 @@ export function isSensitiveOperation(toolId: string, args: Record<string, unknow
   return false;
 }
 
+/** Tools that only look: they read files, pages, the screen or a repository and change nothing. */
+const READ_ONLY_TOOL_IDS = new Set([
+  "web", "computer_screenshot", "computer_apps", "computer_app_state", "computer_check_permissions", "computer_resolve_app", "computer_wait",
+  "customizations_list", "plugins_list", "automation_list", "workflows_scan",
+]);
+/** Names MCP servers commonly give tools that only read (GitHub's get_file_contents, list_commits, pull_request_read…). */
+const READ_ONLY_NAME = /^(get|list|read|search|grep|find|compare|fetch|view|describe|show)_|_(read|list|get|search|state|status)$/;
+
+/**
+ * Whether one tool call only reads. Ask and Plan turns run only these: a write is refused, not asked about.
+ * `category` is the tool's own declaration when it has one; the files tool depends on its action.
+ */
+export function isReadOnlyCall(toolId: string, args: Record<string, unknown>, category?: "read" | "write"): boolean {
+  if (category) return category === "read";
+  if (toolId === "files") return ["list", "read"].includes(String(args.action ?? ""));
+  if (toolId === "code") return false;
+  return READ_ONLY_TOOL_IDS.has(toolId) || READ_ONLY_NAME.test(toolId);
+}
+
+/** Whether a tool can ever be read-only, so an Ask or Plan turn lists it at all. */
+export function mayReadOnly(toolId: string, category?: "read" | "write"): boolean {
+  if (category) return category === "read";
+  return toolId === "files" || isReadOnlyCall(toolId, {}, undefined);
+}
+
+/** What an Ask or Plan turn is told about itself (nothing for an Agent turn). */
+export function modeInstructions(mode: "agent" | "ask" | "plan" | undefined): string {
+  if (mode === "ask") {
+    return "### This turn: Ask mode\nAnswer the question. You may read files and pages to do so, but do not change anything: tools that write, edit or run commands are refused in this mode. If a change is needed, describe it and say the user can switch to Agent mode to have it made.";
+  }
+  if (mode === "plan") {
+    return "### This turn: Plan mode\nDo not change anything yet: tools that write, edit or run commands are refused in this mode. Read what you need, then reply with a numbered plan: the files to change and what changes in each, the order, the risks, and how the result will be checked. End by saying the user can switch to Agent mode and reply 'go' to carry it out.";
+  }
+  return "";
+}
+
+/** The refusal an Ask or Plan turn gets for a tool that would change something. */
+export function readOnlyRefusal(mode: "ask" | "plan"): string {
+  return `${mode === "ask" ? "Ask" : "Plan"} mode only reads: this tool would change something, so it was not run. Switch to Agent mode to make changes.`;
+}
+
 export function numberOf(value: unknown, fallback: number, low: number, high: number): number {
   const number = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(number)) return fallback;
@@ -102,11 +143,16 @@ export function buildSystemPrompt(input: {
   serverIds?: string[];
   /** Notes Saturn kept from earlier chats (see application/memory.ts). */
   memory?: string;
+  /** The project's own rules for agents (AGENTS.md and the like; see application/rules.ts). */
+  rules?: string;
   /** Agents must present a plan and wait for a go-ahead before changing anything. */
   planApproval?: boolean;
+  /** This turn's mode: Ask and Plan turns only read. */
+  mode?: "agent" | "ask" | "plan";
 }): string {
   const parts: string[] = [];
   if (input.memory?.trim()) parts.push(input.memory.trim());
+  if (input.rules?.trim()) parts.push(input.rules.trim());
 
   // Custom user instructions (if provided)
   if (input.agent.instructions?.trim()) {
@@ -187,6 +233,8 @@ export function buildSystemPrompt(input: {
     parts.push(`### Relevant Knowledge & Context\n${input.context.trim()}`);
   }
 
+  const modeNote = modeInstructions(input.mode);
+  if (modeNote) parts.push(modeNote);
   return parts.join("\n\n");
 }
 

@@ -1,3 +1,4 @@
+import { projectRules, type RuleSource } from "./rules.js";
 import { execFile, spawn } from "node:child_process";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -596,10 +597,16 @@ export class ProjectService {
     return { opened: true, path: target.path };
   }
 
-  async getRules(id: string): Promise<{ content: string; source: "cursorrules" | "agents" | "stored" | "none"; path?: string }> {
+  async getRules(id: string): Promise<{ content: string; source: "cursorrules" | "agents" | "stored" | "none"; path?: string; sources: RuleSource[] }> {
     const projects = await this.list();
     const target = projects.find((p) => p.id === id);
     if (!target) throw new HttpError(404, `Project ${id} not found`);
+    // Every file the agents' prompt takes rules from (rules.ts), for the editor and the IDE.
+    const { sources } = await projectRules(target.path, target.rules ?? "");
+    return { ...(await this.editableRules(target)), sources };
+  }
+
+  private async editableRules(target: Project): Promise<{ content: string; source: "cursorrules" | "agents" | "stored" | "none"; path?: string }> {
 
     // 1. Check for .cursorrules
     const cursorRulesPath = path.join(target.path, ".cursorrules");

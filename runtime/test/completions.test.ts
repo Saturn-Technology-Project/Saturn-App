@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { mkdtemp } from "node:fs/promises";
+import { writeFile, mkdtemp } from "node:fs/promises";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
 import { useRuntimeAuth } from "./runtime-token.js";
@@ -244,10 +244,37 @@ test("the code index splits files into declarations, ranks chunks by cosine simi
     useRuntimeAuth(`http://127.0.0.1:${port}`);
     const status = (await (await fetch(`http://127.0.0.1:${port}/projects/${project.id}/index`)).json()) as { state: string; files: number };
     assert.deepEqual([status.state, status.files], ["empty", 0]);
-    // No LM Studio in tests: a search says so instead of failing silently.
-    const search = await fetch(`http://127.0.0.1:${port}/projects/${project.id}/index/search?q=adds+numbers`);
-    assert.equal(search.status, 503);
-    assert.match(((await search.json()) as { error: string }).error, /LM Studio is not running/);
+    // A stand-in embedder (words hashed into a vector), so the test needs no model: the index builds, ranks, and
+    // starts over when the embedding model changes.
+    const words = (id: string) => ({
+      id,
+      embed: async (texts: string[]) => texts.map((text) => {
+        const vector = new Float32Array(64);
+        for (const word of text.toLowerCase().match(/[a-z]+/g) ?? []) vector[[...word].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 64]! += 1;
+        return vector;
+      }),
+    });
+    services.kernel.index.useEmbedder(words("test:words"));
+    await services.setProjectAccess(project.id, true);
+    await writeFile(path.join(folder, "math.ts"), source);
+    await writeFile(path.join(folder, "ui.ts"), "export function renderButton(label: string) {\n  return `<button>${label}</button>`;\n}\n");
+    const waitReady = async () => {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const current = (await (await fetch(`http://127.0.0.1:${port}/projects/${project.id}/index`)).json()) as { state: string; model?: string };
+        if (current.state === "ready") return current;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      throw new Error("the index never became ready");
+    };
+    await fetch(`http://127.0.0.1:${port}/projects/${project.id}/index`, { method: "POST" });
+    assert.equal((await waitReady()).model, "test:words");
+    const hits = (await (await fetch(`http://127.0.0.1:${port}/projects/${project.id}/index/search?q=add+two+numbers`)).json()) as { path: string; name?: string }[];
+    assert.deepEqual([hits[0]!.path, hits[0]!.name], ["math.ts", "add"]);
+
+    services.kernel.index.useEmbedder(words("test:other"));
+    const stale = await fetch(`http://127.0.0.1:${port}/projects/${project.id}/index/search?q=add`);
+    assert.equal(stale.status, 409, "vectors from another model are never mixed with this one's");
+    assert.equal((await waitReady()).model, "test:other", "the index rebuilt itself with the new model");
   } finally {
     await new Promise((resolve) => listening.close(() => resolve(undefined)));
   }

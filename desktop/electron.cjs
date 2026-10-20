@@ -76,6 +76,8 @@ function startRuntime() {
     SATURN_DESKTOP_PID: String(process.pid),
   };
   if (packaged) {
+    // The built-in embedding model for the code index ships inside the app (scripts/fetch-embedding-model.mjs).
+    env.SATURN_MODELS_DIR = path.join(process.resourcesPath, "models");
     env.ELECTRON_RUN_AS_NODE = "1";
     // Electron's fs treats .asar files as folders; the runtime copies and deletes bundles that contain them.
     env.ELECTRON_NO_ASAR = "1";

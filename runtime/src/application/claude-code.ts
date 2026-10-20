@@ -3,12 +3,13 @@ import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { promisify } from "node:util";
-import { query, type CanUseTool, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { query, type CanUseTool, type Options, type SDKMessage, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
 import type { Agent, GroupAutonomy, ModelConnection, Run, RunAction } from "../domain/model.js";
 import { errorText, logger } from "../infrastructure/logger.js";
-import { autonomyOf, isSensitiveOperation } from "../domain/policies.js";
+import { autonomyOf, isReadOnlyCall, isSensitiveOperation, modeInstructions, readOnlyRefusal } from "../domain/policies.js";
+import { loadImages } from "./run-images.js";
 import { SKILLS_SERVER, bridgedTools, skillsServer } from "./agent-skills.js";
 import { saveSession, savedSession, turnContext, withKnowledge } from "./agent-sessions.js";
 import type { RuntimeKernel } from "./kernel.js";
@@ -160,10 +161,12 @@ export class ClaudeCodeService {
     await mkdir(this.configDir(), { recursive: true, mode: 0o700 });
 
     const resumeId = savedSession(this.kernel, run, "claudeSessionId");
-    const { memory, knowledge } = await turnContext(this.kernel, agent, run, signal);
+    // Claude Code is started without settings sources, so it reads no CLAUDE.md itself: Saturn passes every rule file.
+    const { memory, knowledge, rules } = await turnContext(this.kernel, agent, run, signal);
     // Memory and the agent's instructions go after Claude Code's own prompt on every turn, so edits to either
     // reach a resumed session too.
-    const append = [memory, agent.instructions.trim()].filter(Boolean).join("\n\n");
+    const append = [memory, rules, agent.instructions.trim(), modeInstructions(run.mode)].filter(Boolean).join("\n\n");
+    const readOnly = run.mode === "ask" || run.mode === "plan" ? run.mode : undefined;
     const abortController = new AbortController();
     const abort = () => abortController.abort();
     signal.addEventListener("abort", abort, { once: true });
@@ -202,13 +205,22 @@ export class ClaudeCodeService {
       const requested = FILE_TOOLS[toolName] ? input[FILE_TOOLS[toolName]] : undefined;
       if (checkpoint && typeof requested === "string") {
         const target = path.resolve(workdir, requested);
-        await checkpoint.before(target);
+        await checkpoint.before(target, actionId);
         edited.set(actionId, target);
       }
     };
 
     const canUseTool: CanUseTool = async (toolName, input, options) => {
       if (READ_ONLY_TOOLS.has(toolName)) return { behavior: "allow", updatedInput: input };
+      if (readOnly) {
+        // An Ask or Plan turn only reads: a Saturn skill that only reads still runs; anything else is refused.
+        const skill = toolName.startsWith(SKILL_PREFIX) ? toolName.slice(SKILL_PREFIX.length) : undefined;
+        if (skill && isReadOnlyCall(skill, input, this.kernel.runs.toolCategory(agent, skill))) return { behavior: "allow", updatedInput: input };
+        const refused = actionFor(options.toolUseID || newId("act"), toolName, input);
+        refused.status = "denied";
+        refused.reason = readOnlyRefusal(readOnly);
+        return { behavior: "deny", message: readOnlyRefusal(readOnly) };
+      }
       if (mode === "bypass" || (mode === "default" && !risky(toolName, input, workdir))) {
         const action = actionFor(options.toolUseID || newId("act"), toolName, input);
         await keepOriginal(action.id, toolName, input);
@@ -237,7 +249,7 @@ export class ClaudeCodeService {
 
     // The agent's Saturn skills and MCP servers, in-process. Their calls pass canUseTool like any other tool,
     // so they follow the same approval setting, and run through Saturn's own tool path.
-    const skills = bridgedTools(this.kernel, agent);
+    const skills = bridgedTools(this.kernel, agent, thread?.projectId ? workdir : undefined);
     const skillsCall = (toolId: string, args: Record<string, unknown>) =>
       this.kernel.runs.executeTool({ agentId: agent.id, toolId, arguments: args, runId, actionId: newId("act"), signal });
 
@@ -249,7 +261,8 @@ export class ClaudeCodeService {
       model: model.model,
       ...(model.effort ? { effort: model.effort } : {}),
       ...(resumeId ? { resume: resumeId } : {}),
-      permissionMode: "default",
+      // Plan mode is Claude Code's own: it reads, then presents a plan instead of editing.
+      permissionMode: run.mode === "plan" ? "plan" : "default",
       canUseTool,
       disallowedTools: DISALLOWED_TOOLS,
       ...(skills.length ? { mcpServers: { [SKILLS_SERVER]: { type: "sdk", name: SKILLS_SERVER, instance: skillsServer(skills, skillsCall) } } } : {}),
@@ -262,7 +275,9 @@ export class ClaudeCodeService {
     let sessionId = resumeId;
     let failure: string | undefined;
     try {
-      for await (const message of query({ prompt: withKnowledge(run.input, knowledge), options })) {
+      const text = withKnowledge(run.input, knowledge);
+      const images = await loadImages(this.kernel.store.root, run.inputImages);
+      for await (const message of query({ prompt: images.length ? withImageBlocks(text, images) : text, options })) {
         if (!this.kernel.alive(runId, generation)) break;
         sessionId = sessionOf(message) ?? sessionId;
         if (message.type === "assistant") {
@@ -400,4 +415,22 @@ function clipResult(content: unknown): unknown {
 
 function shellQuote(value: string): string {
   return /^[\w@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/** The user's message with its images, as the one streamed input message the SDK reads for this turn. */
+async function* withImageBlocks(text: string, images: { mimeType: string; base64: string }[]): AsyncIterable<SDKUserMessage> {
+  yield {
+    type: "user",
+    parent_tool_use_id: null,
+    message: {
+      role: "user",
+      content: [
+        ...images.map((image) => ({
+          type: "image" as const,
+          source: { type: "base64" as const, media_type: image.mimeType as "image/png" | "image/jpeg" | "image/webp" | "image/gif", data: image.base64 },
+        })),
+        { type: "text" as const, text },
+      ],
+    },
+  };
 }

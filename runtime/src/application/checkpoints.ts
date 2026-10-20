@@ -56,9 +56,9 @@ export class CheckpointService {
       }
     };
     return {
-      before: async (target) => {
+      before: async (target, actionId) => {
         const file = relative(target);
-        if (file) await this.locked(runId, () => this.captureBefore(runId, workspace.root, file));
+        if (file) await this.locked(runId, () => this.captureBefore(runId, workspace.root, file, actionId));
       },
       after: async (target) => {
         const file = relative(target);
@@ -79,9 +79,10 @@ export class CheckpointService {
     }
   }
 
-  private async captureBefore(runId: string, root: string, file: string): Promise<void> {
+  private async captureBefore(runId: string, root: string, file: string, actionId?: string): Promise<void> {
     const run = this.kernel.store.state.runs.find((item) => item.id === runId);
     if (!run) return;
+    if (actionId) await this.captureStep(runId, root, file, actionId);
     const existing = run.checkpoint?.root === root ? run.checkpoint.files.find((item) => item.path === file) : undefined;
     if (existing && existing.review !== "reverted") return;
     // A reverted file is back to its original, so the run's next write starts from the same `before`.
@@ -93,6 +94,19 @@ export class CheckpointService {
       const entry = current.checkpoint.files.find((item) => item.path === file);
       if (entry) delete entry.review;
       else current.checkpoint.files.push({ path: file, before: hash, after: hash });
+    });
+  }
+
+  /** The file as it is just before one tool step writes it, the first time that step does. */
+  private async captureStep(runId: string, root: string, file: string, actionId: string): Promise<void> {
+    const run = this.kernel.store.state.runs.find((item) => item.id === runId);
+    if (run?.checkpoint?.root === root && run.checkpoint.steps?.some((item) => item.actionId === actionId && item.path === file)) return;
+    const hash = await this.save(runId, await readBytes(path.join(root, file)));
+    await this.kernel.store.update((state) => {
+      const current = state.runs.find((item) => item.id === runId);
+      if (!current) return;
+      if (!current.checkpoint || current.checkpoint.root !== root) current.checkpoint = { root, files: [] };
+      (current.checkpoint.steps ??= []).push({ actionId, path: file, hash });
     });
   }
 
@@ -246,6 +260,74 @@ export class CheckpointService {
         for (const item of pending) files.add(item.path);
       }
     }
+    return { reverted, files: [...files] };
+  }
+
+  /**
+   * Puts the chat's files back to how they were just before one tool step of a run: later turns are reverted
+   * whole, then each file this run's step or a later step of it wrote gets the bytes it had before the first
+   * of those writes. Files changed by shell commands are not tracked step by step.
+   */
+  async restoreToStep(runId: string, actionId: string): Promise<{ reverted: string[]; files: string[] }> {
+    const run = this.kernel.getRun(runId);
+    const position = run.actions.findIndex((item) => item.id === actionId);
+    if (position < 0) throw new HttpError(404, "That step is not part of this run");
+    const runs = this.kernel.store.state.runs;
+    const index = runs.findIndex((item) => item.id === runId);
+    const later = runs
+      .slice(0, index)
+      .filter((item) => item.agentId === run.agentId && (run.threadId ? item.threadId === run.threadId : !item.threadId && !item.groupId));
+    this.assertIdle(run);
+    for (const turn of later) this.assertIdle(turn);
+    const reverted: string[] = [];
+    const files = new Set<string>();
+    for (const turn of later) {
+      const pending = turn.checkpoint?.files.filter((item) => item.review !== "reverted" && item.before !== item.after) ?? [];
+      await this.revert(turn.id);
+      if (pending.length) {
+        reverted.push(turn.id);
+        for (const item of pending) files.add(item.path);
+      }
+    }
+    const checkpoint = run.checkpoint;
+    if (checkpoint?.steps?.length) {
+      const order = new Map(run.actions.map((item, at) => [item.id, at]));
+      const restore = new Map<string, string | null>();
+      for (const step of checkpoint.steps) {
+        const at = order.get(step.actionId);
+        if (at !== undefined && at >= position && !restore.has(step.path)) restore.set(step.path, step.hash);
+      }
+      await this.locked(runId, async () => {
+        const workspace = new Workspace(checkpoint.root);
+        for (const [file, hash] of restore) {
+          const target = workspace.resolve(file);
+          const bytes = await this.blob(runId, hash);
+          if (bytes) {
+            await mkdir(path.dirname(target), { recursive: true });
+            await writeFile(target, bytes);
+          } else {
+            await rm(target, { force: true });
+          }
+          files.add(file);
+        }
+        await this.kernel.store.update((state) => {
+          const current = state.runs.find((item) => item.id === runId)?.checkpoint;
+          if (!current) return;
+          for (const entry of current.files) {
+            if (!restore.has(entry.path)) continue;
+            entry.after = restore.get(entry.path)!;
+            if (entry.after === entry.before) entry.review = "reverted";
+            else delete entry.review;
+          }
+          current.steps = (current.steps ?? []).filter((step) => {
+            const at = order.get(step.actionId);
+            return at === undefined || at < position;
+          });
+        });
+      });
+      if (restore.size && !reverted.includes(runId)) reverted.push(runId);
+    }
+    if (files.size) this.kernel.log("agent", "info", `Restored ${files.size} ${files.size === 1 ? "file" : "files"} to before a step`, { "saturn.run.id": runId });
     return { reverted, files: [...files] };
   }
 

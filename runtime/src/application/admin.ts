@@ -24,6 +24,13 @@ export class AdminService {
     if (completionModelId && !this.kernel.store.state.models.some((item) => item.id === completionModelId)) {
       throw new HttpError(400, "Unknown completion model");
     }
+    const embeddingSource = patch.embeddingSource;
+    if (embeddingSource !== undefined && !["builtin", "lmstudio", "openai"].includes(embeddingSource)) {
+      throw new HttpError(400, "embeddingSource must be builtin, lmstudio or openai");
+    }
+    if (patch.embeddingConnectionId && !this.kernel.store.state.models.some((item) => item.id === patch.embeddingConnectionId)) {
+      throw new HttpError(400, "Unknown model connection for embeddings");
+    }
     const previous = this.kernel.store.state.settings;
     let next = previous;
     await this.kernel.store.update((state) => {
@@ -36,7 +43,9 @@ export class AdminService {
         completionModelId: completionModelId === undefined ? state.settings.completionModelId ?? null : completionModelId,
         memory: typeof patch.memory === "boolean" ? patch.memory : state.settings.memory,
         planApproval: typeof patch.planApproval === "boolean" ? patch.planApproval : state.settings.planApproval,
+        embeddingSource: embeddingSource ?? state.settings.embeddingSource,
         embeddingModel: typeof patch.embeddingModel === "string" ? patch.embeddingModel.trim() || undefined : state.settings.embeddingModel,
+        embeddingConnectionId: typeof patch.embeddingConnectionId === "string" ? patch.embeddingConnectionId || undefined : state.settings.embeddingConnectionId,
       };
       next = state.settings;
     });

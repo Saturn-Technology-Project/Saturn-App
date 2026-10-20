@@ -1,12 +1,26 @@
 import { LMStudioClient } from "@lmstudio/sdk";
 import { choice, plainMessages, untilAbort } from "./shared.js";
-import type { ProviderAdapter, RawRequest } from "./types.js";
+import type { ChatMessage, ProviderAdapter, RawRequest } from "./types.js";
 
 function socket(baseUrl: string): string {
   if (baseUrl.startsWith("ws://") || baseUrl.startsWith("wss://")) return baseUrl.replace(/\/$/, "");
   const url = new URL(baseUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString().replace(/\/$/, "");
+}
+
+/**
+ * The conversation for LM Studio, with each message's images uploaded as file handles (a vision model sees
+ * them; LM Studio answers with an error naming the model when the loaded one cannot).
+ */
+async function withImages(client: LMStudioClient, messages: ChatMessage[]) {
+  const plain = plainMessages(messages);
+  return await Promise.all(plain.map(async (message, index) => {
+    const images = messages[index]?.images;
+    if (!images?.length || message.role !== "user") return message;
+    const handles = await Promise.all(images.map((image, n) => client.files.prepareImageBase64(`image-${index}-${n}.${image.mimeType.split("/")[1] || "png"}`, image.base64)));
+    return { ...message, images: handles };
+  }));
 }
 
 /** LM Studio runs locally and does not take tool definitions here. */
@@ -20,7 +34,7 @@ export const lmStudio: ProviderAdapter = {
     });
     try {
       const model = await client.llm.model(request.model);
-      const result = await untilAbort(model.respond(plainMessages(request.messages), {
+      const result = await untilAbort(model.respond(await withImages(client, request.messages), {
         temperature: request.temperature === undefined ? undefined : Math.min(1, request.temperature),
         maxTokens: request.maxOutput,
       }).result(), request.signal);

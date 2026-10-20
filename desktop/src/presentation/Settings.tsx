@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
-import { EFFORT_LABELS, supportsEffort, type Agent, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo } from "../domain/model";
+import { EFFORT_LABELS, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo } from "../domain/model";
 import type { CodexStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -839,6 +839,12 @@ function Logs(props: { lines: LogLine[]; onReload: () => void }) {
   );
 }
 
+/** The models Saturn runs itself (runtime/src/infrastructure/embeddings.ts); the first ships with the app. */
+const BUILTIN_EMBEDDING_MODELS = [
+  { id: "multilingual-e5-small", label: "E5 multilingual (included)" },
+  { id: "jina-embeddings-v2-base-code", label: "Jina code (162 MB)" },
+];
+
 function General(props: {
   profile: Profile;
   models: Model[];
@@ -853,7 +859,12 @@ function General(props: {
   const [launchApp, setLaunchApp] = useState<LaunchApp>(props.profile.launchApp ?? "agent");
   const [memory, setMemory] = useState(props.profile.memory !== false);
   const [planApproval, setPlanApproval] = useState(props.profile.planApproval === true);
+  // Settings from before the source could be chosen (a model name only) meant LM Studio.
+  const savedSource: EmbeddingSource = props.profile.embeddingSource ?? (props.profile.embeddingModel && !BUILTIN_EMBEDDING_MODELS.some((item) => item.id === props.profile.embeddingModel) ? "lmstudio" : "builtin");
+  const [embeddingSource, setEmbeddingSource] = useState<EmbeddingSource>(savedSource);
   const [embeddingModel, setEmbeddingModel] = useState(props.profile.embeddingModel ?? "");
+  const [embeddingConnectionId, setEmbeddingConnectionId] = useState(props.profile.embeddingConnectionId ?? "");
+  const embeddingConnections = props.models.filter((item) => item.provider === "openai");
 
   async function chooseFlag(flag: "memory" | "planApproval", next: boolean) {
     const set = flag === "memory" ? setMemory : setPlanApproval;
@@ -867,9 +878,13 @@ function General(props: {
     }
   }
 
-  async function chooseEmbedding() {
+  async function chooseEmbedding(patch: { embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string } = {}) {
     try {
-      await props.onSaved(await desktop.admin.updateSettings({ embeddingModel: embeddingModel.trim() }));
+      await props.onSaved(await desktop.admin.updateSettings({
+        embeddingSource: patch.embeddingSource ?? embeddingSource,
+        embeddingModel: patch.embeddingModel ?? embeddingModel.trim(),
+        embeddingConnectionId: patch.embeddingConnectionId ?? embeddingConnectionId,
+      }));
       props.onError("");
     } catch (reason) {
       props.onError(reason instanceof Error ? reason.message : "Could not save");
@@ -1040,12 +1055,52 @@ function General(props: {
           <div className="settings-card-row">
             <div className="settings-row-text">
               <span className="settings-row-label">Embedding model</span>
-              <span className="settings-row-desc">The LM Studio embedding model that builds each project's code index, so agents find code by meaning. Download it in LM Studio first.</span>
+              <span className="settings-row-desc">Builds each project's code index, so agents find code by meaning. The built-in model runs on this Mac with nothing else to install; changing the model rebuilds the index.</span>
             </div>
-            <form className="settings-inline-form" onSubmit={(event) => { event.preventDefault(); void chooseEmbedding(); }}>
-              <input className="input tiny" aria-label="Embedding model" value={embeddingModel} placeholder="text-embedding-nomic-embed-text-v1.5" onChange={(event) => setEmbeddingModel(event.target.value)} />
-              <button type="submit" className="btn tiny" disabled={(props.profile.embeddingModel ?? "") === embeddingModel.trim()}>Save</button>
-            </form>
+            <div className="settings-inline-form">
+              <select
+                className="input tiny settings-select settings-select-fit"
+                aria-label="Embedding source"
+                value={embeddingSource}
+                onChange={(event) => {
+                  const next = event.target.value as EmbeddingSource;
+                  const model = next === "builtin" ? BUILTIN_EMBEDDING_MODELS[0]!.id : next === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small";
+                  const connection = next === "openai" ? embeddingConnectionId || embeddingConnections[0]?.id || "" : embeddingConnectionId;
+                  setEmbeddingSource(next);
+                  setEmbeddingModel(model);
+                  setEmbeddingConnectionId(connection);
+                  void chooseEmbedding({ embeddingSource: next, embeddingModel: model, embeddingConnectionId: connection });
+                }}
+              >
+                <option value="builtin">Built in</option>
+                <option value="lmstudio">LM Studio</option>
+                <option value="openai">OpenAI-compatible</option>
+              </select>
+              {embeddingSource === "builtin" ? (
+                <select
+                  className="input tiny settings-select settings-select-fit"
+                  aria-label="Built-in embedding model"
+                  value={BUILTIN_EMBEDDING_MODELS.some((item) => item.id === embeddingModel) ? embeddingModel : BUILTIN_EMBEDDING_MODELS[0]!.id}
+                  onChange={(event) => {
+                    setEmbeddingModel(event.target.value);
+                    void chooseEmbedding({ embeddingModel: event.target.value });
+                  }}
+                >
+                  {BUILTIN_EMBEDDING_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </select>
+              ) : (
+                <form className="settings-inline-form" onSubmit={(event) => { event.preventDefault(); void chooseEmbedding(); }}>
+                  {embeddingSource === "openai" && (
+                    <select className="input tiny settings-select" aria-label="Embedding connection" value={embeddingConnectionId} onChange={(event) => setEmbeddingConnectionId(event.target.value)}>
+                      {embeddingConnections.length === 0 && <option value="">Add an OpenAI connection first</option>}
+                      {embeddingConnections.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
+                  )}
+                  <input className="input tiny" aria-label="Embedding model" value={embeddingModel} placeholder={embeddingSource === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small"} onChange={(event) => setEmbeddingModel(event.target.value)} />
+                  <button type="submit" className="btn tiny" disabled={(props.profile.embeddingModel ?? "") === embeddingModel.trim() && (props.profile.embeddingConnectionId ?? "") === embeddingConnectionId && props.profile.embeddingSource === embeddingSource}>Save</button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </div>

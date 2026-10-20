@@ -5,7 +5,7 @@
 //
 //   node scripts/stage-runtime-modules.mjs [--os win32] [--cpu x64]
 import { execSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,4 +37,16 @@ if (missing.length) {
   console.error(`Staged runtime is missing ${missing.join(", ")}; npm did not install the ${os}-${cpu} packages.`);
   process.exit(1);
 }
+// ONNX Runtime (the built-in embedding model) ships every platform's binaries; keep only the target's.
+const onnx = path.join(staging, "node_modules", "onnxruntime-node", "bin");
+if (existsSync(onnx)) {
+  for (const napi of readdirSync(onnx)) {
+    for (const platform of readdirSync(path.join(onnx, napi))) {
+      for (const arch of readdirSync(path.join(onnx, napi, platform))) {
+        if (platform !== os || arch !== cpu) rmSync(path.join(onnx, napi, platform, arch), { recursive: true, force: true });
+      }
+    }
+  }
+}
+
 console.log(`  • staged runtime node_modules for ${os}-${cpu}  ${path.relative(process.cwd(), staging)}`);

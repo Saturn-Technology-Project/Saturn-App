@@ -33,6 +33,8 @@ import { IndexService } from "./index.js";
 import { WorktreeService } from "./worktrees.js";
 import { MemoryService } from "./memory.js";
 import { BROWSER_ID, BROWSER_URL, browserSkills } from "../domain/browser-tools.js";
+import { IDE_ID, IDE_URL, ideSkills } from "../domain/ide-tools.js";
+import { IdeBridge } from "./ide-bridge.js";
 import { CheckpointService } from "./checkpoints.js";
 import { CompletionService } from "./completions.js";
 import { GroupService } from "./groups.js";
@@ -58,6 +60,8 @@ export class RuntimeKernel {
   readonly completions: CompletionService;
   readonly groups: GroupService;
   readonly clients = new ClientRegistry();
+  /** Saturn IDE windows that answer editor-tool requests (see ide-bridge.ts). */
+  readonly ide = new IdeBridge();
 
   constructor(
     readonly store: FileStore,
@@ -138,8 +142,11 @@ export class RuntimeKernel {
     const hasAntigravity = agItem?.id === ANTIGRAVITY_SKILLS_ID && agItem?.url === ANTIGRAVITY_SKILLS_URL;
     const browserItem = state.mcp.find((item) => item.id === BROWSER_ID);
     const hasBrowser = browserItem?.url === BROWSER_URL && JSON.stringify(browserItem.tools) === JSON.stringify(browserSkills().tools);
+    const ideItem = state.mcp.find((item) => item.id === IDE_ID);
+    const hasIde = ideItem?.url === IDE_URL && JSON.stringify(ideItem.tools) === JSON.stringify(ideSkills().tools);
     return (
       hasBrowser &&
+      hasIde &&
       first?.id === GENERAL_SKILLS_ID &&
       state.mcp.filter((item) => item.id === GENERAL_SKILLS_ID).length === 1 &&
       JSON.stringify(first) === JSON.stringify(generalSkills()) &&
@@ -160,6 +167,10 @@ export class RuntimeKernel {
     const browser = browserSkills();
     const existingBrowser = state.mcp.find((item) => item.id === BROWSER_ID);
     if (existingBrowser?.disabledTools) browser.disabledTools = existingBrowser.disabledTools;
+    const ide = ideSkills();
+    const existingIde = state.mcp.find((item) => item.id === IDE_ID);
+    const hasIdeBefore = Boolean(existingIde);
+    if (existingIde?.disabledTools) ide.disabledTools = existingIde.disabledTools;
 
     const existingCu = state.mcp.find((item) => item.id === CURSOR_COMPUTER_USE_ID || item.id === "cursor-computer-use");
     if (existingCu?.disabledTools) cu.disabledTools = existingCu.disabledTools;
@@ -179,12 +190,13 @@ export class RuntimeKernel {
         item.id !== "cursor-origin" &&
         item.id !== ANTIGRAVITY_SKILLS_ID &&
         item.id !== "antigravity-skills" &&
-        item.id !== BROWSER_ID,
+        item.id !== BROWSER_ID &&
+        item.id !== IDE_ID,
     );
-    state.mcp = [skills, cu, origin, ag, browser, ...others];
+    state.mcp = [skills, cu, origin, ag, browser, ide, ...others];
     state.agents = state.agents.filter((item) => item.id !== SATURN_AGENT_ID);
     state.runs = state.runs.filter((item) => item.agentId !== SATURN_AGENT_ID);
-    const defaultBuiltins = [GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID, BROWSER_ID];
+    const defaultBuiltins = [GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID, BROWSER_ID, IDE_ID];
     for (const agent of state.agents) {
       const mapped = agent.mcpConnectionIds.map((id) => {
         if (id === "cursor-computer-use") return CURSOR_COMPUTER_USE_ID;
@@ -198,7 +210,9 @@ export class RuntimeKernel {
         const next = withGeneralSkills(mapped);
         // The browser joins agents that have the other built-in servers (an earlier default set), not custom picks.
         const hadDefaults = [CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID].every((id) => next.includes(id));
-        agent.mcpConnectionIds = hadDefaults && !next.includes(BROWSER_ID) ? [...next, BROWSER_ID] : next;
+        const withBrowser = hadDefaults && !next.includes(BROWSER_ID) ? [...next, BROWSER_ID] : next;
+        // The editor tools join agents that have the browser when they are first installed, as the browser did.
+        agent.mcpConnectionIds = withBrowser.includes(BROWSER_ID) && !withBrowser.includes(IDE_ID) && !hasIdeBefore ? [...withBrowser, IDE_ID] : withBrowser;
       }
     }
   }
