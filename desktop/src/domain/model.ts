@@ -98,7 +98,13 @@ export type Run = {
   /** Set while the run is "sleeping" on a long computer_wait. */
   wake?: { at: string; since: string; reason?: string; actionId: string; requestedMs: number };
   /** Files the run changed in its project folder (sha256 before/after; null = did not exist). */
-  checkpoint?: { root: string; files: { path: string; before: string | null; after: string | null; review?: "kept" | "reverted" }[] };
+  checkpoint?: { root: string; files: { path: string; before: string | null; after: string | null; review?: "kept" | "reverted" }[]; steps?: { actionId: string; path: string; hash: string | null }[] };
+  /** Images the user attached (paths in the runtime's data folder; GET /runs/:id/images/:index serves them). */
+  inputImages?: string[];
+  /** What this turn may do: change things (agent, the default), only read and answer, or only read and plan. */
+  mode?: RunMode;
+  /** Saturn sent this message itself (an automatic fix round after verification). */
+  automatic?: boolean;
   /** Set on a group chat turn: the group and the message the agent was asked to consider. */
   groupId?: string;
   groupMessageId?: string;
@@ -170,6 +176,7 @@ export type Profile = {
   onboardedAt?: string;
 };
 export type EmbeddingSource = "builtin" | "lmstudio" | "openai";
+export type RunMode = "agent" | "ask" | "plan";
 export type PendingTask = { id: string; agentId: string; agentName: string; input: string; toolId: string };
 
 export type LlmProvider = { id: string; label: string; needsKey: boolean; baseUrl: string; models: { id: string; label: string }[] };

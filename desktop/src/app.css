@@ -8887,3 +8887,32 @@ button.trace-row:hover {
 .onboarding-starters { margin-top: 4px; }
 .onboarding-error { margin: 0; }
 .about-rerun { margin-left: auto; align-self: center; }
+
+/* ─── Composer images, modes, step restore ─── */
+.composer-images { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 12px 0; }
+.composer-image { position: relative; display: inline-block; }
+.composer-image img { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); display: block; }
+.composer-image button {
+  position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 10px; line-height: 1; cursor: pointer;
+}
+.composer-image button:hover { color: var(--fg); }
+.user-images { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-top: 6px; }
+.user-images img { max-width: 180px; max-height: 140px; border-radius: 8px; border: 1px solid var(--line); display: block; }
+.user-mode {
+  display: inline-block; margin-bottom: 4px; padding: 1px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted); background: var(--hover);
+}
+.mode-select {
+  height: 28px; padding: 0 6px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--card); color: var(--muted); font: inherit; font-size: 12px; cursor: pointer;
+}
+.mode-select.ask, .mode-select.plan { color: var(--fg); border-color: var(--line-strong, var(--line)); font-weight: 600; }
+.step-restore {
+  margin: 2px 0 4px 28px; padding: 1px 8px; height: 20px; border-radius: 5px;
+  border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: 11px; cursor: pointer;
+  opacity: 0; transition: opacity 100ms ease;
+}
+.step-row-wrap:hover .step-restore, .step-restore:focus-visible { opacity: 1; }
+.step-restore-confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 6px 28px; font-size: 12px; color: var(--muted); }

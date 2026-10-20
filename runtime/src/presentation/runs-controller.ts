@@ -1,5 +1,6 @@
 import type { Express } from "express";
-import { parseImages } from "../application/run-images.js";
+import { imagePath, parseImages } from "../application/run-images.js";
+import path from "node:path";
 import type { RunMode } from "../domain/model.js";
 import { HttpError } from "../domain/errors.js";
 import type { AppServices } from "../application/services.js";
@@ -98,6 +99,23 @@ export function mountRuns(app: Express, services: AppServices): void {
 
   app.get("/runs/:id", (req, res, next) => {
     respond(res, next, () => services.getRun(param(req.params.id)));
+  });
+
+  // An image the user attached to a message (see run-images.ts), for the chat to show.
+  app.get("/runs/:id/images/:index", (req, res, next) => {
+    try {
+      const run = services.getRun(param(req.params.id));
+      const relative = run.inputImages?.[Number(req.params.index)];
+      if (!relative) throw new HttpError(404, "This message has no such image");
+      const file = imagePath(services.kernel.store.root, relative);
+      const types: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif" };
+      res.type(types[path.extname(file)] ?? "application/octet-stream");
+      res.sendFile(file, (error) => {
+        if (error) next(new HttpError(404, "The image file is gone"));
+      });
+    } catch (error) {
+      next(error);
+    }
   });
 
   // Review of the files a run changed in its project folder (see CheckpointService).

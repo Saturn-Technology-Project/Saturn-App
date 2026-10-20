@@ -1,15 +1,20 @@
-import type { Run, RunChanges } from "../domain/model.js";
+import type { Run, RunChanges, RunMode } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
 export class RunService {
   constructor(private readonly runtime: RuntimeClient) {}
 
-  start(agentId: string, input: string, threadId?: string): Promise<Run> {
+  start(agentId: string, input: string, threadId?: string, options: { images?: string[]; mode?: RunMode } = {}): Promise<Run> {
     return userAction("ui.send_message", { "gen_ai.agent.id": agentId }, async (span) => {
       const run = await this.runtime.request<Run>(`/agents/${agentId}/runs`, {
         method: "POST",
-        body: JSON.stringify({ input, ...(threadId ? { threadId } : {}) }),
+        body: JSON.stringify({
+          input,
+          ...(threadId ? { threadId } : {}),
+          ...(options.images?.length ? { images: options.images } : {}),
+          ...(options.mode && options.mode !== "agent" ? { mode: options.mode } : {}),
+        }),
       });
       span.setAttribute("saturn.run.id", run.id);
       return run;
@@ -65,9 +70,10 @@ export class RunService {
   }
 
   /** Restores the chat's files to before this turn: reverts it and every later turn in the chat. */
-  restoreTo(id: string): Promise<{ reverted: string[]; files: string[] }> {
+  /** Puts the chat's files back to before this turn, or (with `actionId`) to just before one of its tool steps. */
+  restoreTo(id: string, actionId?: string): Promise<{ reverted: string[]; files: string[] }> {
     return userAction("ui.restore_checkpoint", { "saturn.run.id": id }, () =>
-      this.runtime.request(`/runs/${encodeURIComponent(id)}/restore`, { method: "POST" }),
+      this.runtime.request(`/runs/${encodeURIComponent(id)}/restore`, { method: "POST", ...(actionId ? { body: JSON.stringify({ actionId }) } : {}) }),
     );
   }
 
@@ -76,4 +82,10 @@ export class RunService {
       this.runtime.request(`/runs/${id}`, { method: "PATCH", body: JSON.stringify({ input }) }),
     );
   }
+
+  /** One image the user attached to a message, as a blob (the request carries the runtime token; an <img> could not). */
+  async image(runId: string, index: number): Promise<Blob> {
+    return (await this.runtime.download(`/runs/${encodeURIComponent(runId)}/images/${index}`)).blob;
+  }
+
 }

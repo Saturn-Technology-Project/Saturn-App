@@ -40,7 +40,7 @@ export function RunSteps(props: { run: Run; busy: boolean }) {
             step.kind === "thought" ? (
               <ThoughtRow key={step.key} thought={step.thought} />
             ) : (
-              <ActionRow key={step.key} runId={run.id} action={step.action} />
+              <ActionRow key={step.key} runId={run.id} action={step.action} restorable={!busy && Boolean(run.checkpoint?.steps?.some((entry) => entry.actionId === step.action.id))} />
             ),
           )}
           {busy ? <WorkingRow /> : null}
@@ -99,7 +99,7 @@ function sanitizeResultForDisplay(val: unknown): unknown {
   return clone;
 }
 
-function ActionRow(props: { runId: string; action: RunAction }) {
+function ActionRow(props: { runId: string; action: RunAction; restorable?: boolean }) {
   // Only an action with an id can be answered.
   const waiting = props.action.status === "waiting_approval" && Boolean(props.action.id);
   const [open, setOpen] = useState(waiting);
@@ -112,7 +112,23 @@ function ActionRow(props: { runId: string; action: RunAction }) {
   const argsText = action.arguments && Object.keys(action.arguments).length > 0 ? formatPayload(action.arguments) : "";
   const resultText = action.reason || formatPayload(sanitizeResultForDisplay(action.result));
   const hasDetails = Boolean(argsText || resultText);
-  const state = statusTag(action.status);
+  const state = statusTag(action.status, action.reason);
+  const [confirmRestore, setConfirmRestore] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
+  async function restoreHere() {
+    setRestoring(true);
+    try {
+      const result = await desktop.runs.restoreTo(props.runId, action.id);
+      setDecisionError(result.files.length ? "" : "Nothing to restore.");
+      window.dispatchEvent(new Event("saturn:changes"));
+    } catch (reason) {
+      setDecisionError(reason instanceof Error ? reason.message : "Could not restore");
+    } finally {
+      setRestoring(false);
+      setConfirmRestore(false);
+    }
+  }
 
   async function decide(allow: boolean) {
     setDeciding(true);
@@ -139,6 +155,19 @@ function ActionRow(props: { runId: string; action: RunAction }) {
         {state ? <span className={`step-state ${state.tone}`}>{state.label}</span> : null}
         {hasDetails ? <Chevron down={open} subtle /> : null}
       </button>
+      {props.restorable ? (
+        confirmRestore ? (
+          <span className="step-restore-confirm">
+            <span>Put the files back to just before this step? Later steps and turns are undone too.</span>
+            <button type="button" className="changes-btn danger" disabled={restoring} onClick={() => void restoreHere()}>Restore</button>
+            <button type="button" className="changes-btn" disabled={restoring} onClick={() => setConfirmRestore(false)}>Cancel</button>
+          </span>
+        ) : (
+          <button type="button" className="step-restore" title="Put the files back to how they were just before this step" onClick={() => setConfirmRestore(true)}>
+            Restore to here
+          </button>
+        )
+      ) : null}
 
       {waiting ? (
         <div className="step-approval" role="group" aria-label={`Approve ${action.toolId}?`}>
@@ -269,8 +298,10 @@ function doneLabel(steps: RunStep[]): string {
   return parts.join(" · ");
 }
 
-function statusTag(status: string): { label: string; tone: string } | null {
+function statusTag(status: string, reason?: string): { label: string; tone: string } | null {
   if (status === "failed") return { label: "Failed", tone: "failed" };
+  // An Ask or Plan turn refuses its own writes: not a failure, the mode working as meant.
+  if (status === "denied" && reason?.includes("mode only reads")) return { label: "Skipped (read-only mode)", tone: "waiting" };
   if (status === "denied") return { label: "Denied", tone: "failed" };
   if (status === "waiting_approval") return { label: "Waiting for approval", tone: "waiting" };
   if (status === "sleeping") return { label: "Waiting", tone: "waiting" };

@@ -14,6 +14,7 @@ import { ModelSelector } from "./ModelSelector";
 import { AccessDialog, EditWorkspaceDialog, FolderIcon as WorkspaceFolderIcon, LockIcon, chooseFolder } from "./ProjectAccess";
 import { ProjectsMenu, arrangeProjects, useProjectView } from "./ProjectsMenu";
 import { Onboarding } from "./Onboarding";
+import { RunImages } from "./RunImages";
 import {
   extractPlanSteps,
   countdown,
@@ -23,7 +24,7 @@ import {
   upsertRun,
   visibleThread,
 } from "../domain/conversation";
-import type { Agent, Autonomy, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run } from "../domain/model";
+import type { Agent, Autonomy, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode } from "../domain/model";
 
 const isElectron =
   typeof window !== "undefined" &&
@@ -71,6 +72,10 @@ function storedInspectorWidth(): number {
   return !isNaN(num) && num >= 320 && num <= 1000 ? num : DEFAULT_INSPECTOR_WIDTH;
 }
 
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const MAX_IMAGES = 4;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 export function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [tasks, setTasks] = useState<PendingTask[]>([]);
@@ -84,6 +89,10 @@ export function App() {
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const [threads, setThreads] = useState<Record<string, Run[]>>({});
   const [task, setTask] = useState("");
+  /** Images pasted or dropped into the composer, as data URLs (at most 4, 5 MB each; the runtime checks too). */
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
+  /** What the next message may do; remembered across launches. */
+  const [mode, setMode] = useState<RunMode>(() => (localStorage.getItem("saturn-mode") === "ask" || localStorage.getItem("saturn-mode") === "plan" ? (localStorage.getItem("saturn-mode") as RunMode) : "agent"));
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [creating, setCreating] = useState(false);
@@ -591,20 +600,51 @@ export function App() {
     }
   }, [thread.length, latest?.output, latest?.actions?.length, latest?.status, busy]);
 
+  /** Adds image files from a paste or drop to the next message; anything unusable is explained, not dropped silently. */
+  function attachImages(files: File[]) {
+    const images = files.filter((file) => IMAGE_TYPES.has(file.type));
+    if (!images.length) return;
+    for (const file of images) {
+      if (file.size > MAX_IMAGE_BYTES) {
+        setNotice(`${file.name || "That image"} is larger than 5 MB.`);
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result !== "string") return;
+        setPendingImages((current) => {
+          if (current.length >= MAX_IMAGES) {
+            setNotice(`Attach at most ${MAX_IMAGES} images to one message.`);
+            return current;
+          }
+          return [...current, reader.result as string];
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function chooseMode(next: RunMode) {
+    setMode(next);
+    localStorage.setItem("saturn-mode", next);
+  }
+
   async function send() {
-    if (!agent || !task.trim() || busy || editing) return;
-    const input = task.trim();
+    if (!agent || (!task.trim() && !pendingImages.length) || busy || editing) return;
+    const input = task.trim() || `Look at the attached image${pendingImages.length === 1 ? "" : "s"}.`;
+    const images = pendingImages;
     isNearBottomRef.current = true;
     scrollToBottom(false);
     let started: Run;
     try {
-      started = await desktop.runs.start(agent.id, input, selectedThreadId || undefined);
+      started = await desktop.runs.start(agent.id, input, selectedThreadId || undefined, { images, mode });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Run failed");
       return;
     }
     setNotice("");
     setTask("");
+    setPendingImages([]);
     const effectiveKey = started.threadId || selectedThreadId || `agent_${agent.id}`;
     if (!selectedThreadId && started.threadId) {
       setSelectedThreadId(started.threadId);
@@ -2011,7 +2051,10 @@ export function App() {
                             </form>
                           ) : (
                             <div className="user-block">
+                              {run.mode && run.mode !== "agent" ? <span className="user-mode">{run.mode === "ask" ? "Ask" : "Plan"}</span> : null}
+                              {run.automatic ? <span className="user-mode">Sent by Saturn</span> : null}
                               <p>{run.input}</p>
+                              {run.inputImages?.length ? <RunImages runId={run.id} count={run.inputImages.length} /> : null}
                               {isBusy(run) ? null : (
                                 <button
                                   className="edit"
@@ -2091,13 +2134,40 @@ export function App() {
                 }}
               >
                 {notice ? <p className="error composer-notice">{notice}</p> : null}
+                {pendingImages.length ? (
+                  <div className="composer-images">
+                    {pendingImages.map((url, index) => (
+                      <span className="composer-image" key={`${index}-${url.length}`}>
+                        <img src={url} alt={`Attached image ${index + 1}`} />
+                        <button type="button" title="Remove image" aria-label="Remove image" onClick={() => setPendingImages((current) => current.filter((_, at) => at !== index))}>✕</button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <textarea
                   ref={composerInputRef}
                   rows={2}
                   value={task}
                   disabled={!agent || busy || editing !== null}
-                  placeholder={agent ? `Ask ${agent.name} to inspect files, run commands, or execute tools…` : "Create or choose an agent to get started…"}
+                  placeholder={agent ? `Ask ${agent.name} to inspect files, run commands, or execute tools… (paste a screenshot to include it)` : "Create or choose an agent to get started…"}
                   onChange={(event) => setTask(event.target.value)}
+                  onPaste={(event) => {
+                    const files = [...event.clipboardData.files];
+                    if (files.some((file) => IMAGE_TYPES.has(file.type))) {
+                      event.preventDefault();
+                      attachImages(files);
+                    }
+                  }}
+                  onDragOver={(event) => {
+                    if ([...event.dataTransfer.items].some((item) => item.kind === "file")) event.preventDefault();
+                  }}
+                  onDrop={(event) => {
+                    const files = [...event.dataTransfer.files];
+                    if (files.some((file) => IMAGE_TYPES.has(file.type))) {
+                      event.preventDefault();
+                      attachImages(files);
+                    }
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
@@ -2129,6 +2199,18 @@ export function App() {
                   </div>
 
                   <div className="composer-submit-group">
+                    <select
+                      className={`mode-select ${mode}`}
+                      aria-label="Mode"
+                      title="Agent: may change files and run commands. Ask: only reads and answers. Plan: only reads and writes a plan."
+                      value={mode}
+                      disabled={!agent}
+                      onChange={(event) => chooseMode(event.target.value as RunMode)}
+                    >
+                      <option value="agent">Agent</option>
+                      <option value="ask">Ask</option>
+                      <option value="plan">Plan</option>
+                    </select>
                     <GuardrailSelector
                       autonomy={agent?.autonomy}
                       disabled={!agent}
@@ -2137,7 +2219,7 @@ export function App() {
                     <button
                       className={busy ? "send stop" : "send"}
                       type="submit"
-                      disabled={!agent || editing !== null || (!busy && !task.trim())}
+                      disabled={!agent || editing !== null || (!busy && !task.trim() && !pendingImages.length)}
                       aria-label={busy ? "Stop" : "Send"}
                     >
                       {busy ? <Square /> : <Arrow />}
