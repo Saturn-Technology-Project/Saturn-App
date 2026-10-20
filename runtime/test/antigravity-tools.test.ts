@@ -13,15 +13,15 @@ import { runAntigravitySkill } from "../src/infrastructure/skills.js";
 import { buildSystemPrompt } from "../src/domain/policies.js";
 import type { McpConnection } from "../src/domain/model.js";
 
-test("antigravity tools definitions contain 18 tools and skips duplicate github tools", () => {
+test("antigravity tools definitions contain 14 tools and skips duplicate github tools", () => {
   const ag = antigravitySkills();
   assert.equal(ag.id, ANTIGRAVITY_SKILLS_ID);
-  assert.equal(ag.tools.length, 18);
+  assert.equal(ag.tools.length, 14);
 
   const reads = ag.tools.filter((t) => t.category === "read");
   const writes = ag.tools.filter((t) => t.category === "write");
-  assert.equal(reads.length, 7);
-  assert.equal(writes.length, 11);
+  assert.equal(reads.length, 5);
+  assert.equal(writes.length, 9);
 
   // Verifies duplicate git permission tools were skipped (since Cursor's Origin has 31 git tools)
   assert.ok(!ag.tools.some((t) => t.toolId.includes("permissioned_github")));
@@ -29,15 +29,15 @@ test("antigravity tools definitions contain 18 tools and skips duplicate github 
 
   // Verifies all 7 unique Antigravity capability modules are present
   assert.ok(ag.tools.some((t) => t.toolId === "automation_create"));
-  assert.ok(ag.tools.some((t) => t.toolId === "generative_ui_render"));
+  assert.ok(ag.tools.some((t) => t.toolId === "generative_ui_template"));
   assert.ok(ag.tools.some((t) => t.toolId === "customizations_create_skill"));
   assert.ok(ag.tools.some((t) => t.toolId === "workflows_migrate"));
   assert.ok(ag.tools.some((t) => t.toolId === "plugins_bundle"));
-  assert.ok(ag.tools.some((t) => t.toolId === "ui_navigation_surface_pill"));
-  assert.ok(ag.tools.some((t) => t.toolId === "guide_sitemap"));
+  // Tools that only pretended (sidecar:// pills nothing renders, Google's docs) are gone.
+  assert.ok(!ag.tools.some((t) => /^ui_navigation_|^guide_|^generative_ui_render$/.test(t.toolId)));
 });
 
-test("antigravity skill executes automations, generative UI, and navigation", async () => {
+test("antigravity skill executes automations and serves UI templates", async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "saturn-ag-test-"));
   const workspaceDir = await mkdtemp(path.join(os.tmpdir(), "saturn-ws-test-"));
   const store = new FileStore(dataDir);
@@ -86,28 +86,7 @@ test("antigravity skill executes automations, generative UI, and navigation", as
   })) as { type: string; template: string };
   assert.ok(tmpl.template.includes("System Uptime"));
 
-  const rendered = (await runAntigravitySkill(dataDir, "generative_ui_render", {
-    title: "Metrics Panel",
-    htmlBody: tmpl.template,
-    filename: "metrics.html",
-  })) as { success: boolean; embedSnippet: string; targetFile: string };
-  assert.ok(rendered.success);
-  assert.ok(rendered.embedSnippet.includes("<agent-embed"));
-
-  // 3. UI Navigation surface pill
-  const pill = (await runAntigravitySkill(dataDir, "ui_navigation_surface_pill", {
-    label: "Open Automations",
-    sidecarId: "automations",
-    viewPath: "/cron",
-  })) as { pillMarkdown: string };
-  assert.equal(pill.pillMarkdown, "[Open Automations](sidecar://automations/cron)");
-
-  // 4. Guide sitemap
-  const guide = (await runAntigravitySkill(dataDir, "guide_sitemap", { topic: "cli" })) as {
-    topic: string;
-    command: string;
-  };
-  assert.equal(guide.command, "agy");
+  await assert.rejects(() => runAntigravitySkill(dataDir, "guide_sitemap", {}), /Unknown Antigravity skill tool/);
 });
 
 test("antigravity skill manages customizations, workflows, and plugins", async () => {
@@ -152,7 +131,7 @@ test("built-in antigravity skills are installed by kernel and configured properl
   assert.ok(agServer, "automations must be installed by default");
   assert.equal(agServer.name, "Automations");
   assert.equal(agServer.url, "builtin://automations");
-  assert.equal(agServer.tools.length, 18);
+  assert.equal(agServer.tools.length, 14);
 
   // Test tool disabling
   const updated = await services.updateMcp(ANTIGRAVITY_SKILLS_ID, {
@@ -183,7 +162,8 @@ test("buildSystemPrompt informs model of Antigravity Skills capabilities", () =>
 
   assert.ok(prompt.includes("Automations & Antigravity Capabilities (Automations)"));
   assert.ok(prompt.includes("automation_create"));
-  assert.ok(prompt.includes("generative_ui_render"));
+  assert.ok(prompt.includes("generative_ui_template"));
+  assert.ok(!prompt.includes("sidecar://") && !prompt.includes("guide_sitemap"), "the prompt no longer promises tools that pretended");
   assert.ok(prompt.includes("customizations_create_skill"));
   assert.ok(prompt.includes("workflows_migrate"));
 });

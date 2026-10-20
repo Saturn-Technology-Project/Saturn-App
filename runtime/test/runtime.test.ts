@@ -726,3 +726,46 @@ async function waitFor(base: string, id: string, done = ["completed", "failed"])
   }
   throw new Error("run did not finish");
 }
+
+test("the in-app browser proxy refuses local and private addresses, and the file list stays inside the workspace", async () => {
+  const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-proxy-")));
+  await store.load();
+  const { app } = createApp(store);
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("no port");
+    const base = `http://127.0.0.1:${address.port}`;
+    useRuntimeAuth(base);
+    // The runtime's own API through its own proxy: refused instead of relayed.
+    for (const target of [`${base}/agents`, "http://localhost:4700/settings", "http://192.168.1.1/", "http://169.254.169.254/latest/meta-data/"]) {
+      const response = await fetch(`${base}/workspace/browser/proxy?url=${encodeURIComponent(target)}`);
+      const page = await response.text();
+      assert.match(page, /Could not load page/, target);
+      assert.match(page, /not allowed/, target);
+      assert.doesNotMatch(page, /"id":/, "nothing from the target leaks");
+    }
+    // A sibling folder that shares the workspace's name as a prefix is outside it.
+    const root = path.join(store.root, "workspace");
+    const listed = (await (await fetch(`${base}/workspace/files?path=${encodeURIComponent(`${root}-other`)}`)).json()) as { path: string };
+    assert.equal(listed.path, ".", "falls back to the workspace root");
+  } finally {
+    await new Promise((resolve) => server.close(() => resolve(undefined)));
+  }
+});
+
+test("a public name that resolves to a private address is refused (DNS rebinding)", async () => {
+  const { assertPublicHost } = await import("../src/infrastructure/public-host.js");
+  const { isPrivateHost } = await import("../src/domain/skills/public-address.js");
+  const resolver = (answers: string[]) => (async () => answers.map((address) => ({ address, family: address.includes(":") ? 6 : 4 }))) as never;
+  await assert.rejects(() => assertPublicHost(new URL("https://rebind.example/"), resolver(["127.0.0.1"])), /not allowed/);
+  await assert.rejects(() => assertPublicHost(new URL("https://mixed.example/"), resolver(["93.184.216.34", "10.0.0.5"])), /not allowed/, "one private answer is enough");
+  await assert.rejects(() => assertPublicHost(new URL("https://v6.example/"), resolver(["fd12::1"])), /not allowed/);
+  await assert.rejects(() => assertPublicHost(new URL("https://none.example/"), resolver([])), /not allowed/);
+  await assertPublicHost(new URL("https://public.example/"), resolver(["93.184.216.34", "2606:2800:220:1::1"]));
+  assert.deepEqual(
+    ["::ffff:127.0.0.1", "fe80::1", "fc00::1", "::1", "169.254.169.254", "8.8.8.8", "2001:4860:4860::8888"].map(isPrivateHost),
+    [true, true, true, true, true, false, false],
+  );
+});

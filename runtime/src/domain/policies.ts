@@ -134,12 +134,10 @@ export function buildSystemPrompt(input: {
     capabilities.push(
       "### Automations & Antigravity Capabilities (Automations)\n" +
       "- Automations: `automation_list`, `automation_create`, `automation_trigger`, `automation_toggle`, `automation_delete` (manage recurring scheduled background cron tasks and agent runs).\n" +
-      "- Generative UI: `generative_ui_render`, `generative_ui_template` (build rich, interactive HTML/Tailwind widgets, charts, and visualizations with semantic theme variables).\n" +
+      "- Generative UI: `generative_ui_template` (starter HTML/Tailwind snippets for a widget the files tool then writes).\n" +
       "- Customizations: `customizations_list`, `customizations_create_skill`, `customizations_create_rule` (manage on-demand skills, project rules, and discovery hierarchy).\n" +
       "- Workflows: `workflows_scan`, `workflows_migrate` (scan legacy workflow files and automatically migrate them to modern skills).\n" +
-      "- Plugins: `plugins_list`, `plugins_bundle`, `plugins_toggle` (bundle and manage multi-component plugins).\n" +
-      "- UI Navigation: `ui_navigation_list_panels`, `ui_navigation_surface_pill` (surface one-click sidecar:// navigation pills in chat to toggle auxiliary panels).\n" +
-      "- Platform Guides: `guide_sitemap` (query quick references, CLI commands, and architecture sitemaps)."
+      "- Plugins: `plugins_list`, `plugins_bundle`, `plugins_toggle` (bundle and manage multi-component plugins)."
     );
   }
 

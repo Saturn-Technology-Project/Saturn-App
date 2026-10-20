@@ -120,36 +120,6 @@ export const ANTIGRAVITY_TOOLS: ToolRoute[] = [
 
   // --- Generative UI Tools (2) ---
   {
-    toolId: "generative_ui_render",
-    serverId: ANTIGRAVITY_SKILLS_ID,
-    category: "write",
-    description: "Generate and save a rich interactive HTML widget (dashboard, chart, interactive control, or data visualization) using Tailwind CSS and semantic theme variables. Returns the file path and embed tag.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        title: {
-          type: "string",
-          description: "Title of the widget/visualization.",
-        },
-        htmlBody: {
-          type: "string",
-          description: "The inner HTML content of the widget. Use Tailwind classes and semantic CSS variables (var(--card), var(--foreground), var(--primary), etc.).",
-        },
-        script: {
-          type: "string",
-          description: "Optional inline JavaScript for interactive functionality.",
-        },
-        filename: {
-          type: "string",
-          description: "Filename for the HTML file (e.g. 'system_metrics.html').",
-        },
-      },
-      required: ["title", "htmlBody"],
-      additionalProperties: false,
-    },
-    environments: ["production"],
-  },
-  {
     toolId: "generative_ui_template",
     serverId: ANTIGRAVITY_SKILLS_ID,
     category: "read",
@@ -174,14 +144,14 @@ export const ANTIGRAVITY_TOOLS: ToolRoute[] = [
     toolId: "customizations_list",
     serverId: ANTIGRAVITY_SKILLS_ID,
     category: "read",
-    description: "List discovered workspace and global customizations: project rules (AGENTS.md, .agents/rules/*.md), on-demand skills (.agents/skills/), plugins, and MCP configurations.",
+    description: "List the workspace's project rules (.agents/rules/*.md) and on-demand skills (.agents/skills/<name>/SKILL.md).",
     inputSchema: {
       type: "object",
       properties: {
         scope: {
           type: "string",
-          enum: ["all", "workspace", "global"],
-          description: "Scope to discover customizations in. Defaults to all.",
+          enum: ["all", "workspace"],
+          description: "Only the workspace is scanned; kept for compatibility. Defaults to all.",
         },
       },
       additionalProperties: false,
@@ -207,10 +177,6 @@ export const ANTIGRAVITY_TOOLS: ToolRoute[] = [
         instructions: {
           type: "string",
           description: "Full markdown instructions, workflows, and guidelines for the skill.",
-        },
-        isGlobal: {
-          type: "boolean",
-          description: "True to save to global config (~/.gemini/config/skills), false to save to workspace (.agents/skills). Defaults to false.",
         },
       },
       required: ["name", "description", "instructions"],
@@ -364,65 +330,6 @@ export const ANTIGRAVITY_TOOLS: ToolRoute[] = [
   },
 
   // --- UI Plugin Navigation (2) ---
-  {
-    toolId: "ui_navigation_list_panels",
-    serverId: ANTIGRAVITY_SKILLS_ID,
-    category: "read",
-    description: "Discover all available UI panels and sidecar auxiliary views (e.g. Subagents, Background Tasks, Artifacts, Terminals, or Custom UI plugins).",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
-    environments: ["production"],
-  },
-  {
-    toolId: "ui_navigation_surface_pill",
-    serverId: ANTIGRAVITY_SKILLS_ID,
-    category: "write",
-    description: "Generate a standard markdown navigation pill link with the sidecar:// scheme that allows the user to open/toggle a UI panel in the side pane with a single click.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        label: {
-          type: "string",
-          description: "Human-readable label for the clickable pill (e.g. 'Open Deployment Status' or 'View Test Matrix').",
-        },
-        sidecarId: {
-          type: "string",
-          description: "Identifier of the sidecar or UI panel.",
-        },
-        viewPath: {
-          type: "string",
-          description: "View path within the sidecar (e.g. '/' or 'index.html'). Defaults to '/'.",
-        },
-      },
-      required: ["label", "sidecarId"],
-      additionalProperties: false,
-    },
-    environments: ["production"],
-  },
-
-  // --- Platform Guide (1) ---
-  {
-    toolId: "guide_sitemap",
-    serverId: ANTIGRAVITY_SKILLS_ID,
-    category: "read",
-    description: "Query authoritative quick reference guides, CLI commands, keybindings, and documentation sitemap for the development platform.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        topic: {
-          type: "string",
-          enum: ["cli", "ide", "app", "sdk", "customizations", "shortcuts", "sitemap"],
-          description: "Topic to query.",
-        },
-      },
-      required: ["topic"],
-      additionalProperties: false,
-    },
-    environments: ["production"],
-  },
 ];
 
 export function antigravitySkills(): McpConnection {

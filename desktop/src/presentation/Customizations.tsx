@@ -17,12 +17,10 @@ const BUILTIN_SERVER_IDS = ["automations", "antigravity-skills"];
 /** How the built-in tools group, by tool-name prefix; the tools and their descriptions come from the runtime. */
 const BUILTIN_GROUPS: { prefix: string; label: string; summary: string }[] = [
   { prefix: "automation_", label: "Automations", summary: "Schedule an agent to run a prompt on a cron, and list, run now, pause or delete those schedules." },
-  { prefix: "generative_ui_", label: "Generative UI", summary: "Build interactive HTML widgets, charts and dashboards and save them as files." },
+  { prefix: "generative_ui_", label: "Generative UI", summary: "Starter HTML snippets for widgets and dashboards an agent then writes as files." },
   { prefix: "customizations_", label: "Rules & Skills", summary: "Find the project's rules and skills, and write new ones (AGENTS.md, .agents/rules, .agents/skills)." },
   { prefix: "workflows_", label: "Workflow Migration", summary: "Find old .agents/workflows files and turn them into skills." },
   { prefix: "plugins_", label: "Plugins", summary: "List, bundle and turn on or off plugins: packaged skills, rules and MCP servers." },
-  { prefix: "ui_navigation_", label: "Side Panels", summary: "Suggest a side panel for the task and put a button in the chat that opens it." },
-  { prefix: "guide_", label: "Guide", summary: "A map of what these tools can do, for the agent to look up." },
 ];
 
 export function Customizations(props: {

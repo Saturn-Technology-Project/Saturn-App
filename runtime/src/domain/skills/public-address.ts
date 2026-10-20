@@ -20,10 +20,16 @@ export class PublicAddress {
   }
 }
 
-function isPrivateHost(hostname: string): boolean {
+/** True for loopback, link-local, private and reserved hosts and addresses (IPv4, IPv6, and IPv4-mapped IPv6). */
+export function isPrivateHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) return true;
   if (host === "0.0.0.0" || host === "::" || host === "::1") return true;
+  // IPv4-mapped IPv6 (::ffff:127.0.0.1) is judged as the IPv4 address it carries.
+  const mapped = host.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (mapped) return isPrivateHost(mapped[1]!);
+  // IPv6 unique local (fc00::/7) and link-local (fe80::/10).
+  if (/^f[cd][0-9a-f]{0,2}:/.test(host) || /^fe[89ab][0-9a-f]?:/.test(host)) return true;
   const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (!v4) return false;
   const parts = v4.slice(1).map((part) => Number(part));

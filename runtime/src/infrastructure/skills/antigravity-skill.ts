@@ -54,8 +54,6 @@ export class AntigravitySkill {
         return this.automationDelete(args);
 
       // --- Generative UI ---
-      case "generative_ui_render":
-        return this.generativeUiRender(args);
       case "generative_ui_template":
         return this.generativeUiTemplate(args);
 
@@ -80,16 +78,6 @@ export class AntigravitySkill {
         return this.pluginsBundle(args);
       case "plugins_toggle":
         return this.pluginsToggle(args);
-
-      // --- UI Navigation ---
-      case "ui_navigation_list_panels":
-        return this.uiNavigationListPanels();
-      case "ui_navigation_surface_pill":
-        return this.uiNavigationSurfacePill(args);
-
-      // --- Guide ---
-      case "guide_sitemap":
-        return this.guideSitemap(args);
 
       default:
         throw new Error(`Unknown Antigravity skill tool: ${toolId}`);
@@ -178,62 +166,6 @@ export class AntigravitySkill {
   // --------------------------------------------------------------------------
   // Generative UI
   // --------------------------------------------------------------------------
-  private async generativeUiRender(args: Record<string, unknown>) {
-    const title = String(args.title || "Interactive Widget");
-    const htmlBody = String(args.htmlBody || "");
-    const script = args.script ? String(args.script) : "";
-    const filename = String(args.filename || `widget-${Date.now().toString(36)}.html`);
-
-    const outputDir = path.join(this.workspaceDir, ".artifacts");
-    await fs.mkdir(outputDir, { recursive: true });
-    const targetFile = path.join(outputDir, filename);
-
-    const fullHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title}</title>
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
-  <style>
-    :root {
-      --background: #09090b;
-      --card: #18181b;
-      --foreground: #fafafa;
-      --muted-foreground: #a1a1aa;
-      --border: #27272a;
-      --primary: #3b82f6;
-      --primary-foreground: #ffffff;
-      --accent: #22c55e;
-    }
-    body {
-      background-color: var(--background);
-      color: var(--foreground);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      padding: 1rem;
-    }
-  </style>
-</head>
-<body>
-  <div id="root" class="max-w-4xl mx-auto">
-    ${htmlBody}
-  </div>
-  ${script ? `<script>${script}</script>` : ""}
-</body>
-</html>`;
-
-    await fs.writeFile(targetFile, fullHtml, "utf8");
-
-    return {
-      success: true,
-      title,
-      targetFile,
-      embedSnippet: `<agent-embed src="file://${targetFile}"></agent-embed>`,
-      previewInstructions: "Widget generated with semantic CSS variables and Tailwind CSS. Render inline using the embedSnippet or open targetFile.",
-    };
-  }
-
   private generativeUiTemplate(args: Record<string, unknown>) {
     const type = String(args.type || "empty_boilerplate");
     switch (type) {
@@ -544,82 +476,6 @@ ${content}
       };
     } catch {
       throw new Error(`Plugin "${name}" manifest not found at ${targetFile}`);
-    }
-  }
-
-  // --------------------------------------------------------------------------
-  // UI Navigation
-  // --------------------------------------------------------------------------
-  private uiNavigationListPanels() {
-    return {
-      panels: [
-        { id: "customizations", name: "Customizations", path: "/customizations", description: "Browse 44 MCP services, skills, rules, and plugins" },
-        { id: "automations", name: "Automations", path: "/automations", description: "Manage scheduled cron jobs and background tasks" },
-        { id: "telemetry", name: "Telemetry & Logs", path: "/telemetry", description: "Inspect OpenTelemetry traces, spans, and LLM metrics" },
-        { id: "workspace", name: "Workspace", path: "/workspace", description: "View workspace files, git status, and project configuration" },
-        { id: "settings", name: "Settings", path: "/settings", description: "Configure LLM providers, model credentials, and MCP endpoints" },
-      ],
-    };
-  }
-
-  private uiNavigationSurfacePill(args: Record<string, unknown>) {
-    const label = String(args.label || "Open Panel");
-    const sidecarId = String(args.sidecarId || "");
-    const viewPath = String(args.viewPath || "/");
-    const pillMarkdown = `[${label}](sidecar://${sidecarId}${viewPath.startsWith("/") ? viewPath : "/" + viewPath})`;
-
-    return {
-      success: true,
-      label,
-      sidecarId,
-      viewPath,
-      pillMarkdown,
-      instructions: "Insert the pillMarkdown string into your response to provide the user with a one-click navigation shortcut.",
-    };
-  }
-
-  // --------------------------------------------------------------------------
-  // Guide
-  // --------------------------------------------------------------------------
-  private guideSitemap(args: Record<string, unknown>) {
-    const topic = String(args.topic || "sitemap");
-    switch (topic) {
-      case "cli":
-        return {
-          topic: "cli",
-          command: "agy",
-          keyFeatures: [
-            "agy run <agent> <prompt> - Run an agent command line turn",
-            "agy mcp list / add / remove - Manage local and remote MCP servers",
-            "agy chat - Interactive terminal chat session",
-            "agy telemetry export - Dump local trace logs in OTLP JSON format",
-          ],
-        };
-      case "ide":
-        return {
-          topic: "ide",
-          details: "Standalone AI-first IDE with semantic code lenses, auxiliary side pane, inline diff reviews, and integrated terminal orchestration.",
-        };
-      case "customizations":
-        return {
-          topic: "customizations",
-          precedenceOrder: [
-            "1. Workspace Project: Hierarchical discovery (.agents/rules, .agents/skills) walking up to repo root",
-            "2. Declared Configurations: Explicit entries in plugins.json or skills.json",
-            "3. Global Discovery: ~/.gemini/config/",
-          ],
-        };
-      default:
-        return {
-          topic: "sitemap",
-          links: [
-            { title: "Documentation Home", url: "https://antigravity.google/docs" },
-            { title: "Skills System", url: "https://antigravity.google/docs/skills" },
-            { title: "Rules & Workflows", url: "https://antigravity.google/docs/rules-workflows" },
-            { title: "Model Context Protocol (MCP)", url: "https://antigravity.google/docs/mcp" },
-            { title: "Agent Permissions & Security", url: "https://antigravity.google/docs/permissions" },
-          ],
-        };
     }
   }
 }

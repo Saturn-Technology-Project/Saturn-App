@@ -9,6 +9,8 @@ import type { Express } from "express";
 import type { AppServices } from "../application/services.js";
 import { respond } from "./http.js";
 import { launchEnv } from "../infrastructure/launch-env.js";
+import { PublicAddress } from "../domain/skills/public-address.js";
+import { assertPublicHost } from "../infrastructure/public-host.js";
 
 const runExec = promisify(execFile);
 const CWD_MARKER = "__SATURN_CWD__:";
@@ -208,19 +210,34 @@ export function mountWorkspace(app: Express, services: AppServices): void {
     });
   });
 
+  // The in-app browser's page loader. Public addresses only, like the agents' web tool: this runs as the user, and
+  // a page shown here could otherwise read anything on localhost or the private network (the runtime included).
   app.get("/workspace/browser/proxy", async (req, res) => {
     const rawUrl = typeof req.query.url === "string" ? req.query.url : "https://example.com";
     const targetUrl = normalizeUrl(rawUrl);
     try {
-      const response = await fetch(targetUrl, {
-        headers: {
-          "user-agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        },
-        signal: AbortSignal.timeout(12_000),
-      });
-      const finalUrl = response.url || targetUrl;
+      // Redirects are followed by hand, so every hop gets the same public-address check (at most four).
+      let current = PublicAddress.parse(targetUrl).url;
+      let response: Response | undefined;
+      for (let hop = 0; hop < 5; hop += 1) {
+        await assertPublicHost(current);
+        response = await fetch(current, {
+          redirect: "manual",
+          headers: {
+            "user-agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          },
+          signal: AbortSignal.timeout(12_000),
+        });
+        const location = response.status >= 300 && response.status < 400 ? response.headers.get("location") : null;
+        if (!location) break;
+        await response.body?.cancel();
+        if (hop === 4) throw new Error("Too many redirects");
+        current = PublicAddress.parse(new URL(location, current).toString()).url;
+      }
+      if (!response) throw new Error("No response");
+      const finalUrl = current.toString();
       const contentType = response.headers.get("content-type") || "text/html; charset=utf-8";
       const body = await response.text();
 
@@ -256,8 +273,10 @@ export function mountWorkspace(app: Express, services: AppServices): void {
       await mkdir(root, { recursive: true });
       const relPath = typeof req.query.path === "string" ? req.query.path.trim() : "";
       const safeTarget = path.resolve(root, relPath || ".");
-      const target = safeTarget.startsWith(root) ? safeTarget : root;
-      if (target !== safeTarget) logger.warn("workspace", `Refused a file path outside the workspace: ${relPath}`);
+      // "/proj-other" starts with "/proj"; only a child of the root (or the root itself) is inside it.
+      const inside = safeTarget === root || safeTarget.startsWith(`${root}${path.sep}`);
+      const target = inside ? safeTarget : root;
+      if (!inside) logger.warn("workspace", `Refused a file path outside the workspace: ${relPath}`);
 
       const info = await stat(target);
       if (info.isDirectory()) {
