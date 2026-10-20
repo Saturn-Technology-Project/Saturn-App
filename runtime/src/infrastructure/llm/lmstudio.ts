@@ -1,4 +1,5 @@
 import { LMStudioClient } from "@lmstudio/sdk";
+import { openAIChat } from "./openai.js";
 import { choice, plainMessages, untilAbort } from "./shared.js";
 import type { ChatMessage, ProviderAdapter, RawRequest } from "./types.js";
 
@@ -23,11 +24,26 @@ async function withImages(client: LMStudioClient, messages: ChatMessage[]) {
   }));
 }
 
-/** LM Studio runs locally and does not take tool definitions here. */
+/** LM Studio's OpenAI-compatible endpoint (http://host:port/v1) for a connection saved as http://host:port. */
+export function openAICompatibleUrl(baseUrl: string): string {
+  const url = new URL(baseUrl.replace(/^ws(s?):/, "http$1:"));
+  const pathname = url.pathname.replace(/\/$/, "");
+  url.pathname = pathname.endsWith("/v1") ? pathname : `${pathname}/v1`;
+  return url.toString().replace(/\/$/, "");
+}
+
+/**
+ * LM Studio. A turn with tools goes to its OpenAI-compatible Chat Completions endpoint, which takes tool definitions
+ * and returns tool calls for models trained for them (the SDK's respond() takes none, so agents could only talk).
+ * Turns without tools, and raw completions for Tab, use the LM Studio SDK.
+ */
 export const lmStudio: ProviderAdapter = {
   id: "lmstudio",
   completeRaw: lmStudioRaw,
   async complete(request) {
+    if (request.tools.length > 0) {
+      return openAIChat.complete({ ...request, baseUrl: openAICompatibleUrl(request.baseUrl), apiKey: request.apiKey || "lm-studio", effort: undefined });
+    }
     const client = new LMStudioClient({
       baseUrl: socket(request.baseUrl),
       apiToken: request.apiKey || undefined,

@@ -78,3 +78,40 @@ test("DeepSeek gets reasoning_content back when tools are sent, and other server
   assert.equal(bodies[1]?.messages[1]?.reasoning_content, undefined);
   assert.deepEqual(Object.keys(bodies[2]?.messages[1] ?? {}).sort(), ["content", "role"]);
 });
+
+test("LM Studio sends an agent's tools to its OpenAI-compatible endpoint and reads the tool calls back", async () => {
+  const requests: { url: string; body: { tools?: { function: { name: string } }[]; model: string } }[] = [];
+  const server = createServer((req, res) => {
+    let data = "";
+    req.on("data", (chunk) => (data += chunk));
+    req.on("end", () => {
+      requests.push({ url: req.url ?? "", body: JSON.parse(data) });
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ choices: [{ message: { role: "assistant", content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "files", arguments: "{\"path\":\"notes.txt\"}" } }] } }], usage: { prompt_tokens: 12, completion_tokens: 3 } }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("no port");
+  try {
+    const { lmStudio, openAICompatibleUrl } = await import("../src/infrastructure/llm/lmstudio.js");
+    const result = (await lmStudio.complete({
+      model: "qwen3-8b",
+      baseUrl: `http://127.0.0.1:${address.port}`,
+      messages: [{ role: "user", content: "read notes.txt" }],
+      tools: [{ function: { name: "files", parameters: { type: "object", properties: { path: { type: "string" } } } } }],
+    })) as { choices: { message: { tool_calls?: { function: { name: string; arguments: string } }[] } }[] };
+    assert.equal(requests[0]?.url, "/v1/chat/completions");
+    assert.equal(requests[0]?.body.model, "qwen3-8b");
+    assert.deepEqual(requests[0]?.body.tools?.map((tool) => tool.function.name), ["files"]);
+    const call = result.choices[0]?.message.tool_calls?.[0];
+    assert.equal(call?.function.name, "files");
+    assert.deepEqual(JSON.parse(call?.function.arguments ?? "{}"), { path: "notes.txt" });
+
+    assert.equal(openAICompatibleUrl("http://127.0.0.1:1234"), "http://127.0.0.1:1234/v1");
+    assert.equal(openAICompatibleUrl("http://127.0.0.1:1234/v1/"), "http://127.0.0.1:1234/v1");
+    assert.equal(openAICompatibleUrl("ws://192.168.1.5:1234"), "http://192.168.1.5:1234/v1");
+  } finally {
+    server.close();
+  }
+});
