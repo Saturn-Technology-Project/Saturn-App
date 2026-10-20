@@ -4,7 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { withOptionalFields } from "../src/infrastructure/llm/shared.js";
+import { flatInputSchema, withOptionalFields } from "../src/infrastructure/llm/shared.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
 
@@ -149,6 +149,48 @@ test("OpenAI Responses: reasoning models get a reasoning effort and no temperatu
     await call("gpt-4.1-mini", { effort: "high" });
     assert.deepEqual({ reasoning: fake.bodies.at(-1)!.reasoning, temperature: fake.bodies.at(-1)!.temperature }, { reasoning: undefined, temperature: 0.2 });
   } finally {
+    fake.server.close();
+  }
+});
+
+test("tool schemas with a top-level oneOf, anyOf or allOf are flattened into one object schema", () => {
+  const target = {
+    type: "object",
+    properties: { pid: { type: "integer" }, bundle_id: { type: "string" } },
+    oneOf: [{ required: ["pid"] }, { required: ["bundle_id"] }],
+  };
+  assert.deepEqual(flatInputSchema(target), {
+    schema: { type: "object", properties: { pid: { type: "integer" }, bundle_id: { type: "string" } } },
+    note: "Give exactly one of: pid, bundle_id.",
+  });
+  assert.deepEqual(
+    flatInputSchema({ allOf: [{ properties: { a: { type: "string" } }, required: ["a"] }, { properties: { b: { type: "number" } } }] }).schema,
+    { type: "object", properties: { a: { type: "string" }, b: { type: "number" } }, required: ["a"] },
+  );
+  const plain = { type: "object", properties: { x: { anyOf: [{ type: "string" }, { type: "null" }] } }, required: ["x"] };
+  assert.deepEqual(flatInputSchema(plain), { schema: plain }, "nested combinators and plain schemas are untouched");
+});
+
+test("Claude: a tool whose schema has a top-level oneOf is still accepted", async () => {
+  // Rejects the request the way Anthropic does when any tool schema has a top-level combinator.
+  const fake = await recorder((body) => {
+    const bad = ((body.tools as { input_schema: Record<string, unknown> }[] | undefined) ?? []).findIndex((tool) => ["oneOf", "anyOf", "allOf"].some((key) => key in tool.input_schema));
+    return bad >= 0
+      ? { status: 400, json: { type: "error", error: { type: "invalid_request_error", message: `tools.${bad}.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level` } } }
+      : { json: claudeMessage };
+  });
+  const previous = process.env.ANTHROPIC_BASE_URL;
+  process.env.ANTHROPIC_BASE_URL = fake.url;
+  try {
+    const { claude } = await import("../src/infrastructure/llm/claude.js");
+    const tool = { type: "function", function: { name: "computer_app_launch", description: "Open an app.", parameters: { type: "object", properties: { pid: { type: "integer" }, app_name: { type: "string" } }, oneOf: [{ required: ["pid"] }, { required: ["app_name"] }] } } };
+    await claude.complete({ model: "claude-opus-5-5", baseUrl: "", apiKey: "k", messages: [{ role: "user", content: "hi" }], tools: [tool], temperature: 0, maxOutput: 64 } as never);
+    const sent = (fake.bodies.at(-1)!.tools as { description: string; input_schema: Record<string, unknown> }[])[0]!;
+    assert.equal("oneOf" in sent.input_schema, false);
+    assert.equal(sent.description, "Open an app. Give exactly one of: pid, app_name.");
+  } finally {
+    if (previous === undefined) delete process.env.ANTHROPIC_BASE_URL;
+    else process.env.ANTHROPIC_BASE_URL = previous;
     fake.server.close();
   }
 });

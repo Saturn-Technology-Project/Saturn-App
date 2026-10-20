@@ -112,3 +112,40 @@ export function plainMessages(messages: ChatMessage[]): { role: ChatMessage["rol
 export function systemText(messages: { role: string; content: string }[]): string {
   return messages.filter((item) => item.role === "system").map((item) => item.content).join("\n");
 }
+
+type JsonSchema = Record<string, unknown>;
+const COMBINATORS = ["allOf", "anyOf", "oneOf"] as const;
+
+/**
+ * A tool's parameters as an input schema Anthropic accepts: an object schema with no oneOf, anyOf or allOf at
+ * the top level (Anthropic rejects the whole request otherwise; built-in and MCP tools use them to say "give one
+ * of these"). allOf branches are merged in; oneOf/anyOf branches add their properties, and the choice they
+ * expressed moves into `note`, for the tool description. Nested combinators are left alone.
+ */
+export function flatInputSchema(parameters: JsonSchema | undefined): { schema: JsonSchema; note?: string } {
+  const source: JsonSchema = { ...(parameters ?? {}) };
+  if (!COMBINATORS.some((key) => Array.isArray(source[key]))) return { schema: { ...source, type: "object" } };
+  const properties: JsonSchema = { ...((source.properties as JsonSchema | undefined) ?? {}) };
+  const required = new Set<string>(Array.isArray(source.required) ? (source.required as string[]) : []);
+  const notes: string[] = [];
+  const branches = (key: (typeof COMBINATORS)[number]) => (Array.isArray(source[key]) ? (source[key] as JsonSchema[]) : []);
+  const addProperties = (branch: JsonSchema) => {
+    for (const [name, value] of Object.entries((branch.properties as JsonSchema | undefined) ?? {})) properties[name] ??= value;
+  };
+  for (const branch of branches("allOf")) {
+    addProperties(branch);
+    for (const name of Array.isArray(branch.required) ? (branch.required as string[]) : []) required.add(name);
+  }
+  for (const key of ["oneOf", "anyOf"] as const) {
+    const options = branches(key);
+    if (!options.length) continue;
+    options.forEach(addProperties);
+    const choices = options.map((branch) => (Array.isArray(branch.required) && branch.required.length ? (branch.required as string[]).join(" + ") : null));
+    if (choices.every(Boolean)) notes.push(`${key === "oneOf" ? "Give exactly one of" : "Give at least one of"}: ${choices.join(", ")}.`);
+  }
+  const schema: JsonSchema = { ...source, type: "object", properties };
+  for (const key of COMBINATORS) delete schema[key];
+  if (required.size) schema.required = [...required];
+  else delete schema.required;
+  return { schema, ...(notes.length ? { note: notes.join(" ") } : {}) };
+}

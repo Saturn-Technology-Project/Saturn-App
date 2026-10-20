@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { choice, systemText, withOptionalFields } from "./shared.js";
+import { choice, flatInputSchema, systemText, withOptionalFields } from "./shared.js";
 import type { ProviderAdapter } from "./types.js";
 
 export const claude: ProviderAdapter = {
@@ -48,14 +48,15 @@ export const claude: ProviderAdapter = {
     const low = request.thinking === "low";
     const effort = low ? "low" : request.effort;
     const tools = request.tools.length
-      ? request.tools.map((tool) => ({
-          name: tool.function?.name ?? "",
-          description: tool.function?.description,
-          input_schema: {
-            type: "object" as const,
-            ...(tool.function?.parameters ?? {}),
-          },
-        }))
+      ? request.tools.map((tool) => {
+          const { schema, note } = flatInputSchema(tool.function?.parameters as Record<string, unknown> | undefined);
+          const description = [tool.function?.description, note].filter(Boolean).join(" ");
+          return {
+            name: tool.function?.name ?? "",
+            ...(description ? { description } : {}),
+            input_schema: schema as Anthropic.Tool.InputSchema,
+          };
+        })
       : undefined;
     const response = await withOptionalFields(
       {
