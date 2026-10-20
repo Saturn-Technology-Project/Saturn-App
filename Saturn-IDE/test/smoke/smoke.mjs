@@ -9,7 +9,7 @@
 //
 // Needs no runtime: the Saturn agent panel is only checked to render its "runtime is not running" state.
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -79,11 +79,30 @@ async function connect() {
   throw new Error("The IDE window did not come up");
 }
 
+/** Per-platform agent CLI packages in node_modules.asar (the build leaves them out; the runtime has its own). */
+function agentBinaryPackages(asarFile) {
+  if (!existsSync(asarFile)) return [];
+  const buffer = readFileSync(asarFile);
+  const size = buffer.readUInt32LE(12);
+  const header = JSON.parse(buffer.toString("utf8", 16, 16 + size));
+  const names = [];
+  const unpacked = `${asarFile}.unpacked`;
+  for (const scope of ["@github", "@anthropic-ai", "@openai"]) {
+    const onDisk = existsSync(path.join(unpacked, scope)) ? readdirSync(path.join(unpacked, scope)) : [];
+    for (const name of new Set([...Object.keys(header.files?.[scope]?.files ?? {}), ...onDisk])) {
+      if (/^(copilot-sdk|claude-agent-sdk|codex)-(darwin|linux|linuxmusl|win32)-/.test(name)) names.push(`${scope}/${name}`);
+    }
+  }
+  return names;
+}
+
 async function main() {
   if (!existsSync(binary)) throw new Error(`No Saturn IDE at ${app}`);
   const product = JSON.parse(readFileSync(path.join(resources, "product.json"), "utf8"));
   check("product.json carries the build's commit", /^[0-9a-f]{40}$/.test(String(product.commit || "")), String(product.commit || "none").slice(0, 12));
   check("node_modules.asar is bundled", existsSync(path.join(resources, "node_modules.asar")));
+  const bundledAgentBinaries = agentBinaryPackages(path.join(resources, "node_modules.asar"));
+  check("no Copilot, Claude or Codex CLI binaries inside the IDE", bundledAgentBinaries.length === 0, bundledAgentBinaries.join(", "));
 
   mkdirSync(path.join(profile, "User"), { recursive: true });
   writeFileSync(path.join(profile, "User", "settings.json"), JSON.stringify({ "workbench.startupEditor": "none", "security.workspace.trust.enabled": false, "update.mode": "none" }));
@@ -144,8 +163,13 @@ async function main() {
   check("Saturn agent panel registered", await evaluate("!!document.querySelector('[id*=\"saturn.agent\"], .saturn-agent, [aria-label*=\"Saturn\"]')"));
 
   // Terminal: open one and run a command; the output must come back.
-  await command("Terminal: Create New Terminal");
-  const opened = await until("document.querySelectorAll('.terminal-wrapper, .xterm').length > 0", 20000);
+  // A webview that has just taken focus (the Saturn agent panel) can swallow the first Enter: try once more.
+  let opened = false;
+  for (let attempt = 1; attempt <= 2 && !opened; attempt += 1) {
+    if (attempt > 1) console.log("diag terminal did not open; retrying the command");
+    await command("Terminal: Create New Terminal");
+    opened = await until("document.querySelectorAll('.terminal-wrapper, .xterm').length > 0", 20000);
+  }
   if (!opened) {
     const palette = await evaluate("(() => { const w = document.querySelector('.quick-input-widget'); return w ? JSON.stringify({ style: w.style.display, shown: getComputedStyle(w).display, rows: [...document.querySelectorAll('.quick-input-list .monaco-list-row')].slice(0, 3).map((r) => r.innerText.slice(0, 60)) }) : 'no widget' })()");
     console.log(`diag palette after command: ${palette}; focused: ${await evaluate("document.activeElement && (document.activeElement.className || document.activeElement.tagName)")}`);

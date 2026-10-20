@@ -96,6 +96,7 @@ jobs:
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
           npm run build
           npm run build:runtime
+          npm run stage:runtime
           npm run fetch:model
           npx electron-builder --mac --publish never
           npm run archive:mac

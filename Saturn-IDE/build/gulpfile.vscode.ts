@@ -125,6 +125,18 @@ function getFoundryLocalExcludeFilter(): string[] {
 	];
 }
 
+/**
+ * Saturn IDE keeps Code-OSS's AI features off (`chat.disableAIFeatures`), so its agent host never runs the Copilot,
+ * Claude or Codex harnesses. Their per-platform CLI binaries (about 650 MB) are left out; the small JS packages that
+ * the agent host imports stay. Saturn's agents run Claude Code and Codex from the runtime's own copies.
+ */
+const saturnAgentBinaryExcludeFilter = [
+	'**',
+	'!**/node_modules/@github/copilot-sdk-{darwin,linux,linuxmusl,win32}-*/**',
+	'!**/node_modules/@anthropic-ai/claude-agent-sdk-{darwin,linux,linuxmusl,win32}-*/**',
+	'!**/node_modules/@openai/codex-{darwin,linux,win32}-*/**',
+];
+
 function packageTask(platform: string, arch: string, sourceFolderName: string, destinationFolderName: string, _opts?: { stats?: boolean }) {
 	const destination = path.join(path.dirname(root), destinationFolderName);
 	platform = platform || process.platform;
@@ -242,6 +254,7 @@ function packageTask(platform: string, arch: string, sourceFolderName: string, d
 		const osProxyResolverPlatformPackage = gulp.src(getOSProxyResolverPlatformFiles(platform, arch), { base: '.', dot: true, allowEmpty: true });
 		const deps = es.merge(cleanedDeps, osProxyResolverPlatformPackage)
 			.pipe(filter(getCopilotExcludeFilter(platform, arch)))
+			.pipe(filter(saturnAgentBinaryExcludeFilter))
 			.pipe(filter(getCopilotTgrepExcludeFilter(platform, arch)))
 			.pipe(filter(getRipgrepExcludeFilter(platform, arch)))
 			.pipe(filter(getFoundryLocalExcludeFilter()))
@@ -630,7 +643,7 @@ BUILD_TARGETS.forEach(buildTarget => {
 			copyCodiconsTask,
 			cleanExtensionsBuildTask,
 			compileNonNativeExtensionsBuildTask,
-			// Saturn IDE ships without GitHub Copilot: its harnesses are Local, Claude Code and Codex.
+			// Saturn IDE ships without GitHub Copilot, and with Code-OSS's AI features off.
 			compileExtensionMediaBuildTask,
 			writeISODate('out-build'),
 			esbuildBundleTask,

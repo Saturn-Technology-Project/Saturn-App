@@ -9,11 +9,12 @@
     "dev": "concurrently -k \"vite --port 5174\" \"wait-on http://127.0.0.1:5174 && electron electron.cjs\"",
     "build": "vite build",
     "build:runtime": "tsc -p ../runtime/tsconfig.build.json --pretty false",
-    "dist:mac": "npm run build && npm run build:runtime && npm run build:ide && npm run fetch:model && electron-builder --mac --publish never",
+    "dist:mac": "npm run build && npm run build:runtime && npm run build:ide && npm run stage:runtime && npm run fetch:model && electron-builder --mac --publish never",
     "dist:win": "npm run build && npm run build:runtime && npm run stage:runtime:win && npm run fetch:model && electron-builder --win --publish never",
     "build:ide": "cd ../Saturn-IDE && PATH=$PWD/.node/bin:$PATH npm run gulp vscode-darwin-arm64-min",
     "build:ide:win": "cd ../Saturn-IDE && npm run gulp vscode-win32-x64-min",
     "build:ide:linux": "cd ../Saturn-IDE && npm run gulp vscode-linux-x64-min",
+    "stage:runtime": "node scripts/stage-runtime-modules.mjs",
     "stage:runtime:win": "node scripts/stage-runtime-modules.mjs --os win32 --cpu x64",
     "fetch:model": "node scripts/fetch-embedding-model.mjs",
     "archive:mac": "node scripts/mac-archives.mjs"
@@ -55,14 +56,8 @@
       "category": "public.app-category.developer-tools",
       "extraResources": [
         {
-          "from": "../runtime/node_modules",
-          "to": "runtime/node_modules",
-          "filter": [
-            "**/*",
-            "!onnxruntime-node/bin/napi-v*/linux/**",
-            "!onnxruntime-node/bin/napi-v*/win32/**",
-            "!onnxruntime-node/bin/napi-v*/darwin/x64/**"
-          ]
+          "from": ".staging/runtime-darwin-${arch}/node_modules",
+          "to": "runtime/node_modules"
         }
       ]
     },
