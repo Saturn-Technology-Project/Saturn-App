@@ -19,6 +19,7 @@ test("Saturn IDE's layout and likely locations follow the platform", () => {
   assert.equal(onWindows[1], path.join("C:\\Program Files", "Saturn IDE"));
   assert.ok(onWindows.some((item) => item.includes("VSCode-win32-")), "then a local build");
 
+  if (process.platform === "win32") return; // path.join below would use Windows separators
   const onMac = ideCandidates("darwin", "/Users/rick", "/Users/rick/src/Saturn-App");
   assert.deepEqual(onMac.slice(0, 2), ["/Applications/Saturn IDE.app", "/Users/rick/Applications/Saturn IDE.app"]);
   assert.ok(onMac[2]!.endsWith(path.join(`VSCode-darwin-${process.arch}`, "Saturn IDE.app")));

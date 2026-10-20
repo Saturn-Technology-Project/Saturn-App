@@ -3,6 +3,7 @@ import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { loginCommandFor } from "../src/application/claude-code.js";
 import type { Run } from "../src/domain/model.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
@@ -26,7 +27,7 @@ test("Claude Code runs with no credential that could outrank the user's own logi
     assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, undefined);
     assert.equal(env.CLAUDE_CODE_USE_BEDROCK, undefined);
     assert.equal(env.CLAUDE_CONFIG_DIR, path.join(directory, "claude"), "a Saturn-only login, apart from other Claude apps");
-    assert.equal(env.PATH, process.env.PATH);
+    assert.equal(Object.entries(env).find(([key]) => key.toUpperCase() === "PATH")?.[1], Object.entries(process.env).find(([key]) => key.toUpperCase() === "PATH")?.[1]);
   } finally {
     process.env = saved;
   }
@@ -37,7 +38,16 @@ test("login status comes from the official claude program, with the command to s
   const status = await services.kernel.claudeCode.status();
   assert.equal(status.loggedIn, false);
   assert.equal(status.error, undefined, "a signed-out answer is not an error");
-  assert.match(status.loginCommand, new RegExp(`^CLAUDE_CONFIG_DIR=${path.join(directory, "claude").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} .*claude auth login --claudeai$`));
+  assert.ok(status.loginCommand.includes(path.join(directory, "claude")), status.loginCommand);
+  assert.match(status.loginCommand, /claude(\.exe)?'? auth login --claudeai$/);
+});
+
+test("the sign-in command uses PowerShell on Windows and the POSIX shell elsewhere", () => {
+  assert.equal(loginCommandFor("darwin", "/Users/a b/.saturn-app/claude", "/opt/claude"), "CLAUDE_CONFIG_DIR='/Users/a b/.saturn-app/claude' /opt/claude auth login --claudeai");
+  assert.equal(
+    loginCommandFor("win32", "C:\\Users\\O'Neil\\.saturn-app\\claude", "C:\\Saturn\\claude.exe"),
+    "$env:CLAUDE_CONFIG_DIR='C:\\Users\\O''Neil\\.saturn-app\\claude'; & 'C:\\Saturn\\claude.exe' auth login --claudeai",
+  );
 });
 
 test("a Claude Code model keeps its effort, and a run without a login fails with how to sign in", async () => {

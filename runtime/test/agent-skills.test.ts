@@ -125,7 +125,7 @@ async function withRuntime<T>(app: Awaited<ReturnType<typeof setup>>["app"], bod
   }
 }
 
-test("a Codex turn calls the agent's Saturn skills over the runtime's endpoint, with a token only that turn holds", async () => {
+test("a Codex turn calls the agent's Saturn skills over the runtime's endpoint, with a token only that turn holds", { skip: process.platform === "win32" && "uses a shell-script stand-in for codex" }, async () => {
   const { directory, app, services } = await setup();
   const { bin, outFile } = await fakeCodex(directory);
   services.kernel.codex.cliPath = () => bin;
@@ -147,7 +147,7 @@ test("a Codex turn calls the agent's Saturn skills over the runtime's endpoint, 
   });
 });
 
-test("on Review, a Codex skill call waits on Saturn's approval card, and a denial reaches Codex as an error", async () => {
+test("on Review, a Codex skill call waits on Saturn's approval card, and a denial reaches Codex as an error", { skip: process.platform === "win32" && "uses a shell-script stand-in for codex" }, async () => {
   const { directory, app, services } = await setup();
   const { bin, outFile } = await fakeCodex(directory);
   services.kernel.codex.cliPath = () => bin;

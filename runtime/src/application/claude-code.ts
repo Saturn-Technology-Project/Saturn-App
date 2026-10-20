@@ -96,7 +96,7 @@ export class ClaudeCodeService {
     }
     // The SDK's bundled `claude` is headless (a bare start waits for a --print prompt), so sign-in is its
     // `auth login` subcommand: the Claude-subscription flow in the browser.
-    const loginCommand = `CLAUDE_CONFIG_DIR=${shellQuote(this.configDir())} ${shellQuote(cli)} auth login --claudeai`;
+    const loginCommand = loginCommandFor(process.platform, this.configDir(), cli);
     try {
       // A signed-out `claude auth status` still prints its JSON, but exits non-zero.
       const stdout = await exec(cli, ["auth", "status", "--json"], { env: this.environment(), timeout: 20_000 }).then(
@@ -415,6 +415,15 @@ function clipResult(content: unknown): unknown {
 
 function shellQuote(value: string): string {
   return /^[\w@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/** The sign-in command to paste in a terminal: PowerShell syntax on Windows, POSIX shell elsewhere. */
+export function loginCommandFor(platform: NodeJS.Platform, configDir: string, cli: string): string {
+  if (platform === "win32") {
+    const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
+    return `$env:CLAUDE_CONFIG_DIR=${quote(configDir)}; & ${quote(cli)} auth login --claudeai`;
+  }
+  return `CLAUDE_CONFIG_DIR=${shellQuote(configDir)} ${shellQuote(cli)} auth login --claudeai`;
 }
 
 /** The user's message with its images, as the one streamed input message the SDK reads for this turn. */

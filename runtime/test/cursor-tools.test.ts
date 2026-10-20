@@ -34,7 +34,7 @@ test("cursor tools definitions contain exact tools matching Cursor schemas", () 
   assert.ok(writes.some((t) => t.toolId === "create_pull_request"));
 });
 
-test("computer use skills can check permissions and list apps", async () => {
+test("computer use skills can check permissions and list apps", { skip: process.platform !== "darwin" && "computer use is macOS only" }, async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "saturn-cu-test-"));
   const perms = (await runComputerUseSkill(dir, "computer_check_permissions", {})) as {
     status: string;

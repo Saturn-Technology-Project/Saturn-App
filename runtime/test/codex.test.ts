@@ -38,7 +38,7 @@ test("Codex runs with no credential that could outrank the user's own login, in 
     assert.equal(env.CODEX_API_KEY, undefined);
     assert.equal(env.ELECTRON_RUN_AS_NODE, undefined);
     assert.equal(env.CODEX_HOME, path.join(directory, "codex"));
-    assert.equal(env.PATH, process.env.PATH);
+    assert.equal(Object.entries(env).find(([key]) => key.toUpperCase() === "PATH")?.[1], Object.entries(process.env).find(([key]) => key.toUpperCase() === "PATH")?.[1]);
   } finally {
     process.env = saved;
   }
@@ -105,7 +105,7 @@ process.stdin.on("end", () => {
   return { bin, argsFile };
 }
 
-test("a Codex turn shows its reply, reasoning, commands and edits, and records usage, with no API key and the chosen model, sandbox and effort", async () => {
+test("a Codex turn shows its reply, reasoning, commands and edits, and records usage, with no API key and the chosen model, sandbox and effort", { skip: process.platform === "win32" && "uses a shell-script stand-in for codex" }, async () => {
   const { directory, services } = await setup();
   const { bin, argsFile } = await fakeCodex(directory, [
     { type: "thread.started", thread_id: "thr_1" },
@@ -148,7 +148,7 @@ test("a Codex turn shows its reply, reasoning, commands and edits, and records u
   }
 });
 
-test("a Codex turn that fails for want of a login says how to sign in", async () => {
+test("a Codex turn that fails for want of a login says how to sign in", { skip: process.platform === "win32" && "uses a shell-script stand-in for codex" }, async () => {
   const { directory, services } = await setup();
   const { bin } = await fakeCodex(directory, [{ type: "turn.failed", error: { message: "401 Unauthorized: not logged in" } }]);
   services.kernel.codex.cliPath = () => bin;
@@ -160,7 +160,7 @@ test("a Codex turn that fails for want of a login says how to sign in", async ()
   assert.match(done.error ?? "", /Codex isn't signed in for Saturn/);
 });
 
-test("in a group, a Codex member resumes one thread for all its turns and gets only what is new", async () => {
+test("in a group, a Codex member resumes one thread for all its turns and gets only what is new", { skip: process.platform === "win32" && "uses a shell-script stand-in for codex" }, async () => {
   const { directory, services } = await setup();
   const { bin, argsFile } = await fakeCodex(directory, [
     { type: "thread.started", thread_id: "thr_group" },
@@ -195,7 +195,7 @@ test("in a group, a Codex member resumes one thread for all its turns and gets o
   assert.doesNotMatch(turn?.input ?? "", /first task/, "what the session already saw is not sent again");
 });
 
-test("a Codex thread opens with Saturn's memory and the agent's instructions, and every message carries what the knowledge sources return", async () => {
+test("a Codex thread opens with Saturn's memory and the agent's instructions, and every message carries what the knowledge sources return", { skip: process.platform === "win32" && "uses a shell-script stand-in for codex" }, async () => {
   const { directory, services } = await setup();
   const bin = path.join(directory, "fake-codex.cjs");
   const promptFile = path.join(directory, "prompts.jsonl");

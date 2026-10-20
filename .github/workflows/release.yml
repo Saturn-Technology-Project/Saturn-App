@@ -58,6 +58,8 @@ jobs:
           npm_config_foreground_scripts: "1"
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+          # Native modules (@vscode/policy-watcher) use std::variant, which needs macOS 10.13 or later.
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
 
       - name: Build Saturn IDE (darwin-arm64)
         working-directory: Saturn-IDE
@@ -67,6 +69,11 @@ jobs:
         run: |
           npm ci --prefix runtime
           npm ci --prefix desktop
+
+      - name: Git identity for the tests
+        run: |
+          git config --global user.name "Saturn CI"
+          git config --global user.email "ci@saturn.invalid"
 
       - name: Tests and type checks
         run: |
@@ -139,6 +146,11 @@ jobs:
         run: |
           npm ci --prefix runtime
           npm ci --prefix desktop
+
+      - name: Git identity for the tests
+        run: |
+          git config --global user.name "Saturn CI"
+          git config --global user.email "ci@saturn.invalid"
 
       - name: Tests and type checks
         shell: pwsh
