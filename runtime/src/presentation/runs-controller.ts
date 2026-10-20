@@ -97,6 +97,14 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.recentRuns(typeof req.query.projectId === "string" ? req.query.projectId : undefined, Number(req.query.limit) || 20));
   });
 
+  // A pull request from a chat's worktree branch (pushes it first; needs the user's GitHub token).
+  app.post("/threads/:id/pull-request", (req, res, next) => {
+    respond(res, next, () => services.openPullRequest(param(req.params.id), {
+      ...(typeof req.body?.title === "string" ? { title: req.body.title } : {}),
+      ...(typeof req.body?.body === "string" ? { body: req.body.body } : {}),
+    }), 201);
+  });
+
   app.get("/runs/:id", (req, res, next) => {
     respond(res, next, () => services.getRun(param(req.params.id)));
   });

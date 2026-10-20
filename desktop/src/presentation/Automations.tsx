@@ -62,6 +62,25 @@ function relative(iso: string): string {
 
 type FormState = AutomationInput & { id?: string };
 
+/** Ready-made automations; a click fills the form, which can still be changed before saving. */
+const TEMPLATES: { name: string; prompt: string; trigger: AutomationTrigger }[] = [
+  {
+    name: "Daily pull request review",
+    prompt: "Review the open pull requests in this project's GitHub repository (list_pull_requests, then pull_request_read for each). For each one, look at the diff for bugs, missed cases, risky changes and simpler alternatives. Leave your findings as a pull request review (create_pull_request_review) with inline comments where a specific line is wrong; request changes only for real problems, otherwise comment. Skip pull requests you already reviewed today.",
+    trigger: { frequency: "weekdays", time: "09:00", weekday: 1 },
+  },
+  {
+    name: "Morning project summary",
+    prompt: "Summarize what changed in this project since yesterday (git log and diff), note anything that looks unfinished or risky, and list the open questions a developer should look at first today.",
+    trigger: { frequency: "weekdays", time: "08:30", weekday: 1 },
+  },
+  {
+    name: "Weekly dependency check",
+    prompt: "Check this project's dependencies for available updates and known problems (read the package manifest and lockfile; run the package manager's outdated/audit commands). Report what should be updated, what can wait, and anything that needs care.",
+    trigger: { frequency: "weekly", time: "10:00", weekday: 1 },
+  },
+];
+
 function blankForm(agents: Agent[]): FormState {
   return {
     name: "",
@@ -317,6 +336,15 @@ function AutomationDialog(props: {
           </button>
         </div>
 
+        {!form.id ? (
+          <div className="automation-templates">
+            {TEMPLATES.map((template) => (
+              <button key={template.name} type="button" className="btn ghost tiny" title={template.prompt} onClick={() => setForm({ ...form, name: template.name, prompt: template.prompt, trigger: template.trigger })}>
+                {template.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="automation-field">
           <label htmlFor="automation-name">Name</label>
           <input

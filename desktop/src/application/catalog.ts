@@ -92,7 +92,12 @@ export class CatalogService {
   }
 
   /** Ends the chat's isolation: merge its branch into the base, keep the branch for a pull request, or discard it. */
-  finishWorktree(threadId: string, how: "merge" | "keep" | "discard"): Promise<{ how: string; branch: string; merged?: boolean }> {
+  /** Opens a pull request from the chat's worktree branch (pushes it first). */
+  openPullRequest(threadId: string, input: { title?: string; body?: string }): Promise<{ url: string; number: number; branch: string }> {
+    return this.runtime.request(`/threads/${encodeURIComponent(threadId)}/pull-request`, { method: "POST", body: JSON.stringify(input) });
+  }
+
+  finishWorktree(threadId: string, how: "merge" | "keep" | "discard"): Promise<{ how: string; branch: string; merged?: boolean; conflicts?: string[] }> {
     return this.runtime.request(`/threads/${encodeURIComponent(threadId)}/worktree/finish`, { method: "POST", body: JSON.stringify({ how }) });
   }
 

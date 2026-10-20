@@ -7,6 +7,8 @@ import type { Conversation } from "../domain/model.js";
 import { launchEnv } from "../infrastructure/launch-env.js";
 import { errorText, logger } from "../infrastructure/logger.js";
 import type { RuntimeKernel } from "./kernel.js";
+import { runOriginSkill } from "../infrastructure/skills.js";
+import type { OriginContext } from "../infrastructure/skills/origin-skill.js";
 
 const exec = promisify(execFile);
 /** Isolated chats open at once per project, so a busy afternoon does not fill the disk with checkouts. */
@@ -48,6 +50,49 @@ export class WorktreeService {
   }
 
   /** The thread's worktree folder, once it has one. */
+  /**
+   * Opens a pull request from a chat's worktree branch: commits what is pending, pushes the branch to origin,
+   * and creates the pull request on GitHub with the user's token (the one Saturn's GitHub tools use). `repository`
+   * overrides the owner/name read from the origin remote (tests use a local remote).
+   */
+  async pullRequest(threadId: string, input: { title?: string; body?: string; repository?: string } = {}, context: OriginContext = {}): Promise<{ url: string; number: number; branch: string }> {
+    const thread = this.thread(threadId);
+    const folder = this.pathOf(thread);
+    if (!thread.worktree || !folder || !thread.projectId) throw new HttpError(404, "This chat has no worktree branch to open a pull request from");
+    const { branch, base } = thread.worktree;
+    const dirty = await this.git(folder, ["status", "--porcelain"], true);
+    if (dirty) {
+      await this.git(folder, ["add", "-A"]);
+      await this.git(folder, ["-c", "user.name=Saturn", "-c", "user.email=saturn@localhost", "commit", "-q", "-m", `Saturn: ${thread.title}`]);
+    }
+    const remote = await this.git(folder, ["remote", "get-url", "origin"], true);
+    const repository = input.repository?.trim() || githubRepository(remote);
+    if (!repository) throw new HttpError(409, remote ? `The origin remote (${remote}) is not a GitHub repository` : "The project has no origin remote to push to");
+    await this.git(folder, ["push", "-u", "origin", branch]);
+    const [owner, repo] = repository.split("/");
+    const title = input.title?.trim() || thread.title;
+    const body = input.body ?? this.summaryOf(threadId);
+    let result: { pullRequest?: { url?: string; number?: number } };
+    try {
+      result = (await runOriginSkill(this.kernel.store.root, "create_pull_request", { owner, name: repo, title, body, head: branch, base }, undefined, { ...context, repoDir: folder })) as typeof result;
+    } catch (error) {
+      const text = errorText(error);
+      if (/token/i.test(text)) throw new HttpError(409, "No GitHub token: sign in with `gh auth login`, set GH_TOKEN, or install GitHub under Customizations, then try again.");
+      throw new HttpError(502, `GitHub refused the pull request: ${text}`);
+    }
+    const pr = result.pullRequest ?? {};
+    logger.info("worktrees", `Opened pull request #${pr.number ?? "?"} from ${branch}`);
+    return { url: String(pr.url ?? ""), number: Number(pr.number ?? 0), branch };
+  }
+
+  /** The "## Summary" of the chat's last reply, for a pull request's description. */
+  private summaryOf(threadId: string): string {
+    const last = this.kernel.store.state.runs.find((run) => run.threadId === threadId && run.status === "completed" && run.output);
+    if (!last) return "";
+    const match = /\n#{2,3}\s*Summary\s*\n/i.exec(`\n${last.output}`);
+    return match ? last.output.slice(match.index - 1 + match[0].length).trim() : last.output.slice(0, 4000);
+  }
+
   pathOf(thread: Pick<Conversation, "id" | "worktree">): string | undefined {
     return thread.worktree ? path.join(this.dir(), thread.id) : undefined;
   }
@@ -160,3 +205,10 @@ export class WorktreeService {
     return thread;
   }
 }
+
+/** "owner/name" from a GitHub remote URL (https, ssh, or git protocol), or undefined for anything else. */
+export function githubRepository(remote: string): string | undefined {
+  const match = /github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i.exec(remote.trim());
+  return match ? `${match[1]}/${match[2]}` : undefined;
+}
+

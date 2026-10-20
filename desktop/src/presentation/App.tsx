@@ -119,6 +119,10 @@ export function App() {
   const [contextOpen, setContextOpen] = useState(false);
   /** The rule files agents follow in the current chat's project (the "§ Rules" chip). */
   const [ruleSources, setRuleSources] = useState<{ path: string; chars: number }[]>([]);
+  /** The pull-request form for the current chat's branch, while it is open. */
+  const [prDraft, setPrDraft] = useState<{ threadId: string; title: string; body: string; busy: boolean; error: string } | null>(null);
+  /** Files that conflicted when a chat's branch was merged, with the branch and base, until dealt with. */
+  const [conflict, setConflict] = useState<{ threadId: string; branch: string; base: string; files: string[]; projectId: string } | null>(null);
   /** Opens Settings on one project's page (the rules chip). */
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
   /** The Agents board and inbox: every run still going plus the latest finished, polled while the app is open. */
@@ -915,7 +919,12 @@ export function App() {
     setWorktreeBusy(true);
     try {
       const result = await desktop.catalog.finishWorktree(threadId, how);
-      setNotice(how === "merge" ? `Merged ${result.branch}.` : how === "keep" ? `Kept ${result.branch}; open a pull request from it.` : `Discarded ${result.branch}.`);
+      if (how === "merge" && result.conflicts?.length && conv?.worktree && conv.projectId) {
+        setConflict({ threadId, branch: result.branch, base: conv.worktree.base, files: result.conflicts, projectId: conv.projectId });
+        setNotice("");
+      } else {
+        setNotice(how === "merge" ? `Merged ${result.branch}.` : how === "keep" ? `Kept ${result.branch}; open a pull request from it.` : `Discarded ${result.branch}.`);
+      }
       await reload();
     } catch (err) {
       setNotice(err instanceof Error ? err.message : "Could not finish the worktree");
@@ -1942,6 +1951,10 @@ export function App() {
                 busy={worktreeBusy}
                 onIsolate={() => void isolateThread(currentConversation.id)}
                 onFinish={(how) => void finishWorktree(currentConversation.id, how)}
+                onPullRequest={() => {
+                  const last = thread.filter((run) => run.status === "completed" && run.output).at(-1);
+                  setPrDraft({ threadId: currentConversation.id, title: currentConversation.title.replace(/^⧉\s*/, ""), body: last ? splitSummary(last.output).summary : "", busy: false, error: "" });
+                }}
               />
             ) : null}
             <button
@@ -2678,6 +2691,62 @@ export function App() {
         </div>
       )}
 
+      {prDraft ? (
+        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && !prDraft.busy && setPrDraft(null)}>
+          <form
+            className="modal-dialog pr-dialog"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const draft = prDraft;
+              setPrDraft({ ...draft, busy: true, error: "" });
+              void desktop.catalog.openPullRequest(draft.threadId, { title: draft.title, body: draft.body }).then((result) => {
+                setPrDraft(null);
+                setNotice(`Opened pull request #${result.number}: ${result.url}`);
+                void reload();
+              }, (error: unknown) => setPrDraft({ ...draft, busy: false, error: error instanceof Error ? error.message : "Could not open the pull request" }));
+            }}
+          >
+            <div className="modal-header"><h3>Open a pull request</h3></div>
+            <div className="modal-body">
+              <p className="hint">Pending work on the branch is committed, the branch is pushed to origin, and the pull request is created with your GitHub token.</p>
+              <label className="label" htmlFor="pr-title">Title</label>
+              <input id="pr-title" value={prDraft.title} onChange={(event) => setPrDraft({ ...prDraft, title: event.target.value })} />
+              <label className="label" htmlFor="pr-body">Description</label>
+              <textarea id="pr-body" className="input" rows={8} value={prDraft.body} onChange={(event) => setPrDraft({ ...prDraft, body: event.target.value })} />
+              {prDraft.error ? <p className="error">{prDraft.error}</p> : null}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn ghost" disabled={prDraft.busy} onClick={() => setPrDraft(null)}>Cancel</button>
+              <button type="submit" className="btn primary-btn" disabled={prDraft.busy || !prDraft.title.trim()}>{prDraft.busy ? "Opening…" : "Push and open"}</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+      {conflict ? (
+        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setConflict(null)}>
+          <div className="modal-dialog">
+            <div className="modal-header"><h3>Merge conflicts</h3></div>
+            <div className="modal-body">
+              <p className="hint">Merging {conflict.branch} into {conflict.base} conflicts in {conflict.files.length} file{conflict.files.length === 1 ? "" : "s"}; the merge was undone and the branch kept:</p>
+              <ul className="conflict-list">{conflict.files.map((file) => <li key={file}><code>{file}</code></li>)}</ul>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn ghost" onClick={() => { void desktop.projects.openInEditor(conflict.projectId); setConflict(null); }}>Open in Saturn IDE</button>
+              <button
+                type="button"
+                className="btn primary-btn"
+                onClick={() => {
+                  const files = conflict.files.map((file) => `- ${file}`).join("\n");
+                  setConflict(null);
+                  void send(`Merging this branch (${conflict.branch}) into ${conflict.base} conflicts in these files:\n${files}\n\nIn this worktree, run \`git merge ${conflict.base}\`, resolve each conflict keeping the intent of both sides, make sure the project still builds, then commit the merge. Do not force-push or discard either side's work.`);
+                }}
+              >
+                Ask the agent to resolve
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {accessRequest ? (
         <AccessDialog
           path={accessRequest.path}
@@ -2892,7 +2961,7 @@ function DotsVerticalIcon() {
  * The chat's worktree state in the top bar: a button to start working on an own branch, or, once isolated, the
  * branch name with a menu to merge, keep or discard it.
  */
-function WorktreeControl(props: { conversation: Conversation; busy: boolean; onIsolate: () => void; onFinish: (how: "merge" | "keep" | "discard") => void }) {
+function WorktreeControl(props: { conversation: Conversation; busy: boolean; onIsolate: () => void; onFinish: (how: "merge" | "keep" | "discard") => void; onPullRequest: () => void }) {
   const [open, setOpen] = useState(false);
   const worktree = props.conversation.worktree;
   if (!worktree) {
@@ -2911,6 +2980,7 @@ function WorktreeControl(props: { conversation: Conversation; busy: boolean; onI
       {open ? (
         <div className="titlebar-dropdown" onMouseLeave={() => setOpen(false)}>
           <button type="button" className="titlebar-dropdown-item" onClick={() => { setOpen(false); props.onFinish("merge"); }}><span>Merge into {worktree.base}</span></button>
+          <button type="button" className="titlebar-dropdown-item" onClick={() => { setOpen(false); props.onPullRequest(); }}><span>Open pull request…</span></button>
           <button type="button" className="titlebar-dropdown-item" onClick={() => { setOpen(false); props.onFinish("keep"); }}><span>Keep branch for a pull request</span></button>
           <button type="button" className="titlebar-dropdown-item" onClick={() => { setOpen(false); props.onFinish("discard"); }}><span>Discard branch</span></button>
         </div>

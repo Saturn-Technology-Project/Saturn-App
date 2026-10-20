@@ -122,6 +122,10 @@ export class AppServices {
     return await this.kernel.runs.startRun(agentId, input, threadId, projectId, options);
   }
 
+  openPullRequest(threadId: string, input: { title?: string; body?: string }): Promise<{ url: string; number: number; branch: string }> {
+    return this.kernel.worktrees.pullRequest(threadId, input, { secret: (id) => this.kernel.store.secret(id) });
+  }
+
   recordings(runId: string): { name: string; frames: number; seconds?: number; exported?: boolean }[] {
     return this.kernel.recordings.list(runId);
   }
