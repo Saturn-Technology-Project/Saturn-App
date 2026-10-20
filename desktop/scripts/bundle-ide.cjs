@@ -23,6 +23,12 @@ exports.default = async function bundleIde(context) {
       `Saturn IDE build not found at ${source}. Run "npm run build:ide" first, or set SATURN_SKIP_IDE=1 to package without it.`,
     );
   }
+  // A build without its commit takes itself for a dev build at run time (it loads node_modules instead of
+  // node_modules.asar, and the terminal, tree-sitter and more are missing). Refuse to ship one.
+  const product = JSON.parse(fs.readFileSync(path.join(source, "Contents", "Resources", "app", "product.json"), "utf8"));
+  if (!/^[0-9a-f]{40}$/.test(String(product.commit || ""))) {
+    throw new Error(`Saturn IDE at ${source} has no commit in its product.json; its build did not find the git repository. Rebuild it with "npm run build:ide".`);
+  }
   const app = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`);
   const target = path.join(app, "Contents", "Resources", "Saturn IDE.app");
   fs.rmSync(target, { recursive: true, force: true });
