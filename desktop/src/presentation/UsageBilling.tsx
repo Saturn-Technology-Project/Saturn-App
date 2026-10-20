@@ -1,4 +1,60 @@
+import { useEffect, useState } from "react";
+import { desktop } from "../application/desktop";
 import type { AgentUsage, ModelUsage, UsageSummary, UsageTally } from "../domain/model";
+
+type Period = "today" | "week" | "month" | "30d" | "all" | "custom";
+const PERIODS: [Period, string][] = [
+  ["today", "Today"],
+  ["week", "This week"],
+  ["month", "This month"],
+  ["30d", "Last 30 days"],
+  ["all", "All time"],
+  ["custom", "Custom"],
+];
+const PERIOD_KEY = "saturn.usage.period";
+
+function startOfDay(day: Date): Date {
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate());
+}
+
+function addDays(day: Date, days: number): Date {
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate() + days);
+}
+
+/** yyyy-mm-dd in local time, for date inputs. */
+function dayValue(day: Date): string {
+  return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+}
+
+function parseDay(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+}
+
+/** The window for a period, in local days: weeks start on Monday, and a custom end day is included. */
+function rangeFor(period: Period, custom: { from: string; to: string }, now = new Date()): { from?: string; to?: string } {
+  const today = startOfDay(now);
+  if (period === "today") return { from: today.toISOString() };
+  if (period === "week") return { from: addDays(today, -((today.getDay() + 6) % 7)).toISOString() };
+  if (period === "month") return { from: new Date(today.getFullYear(), today.getMonth(), 1).toISOString() };
+  if (period === "30d") return { from: addDays(today, -29).toISOString() };
+  if (period === "custom") {
+    const from = parseDay(custom.from);
+    const to = parseDay(custom.to);
+    return { ...(from ? { from: from.toISOString() } : {}), ...(to ? { to: addDays(to, 1).toISOString() } : {}) };
+  }
+  return {};
+}
+
+function savedPeriod(): Period {
+  try {
+    const value = window.localStorage.getItem(PERIOD_KEY);
+    return PERIODS.some(([id]) => id === value) ? (value as Period) : "month";
+  } catch {
+    return "month";
+  }
+}
+
 
 /** Small amounts keep four decimals so a few cents of testing still shows up. */
 function usd(value: number): string {
@@ -38,14 +94,76 @@ function Cost(props: { tally: UsageTally }) {
   );
 }
 
-export function UsageBilling(props: { summary: UsageSummary | null }) {
-  const summary = props.summary;
-  if (!summary) return <p className="hint">Loading usage…</p>;
+/** Usage & Billing for a chosen period; it reloads when the period changes or any of `refreshOn` does. */
+export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
+  const [period, setPeriod] = useState<Period>(savedPeriod);
+  const [custom, setCustom] = useState(() => {
+    const today = startOfDay(new Date());
+    return { from: dayValue(addDays(today, -6)), to: dayValue(today) };
+  });
+  const [summary, setSummary] = useState<UsageSummary | null>(null);
+  const [error, setError] = useState("");
+
+  function choose(next: Period) {
+    setPeriod(next);
+    try {
+      window.localStorage.setItem(PERIOD_KEY, next);
+    } catch {
+      // Remembering the period is a convenience only.
+    }
+  }
+
+  const range = rangeFor(period, custom);
+  const rangeKey = `${range.from ?? ""}|${range.to ?? ""}`;
+  useEffect(() => {
+    let current = true;
+    setError("");
+    desktop.admin.usageSummary(range).then(
+      (next) => current && setSummary(next),
+      (reason: unknown) => current && setError(reason instanceof Error ? reason.message : "Could not load usage"),
+    );
+    return () => {
+      current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeKey, ...(props.refreshOn ?? [])]);
+
+  const label = PERIODS.find(([id]) => id === period)?.[1] ?? "";
+  const filter = (
+    <div className="usage-filter">
+      <div className="usage-periods" role="group" aria-label="Period">
+        {PERIODS.map(([id, text]) => (
+          <button key={id} type="button" className={period === id ? "active" : ""} aria-pressed={period === id} onClick={() => choose(id)}>
+            {text}
+          </button>
+        ))}
+      </div>
+      {period === "custom" ? (
+        <div className="usage-custom">
+          <input type="date" className="input tiny" aria-label="From" value={custom.from} max={custom.to || undefined} onChange={(event) => setCustom({ ...custom, from: event.target.value })} />
+          <span className="hint">to</span>
+          <input type="date" className="input tiny" aria-label="To" value={custom.to} min={custom.from || undefined} onChange={(event) => setCustom({ ...custom, to: event.target.value })} />
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (!summary) {
+    return (
+      <div className="usage">
+        {filter}
+        {error ? <p className="settings-row-error">{error}</p> : <p className="hint">Loading usage…</p>}
+      </div>
+    );
+  }
   const { totals } = summary;
   const since = summary.since ? new Date(summary.since).toLocaleDateString() : null;
+  const window_ = period === "all" ? (since ? `since ${since}` : "") : period === "custom" ? `${custom.from || "…"} – ${custom.to || "…"}` : label.toLowerCase();
 
   return (
     <div className="usage">
+      {filter}
+      {error ? <p className="settings-row-error">{error}</p> : null}
       <div className="usage-hero">
         <section className="card usage-stat">
           <span className="label">Total tokens</span>
@@ -58,7 +176,7 @@ export function UsageBilling(props: { summary: UsageSummary | null }) {
           <span className="label">Total bill</span>
           <strong>{usd(totals.costUsd)}</strong>
           <small>
-            USD at each model's official price{since ? ` · since ${since}` : ""}
+            USD at each model's official price{window_ ? ` · ${window_}` : ""}
             {totals.unpricedCalls ? ` · ${totals.unpricedCalls} calls on unpriced models not included` : ""}
           </small>
         </section>
@@ -70,7 +188,7 @@ export function UsageBilling(props: { summary: UsageSummary | null }) {
           <span className="hint">Priced at the rate in force when each call was made</span>
         </div>
         {summary.models.length === 0 ? (
-          <p className="empty-box">No model calls recorded yet.</p>
+          <p className="empty-box">{period === "all" ? "No model calls recorded yet." : "No model calls in this period."}</p>
         ) : (
           <div className="usage-table">
             <div className="usage-row head">
@@ -92,7 +210,7 @@ export function UsageBilling(props: { summary: UsageSummary | null }) {
           <span className="hint">Each call counts toward the model the agent was using at that moment</span>
         </div>
         {summary.agents.length === 0 ? (
-          <p className="empty-box">No agent has used a model yet.</p>
+          <p className="empty-box">{period === "all" ? "No agent has used a model yet." : "No agent used a model in this period."}</p>
         ) : (
           <div className="usage-table">
             <div className="usage-row agent head">

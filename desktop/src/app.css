@@ -3989,6 +3989,55 @@ body.is-resizing iframe {
   container-type: inline-size;
 }
 
+.usage-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.usage-periods {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.usage-periods button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.usage-periods button:hover {
+  color: var(--fg);
+  background: var(--hover);
+}
+
+.usage-periods button.active {
+  color: var(--fg);
+  background: var(--hover);
+  font-weight: 550;
+}
+
+.usage-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.usage-custom input[type="date"] {
+  width: auto;
+  color-scheme: light dark;
+}
+
 .usage-hero {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -1,3 +1,4 @@
+import type { UsageRange } from "./usage.js";
 import type { AutomationView } from "./automations.js";
 import type { GroupTranscript, GroupView } from "./groups.js";
 import type { RunChanges } from "./checkpoints.js";
@@ -160,8 +161,8 @@ export class AppServices {
     return this.kernel.usage.records();
   }
 
-  usageSummary() {
-    return this.kernel.usage.summary();
+  usageSummary(range?: UsageRange) {
+    return this.kernel.usage.summary(range);
   }
 
   async executeTool(input: {

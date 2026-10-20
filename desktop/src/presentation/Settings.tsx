@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
-import { EFFORT_LABELS, supportsEffort, type Agent, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type UsageSummary } from "../domain/model";
+import { EFFORT_LABELS, supportsEffort, type Agent, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo } from "../domain/model";
 import type { CodexStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -61,7 +61,6 @@ export function Settings(props: {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [info, setInfo] = useState<RuntimeInfo | null>(null);
   const [logs, setLogs] = useState<LogLine[]>([]);
-  const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -92,7 +91,6 @@ export function Settings(props: {
     props.onProfile(next.profile);
     setInfo(next.information);
     setLogs(next.logs);
-    setUsage(await desktop.admin.usageSummary());
   }
 
   useEffect(() => {
@@ -195,7 +193,7 @@ export function Settings(props: {
               <ShortcutsTab />
             ) : (
               <>
-                {page === "usage" ? <UsageBilling summary={usage} /> : null}
+                {page === "usage" ? <UsageBilling refreshOn={[props.models, props.agents]} /> : null}
                 {page === "mcp" ? (
                   <McpPage
                     agent={props.agent}

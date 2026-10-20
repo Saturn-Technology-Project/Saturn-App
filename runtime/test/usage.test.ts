@@ -1,3 +1,4 @@
+import { useRuntimeAuth } from "./runtime-token.js";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import os from "node:os";
@@ -108,6 +109,41 @@ test("records from before costs were stored are priced at the time they were mad
   assert.equal(summary.models[0]?.label, "Gemini 4 Argon");
   assert.equal(summary.agents[0]?.name, "Deleted agent");
   assert.equal(summary.since, "2026-11-01T00:00:00Z");
+});
+
+test("the summary can be limited to a time window, and a bad window is refused", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "saturn-app-"));
+  const store = new FileStore(directory);
+  await store.load();
+  const { app, services } = createApp(store);
+  const call = (id: string, createdAt: string) => ({ id, runId: id, agentId: "a", modelId: "m", provider: "lmstudio", model: "local", inputTokens: 10, outputTokens: 1, costUsd: 1, createdAt });
+  await store.update((state) => {
+    state.usage.push(call("u1", "2026-10-05T12:00:00Z"), call("u2", "2026-10-12T00:00:00Z"), call("u3", "2026-10-19T23:59:59Z"), call("u4", "2026-10-20T00:00:00Z"));
+  });
+  assert.equal(services.usageSummary().totals.calls, 4, "no window: everything");
+  const week = services.usageSummary({ from: "2026-10-12T00:00:00Z", to: "2026-10-20T00:00:00Z" });
+  assert.equal(week.totals.calls, 2, "from is inclusive, to is exclusive");
+  assert.equal(week.totals.costUsd, 2);
+  assert.equal(week.since, "2026-10-12T00:00:00Z");
+  assert.deepEqual(week.range, { from: "2026-10-12T00:00:00.000Z", to: "2026-10-20T00:00:00.000Z" });
+  assert.equal(services.usageSummary({ from: "2026-10-19T00:00:00Z" }).totals.calls, 2, "an open end");
+  assert.equal(services.usageSummary({ to: "2026-10-01T00:00:00Z" }).totals.calls, 0);
+  assert.throws(() => services.usageSummary({ from: "nope" }), /from must be a date/);
+  assert.throws(() => services.usageSummary({ from: "2026-10-20", to: "2026-10-01" }), /end after it starts/);
+
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("no port");
+    const base = `http://127.0.0.1:${address.port}`;
+    useRuntimeAuth(base);
+    const response = await fetch(`${base}/usage/summary?from=${encodeURIComponent("2026-10-12T00:00:00Z")}&to=${encodeURIComponent("2026-10-20T00:00:00Z")}`);
+    assert.equal(((await response.json()) as { totals: { calls: number } }).totals.calls, 2);
+    assert.equal((await fetch(`${base}/usage/summary?from=garbage`)).status, 400);
+  } finally {
+    await new Promise((resolve) => server.close(() => resolve(undefined)));
+  }
 });
 
 test("a plain reply finishes the run with one model call, and restarts fail stuck runs", async () => {

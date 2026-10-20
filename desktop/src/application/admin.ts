@@ -74,8 +74,13 @@ export class AdminService {
     return this.runtime.request<LlmChoice[]>(`/llm/lmstudio/models?baseUrl=${encodeURIComponent(baseUrl)}`);
   }
 
-  usageSummary(): Promise<UsageSummary> {
-    return this.runtime.request<UsageSummary>("/usage/summary");
+  /** Totals for calls made at or after `from` and before `to` (ISO times); leave both out for all time. */
+  usageSummary(range: { from?: string; to?: string } = {}): Promise<UsageSummary> {
+    const query = new URLSearchParams();
+    if (range.from) query.set("from", range.from);
+    if (range.to) query.set("to", range.to);
+    const suffix = query.toString();
+    return this.runtime.request<UsageSummary>(`/usage/summary${suffix ? `?${suffix}` : ""}`);
   }
 
   createModel(input: { provider: string; model: string; baseUrl?: string; secret?: string; effort?: string }): Promise<void> {

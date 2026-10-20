@@ -142,7 +142,7 @@ export type AgentUsage = UsageTally & {
   models: (UsageTally & { provider: string; model: string; label: string })[];
 };
 /** Token and cost totals, from usage recorded per call with the agent, model and official rate at that moment. */
-export type UsageSummary = { currency: "USD"; since: string | null; totals: UsageTally; models: ModelUsage[]; agents: AgentUsage[] };
+export type UsageSummary = { currency: "USD"; range?: { from: string | null; to: string | null }; since: string | null; totals: UsageTally; models: ModelUsage[]; agents: AgentUsage[] };
 
 export type LaunchApp = "agent" | "ide";
 export type Profile = {

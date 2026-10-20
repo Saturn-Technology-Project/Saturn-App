@@ -7,8 +7,10 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.usage());
   });
 
-  app.get("/usage/summary", (_req, res, next) => {
-    respond(res, next, () => services.usageSummary());
+  // ?from=&to= (ISO times) limit the totals to calls made in that window; the desktop sends local day bounds.
+  app.get("/usage/summary", (req, res, next) => {
+    const end = (value: unknown) => (typeof value === "string" ? value : undefined);
+    respond(res, next, () => services.usageSummary({ from: end(req.query.from), to: end(req.query.to) }));
   });
 
   // One plain model call for Saturn IDE's Tab completion and Cmd+K edit. Closing the request aborts it.
