@@ -148,5 +148,8 @@
   "Attach the text of a URL": "附加網址的文字內容",
   "Attach context to the next message": "為下一則訊息附加上下文",
   "Get Started": "開始使用",
-  "Welcome to Saturn IDE: agents, inline edits and Tab completion, all through the Saturn app on this computer.": "歡迎使用 Saturn IDE：Agent、行內編輯與 Tab 補全，全部透過這台電腦上的 Saturn App 執行。"
+  "Welcome to Saturn IDE: agents, inline edits and Tab completion, all through the Saturn app on this computer.": "歡迎使用 Saturn IDE：Agent、行內編輯與 Tab 補全，全部透過這台電腦上的 Saturn App 執行。",
+  "{0} → {1}: {2} use(s) in {3} other file(s)": "{0} → {1}：其他 {3} 個檔案還有 {2} 處使用",
+  "You renamed {0} to {1}. Click to review the other files that still use {0}.": "你把 {0} 改名為 {1}。點一下檢視其他仍在使用 {0} 的檔案。",
+  "Rename {0} to {1} in these places": "在這些地方把 {0} 改名為 {1}"
 }

@@ -279,3 +279,16 @@ test("the code index splits files into declarations, ranks chunks by cosine simi
     await new Promise((resolve) => listening.close(() => resolve(undefined)));
   }
 });
+
+test("Tab completion puts other files' definitions before the prompt: a repository format when the model has one, comments otherwise", async () => {
+  const { fimFormat, contextAsComments, lineComment } = await import("../src/domain/fim.js");
+  const files = [{ path: "src/util.ts", text: "export function add(a: number, b: number): number" }];
+  assert.equal(
+    fimFormat("qwen2.5-coder-7b")!.repo!(files, "src/main.ts") + fimFormat("qwen2.5-coder-7b")!.prompt("const x = ", ";"),
+    "<|repo_name|>project\n<|file_sep|>src/util.ts\nexport function add(a: number, b: number): number\n<|file_sep|>src/main.ts\n<|fim_prefix|>const x = <|fim_suffix|>;<|fim_middle|>",
+  );
+  assert.equal(fimFormat("starcoder2-3b")!.repo!(files, "main.ts"), "<repo_name>project<file_sep>src/util.ts\nexport function add(a: number, b: number): number\n<file_sep>main.ts\n");
+  assert.equal(fimFormat("deepseek-coder-6.7b")!.repo, undefined, "no repository format: the snippets go in as comments");
+  assert.equal(contextAsComments(files, "python"), "# From src/util.ts:\n# export function add(a: number, b: number): number\n\n");
+  assert.deepEqual([lineComment("typescript"), lineComment("python"), lineComment("sql")], ["//", "#", "--"]);
+});

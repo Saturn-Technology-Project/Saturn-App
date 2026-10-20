@@ -17,7 +17,11 @@ const RECENT_EDITS = 4;
 /** After a failure, Tab completion pauses this long so a stopped runtime is not hit on every keystroke. */
 const ERROR_PAUSE_MS = 15000;
 const SCHEMES = new Set(['file', 'untitled', 'vscode-remote', 'vscode-userdata', 'vscode-notebook-cell']);
-const CACHE_SIZE = 20;
+const CACHE_SIZE = 100;
+/** How long one definition lookup may take before Tab completion goes on without it. */
+const CONTEXT_TIMEOUT_MS = 150;
+/** Characters of other files' code sent with one completion. */
+const CONTEXT_BUDGET = 3000;
 /** After an edit, wait this long for the user to pause before asking for the next edit. */
 const NEXT_EDIT_DELAY_MS = 900;
 /** Lines on each side of the edit that the next-edit prediction sees (and may point to). */
@@ -157,12 +161,97 @@ class RecentEdits {
  * line by line and shows as soon as its first line is there, and typing into a suggestion, deleting back over it,
  * or returning to the same spot reuses it without another model call.
  */
+/** Words that are never worth looking up. */
+const KEYWORDS = new Set('if else for while do return const let var function class new this super import export from default async await try catch finally throw switch case break continue typeof instanceof in of true false null undefined void yield static public private protected readonly interface type enum extends implements def self None True False elif lambda pass with as print fn pub mut use mod impl struct trait match loop'.split(' '));
+
+/**
+ * Code from other files that the lines around the cursor use: the definitions of the identifiers there, found by
+ * the language server, so a completion can call a function with the right arguments or fill an object with the
+ * right fields. Each lookup has a tight time limit, and results are kept per line for a few seconds, so typing
+ * never waits on it.
+ */
+class RepoContext {
+	constructor() {
+		/** @type {Map<string, { at: number, files: { path: string, text: string }[] }>} */
+		this.cache = new Map();
+	}
+
+	/** @param {vscode.TextDocument} document @param {vscode.Position} position @param {vscode.CancellationToken} token */
+	async get(document, position, token) {
+		const key = `${document.uri.toString()}:${position.line}:${document.version >> 3}`;
+		const kept = this.cache.get(key);
+		if (kept && Date.now() - kept.at < 5000) {
+			return kept.files;
+		}
+		/** @type {{ word: string, at: vscode.Position }[]} */
+		const words = [];
+		const seen = new Set();
+		for (let line = position.line; line >= Math.max(0, position.line - 3) && words.length < 6; line -= 1) {
+			const text = document.lineAt(line).text.slice(0, line === position.line ? position.character : undefined);
+			for (const match of text.matchAll(/[A-Za-z_$][\w$]{2,}/g)) {
+				const word = match[0];
+				if (!KEYWORDS.has(word) && !seen.has(word)) {
+					seen.add(word);
+					words.push({ word, at: new vscode.Position(line, (match.index || 0) + 1) });
+				}
+			}
+		}
+		const lookups = words.slice(0, 6).map(async ({ at }) => {
+			const found = await withTimeout(Promise.resolve(vscode.commands.executeCommand('vscode.executeDefinitionProvider', document.uri, at)), CONTEXT_TIMEOUT_MS);
+			return Array.isArray(found) ? found : [];
+		});
+		const results = (await Promise.all(lookups)).flat();
+		if (token.isCancellationRequested) {
+			return [];
+		}
+		const files = [];
+		const taken = new Set();
+		let room = CONTEXT_BUDGET;
+		for (const item of results) {
+			const uri = 'targetUri' in item ? item.targetUri : item.uri;
+			const range = 'targetUri' in item ? item.targetRange : item.range;
+			// Only other files: the current file's code is in the prefix and suffix already.
+			if (!uri || uri.toString() === document.uri.toString() || uri.scheme !== 'file') {
+				continue;
+			}
+			const where = `${uri.toString()}:${range.start.line}`;
+			if (taken.has(where)) {
+				continue;
+			}
+			taken.add(where);
+			const target = await vscode.workspace.openTextDocument(uri).then((doc) => doc, () => undefined);
+			if (!target) {
+				continue;
+			}
+			const end = Math.min(target.lineCount - 1, range.start.line + Math.min(14, Math.max(2, range.end.line - range.start.line)));
+			const text = target.getText(new vscode.Range(Math.max(0, range.start.line - 2), 0, end, target.lineAt(end).text.length)).slice(0, 900);
+			const path = vscode.workspace.asRelativePath(uri);
+			if (text.length + path.length > room) {
+				continue;
+			}
+			room -= text.length + path.length;
+			files.push({ path, text });
+		}
+		this.cache.set(key, { at: Date.now(), files });
+		if (this.cache.size > 50) {
+			this.cache.delete(this.cache.keys().next().value);
+		}
+		return files;
+	}
+}
+
+/** A promise's value, or undefined when it takes longer than `ms`. @template T @param {Promise<T>} promise @param {number} ms */
+function withTimeout(promise, ms) {
+	return Promise.race([promise.catch(() => undefined), new Promise((resolve) => setTimeout(() => resolve(undefined), ms))]);
+}
+
 class TabCompletions {
 	/** @param {RuntimeLike} runtime @param {AiStatus} status @param {RecentEdits} edits */
 	constructor(runtime, status, edits) {
 		this.runtime = runtime;
 		this.status = status;
 		this.edits = edits;
+		this.repo = new RepoContext();
 		this.pausedUntil = 0;
 		/** @type {{ uri: string, prefix: string, suffix: string, text: string }[]} */
 		this.recent = [];
@@ -217,6 +306,11 @@ class TabCompletions {
 		const controller = new AbortController();
 		this.inflight = controller;
 		const listener = token.onCancellationRequested(() => controller.abort());
+		const related = await this.repo.get(document, position, token).catch(() => []);
+		if (token.isCancellationRequested) {
+			listener.dispose();
+			return undefined;
+		}
 		const started = Date.now();
 		const state = { uri, prefix, suffix, text: '', done: false, at: started };
 		this.partial = state;
@@ -231,6 +325,7 @@ class TabCompletions {
 					prefix,
 					suffix,
 					recentEdits: this.edits.for(uri),
+					...(related.length ? { context: related } : {}),
 				}),
 			});
 			let first = true;
@@ -298,6 +393,10 @@ class TabCompletions {
 			const whole = item.prefix + item.text;
 			if (prefix.length >= item.prefix.length && whole.startsWith(prefix) && prefix !== item.prefix) {
 				return whole.slice(prefix.length);
+			}
+			// Backspace on the same line: the deleted characters come back as part of the suggestion.
+			if (prefix.length < item.prefix.length && item.prefix.startsWith(prefix) && !item.prefix.slice(prefix.length).includes('\n') && item.text) {
+				return item.prefix.slice(prefix.length) + item.text;
 			}
 		}
 		return undefined;
@@ -578,6 +677,7 @@ class NextEdit {
 		this.pending = undefined;
 		/** Set while the extension applies a suggestion itself, so that change does not trigger another prediction. */
 		this.applying = false;
+		this.renames = new CrossFileRename();
 		this.decoration = vscode.window.createTextEditorDecorationType({
 			after: { margin: '0 0 0 2em', color: new vscode.ThemeColor('editorCodeLens.foreground'), fontStyle: 'italic' },
 			backgroundColor: new vscode.ThemeColor('diffEditor.insertedTextBackground'),
@@ -628,7 +728,10 @@ class NextEdit {
 		if (this.timer) {
 			clearTimeout(this.timer);
 		}
-		this.timer = setTimeout(() => void this.predict(document, line, oldText, newText), NEXT_EDIT_DELAY_MS);
+		this.timer = setTimeout(() => {
+			void this.predict(document, line, oldText, newText);
+			void this.renames.check(document, oldText, newText);
+		}, NEXT_EDIT_DELAY_MS);
 	}
 
 	async predict(document, line, oldText, newText) {
@@ -703,10 +806,17 @@ class NextEdit {
 		}
 	}
 
-	/** Tab: go to the suggested line and make the change there. */
+	/** Tab: away from the suggested line, the first Tab goes there; on it, Tab makes the change. */
 	async accept() {
 		const pending = this.pending;
 		const editor = vscode.window.activeTextEditor;
+		if (pending && editor && editor.document.uri.toString() === pending.uri && editor.document.version === pending.version && editor.selection.active.line !== pending.line) {
+			const at = Math.max(0, editor.document.lineAt(pending.line).text.indexOf(pending.find));
+			const spot = new vscode.Position(pending.line, at);
+			editor.selection = new vscode.Selection(spot, spot);
+			editor.revealRange(new vscode.Range(spot, spot), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+			return;
+		}
 		this.clear();
 		if (!pending || !editor || editor.document.uri.toString() !== pending.uri || editor.document.version !== pending.version) {
 			return;
@@ -734,7 +844,116 @@ class NextEdit {
 			clearTimeout(this.timer);
 		}
 		this.decoration.dispose();
+		this.renames.dispose();
 	}
+}
+
+/** A line that declares something (so a changed name on it is a rename, not a use). */
+const DECLARES = /\b(function|class|interface|type|enum|const|let|var|def|fn|struct|trait|func|export)\b/;
+
+/**
+ * Across files: when an edit renames a declaration, the other files still use the old name. Saturn finds those
+ * uses (whole-word, case-sensitive) and offers to update them; nothing changes until the user confirms each one
+ * in a checklist. (A rename through the editor's Rename Symbol already does this; this covers typing the name.)
+ */
+class CrossFileRename {
+	constructor() {
+		this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 101);
+		this.item.command = 'saturn.nextEdit.reviewRename';
+		/** @type {{ from: string, to: string, hits: { uri: vscode.Uri, line: number, text: string }[] } | undefined} */
+		this.offer = undefined;
+		this.command = vscode.commands.registerCommand('saturn.nextEdit.reviewRename', () => this.review());
+	}
+
+	/** @param {vscode.TextDocument} document @param {string} before @param {string} after */
+	async check(document, before, after) {
+		const words = (text) => new Set(text.match(/[A-Za-z_$][\w$]*/g) || []);
+		const was = words(before);
+		const now = words(after);
+		const gone = [...was].filter((word) => !now.has(word));
+		const added = [...now].filter((word) => !was.has(word));
+		if (gone.length !== 1 || added.length !== 1 || gone[0].length < 3 || !DECLARES.test(after)) {
+			return;
+		}
+		const [from, to] = [gone[0], added[0]];
+		const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+		if (!folder) {
+			return;
+		}
+		const hits = (await findWord(folder.uri.fsPath, from)).filter((hit) => hit.uri.fsPath !== document.uri.fsPath).slice(0, 50);
+		if (!hits.length) {
+			return;
+		}
+		this.offer = { from, to, hits };
+		const files = new Set(hits.map((hit) => hit.uri.fsPath)).size;
+		this.item.text = `$(references) ${vscode.l10n.t('{0} → {1}: {2} use(s) in {3} other file(s)', from, to, hits.length, files)}`;
+		this.item.tooltip = vscode.l10n.t('You renamed {0} to {1}. Click to review the other files that still use {0}.', from, to);
+		this.item.show();
+		setTimeout(() => {
+			if (this.offer && this.offer.from === from) {
+				this.item.hide();
+			}
+		}, 60000);
+	}
+
+	async review() {
+		const offer = this.offer;
+		this.item.hide();
+		if (!offer) {
+			return;
+		}
+		const picks = await vscode.window.showQuickPick(offer.hits.map((hit) => ({
+			label: `${vscode.workspace.asRelativePath(hit.uri)}:${hit.line + 1}`,
+			description: hit.text.trim().slice(0, 120),
+			picked: true,
+			hit,
+		})), { canPickMany: true, placeHolder: vscode.l10n.t('Rename {0} to {1} in these places', offer.from, offer.to) });
+		if (!picks || !picks.length) {
+			return;
+		}
+		const edit = new vscode.WorkspaceEdit();
+		const pattern = new RegExp(`(?<![\\w$])${offer.from.replace(/\$/g, '\\$')}(?![\\w$])`, 'g');
+		for (const { hit } of picks) {
+			const document = await vscode.workspace.openTextDocument(hit.uri);
+			const text = document.lineAt(hit.line).text;
+			for (const match of text.matchAll(pattern)) {
+				edit.replace(hit.uri, new vscode.Range(hit.line, match.index || 0, hit.line, (match.index || 0) + offer.from.length), offer.to);
+			}
+		}
+		await vscode.workspace.applyEdit(edit);
+		this.offer = undefined;
+	}
+
+	dispose() {
+		this.item.dispose();
+		this.command.dispose();
+	}
+}
+
+/**
+ * Whole-word, case-sensitive uses of `word` in a folder (ripgrep, respecting .gitignore).
+ * @param {string} folder @param {string} word @returns {Promise<{ uri: vscode.Uri, line: number, text: string }[]>}
+ */
+function findWord(folder, word) {
+	const { execFile } = require('child_process');
+	const { ripgrep } = require('./agent-tools');
+	return new Promise((resolve) => {
+		execFile(ripgrep(), ['--json', '-w', '-F', '--max-count', '20', '--max-filesize', '1M', '-g', '!*.min.*', '-g', '!*.map', '-e', word, '--', folder], { maxBuffer: 8 * 1024 * 1024, timeout: 5000 }, (_error, stdout) => {
+			const hits = [];
+			for (const line of String(stdout || '').split('\n')) {
+				if (!line.startsWith('{"type":"match"')) {
+					continue;
+				}
+				try {
+					const data = JSON.parse(line).data;
+					hits.push({ uri: vscode.Uri.file(data.path.text), line: data.line_number - 1, text: String(data.lines.text || '') });
+				} catch {
+					// Skip a malformed line.
+				}
+			}
+			resolve(hits);
+		});
+	});
 }
 
 /** @param {vscode.ExtensionContext} context @param {RuntimeLike} runtime */

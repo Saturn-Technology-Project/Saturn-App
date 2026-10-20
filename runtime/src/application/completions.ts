@@ -1,7 +1,7 @@
 import { HttpError } from "../domain/errors.js";
 import type { ModelConnection } from "../domain/model.js";
 import { textOf } from "../domain/policies.js";
-import { cutAtStop, fimFormat } from "../domain/fim.js";
+import { contextAsComments, cutAtStop, fimFormat, type ContextFile, type FimFormat } from "../domain/fim.js";
 import type { ChatMessage } from "../infrastructure/llm.js";
 import { logger } from "../infrastructure/logger.js";
 import type { RuntimeKernel } from "./kernel.js";
@@ -48,6 +48,8 @@ export type CompletionRequest = {
    * What the user is doing, not only where the cursor is: a rename in progress predicts the next occurrence.
    */
   recentEdits?: { line: number; before: string; after: string }[];
+  /** Inline only: pieces of other files the code at the cursor uses (the editor finds their definitions). */
+  context?: ContextFile[];
   /** Overrides Settings → General → Completion model. */
   modelId?: string;
   maxTokens?: number;
@@ -55,7 +57,7 @@ export type CompletionRequest = {
 
 export type CompletionResult = { text: string; modelId: string; model: string };
 
-const LIMITS = { edits: 1200, prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000, file: 60000, window: 12000, diff: 60000, files: 8000, draft: 2000 };
+const LIMITS = { context: 3000, edits: 1200, prefix: 8000, suffix: 4000, selection: 20000, instruction: 2000, file: 60000, window: 12000, diff: 60000, files: 8000, draft: 2000 };
 const KINDS = ["inline", "edit", "apply", "next", "commit"] as const;
 /** Output budget per kind; Apply returns a whole file. */
 const MAX_OUTPUT = { inline: 1024, block: 2048, edit: 4096, apply: 16000, next: 1024, commit: 2048 };
@@ -93,7 +95,7 @@ export class CompletionService {
           model: model.model || model.name,
           baseUrl: model.baseUrl,
           apiKey: this.kernel.llm.keyFor(model),
-          prompt: fim.prompt(fimPrefix(input), clip(suffix, LIMITS.suffix, "start")),
+          prompt: fimPrompt(fim, input, clip(suffix, LIMITS.suffix, "start")),
           stops: fim.stops,
           maxOutput,
           temperature: 0,
@@ -191,6 +193,27 @@ function recentEditsText(input: CompletionRequest): string {
 }
 
 /** The FIM prefix: the file's recent edits as a comment header (code models read diffs well), then the code. */
+/** The other files' snippets, within the budget, each one whole or left out. */
+function contextFiles(input: CompletionRequest): ContextFile[] {
+  const files: ContextFile[] = [];
+  let room = LIMITS.context;
+  for (const item of Array.isArray(input.context) ? input.context : []) {
+    const path = String(item?.path ?? "").slice(0, 300);
+    const text = String(item?.text ?? "").slice(0, 1500);
+    if (!path || !text.trim() || text.length + path.length > room) continue;
+    room -= text.length + path.length;
+    files.push({ path, text });
+  }
+  return files;
+}
+
+/** The raw FIM prompt: other files in the model's repository format when it has one, else as comments. */
+function fimPrompt(fim: FimFormat, input: CompletionRequest, suffix: string): string {
+  const files = contextFiles(input);
+  if (files.length && fim.repo) return fim.repo(files, String(input.path ?? "file")) + fim.prompt(fimPrefix(input), suffix);
+  return fim.prompt(contextAsComments(files, input.language) + fimPrefix(input), suffix);
+}
+
 function fimPrefix(input: CompletionRequest): string {
   const prefix = clip(input.prefix, LIMITS.prefix, "end");
   const edits = recentEditsText(input);
@@ -215,7 +238,7 @@ function inlinePrompt(input: CompletionRequest): ChatMessage[] {
         "Reply with nothing when no completion is useful.",
       ].join("\n"),
     },
-    { role: "user", content: `${fileLine(input)}${edits ? `\n\nThe user's recent edits in this file (what they are doing now):\n${edits}` : ""}\n\n${prefix}<CURSOR>${suffix}` },
+    { role: "user", content: `${fileLine(input)}${contextFiles(input).map((file) => `\n\nCode from ${file.path} that this file uses:\n${file.text}`).join("")}${edits ? `\n\nThe user's recent edits in this file (what they are doing now):\n${edits}` : ""}\n\n${prefix}<CURSOR>${suffix}` },
   ];
 }
 

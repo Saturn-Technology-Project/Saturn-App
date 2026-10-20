@@ -749,4 +749,4 @@ class AgentTerminal {
 	}
 }
 
-module.exports = { terms, retrieve, pickContext, expandContext, DiffContent, openRunDiff, applyCode, blockTarget, AgentTerminal, commandOf, terminalHistory, problemsText };
+module.exports = { ripgrep, terms, retrieve, pickContext, expandContext, DiffContent, openRunDiff, applyCode, blockTarget, AgentTerminal, commandOf, terminalHistory, problemsText };
