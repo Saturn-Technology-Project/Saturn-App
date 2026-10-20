@@ -2884,11 +2884,6 @@ class AgentView {
 		left.append(el('span', '', name));
 		const right = el('div', 'model-item-right');
 		if (detail) right.append(el('span', 'model-item-tier', detail));
-		if (warn) {
-			const mark = el('span', 'model-item-warn', '⚠️');
-			mark.title = warn;
-			right.append(mark);
-		}
 		if (selected) {
 			const check = el('span', 'model-item-check');
 			check.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>';
