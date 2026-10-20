@@ -20,7 +20,7 @@ const anything = () => new Proxy(function () {}, {
 });
 
 test("the chat panel's page renders and its script parses", () => {
-  const source = readFileSync(extension, "utf8");
+  const source = readFileSync(extension, "utf8").replace(/\r\n/g, "\n");
   const body = /\n\thtml\(webview\) \{([\s\S]*?)\n\t\}\n\}/.exec(source);
   assert.ok(body, "AgentView.html(webview) is where the page is built");
   const render = new Function("webview", "vscode", "require", "nodePath", `return (function () {${body[1]}}).call({ context: { extensionUri: {} } });`);

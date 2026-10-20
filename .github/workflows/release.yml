@@ -120,6 +120,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 180
     steps:
+      # Keep the sources byte-for-byte as committed (LF): the packaged app and the tests expect it.
+      - name: No line-ending conversion
+        run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v4
 
       - name: Version

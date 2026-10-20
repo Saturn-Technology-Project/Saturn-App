@@ -81,7 +81,7 @@ test("an isolated chat works in its own worktree and branch; finishing merges, k
     // Merge: the change reaches main, the worktree and branch are gone.
     const merged = await services.kernel.worktrees.finish(thread.id, "merge");
     assert.equal(merged.merged, true);
-    assert.equal(await readFile(path.join(repo, "notes.md"), "utf8"), "from the agent\n");
+    assert.equal((await readFile(path.join(repo, "notes.md"), "utf8")).replace(/\r\n/g, "\n"), "from the agent\n");
     assert.match(git(repo, "log", "--oneline", "-1"), /Merge saturn\//);
     assert.equal(git(repo, "branch", "--list", created.branch), "", "the branch was removed");
     await assert.rejects(() => stat(created.path), "the worktree folder was removed");
