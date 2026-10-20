@@ -166,6 +166,8 @@ export type Profile = {
   embeddingModel?: string;
   /** For the OpenAI-compatible source: the model connection whose endpoint and key are used. */
   embeddingConnectionId?: string;
+  /** When the first-launch onboarding was finished or skipped; unset shows it. */
+  onboardedAt?: string;
 };
 export type EmbeddingSource = "builtin" | "lmstudio" | "openai";
 export type PendingTask = { id: string; agentId: string; agentName: string; input: string; toolId: string };

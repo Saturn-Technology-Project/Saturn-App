@@ -214,7 +214,12 @@ export function Settings(props: {
                     onError={setError}
                   />
                 ) : null}
-                {page === "information" && info ? <About info={info} /> : null}
+                {page === "information" && info ? (
+                  <About
+                    info={info}
+                    onRerunOnboarding={() => void desktop.admin.updateSettings({ onboardedAt: null }).then((next) => { props.onProfile(next); props.onClose(); })}
+                  />
+                ) : null}
                 {page === "logs" ? <Logs lines={logs} onReload={() => void load()} /> : null}
                 {page === "telemetry" ? <Telemetry /> : null}
                 {page === "settings" && profile ? (
@@ -531,7 +536,7 @@ function McpPage(props: {
   );
 }
 
-function LlmPage(props: {
+export function LlmPage(props: {
   models: Model[];
   onChanged: () => Promise<void>;
   onError: (message: string) => void;
@@ -1364,7 +1369,7 @@ function Chevron(props: { open: boolean }) {
  * its `codex login` and relays what it prints: a one-time code to type at OpenAI (no localhost redirect), or
  * the sign-in page it opened in the browser. Saturn never handles the credential itself.
  */
-function CodexLogin() {
+export function CodexLogin() {
   const [status, setStatus] = useState<CodexStatus | null>(null);
   const [busy, setBusy] = useState<"checking" | "starting" | "signing_out" | null>("checking");
   const [copied, setCopied] = useState(false);
@@ -1491,7 +1496,7 @@ function CodexLogin() {
  * terminal. Saturn shows what that program reports, the command to run, and signing out through the same
  * program; it never handles the credential itself.
  */
-function ClaudeCodeLogin() {
+export function ClaudeCodeLogin() {
   const [status, setStatus] = useState<Awaited<ReturnType<typeof desktop.admin.claudeCodeStatus>> | null>(null);
   const [busy, setBusy] = useState<"checking" | "signing_out" | null>("checking");
   const [copied, setCopied] = useState(false);

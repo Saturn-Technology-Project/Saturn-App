@@ -71,7 +71,7 @@ export class AdminService {
     return this.runtime.request(`/memory/${encodeURIComponent(scope)}`, { method: "PUT", body: JSON.stringify({ content }) });
   }
 
-  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string }): Promise<Profile> {
+  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string; onboardedAt?: string | null }): Promise<Profile> {
     return this.runtime.request<Profile>("/settings", { method: "PATCH", body: JSON.stringify(patch) });
   }
 
@@ -133,4 +133,15 @@ export class AdminService {
   createRag(url: string): Promise<void> {
     return this.runtime.request("/connections/rag", { method: "POST", body: JSON.stringify({ name: "RAG", url }) });
   }
+
+  /** Whether this computer lets Saturn control it (macOS Accessibility and Screen Recording). */
+  computerPermissions(): Promise<{ platform: string; required: boolean; accessibility: boolean; screenRecording: boolean; error?: string }> {
+    return this.runtime.request("/computer/permissions");
+  }
+
+  /** Opens the System Settings pane where the user grants one of those permissions. */
+  openPermissionPane(which: "accessibility" | "screenRecording"): Promise<{ ok: boolean }> {
+    return this.runtime.request("/computer/permissions/open", { method: "POST", body: JSON.stringify({ which }) });
+  }
+
 }

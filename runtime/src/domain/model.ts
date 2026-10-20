@@ -256,6 +256,8 @@ export type AppSettings = {
   embeddingModel?: string;
   /** For the "openai" source: the model connection whose endpoint and key are used. */
   embeddingConnectionId?: string;
+  /** When the user finished (or skipped) the first-launch onboarding; unset shows it. */
+  onboardedAt?: string;
 };
 
 export type ClaudeCodeAuth = "subscription" | "api-key";

@@ -12,6 +12,8 @@ import { launchEnv } from "../infrastructure/launch-env.js";
 import { PublicAddress } from "../domain/skills/public-address.js";
 import { assertPublicHost } from "../infrastructure/public-host.js";
 import { shellInvocation, terminalEnv } from "../infrastructure/shell.js";
+import { runComputerUseSkill } from "../infrastructure/skills.js";
+import { HttpError } from "../domain/errors.js";
 
 const runExec = promisify(execFile);
 const CWD_MARKER = "__SATURN_CWD__:";
@@ -172,6 +174,33 @@ export function mountWorkspace(app: Express, services: AppServices): void {
   app.post("/runtime/clients", (req, res, next) => {
     respond(res, next, () => {
       services.kernel.clients.beat(String(req.body?.id ?? ""), String(req.body?.kind ?? "ide"));
+      return { ok: true };
+    });
+  });
+
+  // Onboarding and Settings: whether this Mac lets Saturn control the computer, and the System Settings pane to grant it.
+  app.get("/computer/permissions", (_req, res, next) => {
+    respond(res, next, async () => {
+      if (process.platform !== "darwin") return { platform: process.platform, required: false, accessibility: true, screenRecording: true };
+      try {
+        const status = (await runComputerUseSkill(services.kernel.store.root, "computer_check_permissions", {})) as { accessibility?: boolean; screenRecording?: boolean };
+        return { platform: "darwin", required: true, accessibility: Boolean(status.accessibility), screenRecording: Boolean(status.screenRecording) };
+      } catch (error) {
+        return { platform: "darwin", required: true, accessibility: false, screenRecording: false, error: errorText(error) };
+      }
+    });
+  });
+
+  app.post("/computer/permissions/open", (req, res, next) => {
+    respond(res, next, () => {
+      const panes: Record<string, string> = {
+        accessibility: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+        screenRecording: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+      };
+      const pane = panes[String(req.body?.which ?? "")];
+      if (!pane) throw new HttpError(400, "which must be accessibility or screenRecording");
+      if (process.platform !== "darwin") throw new HttpError(409, "Only macOS asks for these permissions");
+      launch("System Settings", "open", [pane]);
       return { ok: true };
     });
   });

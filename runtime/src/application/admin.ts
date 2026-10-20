@@ -11,7 +11,7 @@ export class AdminService {
     return this.kernel.store.state.settings;
   }
 
-  async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+  async updateSettings(patch: Partial<AppSettings> & { onboardedAt?: string | null }): Promise<AppSettings> {
     const logging = patch.logging;
     if (logging && !["debug", "info", "warning", "error"].includes(logging)) {
       throw new HttpError(400, "Unknown logging level");
@@ -46,6 +46,8 @@ export class AdminService {
         embeddingSource: embeddingSource ?? state.settings.embeddingSource,
         embeddingModel: typeof patch.embeddingModel === "string" ? patch.embeddingModel.trim() || undefined : state.settings.embeddingModel,
         embeddingConnectionId: typeof patch.embeddingConnectionId === "string" ? patch.embeddingConnectionId || undefined : state.settings.embeddingConnectionId,
+        // null starts the onboarding over (Settings → About → Run onboarding again).
+        onboardedAt: patch.onboardedAt === null ? undefined : typeof patch.onboardedAt === "string" ? patch.onboardedAt : state.settings.onboardedAt,
       };
       next = state.settings;
     });

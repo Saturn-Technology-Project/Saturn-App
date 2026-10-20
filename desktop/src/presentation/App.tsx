@@ -13,6 +13,7 @@ import { GuardrailSelector } from "./GuardrailSelector";
 import { ModelSelector } from "./ModelSelector";
 import { AccessDialog, EditWorkspaceDialog, FolderIcon as WorkspaceFolderIcon, LockIcon, chooseFolder } from "./ProjectAccess";
 import { ProjectsMenu, arrangeProjects, useProjectView } from "./ProjectsMenu";
+import { Onboarding } from "./Onboarding";
 import {
   extractPlanSteps,
   countdown,
@@ -108,7 +109,7 @@ export function App() {
   const [inspectorWidth, setInspectorWidth] = useState<number>(storedInspectorWidth);
   const [isResizingNav, setIsResizingNav] = useState(false);
   const [isResizingInspector, setIsResizingInspector] = useState(false);
-  const [, setProfile] = useState<Profile>({ name: "Saturn", environment: "production", logging: "info" });
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">(storedTheme);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [navHistory, setNavHistory] = useState<
@@ -1149,6 +1150,55 @@ export function App() {
   const filteredPaletteItems = paletteItems.filter((item) =>
     item.label.toLowerCase().includes(searchQuery.toLowerCase().trim()),
   );
+
+  // The first launch: the onboarding takes the whole window until it is finished or skipped.
+  if (profile && !profile.onboardedAt) {
+    return (
+      <Onboarding
+        models={models}
+        agents={agents}
+        projects={projects}
+        theme={theme}
+        onSetTheme={setTheme}
+        onChanged={reload}
+        onCreateAgent={async (input) => {
+          const created = await desktop.catalog.createAgent({ name: input.name, modelConnectionId: input.modelConnectionId });
+          if (input.autonomy !== "default") await desktop.catalog.updateAgent(created.id, { autonomy: input.autonomy });
+          setSelected(created.id);
+          return created;
+        }}
+        onAddProject={async (path) => {
+          const project = await desktop.projects.create({ path, grant: true });
+          await syncProjects();
+          setOpenProjects((prev) => ({ ...prev, [project.id]: true }));
+          return project;
+        }}
+        onOpenIde={async (project) => {
+          await desktop.projects.openInEditor(project.id);
+        }}
+        onFinish={async (first) => {
+          const next = await desktop.admin.updateSettings({ onboardedAt: new Date().toISOString() });
+          setProfile(next);
+          if (!first) return;
+          const target = agents.find((item) => item.id === first.agentId);
+          if (!target) return;
+          setSelected(target.id);
+          let threadId: string | undefined;
+          if (first.projectId) {
+            const conv = await desktop.catalog.createThread(target.id, "New Chat", first.projectId);
+            threadId = conv.id;
+            setAgentThreads((prev) => ({ ...prev, [target.id]: [conv, ...(prev[target.id] ?? [])] }));
+            setSelectedThreadId(conv.id);
+          }
+          const started = await desktop.runs.start(target.id, first.text, threadId);
+          const key = started.threadId || threadId || `agent_${target.id}`;
+          if (!threadId && started.threadId) setSelectedThreadId(started.threadId);
+          remember(started, key);
+          watch(started.id, target.id, key);
+        }}
+      />
+    );
+  }
 
   const layoutClass = [
     "app",

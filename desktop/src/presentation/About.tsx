@@ -47,7 +47,7 @@ const FEATURES: { title: string; body: string }[] = [
 ];
 
 /** Settings → About: what Saturn is, what it is made of, and what it does; then this installation's details. */
-export function About(props: { info: RuntimeInfo; version?: string }) {
+export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboarding?: () => void }) {
   const listen = props.info.listen.replace(/^https?:\/\//, "");
   return (
     <div className="about">
@@ -57,6 +57,11 @@ export function About(props: { info: RuntimeInfo; version?: string }) {
           <h3 className="about-name">Saturn</h3>
           <p className="about-tagline">AI agents that run on your own computer.</p>
         </div>
+        {props.onRerunOnboarding ? (
+          <button type="button" className="btn ghost tiny about-rerun" onClick={props.onRerunOnboarding} title="Show the first-launch setup again">
+            Run setup again
+          </button>
+        ) : null}
       </header>
 
       <p className="about-lead">
