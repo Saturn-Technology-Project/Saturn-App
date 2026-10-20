@@ -22,6 +22,14 @@ const DENIED_BY_USER = "Denied by the user";
 /** One agent turn: the model call, built-in skills, and MCP. */
 
 /** The user turn that follows a round of tool results, so the model either uses more tools or answers. */
+/** Tool rounds one turn may take before it stops and says so; long computer-use tasks need a good number. */
+export const MAX_TOOL_ROUNDS = 60;
+
+/** What the user sees when a turn stops at the step limit. */
+export function stepLimitNote(): string {
+  return `I stopped after ${MAX_TOOL_ROUNDS} tool steps, the limit for one turn, before finishing. Reply "continue" and I will pick up from here.`;
+}
+
 const CONTINUE_AFTER_TOOLS = "Continue from the tool results above: use more tools if the task needs them, otherwise give your answer.";
 export class RunService {
   constructor(private readonly kernel: RuntimeKernel) {}
@@ -811,7 +819,7 @@ export class RunService {
       await this.noteThinking(runId, generation, response, seconds(startedAt));
     }
     let rounds = 0;
-    while (agent.mcpConnectionIds.length > 0 && rounds < 25) {
+    while (agent.mcpConnectionIds.length > 0 && rounds < MAX_TOOL_ROUNDS) {
       const calls = toolCalls(response);
       if (!calls.length || !this.kernel.alive(runId, generation)) break;
       rounds += 1;
@@ -821,12 +829,15 @@ export class RunService {
       response = await this.complete(model, agent, runId, run.input, context, tools, actions, signal);
       await this.noteThinking(runId, generation, response, seconds(startedAt));
     }
+    // Still asking for tools after the last round: the step limit ended this turn, not the model.
+    const cutOff = rounds >= MAX_TOOL_ROUNDS && toolCalls(response).length > 0;
+    if (cutOff) this.kernel.log("agent", "warning", `${agent.name} reached the limit of ${MAX_TOOL_ROUNDS} tool rounds in one turn`, { "saturn.run.id": runId });
     let saved = false;
     await this.kernel.store.update((state) => {
       const current = state.runs.find((item) => item.id === runId);
       if (!current || (current.generation ?? 0) !== generation) return;
       current.actions = actions;
-      current.output = textOf(response);
+      current.output = cutOff ? [textOf(response).trim(), stepLimitNote()].filter(Boolean).join("\n\n") : textOf(response);
       current.status = actions.some((item) => item.status === "failed" || (item.status === "denied" && item.reason !== DENIED_BY_USER))
         ? "failed"
         : "completed";
@@ -996,10 +1007,15 @@ export class RunService {
   }
 }
 
+/** Screenshots, and computer-use actions that return the screen after acting (click, key, scroll…). */
+function carriesImage(action: RunAction): boolean {
+  return action.toolId.includes("screenshot") || action.toolId.startsWith("computer_");
+}
+
 function extractScreenshots(actions: RunAction[]): { mimeType: string; base64: string }[] {
   const images: { mimeType: string; base64: string }[] = [];
   for (const action of actions) {
-    if (action.toolId !== "computer_screenshot" && !action.toolId.includes("screenshot")) continue;
+    if (!carriesImage(action)) continue;
     const res = action.result as Record<string, unknown> | undefined;
     if (!res) continue;
     const raw = res.image || res.screenshot || res.base64;
@@ -1019,7 +1035,7 @@ function extractScreenshots(actions: RunAction[]): { mimeType: string; base64: s
 
 function sanitizeActionsForText(actions: RunAction[]): unknown[] {
   return actions.map((action) => {
-    if (action.toolId === "computer_screenshot" || action.toolId.includes("screenshot")) {
+    if (carriesImage(action)) {
       const res = action.result as Record<string, unknown> | undefined;
       if (res && (res.image || res.screenshot || res.base64)) {
         return {

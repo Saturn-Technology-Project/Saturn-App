@@ -161,6 +161,15 @@ Saturn runs code on your machine, so its defaults are strict:
 
 Found a vulnerability? Please report it privately to [security@saturn-core.com](mailto:security@saturn-core.com) instead of opening a public issue.
 
+## Computer use (macOS)
+
+Agents with the Computer Use tools see the screen through screenshots and act with real mouse, keyboard and accessibility input. macOS asks for two permissions, both granted to **Saturn** in System Settings → Privacy & Security:
+
+- **Accessibility**, to click, type and read app windows.
+- **Screen & System Audio Recording**, to take screenshots.
+
+Builds that are not signed with a stable developer identity look like a new app to macOS after every update, so these permissions stop applying. If an agent reports a missing permission while Saturn is already turned on, remove Saturn from the list with the − button and add it again. Nothing works while the screen is locked; agents say so instead of acting.
+
 ## Configuration
 
 State lives in `~/.saturn-app`. These variables override the defaults:
