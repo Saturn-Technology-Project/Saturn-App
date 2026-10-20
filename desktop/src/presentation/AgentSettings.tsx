@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GUARDRAIL_MODES, normalizeGuardrailMode, actionSummary, actionTitle } from "../domain/conversation";
-import type { Agent, Autonomy, ResponseStyle, Run } from "../domain/model";
+import type { Agent, Autonomy, Model, ResponseStyle, Run } from "../domain/model";
+import type { SettingsPage } from "./Settings";
 import { ModelSelector } from "./ModelSelector";
 
 export type AgentModalTab = "agent" | "model" | "tools" | "activity";
@@ -28,14 +29,14 @@ const BUILTIN_SKILLS: [string, string][] = [
 
 export function AgentSettings(props: {
   agent: Agent;
-  models: { id: string; name: string; model?: string; provider?: string; hasSecret?: boolean }[];
+  models: Model[];
   mcp: { id: string; name: string; url?: string; tools?: { toolId: string }[] }[];
   rag: { id: string; name: string; url?: string }[];
   runs?: Run[];
   initialTab?: AgentModalTab;
   canEdit?: boolean;
   onClose: () => void;
-  onOpenSettings?: (page: "mcp" | "llm") => void;
+  onOpenSettings?: (page: SettingsPage) => void;
   onSave: (patch: Partial<Agent>) => Promise<void>;
   onDelete?: () => void | Promise<void>;
 }) {
