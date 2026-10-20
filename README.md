@@ -78,6 +78,16 @@ npm run dist:win   # Windows x64 installer in desktop/release/
 
 The macOS build bundles Saturn IDE, so build the IDE first (below), or package with `SATURN_SKIP_IDE=1` to get the app without the editor.
 
+`dist:win` can run on a Mac or on Windows: it installs the runtime's dependencies for win32-x64 into `desktop/.staging/` (Claude Code and Codex ship one package per platform) and packages those, not the Mac's `runtime/node_modules`.
+
+#### Windows notes
+
+The Windows build is untested on real hardware so far. On Windows:
+
+- **Computer use** (it drives the screen through `osascript`) and **Saturn IDE** are macOS-only. "Open IDE" falls back to the agent app.
+- **Claude Code** needs [Git for Windows](https://git-scm.com/downloads/win), which provides the Bash it runs commands in.
+- The `code` tool and the Terminal panel run commands with `cmd.exe`.
+
 ### Build Saturn IDE
 
 Saturn IDE is a Code-OSS fork in [`Saturn-IDE/`](Saturn-IDE). It needs the Node version in [`Saturn-IDE/.nvmrc`](Saturn-IDE/.nvmrc) and a few gigabytes of dependencies:

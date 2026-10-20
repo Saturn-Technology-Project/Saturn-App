@@ -31,6 +31,23 @@ export function autonomyOf(value: unknown): GuardrailMode {
   return "default";
 }
 
+/** cmd and PowerShell commands that delete trees, wipe disks, edit the registry or kill processes. `cmd` is lowercased. */
+function isWindowsDestructive(cmd: string): boolean {
+  return (
+    /\b(del|erase)\b[^&|;]*\s\/[sq]\b/.test(cmd) ||
+    /\b(rd|rmdir)\b[^&|;]*\s\/s\b/.test(cmd) ||
+    /\b(remove-item|ri|rm|del|erase|rmdir|rd)\b[^&|;]*\s-r\w*\b/.test(cmd) ||
+    /\b(diskpart|format-volume|clear-disk|initialize-disk|remove-partition|cipher\s+\/w)\b/.test(cmd) ||
+    /\breg(\.exe)?\s+(delete|import|add)\b/.test(cmd) ||
+    /\bremove-item(property)?\b[^&|;]*\bhk(lm|cu|cr|u|cc):/.test(cmd) ||
+    /\b(stop-process|spps|taskkill)\b/.test(cmd) ||
+    /\b(stop-computer|restart-computer|shutdown(\.exe)?\s+\/[srp])\b/.test(cmd) ||
+    /\b(bcdedit|vssadmin\s+delete|wmic\s+shadowcopy\s+delete)\b/.test(cmd) ||
+    /\bset-executionpolicy\b/.test(cmd) ||
+    /\bstart-process\b[^&|;]*-verb\s+runas\b/.test(cmd)
+  );
+}
+
 export function isSensitiveOperation(toolId: string, args: Record<string, unknown>): boolean {
   if (toolId === "code") {
     const cmd = String(args.command || "").trim().toLowerCase();
@@ -40,7 +57,8 @@ export function isSensitiveOperation(toolId: string, args: Record<string, unknow
       /\b(kill|pkill)\b/.test(cmd) ||
       /\bgit\s+(push\s+--force|reset\s+--hard)\b/.test(cmd) ||
       /\b(mkfs|dd|format)\b/.test(cmd) ||
-      />>\s*\/etc\//.test(cmd)
+      />>\s*\/etc\//.test(cmd) ||
+      isWindowsDestructive(cmd)
     ) {
       return true;
     }
@@ -48,7 +66,7 @@ export function isSensitiveOperation(toolId: string, args: Record<string, unknow
   if (toolId === "files") {
     const action = String(args.action || "");
     const filePath = String(args.path || "");
-    if (action === "delete" || filePath.startsWith("/") || filePath.startsWith("..")) {
+    if (action === "delete" || filePath.startsWith("/") || filePath.startsWith("\\") || /^[a-z]:/i.test(filePath) || filePath.startsWith("..")) {
       return true;
     }
   }

@@ -78,6 +78,16 @@ npm run dist:win   # Windows x64 安裝程式，輸出到 desktop/release/
 
 macOS 版會一併打包 Saturn IDE，所以請先建置 IDE（見下方），或用 `SATURN_SKIP_IDE=1` 打包出不含編輯器的 App。
 
+`dist:win` 在 Mac 或 Windows 上都能執行：它會把 Runtime 的 win32-x64 相依套件安裝到 `desktop/.staging/`（Claude Code 和 Codex 每個平台各有一個套件），打包的是這份，而不是 Mac 上的 `runtime/node_modules`。
+
+#### Windows 注意事項
+
+Windows 版目前尚未在實機上測試。在 Windows 上：
+
+- **電腦操作**（透過 `osascript` 控制畫面）和 **Saturn IDE** 只支援 macOS。「開啟 IDE」會改為開啟 Agent App。
+- **Claude Code** 需要安裝 [Git for Windows](https://git-scm.com/downloads/win)，它會在其提供的 Bash 中執行指令。
+- `code` 工具和終端機面板以 `cmd.exe` 執行指令。
+
 ### 建置 Saturn IDE
 
 Saturn IDE 是放在 [`Saturn-IDE/`](Saturn-IDE) 的 Code-OSS fork。它需要 [`Saturn-IDE/.nvmrc`](Saturn-IDE/.nvmrc) 指定的 Node 版本，以及數 GB 的相依套件：
