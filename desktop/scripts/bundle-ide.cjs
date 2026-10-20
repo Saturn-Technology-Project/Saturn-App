@@ -16,6 +16,7 @@ exports.default = async function bundleIde(context) {
   if (!fs.existsSync(source)) {
     if (process.env.SATURN_SKIP_IDE === "1") {
       console.warn(`  • Saturn IDE not bundled: ${source} is missing (SATURN_SKIP_IDE=1)`);
+      adHocSign(path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`));
       return;
     }
     throw new Error(
@@ -27,4 +28,17 @@ exports.default = async function bundleIde(context) {
   fs.rmSync(target, { recursive: true, force: true });
   execFileSync("ditto", [source, target]);
   console.log(`  • bundled Saturn IDE  ${path.relative(process.cwd(), target)}`);
+  adHocSign(target);
+  adHocSign(app);
 };
+
+/**
+ * Without a signing identity, Electron's binaries keep only their linker signature and the bundle's resources
+ * are unsealed, so a downloaded (quarantined) copy is reported as "damaged". An ad-hoc signature over the whole
+ * bundle makes macOS offer "Open Anyway" instead. Builds signed with a real identity are left to electron-builder.
+ */
+function adHocSign(bundle) {
+  if (process.env.CSC_NAME || process.env.CSC_LINK) return;
+  execFileSync("codesign", ["--force", "--deep", "--sign", "-", bundle]);
+  console.log(`  • ad-hoc signed  ${path.relative(process.cwd(), bundle)}`);
+}
