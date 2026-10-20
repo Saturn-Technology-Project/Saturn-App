@@ -194,3 +194,57 @@ test("Claude: a tool whose schema has a top-level oneOf is still accepted", asyn
     fake.server.close();
   }
 });
+
+test("Claude: a conversation that ends on the assistant gets a user turn, since the newest models reject prefill", async () => {
+  const fake = await recorder((body) => {
+    const messages = body.messages as { role: string }[];
+    return messages.at(-1)?.role === "assistant"
+      ? { status: 400, json: { type: "error", error: { type: "invalid_request_error", message: "This model does not support assistant message prefill. The conversation must end with a user message." } } }
+      : { json: claudeMessage };
+  });
+  const previous = process.env.ANTHROPIC_BASE_URL;
+  process.env.ANTHROPIC_BASE_URL = fake.url;
+  try {
+    const { claude } = await import("../src/infrastructure/llm/claude.js");
+    await claude.complete({ model: "claude-opus-5-5", baseUrl: "", apiKey: "k", messages: [{ role: "user", content: "hi" }, { role: "assistant", content: "[tool results]" }], tools: [], temperature: 0, maxOutput: 64 });
+    assert.deepEqual((fake.bodies.at(-1)!.messages as { role: string }[]).map((item) => item.role), ["user", "assistant", "user"]);
+  } finally {
+    if (previous === undefined) delete process.env.ANTHROPIC_BASE_URL;
+    else process.env.ANTHROPIC_BASE_URL = previous;
+    fake.server.close();
+  }
+});
+
+test("after a round of tool calls, the next model call ends on a user turn", async () => {
+  const roles: string[][] = [];
+  const fake = await recorder((body) => {
+    const messages = body.messages as { role: string; content?: string }[];
+    roles.push(messages.map((item) => item.role));
+    const sawResult = messages.some((item) => item.role === "assistant" && String(item.content ?? "").includes("\"toolId\""));
+    return {
+      json: {
+        choices: [{
+          message: sawResult
+            ? { content: "done" }
+            : { content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "code", arguments: JSON.stringify({ command: "echo hi" }) } }] },
+        }],
+      },
+    };
+  });
+  try {
+    const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-prefill-")));
+    await store.load();
+    const { services } = createApp(store);
+    const model = await services.createModel({ name: "Local", provider: "openai", model: "local", baseUrl: fake.url });
+    const agent = await services.createAgent({ name: "Planner", modelConnectionId: model.id, autonomy: "fully_autonomous" });
+    const run = await services.startRun(agent.id, "plan it");
+    for (let attempt = 0; attempt < 200 && !["completed", "failed"].includes(services.kernel.getRun(run.id).status); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(services.kernel.getRun(run.id).status, "completed", services.kernel.getRun(run.id).error ?? "run did not complete");
+    assert.ok(roles.length >= 2, "a second model call followed the tool round");
+    assert.deepEqual(roles.map((list) => list.at(-1)), roles.map(() => "user"), "every call ends on the user");
+  } finally {
+    fake.server.close();
+  }
+});

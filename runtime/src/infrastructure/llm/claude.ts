@@ -35,6 +35,9 @@ export const claude: ProviderAdapter = {
         }
         return { role: item.role as "user" | "assistant", content };
       });
+    // Claude's newest models reject a conversation that ends on the assistant ("does not support assistant message
+    // prefill"), so a request that still ends there gets a user turn asking it to go on.
+    if (messages.at(-1)?.role === "assistant") messages.push({ role: "user", content: "Continue." });
     // Thinking and effort (see the Claude API's thinking/effort rules):
     // - Adaptive thinking runs on Claude 4.6 and later; older models take no adaptive setting.
     // - Effort goes in output_config (low … max); Haiku 4.5, Sonnet 4.5 and Claude 3 reject it.

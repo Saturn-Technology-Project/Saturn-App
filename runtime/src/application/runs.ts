@@ -20,6 +20,9 @@ export const MAX_SLEEPS = 48;
 const DENIED_BY_USER = "Denied by the user";
 
 /** One agent turn: the model call, built-in skills, and MCP. */
+
+/** The user turn that follows a round of tool results, so the model either uses more tools or answers. */
+const CONTINUE_AFTER_TOOLS = "Continue from the tool results above: use more tools if the task needs them, otherwise give your answer.";
 export class RunService {
   constructor(private readonly kernel: RuntimeKernel) {}
 
@@ -946,6 +949,10 @@ export class RunService {
           content: "Observation from computer_screenshot (attached as multimodal image input):",
           images: screenshots,
         });
+      } else {
+        // The results above are the model's own turn; asking it to go on ends the request on a user turn, which
+        // every provider accepts (Claude's newest models reject a conversation that ends on the assistant).
+        messages.push({ role: "user", content: CONTINUE_AFTER_TOOLS });
       }
     }
     return this.kernel.llm.complete(model, {
