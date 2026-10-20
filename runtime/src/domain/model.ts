@@ -208,7 +208,7 @@ export type UsageRecord = {
   provider: string;
   /** The model id sent to the provider. */
   model: string;
-  purpose?: "run" | "automation_draft" | "completion";
+  purpose?: "run" | "automation_draft" | "completion" | "memory";
   inputTokens: number;
   outputTokens: number;
   /** USD per 1M tokens; null when the model has no official price (custom endpoints, unlisted models). */
@@ -230,6 +230,12 @@ export type AppSettings = {
   claudeCodeAuth?: ClaudeCodeAuth;
   /** The model connection Saturn IDE's Tab completion and Cmd+K inline edit use; unset turns them off. */
   completionModelId?: string | null;
+  /** Keep notes about the user and each project across chats (default on). */
+  memory?: boolean;
+  /** Agents write a plan and wait for the user's go-ahead before changing anything (default off). */
+  planApproval?: boolean;
+  /** The LM Studio embedding model behind the code index. */
+  embeddingModel?: string;
 };
 
 export type ClaudeCodeAuth = "subscription" | "api-key";

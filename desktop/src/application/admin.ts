@@ -62,7 +62,16 @@ export class AdminService {
     return this.runtime.request("/codex/logout", { method: "POST" });
   }
 
-  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null }): Promise<Profile> {
+  /** Saturn's notes about the user (scope "global") or a project (its id), as editable text. */
+  memory(scope: string): Promise<{ scope: string; content: string }> {
+    return this.runtime.request(`/memory/${encodeURIComponent(scope)}`);
+  }
+
+  saveMemory(scope: string, content: string): Promise<{ scope: string; content: string }> {
+    return this.runtime.request(`/memory/${encodeURIComponent(scope)}`, { method: "PUT", body: JSON.stringify({ content }) });
+  }
+
+  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; embeddingModel?: string }): Promise<Profile> {
     return this.runtime.request<Profile>("/settings", { method: "PATCH", body: JSON.stringify(patch) });
   }
 

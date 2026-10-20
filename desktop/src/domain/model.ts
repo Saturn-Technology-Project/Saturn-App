@@ -67,6 +67,8 @@ export type Conversation = {
   agentId: string;
   /** The project folder this chat works in. */
   projectId?: string;
+  /** Set while the chat works in its own git worktree and branch. */
+  worktree?: { branch: string; base: string };
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -154,6 +156,12 @@ export type Profile = {
   launchApp?: LaunchApp;
   /** The model Saturn IDE's Tab completion and Cmd+K edit use; null turns them off. */
   completionModelId?: string | null;
+  /** Keep notes about the user and each project across chats. */
+  memory?: boolean;
+  /** Agents write a plan and wait for a go-ahead before changing anything. */
+  planApproval?: boolean;
+  /** The LM Studio embedding model behind the code index. */
+  embeddingModel?: string;
 };
 export type PendingTask = { id: string; agentId: string; agentName: string; input: string; toolId: string };
 

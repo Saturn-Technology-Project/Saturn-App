@@ -101,7 +101,7 @@ export function mountRuns(app: Express, services: AppServices): void {
   });
 
   app.post("/runs/:id/changes/keep", (req, res, next) => {
-    respond(res, next, () => services.keepRunChanges(param(req.params.id)));
+    respond(res, next, () => services.keepRunChanges(param(req.params.id), typeof req.body?.path === "string" ? req.body.path : undefined));
   });
 
   // "Restore to before this turn": reverts this run and every later run in its chat.

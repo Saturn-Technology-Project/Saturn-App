@@ -1,11 +1,12 @@
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
 import { GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID } from "../domain/builtin.js";
+import { BROWSER_ID } from "../domain/browser-tools.js";
 import type { Agent, Conversation, ModelConnection, Run, RunAction } from "../domain/model.js";
 import { autonomyLine, autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isSensitiveOperation, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
 import type { ToolCall } from "./runtime-state.js";
 import type { ChatMessage } from "../infrastructure/llm.js";
-import { runGeneralSkill, runComputerUseSkill, runOriginSkill, runAntigravitySkill } from "../infrastructure/skills.js";
+import { runGeneralSkill, runComputerUseSkill, runOriginSkill, runAntigravitySkill, runBrowserSkill } from "../infrastructure/skills.js";
 import { SpanKind, instruments, seconds, traced } from "../infrastructure/telemetry.js";
 import { budgetHistory, compactActions } from "../domain/context.js";
 import type { RuntimeKernel } from "./kernel.js";
@@ -539,6 +540,14 @@ export class RunService {
         };
       }
     }
+    if (serverId === BROWSER_ID) {
+      try {
+        const result = await runBrowserSkill(this.kernel.store.root, input.toolId, input.arguments, input.signal);
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
+      } catch (error) {
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: error instanceof Error ? error.message : "Browser tool failed" };
+      }
+    }
     if (serverId === CURSOR_COMPUTER_USE_ID || serverId === "cursor-computer-use") {
       try {
         const result = await runComputerUseSkill(this.kernel.store.root, input.toolId, input.arguments, input.signal);
@@ -848,6 +857,7 @@ export class RunService {
     if (!saved) return;
     const current = this.kernel.getRun(runId);
     this.kernel.log("agent", current.status === "failed" ? "error" : "info", `${agent.name} ${current.status}`);
+    void this.kernel.memory.noteRun(current);
   }
 
   toolList(agent: Agent) {
@@ -931,8 +941,14 @@ export class RunService {
     this.kernel.guard(agent.id);
     const behavior = behaviorOf(agent);
     const workdir = this.workdirOf(runId);
+    const threadForPrompt = this.kernel.store.state.runs.find((item) => item.id === runId)?.threadId;
+    const projectForPrompt = threadForPrompt ? (this.kernel.store.state.threads ?? []).find((t) => t.id === threadForPrompt)?.projectId : undefined;
+    const memory = await this.kernel.memory.forPrompt(projectForPrompt);
+    const planApproval = this.kernel.store.state.settings.planApproval === true;
     const systemPrompt = buildSystemPrompt({
       agent,
+      memory,
+      planApproval,
       context: workdir
         ? `Working directory: ${workdir}\nThis chat belongs to the project in that folder. The files and code tools read, write and run commands there; paths are relative to it.${context ? `\n\n${context}` : ""}`
         : context,

@@ -11,6 +11,8 @@ export type WorkspaceSnapshot = {
 };
 
 /** Agents and the connections the chat window needs. */
+export type WorktreeStatus = { threadId: string; path: string; branch: string; base: string; ahead: number; dirty: number; changedFiles: string[] };
+
 export class CatalogService {
   constructor(private readonly runtime: RuntimeClient) {}
 
@@ -78,6 +80,20 @@ export class CatalogService {
       method: "PATCH",
       body: JSON.stringify({ title }),
     });
+  }
+
+  /** Gives the chat its own git worktree and branch, so its agent's changes stay off the project's checkout. */
+  isolateThread(threadId: string): Promise<WorktreeStatus> {
+    return this.runtime.request<WorktreeStatus>(`/threads/${encodeURIComponent(threadId)}/worktree`, { method: "POST" });
+  }
+
+  worktreeStatus(threadId: string): Promise<WorktreeStatus> {
+    return this.runtime.request<WorktreeStatus>(`/threads/${encodeURIComponent(threadId)}/worktree`);
+  }
+
+  /** Ends the chat's isolation: merge its branch into the base, keep the branch for a pull request, or discard it. */
+  finishWorktree(threadId: string, how: "merge" | "keep" | "discard"): Promise<{ how: string; branch: string; merged?: boolean }> {
+    return this.runtime.request(`/threads/${encodeURIComponent(threadId)}/worktree/finish`, { method: "POST", body: JSON.stringify({ how }) });
   }
 
   deleteThread(threadId: string): Promise<void> {

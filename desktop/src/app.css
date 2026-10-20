@@ -311,6 +311,31 @@ pre {
   color: var(--fg);
 }
 
+.titlebar-worktree {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px 0 7px;
+  margin: 0 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-family: "SF Mono", Menlo, monospace;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-worktree:hover,
+.titlebar-worktree.active {
+  background: var(--hover);
+  color: var(--fg);
+}
+
 .titlebar-open-ide {
   display: inline-flex;
   align-items: center;
@@ -8174,6 +8199,49 @@ button.trace-row:hover {
   font: inherit;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--hover);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.toggle .toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.toggle.on {
+  background: var(--fg);
+  border-color: var(--fg);
+}
+
+.toggle.on .toggle-knob {
+  background: var(--bg);
+  transform: translateX(16px);
+}
+
+.memory-editor {
+  width: 100%;
+  min-height: 220px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  resize: vertical;
 }
 
 .settings-card-row.settings-card-stack {

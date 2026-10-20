@@ -34,6 +34,9 @@ export class AdminService {
         launchApp: launchApp ?? state.settings.launchApp,
         claudeCodeAuth: state.settings.claudeCodeAuth,
         completionModelId: completionModelId === undefined ? state.settings.completionModelId ?? null : completionModelId,
+        memory: typeof patch.memory === "boolean" ? patch.memory : state.settings.memory,
+        planApproval: typeof patch.planApproval === "boolean" ? patch.planApproval : state.settings.planApproval,
+        embeddingModel: typeof patch.embeddingModel === "string" ? patch.embeddingModel.trim() || undefined : state.settings.embeddingModel,
       };
       next = state.settings;
     });

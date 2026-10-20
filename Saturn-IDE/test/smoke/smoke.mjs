@@ -93,21 +93,43 @@ async function main() {
   const key = async (key, code, keyCode, modifiers = 0) => {
     for (const type of ["keyDown", "keyUp"]) await call("Input.dispatchKeyEvent", { type, modifiers, key, code, windowsVirtualKeyCode: keyCode }, session);
   };
+  /** Polls `expression` until it is truthy (or the time runs out); returns the value. */
+  const until = async (expression, ms = 15000) => {
+    const started = Date.now();
+    for (;;) {
+      const value = await evaluate(expression);
+      if (value) return value;
+      if (Date.now() - started > ms) return value;
+      await sleep(250);
+    }
+  };
   const command = async (name) => {
     await key("P", "KeyP", 80, 12);
-    await sleep(600);
+    await until("!!document.querySelector('.quick-input-widget:not([style*=\"display: none\"]) input')", 8000);
+    await sleep(200);
     await call("Input.insertText", { text: name }, session);
-    await sleep(600);
+    await until(`[...document.querySelectorAll('.quick-input-list .monaco-list-row')].some((row) => row.innerText.includes(${JSON.stringify(name.split(":").pop().trim())}))`, 8000);
+    await sleep(200);
     await key("Enter", "Enter", 13);
   };
-  await sleep(5000);
+  await until("!!document.querySelector('.monaco-workbench .part.editor')", 30000);
+  await sleep(1500);
 
   check("workbench rendered", await evaluate("!!document.querySelector('.monaco-workbench .part.editor')"));
   check("Saturn agent panel registered", await evaluate("!!document.querySelector('[id*=\"saturn.agent\"], .saturn-agent, [aria-label*=\"Saturn\"]')"));
 
   // Terminal: open one and run a command; the output must come back.
   await command("Terminal: Create New Terminal");
-  await sleep(5000);
+  const opened = await until("document.querySelectorAll('.terminal-wrapper, .xterm').length > 0", 20000);
+  if (!opened) {
+    const palette = await evaluate("(() => { const w = document.querySelector('.quick-input-widget'); return w ? JSON.stringify({ style: w.style.display, shown: getComputedStyle(w).display, rows: [...document.querySelectorAll('.quick-input-list .monaco-list-row')].slice(0, 3).map((r) => r.innerText.slice(0, 60)) }) : 'no widget' })()");
+    console.log(`diag palette after command: ${palette}; focused: ${await evaluate("document.activeElement && (document.activeElement.className || document.activeElement.tagName)")}`);
+    const shot = await call("Page.captureScreenshot", { format: "jpeg", quality: 60 }, session);
+    const file = path.join(os.tmpdir(), `saturn-smoke-terminal-${Date.now()}.jpg`);
+    writeFileSync(file, Buffer.from(shot.result.data, "base64"));
+    console.log(`diag screenshot: ${file}`);
+  }
+  await sleep(2500);
   await call("Input.insertText", { text: "echo SMOKE_$((40+2))" }, session);
   await key("Enter", "Enter", 13);
   await sleep(2500);
@@ -123,7 +145,8 @@ async function main() {
 
   // Explorer: New File shows an input that fits its row.
   await key("E", "KeyE", 69, 12);
-  await sleep(1000);
+  await until("!!document.querySelector('.explorer-folders-view')", 8000);
+  await sleep(500);
   const explorerInput = await evaluate(`(() => {
     const button = [...document.querySelectorAll('a.action-label')].find((el) => /New File/i.test(el.getAttribute('aria-label') || ''));
     if (!button) return 'no button';
@@ -146,7 +169,8 @@ async function main() {
 
   // Source Control: the change is listed and the Commit button is there.
   await key("G", "KeyG", 71, 10);
-  await sleep(2500);
+  await until("document.querySelectorAll('.scm-view .monaco-list-row .resource').length > 0", 15000);
+  await sleep(500);
   const scm = await evaluate(`JSON.stringify({ changes: document.querySelectorAll('.scm-view .monaco-list-row .resource').length, commit: !!document.querySelector('.scm-view .button-container .monaco-button') })`);
   const scmState = JSON.parse(scm);
   check("Source Control lists the change", scmState.changes >= 1, `${scmState.changes} change(s)`);
@@ -160,8 +184,10 @@ main()
     console.error(`FAIL ${error.message}`);
     failures.push(error.message);
   })
-  .finally(() => {
+  .finally(async () => {
     if (child) child.kill();
+    // Give the IDE a moment to exit before its profile goes; a failed run must not leave one behind either.
+    await sleep(1500);
     rmSync(profile, { recursive: true, force: true });
     rmSync(repo, { recursive: true, force: true });
     if (failures.length) {

@@ -3,6 +3,19 @@ import { GeneralSkills, type ToolCaller } from "./skills/general-skills.js";
 import { ComputerUseSkill } from "./skills/computer-use-skill.js";
 import { OriginSkill, type OriginContext } from "./skills/origin-skill.js";
 import { AntigravitySkill, type AntigravityContext } from "./skills/antigravity-skill.js";
+import { BrowserSkill } from "./skills/browser-skill.js";
+
+const browsers = new Map<string, BrowserSkill>();
+
+/** The agent's browser (one per runtime data dir; it closes itself when idle). */
+export function runBrowserSkill(dataDir: string, toolId: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
+  let browser = browsers.get(dataDir);
+  if (!browser) {
+    browser = new BrowserSkill(dataDir);
+    browsers.set(dataDir, browser);
+  }
+  return browser.run(toolId, args, signal);
+}
 
 export async function runGeneralSkill(
   dataDir: string,

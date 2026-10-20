@@ -15,6 +15,18 @@ export function mountAdmin(app: Express, services: AppServices): void {
     respond(res, next, () => services.updateSettings(req.body));
   });
 
+  // What Saturn remembers across chats: global notes, or one project's. Plain text the user may edit.
+  app.get("/memory/:scope", (req, res, next) => {
+    respond(res, next, async () => ({ scope: param(req.params.scope), content: await services.kernel.memory.read(param(req.params.scope)) }));
+  });
+
+  app.put("/memory/:scope", (req, res, next) => {
+    respond(res, next, async () => {
+      await services.kernel.memory.write(param(req.params.scope), String(req.body?.content ?? ""));
+      return { scope: param(req.params.scope), content: await services.kernel.memory.read(param(req.params.scope)) };
+    });
+  });
+
   app.get("/information", (_req, res) => {
     res.json(services.information());
   });

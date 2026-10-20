@@ -31,6 +31,8 @@ import { ClaudeCodeService } from "./claude-code.js";
 import { CodexService } from "./codex.js";
 import { IndexService } from "./index.js";
 import { WorktreeService } from "./worktrees.js";
+import { MemoryService } from "./memory.js";
+import { BROWSER_ID, BROWSER_URL, browserSkills } from "../domain/browser-tools.js";
 import { CheckpointService } from "./checkpoints.js";
 import { CompletionService } from "./completions.js";
 import { GroupService } from "./groups.js";
@@ -51,6 +53,7 @@ export class RuntimeKernel {
   readonly codex: CodexService;
   readonly index: IndexService;
   readonly worktrees: WorktreeService;
+  readonly memory: MemoryService;
   readonly checkpoints: CheckpointService;
   readonly completions: CompletionService;
   readonly groups: GroupService;
@@ -77,6 +80,7 @@ export class RuntimeKernel {
     this.codex = new CodexService(this);
     this.index = new IndexService(this);
     this.worktrees = new WorktreeService(this);
+    this.memory = new MemoryService(this);
     this.checkpoints = new CheckpointService(this);
     this.completions = new CompletionService(this);
     this.groups = new GroupService(this);
@@ -132,7 +136,10 @@ export class RuntimeKernel {
     const hasComputerUse = cuItem?.id === CURSOR_COMPUTER_USE_ID && cuItem?.url === CURSOR_COMPUTER_USE_URL;
     const hasOrigin = originItem?.id === CURSOR_ORIGIN_ID && originItem?.url === CURSOR_ORIGIN_URL;
     const hasAntigravity = agItem?.id === ANTIGRAVITY_SKILLS_ID && agItem?.url === ANTIGRAVITY_SKILLS_URL;
+    const browserItem = state.mcp.find((item) => item.id === BROWSER_ID);
+    const hasBrowser = browserItem?.url === BROWSER_URL && JSON.stringify(browserItem.tools) === JSON.stringify(browserSkills().tools);
     return (
+      hasBrowser &&
       first?.id === GENERAL_SKILLS_ID &&
       state.mcp.filter((item) => item.id === GENERAL_SKILLS_ID).length === 1 &&
       JSON.stringify(first) === JSON.stringify(generalSkills()) &&
@@ -150,6 +157,9 @@ export class RuntimeKernel {
     const cu = cursorComputerUseSkills();
     const origin = cursorOriginSkills();
     const ag = antigravitySkills();
+    const browser = browserSkills();
+    const existingBrowser = state.mcp.find((item) => item.id === BROWSER_ID);
+    if (existingBrowser?.disabledTools) browser.disabledTools = existingBrowser.disabledTools;
 
     const existingCu = state.mcp.find((item) => item.id === CURSOR_COMPUTER_USE_ID || item.id === "cursor-computer-use");
     if (existingCu?.disabledTools) cu.disabledTools = existingCu.disabledTools;
@@ -168,12 +178,13 @@ export class RuntimeKernel {
         item.id !== CURSOR_ORIGIN_ID &&
         item.id !== "cursor-origin" &&
         item.id !== ANTIGRAVITY_SKILLS_ID &&
-        item.id !== "antigravity-skills",
+        item.id !== "antigravity-skills" &&
+        item.id !== BROWSER_ID,
     );
-    state.mcp = [skills, cu, origin, ag, ...others];
+    state.mcp = [skills, cu, origin, ag, browser, ...others];
     state.agents = state.agents.filter((item) => item.id !== SATURN_AGENT_ID);
     state.runs = state.runs.filter((item) => item.agentId !== SATURN_AGENT_ID);
-    const defaultBuiltins = [GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID];
+    const defaultBuiltins = [GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID, BROWSER_ID];
     for (const agent of state.agents) {
       const mapped = agent.mcpConnectionIds.map((id) => {
         if (id === "cursor-computer-use") return CURSOR_COMPUTER_USE_ID;
@@ -184,7 +195,10 @@ export class RuntimeKernel {
       if (mapped.length === 1 && mapped[0] === GENERAL_SKILLS_ID) {
         agent.mcpConnectionIds = [...defaultBuiltins];
       } else {
-        agent.mcpConnectionIds = withGeneralSkills(mapped);
+        const next = withGeneralSkills(mapped);
+        // The browser joins agents that have the other built-in servers (an earlier default set), not custom picks.
+        const hadDefaults = [CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID].every((id) => next.includes(id));
+        agent.mcpConnectionIds = hadDefaults && !next.includes(BROWSER_ID) ? [...next, BROWSER_ID] : next;
       }
     }
   }

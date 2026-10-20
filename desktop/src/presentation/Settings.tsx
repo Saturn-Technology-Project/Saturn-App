@@ -15,6 +15,7 @@ export type SettingsPage =
   | "telemetry"
   | "logs"
   | "information"
+  | "memory"
   | "shortcuts";
 
 const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
@@ -25,6 +26,7 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
       ["llm", "Models", "LLM providers & models"],
       ["mcp", "MCP & Skills", "Tool servers & knowledge sources"],
       ["usage", "Usage & Billing", "Token spend & costs"],
+      ["memory", "Memory", "What Saturn remembers across chats"],
     ],
   },
   {
@@ -194,6 +196,7 @@ export function Settings(props: {
             ) : (
               <>
                 {page === "usage" ? <UsageBilling refreshOn={[props.models, props.agents]} /> : null}
+                {page === "memory" ? <Memory projects={props.projects ?? []} /> : null}
                 {page === "mcp" ? (
                   <McpPage
                     agent={props.agent}
@@ -229,6 +232,75 @@ export function Settings(props: {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function Toggle(props: { on: boolean; label: string; onChange: (next: boolean) => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={props.on} aria-label={props.label} className={props.on ? "toggle on" : "toggle"} onClick={() => props.onChange(!props.on)}>
+      <span className="toggle-knob" />
+    </button>
+  );
+}
+
+/** Settings → Memory: the notes Saturn keeps, global and per project, as text the user can edit. */
+function Memory(props: { projects: Project[] }) {
+  const [scope, setScope] = useState("global");
+  const [content, setContent] = useState("");
+  const [saved, setSaved] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let current = true;
+    desktop.admin.memory(scope).then(
+      (result) => {
+        if (!current) return;
+        setContent(result.content);
+        setSaved(result.content);
+        setError("");
+      },
+      (reason: unknown) => current && setError(reason instanceof Error ? reason.message : "Could not load memory"),
+    );
+    return () => {
+      current = false;
+    };
+  }, [scope]);
+
+  async function save() {
+    try {
+      const result = await desktop.admin.saveMemory(scope, content);
+      setContent(result.content);
+      setSaved(result.content);
+      setError("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
+
+  return (
+    <div className="settings-section">
+      <div className="settings-section-title">Memory</div>
+      <div className="settings-card">
+        <div className="settings-card-row">
+          <div className="settings-row-text">
+            <span className="settings-row-label">Notes</span>
+            <span className="settings-row-desc">One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Saturn forget it.</span>
+          </div>
+          <select className="input tiny settings-select" aria-label="Memory scope" value={scope} onChange={(event) => setScope(event.target.value)}>
+            <option value="global">About you (every chat)</option>
+            {props.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+          </select>
+        </div>
+        <div className="settings-card-row settings-card-stack">
+          <textarea className="input memory-editor" aria-label="Memory notes" value={content} rows={14} placeholder={scope === "global" ? "Nothing remembered yet. Notes appear after a few turns of chat, or write your own: \"- Prefers short answers\"." : "Nothing remembered about this project yet."} onChange={(event) => setContent(event.target.value)} />
+          <div className="settings-row-actions">
+            <button type="button" className="btn tiny" disabled={content === saved} onClick={() => void save()}>Save</button>
+            {content !== saved ? <button type="button" className="btn ghost tiny" onClick={() => setContent(saved)}>Discard</button> : null}
+          </div>
+        </div>
+        {error ? <p className="settings-row-error">{error}</p> : null}
       </div>
     </div>
   );
@@ -779,6 +851,30 @@ function General(props: {
   const [name, setName] = useState(props.profile.name);
   const [logging, setLogging] = useState(props.profile.logging);
   const [launchApp, setLaunchApp] = useState<LaunchApp>(props.profile.launchApp ?? "agent");
+  const [memory, setMemory] = useState(props.profile.memory !== false);
+  const [planApproval, setPlanApproval] = useState(props.profile.planApproval === true);
+  const [embeddingModel, setEmbeddingModel] = useState(props.profile.embeddingModel ?? "");
+
+  async function chooseFlag(flag: "memory" | "planApproval", next: boolean) {
+    const set = flag === "memory" ? setMemory : setPlanApproval;
+    set(next);
+    try {
+      await props.onSaved(await desktop.admin.updateSettings({ [flag]: next }));
+      props.onError("");
+    } catch (reason) {
+      set(!next);
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
+
+  async function chooseEmbedding() {
+    try {
+      await props.onSaved(await desktop.admin.updateSettings({ embeddingModel: embeddingModel.trim() }));
+      props.onError("");
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
   const [completionModelId, setCompletionModelId] = useState(props.profile.completionModelId ?? "");
   const [saved, setSaved] = useState(false);
   // Claude Code and Codex models run an agent loop on the user's plan; completions need a plain API call.
@@ -920,6 +1016,36 @@ function General(props: {
               <option value="">Off</option>
               {completionChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Agents</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Memory</span>
+              <span className="settings-row-desc">Every few turns, Saturn notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.</span>
+            </div>
+            <Toggle on={memory} label="Memory" onChange={(next) => void chooseFlag("memory", next)} />
+          </div>
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Plan approval</span>
+              <span className="settings-row-desc">Agents write a plan and wait for your go-ahead before changing files or running commands. Reply "go" to proceed, or say what to change.</span>
+            </div>
+            <Toggle on={planApproval} label="Plan approval" onChange={(next) => void chooseFlag("planApproval", next)} />
+          </div>
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Embedding model</span>
+              <span className="settings-row-desc">The LM Studio embedding model that builds each project's code index, so agents find code by meaning. Download it in LM Studio first.</span>
+            </div>
+            <form className="settings-inline-form" onSubmit={(event) => { event.preventDefault(); void chooseEmbedding(); }}>
+              <input className="input tiny" aria-label="Embedding model" value={embeddingModel} placeholder="text-embedding-nomic-embed-text-v1.5" onChange={(event) => setEmbeddingModel(event.target.value)} />
+              <button type="submit" className="btn tiny" disabled={(props.profile.embeddingModel ?? "") === embeddingModel.trim()}>Save</button>
+            </form>
           </div>
         </div>
       </div>

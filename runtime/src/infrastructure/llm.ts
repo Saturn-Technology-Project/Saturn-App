@@ -28,7 +28,7 @@ export type CallContext = {
   agentId: string;
   agentName: string;
   runId?: string;
-  purpose: "run" | "automation_draft" | "completion";
+  purpose: "run" | "automation_draft" | "completion" | "memory";
 };
 
 export type CompletionInput = {

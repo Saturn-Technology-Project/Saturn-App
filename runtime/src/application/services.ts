@@ -107,8 +107,8 @@ export class AppServices {
     return await this.kernel.checkpoints.revert(id, path);
   }
 
-  async keepRunChanges(id: string): Promise<RunChanges> {
-    return await this.kernel.checkpoints.keep(id);
+  async keepRunChanges(id: string, file?: string): Promise<RunChanges> {
+    return await this.kernel.checkpoints.keep(id, file);
   }
 
   /** Restores the chat's files to before this turn (this run and every later one in the chat). */

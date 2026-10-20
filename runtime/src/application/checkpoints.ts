@@ -209,10 +209,14 @@ export class CheckpointService {
   }
 
   /** The user accepted the run's edits: the card stops offering to revert them (the checkpoint stays). */
-  async keep(runId: string): Promise<RunChanges> {
-    this.kernel.getRun(runId);
+  async keep(runId: string, file?: string): Promise<RunChanges> {
+    const run = this.kernel.getRun(runId);
+    if (file !== undefined && !run.checkpoint?.files.some((item) => item.path === file)) {
+      throw new HttpError(404, "This run did not change that file");
+    }
     await this.kernel.store.update((state) => {
       for (const entry of state.runs.find((item) => item.id === runId)?.checkpoint?.files ?? []) {
+        if (file !== undefined && entry.path !== file) continue;
         if (entry.review !== "reverted") entry.review = "kept";
       }
     });

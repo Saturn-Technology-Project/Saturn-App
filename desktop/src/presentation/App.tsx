@@ -693,6 +693,43 @@ export function App() {
     }
   }
 
+  const currentConversation = selected && selectedThreadId ? (agentThreads[selected] ?? []).find((conv) => conv.id === selectedThreadId) ?? null : null;
+  const [worktreeBusy, setWorktreeBusy] = useState(false);
+
+  /** Gives the chat its own git worktree and branch; the agent's changes then stay off the project checkout. */
+  async function isolateThread(threadId: string) {
+    setWorktreeBusy(true);
+    try {
+      const status = await desktop.catalog.isolateThread(threadId);
+      setNotice(`This chat now works on ${status.branch} in its own worktree.`);
+      await reload();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not create the worktree");
+    } finally {
+      setWorktreeBusy(false);
+    }
+  }
+
+  async function finishWorktree(threadId: string, how: "merge" | "keep" | "discard") {
+    const conv = currentConversation;
+    const question = how === "merge"
+      ? `Merge this chat's branch into ${conv?.worktree?.base ?? "the project"}? Uncommitted work on the branch is committed first.`
+      : how === "keep"
+        ? "Keep this chat's branch (for a pull request) and close its worktree?"
+        : "Discard this chat's branch and everything the agent changed on it?";
+    if (!window.confirm(question)) return;
+    setWorktreeBusy(true);
+    try {
+      const result = await desktop.catalog.finishWorktree(threadId, how);
+      setNotice(how === "merge" ? `Merged ${result.branch}.` : how === "keep" ? `Kept ${result.branch}; open a pull request from it.` : `Discarded ${result.branch}.`);
+      await reload();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not finish the worktree");
+    } finally {
+      setWorktreeBusy(false);
+    }
+  }
+
   async function handleCreateNewChat(agentId?: string) {
     const targetAgentId = agentId || selected || agents[0]?.id;
     if (!targetAgentId) return;
@@ -1616,6 +1653,14 @@ export function App() {
           </div>
 
           <div className="stage-topbar-right">
+            {currentConversation?.projectId ? (
+              <WorktreeControl
+                conversation={currentConversation}
+                busy={worktreeBusy}
+                onIsolate={() => void isolateThread(currentConversation.id)}
+                onFinish={(how) => void finishWorktree(currentConversation.id, how)}
+              />
+            ) : null}
             <button
               type="button"
               className="titlebar-btn"
@@ -2409,6 +2454,48 @@ function DotsVerticalIcon() {
       <circle cx="8" cy="4" r="1.15" fill="currentColor" />
       <circle cx="8" cy="8" r="1.15" fill="currentColor" />
       <circle cx="8" cy="12" r="1.15" fill="currentColor" />
+    </svg>
+  );
+}
+
+/**
+ * The chat's worktree state in the top bar: a button to start working on an own branch, or, once isolated, the
+ * branch name with a menu to merge, keep or discard it.
+ */
+function WorktreeControl(props: { conversation: Conversation; busy: boolean; onIsolate: () => void; onFinish: (how: "merge" | "keep" | "discard") => void }) {
+  const [open, setOpen] = useState(false);
+  const worktree = props.conversation.worktree;
+  if (!worktree) {
+    return (
+      <button type="button" className="titlebar-btn" disabled={props.busy} title="Work on an own git branch: the agent's changes stay out of the project folder until you merge them" aria-label="Isolate in a worktree" onClick={props.onIsolate}>
+        <BranchIcon />
+      </button>
+    );
+  }
+  return (
+    <div className="titlebar-menu-wrapper">
+      <button type="button" className={open ? "titlebar-worktree active" : "titlebar-worktree"} disabled={props.busy} title={`This chat works on ${worktree.branch} (from ${worktree.base}) in its own worktree`} onClick={() => setOpen((v) => !v)}>
+        <BranchIcon />
+        <span>{worktree.branch.replace(/^saturn\//, "")}</span>
+      </button>
+      {open ? (
+        <div className="titlebar-dropdown" onMouseLeave={() => setOpen(false)}>
+          <button type="button" className="titlebar-dropdown-item" onClick={() => { setOpen(false); props.onFinish("merge"); }}><span>Merge into {worktree.base}</span></button>
+          <button type="button" className="titlebar-dropdown-item" onClick={() => { setOpen(false); props.onFinish("keep"); }}><span>Keep branch for a pull request</span></button>
+          <button type="button" className="titlebar-dropdown-item" onClick={() => { setOpen(false); props.onFinish("discard"); }}><span>Discard branch</span></button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function BranchIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="4" cy="3.5" r="1.6" />
+      <circle cx="4" cy="12.5" r="1.6" />
+      <circle cx="12" cy="5.5" r="1.6" />
+      <path d="M4 5.1v5.8M12 7.1c0 2.4-2 3-4.2 3.3S4 11 4 10.9" />
     </svg>
   );
 }

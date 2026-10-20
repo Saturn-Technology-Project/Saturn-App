@@ -8,9 +8,11 @@ const nodePath = require('node:path');
 const { registerEditorAi } = require('./editor-ai');
 const { registerGitAi } = require('./git-ai');
 const agentTools = require('./agent-tools');
+const { registerAgentReview } = require('./agent-review');
 
 /** Editor-side helpers shared by the sidebar panel and the Agent window: diff documents and the agent terminal. */
-const shared = { content: new agentTools.DiffContent(), terminal: new agentTools.AgentTerminal() };
+/** @type {{ content: agentTools.DiffContent, terminal: agentTools.AgentTerminal, review: any }} */
+const shared = { content: new agentTools.DiffContent(), terminal: new agentTools.AgentTerminal(), review: null };
 
 /** Talks to the local Saturn runtime (the same one the Saturn app uses). */
 class Runtime {
@@ -403,6 +405,9 @@ class AgentView {
 					});
 					this.watch(message.runId);
 					break;
+				case 'reviewFile':
+					await shared.review.open(message.runId, message.root, message.path);
+					break;
 				case 'openDiff':
 					await agentTools.openRunDiff(this.runtime, shared.content, message.runId, message.root, message.path);
 					break;
@@ -418,6 +423,31 @@ class AgentView {
 					await this.runtime.request(`/runs/${encodeURIComponent(message.runId)}/changes/keep`, { method: 'POST' });
 					await this.refreshRun(message.runId);
 					break;
+				case 'worktreeStart':
+					try {
+						const status = await this.runtime.request(`/threads/${encodeURIComponent(message.threadId)}/worktree`, { method: 'POST' });
+						vscode.window.setStatusBarMessage(`Saturn: this chat now works on ${status.branch} in its own worktree.`, 6000);
+					} catch (error) {
+						void vscode.window.showErrorMessage(`Saturn: ${errorText(error)}`);
+					}
+					await this.loadThreads(this.agentId);
+					break;
+				case 'worktreeFinish': {
+					const pick = await vscode.window.showQuickPick([
+						{ label: '$(git-merge) Merge into the base branch', description: 'Uncommitted work is committed first', how: 'merge' },
+						{ label: '$(git-pull-request) Keep the branch for a pull request', how: 'keep' },
+						{ label: '$(trash) Discard the branch and its changes', how: 'discard' },
+					], { placeHolder: 'Finish this chat\'s worktree' });
+					if (!pick) break;
+					try {
+						const result = await this.runtime.request(`/threads/${encodeURIComponent(message.threadId)}/worktree/finish`, { method: 'POST', body: JSON.stringify({ how: pick.how }) });
+						vscode.window.setStatusBarMessage(`Saturn: ${pick.how === 'merge' ? 'merged' : pick.how === 'keep' ? 'kept' : 'discarded'} ${result.branch}.`, 6000);
+					} catch (error) {
+						void vscode.window.showErrorMessage(`Saturn: ${errorText(error)}`);
+					}
+					await this.loadThreads(this.agentId);
+					break;
+				}
 				case 'restore': {
 					const answer = await vscode.window.showWarningMessage(
 						'Restore the project files to how they were before this turn?',
@@ -683,6 +713,24 @@ class AgentView {
 		align-items: center;
 		gap: 2px;
 	}
+	.worktree-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		height: 20px;
+		padding: 0 7px;
+		border: 1px solid var(--vscode-input-border, #3c3c43);
+		border-radius: 5px;
+		background: transparent;
+		color: var(--vscode-descriptionForeground);
+		font: inherit;
+		font-size: 11px;
+		font-family: var(--vscode-editor-font-family);
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.worktree-btn:hover { color: var(--vscode-foreground); background: var(--vscode-toolbar-hoverBackground, rgba(255,255,255,0.06)); }
+	.worktree-btn.on { color: var(--vscode-foreground); }
 	.hdr-btn {
 		width: 26px;
 		height: 26px;
@@ -1882,6 +1930,7 @@ class AgentView {
 			<img class="saturn-header-logo" src="${icon}" alt="Saturn">
 			<span class="session-title" id="sessionTitle" title="Click to rename session">Untitled</span>
 			<input type="text" class="session-title-input" id="sessionTitleInput" value="Untitled">
+			<button class="worktree-btn" id="worktreeBtn" type="button" hidden title="Work on an own git branch"></button>
 		</div>
 		<div class="session-actions">
 			<button class="hdr-btn" id="historyBtn" title="Session history">
@@ -2522,9 +2571,16 @@ class AgentView {
 			const row = el('div', 'change-row');
 			row.append(el('span', 'change-kind ' + kind, kind === 'added' ? 'A' : kind === 'deleted' ? 'D' : 'M'));
 			const name = el('span', 'change-path', file.path);
-			name.title = 'Show the diff';
-			name.onclick = () => vscode.postMessage({ type: 'openDiff', runId: run.id, root, path: file.path });
+			name.title = file.review ? 'Show the diff' : 'Review in the editor: keep or revert each change';
+			name.onclick = () => vscode.postMessage({ type: file.review ? 'openDiff' : 'reviewFile', runId: run.id, root, path: file.path });
 			row.append(name);
+			if (!file.review) {
+				const diff = el('button', 'code-copy', 'Diff');
+				diff.type = 'button';
+				diff.title = 'Side-by-side diff';
+				diff.onclick = () => vscode.postMessage({ type: 'openDiff', runId: run.id, root, path: file.path });
+				row.append(diff);
+			}
 			if (file.review) {
 				row.append(el('span', 'change-state', file.review === 'kept' ? 'Kept' : 'Reverted'));
 			} else {
@@ -2828,6 +2884,7 @@ class AgentView {
 			currentThreadId = data.current;
 			const open = threads.find((thread) => thread.id === currentThreadId);
 			showTitle(open ? open.title : 'New Chat');
+			renderWorktree(open);
 		} else if (data.type === 'history') {
 			runs = data.runs || [];
 			errorBox.hidden = true;
@@ -2877,6 +2934,19 @@ class AgentView {
 	});
 
 	// Session title edit
+	const worktreeBtn = $('worktreeBtn');
+	/** The chat's worktree: a plain "Branch" button, or the branch name with a menu to finish it. */
+	function renderWorktree(thread) {
+		const project = state.project && state.project.state === 'ready';
+		worktreeBtn.hidden = !thread || !project;
+		if (worktreeBtn.hidden) return;
+		const wt = thread.worktree;
+		worktreeBtn.className = wt ? 'worktree-btn on' : 'worktree-btn';
+		worktreeBtn.textContent = wt ? '⎇ ' + wt.branch.replace(/^saturn\//, '') : '⎇ Branch';
+		worktreeBtn.title = wt ? 'This chat works on ' + wt.branch + ' in its own worktree. Click to merge, keep or discard it.' : 'Work on an own git branch: the agent\'s changes stay out of the project folder until you merge them';
+		worktreeBtn.onclick = () => vscode.postMessage({ type: wt ? 'worktreeFinish' : 'worktreeStart', threadId: thread.id });
+	}
+
 	sessionTitle.onclick = () => {
 		sessionTitle.style.display = 'none';
 		sessionTitleInput.style.display = 'block';
@@ -3125,6 +3195,7 @@ class AgentView {
 /** @param {vscode.ExtensionContext} context */
 function activate(context) {
 	const runtime = new Runtime();
+	shared.review = registerAgentReview(context, runtime);
 	const view = new AgentView(context, runtime);
 	registerEditorAi(context, runtime);
 	registerGitAi(context, runtime);

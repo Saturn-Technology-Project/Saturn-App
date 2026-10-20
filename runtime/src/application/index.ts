@@ -69,9 +69,9 @@ export class IndexService {
 
   /** The embedding model: Settings → General → Embedding model, else the default. Needs LM Studio running. */
   private embeddingModel(): { baseUrl: string; model: string } {
-    const settings = this.kernel.store.state.settings as { embeddingModel?: string; embeddingBaseUrl?: string };
+    const settings = this.kernel.store.state.settings;
     const lmstudio = this.kernel.store.state.models.find((item) => item.provider === "lmstudio");
-    return { baseUrl: settings.embeddingBaseUrl || lmstudio?.baseUrl || "http://127.0.0.1:1234", model: settings.embeddingModel || DEFAULT_EMBEDDING_MODEL };
+    return { baseUrl: lmstudio?.baseUrl || "http://127.0.0.1:1234", model: settings.embeddingModel || DEFAULT_EMBEDDING_MODEL };
   }
 
   private async embed(texts: string[], signal?: AbortSignal): Promise<Float32Array[]> {

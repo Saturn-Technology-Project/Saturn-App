@@ -100,8 +100,13 @@ export function buildSystemPrompt(input: {
   agent: Agent;
   context?: string;
   serverIds?: string[];
+  /** Notes Saturn kept from earlier chats (see application/memory.ts). */
+  memory?: string;
+  /** Agents must present a plan and wait for a go-ahead before changing anything. */
+  planApproval?: boolean;
 }): string {
   const parts: string[] = [];
+  if (input.memory?.trim()) parts.push(input.memory.trim());
 
   // Custom user instructions (if provided)
   if (input.agent.instructions?.trim()) {
@@ -123,6 +128,14 @@ export function buildSystemPrompt(input: {
       "- `web`: Retrieve and read readable text from public web documentation and resources.\n" +
       "- `multi_step`: Structure and maintain step-by-step task execution plans.\n" +
       "- `mcp`: Invoke additional tools from connected MCP servers."
+    );
+  }
+
+  if (serverIds.includes("browser")) {
+    capabilities.push(
+      "### Browser (Browser)\n" +
+      "- `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_press`, `browser_scroll`, `browser_screenshot`, `browser_evaluate`, `browser_record_start`/`browser_record_stop`, `browser_close`.\n" +
+      "- Read pages as accessibility snapshots (text with element ids) and act by id; use screenshots only to show the user or to record. Prefer these over computer-use for anything on the web. Public addresses only: localhost and private networks are refused."
     );
   }
 
@@ -160,6 +173,15 @@ export function buildSystemPrompt(input: {
   }
 
   parts.push(capabilities.join("\n\n"));
+
+  // How a task is run and reported, so the user can review the plan before and the outcome after.
+  parts.push(
+    "### Working method\n" +
+    (input.planApproval
+      ? "- Before changing any file or running any command that changes state, call `multi_step` with your plan and stop: reply with the plan and the sentence \"Reply 'go' to proceed, or tell me what to change.\" Do not act until the user says so. Reading and searching are fine before the plan.\n"
+      : "- For a task with several steps, call `multi_step` first with the plan, keep it updated as you go, and use one step at a time.\n") +
+    "- When a task that changed files or ran commands is done, end with a short summary under the heading \"## Summary\": what changed (files), how you checked it, and anything left for the user. Skip the heading for questions and small answers."
+  );
 
   if (input.context?.trim()) {
     parts.push(`### Relevant Knowledge & Context\n${input.context.trim()}`);
