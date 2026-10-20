@@ -109,8 +109,8 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.restoreToRun(param(req.params.id)));
   });
 
-  // Answers an approval card: a Claude Code run waits on it while the SDK holds the tool call; a local run
-  // paused at the card runs (or skips) that call and continues.
+  // Answers an approval card: a Claude Code or Codex run waits on it while the program holds the tool call; a
+  // local run paused at the card runs (or skips) that call and continues.
   app.post("/runs/:id/actions/:actionId/decision", (req, res, next) => {
     respond(res, next, async () => {
       const runId = param(req.params.id);
@@ -118,6 +118,8 @@ export function mountRuns(app: Express, services: AppServices): void {
       const allow = req.body?.allow === true;
       if (services.kernel.claudeCode.waiting(runId, actionId)) {
         services.kernel.claudeCode.decide(runId, actionId, allow);
+      } else if (services.kernel.codex.waiting(runId, actionId)) {
+        services.kernel.codex.decide(runId, actionId, allow);
       } else {
         await services.kernel.runs.decide(runId, actionId, allow);
       }

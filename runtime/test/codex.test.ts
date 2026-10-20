@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -191,4 +193,58 @@ test("in a group, a Codex member resumes one thread for all its turns and gets o
   const turn = services.groupTranscript(group.id).runs.find((run) => run.input.endsWith("second task"));
   assert.match(turn?.input ?? "", /^New in the group "Team" since your last turn/);
   assert.doesNotMatch(turn?.input ?? "", /first task/, "what the session already saw is not sent again");
+});
+
+test("a Codex thread opens with Saturn's memory and the agent's instructions, and every message carries what the knowledge sources return", async () => {
+  const { directory, services } = await setup();
+  const bin = path.join(directory, "fake-codex.cjs");
+  const promptFile = path.join(directory, "prompts.jsonl");
+  await writeFile(bin, `#!/usr/bin/env node
+const fs = require("node:fs");
+let input = "";
+process.stdin.on("data", (chunk) => (input += chunk));
+process.stdin.on("end", () => {
+  fs.appendFileSync(${JSON.stringify(promptFile)}, JSON.stringify({ resume: process.argv.includes("resume"), input }) + "\\n");
+  for (const event of [
+    { type: "thread.started", thread_id: "thr_memory" },
+    { type: "item.completed", item: { id: "m1", type: "agent_message", text: "ok" } },
+    { type: "turn.completed", usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1, reasoning_output_tokens: 0 } },
+  ]) process.stdout.write(JSON.stringify(event) + "\\n");
+});
+`);
+  await chmod(bin, 0o755);
+  services.kernel.codex.cliPath = () => bin;
+  await services.kernel.memory.write("global", "- Prefers tabs over spaces.");
+
+  const queries: string[] = [];
+  const rag = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      queries.push((JSON.parse(body) as { query: string }).query);
+      res.end("The deploy script is scripts/ship.sh.");
+    });
+  });
+  await new Promise<void>((resolve) => rag.listen(0, "127.0.0.1", () => resolve()));
+  try {
+    const source = await services.createRag({ name: "Docs", url: `http://127.0.0.1:${(rag.address() as AddressInfo).port}/` });
+    const model = await services.createModel({ provider: "codex", model: "default" });
+    const agent = await services.createAgent({ name: "Coder", modelConnectionId: model.id, instructions: "Be brief.", ragConnectionIds: [source.id] });
+    const first = await services.startRun(agent.id, "how do I deploy?");
+    assert.equal((await settle(services, first.id)).status, "completed");
+    const second = await services.startRun(agent.id, "and roll back?", services.kernel.getRun(first.id).threadId);
+    assert.equal((await settle(services, second.id)).status, "completed");
+
+    const [opening, resumed] = (await readFile(promptFile, "utf8")).trim().split("\n").map((line) => JSON.parse(line) as { resume: boolean; input: string });
+    assert.equal(opening!.resume, false);
+    assert.match(opening!.input, /<memory>[\s\S]*Prefers tabs over spaces[\s\S]*<\/memory>/);
+    assert.match(opening!.input, /<instructions>\nBe brief.\n<\/instructions>/);
+    assert.match(opening!.input, /<knowledge>[\s\S]*scripts\/ship\.sh[\s\S]*<\/knowledge>\n\nhow do I deploy\?$/);
+    assert.equal(resumed!.resume, true);
+    assert.doesNotMatch(resumed!.input, /<memory>|<instructions>/, "a resumed thread already has them");
+    assert.match(resumed!.input, /<knowledge>[\s\S]*<\/knowledge>\n\nand roll back\?$/);
+    assert.deepEqual(queries, ["how do I deploy?", "and roll back?"]);
+  } finally {
+    await new Promise((resolve) => rag.close(() => resolve(undefined)));
+  }
 });

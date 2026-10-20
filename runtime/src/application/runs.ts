@@ -145,14 +145,17 @@ export class RunService {
    * nothing resumes them, so they are failed with the reason instead of spinning forever.
    */
   async recoverInterrupted(): Promise<number> {
-    // A Claude Code run waiting on an approval lived in an SDK process the restart ended, so it is stuck too.
-    const claudeCodeAgents = new Set(
+    // A Claude Code or Codex run waiting on an approval lived in a process the restart ended, so it is stuck too.
+    const programAgents = new Set(
       this.kernel.store.state.agents
-        .filter((agent) => this.kernel.store.state.models.find((model) => model.id === agent.modelConnectionId)?.provider === "claude-code")
+        .filter((agent) => {
+          const provider = this.kernel.store.state.models.find((model) => model.id === agent.modelConnectionId)?.provider;
+          return provider === "claude-code" || provider === "codex";
+        })
         .map((agent) => agent.id),
     );
     const stuck = this.kernel.store.state.runs.filter(
-      (run) => run.status === "running" || run.status === "queued" || (run.status === "waiting_approval" && claudeCodeAgents.has(run.agentId)),
+      (run) => run.status === "running" || run.status === "queued" || (run.status === "waiting_approval" && programAgents.has(run.agentId)),
     );
     if (!stuck.length) return 0;
     const ids = new Set(stuck.map((run) => run.id));
@@ -651,11 +654,13 @@ export class RunService {
       if (model.provider === "claude-code") {
         // The official Agent SDK runs the whole agent loop (tools, approvals, session) itself.
         await this.kernel.claudeCode.run(runId, generation, agent, model, signal);
+        this.noteFinished(runId, generation);
         return;
       }
       if (model.provider === "codex") {
         // The official Codex SDK runs the whole agent loop (commands, edits, thread) itself.
         await this.kernel.codex.run(runId, generation, agent, model, signal);
+        this.noteFinished(runId, generation);
         return;
       }
       const context = await this.ragContext(agent, run.input, signal);
@@ -858,6 +863,12 @@ export class RunService {
     const current = this.kernel.getRun(runId);
     this.kernel.log("agent", current.status === "failed" ? "error" : "info", `${agent.name} ${current.status}`);
     void this.kernel.memory.noteRun(current);
+  }
+
+  /** A Claude Code or Codex turn that completed feeds memory, as a local run's does when it finishes. */
+  private noteFinished(runId: string, generation: number): void {
+    const run = this.kernel.store.state.runs.find((item) => item.id === runId);
+    if (run && (run.generation ?? 0) === generation && run.status === "completed") void this.kernel.memory.noteRun(run);
   }
 
   toolList(agent: Agent) {

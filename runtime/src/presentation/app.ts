@@ -17,6 +17,8 @@ import { mountProjects } from "./projects-controller.js";
 import { mountGroups } from "./groups-controller.js";
 import { recordRequestError, traceRequests } from "./telemetry-middleware.js";
 import { loadOrCreateToken, tokenMatches } from "../infrastructure/auth.js";
+import { runtimeOrigin } from "../application/agent-skills.js";
+import { AGENT_SKILLS_PATH, mountAgentSkills } from "./agent-skills-controller.js";
 
 /**
  * The only cross-origin callers are Saturn's own windows, which load from a loopback origin. A web page on a
@@ -47,7 +49,7 @@ function loopbackHost(hostHeader: string | undefined): boolean {
 const OPEN_PATHS = new Set(["/health", "/oauth/callback"]);
 
 export function createApp(store: FileStore) {
-  const origin = `http://${process.env.SATURN_RUNTIME_HOST ?? "127.0.0.1"}:${process.env.SATURN_RUNTIME_PORT ?? 4700}`;
+  const origin = runtimeOrigin();
   const token = loadOrCreateToken(store.root);
   const mcp = new McpClient({ vault: store, redirectUrl: `${origin}/oauth/callback`, openBrowser: openInBrowser });
   const services = new AppServices(store, mcp);
@@ -68,13 +70,14 @@ export function createApp(store: FileStore) {
   });
   // Authentication: loopback is not a trust boundary (any local process, or a web page via the browser, can
   // reach 127.0.0.1). Every request must carry the session token, which only this user's own processes can
-  // read from the 0600 token file. The health probe and the OAuth redirect are the sole exceptions.
+  // read from the 0600 token file. The health probe and the OAuth redirect are the sole exceptions; the
+  // skills endpoint checks a running Codex turn's own token instead.
   app.use((req, res, next) => {
     if (!loopbackHost(req.headers.host)) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
-    if (OPEN_PATHS.has(req.path)) {
+    if (OPEN_PATHS.has(req.path) || req.path === AGENT_SKILLS_PATH) {
       next();
       return;
     }
@@ -98,6 +101,7 @@ export function createApp(store: FileStore) {
   mountProjects(app, services);
   mountAutomations(app, services);
   mountGroups(app, services);
+  mountAgentSkills(app, services);
   mountTelemetry(app);
   mountMarketplace(app, services);
 
