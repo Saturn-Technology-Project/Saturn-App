@@ -40,6 +40,22 @@ export function stepLimitNote(): string {
 
 const CONTINUE_AFTER_TOOLS = "Continue from the tool results above: use more tools if the task needs them, otherwise give your answer.";
 
+
+/** One row of the IDE's Agents view (see recentRuns). */
+export type RunSummary = {
+  id: string;
+  agentId: string;
+  agentName: string;
+  threadId: string;
+  threadTitle: string;
+  projectId?: string;
+  branch?: string;
+  status: Run["status"];
+  input: string;
+  changedFiles: number;
+  updatedAt?: string;
+};
+
 /** Providers whose Saturn adapter sends a user's images to the model. DeepSeek's API takes text only. */
 const SEES_IMAGES = new Set(["claude", "openai", "gemini", "lmstudio", "claude-code", "codex"]);
 
@@ -288,6 +304,37 @@ export class RunService {
     });
     await this.kernel.checkpoints.forget(removed);
     await forgetImages(this.kernel.store.root, removed);
+  }
+
+  /**
+   * The runs worth showing in a list of agents at work: every run still going (running, queued, waiting for an
+   * approval, sleeping), then the latest finished ones, newest first. Group turns are left out.
+   */
+  recentRuns(projectId?: string, limit = 20): RunSummary[] {
+    const threads = new Map((this.kernel.store.state.threads ?? []).map((thread) => [thread.id, thread]));
+    const agents = new Map(this.kernel.store.state.agents.map((agent) => [agent.id, agent]));
+    const active = new Set(["running", "queued", "waiting_approval", "sleeping"]);
+    const runs = this.kernel.store.state.runs.filter((run) => {
+      if (run.groupId || !run.threadId) return false;
+      return !projectId || threads.get(run.threadId)?.projectId === projectId;
+    });
+    const picked = [...runs.filter((run) => active.has(run.status)), ...runs.filter((run) => !active.has(run.status)).slice(0, Math.max(0, limit))];
+    return picked.map((run) => {
+      const thread = threads.get(run.threadId!);
+      return {
+        id: run.id,
+        agentId: run.agentId,
+        agentName: agents.get(run.agentId)?.name ?? "Agent",
+        threadId: run.threadId!,
+        threadTitle: thread?.title ?? "Chat",
+        ...(thread?.projectId ? { projectId: thread.projectId } : {}),
+        ...(thread?.worktree ? { branch: thread.worktree.branch } : {}),
+        status: run.status,
+        input: clip(run.input.split("\n<saturn_context")[0] ?? run.input, 120),
+        changedFiles: run.checkpoint?.files.filter((file) => file.before !== file.after).length ?? 0,
+        ...(thread?.updatedAt ? { updatedAt: thread.updatedAt } : {}),
+      };
+    });
   }
 
   async reviseRun(id: string, input: string): Promise<{ run: Run; removed: string[] }> {

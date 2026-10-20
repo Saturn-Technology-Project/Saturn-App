@@ -156,3 +156,27 @@ test("a project's rule files reach the agent's prompt in order, within a budget,
     fake.server.close();
   }
 });
+
+test("GET /runs lists the runs still going first, then the latest finished, per project", async () => {
+  const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-recent-")));
+  await store.load();
+  const { services } = createApp(store);
+  const now = new Date().toISOString();
+  await store.update((state) => {
+    state.agents.push({ id: "agt_r", name: "Runner", modelConnectionId: "", mcpConnectionIds: [], ragConnectionIds: [], instructions: "" } as never);
+    state.threads = [
+      { id: "thr_a", agentId: "agt_r", projectId: "proj_a", title: "In A", createdAt: now, updatedAt: now, worktree: { branch: "saturn/abc", base: "main" } },
+      { id: "thr_b", agentId: "agt_r", projectId: "proj_b", title: "In B", createdAt: now, updatedAt: now },
+    ];
+    // Newest first, as startRun keeps them.
+    state.runs.unshift(
+      { id: "run_live", agentId: "agt_r", threadId: "thr_a", input: "live", status: "waiting_approval", output: "", actions: [], generation: 0 },
+      { id: "run_b", agentId: "agt_r", threadId: "thr_b", input: "b", status: "completed", output: "", actions: [], generation: 0 },
+      { id: "run_old", agentId: "agt_r", threadId: "thr_a", input: "old\n<saturn_context sources=\"x\">hidden</saturn_context>", status: "completed", output: "", actions: [], generation: 0 },
+    );
+  });
+  const all = services.recentRuns();
+  assert.deepEqual(all.map((run) => run.id), ["run_live", "run_b", "run_old"]);
+  const inA = services.recentRuns("proj_a");
+  assert.deepEqual(inA.map((run) => [run.id, run.branch, run.input]), [["run_live", "saturn/abc", "live"], ["run_old", "saturn/abc", "old"]]);
+});

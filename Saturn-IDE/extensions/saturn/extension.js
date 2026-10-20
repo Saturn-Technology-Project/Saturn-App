@@ -7,13 +7,14 @@ const os = require('node:os');
 const nodePath = require('node:path');
 const { registerEditorAi } = require('./editor-ai');
 const { registerGitAi } = require('./git-ai');
-const { registerIdeBridge } = require('./ide-bridge');
+const { registerIdeBridge, diagnostics: editorDiagnostics } = require('./ide-bridge');
+const { AgentsView, editRules } = require('./agents-view');
 const agentTools = require('./agent-tools');
 const { registerAgentReview } = require('./agent-review');
 
 /** Editor-side helpers shared by the sidebar panel and the Agent window: diff documents and the agent terminal. */
 /** @type {{ content: agentTools.DiffContent, terminal: agentTools.AgentTerminal, review: any }} */
-const shared = { content: new agentTools.DiffContent(), terminal: new agentTools.AgentTerminal(), review: null };
+const shared = { content: new agentTools.DiffContent(), terminal: new agentTools.AgentTerminal(), review: null, /** @type {any} */ agents: null };
 
 /** Talks to the local Saturn runtime (the same one the Saturn app uses). */
 class Runtime {
@@ -105,13 +106,44 @@ function openSaturnLink(url, failure) {
 	});
 }
 
-/** What the agent should know about the editor: the open file, the selection, and the workspace folder. */
-function editorContext() {
+/**
+ * The local folders open in this window. A multi-root workspace has several; the chat works in one at a time.
+ * @returns {vscode.WorkspaceFolder[]}
+ */
+function localFolders() {
+	return (vscode.workspace.workspaceFolders || []).filter((folder) => folder.uri.scheme === 'file');
+}
+
+/**
+ * A sent message's images as data URLs, read from the runtime's data folder (paths it recorded under
+ * run-images/). Anything outside that folder or missing is skipped.
+ * @param {unknown} paths @returns {string[]}
+ */
+function readRunImages(paths) {
+	const root = nodePath.join(process.env.SATURN_DATA_DIR || nodePath.join(os.homedir(), '.saturn-app'), 'run-images');
+	const types = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' };
+	const images = [];
+	for (const relative of Array.isArray(paths) ? paths : []) {
+		const full = nodePath.resolve(nodePath.dirname(root), String(relative));
+		const type = types[/** @type {keyof typeof types} */ (nodePath.extname(full).slice(1))];
+		if (!type || !full.startsWith(root + nodePath.sep)) {
+			continue;
+		}
+		try {
+			images.push(`data:${type};base64,${fs.readFileSync(full).toString('base64')}`);
+		} catch {
+			// Removed with its chat.
+		}
+	}
+	return images;
+}
+
+/** What the agent should know about the editor: the open file, the selection, and the chat's folder. @param {string} [folder] */
+function editorContext(folder) {
 	const editor = vscode.window.activeTextEditor;
-	const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
 	const lines = [];
 	if (folder) {
-		lines.push(`Workspace: ${folder.uri.fsPath}`);
+		lines.push(`Workspace: ${folder}`);
 	}
 	if (editor) {
 		const document = editor.document;
@@ -124,6 +156,77 @@ function editorContext() {
 		}
 	}
 	return lines.join('\n');
+}
+
+/** Every error the editor shows right now, as "file|message". */
+function currentErrors() {
+	const known = new Set();
+	for (const [uri, list] of vscode.languages.getDiagnostics()) {
+		for (const item of list) {
+			if (item.severity === vscode.DiagnosticSeverity.Error) known.add(`${uri.fsPath}|${item.message}`);
+		}
+	}
+	return known;
+}
+
+/**
+ * Runs the project's check command (saturn.verify.command; "auto" picks package.json's typecheck or lint script)
+ * in the project folder. Undefined when there is none to run.
+ * @param {string} setting @param {string} root
+ * @returns {Promise<{ command: string, ok: boolean, code: number | null, output: string } | undefined>}
+ */
+async function runCheckCommand(setting, root) {
+	let command = setting.trim();
+	if (command === 'auto') {
+		try {
+			const scripts = JSON.parse(fs.readFileSync(nodePath.join(root, 'package.json'), 'utf8')).scripts || {};
+			command = scripts.typecheck ? 'npm run typecheck' : scripts.lint ? 'npm run lint' : '';
+		} catch {
+			command = '';
+		}
+	}
+	if (!command) {
+		return undefined;
+	}
+	const { exec } = require('child_process');
+	return await new Promise((resolve) => {
+		exec(command, { cwd: root, timeout: 5 * 60 * 1000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
+			const output = `${stdout}${stderr}`.trim().slice(-4000);
+			resolve({ command, ok: !error, code: error ? (typeof error.code === 'number' ? error.code : null) : 0, output });
+		});
+	});
+}
+
+/** The chat's slash commands that become a prepared request (the others, /clear /model /help, act in the panel). */
+const SLASH_COMMANDS = {
+	fix: 'Fix the problems the editor reports below. Find the cause, change the code, and check the errors are gone.',
+	explain: 'Explain what this code does, how it works, and anything surprising in it.',
+	test: 'Write tests for this code that follow the project\'s existing test setup, and run them.',
+	doc: 'Add documentation comments to this code in the style the project already uses. Change nothing else.',
+	review: 'Review the uncommitted changes below: bugs, missed cases, risky changes and simpler alternatives, most important first.',
+};
+
+/**
+ * A slash command as the request the agent gets: its instruction, the user's own words after it, and the context it
+ * needs (the open file's problems for /fix, the file or selection for /explain /test /doc, the git diff for /review).
+ * @param {string} command @param {string} rest @param {string | undefined} folder
+ * @returns {{ text: string, items: any[], withContext: boolean }}
+ */
+function slashRequest(command, rest, folder) {
+	const instruction = SLASH_COMMANDS[/** @type {keyof typeof SLASH_COMMANDS} */ (command)];
+	const text = rest.trim() ? `${instruction}\n\n${rest.trim()}` : instruction;
+	const editor = vscode.window.activeTextEditor;
+	const file = editor && editor.document.uri.scheme === 'file' ? editor.document.uri.fsPath : undefined;
+	const label = file ? nodePath.basename(file) : '';
+	if (command === 'review') {
+		return { text, items: folder ? [{ kind: 'git', label: 'git changes', path: folder }] : [], withContext: false };
+	}
+	if (command === 'fix') {
+		return { text, items: file ? [{ kind: 'problems', label: `problems: ${label}`, path: file }, { kind: 'file', label, path: file }] : [{ kind: 'problems', label: 'problems' }], withContext: true };
+	}
+	// /explain /test /doc: the selection when there is one (editor context), else the whole open file.
+	const selected = editor && !editor.selection.isEmpty;
+	return { text, items: file && !selected ? [{ kind: 'file', label, path: file }] : [], withContext: true };
 }
 
 class AgentView {
@@ -147,6 +250,50 @@ class AgentView {
 		 * @type {{ id?: string; name: string; path: string; access: boolean } | null}
 		 */
 		this.project = null;
+		/** Errors the editor showed when the user last sent a message: not the agent's to fix. @type {Set<string>} */
+		this.knownErrors = new Set();
+		/** Automatic fix rounds since the user's last own message, by chat. @type {Map<string, number>} */
+		this.verifyRounds = new Map();
+		/** Runs already verified (each is checked once). @type {Set<string>} */
+		this.verified = new Set();
+	}
+
+	/**
+	 * The folder the chat works in. With several folders open: the one the user picked in the chat header, else
+	 * the folder of the file being edited, else the first.
+	 * @returns {vscode.WorkspaceFolder | undefined}
+	 */
+	currentFolder() {
+		const folders = localFolders();
+		if (folders.length <= 1) {
+			return folders[0];
+		}
+		const chosen = this.context.workspaceState.get('saturn.chatFolder');
+		const picked = folders.find((folder) => folder.uri.fsPath === chosen);
+		if (picked) {
+			return picked;
+		}
+		const editor = vscode.window.activeTextEditor;
+		const editing = editor && vscode.workspace.getWorkspaceFolder(editor.document.uri);
+		return (editing && folders.includes(editing) ? editing : undefined) || folders[0];
+	}
+
+	/** The chat header's folder menu, in a multi-root workspace: switches the chat to another folder's project. */
+	async pickFolder() {
+		const folders = localFolders();
+		const current = this.currentFolder();
+		const pick = await vscode.window.showQuickPick(folders.map((folder) => ({
+			label: folder.name,
+			description: folder.uri.fsPath,
+			picked: folder === current,
+			folder,
+		})), { placeHolder: 'Which folder should Saturn work in?' });
+		if (!pick || pick.folder === current) {
+			return;
+		}
+		await this.context.workspaceState.update('saturn.chatFolder', pick.folder.uri.fsPath);
+		this.threadId = undefined;
+		await this.refresh();
 	}
 
 	/** @param {vscode.WebviewView} view */
@@ -215,10 +362,11 @@ class AgentView {
 		return this.project && this.project.id && this.project.access ? this.project.id : undefined;
 	}
 
-	/** Finds the Saturn project for the workspace's first folder and tells the panel whether agents may work there. */
+	/** Finds the Saturn project for the chat's folder and tells the panel whether agents may work there. */
 	async resolveProject() {
-		const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
-		if (!folder || folder.uri.scheme !== 'file') {
+		const folder = this.currentFolder();
+		const folderCount = localFolders().length;
+		if (!folder) {
 			this.project = null;
 			this.post({ type: 'project', state: 'none' });
 			return;
@@ -229,7 +377,10 @@ class AgentView {
 		this.project = match
 			? { id: match.id, name: match.name, path: match.path, access: Boolean(match.access) }
 			: { name: folder.name, path: folderPath, access: false };
-		this.post({ type: 'project', state: this.projectId() ? 'ready' : 'needs-access', name: this.project.name, path: this.project.path });
+		const rules = this.projectId()
+			? await this.runtime.request(`/projects/${encodeURIComponent(this.projectId() || '')}/rules`).then((/** @type {any} */ found) => found.sources || [], () => [])
+			: [];
+		this.post({ type: 'project', state: this.projectId() ? 'ready' : 'needs-access', name: this.project.name, path: this.project.path, folders: folderCount, rules });
 		this.reindex();
 	}
 
@@ -280,9 +431,9 @@ class AgentView {
 		this.post({ type: 'history', runs: runs || [] });
 	}
 
-	/** The open workspace folder: where codebase search and attached context come from. */
+	/** The chat's folder: where codebase search and attached context come from. */
 	workspaceFolder() {
-		const folder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0];
+		const folder = this.currentFolder();
 		return folder ? folder.uri.fsPath : undefined;
 	}
 
@@ -301,7 +452,7 @@ class AgentView {
 		const sections = [];
 		const sources = [];
 		if (message.withContext) {
-			const editor = editorContext();
+			const editor = editorContext(folder);
 			if (editor) {
 				sections.push(`<editor_context>\n${editor}\n</editor_context>`);
 				sources.push('active file');
@@ -351,6 +502,18 @@ class AgentView {
 				case 'allowProject':
 					await this.allowProject();
 					break;
+				case 'pickFolder':
+					await this.pickFolder();
+					break;
+				case 'runImages':
+					this.post({ type: 'runImages', runId: message.runId, images: readRunImages(message.paths) });
+					break;
+				case 'restoreStep':
+					await this.restoreStep(String(message.runId), String(message.actionId));
+					break;
+				case 'editRules':
+					await vscode.commands.executeCommand('saturn.editRules');
+					break;
 				case 'newChat':
 					this.newChat();
 					break;
@@ -370,6 +533,18 @@ class AgentView {
 					}
 					break;
 				case 'send': {
+					if (message.background) {
+						await this.sendInBackground(message);
+						break;
+					}
+					if (!message.automatic) {
+						this.knownErrors = currentErrors();
+						if (this.threadId) this.verifyRounds.delete(this.threadId);
+					}
+					if (typeof message.command === 'string' && Object.hasOwn(SLASH_COMMANDS, message.command)) {
+						const request = slashRequest(message.command, String(message.text || ''), this.workspaceFolder());
+						message = { ...message, text: request.text, withContext: message.withContext || request.withContext, contextItems: [...request.items, ...(message.contextItems || [])] };
+					}
 					if (this.project && !this.projectId()) {
 						this.post({ type: 'error', message: `Allow Saturn agents to work in ${this.project.name} first.` });
 						this.post({ type: 'project', state: 'needs-access', name: this.project.name, path: this.project.path });
@@ -387,7 +562,12 @@ class AgentView {
 					}
 					const run = await this.runtime.request(`/agents/${encodeURIComponent(message.agentId)}/runs`, {
 						method: 'POST',
-						body: JSON.stringify({ input, threadId: this.threadId }),
+						body: JSON.stringify({
+							input,
+							threadId: this.threadId,
+							...(Array.isArray(message.images) && message.images.length ? { images: message.images } : {}),
+							...(message.mode && message.mode !== 'agent' ? { mode: message.mode } : {}),
+						}),
 					});
 					this.post({ type: 'run', run });
 					this.watch(run.id);
@@ -482,9 +662,13 @@ class AgentView {
 				case 'apply':
 					await agentTools.applyCode(this.runtime, shared.content, String(message.code || ''), String(message.lang || ''), this.workspaceFolder());
 					break;
-				case 'runInTerminal':
-					shared.terminal.runInTerminal(String(message.command || ''), (this.project && this.project.path) || this.workspaceFolder());
+				case 'runInTerminal': {
+					const command = String(message.command || '');
+					shared.terminal.runInTerminal(command, (this.project && this.project.path) || this.workspaceFolder(), (entry) => {
+						this.post({ type: 'commandResult', command, exitCode: entry.exitCode, output: entry.output.slice(-4000) });
+					});
 					break;
+				}
 				case 'showTerminal':
 					shared.terminal.ensure().show(true);
 					break;
@@ -552,6 +736,10 @@ class AgentView {
 				const run = await this.runtime.request(`/runs/${encodeURIComponent(runId)}`);
 				this.post({ type: 'run', run });
 				shared.terminal.feed(run);
+				if (run.status === 'completed' && !this.verified.has(run.id)) {
+					this.verified.add(run.id);
+					void this.verify(run);
+				}
 				if (run.status === 'running' || run.status === 'queued') {
 					this.poll = setTimeout(tick, 400);
 				} else if (run.status === 'sleeping') {
@@ -565,6 +753,51 @@ class AgentView {
 			}
 		};
 		void tick();
+	}
+
+	/**
+	 * After an agent turn that changed files: the changed files' new errors (the editor's language servers, and the
+	 * project's check command when one is set). Errors that were already there when the user sent the message do
+	 * not count. New errors go back to the agent as a follow-up, at most twice per user message.
+	 * @param {any} run
+	 */
+	async verify(run) {
+		const config = vscode.workspace.getConfiguration('saturn');
+		const changed = run.checkpoint && Array.isArray(run.checkpoint.files)
+			? run.checkpoint.files.filter((/** @type {any} */ file) => file.before !== file.after && file.review !== 'reverted' && file.after !== null)
+			: [];
+		if (config.get('verify.auto', true) === false || !changed.length || !run.threadId) {
+			return;
+		}
+		const root = run.checkpoint.root;
+		this.post({ type: 'verify', runId: run.id, state: 'checking' });
+		const problems = [];
+		for (const file of changed) {
+			const full = nodePath.join(root, file.path);
+			const found = await editorDiagnostics(root, full, 'error').catch(() => ({ problems: [] }));
+			for (const item of found.problems) {
+				if (!this.knownErrors.has(`${full}|${item.message}`)) {
+					problems.push(`${file.path}:${item.line}:${item.column} ${item.message}${item.source ? ` (${item.source}${item.code ? ` ${item.code}` : ''})` : ''}`);
+				}
+			}
+		}
+		const check = await runCheckCommand(String(config.get('verify.command', '') || ''), root);
+		const rounds = this.verifyRounds.get(run.threadId) || 0;
+		if (!problems.length && (!check || check.ok)) {
+			this.post({ type: 'verify', runId: run.id, state: 'passed', detail: check ? check.command : '' });
+			return;
+		}
+		const report = [
+			problems.length ? `The editor reports ${problems.length} new error${problems.length === 1 ? '' : 's'} in the files you changed:\n${problems.slice(0, 40).join('\n')}` : '',
+			check && !check.ok ? `\`${check.command}\` failed (exit ${check.code}):\n${check.output}` : '',
+		].filter(Boolean).join('\n\n');
+		if (rounds >= 2 || this.threadId !== run.threadId) {
+			this.post({ type: 'verify', runId: run.id, state: 'failed', detail: `${problems.length + (check && !check.ok ? 1 : 0)} problem(s) left after 2 automatic fix rounds` });
+			return;
+		}
+		this.verifyRounds.set(run.threadId, rounds + 1);
+		this.post({ type: 'verify', runId: run.id, state: 'fixing', detail: `round ${rounds + 1} of 2` });
+		this.post({ type: 'submit', text: `${report}\n\nFix these, then check again.`, automatic: true });
 	}
 
 	stopPolling() {
@@ -592,6 +825,61 @@ class AgentView {
 
 	focusInput() {
 		this.post({ type: 'focus' });
+	}
+
+	/** Puts the files back to just before one tool step, after the user confirms. @param {string} runId @param {string} actionId */
+	async restoreStep(runId, actionId) {
+		const choice = await vscode.window.showWarningMessage('Restore the files to how they were just before this step?', {
+			modal: true,
+			detail: 'Files this step and later steps wrote go back to their earlier content, and later turns in this chat are reverted too. Files changed by shell commands are not restored. The messages stay.',
+		}, 'Restore');
+		if (choice !== 'Restore') return;
+		const result = await this.runtime.request(`/runs/${encodeURIComponent(runId)}/restore`, { method: 'POST', body: JSON.stringify({ actionId }) });
+		const count = (result && result.files && result.files.length) || 0;
+		vscode.window.setStatusBarMessage(`$(history) Saturn restored ${count} file${count === 1 ? '' : 's'}`, 6000);
+		await this.loadMessages();
+	}
+
+	/**
+	 * Starts the message in a new chat on its own branch (a worktree) and leaves this chat as it is; the Agents view
+	 * follows it and a notification says when it is done.
+	 * @param {any} message
+	 */
+	async sendInBackground(message) {
+		const projectId = this.projectId();
+		if (!projectId) {
+			this.post({ type: 'error', message: 'Background agents work in a project: open a folder and allow access first.' });
+			return;
+		}
+		const title = `⧉ ${String(message.text).split('\n')[0].slice(0, 40)}`;
+		const thread = await this.runtime.request(`/agents/${encodeURIComponent(message.agentId)}/threads`, { method: 'POST', body: JSON.stringify({ title, projectId }) });
+		// Its own branch, so its edits stay out of the folder you are working in until you merge them.
+		await this.runtime.request(`/threads/${encodeURIComponent(thread.id)}/worktree`, { method: 'POST', body: JSON.stringify({}) }).catch(() => undefined);
+		const input = await this.buildInput(message);
+		const run = await this.runtime.request(`/agents/${encodeURIComponent(message.agentId)}/runs`, {
+			method: 'POST',
+			body: JSON.stringify({
+				input,
+				threadId: thread.id,
+				...(Array.isArray(message.images) && message.images.length ? { images: message.images } : {}),
+				...(message.mode && message.mode !== 'agent' ? { mode: message.mode } : {}),
+			}),
+		});
+		shared.agents.follow(run.id, thread.id, message.agentId);
+		vscode.window.setStatusBarMessage(`$(sync~spin) Saturn is working in the background: ${title.slice(2)}`, 5000);
+	}
+
+	/** Opens one chat in the panel (from the Agents view or a notification). @param {string} agentId @param {string} threadId */
+	async openChat(agentId, threadId) {
+		this.stopPolling();
+		this.threadId = threadId;
+		this.post({ type: 'selectAgentId', agentId });
+		await this.loadThreads(agentId);
+	}
+
+	/** Sends a slash command as if typed (the Quick Fix lightbulb's "Fix with Saturn"). @param {string} text */
+	sendCommand(text) {
+		this.post({ type: 'submit', text });
 	}
 
 	/** @param {vscode.Webview} webview */
@@ -729,7 +1017,9 @@ class AgentView {
 		align-items: center;
 		gap: 2px;
 	}
+	.session-title { min-width: 0; flex: 0 1 auto; }
 	.worktree-btn {
+		flex-shrink: 0;
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
@@ -778,7 +1068,6 @@ class AgentView {
 		display: flex;
 		align-items: center;
 		gap: 6px;
-	}
 	}
 	.session-title {
 		font-size: 14px;
@@ -1915,6 +2204,47 @@ class AgentView {
 		background: rgba(127, 127, 127, 0.15);
 	}
 	.context-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.image-chip { padding: 2px 4px 2px 2px; border-radius: 6px; }
+	.mode-select {
+		height: 22px;
+		padding: 0 4px;
+		border: 1px solid var(--vscode-input-border, rgba(127,127,127,0.3));
+		border-radius: 5px;
+		background: transparent;
+		color: var(--vscode-descriptionForeground);
+		font: inherit;
+		font-size: 11px;
+		cursor: pointer;
+	}
+	.mode-select.ask, .mode-select.plan { color: var(--saturn-accent, var(--vscode-textLink-foreground)); border-color: currentColor; }
+	.step-row-wrap { position: relative; }
+	.step-restore {
+		position: absolute;
+		right: 26px;
+		top: 3px;
+		padding: 0 6px;
+		height: 18px;
+		border: 1px solid var(--vscode-input-border, rgba(127,127,127,0.3));
+		border-radius: 4px;
+		background: var(--vscode-sideBar-background);
+		color: var(--vscode-descriptionForeground);
+		font: inherit;
+		font-size: 10.5px;
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 100ms ease;
+	}
+	.step-row-wrap:hover .step-restore, .step-restore:focus-visible { opacity: 1; }
+	.verify-status { margin-top: 6px; font-size: 11px; color: var(--vscode-descriptionForeground); }
+	.verify-status.passed { color: var(--vscode-testing-iconPassed, #3fb950); }
+	.verify-status.fixing, .verify-status.failed { color: var(--vscode-editorWarning-foreground, #d29922); }
+	.command-status { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; }
+	.command-status.ok { color: var(--vscode-testing-iconPassed, #3fb950); }
+	.command-status.failed { color: var(--vscode-errorForeground, #f85149); }
+	.image-chip img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; display: block; }
+	.composer-card.dropping { outline: 1px dashed var(--saturn-accent, var(--vscode-focusBorder)); outline-offset: 2px; }
+	.user-images { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+	.user-images img { max-width: 160px; max-height: 120px; border-radius: 6px; border: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.25)); }
 	.context-chip button { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 2px; opacity: 0.7; }
 	.codebase-toggle {
 		display: inline-flex;
@@ -1946,6 +2276,8 @@ class AgentView {
 			<img class="saturn-header-logo" src="${icon}" alt="Saturn">
 			<span class="session-title" id="sessionTitle" title="Click to rename session">Untitled</span>
 			<input type="text" class="session-title-input" id="sessionTitleInput" value="Untitled">
+			<button class="worktree-btn" id="folderBtn" type="button" hidden title="The folder this chat works in"></button>
+			<button class="worktree-btn" id="rulesBtn" type="button" hidden title="Project rules"></button>
 			<button class="worktree-btn" id="worktreeBtn" type="button" hidden title="Work on an own git branch"></button>
 		</div>
 		<div class="session-actions">
@@ -2026,6 +2358,17 @@ class AgentView {
 			</div>
 
 			<div class="toolbar-right">
+				<select class="mode-select" id="modeSelect" title="Agent: may change files and run commands. Ask: only reads and answers. Plan: only reads and writes a plan.">
+					<option value="agent">Agent</option>
+					<option value="ask">Ask</option>
+					<option value="plan">Plan</option>
+				</select>
+				<button type="button" class="composer-btn" id="backgroundBtn" title="Run in the background: a new chat on its own branch, so you can keep working here. You are told when it finishes.">
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+						<rect x="2" y="4.5" width="9" height="9" rx="2"/>
+						<path d="M5.5 2.5h6a2 2 0 0 1 2 2v6"/>
+					</svg>
+				</button>
 				<button type="submit" class="send-circle-btn" id="send" title="Send (Enter)">
 					<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
 						<path fill-rule="evenodd" d="M8 14a.75.75 0 0 1-.75-.75V3.56L4.03 6.78a.75.75 0 0 1-1.06-1.06l4.5-4.5a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 1 1-1.06 1.06L8.75 3.56v9.69A.75.75 0 0 1 8 14z" clip-rule="evenodd"/>
@@ -2049,6 +2392,21 @@ class AgentView {
 
 	<!-- Slash Commands Menu Popup -->
 	<div class="slash-popup" id="slashPopup">
+		<div class="slash-item" data-cmd="/fix" data-insert="1">
+			<strong>/fix</strong> <span>Fix the open file's errors and warnings</span>
+		</div>
+		<div class="slash-item" data-cmd="/explain" data-insert="1">
+			<strong>/explain</strong> <span>Explain the selection or the open file</span>
+		</div>
+		<div class="slash-item" data-cmd="/test" data-insert="1">
+			<strong>/test</strong> <span>Write tests for the selection or the open file</span>
+		</div>
+		<div class="slash-item" data-cmd="/doc" data-insert="1">
+			<strong>/doc</strong> <span>Add documentation comments</span>
+		</div>
+		<div class="slash-item" data-cmd="/review" data-insert="1">
+			<strong>/review</strong> <span>Review the uncommitted changes</span>
+		</div>
 		<div class="slash-item" data-cmd="/clear">
 			<strong>/clear</strong> <span>New chat / clear history</span>
 		</div>
@@ -2075,6 +2433,11 @@ class AgentView {
 	const atBtn = $('atBtn'), codebaseBtn = $('codebaseBtn'), contextChips = $('contextChips');
 	/** Files, folders, pages and git changes attached to the next message. */
 	let pendingContext = [];
+	/** Images pasted or dropped into the composer, as data URLs (the runtime takes at most 4, 5 MB each). */
+	let pendingImages = [];
+	/** Sent messages' images, by run id, read from the runtime's data folder on demand. */
+	const runImages = new Map();
+	const MAX_IMAGES = 4, MAX_IMAGE_BYTES = 5 * 1024 * 1024, IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 	const modelPickerBtn = $('modelPickerBtn'), modelBadgeName = $('modelBadgeName'), modelBadgeLevel = $('modelBadgeLevel'), modelPopover = $('modelPopover');
 	// The open/closed checks below read el.style.display, so start every toggled element at an explicit 'none'.
 	for (const id of ['sessionTitleInput', 'historyPopover', 'slashPopup', 'modelPopover', 'agent']) {
@@ -2365,8 +2728,14 @@ class AgentView {
 				const runBtn = el('button', 'code-copy', 'Run');
 				runBtn.type = 'button';
 				runBtn.title = 'Open a terminal with this command typed in (you press Enter)';
-				runBtn.onclick = () => vscode.postMessage({ type: 'runInTerminal', command: code.replace(/^\\$\\s+/gm, '') });
+				const command = code.replace(/^\\$\\s+/gm, '');
+				runBtn.onclick = () => vscode.postMessage({ type: 'runInTerminal', command });
 				actionsWrap.append(runBtn);
+				// How the command ended once the user ran it, with a way to hand a failure to the agent.
+				const status = el('span', 'command-status');
+				status.dataset.command = command;
+				showCommandResult(status, commandResults.get(command));
+				actionsWrap.append(status);
 			} else {
 				const applyBtn = el('button', 'code-copy', 'Apply');
 				applyBtn.type = 'button';
@@ -2485,6 +2854,18 @@ class AgentView {
 					}
 
 					rowWrap.append(row);
+
+					// A step that wrote files: put the files back to just before it (later steps and turns too).
+					if (!busy(run) && run.checkpoint && (run.checkpoint.steps || []).some((entry) => entry.actionId === action.id)) {
+						const restore = el('button', 'step-restore', 'Restore to here');
+						restore.type = 'button';
+						restore.title = 'Put the files back to how they were just before this step';
+						restore.onclick = (event) => {
+							event.stopPropagation();
+							vscode.postMessage({ type: 'restoreStep', runId: run.id, actionId: action.id });
+						};
+						rowWrap.append(restore);
+					}
 
 					if (action.toolId === 'computer_screenshot' || action.toolId.includes('screenshot')) {
 						const res = action.result;
@@ -2610,9 +2991,99 @@ class AgentView {
 		return card;
 	}
 
+	const modeSelect = $('modeSelect');
+	/** Shows the chosen mode and remembers it for the next messages. */
+	function setMode(mode) {
+		state.mode = mode;
+		vscode.setState(state);
+		modeSelect.value = mode;
+		modeSelect.className = 'mode-select ' + mode;
+	}
+	modeSelect.addEventListener('change', () => setMode(modeSelect.value));
+	setMode(state.mode === 'ask' || state.mode === 'plan' ? state.mode : 'agent');
+	/** The next send goes to a new background chat instead of this one. */
+	let backgroundNext = false;
+	$('backgroundBtn').onclick = () => {
+		if (!input.value.trim()) {
+			showError('Type what the background agent should do, then click Run in the background.');
+			input.focus();
+			return;
+		}
+		backgroundNext = true;
+		$('form').requestSubmit();
+	};
+
+	/** The next submit is Saturn's own (an automatic fix round), not the user's. */
+	let automaticNext = false;
+	/** After-edit checks, by run id: checking, passed, fixing or failed. */
+	const verifyStates = new Map();
+
+	/** How commands run from code blocks ended, by command text. */
+	const commandResults = new Map();
+	/** @param {HTMLElement} status @param {{ exitCode?: number, output: string } | undefined} result */
+	function showCommandResult(status, result) {
+		status.replaceChildren();
+		if (!result) return;
+		const failed = result.exitCode !== undefined && result.exitCode !== 0;
+		status.className = 'command-status ' + (failed ? 'failed' : 'ok');
+		status.append(el('span', '', result.exitCode === undefined ? 'ran' : failed ? 'exit ' + result.exitCode : '✓ exit 0'));
+		if (failed) {
+			const fix = el('button', 'code-copy', 'Fix');
+			fix.type = 'button';
+			fix.title = 'Ask the agent to fix this failure (the output goes with the message)';
+			fix.onclick = () => {
+				input.value = 'This command failed with exit code ' + result.exitCode + ':\\n\\n$ ' + status.dataset.command + '\\n' + result.output.trim().slice(-3000) + '\\n\\nFind the cause and fix it.';
+				input.rows = 6;
+				input.focus();
+			};
+			status.append(fix);
+		}
+	}
+
+	/** A short notice in the error line under the chat. */
+	function showError(message) {
+		errorBox.hidden = false;
+		errorBox.replaceChildren(document.createTextNode(message));
+	}
+
+	/** Reads image files into the composer; anything that is not a usable image is explained, not dropped silently. */
+	function addImages(files) {
+		for (const file of files) {
+			if (!IMAGE_TYPES.includes(file.type)) continue;
+			if (pendingImages.length >= MAX_IMAGES) { showError('Attach at most ' + MAX_IMAGES + ' images to one message.'); break; }
+			if (file.size > MAX_IMAGE_BYTES) { showError(file.name + ' is larger than 5 MB.'); continue; }
+			const reader = new FileReader();
+			reader.onload = () => {
+				if (typeof reader.result === 'string' && pendingImages.length < MAX_IMAGES) {
+					pendingImages.push(reader.result);
+					renderChips();
+					updateSend();
+				}
+			};
+			reader.readAsDataURL(file);
+		}
+	}
+
 	/** The attached-context chips above the input. */
 	function renderChips() {
 		contextChips.replaceChildren();
+		pendingImages.forEach((url, index) => {
+			const chip = el('span', 'context-chip image-chip');
+			const thumb = document.createElement('img');
+			thumb.src = url;
+			thumb.alt = 'Attached image ' + (index + 1);
+			chip.append(thumb);
+			const remove = el('button', '', '✕');
+			remove.type = 'button';
+			remove.title = 'Remove image';
+			remove.onclick = () => {
+				pendingImages.splice(index, 1);
+				renderChips();
+				updateSend();
+			};
+			chip.append(remove);
+			contextChips.append(chip);
+		});
 		pendingContext.forEach((item, index) => {
 			const chip = el('span', 'context-chip');
 			chip.title = item.path || item.url || item.label;
@@ -2759,6 +3230,22 @@ class AgentView {
 				const turnWrap = el('div', 'user-turn');
 				const userBlock = el('div', 'user-block');
 				userBlock.append(el('div', 'user', shown(run.input)));
+				if (run.inputImages && run.inputImages.length) {
+					const strip = el('div', 'user-images');
+					const urls = runImages.get(run.id);
+					if (urls) {
+						for (const url of urls) {
+							const image = document.createElement('img');
+							image.src = url;
+							image.alt = 'Attached image';
+							strip.append(image);
+						}
+					} else {
+						runImages.set(run.id, []);
+						vscode.postMessage({ type: 'runImages', runId: run.id, paths: run.inputImages });
+					}
+					userBlock.append(strip);
+				}
 
 				if (!busy(run)) {
 					const editBtn = el('button', 'user-edit-btn');
@@ -2808,6 +3295,16 @@ class AgentView {
 			}
 			const changesNode = !busy(run) && run.status !== 'waiting_approval' ? renderChanges(run) : null;
 			if (changesNode) reply.append(changesNode);
+			const check = verifyStates.get(run.id);
+			if (check) {
+				const labels = {
+					checking: 'Checking the changed files for errors…',
+					passed: 'No new errors' + (check.detail ? ' · ' + check.detail + ' passed' : ''),
+					fixing: 'New errors found · asked the agent to fix them (' + check.detail + ')',
+					failed: 'Errors remain · ' + check.detail,
+				};
+				reply.append(el('div', 'verify-status ' + check.state, labels[check.state] || check.state));
+			}
 			log.append(reply);
 		}
 
@@ -2849,6 +3346,24 @@ class AgentView {
 	}
 
 	function showProject(data) {
+		// Several folders open: a chip names the chat's folder and switches it.
+		const folderBtn = $('folderBtn');
+		folderBtn.hidden = !(data.folders > 1);
+		if (!folderBtn.hidden) {
+			folderBtn.textContent = '▤ ' + data.name;
+			folderBtn.title = 'This chat works in ' + data.path + '. Click to work in another folder of the workspace.';
+			folderBtn.onclick = () => vscode.postMessage({ type: 'pickFolder' });
+		}
+		const rulesBtn = $('rulesBtn');
+		const rules = data.rules || [];
+		rulesBtn.hidden = data.state !== 'ready';
+		if (!rulesBtn.hidden) {
+			rulesBtn.textContent = rules.length ? '§ Rules · ' + rules.length : '§ Rules';
+			rulesBtn.title = rules.length
+				? 'Agents follow: ' + rules.map((item) => item.path).join(', ') + '. Click to edit.'
+				: 'No project rules yet. Click to create AGENTS.md: instructions every agent gets in this project.';
+			rulesBtn.onclick = () => vscode.postMessage({ type: 'editRules' });
+		}
 		projectBanner.replaceChildren();
 		if (data.state === 'needs-access') {
 			projectBanner.className = 'project-banner needs-access';
@@ -2895,6 +3410,22 @@ class AgentView {
 			render();
 		} else if (data.type === 'project') {
 			showProject(data);
+		} else if (data.type === 'selectAgentId') {
+			// The extension opened one of this agent's chats (Agents view, notification): show it as selected.
+			if (rawAgents.some((agent) => agent.id === data.agentId)) {
+				agentSelect.value = data.agentId;
+				state.agentId = data.agentId;
+				vscode.setState(state);
+				updateModelBadge();
+			}
+		} else if (data.type === 'commandResult') {
+			commandResults.set(data.command, { exitCode: data.exitCode, output: data.output || '' });
+			document.querySelectorAll('.command-status').forEach((status) => {
+				if (status.dataset.command === data.command) showCommandResult(status, commandResults.get(data.command));
+			});
+		} else if (data.type === 'runImages') {
+			runImages.set(data.runId, data.images || []);
+			render();
 		} else if (data.type === 'threads') {
 			threads = data.threads || [];
 			currentThreadId = data.current;
@@ -2935,6 +3466,18 @@ class AgentView {
 			input.focus();
 		} else if (data.type === 'focus') {
 			input.focus();
+		} else if (data.type === 'submit') {
+			if (busy(current)) {
+				input.value = data.text;
+				input.focus();
+			} else {
+				input.value = data.text;
+				automaticNext = Boolean(data.automatic);
+				$('form').requestSubmit();
+			}
+		} else if (data.type === 'verify') {
+			verifyStates.set(data.runId, { state: data.state, detail: data.detail || '' });
+			render();
 		} else if (data.type === 'error') {
 			errorBox.hidden = false;
 			errorBox.replaceChildren(document.createTextNode(data.offline ? 'Saturn runtime is not running. ' : data.message + ' '));
@@ -3116,7 +3659,12 @@ class AgentView {
 		item.addEventListener('click', () => {
 			const cmd = item.getAttribute('data-cmd');
 			slashPopup.style.display = 'none';
-			if (cmd === '/clear') {
+			if (item.getAttribute('data-insert')) {
+				// A prepared request: the command goes in the input, with room for the user's own words.
+				input.value = cmd + ' ';
+				input.focus();
+				input.setSelectionRange(input.value.length, input.value.length);
+			} else if (cmd === '/clear') {
 				vscode.postMessage({ type: 'newChat' });
 			} else if (cmd === '/model') {
 				modelPickerBtn.click();
@@ -3156,12 +3704,15 @@ class AgentView {
 	// Form submission
 	$('form').addEventListener('submit', (event) => {
 		event.preventDefault();
-		if (busy(current)) {
+		if (busy(current) && !backgroundNext) {
 			vscode.postMessage({ type: 'stop', runId: current.id });
 			return;
 		}
-		const text = input.value.trim();
-		if (!text || !agentSelect.value || busy(current)) return;
+		const typed = input.value.trim();
+		if ((!typed && !pendingImages.length) || !agentSelect.value || (busy(current) && !backgroundNext)) return;
+		// "/fix …", "/explain …": the extension turns the command into its request and context.
+		const slash = /^\\/(fix|explain|test|doc|review)\\b\\s*([\\s\\S]*)$/.exec(typed);
+		const text = slash ? slash[2] : typed || 'Look at the attached image' + (pendingImages.length === 1 ? '.' : 's.');
 		input.value = '';
 		input.rows = 1;
 		send.disabled = true;
@@ -3172,9 +3723,42 @@ class AgentView {
 			withContext: contextAttached,
 			codebase: state.codebase !== false,
 			contextItems: pendingContext,
+			images: pendingImages,
+			...(slash ? { command: slash[1] } : {}),
+			...(automaticNext ? { automatic: true } : {}),
+			mode: state.mode || 'agent',
+			...(backgroundNext ? { background: true } : {}),
 		});
+		automaticNext = false;
+		backgroundNext = false;
 		pendingContext = [];
+		pendingImages = [];
 		renderChips();
+	});
+
+	// A pasted or dropped image (a screenshot, a mockup) goes with the next message.
+	input.addEventListener('paste', (event) => {
+		const files = [...(event.clipboardData ? event.clipboardData.files : [])].filter((file) => IMAGE_TYPES.includes(file.type));
+		if (files.length) {
+			event.preventDefault();
+			addImages(files);
+		}
+	});
+	const form = $('form');
+	form.addEventListener('dragover', (event) => {
+		if (event.dataTransfer && [...event.dataTransfer.items].some((item) => item.kind === 'file')) {
+			event.preventDefault();
+			form.classList.add('dropping');
+		}
+	});
+	form.addEventListener('dragleave', () => form.classList.remove('dropping'));
+	form.addEventListener('drop', (event) => {
+		form.classList.remove('dropping');
+		const files = [...(event.dataTransfer ? event.dataTransfer.files : [])].filter((file) => IMAGE_TYPES.includes(file.type));
+		if (files.length) {
+			event.preventDefault();
+			addImages(files);
+		}
 	});
 
 	input.addEventListener('keydown', (event) => {
@@ -3213,6 +3797,22 @@ function activate(context) {
 	const runtime = new Runtime();
 	shared.review = registerAgentReview(context, runtime);
 	const view = new AgentView(context, runtime);
+	const openChat = async (/** @type {string} */ agentId, /** @type {string} */ threadId) => {
+		await vscode.commands.executeCommand('saturn.agent.focus');
+		await view.openChat(agentId, threadId);
+	};
+	shared.agents = new AgentsView(runtime, openChat);
+	const agentsTree = vscode.window.createTreeView('saturn.runs', { treeDataProvider: shared.agents });
+	shared.agents.attach(agentsTree);
+	context.subscriptions.push(
+		agentsTree,
+		shared.agents,
+		vscode.commands.registerCommand('saturn.openAgentChat', openChat),
+		vscode.commands.registerCommand('saturn.editRules', async () => {
+			await editRules((view.project && view.project.path) || view.workspaceFolder());
+			void view.refresh();
+		}),
+	);
 	registerEditorAi(context, runtime);
 	registerGitAi(context, runtime);
 	registerIdeBridge(context, runtime);
@@ -3239,6 +3839,26 @@ function activate(context) {
 			view.focusInput();
 		}),
 		vscode.commands.registerCommand('saturn.newChat', () => view.newChat()),
+		// The lightbulb on an error or warning: "Fix with Saturn" sends /fix for the file (its problems go along).
+		vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, {
+			provideCodeActions(document, _range, context) {
+				const problems = context.diagnostics.filter((item) => item.severity <= vscode.DiagnosticSeverity.Warning);
+				if (!problems.length) {
+					return [];
+				}
+				const action = new vscode.CodeAction('Fix with Saturn', vscode.CodeActionKind.QuickFix);
+				action.command = { command: 'saturn.fixWithAgent', title: 'Fix with Saturn', arguments: [document.uri, problems.map((item) => `line ${item.range.start.line + 1}: ${item.message}`)] };
+				action.diagnostics = problems;
+				return [action];
+			},
+		}, { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }),
+		vscode.commands.registerCommand('saturn.fixWithAgent', async (/** @type {vscode.Uri | undefined} */ uri, /** @type {string[] | undefined} */ problems) => {
+			if (uri && (!vscode.window.activeTextEditor || vscode.window.activeTextEditor.document.uri.toString() !== uri.toString())) {
+				await vscode.window.showTextDocument(uri);
+			}
+			await vscode.commands.executeCommand('saturn.agent.focus');
+			view.sendCommand(problems && problems.length ? `/fix Start with: ${problems.slice(0, 5).join('; ')}` : '/fix');
+		}),
 		vscode.commands.registerCommand('saturn.openAgentWindow', () => openAgentWindow(context, runtime)),
 		vscode.commands.registerCommand('saturn.openAppSettings', () => {
 			// Only the Saturn app's Settings window (the saturn://settings link the app registers), not the whole Agent App.

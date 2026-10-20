@@ -238,10 +238,27 @@ async function pickContext(folder) {
 		{ label: '$(file) Files…', description: 'Attach files from the project', kind: 'files' },
 		{ label: '$(folder) Folder…', description: 'Attach a folder\'s file list', kind: 'folder' },
 		{ label: '$(git-compare) Git changes', description: 'Attach the uncommitted diff', kind: 'git' },
+		{ label: '$(error) Problems in this file', description: 'Errors and warnings the language servers report for the open file', kind: 'problems-file' },
+		{ label: '$(warning) All problems', description: 'Every error and warning in the workspace (the Problems panel)', kind: 'problems' },
+		{ label: '$(terminal) Terminal output', description: 'The last commands run in the terminal, with exit codes and output', kind: 'terminal' },
+		{ label: '$(files) Open editors', description: 'The files open in editor tabs', kind: 'open-editors' },
 		{ label: '$(globe) Web page…', description: 'Attach the text of a URL', kind: 'web' },
 	], { placeHolder: 'Attach context to the next message' });
 	if (!choice) {
 		return [];
+	}
+	if (choice.kind === 'problems-file') {
+		const editor = vscode.window.activeTextEditor;
+		return editor ? [{ kind: 'problems', label: `problems: ${nodePath.basename(editor.document.uri.fsPath)}`, path: editor.document.uri.fsPath }] : [];
+	}
+	if (choice.kind === 'problems') {
+		return [{ kind: 'problems', label: 'problems' }];
+	}
+	if (choice.kind === 'terminal') {
+		return [{ kind: 'terminal', label: 'terminal' }];
+	}
+	if (choice.kind === 'open-editors') {
+		return [{ kind: 'open-editors', label: 'open editors' }];
 	}
 	if (choice.kind === 'files') {
 		const uris = await vscode.workspace.findFiles('**/*', '{**/node_modules/**,**/.git/**,**/dist/**,**/out/**,**/build/**}', 5000);
@@ -293,6 +310,14 @@ async function expandContext(items, folder) {
 				push(`<git_changes>\n${status}\n${diff.slice(0, 40000)}\n</git_changes>`);
 			} else if (item.kind === 'web' && item.url) {
 				push(`<web_page url="${item.url}">\n${await fetchText(item.url)}\n</web_page>`);
+			} else if (item.kind === 'problems') {
+				push(`<problems>\n${problemsText(item.path, folder)}\n</problems>`);
+			} else if (item.kind === 'terminal') {
+				push(`<terminal>\n${terminalHistory.text()}\n</terminal>`);
+			} else if (item.kind === 'open-editors') {
+				for (const document of openEditorDocuments()) {
+					push(`<file path="${vscode.workspace.asRelativePath(document.uri)}">\n${document.getText().slice(0, 30000)}\n</file>`);
+				}
 			}
 		} catch (error) {
 			push(`<error item="${item.label}">${error instanceof Error ? error.message : String(error)}</error>`);
@@ -300,6 +325,114 @@ async function expandContext(items, folder) {
 	}
 	return parts.join('\n');
 }
+
+/**
+ * The language servers' errors and warnings, for one file or the whole workspace folder, each with its line of
+ * code, as the Problems panel lists them.
+ * @param {string | undefined} file @param {string | undefined} folder
+ */
+function problemsText(file, folder) {
+	const entries = file
+		? [[vscode.Uri.file(file), vscode.languages.getDiagnostics(vscode.Uri.file(file))]]
+		: vscode.languages.getDiagnostics().filter(([uri]) => uri.scheme === 'file' && (!folder || uri.fsPath.startsWith(folder + nodePath.sep)));
+	const lines = [];
+	for (const [uri, list] of /** @type {[vscode.Uri, vscode.Diagnostic[]][]} */ (entries)) {
+		const shown = list.filter((item) => item.severity <= vscode.DiagnosticSeverity.Warning);
+		if (!shown.length) {
+			continue;
+		}
+		const document = vscode.workspace.textDocuments.find((doc) => doc.uri.fsPath === uri.fsPath);
+		for (const item of shown.slice(0, 50)) {
+			const severity = item.severity === vscode.DiagnosticSeverity.Error ? 'error' : 'warning';
+			const source = item.source ? ` (${item.source}${item.code !== undefined ? ` ${typeof item.code === 'object' ? item.code.value : item.code}` : ''})` : '';
+			const code = document ? `\n    ${document.lineAt(item.range.start.line).text.trim()}` : '';
+			lines.push(`${vscode.workspace.asRelativePath(uri)}:${item.range.start.line + 1}:${item.range.start.character + 1} ${severity}${source}: ${item.message}${code}`);
+		}
+	}
+	return lines.length ? lines.join('\n') : 'No errors or warnings.';
+}
+
+/** The text documents open in editor tabs (not the diff or output views). */
+function openEditorDocuments() {
+	const uris = vscode.window.tabGroups.all
+		.flatMap((group) => group.tabs)
+		.map((tab) => (tab.input instanceof vscode.TabInputText ? tab.input.uri : undefined))
+		.filter((uri) => uri && uri.scheme === 'file');
+	const seen = new Set();
+	return vscode.workspace.textDocuments.filter((doc) => uris.some((uri) => uri && uri.fsPath === doc.uri.fsPath) && !seen.has(doc.uri.fsPath) && seen.add(doc.uri.fsPath));
+}
+
+/** Characters of one command's output kept. */
+const TERMINAL_OUTPUT = 6000;
+
+/**
+ * The last commands run in this window's terminals, through shell integration: command line, working folder,
+ * exit code and output (escape codes removed). Lets "@terminal" hand the agent what just failed, and lets a
+ * command started from the chat report back how it ended.
+ */
+class TerminalHistory {
+	constructor() {
+		/** @type {{ command: string, cwd?: string, exitCode?: number, output: string, terminal: vscode.Terminal }[]} */
+		this.entries = [];
+		/** @type {Map<vscode.TerminalShellExecution, { output: string }>} */
+		this.reading = new Map();
+		this.ended = new vscode.EventEmitter();
+		/** Fires with each finished command. */
+		this.onDidEnd = this.ended.event;
+		this.disposables = [
+			vscode.window.onDidStartTerminalShellExecution((event) => void this.read(event.execution)),
+			vscode.window.onDidEndTerminalShellExecution((event) => {
+				const buffer = this.reading.get(event.execution);
+				this.reading.delete(event.execution);
+				const entry = {
+					command: event.execution.commandLine.value,
+					cwd: event.execution.cwd ? event.execution.cwd.fsPath : undefined,
+					exitCode: event.exitCode,
+					output: buffer ? buffer.output : '',
+					terminal: event.terminal,
+				};
+				this.entries = [...this.entries, entry].slice(-10);
+				this.ended.fire(entry);
+			}),
+		];
+	}
+
+	/** @param {vscode.TerminalShellExecution} execution */
+	async read(execution) {
+		const buffer = { output: '' };
+		this.reading.set(execution, buffer);
+		try {
+			for await (const chunk of execution.read()) {
+				buffer.output = (buffer.output + stripAnsi(chunk)).slice(-TERMINAL_OUTPUT);
+			}
+		} catch {
+			// The terminal closed mid-command.
+		}
+	}
+
+	/** The recent commands as text for the agent. */
+	text() {
+		if (!this.entries.length) {
+			return 'No commands have run in a terminal with shell integration yet.';
+		}
+		return this.entries.slice(-5).map((entry) => `$ ${entry.command}${entry.cwd ? `   (in ${entry.cwd})` : ''}\nexit code: ${entry.exitCode === undefined ? 'unknown' : entry.exitCode}\n${entry.output.trim()}`).join('\n\n');
+	}
+
+	dispose() {
+		this.ended.dispose();
+		for (const item of this.disposables) {
+			item.dispose();
+		}
+	}
+}
+
+/** @param {string} text */
+function stripAnsi(text) {
+	// eslint-disable-next-line no-control-regex
+	return text.replace(/\x1b\][^\x07]*(\x07|\x1b\\)|\x1b\[[0-9;?]*[ -/]*[@-~]|\r/g, '');
+}
+
+const terminalHistory = new TerminalHistory();
 
 function run(command, args, cwd) {
 	return new Promise((resolve, reject) => {
@@ -588,11 +721,27 @@ class AgentTerminal {
 		}
 	}
 
-	/** A real terminal in the project folder with the command typed in but not run, so the user decides. */
-	runInTerminal(command, cwd) {
+	/**
+	 * A real terminal in the project folder with the command typed in but not run, so the user decides. When the
+	 * user runs it, `onDone` hears how it ended (needs the shell's integration; without it nothing is reported).
+	 * @param {string} command @param {string | undefined} cwd
+	 * @param {(entry: { command: string, exitCode?: number, output: string }) => void} [onDone]
+	 */
+	runInTerminal(command, cwd, onDone) {
 		const terminal = vscode.window.createTerminal({ name: 'Saturn', cwd: cwd || undefined });
 		terminal.show();
 		terminal.sendText(command, false);
+		if (onDone) {
+			const first = command.split('\n')[0].trim();
+			const listener = terminalHistory.onDidEnd((entry) => {
+				if (entry.terminal === terminal && entry.command.trim().startsWith(first)) {
+					listener.dispose();
+					clearTimeout(timer);
+					onDone(entry);
+				}
+			});
+			const timer = setTimeout(() => listener.dispose(), 30 * 60 * 1000);
+		}
 	}
 
 	dispose() {
@@ -600,4 +749,4 @@ class AgentTerminal {
 	}
 }
 
-module.exports = { terms, retrieve, pickContext, expandContext, DiffContent, openRunDiff, applyCode, blockTarget, AgentTerminal, commandOf };
+module.exports = { terms, retrieve, pickContext, expandContext, DiffContent, openRunDiff, applyCode, blockTarget, AgentTerminal, commandOf, terminalHistory, problemsText };

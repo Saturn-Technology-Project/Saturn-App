@@ -4,6 +4,7 @@ import type { GroupTranscript, GroupView } from "./groups.js";
 import type { RunChanges } from "./checkpoints.js";
 import type { Agent, Automation, AppSettings, Conversation, Group, McpConnection, ModelConnection, Project, RagConnection, Run, RunAction, RunMode } from "../domain/model.js";
 import type { ImagePart } from "../infrastructure/llm/types.js";
+import type { RunSummary } from "./runs.js";
 import { McpClient } from "../infrastructure/mcp.js";
 import { FileStore } from "../infrastructure/store.js";
 import { RuntimeKernel } from "./kernel.js";
@@ -119,6 +120,10 @@ export class AppServices {
 
   async startRun(agentId: string, input: string, threadId?: string, projectId?: string, options?: { images?: ImagePart[]; mode?: RunMode }): Promise<Run> {
     return await this.kernel.runs.startRun(agentId, input, threadId, projectId, options);
+  }
+
+  recentRuns(projectId?: string, limit = 20): RunSummary[] {
+    return this.kernel.runs.recentRuns(projectId, limit);
   }
 
   async listThreads(agentId: string): Promise<Conversation[]> {

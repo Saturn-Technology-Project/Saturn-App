@@ -126,6 +126,16 @@
           "type": "boolean",
           "default": true,
           "description": "Mirror the commands agents run, with their output, into the read-only \"Saturn Agent\" terminal."
+        },
+        "saturn.verify.auto": {
+          "type": "boolean",
+          "default": true,
+          "description": "After an agent changes files, check the changed files for new errors and, if there are any, ask the agent to fix them (at most two rounds)."
+        },
+        "saturn.verify.command": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "A command that also has to pass after an agent's changes, run in the project folder (for example `npm run typecheck`). `auto` uses the project's `typecheck` or `lint` script from package.json; empty runs only the editor's own error check."
         }
       }
     },
@@ -144,6 +154,13 @@
           "type": "webview",
           "id": "saturn.agent",
           "name": "Saturn"
+        }
+      ],
+      "explorer": [
+        {
+          "id": "saturn.runs",
+          "name": "Saturn Agents",
+          "visibility": "collapsed"
         }
       ]
     },
@@ -222,6 +239,21 @@
         "command": "saturn.nextEdit.dismiss",
         "title": "Dismiss Next Edit Suggestion",
         "category": "Saturn"
+      },
+      {
+        "command": "saturn.editRules",
+        "title": "Edit Project Rules",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.openAgentChat",
+        "title": "Open Agent Chat",
+        "category": "Saturn"
+      },
+      {
+        "command": "saturn.fixWithAgent",
+        "title": "Fix with Saturn",
+        "category": "Saturn"
       }
     ],
     "menus": {
@@ -261,6 +293,14 @@
         {
           "command": "saturn.inlineEdit.cancel",
           "when": "saturn.inlineEditBusy"
+        },
+        {
+          "command": "saturn.openAgentChat",
+          "when": "false"
+        },
+        {
+          "command": "saturn.fixWithAgent",
+          "when": "false"
         }
       ]
     },

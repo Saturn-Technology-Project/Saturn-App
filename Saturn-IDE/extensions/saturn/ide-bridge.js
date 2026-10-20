@@ -403,4 +403,4 @@ function registerIdeBridge(context, runtime) {
 	return bridge;
 }
 
-module.exports = { registerIdeBridge, IdeBridge, inside };
+module.exports = { registerIdeBridge, IdeBridge, inside, diagnostics };

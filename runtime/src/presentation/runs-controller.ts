@@ -91,6 +91,11 @@ export function mountRuns(app: Express, services: AppServices): void {
     });
   });
 
+  // Saturn IDE's Agents view: what is running now, and what finished lately, optionally in one project.
+  app.get("/runs", (req, res, next) => {
+    respond(res, next, () => services.recentRuns(typeof req.query.projectId === "string" ? req.query.projectId : undefined, Number(req.query.limit) || 20));
+  });
+
   app.get("/runs/:id", (req, res, next) => {
     respond(res, next, () => services.getRun(param(req.params.id)));
   });
