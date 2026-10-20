@@ -1,7 +1,7 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { logger } from "../logger.js";
 import { choice, mentionsThinking, systemText } from "./shared.js";
-import type { ChatMessage, ProviderAdapter } from "./types.js";
+import type { ChatMessage, Effort, ProviderAdapter } from "./types.js";
 
 type GeminiPart =
   | { text: string }
@@ -184,7 +184,7 @@ export const gemini: ProviderAdapter = {
         abortSignal: request.signal,
         thinkingConfig: request.thinking === "low"
           ? (includeThoughts ? lowThinking(request.model) : undefined)
-          : includeThoughts ? { includeThoughts: true, ...thinkingLevel(request.model) } : undefined,
+          : includeThoughts ? { includeThoughts: true, ...(request.effort ? effortThinking(request.model, request.effort) : thinkingLevel(request.model)) } : undefined,
         tools: request.tools.length
           ? [{
               functionDeclarations: request.tools.map((tool) => ({
@@ -244,6 +244,18 @@ export const gemini: ProviderAdapter = {
  */
 function thinkingLevel(model: string): { thinkingLevel?: ThinkingLevel } {
   return /^gemini-4/.test(model) ? { thinkingLevel: ThinkingLevel.MEDIUM } : {};
+}
+
+/**
+ * The connection's effort as Gemini thinking settings: a level on Gemini 3.x and 4 (xhigh and max are HIGH, the top
+ * level), a token budget on 2.5. A model that refuses them is retried without thinking settings.
+ */
+function effortThinking(model: string, effort: Effort): { thinkingLevel?: ThinkingLevel; thinkingBudget?: number } {
+  if (/^gemini-2\.5/.test(model)) {
+    const top = /pro/.test(model) ? 32768 : 24576;
+    return { thinkingBudget: effort === "low" ? 1024 : effort === "medium" ? 8192 : effort === "high" ? Math.min(16384, top) : top };
+  }
+  return { thinkingLevel: effort === "low" ? ThinkingLevel.LOW : effort === "medium" ? ThinkingLevel.MEDIUM : ThinkingLevel.HIGH };
 }
 
 /**

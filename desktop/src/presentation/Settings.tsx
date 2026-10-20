@@ -513,7 +513,7 @@ function LlmPage(props: {
         model: modelId,
         baseUrl: providerId === "lmstudio" ? baseUrl : undefined,
         secret: secret || undefined,
-        effort: providerId === "claude-code" && effort ? effort : undefined,
+        effort: providerId !== "lmstudio" && providerId !== "deepseek" && effort ? effort : undefined,
       });
       setSecret("");
       props.onError("");
@@ -556,9 +556,28 @@ function LlmPage(props: {
                   <div className="model-card-title">
                     <strong>{item.name}</strong>
                   </div>
-                  <div className="hint">{providerLabel(providers, item)}{item.model ? ` · ${item.model}` : ""}{item.effort ? ` · ${EFFORT_LABELS[item.effort] ?? item.effort} effort` : ""}</div>
+                  <div className="hint">{providerLabel(providers, item)}{item.model ? ` · ${item.model}` : ""}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {item.provider !== "lmstudio" && item.provider !== "deepseek" ? (
+                    <select
+                      className="input tiny model-effort"
+                      aria-label={`Effort for ${item.name}`}
+                      title={(item.provider && EFFORT_HINTS[item.provider]) || "How much the model reasons before answering"}
+                      value={item.effort ?? ""}
+                      onChange={async (event) => {
+                        try {
+                          await desktop.admin.updateModelEffort(item.id, event.target.value || null);
+                          await props.onChanged();
+                        } catch (err) {
+                          props.onError(err instanceof Error ? err.message : "Could not change the effort");
+                        }
+                      }}
+                    >
+                      <option value="">Default effort</option>
+                      {Object.entries(EFFORT_LABELS).map(([value, label]) => <option key={value} value={value}>{label} effort</option>)}
+                    </select>
+                  ) : null}
                   <Status
                     ok={item.provider === "lmstudio" || item.provider === "claude-code" || item.hasSecret}
                     label={item.provider === "lmstudio" ? "Local Server" : item.provider === "claude-code" ? "Claude plan" : item.hasSecret ? "Key stored" : "No key"}
@@ -646,14 +665,17 @@ function LlmPage(props: {
           </div>
         </div>
 
-        {providerId === "claude-code" ? (
+        {providerId !== "lmstudio" && providerId !== "deepseek" ? (
           <div>
             <label className="label" htmlFor="llm-effort">Effort</label>
             <select id="llm-effort" value={effort} onChange={(event) => setEffort(event.target.value)}>
               <option value="">Model default</option>
               {Object.entries(EFFORT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-            <p className="hint">Runs through the official Claude Code on your own Claude login (Settings → General → Claude Code). No API key.</p>
+            <p className="hint">
+              {EFFORT_HINTS[providerId] ?? "How much the model reasons before answering. Higher is slower and costs more."}
+              {providerId === "claude-code" ? " Runs through the official Claude Code on your own Claude login (Settings → General → Claude Code). No API key." : ""}
+            </p>
           </div>
         ) : null}
 
@@ -694,6 +716,13 @@ function LlmPage(props: {
 }
 
 const EFFORT_LABELS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra High", max: "Max" };
+/** What the effort setting does on each provider. Tab completion and next edit always run at low effort. */
+const EFFORT_HINTS: Record<string, string> = {
+  claude: "Claude's effort setting (output_config.effort). Models without effort support ignore it.",
+  "claude-code": "Claude Code's effort level.",
+  openai: "OpenAI reasoning effort for o-series and GPT-5 models (Extra High and Max use High). Other models ignore it.",
+  gemini: "Gemini thinking level (3.x and 4) or thinking budget (2.5).",
+};
 
 function providerLabel(providers: LlmProvider[], model: Model) {
   return providers.find((item) => item.id === model.provider)?.label ?? model.provider ?? "Model";

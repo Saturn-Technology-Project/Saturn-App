@@ -155,6 +155,7 @@ export class LlmBroker {
           temperature: input.temperature,
           maxOutput: input.maxOutput,
           ...(input.thinking ? { thinking: input.thinking } : {}),
+          ...(model.effort ? { effort: model.effort } : {}),
           signal: input.signal,
         });
         const usage = (body.usage ?? {}) as { input_tokens?: number; output_tokens?: number };

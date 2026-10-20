@@ -60,6 +60,11 @@ export class AdminService {
     );
   }
 
+  /** Sets a model connection's reasoning effort; null returns it to the model's default. */
+  updateModelEffort(id: string, effort: string | null): Promise<void> {
+    return this.runtime.request(`/connections/models/${id}`, { method: "PATCH", body: JSON.stringify({ effort }) });
+  }
+
   deleteModel(id: string): Promise<void> {
     return this.runtime.request(`/connections/models/${id}`, { method: "DELETE" });
   }

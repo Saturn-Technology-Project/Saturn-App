@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { choice, parseArguments } from "./shared.js";
+import { choice, parseArguments, withOptionalFields } from "./shared.js";
 import type { ChatMessage, ProviderAdapter } from "./types.js";
 
 /**
@@ -7,6 +7,8 @@ import type { ChatMessage, ProviderAdapter } from "./types.js";
  * Thinking mode is on by default and returns reasoning_content. When tools are sent, every earlier
  * assistant turn must carry its reasoning_content back or the API answers 400.
  * Legacy reasoner models reject temperature; current models just ignore it while thinking.
+ * DeepSeek has no effort levels. Low thinking (editor completions) turns thinking mode off; a model or server that
+ * rejects that setting is asked again without it.
  */
 export const deepseek: ProviderAdapter = {
   id: "deepseek",
@@ -17,22 +19,27 @@ export const deepseek: ProviderAdapter = {
       baseURL: (request.baseUrl || "https://api.deepseek.com").replace(/\/$/, ""),
     });
     const reasoner = request.model.toLowerCase().includes("reasoner");
-    const completion = await client.chat.completions.create({
-      model: request.model,
-      messages: messagesFor(request.messages, request.tools.length > 0),
-      temperature: reasoner ? undefined : request.temperature,
-      max_tokens: request.maxOutput,
-      tools: request.tools.length
-        ? request.tools.map((tool) => ({
-            type: "function" as const,
-            function: {
-              name: tool.function?.name ?? "",
-              description: tool.function?.description,
-              parameters: tool.function?.parameters,
-            },
-          }))
-        : undefined,
-    }, { signal: request.signal });
+    const completion = await withOptionalFields(
+      { thinking: { value: request.thinking === "low" ? { type: "disabled" } : undefined, rejectedWhen: /thinking/i } },
+      (active) => client.chat.completions.create({
+        model: request.model,
+        messages: messagesFor(request.messages, request.tools.length > 0),
+        temperature: reasoner ? undefined : request.temperature,
+        max_tokens: request.maxOutput,
+        // Not in the OpenAI SDK's types: DeepSeek's switch for its thinking mode.
+        ...(active.thinking ? ({ thinking: active.thinking } as Record<string, unknown>) : {}),
+        tools: request.tools.length
+          ? request.tools.map((tool) => ({
+              type: "function" as const,
+              function: {
+                name: tool.function?.name ?? "",
+                description: tool.function?.description,
+                parameters: tool.function?.parameters,
+              },
+            }))
+          : undefined,
+      }, { signal: request.signal }),
+    );
     const message = completion.choices[0]?.message as {
       content?: string | null;
       reasoning_content?: string;

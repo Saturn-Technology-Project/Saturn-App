@@ -60,6 +60,31 @@ export function untilAbort<T>(work: Promise<T>, signal?: AbortSignal): Promise<T
   });
 }
 
+/**
+ * Sends a request with optional fields, dropping any one the provider rejects and trying again: a model that does
+ * not support an effort or reasoning setting still answers, without it. Only 400/422 answers naming the field count.
+ */
+export async function withOptionalFields<T>(
+  fields: Record<string, { value: unknown; rejectedWhen: RegExp }>,
+  send: (active: Record<string, unknown>) => Promise<T>,
+): Promise<T> {
+  const active: Record<string, unknown> = {};
+  for (const [key, field] of Object.entries(fields)) {
+    if (field.value !== undefined) active[key] = field.value;
+  }
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await send(active);
+    } catch (error) {
+      const status = (error as { status?: number }).status;
+      const message = error instanceof Error ? error.message : String(error);
+      const rejected = Object.keys(active).find((key) => fields[key]!.rejectedWhen.test(message));
+      if (!rejected || (status !== undefined && status !== 400 && status !== 422) || attempt >= Object.keys(fields).length) throw error;
+      delete active[rejected];
+    }
+  }
+}
+
 export function mentionsThinking(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /thinking|thought|reasoning/i.test(message);

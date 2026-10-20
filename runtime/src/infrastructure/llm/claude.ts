@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { choice, mentionsThinking, systemText } from "./shared.js";
+import { choice, systemText, withOptionalFields } from "./shared.js";
 import type { ProviderAdapter } from "./types.js";
 
 export const claude: ProviderAdapter = {
@@ -35,34 +35,50 @@ export const claude: ProviderAdapter = {
         }
         return { role: item.role as "user" | "assistant", content };
       });
-    const send = (thinking: boolean) => client.messages.create({
-      model: request.model,
-      max_tokens: request.maxOutput ?? 4096,
-      temperature: thinking ? undefined : request.temperature,
-      thinking: thinking ? { type: "adaptive", display: "summarized" } : undefined,
-      system: system || undefined,
-      // Automatic prompt caching: the system prompt, tools and earlier turns are read from cache on every
-      // later round of a run (and after a computer_wait resumes within the cache lifetime).
-      cache_control: { type: "ephemeral" },
-      messages: messages.length ? messages : [{ role: "user", content: "" }],
-      tools: request.tools.length
-        ? request.tools.map((tool) => ({
-            name: tool.function?.name ?? "",
-            description: tool.function?.description,
-            input_schema: {
-              type: "object" as const,
-              ...(tool.function?.parameters ?? {}),
-            },
-          }))
-        : undefined,
-    }, { signal: request.signal });
-    let response: Awaited<ReturnType<typeof send>>;
-    try {
-      response = await send(true);
-    } catch (error) {
-      if (!mentionsThinking(error)) throw error;
-      response = await send(false);
-    }
+    // Thinking and effort (see the Claude API's thinking/effort rules):
+    // - Adaptive thinking runs on Claude 4.6 and later; older models take no adaptive setting.
+    // - Effort goes in output_config (low … max); Haiku 4.5, Sonnet 4.5 and Claude 3 reject it.
+    // - Low thinking (Tab completion, next edit) omits `thinking` and asks for low effort: the newest models
+    //   cannot turn thinking off (`disabled` is a 400), and on older ones omitting it means no thinking.
+    // - Sampling settings are rejected from Opus 4.7 / Sonnet 5 on, so temperature goes only to older models.
+    const id = request.model.toLowerCase();
+    const older = /claude-3|-4-[0-5](?:$|-)/.test(id);
+    const noEffort = /claude-3|(?:haiku|sonnet)-4-5(?:$|-)/.test(id);
+    const sampling = /claude-3|-4-[0-6](?:$|-)/.test(id);
+    const low = request.thinking === "low";
+    const effort = low ? "low" : request.effort;
+    const tools = request.tools.length
+      ? request.tools.map((tool) => ({
+          name: tool.function?.name ?? "",
+          description: tool.function?.description,
+          input_schema: {
+            type: "object" as const,
+            ...(tool.function?.parameters ?? {}),
+          },
+        }))
+      : undefined;
+    const response = await withOptionalFields(
+      {
+        thinking: { value: low || older ? undefined : { type: "adaptive", display: "summarized" }, rejectedWhen: /thinking/i },
+        output_config: { value: effort && !noEffort ? { effort } : undefined, rejectedWhen: /effort|output_config/i },
+        temperature: { value: sampling ? request.temperature : undefined, rejectedWhen: /temperature|sampling/i },
+      },
+      (active) =>
+        client.messages.create({
+          model: request.model,
+          max_tokens: request.maxOutput ?? 4096,
+          ...(active.thinking ? { thinking: active.thinking as Anthropic.ThinkingConfigParam } : {}),
+          ...(active.output_config ? { output_config: active.output_config as Anthropic.MessageCreateParams["output_config"] } : {}),
+          // Temperature cannot go with thinking on the models that still accept it.
+          ...(active.temperature !== undefined && !active.thinking ? { temperature: active.temperature as number } : {}),
+          system: system || undefined,
+          // Automatic prompt caching: the system prompt, tools and earlier turns are read from cache on every
+          // later round of a run (and after a computer_wait resumes within the cache lifetime).
+          cache_control: { type: "ephemeral" },
+          messages: messages.length ? messages : [{ role: "user", content: "" }],
+          tools,
+        }, { signal: request.signal }),
+    );
     const text = response.content
       .filter((block) => block.type === "text")
       .map((block) => block.text)

@@ -32,7 +32,7 @@ export type Model = {
   model?: string;
   baseUrl: string;
   hasSecret: boolean;
-  /** Reasoning effort for Claude Code models. */
+  /** Reasoning effort for this model (every provider maps it to its own control); unset uses the model's default. */
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
 };
 export type McpTool = { toolId: string; description?: string; category?: "read" | "write"; inputSchema?: Record<string, unknown> };

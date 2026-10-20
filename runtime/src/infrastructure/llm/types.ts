@@ -17,6 +17,8 @@ export type ToolDef = {
   function?: { name?: string; description?: string; parameters?: Record<string, unknown> };
 };
 
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
 /** Tokens a provider reports for one call; either side may be missing. */
 export type TokenUsage = { input?: number; output?: number };
 
@@ -36,6 +38,11 @@ export type ChatRequest = {
    * asked to think little, so the output budget goes to the answer instead of to reasoning.
    */
   thinking?: "low";
+  /**
+   * The model connection's reasoning effort (Settings → Models, or the IDE's model picker). Each adapter maps it to
+   * its provider's control; unset leaves the provider's default. thinking: "low" takes precedence.
+   */
+  effort?: Effort;
   signal?: AbortSignal;
 };
 
