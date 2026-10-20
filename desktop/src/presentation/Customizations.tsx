@@ -11,42 +11,18 @@ import {
   type McpMarketplaceItem,
 } from "../domain/marketplace";
 
-const BUILTIN_SKILLS_AND_RULES = [
-  {
-    name: "/agy-customizations",
-    badge: "Built In",
-    desc: "Comprehensive guide and reference for the Antigravity Customization System. Use to explain how customizations work, their loading priority, discovery mechanisms, and to guide the creation of skills, rules, plugins, hooks, and MCP servers.",
-  },
-  {
-    name: "/antigravity-guide",
-    badge: "Built In",
-    desc: "Provides a comprehensive guide, quick reference, and sitemap for Google Antigravity (AGY), including the Antigravity CLI (agy), Antigravity 2.0, Antigravity IDE, Python SDK, slash commands, keybindings, and customizations (skills, rules, MCP, sidecars).",
-  },
-  {
-    name: "/automation",
-    badge: "Built In",
-    desc: "Interactive guide to design and create a scheduled background automation. Use this skill when the user wants to create an automated or recurring scheduled task (e.g. \"summarize my emails every morning\", \"every Monday send me a to-do list\").",
-  },
-  {
-    name: "/generative_ui",
-    badge: "Built In",
-    desc: "How to render rich interactive HTML widgets inline in the chat or as standalone artifacts.",
-  },
-  {
-    name: "/migrate-workflows",
-    badge: "Built In",
-    desc: "Automatically migrate legacy workflows to modern skills across global and workspace configurations. Scans for existing workflows, creates target SKILL.md files, and safely archives old workflow files.",
-  },
-  {
-    name: "/plugin",
-    badge: "Built In",
-    desc: "How to manage and create plugins — namespaced bundles of skills, agents, rules, MCP servers and hooks that install, enable and disable as a single unit.",
-  },
-  {
-    name: "/ui-plugin-navigation",
-    badge: "Built In",
-    desc: "Discover UI plugin panels relevant to the current task and surface a one-click pill in chat to open (toggle) them in the side pane.",
-  },
+/** The runtime's built-in tool server whose tools this section lists ("antigravity-skills" is its old id). */
+const BUILTIN_SERVER_IDS = ["automations", "antigravity-skills"];
+
+/** How the built-in tools group, by tool-name prefix; the tools and their descriptions come from the runtime. */
+const BUILTIN_GROUPS: { prefix: string; label: string; summary: string }[] = [
+  { prefix: "automation_", label: "Automations", summary: "Schedule an agent to run a prompt on a cron, and list, run now, pause or delete those schedules." },
+  { prefix: "generative_ui_", label: "Generative UI", summary: "Build interactive HTML widgets, charts and dashboards and save them as files." },
+  { prefix: "customizations_", label: "Rules & Skills", summary: "Find the project's rules and skills, and write new ones (AGENTS.md, .agents/rules, .agents/skills)." },
+  { prefix: "workflows_", label: "Workflow Migration", summary: "Find old .agents/workflows files and turn them into skills." },
+  { prefix: "plugins_", label: "Plugins", summary: "List, bundle and turn on or off plugins: packaged skills, rules and MCP servers." },
+  { prefix: "ui_navigation_", label: "Side Panels", summary: "Suggest a side panel for the task and put a button in the chat that opens it." },
+  { prefix: "guide_", label: "Guide", summary: "A map of what these tools can do, for the agent to look up." },
 ];
 
 export function Customizations(props: {
@@ -162,13 +138,23 @@ export function Customizations(props: {
   const showPinned = !q || `${SATURN_MCP_ITEM.name} ${SATURN_MCP_ITEM.description}`.toLowerCase().includes(q);
   const pinnedEntry = entries[SATURN_MCP_ITEM.id];
 
-  const filteredSkills = useMemo(() => {
+  const builtinServer = props.mcp.find((m) => BUILTIN_SERVER_IDS.includes(m.id));
+  // The built-in tools, grouped; a search keeps the tools (or whole groups) whose name or description match.
+  const builtinGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return BUILTIN_SKILLS_AND_RULES;
-    return BUILTIN_SKILLS_AND_RULES.filter(
-      (item) => item.name.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q),
-    );
-  }, [query]);
+    const tools = builtinServer?.tools ?? [];
+    const groups = BUILTIN_GROUPS.map((group) => ({ ...group, tools: tools.filter((tool) => tool.toolId.startsWith(group.prefix)) }));
+    const rest = tools.filter((tool) => !BUILTIN_GROUPS.some((group) => tool.toolId.startsWith(group.prefix)));
+    if (rest.length) groups.push({ prefix: "", label: "Other", summary: "", tools: rest });
+    return groups
+      .map((group) => {
+        if (!q || `${group.label} ${group.summary}`.toLowerCase().includes(q)) return group;
+        return { ...group, tools: group.tools.filter((tool) => `${tool.toolId} ${tool.description ?? ""}`.toLowerCase().includes(q)) };
+      })
+      .filter((group) => group.tools.length > 0);
+  }, [query, builtinServer]);
+  const builtinCount = builtinGroups.reduce((sum, group) => sum + group.tools.length, 0);
+  const builtinOff = new Set(builtinServer?.disabledTools ?? []);
 
   return (
     <div className="customizations-page">
@@ -418,7 +404,7 @@ export function Customizations(props: {
               ) : null}
             </div>
 
-            {/* Skills & Rules Group */}
+            {/* Built-in tools: the runtime's built-in tool server, grouped */}
             <div className="installed-group">
               <div className="installed-group-head">
                 <button
@@ -426,19 +412,16 @@ export function Customizations(props: {
                   className="accordion-toggle"
                   onClick={() => setSkillsOpen((v) => !v)}
                 >
-                  <span className="accordion-label">Built-in Skills & Rules</span>
-                  <span className="count-badge">{filteredSkills.length}</span>
+                  <span className="accordion-label">Built-in Tools</span>
+                  <span className="count-badge">{builtinCount}</span>
                   <ChevronDownIcon open={skillsOpen} />
                 </button>
-                {props.mcp.find((m) => m.id === "automations" || m.id === "antigravity-skills") ? (
+                {builtinServer ? (
                   <button
                     type="button"
                     className="btn ghost tiny configure-mcp-btn"
-                    onClick={() => {
-                      const ag = props.mcp.find((m) => m.id === "automations" || m.id === "antigravity-skills");
-                      if (ag) setConfiguringServer(ag);
-                    }}
-                    title="Configure Automations"
+                    onClick={() => setConfiguringServer(builtinServer)}
+                    title="Turn individual built-in tools on or off"
                   >
                     Configure
                   </button>
@@ -447,13 +430,25 @@ export function Customizations(props: {
 
               {skillsOpen ? (
                 <div className="skills-rules-list">
-                  {filteredSkills.map((item) => (
-                    <div key={item.name} className="skill-rule-row">
+                  {builtinGroups.length === 0 ? (
+                    <p className="skill-rule-desc builtin-empty">{builtinServer ? "No built-in tool matches the search." : "The built-in tools are not available from the runtime."}</p>
+                  ) : null}
+                  {builtinGroups.map((group) => (
+                    <div key={group.label} className="skill-rule-row">
                       <div className="skill-rule-head">
-                        <strong className="skill-rule-name">{item.name}</strong>
-                        <span className="builtin-pill">{item.badge}</span>
+                        <strong className="builtin-group-name">{group.label}</strong>
+                        <span className="builtin-pill">{group.tools.length} {group.tools.length === 1 ? "tool" : "tools"}</span>
                       </div>
-                      <p className="skill-rule-desc">{item.desc}</p>
+                      {group.summary ? <p className="skill-rule-desc">{group.summary}</p> : null}
+                      <ul className="builtin-tools">
+                        {group.tools.map((tool) => (
+                          <li key={tool.toolId} className={builtinOff.has(tool.toolId) ? "off" : ""}>
+                            <code className="skill-rule-name">{tool.toolId}</code>
+                            {builtinOff.has(tool.toolId) ? <span className="builtin-pill">Off</span> : null}
+                            {tool.description ? <span className="builtin-tool-desc">{tool.description}</span> : null}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   ))}
                 </div>
