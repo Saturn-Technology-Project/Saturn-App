@@ -403,6 +403,15 @@ class AgentView {
 				case 'openSettings':
 					await vscode.commands.executeCommand('workbench.action.openSettings', 'saturn');
 					break;
+				case 'patchModel':
+					if (message.modelId && message.patch) {
+						await this.runtime.request(`/connections/models/${encodeURIComponent(message.modelId)}`, {
+							method: 'PATCH',
+							body: JSON.stringify(message.patch),
+						});
+						await this.loadAgents();
+					}
+					break;
 				case 'patchAgent':
 					if (message.agentId && message.patch) {
 						await this.runtime.request(`/agents/${encodeURIComponent(message.agentId)}`, {
@@ -2927,6 +2936,21 @@ class AgentView {
 				updateModelBadge();
 				vscode.postMessage({ type: 'patchAgent', agentId: currentAgent.id, patch: { modelConnectionId: model.id } });
 			}));
+		}
+
+		// Effort of the model this agent uses (saved on the model, so the Saturn app shows the same setting).
+		const activeModel = currentAgent && rawModels.find((model) => model.id === currentAgent.modelConnectionId);
+		if (activeModel && activeModel.provider !== 'lmstudio' && activeModel.provider !== 'deepseek') {
+			modelPopover.append(el('div', 'model-popover-divider'));
+			modelPopover.append(el('div', 'model-popover-header', 'Effort · ' + activeModel.name));
+			const choices = [['', 'Default']].concat(Object.entries(EFFORT_LABELS));
+			for (const [value, label] of choices) {
+				modelPopover.append(pickerRow(label, '', (activeModel.effort || '') === value, '', () => {
+					if (value) activeModel.effort = value; else delete activeModel.effort;
+					updateModelBadge();
+					vscode.postMessage({ type: 'patchModel', modelId: activeModel.id, patch: { effort: value || null } });
+				}));
+			}
 		}
 
 		modelPopover.append(el('div', 'model-popover-divider'));
