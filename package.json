@@ -9,6 +9,7 @@
     "typecheck": "cd runtime && npx tsc --noEmit && cd ../desktop && npx tsc --noEmit",
     "desktop": "npm run dev --prefix desktop",
     "dist:mac": "npm run dist:mac --prefix desktop",
-    "dist:win": "npm run dist:win --prefix desktop"
+    "dist:win": "npm run dist:win --prefix desktop",
+    "test:ide": "node --test Saturn-IDE/test/smoke/diff.test.mjs Saturn-IDE/test/smoke/webview.test.mjs"
   }
 }

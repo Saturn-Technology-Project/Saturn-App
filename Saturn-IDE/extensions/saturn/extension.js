@@ -2958,8 +2958,8 @@ class AgentView {
 		if (worktreeBtn.hidden) return;
 		const wt = thread.worktree;
 		worktreeBtn.className = wt ? 'worktree-btn on' : 'worktree-btn';
-		worktreeBtn.textContent = wt ? '⎇ ' + wt.branch.replace(/^saturn\//, '') : '⎇ Branch';
-		worktreeBtn.title = wt ? 'This chat works on ' + wt.branch + ' in its own worktree. Click to merge, keep or discard it.' : 'Work on an own git branch: the agent\'s changes stay out of the project folder until you merge them';
+		worktreeBtn.textContent = wt ? '⎇ ' + wt.branch.replace(/^saturn\\//, '') : '⎇ Branch';
+		worktreeBtn.title = wt ? 'This chat works on ' + wt.branch + ' in its own worktree. Click to merge, keep or discard it.' : 'Work on an own git branch: the agent\\'s changes stay out of the project folder until you merge them';
 		worktreeBtn.onclick = () => vscode.postMessage({ type: wt ? 'worktreeFinish' : 'worktreeStart', threadId: thread.id });
 	}
 

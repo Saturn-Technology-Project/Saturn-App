@@ -55,6 +55,7 @@ jobs:
         run: |
           npm test --prefix runtime
           npm run typecheck
+          npm run test:ide
 
       - name: IDE smoke test on the Windows build
         shell: pwsh
