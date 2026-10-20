@@ -84,7 +84,8 @@ macOS 版會一併打包 Saturn IDE，所以請先建置 IDE（見下方），�
 
 Windows 版目前尚未在實機上測試。在 Windows 上：
 
-- **電腦操作**（透過 `osascript` 控制畫面）和 **Saturn IDE** 只支援 macOS。「開啟 IDE」會改為開啟 Agent App。
+- **電腦操作**（透過 `osascript` 控制畫面）只支援 macOS。
+- **Saturn IDE** 在 Windows 上建置後會內含在 Windows 安裝程式裡（見「建置 Saturn IDE」），runtime 會從 `resources\Saturn IDE\` 啟動它。沒有內含 IDE 的安裝程式會改為開啟 Agent App。
 - **Claude Code** 需要安裝 [Git for Windows](https://git-scm.com/downloads/win)，它會在其提供的 Bash 中執行指令。
 - `code` 工具和終端機面板以 `cmd.exe` 執行指令。
 
@@ -96,8 +97,13 @@ Saturn IDE 是放在 [`Saturn-IDE/`](Saturn-IDE) 的 Code-OSS fork。它需要 [
 cd Saturn-IDE
 npm install
 cd ..
-npm run build:ide --prefix desktop   # 輸出 Saturn IDE.app 到 VSCode-darwin-arm64/
+npm run build:ide --prefix desktop       # macOS：輸出 Saturn IDE.app 到 VSCode-darwin-arm64/
+npm run build:ide:win --prefix desktop   # Windows：輸出到 VSCode-win32-x64/（要在 Windows 上執行）
 ```
+
+IDE 的原生模組是在哪台機器建置就只能在那個平台用，所以 Windows 版的 IDE 要在 Windows 上建置：[Windows build workflow](.github/workflows/windows.yml) 會在 GitHub 的 Windows runner 上建置，並把安裝程式（內含 IDE）和 IDE 的 zip 發佈成 artifacts。在 Windows 上，IDE 直接從 Saturn 自己的 `resources\Saturn IDE\` 資料夾執行，不會另外複製。
+
+檢查建置結果：`node Saturn-IDE/test/smoke/smoke.mjs [路徑]` 會用拋棄式設定檔啟動建好的 IDE，檢查工作台、終端機、檔案總管和 Source Control。
 
 Saturn 自己的編輯器功能都在 [`Saturn-IDE/extensions/saturn/`](Saturn-IDE/extensions/saturn)；其餘部分跟隨上游 [microsoft/vscode](https://github.com/microsoft/vscode)。
 
@@ -193,7 +199,8 @@ Saturn 會在你的電腦上執行程式碼，所以預設值都很嚴格：
 | `SATURN_NODE` | `PATH` 上的 `node` | 開發時桌面 App 用來啟動 Runtime 的 Node 執行檔 |
 | `SATURN_OTEL` | 只存本機 | `otlp` 或 `console` 會匯出遙測，`off` 只保存在本機 |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | 未設定 | 你的 collector；設定後會啟用 OTLP 匯出 |
-| `SATURN_SKIP_IDE` | 未設定 | 設為 `1` 時，打包 macOS App 不含 Saturn IDE |
+| `SATURN_SKIP_IDE` | 未設定 | 設為 `1` 時，打包的 App 不含 Saturn IDE（各平台皆適用） |
+| `SATURN_IDE_BUILD` | 本機的建置 | 打包時要內含的 IDE 建置 |
 
 ## 本機 API
 

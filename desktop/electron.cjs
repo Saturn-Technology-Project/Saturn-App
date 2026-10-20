@@ -80,9 +80,11 @@ function startRuntime() {
     // Electron's fs treats .asar files as folders; the runtime copies and deletes bundles that contain them.
     env.ELECTRON_NO_ASAR = "1";
   }
-  // The bundled Saturn IDE (see scripts/bundle-ide.cjs); in development the runtime finds the local build.
-  const ide = path.join(process.resourcesPath, "Saturn IDE.app");
-  if (packaged && !env.SATURN_IDE_APP && fs.existsSync(ide)) env.SATURN_IDE_APP = ide;
+  // The bundled Saturn IDE (see scripts/bundle-ide.cjs): an app bundle on macOS, a folder with the executable
+  // elsewhere. In development the runtime finds the local build.
+  const ide = path.join(process.resourcesPath, process.platform === "darwin" ? "Saturn IDE.app" : "Saturn IDE");
+  const ideBinary = process.platform === "darwin" ? ide : path.join(ide, process.platform === "win32" ? "Saturn IDE.exe" : "saturn-ide");
+  if (packaged && !env.SATURN_IDE_APP && fs.existsSync(ideBinary)) env.SATURN_IDE_APP = ide;
   ownsRuntime = true;
   runtime = spawn(command, args, { cwd: root, stdio: "inherit", env });
   runtime.on("error", (error) => {

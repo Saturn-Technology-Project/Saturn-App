@@ -89,6 +89,21 @@ class Runtime {
 	}
 }
 
+/** Opens a saturn:// link (the Agent App registers the scheme when installed) with the platform's opener. */
+function openSaturnLink(url, failure) {
+	const { execFile } = require('child_process');
+	const [command, args] = process.platform === 'darwin'
+		? ['open', [url]]
+		: process.platform === 'win32'
+			? ['cmd.exe', ['/c', 'start', '', url]]
+			: ['xdg-open', [url]];
+	execFile(command, args, (error) => {
+		if (error) {
+			void vscode.window.showWarningMessage(failure);
+		}
+	});
+}
+
 /** What the agent should know about the editor: the open file, the selection, and the workspace folder. */
 function editorContext() {
 	const editor = vscode.window.activeTextEditor;
@@ -3224,31 +3239,35 @@ function activate(context) {
 		vscode.commands.registerCommand('saturn.newChat', () => view.newChat()),
 		vscode.commands.registerCommand('saturn.openAgentWindow', () => openAgentWindow(context, runtime)),
 		vscode.commands.registerCommand('saturn.openAppSettings', () => {
-			// Only the Saturn app's Settings window (saturn://settings), not the whole Agent App.
-			if (process.platform !== 'darwin') {
-				return vscode.window.showInformationMessage('Open Settings from the Saturn app.');
-			}
-			require('child_process').execFile('open', ['saturn://settings'], (error) => {
-				if (error) {
-					void vscode.window.showWarningMessage('Could not open Saturn Settings. Install or start the Saturn app once, then try again.');
-				}
-			});
+			// Only the Saturn app's Settings window (the saturn://settings link the app registers), not the whole Agent App.
+			openSaturnLink('saturn://settings', 'Could not open Saturn Settings. Install or start the Saturn app once, then try again.');
 		}),
 		vscode.commands.registerCommand('saturn.openApp', () => {
-			// The Saturn app starts the runtime; on macOS open it by bundle id.
-			if (process.platform !== 'darwin') {
-				return vscode.window.showInformationMessage('Start the Saturn app to bring the runtime online.');
-			}
-			// By bundle id first; fall back to the app name for copies Launch Services has not registered.
+			// The Saturn app starts the runtime; open it the way each platform knows it.
 			const { execFile } = require('child_process');
-			execFile('open', ['-b', 'inc.saturntechnology.desktop'], (error) => {
-				if (!error) { return; }
-				execFile('open', ['-a', 'Saturn'], (fallbackError) => {
-					if (fallbackError) {
-						void vscode.window.showWarningMessage('Could not open the Saturn app. Start it to bring the runtime online.');
-					}
+			const warn = () => void vscode.window.showWarningMessage('Could not open the Saturn app. Start it to bring the runtime online.');
+			if (process.platform === 'darwin') {
+				// By bundle id first; fall back to the app name for copies Launch Services has not registered.
+				execFile('open', ['-b', 'inc.saturntechnology.desktop'], (error) => {
+					if (!error) { return; }
+					execFile('open', ['-a', 'Saturn'], (fallbackError) => { if (fallbackError) { warn(); } });
 				});
-			});
+				return;
+			}
+			if (process.platform === 'win32') {
+				const candidates = [
+					nodePath.join(process.env.LOCALAPPDATA || '', 'Programs', 'Saturn', 'Saturn.exe'),
+					nodePath.join(process.env.ProgramFiles || 'C:\\Program Files', 'Saturn', 'Saturn.exe'),
+				];
+				const exe = candidates.find((file) => { try { return require('fs').existsSync(file); } catch { return false; } });
+				if (exe) {
+					require('child_process').spawn(exe, [], { detached: true, stdio: 'ignore' }).unref();
+					return;
+				}
+				openSaturnLink('saturn://', 'Could not open the Saturn app. Start it to bring the runtime online.');
+				return;
+			}
+			openSaturnLink('saturn://', 'Could not open the Saturn app. Start it to bring the runtime online.');
 		}),
 	);
 }

@@ -49,13 +49,14 @@ function terms(text) {
 function ripgrep() {
 	const root = vscode.env.appRoot;
 	const platform = `${process.platform}-${process.arch}`;
+	const rg = process.platform === 'win32' ? 'rg.exe' : 'rg';
 	const candidates = [
-		nodePath.join(root, 'node_modules.asar.unpacked', '@vscode', 'ripgrep-universal', 'bin', platform, 'rg'),
-		nodePath.join(root, 'node_modules', '@vscode', 'ripgrep-universal', 'bin', platform, 'rg'),
-		nodePath.join(root, 'node_modules.asar.unpacked', '@vscode', 'ripgrep', 'bin', 'rg'),
-		nodePath.join(root, 'node_modules', '@vscode', 'ripgrep', 'bin', 'rg'),
+		nodePath.join(root, 'node_modules.asar.unpacked', '@vscode', 'ripgrep-universal', 'bin', platform, rg),
+		nodePath.join(root, 'node_modules', '@vscode', 'ripgrep-universal', 'bin', platform, rg),
+		nodePath.join(root, 'node_modules.asar.unpacked', '@vscode', 'ripgrep', 'bin', rg),
+		nodePath.join(root, 'node_modules', '@vscode', 'ripgrep', 'bin', rg),
 	];
-	return candidates.find((file) => fs.existsSync(file)) || 'rg';
+	return candidates.find((file) => fs.existsSync(file)) || rg;
 }
 
 /** @returns {Promise<Map<string, { hits: Map<string, number>, lines: Set<number> }>>} */

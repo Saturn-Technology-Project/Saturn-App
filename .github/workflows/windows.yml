@@ -1,0 +1,80 @@
+name: Windows build
+
+# Builds Saturn IDE for Windows (the Code-OSS fork's native modules must be compiled on Windows; they cannot be
+# cross-built from a Mac), runs the IDE smoke test on it, then packages the Saturn installer with the IDE inside.
+# Artifacts: the NSIS installer and a zip of the IDE build.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Saturn-IDE/**"
+      - "desktop/**"
+      - "runtime/**"
+      - ".github/workflows/windows.yml"
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node for Saturn IDE (its .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: Saturn-IDE/.nvmrc
+
+      - name: Install the IDE's dependencies
+        working-directory: Saturn-IDE
+        shell: pwsh
+        run: npm ci
+        env:
+          npm_config_foreground_scripts: "1"
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+      - name: Build Saturn IDE (win32-x64)
+        working-directory: Saturn-IDE
+        shell: pwsh
+        run: npm run gulp vscode-win32-x64-min
+
+      - name: Runtime and desktop dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix runtime
+          npm ci --prefix desktop
+
+      - name: Runtime tests and type checks
+        shell: pwsh
+        run: |
+          npm test --prefix runtime
+          npm run typecheck
+
+      - name: IDE smoke test on the Windows build
+        shell: pwsh
+        run: node Saturn-IDE/test/smoke/smoke.mjs VSCode-win32-x64
+
+      - name: Package the Saturn installer (with the IDE inside)
+        working-directory: desktop
+        shell: pwsh
+        run: npm run dist:win
+
+      - name: Zip the IDE build
+        shell: pwsh
+        run: Compress-Archive -Path VSCode-win32-x64 -DestinationPath "Saturn-IDE-win32-x64.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: saturn-windows
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.exe.blockmap
+            desktop/release/latest*.yml
+            Saturn-IDE-win32-x64.zip
+          if-no-files-found: error

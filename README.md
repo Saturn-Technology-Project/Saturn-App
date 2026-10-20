@@ -84,7 +84,8 @@ The macOS build bundles Saturn IDE, so build the IDE first (below), or package w
 
 The Windows build is untested on real hardware so far. On Windows:
 
-- **Computer use** (it drives the screen through `osascript`) and **Saturn IDE** are macOS-only. "Open IDE" falls back to the agent app.
+- **Computer use** (it drives the screen through `osascript`) is macOS-only.
+- **Saturn IDE** ships inside the Windows installer when it is built on Windows (see "Build Saturn IDE"); the runtime launches it from `resources\Saturn IDE\`. An installer packaged without it falls back to the agent app.
 - **Claude Code** needs [Git for Windows](https://git-scm.com/downloads/win), which provides the Bash it runs commands in.
 - The `code` tool and the Terminal panel run commands with `cmd.exe`.
 
@@ -96,8 +97,13 @@ Saturn IDE is a Code-OSS fork in [`Saturn-IDE/`](Saturn-IDE). It needs the Node 
 cd Saturn-IDE
 npm install
 cd ..
-npm run build:ide --prefix desktop   # Saturn IDE.app in VSCode-darwin-arm64/
+npm run build:ide --prefix desktop       # macOS: Saturn IDE.app in VSCode-darwin-arm64/
+npm run build:ide:win --prefix desktop   # Windows: VSCode-win32-x64/ (run this on Windows)
 ```
+
+The IDE's native modules are compiled for the machine that builds them, so the Windows IDE is built on Windows: the [Windows build workflow](.github/workflows/windows.yml) does it on GitHub's runners and publishes the installer (with the IDE inside) and a zip of the IDE as artifacts. On Windows the IDE runs from Saturn's own `resources\Saturn IDE\` folder; nothing is copied elsewhere.
+
+Checking a build: `node Saturn-IDE/test/smoke/smoke.mjs [path]` starts the built IDE with a throwaway profile and checks the workbench, terminal, Explorer and Source Control.
 
 Saturn's own editor features live in [`Saturn-IDE/extensions/saturn/`](Saturn-IDE/extensions/saturn); everything else follows upstream [microsoft/vscode](https://github.com/microsoft/vscode).
 
@@ -193,7 +199,8 @@ State lives in `~/.saturn-app`. These variables override the defaults:
 | `SATURN_NODE` | `node` on `PATH` | The Node binary the desktop app uses to start the runtime in development |
 | `SATURN_OTEL` | local only | `otlp` or `console` to export telemetry, `off` to keep it local |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | Your collector; setting it turns on OTLP export |
-| `SATURN_SKIP_IDE` | unset | `1` packages the macOS app without Saturn IDE |
+| `SATURN_SKIP_IDE` | unset | `1` packages the app without Saturn IDE (any platform) |
+| `SATURN_IDE_BUILD` | the local build | The IDE build to bundle when packaging |
 
 ## Local API
 
