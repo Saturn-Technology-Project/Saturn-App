@@ -248,3 +248,42 @@ test("after a round of tool calls, the next model call ends on a user turn", asy
     fake.server.close();
   }
 });
+
+test("dropped connections and provider outages count as transient; bad requests and stops do not", async () => {
+  const { isTransient, withTransientRetry } = await import("../src/infrastructure/llm/shared.js");
+  const cases: [unknown, boolean][] = [
+    [Object.assign(new Error("read ETIMEDOUT"), { code: "ETIMEDOUT" }), true],
+    [new TypeError("fetch failed", { cause: Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }) }), true],
+    [Object.assign(new Error("got status: 503 Service Unavailable"), { status: 503 }), true],
+    [Object.assign(new Error("Resource exhausted"), { status: 429 }), true],
+    [Object.assign(new Error("API key not valid"), { status: 400 }), false],
+    [Object.assign(new Error("Unauthorized"), { status: 401 }), false],
+    [Object.assign(new Error("This operation was aborted"), { name: "AbortError" }), false],
+  ];
+  assert.deepEqual(cases.map(([error]) => isTransient(error)), cases.map(([, expected]) => expected));
+
+  let calls = 0;
+  const answer = await withTransientRetry(async () => {
+    calls += 1;
+    if (calls < 3) throw Object.assign(new Error("read ETIMEDOUT"), { code: "ETIMEDOUT" });
+    return "ok";
+  }, { delayMs: 1 });
+  assert.deepEqual([answer, calls], ["ok", 3], "two retries, then the answer");
+
+  calls = 0;
+  await assert.rejects(withTransientRetry(async () => {
+    calls += 1;
+    throw Object.assign(new Error("API key not valid"), { status: 400 });
+  }, { delayMs: 1 }), /API key/);
+  assert.equal(calls, 1, "a real error is not retried");
+
+  const stop = new AbortController();
+  calls = 0;
+  await assert.rejects(withTransientRetry(async () => {
+    calls += 1;
+    stop.abort();
+    throw Object.assign(new Error("read ETIMEDOUT"), { code: "ETIMEDOUT" });
+  }, { delayMs: 1, signal: stop.signal }), /ETIMEDOUT/);
+  assert.equal(calls, 1, "a stopped run is not retried");
+});
+

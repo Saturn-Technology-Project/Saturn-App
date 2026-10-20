@@ -149,3 +149,52 @@ export function flatInputSchema(parameters: JsonSchema | undefined): { schema: J
   else delete schema.required;
   return { schema, ...(notes.length ? { note: notes.join(" ") } : {}) };
 }
+
+const TRANSIENT_CODES = new Set(["ETIMEDOUT", "ECONNRESET", "ECONNABORTED", "EPIPE", "EAI_AGAIN", "ENETUNREACH", "EHOSTUNREACH", "ENETDOWN", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"]);
+const TRANSIENT_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+
+/**
+ * A failure worth trying again: the connection dropped or timed out, or the provider is rate limiting or briefly
+ * down. A bad key, a rejected request or a stopped run is not. Looks through `cause` chains (fetch wraps errors).
+ */
+export function isTransient(error: unknown): boolean {
+  for (let current: unknown = error, depth = 0; current && depth < 5; depth += 1) {
+    const failed = current as { name?: string; code?: unknown; status?: unknown; message?: unknown; cause?: unknown };
+    if (failed.name === "AbortError") return false;
+    if (typeof failed.code === "string" && TRANSIENT_CODES.has(failed.code)) return true;
+    const status = typeof failed.status === "number" ? failed.status : typeof failed.code === "number" ? failed.code : undefined;
+    if (status !== undefined) return TRANSIENT_STATUS.has(status);
+    const message = typeof failed.message === "string" ? failed.message : "";
+    if (/\b(ETIMEDOUT|ECONNRESET|EAI_AGAIN)\b|socket hang up|fetch failed|network (?:error|timeout)|\b(?:429|500|502|503|504)\b.*(?:unavailable|overloaded|exhausted|internal|gateway|timeout)/i.test(message)) return true;
+    current = failed.cause;
+  }
+  return false;
+}
+
+/**
+ * Runs `send`, trying again (up to `retries` more times, waiting 1 s, then 3 s…) when it fails transiently. For
+ * providers whose SDK has no retries of its own; a stopped run is never retried.
+ */
+export async function withTransientRetry<T>(
+  send: () => Promise<T>,
+  options: { signal?: AbortSignal; retries?: number; delayMs?: number; onRetry?: (error: unknown, attempt: number) => void } = {},
+): Promise<T> {
+  const retries = options.retries ?? 2;
+  const delayMs = options.delayMs ?? 1000;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await send();
+    } catch (error) {
+      if (attempt >= retries || options.signal?.aborted || !isTransient(error)) throw error;
+      options.onRetry?.(error, attempt + 1);
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, delayMs * (attempt === 0 ? 1 : 3 ** attempt));
+        options.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          resolve();
+        }, { once: true });
+      });
+      if (options.signal?.aborted) throw error;
+    }
+  }
+}

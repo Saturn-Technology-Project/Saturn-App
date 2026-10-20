@@ -1,5 +1,5 @@
 import { HttpError } from "../domain/errors.js";
-import { logger } from "./logger.js";
+import { errorText, logger } from "./logger.js";
 import { SpanKind, failSpan, instruments, seconds, traced } from "./telemetry.js";
 import { llmProvider } from "../domain/llm/catalog.js";
 import { priceCall } from "../domain/llm/pricing.js";
@@ -9,6 +9,7 @@ import { claude } from "./llm/claude.js";
 import { deepseek } from "./llm/deepseek.js";
 import { gemini } from "./llm/gemini.js";
 import { lmStudio } from "./llm/lmstudio.js";
+import { withTransientRetry } from "./llm/shared.js";
 import { isOfficialOpenAI, openAIChat, openAIResponses } from "./llm/openai.js";
 import type { ChatMessage, ProviderAdapter, ToolDef } from "./llm/types.js";
 
@@ -40,6 +41,9 @@ export type CompletionInput = {
   thinking?: "low";
   signal?: AbortSignal;
 };
+
+/** Adapters whose SDK retries transient failures itself, so the broker does not retry around them too. */
+const SDK_RETRIES = new Set(["claude", "deepseek", "openai-chat", "openai-responses"]);
 
 const ADAPTERS: Record<string, ProviderAdapter> = {
   claude,
@@ -146,18 +150,27 @@ export class LlmBroker {
         // Which key, never the key: the model's own, the provider's shared one, or none.
         const source = this.vault.secret(model.id) ? "model key" : this.keyFor(model) ? "provider key" : "no key";
         logger.debug("llm", `chat ${requestModel} via ${adapter.id} (${source})`);
-        const body = await adapter.complete({
-          model: requestModel,
-          baseUrl: model.baseUrl,
-          apiKey: this.keyFor(model),
-          messages: input.messages,
-          tools,
-          temperature: input.temperature,
-          maxOutput: input.maxOutput,
-          ...(input.thinking ? { thinking: input.thinking } : {}),
-          ...(model.effort ? { effort: model.effort } : {}),
-          signal: input.signal,
-        });
+        const send = () =>
+          adapter.complete({
+            model: requestModel,
+            baseUrl: model.baseUrl,
+            apiKey: this.keyFor(model),
+            messages: input.messages,
+            tools,
+            temperature: input.temperature,
+            maxOutput: input.maxOutput,
+            ...(input.thinking ? { thinking: input.thinking } : {}),
+            ...(model.effort ? { effort: model.effort } : {}),
+            signal: input.signal,
+          });
+        // One dropped connection (read ETIMEDOUT) should not end a long agent run. The Anthropic and OpenAI SDKs
+        // (Claude, OpenAI, DeepSeek) already retry; Gemini's and the local LM Studio client do not.
+        const body = SDK_RETRIES.has(adapter.id)
+          ? await send()
+          : await withTransientRetry(send, {
+              signal: input.signal,
+              onRetry: (error, attempt) => logger.warn("llm", `chat ${requestModel} failed (${errorText(error)}); retrying (${attempt}/2)`),
+            });
         const usage = (body.usage ?? {}) as { input_tokens?: number; output_tokens?: number };
         const calls = ((body.choices as { message?: { tool_calls?: unknown[] } }[] | undefined)?.[0]?.message?.tool_calls ?? []).length;
         span.setAttribute("saturn.llm.tool_calls", calls);
