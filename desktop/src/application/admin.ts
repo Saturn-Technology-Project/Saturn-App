@@ -9,6 +9,14 @@ export type ConsoleSnapshot = {
 };
 
 /** Local settings, logs, and model or MCP connections edited from Settings. */
+export type CodexStatus = {
+  loggedIn: boolean;
+  authMethod: string;
+  configDir: string;
+  signIn?: { mode: "device" | "browser"; state: "starting" | "waiting" | "failed"; url?: string; code?: string; error?: string };
+  error?: string;
+};
+
 export class AdminService {
   constructor(private readonly runtime: RuntimeClient) {}
 
@@ -29,6 +37,29 @@ export class AdminService {
   /** Signs Saturn's Claude Code out through the official program; returns the new status. */
   claudeCodeLogout(): Promise<Awaited<ReturnType<AdminService["claudeCodeStatus"]>>> {
     return this.runtime.request("/claude-code/logout", { method: "POST" });
+  }
+
+  /** Codex's login, as the official `codex` program reports it, plus any sign-in in progress. */
+  codexStatus(): Promise<CodexStatus> {
+    return this.runtime.request("/codex/status");
+  }
+
+  /** Starts the official `codex login`: "device" shows a one-time code; "browser" opens the sign-in page. */
+  codexSignIn(mode: "device" | "browser"): Promise<CodexStatus> {
+    return this.runtime.request("/codex/sign-in", { method: "POST", body: JSON.stringify({ mode }) });
+  }
+
+  /** Opens the page Codex printed for the sign-in in progress in the default browser. */
+  codexOpenPage(): Promise<{ opened: boolean }> {
+    return this.runtime.request("/codex/sign-in/open", { method: "POST" });
+  }
+
+  codexCancelSignIn(): Promise<CodexStatus> {
+    return this.runtime.request("/codex/sign-in", { method: "DELETE" });
+  }
+
+  codexLogout(): Promise<CodexStatus> {
+    return this.runtime.request("/codex/logout", { method: "POST" });
   }
 
   updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null }): Promise<Profile> {

@@ -761,6 +761,16 @@ export function App() {
     await reload();
   }
 
+  // Effort belongs to the model connection, so it changes for every agent on that model.
+  async function changeEffort(modelId: string, effort: string | null) {
+    try {
+      await desktop.admin.updateModelEffort(modelId, effort);
+      await reload();
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "Could not change the effort");
+    }
+  }
+
   function pushNav(next: {
     view: "workspace" | "settings" | "automations" | "customizations" | "project" | "group";
     agentId: string | null;
@@ -2002,6 +2012,7 @@ export function App() {
                         selectedModelId={agent?.modelConnectionId ?? null}
                         disabled={!agent}
                         onChange={(modelId) => void patchAgent({ modelConnectionId: modelId })}
+                        onChangeEffort={(modelId, effort) => void changeEffort(modelId, effort)}
                         onOpenUsage={() => openSettingsPage("usage")}
                         onOpenSettings={(page) => openSettingsPage(page)}
                       />

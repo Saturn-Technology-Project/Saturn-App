@@ -1,31 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import type { Model } from "../domain/model.js";
+import { EFFORT_LABELS, supportsEffort, type Effort, type Model } from "../domain/model.js";
 import type { SettingsPage } from "./Settings.js";
-
-function getModelMetadata(model: Model) {
-  const id = model.id.toLowerCase();
-  const name = model.name.toLowerCase();
-
-  let tier: string | null = null;
-  if (name.includes("high") || id.includes("opus") || id.includes("pro") || id.includes("flash")) {
-    tier = name.includes("high") ? "High" : id.includes("flash") ? "High" : "Medium";
-  } else if (name.includes("medium") || id.includes("sonnet") || id.includes("argon")) {
-    tier = "Medium";
-  } else if (name.includes("low") || id.includes("haiku")) {
-    tier = "Low";
-  }
-
-  const isNew = id.includes("argon") || id.includes("5-5") || id.includes("5.5") || id.includes("v4") || name.includes("argon");
-
-  return { tier, isNew };
-}
 
 export function ModelSelector(props: {
   models: Model[];
   selectedModelId?: string | null;
   disabled?: boolean;
   variant?: "pill" | "form";
-  onChange: (modelId: string | null) => void;
+  onChange: (modelId: string) => void;
+  /** Changes the selected model's effort (null: the model's default). Without it the picker shows no effort. */
+  onChangeEffort?: (modelId: string, effort: Effort | null) => void;
   onOpenUsage?: () => void;
   onOpenSettings?: (page: SettingsPage) => void;
 }) {
@@ -62,18 +46,14 @@ export function ModelSelector(props: {
         className={`composer-model-btn${isForm ? " form-style" : ""}${open ? " active" : ""}`}
         disabled={props.disabled}
         onClick={() => setOpen((prev) => !prev)}
-        title={`Active model: ${activeModel ? activeModel.name : "None"}`}
+        title={activeModel ? `Active model: ${activeModel.name}${activeModel.effort ? ` · ${EFFORT_LABELS[activeModel.effort]} effort` : ""}` : "Select a model"}
         aria-haspopup="true"
         aria-expanded={open}
       >
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
           {!isForm && <span className="model-btn-prefix">Model</span>}
-          <span className="model-btn-label">{activeModel ? activeModel.name : isForm ? "None (Select a model)" : "None"}</span>
-          {activeModel && !activeModel.hasSecret && (
-            <span className="model-btn-warn" title="No API key saved">
-              ⚠️
-            </span>
-          )}
+          <span className="model-btn-label">{activeModel ? activeModel.name : "Select a model"}</span>
+          {!isForm && activeModel?.effort ? <span className="model-btn-effort">{EFFORT_LABELS[activeModel.effort]}</span> : null}
         </div>
         <svg
           className={`model-btn-chevron${open ? " open" : ""}`}
@@ -96,30 +76,9 @@ export function ModelSelector(props: {
           <div className="model-popover-header">Model</div>
 
           <div className="model-popover-list">
-            <button
-              type="button"
-              role="menuitem"
-              className={`model-menu-item${!props.selectedModelId ? " selected" : ""}`}
-              onClick={() => {
-                props.onChange(null);
-                setOpen(false);
-              }}
-            >
-              <div className="model-item-left">
-                <span className="model-item-name">None</span>
-              </div>
-              {!props.selectedModelId && (
-                <div className="model-item-check" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3.5 8.5l3 3 6-7" />
-                  </svg>
-                </div>
-              )}
-            </button>
-
+            {props.models.length === 0 ? <div className="model-popover-empty">No models yet. Add one in Manage Models.</div> : null}
             {props.models.map((item) => {
               const isSelected = item.id === props.selectedModelId;
-              const meta = getModelMetadata(item);
               return (
                 <button
                   key={item.id}
@@ -136,13 +95,7 @@ export function ModelSelector(props: {
                   </div>
 
                   <div className="model-item-right">
-                    {meta.tier && <span className="model-item-tier">{meta.tier}</span>}
-                    {!item.hasSecret && (
-                      <span className="model-item-warn" title="API key missing">
-                        ⚠️
-                      </span>
-                    )}
-                    {meta.isNew && <span className="model-item-badge">New</span>}
+                    {item.effort ? <span className="model-item-tier">{EFFORT_LABELS[item.effort]}</span> : null}
 
                     {isSelected ? (
                       <div className="model-item-check" aria-hidden="true">
@@ -162,6 +115,32 @@ export function ModelSelector(props: {
               );
             })}
           </div>
+
+          {props.onChangeEffort && activeModel && supportsEffort(activeModel.provider) ? (
+            <>
+              <div className="model-popover-divider" />
+              <div className="model-popover-header">Effort</div>
+              <div className="model-effort-row" role="group" aria-label={`Effort for ${activeModel.name}`}>
+                {([null, ...(Object.keys(EFFORT_LABELS) as Effort[])] as (Effort | null)[]).map((value) => {
+                  const active = (activeModel.effort ?? null) === value;
+                  return (
+                    <button
+                      key={value ?? "default"}
+                      type="button"
+                      className={`model-effort-chip${active ? " selected" : ""}`}
+                      aria-pressed={active}
+                      title={value ? `${EFFORT_LABELS[value]} effort` : "The model's default effort"}
+                      onClick={() => {
+                        if (!active) props.onChangeEffort?.(activeModel.id, value);
+                      }}
+                    >
+                      {value ? EFFORT_LABELS[value] : "Default"}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          ) : null}
 
           <div className="model-popover-divider" />
 

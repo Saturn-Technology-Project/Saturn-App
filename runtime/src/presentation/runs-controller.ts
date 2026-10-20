@@ -102,6 +102,31 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.kernel.claudeCode.logout());
   });
 
+  app.get("/codex/status", (_req, res, next) => {
+    respond(res, next, () => services.kernel.codex.status());
+  });
+
+  // Starts the official `codex login`: mode "device" (a one-time code, no local redirect) or "browser".
+  app.post("/codex/sign-in", (req, res, next) => {
+    respond(res, next, () => services.kernel.codex.startSignIn(req.body?.mode === "browser" ? "browser" : "device"));
+  });
+
+  // Opens the page Codex printed for this sign-in in the default browser (never a URL from the request).
+  app.post("/codex/sign-in/open", (_req, res, next) => {
+    respond(res, next, () => services.kernel.codex.openSignInPage());
+  });
+
+  app.delete("/codex/sign-in", (_req, res, next) => {
+    respond(res, next, async () => {
+      services.kernel.codex.cancelSignIn();
+      return await services.kernel.codex.status();
+    });
+  });
+
+  app.post("/codex/logout", (_req, res, next) => {
+    respond(res, next, () => services.kernel.codex.logout());
+  });
+
   app.post("/runs/:id/wake", (req, res, next) => {
     respond(res, next, () => services.wakeRun(param(req.params.id)));
   });

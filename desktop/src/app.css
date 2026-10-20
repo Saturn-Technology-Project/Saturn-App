@@ -2509,6 +2509,11 @@ body.is-resizing iframe {
   font-size: 11px;
 }
 
+.model-btn-effort {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .model-btn-chevron {
   flex: none;
   color: var(--subtle);
@@ -2553,6 +2558,41 @@ body.is-resizing iframe {
   font-weight: 600;
   color: var(--subtle);
   padding: 4px 8px 6px;
+}
+
+.model-popover-empty {
+  padding: 6px 10px 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.model-effort-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 6px 6px;
+}
+
+.model-effort-chip {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.model-effort-chip:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.model-effort-chip.selected {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
 }
 
 .model-popover-list {
@@ -4479,36 +4519,78 @@ body.is-resizing iframe {
 /* Antigravity Segmented Pill */
 .segmented-pill {
   display: inline-flex;
-  align-items: center;
-  background: var(--card, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--line-strong, rgba(255, 255, 255, 0.08));
+  align-items: stretch;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
   border-radius: 8px;
-  padding: 2px;
+  padding: 3px;
   gap: 2px;
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+}
+
+:root[data-theme="dark"] .segmented-pill {
+  background: rgba(0, 0, 0, 0.28);
+  border-color: var(--line, rgba(255, 255, 255, 0.08));
 }
 
 .segmented-pill button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1 1 0px;
+  min-width: 76px;
+  height: 26px;
+  padding: 0 12px;
   border: 0;
+  border-radius: 5px;
   background: transparent;
   color: var(--muted);
+  font-family: inherit;
   font-size: 12px;
   font-weight: 500;
-  padding: 4px 12px;
-  border-radius: 6px;
+  line-height: 1;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
-.segmented-pill button:hover {
+.segmented-pill button svg {
+  display: block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.segmented-pill button span {
+  display: inline-block;
+  line-height: 1;
+}
+
+.segmented-pill button:hover:not(.active) {
   color: var(--fg);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme="dark"] .segmented-pill button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .segmented-pill button.active {
-  background: var(--card-active, rgba(255, 255, 255, 0.12));
+  background: #ffffff;
   color: var(--fg);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  font-weight: 550;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0.5px 1px rgba(0, 0, 0, 0.04), inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="dark"] .segmented-pill button.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--fg);
+  font-weight: 550;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0.5px 1px rgba(0, 0, 0, 0.2), inset 0 0 0 0.5px rgba(255, 255, 255, 0.1);
 }
 
 .settings-Pane {
@@ -7957,6 +8039,22 @@ button.trace-row:hover {
   font-size: 11.5px;
   overflow-x: auto;
   white-space: nowrap;
+}
+
+.claude-login-command code.codex-device-code {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent, inherit);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .settings-card-row.settings-card-stack {

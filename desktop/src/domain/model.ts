@@ -33,8 +33,14 @@ export type Model = {
   baseUrl: string;
   hasSecret: boolean;
   /** Reasoning effort for this model (every provider maps it to its own control); unset uses the model's default. */
-  effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  effort?: Effort;
 };
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+export const EFFORT_LABELS: Record<Effort, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra High", max: "Max" };
+/** LM Studio and DeepSeek have no effort control. */
+export function supportsEffort(provider?: string): boolean {
+  return provider !== "lmstudio" && provider !== "deepseek";
+}
 export type McpTool = { toolId: string; description?: string; category?: "read" | "write"; inputSchema?: Record<string, unknown> };
 export type Mcp = { id: string; name: string; url: string; origin?: "local"; tools: McpTool[]; disabledTools?: string[] };
 export type Rag = { id: string; name: string; url: string };

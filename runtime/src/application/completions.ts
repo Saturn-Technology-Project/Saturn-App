@@ -51,8 +51,9 @@ export class CompletionService {
     if (!id) throw new HttpError(409, "Choose a completion model in Saturn Settings → General.");
     const model = this.kernel.store.state.models.find((item) => item.id === id);
     if (!model) throw new HttpError(409, "The completion model was removed. Choose another in Saturn Settings → General.");
-    if (model.provider === "claude-code") {
-      throw new HttpError(409, `${model.name} runs through Claude Code and cannot serve completions. Choose an API model.`);
+    if (model.provider === "claude-code" || model.provider === "codex") {
+      const through = model.provider === "codex" ? "Codex" : "Claude Code";
+      throw new HttpError(409, `${model.name} runs through ${through} and cannot serve completions. Choose an API model.`);
     }
     return model;
   }

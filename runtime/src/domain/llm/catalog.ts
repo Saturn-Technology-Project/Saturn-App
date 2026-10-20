@@ -47,6 +47,20 @@ export const LLM_PROVIDERS: LlmProvider[] = [
     ],
   },
   {
+    // Runs through the official Codex SDK and `codex` program on the user's own ChatGPT login
+    // (see application/codex.ts). Saturn holds no key and never sees the login.
+    id: "codex",
+    label: "Codex (your ChatGPT plan)",
+    needsKey: false,
+    baseUrl: "",
+    models: [
+      { id: "default", label: "Codex default model" },
+      { id: "gpt-6-astra", label: "GPT-6 Astra" },
+      { id: "gpt-6.1-sol", label: "GPT-6.1 Sol" },
+      { id: "gpt-6-luna", label: "GPT-6 Luna" },
+    ],
+  },
+  {
     id: "gemini",
     label: "Gemini",
     needsKey: true,

@@ -27,7 +27,7 @@ export type ModelConnection = {
   model: string;
   baseUrl: string;
   hasSecret: boolean;
-  /** Reasoning effort for Claude Code models (low … max); unset uses the model's default. */
+  /** Reasoning effort (low … max); every provider maps it to its own control. Unset uses the model's default. */
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
 };
 
@@ -111,6 +111,8 @@ export type Conversation = {
   projectId?: string;
   /** The Claude Agent SDK session behind this chat (Claude Code models), resumed on the next message. */
   claudeSessionId?: string;
+  /** The Codex thread behind this chat (Codex models), resumed on the next message. */
+  codexThreadId?: string;
   title: string;
   createdAt: string;
   updatedAt: string;

@@ -115,7 +115,7 @@ export class CatalogService {
 
   async createModel(input: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string; effort?: string }) {
     const provider = llmProvider(input.provider || "openai");
-    if (!provider) throw new HttpError(400, "Choose OpenAI, Claude, Claude Code, Gemini, DeepSeek, or LM Studio");
+    if (!provider) throw new HttpError(400, "Choose OpenAI, Claude, Claude Code, Codex, Gemini, DeepSeek, or LM Studio");
     const effort = claudeEffort(input.effort);
     const modelId = (input.model || input.name || "").trim();
     if (!modelId) throw new HttpError(400, "Choose a model");

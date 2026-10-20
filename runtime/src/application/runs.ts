@@ -631,6 +631,11 @@ export class RunService {
         await this.kernel.claudeCode.run(runId, generation, agent, model, signal);
         return;
       }
+      if (model.provider === "codex") {
+        // The official Codex SDK runs the whole agent loop (commands, edits, thread) itself.
+        await this.kernel.codex.run(runId, generation, agent, model, signal);
+        return;
+      }
       const context = await this.ragContext(agent, run.input, signal);
       if (!this.kernel.alive(runId, generation)) return;
       const tools = this.toolList(agent);

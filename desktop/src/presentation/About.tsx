@@ -22,7 +22,7 @@ const PARTS: { name: string; role: string; body: string }[] = [
 const FEATURES: { title: string; body: string }[] = [
   {
     title: "Your models, side by side",
-    body: "Claude through your own Claude plan, Gemini, DeepSeek, OpenAI, or a local LM Studio model. Each agent picks its model and effort.",
+    body: "Claude through your own Claude plan, Codex through your ChatGPT plan, Gemini, DeepSeek, OpenAI, or a local LM Studio model. Each agent picks its model and effort.",
   },
   {
     title: "Projects are real folders",

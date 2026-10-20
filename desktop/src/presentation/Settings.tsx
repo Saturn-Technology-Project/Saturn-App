@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
-import type { Agent, LaunchApp, LlmProvider, LogLine, Mcp, Model, Profile, Project, Rag, RuntimeInfo, UsageSummary } from "../domain/model";
+import { EFFORT_LABELS, supportsEffort, type Agent, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type UsageSummary } from "../domain/model";
+import type { CodexStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
 import { ConfigureMcpModal } from "./ConfigureMcpModal";
@@ -513,7 +514,7 @@ function LlmPage(props: {
         model: modelId,
         baseUrl: providerId === "lmstudio" ? baseUrl : undefined,
         secret: secret || undefined,
-        effort: providerId !== "lmstudio" && providerId !== "deepseek" && effort ? effort : undefined,
+        effort: supportsEffort(providerId) && effort ? effort : undefined,
       });
       setSecret("");
       props.onError("");
@@ -559,7 +560,7 @@ function LlmPage(props: {
                   <div className="hint">{providerLabel(providers, item)}{item.model ? ` · ${item.model}` : ""}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {item.provider !== "lmstudio" && item.provider !== "deepseek" ? (
+                  {supportsEffort(item.provider) ? (
                     <select
                       className="input tiny model-effort"
                       aria-label={`Effort for ${item.name}`}
@@ -579,10 +580,10 @@ function LlmPage(props: {
                     </select>
                   ) : null}
                   <Status
-                    ok={item.provider === "lmstudio" || item.provider === "claude-code" || item.hasSecret}
-                    label={item.provider === "lmstudio" ? "Local Server" : item.provider === "claude-code" ? "Claude plan" : item.hasSecret ? "Key stored" : "No key"}
+                    ok={item.provider === "lmstudio" || item.provider === "claude-code" || item.provider === "codex" || item.hasSecret}
+                    label={item.provider === "lmstudio" ? "Local Server" : item.provider === "claude-code" ? "Claude plan" : item.provider === "codex" ? "ChatGPT plan" : item.hasSecret ? "Key stored" : "No key"}
                   />
-                  {item.provider !== "lmstudio" && item.provider !== "claude-code" && editingKey !== item.id ? (
+                  {item.provider !== "lmstudio" && item.provider !== "claude-code" && item.provider !== "codex" && editingKey !== item.id ? (
                     <button
                       className="btn ghost tiny"
                       type="button"
@@ -665,7 +666,7 @@ function LlmPage(props: {
           </div>
         </div>
 
-        {providerId !== "lmstudio" && providerId !== "deepseek" ? (
+        {supportsEffort(providerId) ? (
           <div>
             <label className="label" htmlFor="llm-effort">Effort</label>
             <select id="llm-effort" value={effort} onChange={(event) => setEffort(event.target.value)}>
@@ -675,6 +676,7 @@ function LlmPage(props: {
             <p className="hint">
               {EFFORT_HINTS[providerId] ?? "How much the model reasons before answering. Higher is slower and costs more."}
               {providerId === "claude-code" ? " Runs through the official Claude Code on your own Claude login (Settings → General → Claude Code). No API key." : ""}
+              {providerId === "codex" ? " Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key." : ""}
             </p>
           </div>
         ) : null}
@@ -715,11 +717,11 @@ function LlmPage(props: {
   );
 }
 
-const EFFORT_LABELS: Record<string, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra High", max: "Max" };
 /** What the effort setting does on each provider. Tab completion and next edit always run at low effort. */
 const EFFORT_HINTS: Record<string, string> = {
   claude: "Claude's effort setting (output_config.effort). Models without effort support ignore it.",
   "claude-code": "Claude Code's effort level.",
+  codex: "Codex reasoning effort.",
   openai: "OpenAI reasoning effort for o-series and GPT-5 models (Extra High and Max use High). Other models ignore it.",
   gemini: "Gemini thinking level (3.x and 4) or thinking budget (2.5).",
 };
@@ -781,8 +783,8 @@ function General(props: {
   const [launchApp, setLaunchApp] = useState<LaunchApp>(props.profile.launchApp ?? "agent");
   const [completionModelId, setCompletionModelId] = useState(props.profile.completionModelId ?? "");
   const [saved, setSaved] = useState(false);
-  // Claude Code models run an agent loop on the user's plan; completions need a plain API call.
-  const completionChoices = props.models.filter((item) => item.provider !== "claude-code");
+  // Claude Code and Codex models run an agent loop on the user's plan; completions need a plain API call.
+  const completionChoices = props.models.filter((item) => item.provider !== "claude-code" && item.provider !== "codex");
 
   async function chooseCompletionModel(next: string) {
     const previous = completionModelId;
@@ -836,7 +838,8 @@ function General(props: {
             else if (props.theme !== value) props.onToggleTheme?.();
           }}
         >
-          {icon} {label}
+          {icon}
+          <span>{label}</span>
         </button>
       ))}
     </div>
@@ -866,7 +869,7 @@ function General(props: {
                   className={launchApp === value ? "active" : ""}
                   onClick={() => void chooseLaunchApp(value)}
                 >
-                  {label}
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
@@ -885,6 +888,13 @@ function General(props: {
         <div className="settings-section-title">Claude Code</div>
         <div className="settings-card">
           <ClaudeCodeLogin />
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Codex</div>
+        <div className="settings-card">
+          <CodexLogin />
         </div>
       </div>
 
@@ -965,7 +975,7 @@ function General(props: {
                     });
                   }}
                 >
-                  {label}
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
@@ -1147,17 +1157,17 @@ function CloseIcon() {
 
 function SunIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <circle cx="8" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M8 1.6v1.7M8 12.7v1.7M1.6 8h1.7M12.7 8h1.7M3.3 3.3l1.2 1.2M11.5 11.5l1.2 1.2M12.7 3.3l-1.2 1.2M4.5 11.5l-1.2 1.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
     </svg>
   );
 }
 
 function MoonIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M9.2 2.2a4.8 4.8 0 1 0 4.6 6.2 3.8 3.8 0 0 1-4.6-6.2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
     </svg>
   );
 }
@@ -1167,6 +1177,133 @@ function Chevron(props: { open: boolean }) {
     <svg className={props.open ? "chevron open" : "chevron"} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+/**
+ * Codex models run on the user's own ChatGPT login, made by the official `codex` program. The runtime starts
+ * its `codex login` and relays what it prints: a one-time code to type at OpenAI (no localhost redirect), or
+ * the sign-in page it opened in the browser. Saturn never handles the credential itself.
+ */
+function CodexLogin() {
+  const [status, setStatus] = useState<CodexStatus | null>(null);
+  const [busy, setBusy] = useState<"checking" | "starting" | "signing_out" | null>("checking");
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run(kind: NonNullable<typeof busy>, action: () => Promise<CodexStatus>, failure: string) {
+    setBusy(kind);
+    setError("");
+    try {
+      setStatus(await action());
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : failure);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    void run("checking", () => desktop.admin.codexStatus(), "Could not reach the runtime");
+  }, []);
+
+  // While a sign-in waits, follow it until Codex reports signed in or the sign-in ends.
+  const signIn = status && !status.loggedIn ? status.signIn : undefined;
+  const waiting = signIn?.state === "starting" || signIn?.state === "waiting";
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = window.setInterval(() => {
+      void desktop.admin.codexStatus().then(setStatus, () => undefined);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [waiting]);
+
+  async function signOut() {
+    if (!window.confirm("Sign Saturn out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in.")) return;
+    await run("signing_out", () => desktop.admin.codexLogout(), "Could not sign out");
+  }
+
+  async function openPage() {
+    try {
+      await desktop.admin.codexOpenPage();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not open the page");
+    }
+  }
+
+  async function copyCode() {
+    if (!signIn?.code) return;
+    try {
+      await navigator.clipboard.writeText(signIn.code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  const method = status?.authMethod === "chatgpt" ? "ChatGPT plan" : status?.authMethod === "api-key" ? "API key" : "";
+  return (
+    <>
+      <div className="settings-card-row">
+        <div className="settings-row-text">
+          <span className="settings-row-label">ChatGPT Account</span>
+          <span className="settings-row-desc">
+            {status === null
+              ? busy ? "Checking…" : "Status unavailable."
+              : status.loggedIn
+                ? ["Signed in", method].filter(Boolean).join(" · ")
+                : "Not signed in. Codex models run on your own ChatGPT login; Saturn never sees your credentials."}
+          </span>
+        </div>
+        <div className="settings-row-actions">
+          {status ? <Status ok={status.loggedIn} label={status.loggedIn ? "Signed in" : "Signed out"} /> : null}
+          {status?.loggedIn ? (
+            <button type="button" className="btn tiny" disabled={busy !== null} onClick={() => void signOut()}>
+              {busy === "signing_out" ? "Signing out…" : "Sign Out"}
+            </button>
+          ) : waiting ? (
+            <button type="button" className="btn ghost tiny" onClick={() => void run("checking", () => desktop.admin.codexCancelSignIn(), "Could not cancel")}>
+              Cancel
+            </button>
+          ) : (
+            <button type="button" className="btn tiny" disabled={busy !== null || status === null} onClick={() => void run("starting", () => desktop.admin.codexSignIn("device"), "Could not start sign-in")}>
+              {busy === "starting" ? "Starting…" : "Sign In"}
+            </button>
+          )}
+        </div>
+      </div>
+      {signIn && waiting ? (
+        <div className="settings-card-row settings-card-stack">
+          {signIn.mode === "device" ? (
+            <>
+              <span className="settings-row-desc">Open the OpenAI page, sign in, and enter this one-time code. It expires in 15 minutes; this card updates once you're done.</span>
+              <div className="claude-login-command">
+                <code className="codex-device-code">{signIn.code ?? "Waiting for a code…"}</code>
+                {signIn.code ? <button type="button" className="btn ghost tiny" onClick={() => void copyCode()}>{copied ? "Copied" : "Copy"}</button> : null}
+                {signIn.url ? (
+                  <button type="button" className="btn tiny" onClick={() => void openPage()}>Open Page</button>
+                ) : null}
+              </div>
+              <span className="settings-row-desc">
+                Device codes must be allowed in your ChatGPT security settings. If they aren't,{" "}
+                <button type="button" className="link-button" onClick={() => void run("starting", () => desktop.admin.codexSignIn("browser"), "Could not start sign-in")}>
+                  sign in with the browser instead
+                </button>.
+              </span>
+            </>
+          ) : (
+            <span className="settings-row-desc">
+              Finish signing in on the page that opened in your browser. Saturn keeps Codex listening for it until you're done.
+              {signIn.url ? <> <button type="button" className="link-button" onClick={() => void openPage()}>Open it again</button>.</> : null}
+            </span>
+          )}
+        </div>
+      ) : null}
+      {error || status?.error || (signIn?.state === "failed" ? signIn.error : "") ? (
+        <p className="settings-row-error">{error || status?.error || signIn?.error}</p>
+      ) : null}
+    </>
   );
 }
 
@@ -1196,6 +1333,16 @@ function ClaudeCodeLogin() {
   useEffect(() => {
     void check();
   }, []);
+
+  // While signed out, ask again every few seconds, so finishing the terminal sign-in shows up on its own.
+  const signedOut = status !== null && !status.loggedIn && Boolean(status.loginCommand);
+  useEffect(() => {
+    if (!signedOut) return;
+    const timer = window.setInterval(() => {
+      void desktop.admin.claudeCodeStatus().then(setStatus, () => undefined);
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [signedOut]);
 
   async function signOut() {
     if (!window.confirm("Sign Saturn out of Claude Code? Claude Code models stop working until you sign in again. Your other Claude apps stay signed in.")) return;
@@ -1250,7 +1397,10 @@ function ClaudeCodeLogin() {
       </div>
       {status && !status.loggedIn && status.loginCommand ? (
         <div className="settings-card-row settings-card-stack">
-          <span className="settings-row-desc">To sign in, run this in Terminal. It opens your browser to sign in to Claude, then click Check Again.</span>
+          <span className="settings-row-desc">
+            To sign in, run this in Terminal and keep that window open until it says you're signed in. This card updates on its own.
+            If the browser says it can't connect to localhost, that terminal sign-in had already ended: run the command again and use the new browser page.
+          </span>
           <div className="claude-login-command">
             <code>{status.loginCommand}</code>
             <button type="button" className="btn ghost tiny" onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</button>
