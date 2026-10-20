@@ -7,6 +7,11 @@ export type TelemetryExportFormat = "saturn" | "otlp" | "siem";
 export class TelemetryService {
   constructor(private readonly runtime: RuntimeClient) {}
 
+  /** Every HTTP(S) request the runtime has sent since it started (GET /network). */
+  network(): Promise<NetworkView> {
+    return this.runtime.request<NetworkView>("/network");
+  }
+
   status(): Promise<TelemetryStatus> {
     return this.runtime.request<TelemetryStatus>("/telemetry/status");
   }
@@ -43,3 +48,11 @@ export class TelemetryService {
     return this.runtime.request("/telemetry", { method: "DELETE" });
   }
 }
+
+export type NetworkView = {
+  since: string;
+  file: string | null;
+  hosts: { host: string; local: boolean; requests: number; first: string; last: string; methods: string[] }[];
+  recent: { at: string; method: string; host: string; path: string; local: boolean }[];
+};
+

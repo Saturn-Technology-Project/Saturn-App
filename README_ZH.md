@@ -14,7 +14,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6.svg?logo=typescript&logoColor=white)
 ![Status](https://img.shields.io/badge/status-early%20preview-orange.svg)
 
-[功能](#功能) · [快速開始](#快速開始) · [架構](#架構) · [模型](#模型) · [安全](#安全設計) · [API](#本機-api) · [English](README.md)
+[功能](#功能) · [快速開始](#快速開始) · [架構](#架構) · [模型](#模型) · [安全](#安全與信任) · [API](#本機-api) · [English](README.md)
 
 </div>
 
@@ -24,7 +24,7 @@
 
 多數 Agent 工具跑在別人的雲端，或是把你的終端機整個交給 AI，你很難管它做了什麼。Saturn 走另一條路：
 
-- **本機優先。** Agent 的核心是一個跑在 `127.0.0.1` 的小型伺服器。你的 Agent、對話、金鑰和遙測資料都留在你的電腦上。
+- **本機優先，而且你能驗證。** Agent 的核心是一個跑在 `127.0.0.1` 的小型伺服器。你的 Agent、對話、金鑰和遙測資料都留在你的電腦上，每一條對外連線都有清單、有紀錄（[如何驗證](#安全與信任)）。
 - **模型自己選。** Claude、OpenAI、Gemini、DeepSeek 用你自己的 API 金鑰；Claude Code 用你的 Claude 方案；Codex 用你的 ChatGPT 方案；或是在 LM Studio 跑完全離線的模型。
 - **主控權在你手上。** Agent 只能在你授權的資料夾裡工作。有風險的操作會等你核准，每次修改都有檢查點，任何變更都能還原。
 
@@ -165,15 +165,110 @@ runtime/src/                    desktop/src/
 
 API 金鑰存在 `~/.saturn-app/secrets.json`，只有擁有者能讀取。金鑰只會送到對應的供應商，永遠不會回傳給介面。同一個供應商的所有模型共用一把金鑰。
 
-## 安全設計
+## 安全與信任
 
-Saturn 會在你的電腦上執行程式碼，所以預設值都很嚴格：
+Saturn 在你的電腦上執行，也握有你的 API 金鑰，所以你不該只聽我們說。這一節寫清楚哪些東西留在你的電腦、哪些會離開、什麼時候離開，以及你不用讀程式碼就能自己驗證的方法。
 
-- **只限本機。** Runtime 綁定在 `127.0.0.1`，拒絕 `Host` 不是本機位址的請求，也拒絕 `null` 和非本機的瀏覽器來源。
-- **Session token。** 除了 `/health` 和 OAuth 回呼，每個路由都需要 `Authorization: Bearer <token>`。Token 存在 `~/.saturn-app/runtime-token`（權限 `0600`），其他使用者和網頁都無法呼叫 API。
-- **工作範圍受限。** 檔案和指令只能在 Runtime 的 `workspace/`，或你授權的專案資料夾裡。`web` 工具會拒絕本機與私有網段位址。
-- **核准機制。** 除非你選擇完全自主，否則破壞性指令和工作資料夾以外的修改都會等你核准。
-- **方案登入只屬於官方程式。** Claude Code 和 Codex 透過各自的官方程式登入，憑證存在 Saturn 專用的設定資料夾。Saturn 從不讀取、複製或轉送這些憑證，並會移除 API 金鑰相關的環境變數，避免它們取代方案登入。
+**簡單說：** 沒有 Saturn 伺服器。你的金鑰、對話和遙測都是 `~/.saturn-app` 裡的檔案。資料只會送到你選擇的服務（你的模型供應商，以及 Agent 使用的網站與工具），而且每一條連線你都看得到。
+
+### 留在你電腦上的東西
+
+全部都在 `~/.saturn-app`（或 `SATURN_DATA_DIR`）。刪掉這個資料夾，Saturn 就什麼都不記得了。
+
+| 內容 | 位置 | 說明 |
+|---|---|---|
+| API 金鑰 | `secrets.json` | 權限 `0600`：只有你的使用者帳號能讀。以明文存在這個檔案（不是系統鑰匙圈），每把金鑰只會送到它所屬的供應商。 |
+| Agent、對話、專案、設定 | `state.json` | 看得懂的 JSON。 |
+| 遙測（trace、metric、log） | 記憶體、`telemetry.json` | 除非你自己設定 OTLP 端點，否則不會送到任何地方。 |
+| Runtime 發出的每個請求 | `network.log` | 每個請求一行 JSON：時間、方法、主機、路徑。不含查詢字串、不含內容。 |
+| 記憶、程式碼索引、檢查點、附加的圖片 | `memory/`、`index/`、`checkpoints/`、`run-images/` | 本機檔案；程式碼索引用的是在你電腦上執行的內建嵌入模型。 |
+| 本機 API 的 session token | `runtime-token` | 權限 `0600`。 |
+| Saturn IDE 的遙測 | 送到 `127.0.0.1` 上的 Runtime | Code-OSS 原本送給 Microsoft 的遙測與當機回報已被取代，不會送給 Microsoft。 |
+
+### 會離開你電腦的東西，以及時機
+
+| 目的地 | 時機 | 送出的內容 |
+|---|---|---|
+| 你連接的模型供應商（Anthropic、OpenAI、Google、DeepSeek） | Agent 工作、Tab 補全或行內編輯時 | 對話、你或 Agent 附上的程式碼與檔案、工具結果。金鑰只送到該供應商。 |
+| 透過 Claude Code 與 Codex 連到 Anthropic / OpenAI | 使用這兩個供應商的 Agent 工作時 | 它們的官方程式用你的方案登入連到自家公司。Saturn 從不讀取或轉送它們的憑證。 |
+| Agent 使用的網站、API 與 MCP 伺服器 | Agent 讀網頁、用瀏覽器、呼叫 GitHub，或使用你安裝的 MCP 伺服器時 | 該工具需要的內容。web 與瀏覽器工具會拒絕私有網段與本機位址。 |
+| GitHub Releases | Saturn App 啟動時 | 檢查更新。macOS 只在有 Developer ID 簽章的版本才會檢查。設定 `SATURN_NO_UPDATES=1` 可關閉。 |
+| Open VSX 與 `raw.githubusercontent.com` | Saturn IDE：瀏覽或安裝擴充套件時，以及啟動時一次 | 擴充套件市集，以及 Open VSX 的封鎖套件清單。 |
+| GitHub（從 Saturn IDE） | 只有你在 IDE 登入 GitHub 時 | Git 與 GitHub 擴充需要的內容。 |
+| Hugging Face | 只有你選了沒有內建的嵌入模型時 | 下載該模型。 |
+| 你的 OpenTelemetry collector | 只有你設定了 `OTEL_EXPORTER_OTLP_ENDPOINT` 時 | Saturn 的 trace、metric 與 log。 |
+
+除此之外沒有別的。沒有分析追蹤、沒有當機回報、沒有帳號、沒有 Saturn 雲端。
+
+我們實際測過：全新安裝、沒有對話在跑的時候，Runtime **沒有**任何對外連線，Saturn IDE 只有一條（它的網路程序到 `raw.githubusercontent.com` 取 Open VSX 的封鎖套件清單）。
+
+### 自己驗證
+
+不用讀程式碼，下面每一項都可以單獨做。
+
+**1. 用你自己的工具看網路。** 不管 Saturn 的程式寫了什麼，作業系統都看得到每一條連線。
+
+```bash
+# macOS：所有 Saturn 程序的即時連線
+nettop -m tcp -p $(pgrep -d, -f "Saturn") 2>/dev/null || lsof -i -nP | grep -i saturn
+```
+
+```powershell
+# Windows：Saturn 程序目前的連線
+Get-NetTCPConnection -State Established | Where-Object { (Get-Process -Id $_.OwningProcess).ProcessName -like "Saturn*" }
+```
+
+想要每條新連線都先問你的防火牆：macOS 可用 [LuLu](https://objective-see.org/products/lulu.html)（免費、開源）或 Little Snitch，Windows 可用 Windows Defender 防火牆的輸出規則。你看到的每條連線都應該對得上上面的表。
+
+**2. 看 Saturn 自己的紀錄。** **設定 → 遙測 → Network** 列出 Runtime 連過的每個主機與最近的請求。同樣的紀錄也寫在可以即時追蹤的檔案裡：
+
+```bash
+tail -f ~/.saturn-app/network.log
+jq -r .host ~/.saturn-app/network.log | sort | uniq -c | sort -rn   # 每個主機的請求數
+```
+
+**3. 斷網使用。** 在 [LM Studio](https://lmstudio.ai) 接一個本機模型，用防火牆封鎖 Saturn，照常使用：Agent、Tab 補全和程式碼索引都能運作。
+
+**4. 看存了什麼。**
+
+```bash
+ls -la ~/.saturn-app          # secrets.json 和 runtime-token 是 -rw-------（只有你能讀）
+cat ~/.saturn-app/state.json  # Agent、對話與設定，純 JSON
+```
+
+**5. 確認下載的檔案就是這份程式碼。** 每個發行檔案都有 SHA-256 校驗碼和簽署過的建置證明（attestation）。它證明檔案是由本 repo 公開的 [release workflow](.github/workflows/release.yml) 從某個公開 commit 建置出來的，所以你安裝的就是這個 repo 裡的程式碼：
+
+```bash
+shasum -a 256 -c Saturn-<version>-mac-arm64-unsigned.dmg.sha256
+gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
+```
+
+建置紀錄公開在 [Actions](../../actions/workflows/release.yml) 頁面。也可以不下載，直接[自己建置](#快速開始)。
+
+### 監控
+
+- **網路：** `network.log` 是 JSON Lines，可以接到你的 log 收集器，或工作時 `tail -f`。
+- **OpenTelemetry：** 設定 `OTEL_EXPORTER_OTLP_ENDPOINT`（可另設 `SATURN_OTEL=otlp`），把 Saturn 的 trace、metric 和 log 送到你自己的 collector（Grafana、Jaeger、Honeycomb、Datadog）。每次模型呼叫、工具呼叫和 Agent 回合都是一個 span，對外 HTTP 請求是其子 span。
+- **本機 API：** `GET /network`、`GET /telemetry/traces`、`GET /telemetry/logs` 和 `GET /usage/summary` 讓你的腳本拿到同樣的資料（見[本機 API](#本機-api)）。
+- **花費：** **設定 → 用量與帳單** 依模型和 Agent 顯示任何時間範圍的 token 數與費用。
+
+### 內建保護
+
+- **只限本機。** Runtime 綁定在 `127.0.0.1`，拒絕 `Host` 不是本機位址的請求（DNS rebinding 無法連進來），也拒絕 `null` 和非本機的瀏覽器來源。
+- **Session token。** 除了 `/health` 和 OAuth 回呼，每個路由都需要 `Authorization: Bearer <token>`，token 存在 `~/.saturn-app/runtime-token`（權限 `0600`），其他使用者和網頁都無法使用 API。
+- **只在你授權的資料夾。** Agent 只能在 Saturn 自己的 workspace 和你允許的專案資料夾裡讀寫和執行指令，隨時可以撤銷。
+- **核准與檢查點。** 除非你選擇完全自主，否則有風險的指令和工作資料夾以外的修改都會等你核准。每次修改都有紀錄，可以還原，最細到單一步驟。
+- **方案登入只屬於官方程式。** Claude Code 和 Codex 透過各自的官方程式登入，憑證存在 Saturn 專用的設定資料夾。Saturn 從不讀取、複製或轉送這些憑證，並會從它們的環境移除 API 金鑰變數，避免金鑰取代方案登入。
+
+### 把風險降到最低
+
+- 給 Saturn 設有花費上限、或專門為它建立的 API 金鑰，需要時可以單獨撤銷。
+- 優先使用 **Default** 核准（有風險才問），而不是完全自主；只授權 Agent 需要的專案資料夾。
+- 不能離開電腦的程式碼，就用 LM Studio 的本機模型。
+
+### 目前還無法保證的事
+
+Saturn 仍是早期預覽版，尚未經過外部安全稽核。macOS 與 Windows 版本還沒有程式碼簽章。API 金鑰靠檔案權限保護而不是加密，所以任何以你的使用者身分執行的程式都讀得到，這和大多數開發工具一樣。你給予完全自主的 Agent 可以在你授權的資料夾裡執行任何指令：這正是 Agent 的用途，所以授權時請謹慎。
 
 發現安全漏洞？請私下寄信到 [security@saturn-core.com](mailto:security@saturn-core.com) 回報，不要開公開 issue。
 

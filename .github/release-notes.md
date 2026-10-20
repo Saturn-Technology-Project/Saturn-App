@@ -16,10 +16,11 @@
 
 Then open **Settings → Models**, connect a model, create an agent, and give it a task (the first launch walks you through it).
 
-**Check a download** (optional): each file has a `.sha256` beside it.
+**Check a download** (optional): each file has a `.sha256` beside it, and a signed build attestation that proves it was built from this repository's source by its public release workflow:
 
 ```bash
 shasum -a 256 -c Saturn-__VERSION__-mac-arm64-unsigned.dmg.sha256
+gh attestation verify Saturn-__VERSION__-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
 ```
 
 ## Changes

@@ -5,6 +5,7 @@ import { errorText, logger } from "./infrastructure/logger.js";
 import { startTelemetry, telemetryStatus } from "./infrastructure/otel-sdk.js";
 import { observeActiveRuns } from "./infrastructure/telemetry.js";
 import { createApp } from "./presentation/app.js";
+import { networkLog } from "./infrastructure/network-log.js";
 import { FileStore } from "./infrastructure/store.js";
 
 // On Electron's Node (the packaged app), read .asar files as plain files: the runtime copies and deletes app
@@ -16,6 +17,8 @@ const port = Number(process.env.SATURN_RUNTIME_PORT ?? 4700);
 const directory = process.env.SATURN_DATA_DIR ?? path.join(os.homedir(), ".saturn-app");
 
 await mkdir(directory, { recursive: true });
+// Before anything can send a request: every one from here on is recorded (Settings → Telemetry → Network).
+networkLog.start(directory);
 const stopTelemetry = await startTelemetry(directory);
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {

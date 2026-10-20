@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
-import type { TelemetryExportFormat } from "../application/telemetry";
+import type { TelemetryExportFormat, NetworkView } from "../application/telemetry";
 import type {
   AttributeValue,
   Attributes,
@@ -12,7 +12,7 @@ import type {
   TraceSummary,
 } from "../domain/model";
 
-type Tab = "traces" | "metrics" | "logs";
+type Tab = "traces" | "metrics" | "logs" | "network";
 
 const EXPORTS: { format: TelemetryExportFormat; label: string; detail: string }[] = [
   { format: "saturn", label: "Saturn JSON", detail: "telemetry.json as saved, for this page" },
@@ -88,6 +88,7 @@ export function Telemetry() {
   const [traces, setTraces] = useState<TraceSummary[]>([]);
   const [metrics, setMetrics] = useState<MetricView[]>([]);
   const [logs, setLogs] = useState<TelemetryLog[]>([]);
+  const [network, setNetwork] = useState<NetworkView | null>(null);
   const [openTrace, setOpenTrace] = useState<string | null>(null);
   const [live, setLive] = useState(true);
   const [error, setError] = useState("");
@@ -101,6 +102,7 @@ export function Telemetry() {
         tab === "traces" && !openTrace ? desktop.telemetry.traces().then(setTraces) : null,
         tab === "metrics" ? desktop.telemetry.metrics().then(setMetrics) : null,
         tab === "logs" ? desktop.telemetry.logs().then(setLogs) : null,
+        tab === "network" ? desktop.telemetry.network().then(setNetwork) : null,
       ]);
       setStatus(nextStatus);
       setError("");
@@ -154,7 +156,7 @@ export function Telemetry() {
     <div className="telemetry">
       <div className="telemetry-bar">
         <div className="telemetry-tabs" role="tablist">
-          {(["traces", "metrics", "logs"] as Tab[]).map((id) => (
+          {(["traces", "metrics", "logs", "network"] as Tab[]).map((id) => (
             <button
               key={id}
               type="button"
@@ -163,7 +165,7 @@ export function Telemetry() {
               className={tab === id ? "telemetry-tab active" : "telemetry-tab"}
               onClick={() => setTab(id)}
             >
-              {id === "traces" ? "Traces" : id === "metrics" ? "Metrics" : "Logs"}
+              {id === "traces" ? "Traces" : id === "metrics" ? "Metrics" : id === "logs" ? "Logs" : "Network"}
             </button>
           ))}
         </div>
@@ -202,6 +204,7 @@ export function Telemetry() {
         )
       ) : null}
       {tab === "metrics" ? <Metrics metrics={metrics} /> : null}
+      {tab === "network" ? <Network view={network} /> : null}
       {tab === "logs" ? (
         <Logs
           logs={logs}
@@ -717,3 +720,60 @@ function LogRow(props: { line: TelemetryLog; onOpenTrace?: (traceId: string) => 
     </div>
   );
 }
+
+/**
+ * Every host the runtime has sent a request to since it started, and the latest requests: the model providers and
+ * tools you use, and nothing else. The same records are appended to network.log for `tail -f` or your own tools.
+ */
+function Network(props: { view: NetworkView | null }) {
+  const view = props.view;
+  if (!view) return <p className="hint">Loading…</p>;
+  const remote = view.hosts.filter((host) => !host.local);
+  return (
+    <div className="network-view">
+      <p className="hint">
+        Every HTTP(S) request the Saturn runtime has sent since {new Date(view.since).toLocaleString()}: hosts and paths only, never
+        query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your
+        system's firewall or network monitor.{view.file ? <> Also written to <code>{view.file}</code>.</> : null}
+      </p>
+      <section className="card telemetry-table">
+        <div className="network-head">
+          <strong>{remote.length} outside host{remote.length === 1 ? "" : "s"}</strong>
+          <span className="hint">{view.hosts.length - remote.length} on this computer</span>
+        </div>
+        {view.hosts.length === 0 ? <p className="hint">No requests yet.</p> : null}
+        <table>
+          <thead>
+            <tr><th>Host</th><th>Where</th><th>Requests</th><th>Methods</th><th>Last</th></tr>
+          </thead>
+          <tbody>
+            {view.hosts.map((host) => (
+              <tr key={host.host}>
+                <td><code>{host.host}</code></td>
+                <td>{host.local ? "this computer" : "internet"}</td>
+                <td>{host.requests}</td>
+                <td>{host.methods.join(", ")}</td>
+                <td>{new Date(host.last).toLocaleTimeString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+      <section className="card telemetry-table">
+        <div className="network-head"><strong>Latest requests</strong></div>
+        <table>
+          <tbody>
+            {view.recent.slice(0, 100).map((entry, index) => (
+              <tr key={`${entry.at}-${index}`}>
+                <td>{new Date(entry.at).toLocaleTimeString()}</td>
+                <td>{entry.method}</td>
+                <td><code>{entry.host}{entry.path}</code></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  );
+}
+

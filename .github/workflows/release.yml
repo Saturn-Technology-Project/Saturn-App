@@ -28,6 +28,9 @@ concurrency:
 
 permissions:
   contents: write
+  # Build provenance: anyone can check a download was built by this workflow from this repository.
+  id-token: write
+  attestations: write
 
 env:
   VERSION: ${{ inputs.version || github.ref_name }}
@@ -83,6 +86,13 @@ jobs:
           npm run fetch:model
           npx electron-builder --mac --publish never
           npm run archive:mac
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
 
       - uses: actions/upload-artifact@v4
         with:
@@ -154,6 +164,11 @@ jobs:
         run: |
           for file in *.exe; do sha256sum "$file" > "$file.sha256"; done
           ls -la
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: desktop/release/*.exe
 
       - uses: actions/upload-artifact@v4
         with:

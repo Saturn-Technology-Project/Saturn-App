@@ -14,7 +14,7 @@ Pick the models, the tools and the folders they may touch. Saturn's agents read 
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6.svg?logo=typescript&logoColor=white)
 ![Status](https://img.shields.io/badge/status-early%20preview-orange.svg)
 
-[Features](#features) · [Quick start](#quick-start) · [Architecture](#architecture) · [Models](#models) · [Security](#security-model) · [API](#local-api) · [中文](README_ZH.md)
+[Features](#features) · [Quick start](#quick-start) · [Architecture](#architecture) · [Models](#models) · [Security](#security-and-trust) · [API](#local-api) · [中文](README_ZH.md)
 
 </div>
 
@@ -24,7 +24,7 @@ Pick the models, the tools and the folders they may touch. Saturn's agents read 
 
 Most agent tools run in someone else's cloud, or hand an AI your shell with little say over what it does. Saturn takes the other road:
 
-- **Local first.** The agents' core is a small server on `127.0.0.1`. Your agents, chats, keys and telemetry stay on your machine.
+- **Local first, and you can check it.** The agents' core is a small server on `127.0.0.1`. Your agents, chats, keys and telemetry stay on your machine, and every outside connection is listed and logged ([how to verify](#security-and-trust)).
 - **Bring your own model.** Claude, OpenAI, Gemini and DeepSeek with your API keys; Claude Code on your Claude plan; Codex on your ChatGPT plan; or a fully offline model in LM Studio.
 - **You stay in control.** Agents work only in folders you grant. Risky actions wait for your approval, every edit is checkpointed, and any change can be reverted.
 
@@ -165,15 +165,110 @@ Launching Saturn starts the runtime, then opens whichever app you chose to launc
 
 API keys are stored in `~/.saturn-app/secrets.json` with owner-only permissions. They are sent only to their own provider and are never returned to the UI. One key serves every model of that provider.
 
-## Security model
+## Security and trust
 
-Saturn runs code on your machine, so its defaults are strict:
+Saturn runs on your computer and holds your API keys, so you should not have to take our word for anything. This section says exactly what stays on your machine, what leaves it and when, and how to check all of it yourself without reading the code.
 
-- **Loopback only.** The runtime binds to `127.0.0.1`, rejects requests whose `Host` is not loopback, and refuses `null` and non-local browser origins.
-- **Session token.** Every route except `/health` and the OAuth redirect needs `Authorization: Bearer <token>`. The token lives in `~/.saturn-app/runtime-token` (mode `0600`), so other users and web pages cannot call the API.
-- **Scoped work.** Files and commands stay in the runtime's `workspace/`, or in a project folder you granted. The `web` tool refuses local and private addresses.
-- **Approvals.** Destructive commands and edits outside the working folder wait for you unless you choose full autonomy.
-- **Plan logins stay with their owners.** Claude Code and Codex sign in through their official programs, in Saturn's own config folders. Saturn never reads, copies or forwards their credentials, and removes API-key environment variables so they cannot take over a plan session.
+**In short:** there is no Saturn server. Your keys, chats and telemetry are files in `~/.saturn-app`. Data leaves your computer only to the services you choose (your model providers, and the sites and tools your agents use), and you can watch every connection.
+
+### What stays on your computer
+
+Everything lives in `~/.saturn-app` (or `SATURN_DATA_DIR`). Delete the folder and Saturn has forgotten everything.
+
+| What | Where | Notes |
+|---|---|---|
+| API keys | `secrets.json` | Mode `0600`: only your user account can read it. Stored as plain text in that file (not in the system keychain), and sent only to the provider each key belongs to. |
+| Agents, chats, projects, settings | `state.json` | Plain JSON you can read. |
+| Telemetry (traces, metrics, logs) | memory, `telemetry.json` | Never sent anywhere unless you set an OTLP endpoint yourself. |
+| Every request the runtime sent | `network.log` | One JSON line per request: time, method, host, path. No query strings, no bodies. |
+| Memory, code index, checkpoints, attached images | `memory/`, `index/`, `checkpoints/`, `run-images/` | Local files; the code index uses a built-in embedding model that runs on your machine. |
+| The session token for the local API | `runtime-token` | Mode `0600`. |
+| Saturn IDE telemetry | sent to the runtime at `127.0.0.1` | The Microsoft telemetry and crash reporting of Code-OSS are replaced; nothing goes to Microsoft. |
+
+### What leaves your computer, and when
+
+| Destination | When | What is sent |
+|---|---|---|
+| The model provider you connect (Anthropic, OpenAI, Google, DeepSeek) | When an agent works, or Tab completion / inline edit runs | The conversation, the code and files you or the agent include, tool results. Your key goes only to that provider. |
+| Anthropic / OpenAI through Claude Code and Codex | When an agent on those providers works | Their official programs talk to their own company under your plan login. Saturn never reads or forwards their credentials. |
+| Sites, APIs and MCP servers your agents use | When an agent fetches a page, uses the browser, calls GitHub, or uses an MCP server you installed | What that tool needs. Private and local network addresses are refused by the web and browser tools. |
+| GitHub Releases | When the Saturn app starts | An update check. On macOS only for Developer ID signed builds. Turn it off with `SATURN_NO_UPDATES=1`. |
+| Open VSX and `raw.githubusercontent.com` | Saturn IDE: when you browse or install extensions, and once at startup | The extension gallery, and Open VSX's list of blocked extensions. |
+| GitHub (from Saturn IDE) | Only if you sign in to GitHub in the IDE | What Git and the GitHub extension need. |
+| Hugging Face | Only if you pick an embedding model that is not included | The model download. |
+| Your OpenTelemetry collector | Only if you set `OTEL_EXPORTER_OTLP_ENDPOINT` | Saturn's traces, metrics and logs. |
+
+Nothing else. No analytics, no crash reports, no account, no Saturn cloud.
+
+We checked this: with a fresh install and no chat running, the runtime opened **no** outside connection, and Saturn IDE opened exactly one (its network process fetching Open VSX's blocked-extension list from `raw.githubusercontent.com`).
+
+### Check it yourself
+
+You do not need to read the code. Each of these checks works on its own.
+
+**1. Watch the network with your own tools.** Your operating system sees every connection, whatever Saturn's code says.
+
+```bash
+# macOS: live connections of every Saturn process
+nettop -m tcp -p $(pgrep -d, -f "Saturn") 2>/dev/null || lsof -i -nP | grep -i saturn
+```
+
+```powershell
+# Windows: open connections of Saturn's processes
+Get-NetTCPConnection -State Established | Where-Object { (Get-Process -Id $_.OwningProcess).ProcessName -like "Saturn*" }
+```
+
+For a firewall that asks before each new connection, use [LuLu](https://objective-see.org/products/lulu.html) (free, open source) or Little Snitch on macOS, or Windows Defender Firewall's outbound rules. Every connection you see should match the table above.
+
+**2. Read Saturn's own record.** **Settings → Telemetry → Network** lists every host the runtime contacted and its latest requests. The same records are in a file you can follow:
+
+```bash
+tail -f ~/.saturn-app/network.log
+jq -r .host ~/.saturn-app/network.log | sort | uniq -c | sort -rn   # requests per host
+```
+
+**3. Run it with no internet.** Connect a local model in [LM Studio](https://lmstudio.ai), block Saturn in your firewall, and use it: agents, Tab completion and the code index keep working.
+
+**4. Look at what is stored.**
+
+```bash
+ls -la ~/.saturn-app          # secrets.json and runtime-token are -rw------- (yours only)
+cat ~/.saturn-app/state.json  # agents, chats and settings, as plain JSON
+```
+
+**5. Check the download is this code.** Every release file has a SHA-256 checksum and a signed build attestation. The attestation proves the file was built by this repository's public [release workflow](.github/workflows/release.yml) from a specific public commit, so what you install is what is in this repository:
+
+```bash
+shasum -a 256 -c Saturn-<version>-mac-arm64-unsigned.dmg.sha256
+gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
+```
+
+The build logs are public on the [Actions](../../actions/workflows/release.yml) page. Or skip the download and [build it yourself](#quick-start).
+
+### Monitor it
+
+- **Network:** `network.log` is JSON lines. Feed it to your log shipper, or `tail -f` it while you work.
+- **OpenTelemetry:** set `OTEL_EXPORTER_OTLP_ENDPOINT` (and optionally `SATURN_OTEL=otlp`) to send Saturn's traces, metrics and logs to your own collector (Grafana, Jaeger, Honeycomb, Datadog). Each model call, tool call and agent turn is a span, with outgoing HTTP requests as child spans.
+- **Local API:** `GET /network`, `GET /telemetry/traces`, `GET /telemetry/logs` and `GET /usage/summary` give the same data to your scripts (see [Local API](#local-api)).
+- **Cost:** **Settings → Usage & Billing** shows tokens and cost per model and per agent for any time range.
+
+### Built-in protections
+
+- **Loopback only.** The runtime binds to `127.0.0.1`, rejects requests whose `Host` is not loopback (so DNS rebinding cannot reach it), and refuses `null` and non-local browser origins.
+- **Session token.** Every route except `/health` and the OAuth redirect needs `Authorization: Bearer <token>`, read from `~/.saturn-app/runtime-token` (mode `0600`), so other users and web pages cannot use the API.
+- **Folders you grant.** Agents read, write and run commands only in Saturn's own workspace and in project folders you allowed, and you can revoke access at any time.
+- **Approvals and checkpoints.** Risky commands and edits outside the working folder wait for you unless you choose full autonomy. Every edit is recorded and can be reverted, down to a single step.
+- **Plan logins stay with their owners.** Claude Code and Codex sign in through their official programs, in Saturn's own config folders. Saturn never reads, copies or forwards their credentials, and removes API-key variables from their environment so a key cannot take over a plan session.
+
+### Keep the risk small
+
+- Give Saturn API keys with a spending limit, or keys made just for it, so you can revoke them on their own.
+- Prefer **Default** approvals (ask for risky actions) over full autonomy, and grant only the project folders an agent needs.
+- For code that must not leave your machine, use a local model in LM Studio.
+
+### What we cannot promise yet
+
+Saturn is an early preview and has not had an external security audit. The macOS and Windows builds are not yet code-signed. API keys are protected by file permissions, not encryption, so any program running as your user can read them, as with most developer tools. An agent you give full autonomy can run any command in the folders you granted: that is the point of an agent, so grant with care.
 
 Found a vulnerability? Please report it privately to [security@saturn-core.com](mailto:security@saturn-core.com) instead of opening a public issue.
 

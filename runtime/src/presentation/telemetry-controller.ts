@@ -1,3 +1,4 @@
+import { networkLog } from "../infrastructure/network-log.js";
 import type { Express } from "express";
 import { randomUUID } from "node:crypto";
 import { telemetryBuffer, telemetryFile, telemetryStatus } from "../infrastructure/otel-sdk.js";
@@ -20,6 +21,11 @@ export function mountTelemetry(app: Express): void {
       }
       return { received: events.length };
     });
+  });
+
+  // Every HTTP(S) request the runtime has sent since it started: by host, and the latest ones (no queries, no bodies).
+  app.get("/network", (req, res) => {
+    res.json(networkLog.view(Math.min(500, Number(req.query.limit) || 200)));
   });
 
   app.get("/telemetry/status", (_req, res) => {
