@@ -3,9 +3,10 @@ dist/
 release/
 *.log
 .DS_Store
-# Saturn IDE: the Code-OSS fork is its own git repository; its builds are large
-Saturn-IDE/
+# Saturn IDE builds (the app bundles live next to Saturn-IDE/, whose own .gitignore covers its build output)
 VSCode-darwin-*/
+# The pinned Node a developer may keep for building Saturn IDE (see Saturn-IDE/.nvmrc)
+Saturn-IDE/.node/
 
 # Linked worktrees created for side sessions
 .claude/worktrees/

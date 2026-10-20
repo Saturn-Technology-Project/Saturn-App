@@ -76,7 +76,20 @@ npm run dist:mac   # unsigned Saturn.app in desktop/release/
 npm run dist:win   # Windows x64 installer in desktop/release/
 ```
 
-The macOS build bundles Saturn IDE, which is built from a separate Code-OSS fork kept next to this repository in `../Saturn-IDE`. Without it, package with `SATURN_SKIP_IDE=1`, and the app runs without the editor.
+The macOS build bundles Saturn IDE, so build the IDE first (below), or package with `SATURN_SKIP_IDE=1` to get the app without the editor.
+
+### Build Saturn IDE
+
+Saturn IDE is a Code-OSS fork in [`Saturn-IDE/`](Saturn-IDE). It needs the Node version in [`Saturn-IDE/.nvmrc`](Saturn-IDE/.nvmrc) and a few gigabytes of dependencies:
+
+```bash
+cd Saturn-IDE
+npm install
+cd ..
+npm run build:ide --prefix desktop   # Saturn IDE.app in VSCode-darwin-arm64/
+```
+
+Saturn's own editor features live in [`Saturn-IDE/extensions/saturn/`](Saturn-IDE/extensions/saturn); everything else follows upstream [microsoft/vscode](https://github.com/microsoft/vscode).
 
 The builds are not signed yet. On macOS, open the app the first time with right-click → Open; on Windows, SmartScreen may ask for confirmation. No separate Node install is needed: the packaged runtime runs on the app's own executable.
 
@@ -105,9 +118,9 @@ flowchart LR
 |---|---|
 | **Saturn Runtime** (`runtime/`) | The local core. It calls models, runs the agent loop and tools, connects MCP servers, enforces approvals, records usage and telemetry, and stores state. It does not depend on Electron and runs on its own. |
 | **Saturn Desktop** (`desktop/`) | The Electron app: chats, projects, groups, automations, customizations and settings. It talks to the runtime only over HTTP. |
-| **Saturn IDE** (separate repo) | The editor. It finds the runtime through the same token and keeps it alive while a window is open. |
+| **Saturn IDE** (`Saturn-IDE/`) | The editor, a Code-OSS fork. It finds the runtime through the same token and keeps it alive while a window is open. |
 
-Both packages follow the same layers, and the inner ones never import the outer ones:
+The runtime and the desktop app follow the same layers, and the inner ones never import the outer ones:
 
 ```
 runtime/src/                    desktop/src/
@@ -146,7 +159,7 @@ Saturn runs code on your machine, so its defaults are strict:
 - **Approvals.** Destructive commands and edits outside the working folder wait for you unless you choose full autonomy.
 - **Plan logins stay with their owners.** Claude Code and Codex sign in through their official programs, in Saturn's own config folders. Saturn never reads, copies or forwards their credentials, and removes API-key environment variables so they cannot take over a plan session.
 
-Found a vulnerability? Please report it privately to the maintainers instead of opening a public issue.
+Found a vulnerability? Please report it privately to [security@saturn-core.com](mailto:security@saturn-core.com) instead of opening a public issue.
 
 ## Configuration
 
@@ -205,7 +218,6 @@ Contributions are welcome. Before opening a pull request:
 
 - Signed and notarized macOS builds, and auto-update
 - Linux packages
-- Publishing the Saturn IDE source alongside this repository
 
 ## License
 

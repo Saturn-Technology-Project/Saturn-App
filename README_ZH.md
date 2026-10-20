@@ -76,7 +76,20 @@ npm run dist:mac   # 未簽章的 Saturn.app，輸出到 desktop/release/
 npm run dist:win   # Windows x64 安裝程式，輸出到 desktop/release/
 ```
 
-macOS 版會一併打包 Saturn IDE。它是從另一個 Code-OSS fork 建置出來的，放在本 repo 旁邊的 `../Saturn-IDE`。如果沒有它，用 `SATURN_SKIP_IDE=1` 打包，App 就會在沒有編輯器的情況下執行。
+macOS 版會一併打包 Saturn IDE，所以請先建置 IDE（見下方），或用 `SATURN_SKIP_IDE=1` 打包出不含編輯器的 App。
+
+### 建置 Saturn IDE
+
+Saturn IDE 是放在 [`Saturn-IDE/`](Saturn-IDE) 的 Code-OSS fork。它需要 [`Saturn-IDE/.nvmrc`](Saturn-IDE/.nvmrc) 指定的 Node 版本，以及數 GB 的相依套件：
+
+```bash
+cd Saturn-IDE
+npm install
+cd ..
+npm run build:ide --prefix desktop   # 輸出 Saturn IDE.app 到 VSCode-darwin-arm64/
+```
+
+Saturn 自己的編輯器功能都在 [`Saturn-IDE/extensions/saturn/`](Saturn-IDE/extensions/saturn)；其餘部分跟隨上游 [microsoft/vscode](https://github.com/microsoft/vscode)。
 
 目前的版本尚未簽章。macOS 第一次開啟請按右鍵 → 打開；Windows 可能會跳出 SmartScreen 確認。不需要另外安裝 Node：打包後的 Runtime 直接用 App 本身的執行檔執行。
 
@@ -105,9 +118,9 @@ flowchart LR
 |---|---|
 | **Saturn Runtime**（`runtime/`） | 本機核心。負責呼叫模型、執行 Agent 迴圈與工具、連接 MCP 伺服器、執行核准規則、記錄用量與遙測，並保存狀態。不依賴 Electron，可以單獨執行。 |
 | **Saturn Desktop**（`desktop/`） | Electron App：對話、專案、群組、自動化、自訂功能與設定。只透過 HTTP 和 Runtime 溝通。 |
-| **Saturn IDE**（獨立 repo） | 編輯器。透過同一個 token 找到 Runtime，並在視窗開著時讓 Runtime 保持執行。 |
+| **Saturn IDE**（`Saturn-IDE/`） | 編輯器，一個 Code-OSS fork。透過同一個 token 找到 Runtime，並在視窗開著時讓 Runtime 保持執行。 |
 
-兩個套件都採用相同的分層，內層永遠不會 import 外層：
+Runtime 和桌面 App 採用相同的分層，內層永遠不會 import 外層：
 
 ```
 runtime/src/                    desktop/src/
@@ -146,7 +159,7 @@ Saturn 會在你的電腦上執行程式碼，所以預設值都很嚴格：
 - **核准機制。** 除非你選擇完全自主，否則破壞性指令和工作資料夾以外的修改都會等你核准。
 - **方案登入只屬於官方程式。** Claude Code 和 Codex 透過各自的官方程式登入，憑證存在 Saturn 專用的設定資料夾。Saturn 從不讀取、複製或轉送這些憑證，並會移除 API 金鑰相關的環境變數，避免它們取代方案登入。
 
-發現安全漏洞？請私下回報給維護者，不要開公開 issue。
+發現安全漏洞？請私下寄信到 [security@saturn-core.com](mailto:security@saturn-core.com) 回報，不要開公開 issue。
 
 ## 設定
 
@@ -205,7 +218,6 @@ npm run typecheck   # Runtime 與桌面 App 的型別檢查
 
 - 已簽章並經過公證的 macOS 版本，以及自動更新
 - Linux 套件
-- 將 Saturn IDE 的原始碼與本 repo 一起公開
 
 ## 授權
 
