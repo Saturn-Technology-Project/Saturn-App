@@ -22,6 +22,7 @@
 		"button.border": "#d4d1c8",
 		"button.foreground": "#ffffff",
 		"button.hoverBackground": "#27272a",
+		"button.separator": "#ffffff40",
 		"button.secondaryBackground": "#ffffff",
 		"button.secondaryForeground": "#18181b",
 		"button.secondaryHoverBackground": "#eceae4",

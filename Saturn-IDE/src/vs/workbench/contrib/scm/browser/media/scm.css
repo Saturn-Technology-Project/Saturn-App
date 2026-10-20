@@ -450,6 +450,20 @@
 	white-space: nowrap;
 }
 
+/* Saturn: with nothing to commit, the action button sits back as an outlined, quiet control instead of a dimmed solid block. */
+.scm-view .button-container > .monaco-button-dropdown.disabled > .monaco-button.disabled,
+.scm-view .button-container > .monaco-button-dropdown.disabled > .monaco-button-dropdown-separator,
+.scm-view .button-container > .monaco-button.disabled {
+	opacity: 1 !important;
+	background-color: transparent !important;
+	color: var(--vscode-disabledForeground) !important;
+	border-color: var(--vscode-input-border, var(--vscode-button-border)) !important;
+}
+
+.scm-view .button-container > .monaco-button-dropdown.disabled > .monaco-button-dropdown-separator > div {
+	background-color: var(--vscode-input-border, transparent) !important;
+}
+
 .scm-view .scm-editor.hidden {
 	display: none;
 }

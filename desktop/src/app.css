@@ -311,6 +311,34 @@ pre {
   color: var(--fg);
 }
 
+.titlebar-open-ide {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  margin: 0 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.titlebar-open-ide:hover {
+  background: var(--hover);
+}
+
+.titlebar-open-ide svg {
+  color: var(--muted);
+}
+
 .titlebar-btn.active {
   background: var(--hover);
   color: var(--fg);

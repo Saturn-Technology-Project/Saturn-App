@@ -1489,6 +1489,14 @@ class AgentView {
 		cursor: default;
 		transform: none;
 	}
+	.send-circle-btn.stop {
+		background: var(--vscode-foreground);
+		color: var(--vscode-editor-background, var(--vscode-sideBar-background));
+	}
+	.send-circle-btn.stop:hover:not(:disabled) {
+		background: var(--vscode-foreground);
+		opacity: 0.85;
+	}
 
 	/* ─── Under-Composer Sub-Row (Model badge) ─── */
 	.composer-sub-row {
@@ -2662,11 +2670,7 @@ class AgentView {
 			const stepsNode = renderRunSteps(run);
 			if (stepsNode) reply.append(stepsNode);
 			if (run.output) reply.append(renderAssistant(run.output));
-			if (run.status === 'running' || run.status === 'queued') {
-				const status = el('div', 'status'); status.append(el('span', 'dot'), el('span', '', 'Working…'));
-				const stop = el('button', 'link', 'Stop'); stop.onclick = () => vscode.postMessage({ type: 'stop', runId: run.id });
-				status.append(stop); reply.append(status);
-			} else if (run.status === 'sleeping' && run.wake) {
+			if (run.status === 'sleeping' && run.wake) {
 				const status = el('div', 'status'); status.append(el('span', 'dot'), el('span', '', 'Waiting · resumes in ' + countdown(run.wake.at) + (run.wake.reason ? ' · ' + run.wake.reason : '')));
 				const wake = el('button', 'link', 'Wake now'); wake.onclick = () => vscode.postMessage({ type: 'wake', runId: run.id });
 				status.append(wake); reply.append(status);
@@ -2682,7 +2686,7 @@ class AgentView {
 		}
 
 		current = runs[runs.length - 1];
-		send.disabled = !agentSelect.value || busy(current);
+		updateSend();
 		if (autoScroll && (wasAtBottom || runs.length <= 1)) {
 			log.scrollTop = log.scrollHeight;
 		}
@@ -2814,7 +2818,7 @@ class AgentView {
 				retry.onclick = () => vscode.postMessage({ type: 'refresh' });
 				errorBox.append(open, document.createTextNode(' · '), retry);
 			}
-			send.disabled = !agentSelect.value || busy(current);
+				updateSend();
 		}
 	});
 
@@ -2997,9 +3001,25 @@ class AgentView {
 	});
 
 
+	// While a turn runs, the send button is a square Stop button, as in the Saturn Agent App.
+	const SEND_ICON = send.innerHTML;
+	const STOP_ICON = '<svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2"/></svg>';
+	function updateSend() {
+		const stopping = busy(current);
+		send.classList.toggle('stop', Boolean(stopping));
+		send.innerHTML = stopping ? STOP_ICON : SEND_ICON;
+		send.title = stopping ? 'Stop' : 'Send (Enter)';
+		send.setAttribute('aria-label', stopping ? 'Stop' : 'Send');
+		send.disabled = stopping ? false : !agentSelect.value;
+	}
+
 	// Form submission
 	$('form').addEventListener('submit', (event) => {
 		event.preventDefault();
+		if (busy(current)) {
+			vscode.postMessage({ type: 'stop', runId: current.id });
+			return;
+		}
 		const text = input.value.trim();
 		if (!text || !agentSelect.value || busy(current)) return;
 		input.value = '';
@@ -3020,6 +3040,8 @@ class AgentView {
 	input.addEventListener('keydown', (event) => {
 		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault();
+			// Enter sends; it never stops a running turn (only the Stop button does).
+			if (busy(current)) return;
 			$('form').requestSubmit();
 		}
 	});
