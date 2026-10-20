@@ -101,6 +101,27 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.getRun(param(req.params.id)));
   });
 
+  // Browser recordings a run made (browser_record_start/stop): the list, one JPEG frame, and an MP4 export.
+  app.get("/runs/:id/recordings", (req, res, next) => {
+    respond(res, next, () => services.recordings(param(req.params.id)));
+  });
+
+  app.get("/runs/:id/recordings/:name/frames/:index", (req, res, next) => {
+    try {
+      const file = services.recordingFrame(param(req.params.id), param(req.params.name), Number(req.params.index));
+      res.type("image/jpeg");
+      res.sendFile(file, (error) => {
+        if (error) next(new HttpError(404, "That frame is gone"));
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/runs/:id/recordings/:name/export", (req, res, next) => {
+    respond(res, next, () => services.exportRecording(param(req.params.id), param(req.params.name)));
+  });
+
   // An image the user attached to a message (see run-images.ts), for the chat to show.
   app.get("/runs/:id/images/:index", (req, res, next) => {
     try {

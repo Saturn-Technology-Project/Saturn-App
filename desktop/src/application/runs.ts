@@ -93,4 +93,18 @@ export class RunService {
     return (await this.runtime.download(`/runs/${encodeURIComponent(runId)}/images/${index}`)).blob;
   }
 
+
+  /** Browser recordings the run made, one JPEG frame of one, and an MP4 export (needs ffmpeg on this computer). */
+  recordings(runId: string): Promise<{ name: string; frames: number; seconds?: number; exported?: boolean }[]> {
+    return this.runtime.request(`/runs/${encodeURIComponent(runId)}/recordings`);
+  }
+
+  async recordingFrame(runId: string, name: string, index: number): Promise<Blob> {
+    return (await this.runtime.download(`/runs/${encodeURIComponent(runId)}/recordings/${encodeURIComponent(name)}/frames/${index}`)).blob;
+  }
+
+  exportRecording(runId: string, name: string): Promise<{ path: string }> {
+    return this.runtime.request(`/runs/${encodeURIComponent(runId)}/recordings/${encodeURIComponent(name)}/export`, { method: "POST" });
+  }
+
 }

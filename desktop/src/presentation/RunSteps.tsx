@@ -9,6 +9,7 @@ import {
 } from "../domain/conversation";
 import type { Run, RunAction, RunThought } from "../domain/model";
 import { desktop } from "../application/desktop";
+import { RecordingPlayer } from "./RecordingPlayer";
 
 /**
  * A run's work as a quiet Antigravity-style list: "Thought for 13s ›" rows between one-line tool
@@ -84,6 +85,14 @@ function getScreenshotImage(action: RunAction): string | null {
   return null;
 }
 
+/** A finished browser recording in a step's result, for the player. */
+function getRecording(action: RunAction): { name: string; frames: number; seconds?: number } | null {
+  if (action.toolId !== "browser_record_stop" || action.status !== "completed") return null;
+  const result = action.result as { recording?: unknown; frames?: unknown; seconds?: unknown } | undefined;
+  if (!result || typeof result.recording !== "string" || typeof result.frames !== "number" || result.frames < 1) return null;
+  return { name: result.recording.split(/[/\\]/).pop() || "", frames: result.frames, ...(typeof result.seconds === "number" ? { seconds: result.seconds } : {}) };
+}
+
 function sanitizeResultForDisplay(val: unknown): unknown {
   if (!val || typeof val !== "object") return val;
   const clone = { ...(val as Record<string, unknown>) };
@@ -109,6 +118,7 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
   const { action } = props;
   const line = actionLine(action);
   const screenshotImg = getScreenshotImage(action);
+  const recording = getRecording(action);
   const argsText = action.arguments && Object.keys(action.arguments).length > 0 ? formatPayload(action.arguments) : "";
   const resultText = action.reason || formatPayload(sanitizeResultForDisplay(action.result));
   const hasDetails = Boolean(argsText || resultText);
@@ -188,6 +198,7 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
       ) : null}
 
       {/* Screenshot displayed right below Called computer_screenshot */}
+      {recording ? <RecordingPlayer runId={props.runId} name={recording.name} frames={recording.frames} seconds={recording.seconds} /> : null}
       {screenshotImg ? (
         <div className="step-screenshot-container">
           <div

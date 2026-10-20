@@ -122,6 +122,18 @@ export class AppServices {
     return await this.kernel.runs.startRun(agentId, input, threadId, projectId, options);
   }
 
+  recordings(runId: string): { name: string; frames: number; seconds?: number; exported?: boolean }[] {
+    return this.kernel.recordings.list(runId);
+  }
+
+  recordingFrame(runId: string, name: string, index: number): string {
+    return this.kernel.recordings.frame(runId, name, index);
+  }
+
+  exportRecording(runId: string, name: string): Promise<{ path: string }> {
+    return this.kernel.recordings.exportMp4(runId, name);
+  }
+
   recentRuns(projectId?: string, limit = 20): RunSummary[] {
     return this.kernel.runs.recentRuns(projectId, limit);
   }

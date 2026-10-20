@@ -17,6 +17,7 @@ import { Onboarding } from "./Onboarding";
 import { RunImages } from "./RunImages";
 import { ContextPicker } from "./ContextPicker";
 import { AgentsBoard } from "./AgentsBoard";
+import { InteractivePlan } from "./InteractivePlan";
 import {
   extractPlanSteps,
   countdown,
@@ -72,6 +73,14 @@ function storedInspectorWidth(): number {
   const raw = localStorage.getItem("saturn-inspector-width");
   const num = raw ? parseInt(raw, 10) : NaN;
   return !isNaN(num) && num >= 320 && num <= 1000 ? num : DEFAULT_INSPECTOR_WIDTH;
+}
+
+/** An agent's reply split at its "## Summary" heading (the working method asks for one after changes). */
+function splitSummary(output: string): { body: string; summary: string } {
+  const match = /\n#{2,3}\s*Summary\s*\n/i.exec(`\n${output}`);
+  if (!match) return { body: output, summary: "" };
+  const at = match.index;
+  return { body: output.slice(0, Math.max(0, at - 1)).trimEnd(), summary: output.slice(at - 1 + match[0].length).trim() };
 }
 
 /** The user's own words: what they typed, without the attached-context block the chat sends along. */
@@ -750,9 +759,11 @@ export function App() {
     localStorage.setItem("saturn-mode", next);
   }
 
-  async function send() {
-    if (!agent || (!task.trim() && !pendingImages.length) || busy || editing) return;
-    let input = task.trim() || `Look at the attached image${pendingImages.length === 1 ? "" : "s"}.`;
+  /** Sends the composer's text, or `text` when given (a plan sent back, diff comments). */
+  async function send(text?: string) {
+    const typed = (text ?? task).trim();
+    if (!agent || (!typed && !pendingImages.length) || busy || editing) return;
+    let input = typed || `Look at the attached image${pendingImages.length === 1 ? "" : "s"}.`;
     const images = pendingImages;
     isNearBottomRef.current = true;
     scrollToBottom(false);
@@ -2264,7 +2275,15 @@ export function App() {
                         </div>
 
                         <div className="assistant-turn">
-                          {planSteps.length > 0 ? (
+                          {planSteps.length > 0 && run.id === latest?.id ? (
+                            <InteractivePlan
+                              runId={run.id}
+                              steps={planSteps}
+                              busy={busy}
+                              awaitingGo={/Reply 'go'/i.test(run.output)}
+                              onSend={(text) => void send(text)}
+                            />
+                          ) : planSteps.length > 0 ? (
                             <div className="plan-card">
                               <div className="plan-card-head">
                                 <span>Task Plan</span>
@@ -2287,7 +2306,7 @@ export function App() {
 
                           <RunSteps run={run} busy={run.status === "running" || run.status === "queued"} />
 
-                          <RunChangesCard run={run} />
+                          <RunChangesCard run={run} onComment={(text) => void send(text)} />
                           {run.verification ? (
                             <div className={run.verification.ok ? "verify-line ok" : "verify-line failed"} title={run.verification.output.slice(0, 2000)}>
                               {run.verification.ok
@@ -2302,7 +2321,18 @@ export function App() {
 
                           {run.output ? (
                             <div className="assistant-body">
-                              <FormattedOutput text={run.output} />
+                              <FormattedOutput text={splitSummary(run.output).body} />
+                              {splitSummary(run.output).summary ? (
+                                <div className="summary-card">
+                                  <div className="summary-card-head">
+                                    <span>Summary</span>
+                                    {run.checkpoint?.files.filter((file) => file.before !== file.after).length ? (
+                                      <small>{run.checkpoint.files.filter((file) => file.before !== file.after).length} file{run.checkpoint.files.filter((file) => file.before !== file.after).length === 1 ? "" : "s"} changed</small>
+                                    ) : null}
+                                  </div>
+                                  <FormattedOutput text={splitSummary(run.output).summary} />
+                                </div>
+                              ) : null}
                             </div>
                           ) : isBusy(run) ? null : (
                             <div className="assistant-body">

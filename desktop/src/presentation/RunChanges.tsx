@@ -18,8 +18,26 @@ function busy(run: Run): boolean {
  * Cursor-style review under a finished run: "N files changed" with +/- counts, a diff per file, and
  * Revert file / Revert all / Keep, plus "Restore to before this turn" for the whole chat from here on.
  */
-export function RunChangesCard(props: { run: Run; defaultOpen?: boolean }) {
+export function RunChangesCard(props: { run: Run; defaultOpen?: boolean; onComment?: (text: string) => void }) {
   const { run } = props;
+  /** Comments on diff lines, keyed "path:lineIndex", until they are sent to the agent as one message. */
+  const [comments, setComments] = useState<Record<string, string>>({});
+  const commentCount = Object.values(comments).filter((text) => text.trim()).length;
+
+  function sendComments() {
+    if (!changes || !props.onComment) return;
+    const lines: string[] = [];
+    for (const [key, text] of Object.entries(comments)) {
+      if (!text.trim()) continue;
+      const at = key.lastIndexOf(":");
+      const file = key.slice(0, at);
+      const index = Number(key.slice(at + 1));
+      const diffLine = changes.files.find((item) => item.path === file)?.diff.split("\n")[index] ?? "";
+      lines.push(`- \`${file}\` at \`${diffLine.trim().slice(0, 120)}\`: ${text.trim()}`);
+    }
+    props.onComment(`About your changes:\n${lines.join("\n")}\n\nPlease address these.`);
+    setComments({});
+  }
   const [changes, setChanges] = useState<RunChanges | null>(null);
   const [open, setOpen] = useState(props.defaultOpen ?? true);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -100,6 +118,8 @@ export function RunChangesCard(props: { run: Run; defaultOpen?: boolean }) {
               working={working}
               onToggle={() => setExpanded(expanded === file.path ? null : file.path)}
               onRevert={() => void act(() => desktop.runs.revertChanges(run.id, file.path))}
+              comments={props.onComment ? Object.fromEntries(Object.entries(comments).filter(([key]) => key.startsWith(`${file.path}:`)).map(([key, text]) => [key.slice(file.path.length + 1), text])) : undefined}
+              onCommentChange={props.onComment ? (lineIndex, text) => setComments((current) => ({ ...current, [`${file.path}:${lineIndex}`]: text })) : undefined}
             />
           ))}
           <div className="changes-card-foot">
@@ -122,11 +142,17 @@ export function RunChangesCard(props: { run: Run; defaultOpen?: boolean }) {
         </div>
       ) : null}
       {error ? <div className="changes-error">{error}</div> : null}
+      {commentCount && props.onComment ? (
+        <div className="changes-comments-bar">
+          <span className="hint">{commentCount} comment{commentCount === 1 ? "" : "s"} on the diff</span>
+          <button type="button" className="changes-btn" onClick={sendComments}>Send to agent</button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function FileRow(props: { file: FileChange; open: boolean; working: boolean; onToggle: () => void; onRevert: () => void }) {
+function FileRow(props: { file: FileChange; open: boolean; working: boolean; onToggle: () => void; onRevert: () => void; comments?: Record<string, string>; onCommentChange?: (lineIndex: number, text: string) => void }) {
   const { file } = props;
   const reverted = file.review === "reverted";
   return (
@@ -153,16 +179,20 @@ function FileRow(props: { file: FileChange; open: boolean; working: boolean; onT
           </button>
         )}
       </div>
-      {props.open ? <DiffBlock diff={file.diff} truncated={file.truncated} /> : null}
+      {props.open ? <DiffBlock diff={file.diff} truncated={file.truncated} comments={props.comments} onCommentChange={props.onCommentChange} /> : null}
     </div>
   );
 }
 
-export function DiffBlock(props: { diff: string; truncated?: boolean }) {
+export function DiffBlock(props: { diff: string; truncated?: boolean; comments?: Record<string, string>; onCommentChange?: (lineIndex: number, text: string) => void }) {
   const lines = props.diff.replace(/\n$/, "").split("\n");
+  const [commenting, setCommenting] = useState<number | null>(null);
+  const commentable = Boolean(props.onCommentChange);
   return (
     <pre className="diff-pre changes-diff">
       {lines.map((line, index) => {
+        const comment = props.comments?.[String(index)];
+        const open = commenting === index || Boolean(comment);
         const kind =
           line.startsWith("+++") || line.startsWith("---")
             ? "diff-line-meta"
@@ -174,8 +204,28 @@ export function DiffBlock(props: { diff: string; truncated?: boolean }) {
                   ? "diff-line-meta"
                   : "diff-line-ctx";
         return (
-          <div className={`diff-line ${kind}`} key={index}>
-            {line || " "}
+          <div key={index}>
+            <div
+              className={`diff-line ${kind}${commentable ? " commentable" : ""}${comment ? " commented" : ""}`}
+              title={commentable && !open ? "Click to comment on this line" : undefined}
+              onClick={commentable ? () => setCommenting((current) => (current === index ? null : index)) : undefined}
+            >
+              {line || " "}
+            </div>
+            {open && commentable ? (
+              <div className="diff-comment">
+                <input
+                  className="input tiny"
+                  autoFocus={commenting === index}
+                  placeholder="Comment for the agent…"
+                  value={comment ?? ""}
+                  onChange={(event) => props.onCommentChange?.(index, event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setCommenting(null);
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
         );
       })}
