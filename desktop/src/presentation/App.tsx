@@ -435,9 +435,15 @@ export function App() {
     };
   }, [agents]);
 
+  // Opening an agent shows its chats once; after that its folder stays as the user left it. (This used to run on
+  // every 3-second thread refresh, so collapsing the selected agent was undone moments later.)
   useEffect(() => {
     if (!selected) return;
-    setOpenFolders((prev) => (prev[selected] ? prev : { ...prev, [selected]: true }));
+    setOpenFolders((prev) => (selected in prev ? prev : { ...prev, [selected]: true }));
+  }, [selected]);
+
+  useEffect(() => {
+    if (!selected) return;
     const convs = agentThreads[selected];
     if (convs && convs.length > 0 && (!selectedThreadId || !convs.some((c) => c.id === selectedThreadId))) {
       setSelectedThreadId(convs[0].id);

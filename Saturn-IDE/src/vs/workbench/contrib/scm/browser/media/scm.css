@@ -450,6 +450,25 @@
 	white-space: nowrap;
 }
 
+/* Saturn: the action button and its dropdown are two buttons with a little space between, not one block split by a hard line. */
+.scm-view .button-container > .monaco-button-dropdown {
+	gap: 4px;
+}
+
+.scm-view .button-container > .monaco-button-dropdown > .monaco-button-dropdown-separator {
+	display: none;
+}
+
+.scm-view .button-container > .monaco-button-dropdown > .monaco-button.monaco-text-button {
+	border-right-width: 1px !important;
+	border-radius: 4px;
+}
+
+.scm-view .button-container > .monaco-button-dropdown > .monaco-dropdown-button {
+	border-left-width: 1px !important;
+	border-radius: 4px;
+}
+
 /* Saturn: with nothing to commit, the action button sits back as an outlined, quiet control instead of a dimmed solid block. */
 .scm-view .button-container > .monaco-button-dropdown.disabled > .monaco-button.disabled,
 .scm-view .button-container > .monaco-button-dropdown.disabled > .monaco-button-dropdown-separator,

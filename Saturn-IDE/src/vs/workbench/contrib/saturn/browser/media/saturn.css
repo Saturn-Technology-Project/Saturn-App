@@ -445,6 +445,20 @@
 	box-shadow: 0 0 0 1px var(--vscode-focusBorder) !important;
 }
 
+/* Inline editors inside list rows (Explorer new file / rename, tree renames) must fit the 22px row: the roomy
+ * padding above made them taller than the row, so their top edge was clipped under the row above. */
+.monaco-workbench .monaco-list .monaco-list-row .monaco-inputbox {
+	padding: 0 4px !important;
+	border-radius: 4px !important;
+	box-sizing: border-box;
+	/* The row's height exactly: a 1px border around the 20px input. */
+	height: 22px !important;
+}
+
+.monaco-workbench .monaco-list .monaco-list-row .monaco-inputbox.synthetic-focus {
+	box-shadow: none !important;
+}
+
 .monaco-workbench .monaco-button {
 	border-radius: 7px !important;
 	font-weight: 500 !important;
