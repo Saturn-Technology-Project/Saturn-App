@@ -8,7 +8,7 @@ import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
 import type { Agent, GroupAutonomy, ModelConnection, Run, RunAction } from "../domain/model.js";
 import { errorText, logger } from "../infrastructure/logger.js";
-import { isSensitiveOperation } from "../domain/policies.js";
+import { autonomyOf, isSensitiveOperation } from "../domain/policies.js";
 import { saveSession, savedSession } from "./agent-sessions.js";
 import type { RuntimeKernel } from "./kernel.js";
 
@@ -185,9 +185,9 @@ export class ClaudeCodeService {
       return action;
     };
 
-    // Outside a group every tool that is not read-only asks; a group can let its agents work on their own.
+    // The agent's own approval setting (Review / Default / Bypass), or the group's when the group sets one.
     const group = run.groupId ? (this.kernel.store.state.groups ?? []).find((item) => item.id === run.groupId) : undefined;
-    const mode: GroupAutonomy = group?.autonomy ?? "review";
+    const mode = approvalMode(agent, group?.autonomy);
     // Before an edit runs, keep the file's original for the diff and revert.
     const keepOriginal = async (actionId: string, toolName: string, input: Record<string, unknown>) => {
       const requested = FILE_TOOLS[toolName] ? input[FILE_TOOLS[toolName]] : undefined;
@@ -340,6 +340,15 @@ export class ClaudeCodeService {
       })
       .catch((error: unknown) => logger.warn("usage", `Could not record Claude Code usage: ${errorText(error)}`));
   }
+}
+
+/**
+ * How much a Claude Code agent may do without asking: its own autonomy setting, as every other provider reads
+ * it, unless the group it works in sets one. "review" asks for every tool that is not read-only, "default" only
+ * for risky actions, "bypass" never.
+ */
+export function approvalMode(agent: Pick<Agent, "autonomy">, groupAutonomy?: GroupAutonomy): GroupAutonomy {
+  return groupAutonomy ?? autonomyOf(agent.autonomy);
 }
 
 /** "Ask for risky actions": a destructive shell command, or an edit outside the working folder. */

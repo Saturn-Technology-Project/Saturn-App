@@ -18,7 +18,7 @@ function draggedAgent(event: React.DragEvent): string | null {
 /** Sidebar section: the groups, each a drop target for agents dragged from the Agents list. */
 /** What each group approval setting means, shown on hover. */
 const AUTONOMY_HINTS: Record<string, string> = {
-  "": "Each agent asks for approval the way it does in its own chats (Claude Code agents ask before every edit or command).",
+  "": "Each agent asks for approval the way it does in its own chats (its own Review / Default / Bypass setting).",
   default: "Agents edit files in their folder and run commands on their own; they still ask before destructive commands or edits outside the folder.",
   bypass: "Agents use every tool without asking. Only for groups you trust with your files.",
   review: "Agents ask before every action that is not read-only.",

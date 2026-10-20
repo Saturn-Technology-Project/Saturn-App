@@ -66,3 +66,12 @@ test("a Claude Code model keeps its effort, and a run without a login fails with
   }
   assert.throws(() => services.kernel.claudeCode.decide("run_x", "act_x", true), /no longer waiting/);
 });
+
+test("a Claude Code agent's own Bypass / Default / Review setting decides what asks, unless its group says otherwise", async () => {
+  const { approvalMode } = await import("../src/application/claude-code.js");
+  assert.equal(approvalMode({ autonomy: "bypass" }), "bypass", "Bypass in the chat never asks");
+  assert.equal(approvalMode({ autonomy: "fully_autonomous" }), "bypass");
+  assert.equal(approvalMode({ autonomy: "execute_when_allowed" }), "default", "the default asks only for risky actions");
+  assert.equal(approvalMode({ autonomy: "review" }), "review");
+  assert.equal(approvalMode({ autonomy: "bypass" }, "review"), "review", "a group's setting wins while the agent works there");
+});
