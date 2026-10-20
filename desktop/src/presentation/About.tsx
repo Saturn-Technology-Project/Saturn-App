@@ -104,6 +104,9 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
           <Fact label="Runtime" value={listen} />
           <Fact label="Workspace" value={props.info.name} />
           <Fact label="Data folder" value="~/.saturn-app" />
+          {props.info.secrets ? (
+            <Fact label="API keys" value={props.info.secrets.encrypted ? `Encrypted (AES-256-GCM), key in the ${props.info.secrets.label}` : "Not encrypted"} />
+          ) : null}
           <Fact label="Runtime ID" value={props.info.runtimeId} mono />
         </div>
       </section>

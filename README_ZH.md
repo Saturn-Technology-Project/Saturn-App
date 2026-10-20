@@ -169,7 +169,7 @@ runtime/src/                    desktop/src/
 | DeepSeek | API 金鑰 | |
 | LM Studio | 無 | 任何本機提供的模型，完全離線 |
 
-API 金鑰存放在 `~/.saturn-app/secrets.json`（權限 `0600`），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。
+API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。
 
 ## 安全與信任
 
@@ -183,7 +183,7 @@ Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的�
 
 | 資料 | 位置 | 說明 |
 |---|---|---|
-| API 金鑰 | `secrets.json` | 權限 `0600`，僅擁有者可讀。以明文存放於磁碟，未使用作業系統鑰匙圈。每把金鑰只送往其所屬供應商。 |
+| API 金鑰與 OAuth token | `secrets.json` | 以 AES-256-GCM 靜態加密，256 位元的隨機金鑰由作業系統金鑰庫保管：macOS 鑰匙圈、Windows DPAPI，或 Linux 的 Secret Service（libsecret）；只有在沒有金鑰庫時才改用權限 `0600` 的金鑰檔。檔案權限 `0600`。舊版的明文檔案會在首次啟動時自動加密。 |
 | Agent、對話、專案、設定 | `state.json` | 純 JSON。 |
 | 遙測（trace、metric、log） | 記憶體與 `telemetry.json` | 只有在你設定 OTLP 端點時才會匯出。 |
 | 對外請求紀錄 | `network.log` | JSON Lines：時間戳記、方法、主機、路徑。從不記錄查詢字串與內容。達 5 MB 時輪替。 |
@@ -247,6 +247,8 @@ jq -r .host ~/.saturn-app/network.log | sort | uniq -c | sort -rn   # 各主機�
 
 ```bash
 ls -la ~/.saturn-app          # secrets.json 與 runtime-token 為 -rw-------（僅擁有者）
+head -c 300 ~/.saturn-app/secrets.json   # AES-256-GCM 密文封包，看不到任何金鑰
+security find-generic-password -s Saturn | grep acct   # macOS：保管加密金鑰的鑰匙圈項目
 cat ~/.saturn-app/state.json  # Agent、對話與設定，純 JSON
 ```
 
@@ -271,6 +273,7 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technolo
 ### 安全機制
 
 - **只綁定 loopback。** Runtime 只監聽 `127.0.0.1`，拒絕非 loopback 的 `Host` 標頭（防範 DNS rebinding），並拒絕 `null` 與非本機的瀏覽器來源（CORS）。
+- **憑證加密。** API 金鑰與 OAuth token 以 AES-256-GCM（含驗證）靜態加密；有作業系統金鑰庫時，加密金鑰不會出現在資料夾中，且只經由 stdin 傳給系統工具，從不放在命令列參數。找不到金鑰的檔案會被另存，絕不覆寫。
 - **Bearer 驗證。** 除 `/health` 與 OAuth 回呼外，所有路由都需要 `Authorization: Bearer <token>`。token 存於 `~/.saturn-app/runtime-token`（權限 `0600`），其他本機使用者與網頁都無法呼叫 API。
 - **檔案系統範圍限制。** Agent 只能在 Saturn 工作區與你授權的專案資料夾內讀寫與執行，授權可隨時撤銷。
 - **核准策略與檢查點。** 除非你選擇完全自主，有風險的指令與工作目錄外的寫入都會等待核准。每次修改都有檢查點，可回復到單一步驟。
@@ -284,7 +287,7 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technolo
 
 ### 已知限制
 
-Saturn 仍為早期預覽版，尚未經過第三方安全稽核。各平台版本尚未進行程式碼簽章或公證。API 金鑰以檔案權限保護，並未靜態加密，因此任何以你的使用者身分執行的程序都能讀取，這與多數開發工具相同。被賦予完全自主的 Agent 可以在授權資料夾內執行任意指令；這是設計本質，請據此控管授權範圍。Claude Code、Codex 與 git 以獨立程序執行，不會出現在 Runtime 的網路紀錄中，請用作業系統層的工具觀察。
+Saturn 仍為早期預覽版，尚未經過第三方安全稽核。各平台版本尚未進行程式碼簽章或公證。API 金鑰已靜態加密，不會以明文出現在備份、同步資料夾、磁碟映像或被複製的資料夾中；但任何以你的使用者身分執行的程序仍可向作業系統金鑰庫要求金鑰，這與所有使用鑰匙圈或 DPAPI 保存憑證的應用程式相同。設定 → 關於 會顯示目前使用的金鑰庫。被賦予完全自主的 Agent 可以在授權資料夾內執行任意指令；這是設計本質，請據此控管授權範圍。Claude Code、Codex 與 git 以獨立程序執行，不會出現在 Runtime 的網路紀錄中，請用作業系統層的工具觀察。
 
 發現安全漏洞請私下寄至 [security@saturn-core.com](mailto:security@saturn-core.com)，不要開公開 issue。
 
@@ -310,6 +313,7 @@ macOS 以 App 的程式碼簽章識別這些授權。ad-hoc 簽章的版本每�
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | 未設定 | OTLP collector 端點；設定後即啟用匯出 |
 | `OTEL_SDK_DISABLED` | 未設定 | `true` 完全停用遙測 |
 | `SATURN_NO_UPDATES` | 未設定 | `1` 停用更新檢查 |
+| `SATURN_SECRET_STORE` | 作業系統金鑰庫 | `keychain`、`dpapi`、`libsecret` 或 `file`：新的加密金鑰存放位置 |
 | `SATURN_SKIP_IDE` | 未設定 | `1` 打包時不含 Saturn IDE |
 | `SATURN_IDE_BUILD` | 本機建置 | 打包時內嵌的 IDE 建置 |
 
@@ -359,7 +363,6 @@ npm run test:ide    # Saturn IDE 擴充套件檢查
 ## 路線圖
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及 Authenticode 簽章的 Windows 版本
-- 以作業系統鑰匙圈儲存憑證
 - Linux 套件
 
 ## 授權

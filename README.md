@@ -170,7 +170,7 @@ Launching Saturn starts the runtime, then opens the default surface: the agent a
 | DeepSeek | API key | |
 | LM Studio | None | Any locally served model, fully offline |
 
-API keys are stored in `~/.saturn-app/secrets.json` (mode `0600`), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider.
+API keys are stored encrypted in `~/.saturn-app/secrets.json` (AES-256-GCM, key in the OS key store; see [Data at rest](#data-at-rest)), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider.
 
 ## Security and trust
 
@@ -184,7 +184,7 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 
 | Data | Location | Notes |
 |---|---|---|
-| API keys | `secrets.json` | Mode `0600`, owner-only. Plaintext on disk, not in the OS keychain. Each key is sent only to its own provider. |
+| API keys and OAuth tokens | `secrets.json` | Encrypted at rest with AES-256-GCM under a random 256-bit key held by the OS key store: the macOS Keychain, Windows DPAPI, or the Secret Service (libsecret) on Linux; a mode `0600` key file only where none is available. Mode `0600`. Plaintext files from earlier versions are encrypted on first launch. |
 | Agents, conversations, projects, settings | `state.json` | Plain JSON. |
 | Telemetry (traces, metrics, logs) | In memory and `telemetry.json` | Exported only if you configure an OTLP endpoint. |
 | Outbound request log | `network.log` | JSON Lines: timestamp, method, host, path. Query strings and bodies are never recorded. Rotates at 5 MB. |
@@ -248,6 +248,8 @@ Connect a local model in [LM Studio](https://lmstudio.ai), block Saturn in your 
 
 ```bash
 ls -la ~/.saturn-app          # secrets.json and runtime-token are -rw------- (owner-only)
+head -c 300 ~/.saturn-app/secrets.json   # an AES-256-GCM envelope: no key appears in it
+security find-generic-password -s Saturn | grep acct   # macOS: the Keychain item that holds the encryption key
 cat ~/.saturn-app/state.json  # agents, conversations and settings as plain JSON
 ```
 
@@ -272,6 +274,7 @@ Build logs are public on the [Actions](../../actions/workflows/release.yml) page
 ### Security controls
 
 - **Loopback binding.** The runtime listens on `127.0.0.1` only, rejects any non-loopback `Host` header (defeating DNS rebinding), and refuses `null` and non-local browser origins (CORS).
+- **Encrypted credentials.** API keys and OAuth tokens are encrypted at rest (AES-256-GCM, authenticated); the key never touches the data folder when an OS key store is available, and is passed to the system tools on stdin, never as a command-line argument. A file whose key cannot be found is set aside, never overwritten.
 - **Bearer authentication.** Every route except `/health` and the OAuth redirect requires `Authorization: Bearer <token>`. The token lives in `~/.saturn-app/runtime-token` (mode `0600`), so other local users and web pages cannot call the API.
 - **Filesystem scoping.** Agents read, write and execute only within Saturn's workspace and project folders you grant; grants are revocable at any time.
 - **Approval policy and checkpoints.** Risky commands and writes outside the working directory block on your approval unless you opt into full autonomy. Every edit is checkpointed and revertible down to a single step.
@@ -285,7 +288,7 @@ Build logs are public on the [Actions](../../actions/workflows/release.yml) page
 
 ### Known limitations
 
-Saturn is an early preview and has not had a third-party security audit. Builds are not yet code-signed or notarized. API keys are protected by file permissions, not encryption at rest, so any process running as your user can read them, as with most developer tooling. An agent granted full autonomy can execute arbitrary commands within its granted folders; that is inherent to the design, so scope grants accordingly. Claude Code, Codex and git run as separate processes and do not appear in the runtime's network log; observe them with OS-level tools.
+Saturn is an early preview and has not had a third-party security audit. Builds are not yet code-signed or notarized. API keys are encrypted at rest, which keeps them out of backups, synced folders, disk images and copied data folders; but any process running as your user can still ask the OS key store for the key, as with every app that keeps credentials in the Keychain or DPAPI. Settings → About shows which key store is in use. An agent granted full autonomy can execute arbitrary commands within its granted folders; that is inherent to the design, so scope grants accordingly. Claude Code, Codex and git run as separate processes and do not appear in the runtime's network log; observe them with OS-level tools.
 
 Report vulnerabilities privately to [security@saturn-core.com](mailto:security@saturn-core.com) rather than in a public issue.
 
@@ -311,6 +314,7 @@ macOS keys these grants to the app's code signature. Ad-hoc-signed builds presen
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | OTLP collector endpoint; setting it enables export |
 | `OTEL_SDK_DISABLED` | unset | `true` disables telemetry entirely |
 | `SATURN_NO_UPDATES` | unset | `1` disables the update check |
+| `SATURN_SECRET_STORE` | the OS key store | `keychain`, `dpapi`, `libsecret` or `file`: where a new secrets key is kept |
 | `SATURN_SKIP_IDE` | unset | `1` packages without Saturn IDE |
 | `SATURN_IDE_BUILD` | the local build | IDE build to embed when packaging |
 
@@ -360,7 +364,6 @@ Before opening a pull request:
 ## Roadmap
 
 - Developer ID-signed, notarized macOS builds and Authenticode-signed Windows builds
-- Credential storage in the OS keychain
 - Linux packages
 
 ## License

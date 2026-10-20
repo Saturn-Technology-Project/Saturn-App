@@ -78,6 +78,7 @@ export class AdminService {
       environment: settings.environment,
       runtimeId: "saturn-app",
       mcpServers: this.kernel.store.state.mcp.map((item) => item.id),
+      secrets: this.kernel.store.secretsProtection(),
     };
   }
 

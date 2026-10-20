@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AppState } from "../domain/model.js";
 import { errorText, logger } from "./logger.js";
+import { SecretsFile, type SecretsProtection } from "./secrets-file.js";
 import { instruments, seconds, traced } from "./telemetry.js";
 
 const empty = (): AppState => ({
@@ -28,8 +29,16 @@ const empty = (): AppState => ({
 export class FileStore {
   private queue: Promise<void> = Promise.resolve();
   private secrets = new Map<string, string>();
+  private readonly secretsFile: SecretsFile;
 
-  constructor(private readonly directory: string) {}
+  constructor(private readonly directory: string, secretsFile?: SecretsFile) {
+    this.secretsFile = secretsFile ?? new SecretsFile(directory);
+  }
+
+  /** How API keys and tokens are protected on disk. */
+  secretsProtection(): SecretsProtection {
+    return this.secretsFile.protection();
+  }
 
   get root(): string {
     return this.directory;
@@ -61,8 +70,7 @@ export class FileStore {
         completionModelId: saved.settings?.completionModelId ?? null,
       },
     };
-    const secrets = await this.readJson<Record<string, string>>("secrets.json", {});
-    this.secrets = new Map(Object.entries(secrets));
+    this.secrets = await this.secretsFile.load();
   }
 
   state: AppState = empty();
@@ -112,11 +120,7 @@ export class FileStore {
       path.join(this.directory, "state.json"),
       JSON.stringify(this.state, null, 2),
     );
-    await writeFile(
-      path.join(this.directory, "secrets.json"),
-      JSON.stringify(Object.fromEntries(this.secrets), null, 2),
-      { mode: 0o600 },
-    );
+    await this.secretsFile.save(this.secrets);
   }
 
   /**

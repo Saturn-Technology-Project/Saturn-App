@@ -193,6 +193,8 @@ export type RuntimeInfo = {
   environment: string;
   runtimeId: string;
   mcpServers: string[];
+  /** How API keys and tokens are protected on disk (runtimes before 0.2 do not report it). */
+  secrets?: { encrypted: boolean; keyStore: "keychain" | "dpapi" | "libsecret" | "file" | null; label: string };
 };
 
 export type LogLine = {
