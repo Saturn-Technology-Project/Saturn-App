@@ -44,7 +44,7 @@ Saturn 自己的 Agent 迴圈（API 模型與本機模型；使用 Claude Code �
 | Skills 與斜線指令 | 是（`SKILL.md`，可讀 `.claude/commands`） | 是 | — |
 | Plugins | 是（Claude Code 的格式可直接安裝） | 是 | — |
 | 無介面 CLI | `saturn run` | `claude -p` | `codex exec` |
-| SDK | 尚未提供：本機 HTTP API 與其事件串流 | Agent SDK | Codex SDK |
+| SDK | [`@saturn-app/sdk`](packages/sdk)（TypeScript，本機） | Agent SDK | Codex SDK |
 | Pull request 追蹤（修正失敗的檢查） | 是，最多兩輪 | 是，在網頁版 Claude Code | — |
 | 桌面應用程式與 IDE | Agent App、Saturn IDE（Code-OSS） | 桌面應用程式、IDE 擴充套件 | IDE 擴充套件、App |
 | 電腦操作、瀏覽器、多 Agent 群組、排程 | 是 | — | — |
@@ -493,6 +493,23 @@ saturn approve RUN ACTION
 ```
 
 `saturn run` 會把 Agent 的步驟輸出到 stderr、答案輸出到 stdout（`--json` 輸出整個 run）。需要核准時，在終端機會直接詢問；在腳本中 `saturn` 會以代碼 3 結束，並印出可回答它的 `saturn approve` 指令。與自動化任務相同，使用 Claude（透過 Claude Code）的 Agent 只能在終端機中執行，不能無人值守。
+
+**從程式呼叫。** [`packages/sdk`](packages/sdk) 是同一套 API 的 TypeScript client，沒有任何相依套件：啟動 run、即時取得每個步驟、在 callback 裡回答核准、讀取它改了哪些檔案。
+
+```ts
+import { Saturn } from "@saturn-app/sdk";
+
+const saturn = new Saturn(); // 自動找到執行中的 Saturn 與其 token
+const run = await saturn.run("fix the failing test", {
+  agent: "Saturn",
+  project: process.cwd(),
+  onStep: (step) => console.log("·", step.toolId),
+  onApproval: (step) => step.toolId === "code" && String(step.arguments.command).startsWith("npm test"),
+});
+console.log(run.status, run.output);
+```
+
+規則相同：使用 Claude（透過 Claude Code）的 Agent 會被拒絕，因為 SDK 是從程式執行它。
 
 ## 本機 API
 

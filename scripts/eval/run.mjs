@@ -74,7 +74,7 @@ export async function startRuntime() {
 		if (!response.ok) throw new Error(`${method} ${route}: ${response.status} ${text.slice(0, 300)}`);
 		return text ? JSON.parse(text) : undefined;
 	};
-	return { api, data, stop: async () => { child.kill(); await rm(data, { recursive: true, force: true }); } };
+	return { api, base, token: TOKEN, data, stop: async () => { child.kill(); await rm(data, { recursive: true, force: true }); } };
 }
 
 async function waitForRun(api, runId, timeoutMs) {

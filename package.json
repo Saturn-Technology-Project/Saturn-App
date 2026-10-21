@@ -6,6 +6,7 @@
     "start": "npm run dev --prefix runtime",
     "dev": "npm run dev --prefix runtime",
     "test": "npm test --prefix runtime",
+    "test:sdk": "node --test packages/sdk/test/",
     "typecheck": "cd runtime && npx tsc --noEmit && cd ../desktop && npx tsc --noEmit",
     "desktop": "npm run dev --prefix desktop",
     "dist:mac": "npm run dist:mac --prefix desktop",

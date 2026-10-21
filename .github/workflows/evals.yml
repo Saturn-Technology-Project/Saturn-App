@@ -4,7 +4,7 @@ name: Evals
 # model, graded by hidden tests, nightly and on demand. A drop of more than 15 points under the committed baseline
 # fails the run. Each run spends model tokens, so it runs only where the repository has the secret
 # SATURN_EVAL_API_KEY and the variables SATURN_EVAL_PROVIDER and SATURN_EVAL_MODEL (an API provider, never a plan).
-# The harness self-test (a scripted model, no tokens) runs on every change instead.
+# The harness self-test and the SDK's test (a scripted model, no tokens) run on every change instead.
 
 on:
   schedule:
@@ -19,6 +19,7 @@ on:
     paths:
       - "scripts/eval/**"
       - "runtime/**"
+      - "packages/sdk/**"
       - ".github/workflows/evals.yml"
 
 permissions:
@@ -39,6 +40,8 @@ jobs:
         run: git config --global user.name "Saturn CI" && git config --global user.email "ci@saturn.invalid"
       - name: Harness self-test (scripted model)
         run: node --test scripts/eval/self-test.mjs
+      - name: SDK against a real runtime (scripted model)
+        run: node --test packages/sdk/test/
 
   evals:
     needs: self-test

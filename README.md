@@ -44,7 +44,7 @@ What Saturn's own agent loop does (for API and local models; agents on Claude Co
 | Skills and slash commands | Yes (`SKILL.md`, `.claude/commands` read) | Yes | — |
 | Plugins | Yes (Claude Code's layout installs as is) | Yes | — |
 | Headless CLI | `saturn run` | `claude -p` | `codex exec` |
-| SDK | Not yet: the local HTTP API and its event streams | Agent SDK | Codex SDK |
+| SDK | [`@saturn-app/sdk`](packages/sdk) (TypeScript, local) | Agent SDK | Codex SDK |
 | Pull request follow-up (fix failing checks) | Yes, at most two rounds | Yes, in Claude Code on the web | — |
 | Desktop app and IDE | Agent app, Saturn IDE (Code-OSS) | Desktop app, IDE extensions | IDE extension, app |
 | Computer use, browser, multi-agent groups, schedules | Yes | — | — |
@@ -494,6 +494,23 @@ saturn approve RUN ACTION
 ```
 
 `saturn run` streams the agent's steps to stderr and its answer to stdout (`--json` prints the whole run). An approval is asked on a terminal; in a script `saturn` exits with code 3 and prints the `saturn approve` command that answers it. As with automations, an agent on Claude (via Claude Code) only runs from a terminal, never unattended.
+
+**From code.** [`packages/sdk`](packages/sdk) is a dependency-free TypeScript client for the same API: start a run, get its steps as they happen, answer approvals in a callback, read its changes.
+
+```ts
+import { Saturn } from "@saturn-app/sdk";
+
+const saturn = new Saturn(); // finds the running Saturn and its token
+const run = await saturn.run("fix the failing test", {
+  agent: "Saturn",
+  project: process.cwd(),
+  onStep: (step) => console.log("·", step.toolId),
+  onApproval: (step) => step.toolId === "code" && String(step.arguments.command).startsWith("npm test"),
+});
+console.log(run.status, run.output);
+```
+
+The same rule applies: an agent on Claude (via Claude Code) is refused, since the SDK runs it from code.
 
 ## Local API
 
