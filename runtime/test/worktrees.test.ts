@@ -45,6 +45,12 @@ async function settled(services: ReturnType<typeof createApp>["services"], runId
   throw new Error("run did not settle");
 }
 
+
+/** A file's text with Windows line endings normalized (git may check files out as CRLF there). */
+async function text(file: string): Promise<string> {
+  return (await readFile(file, "utf8")).replace(/\r\n/g, "\n");
+}
+
 test("an isolated chat works in its own worktree and branch; finishing merges, keeps or discards it", async () => {
   const model = await writingModel("notes.md", "from the agent\n");
   const directory = await mkdtemp(path.join(os.tmpdir(), "saturn-wt-"));
@@ -73,7 +79,7 @@ test("an isolated chat works in its own worktree and branch; finishing merges, k
     const run = await services.startRun(agent.id, "write notes", thread.id);
     const done = await settled(services, run.id);
     assert.equal(done.status, "completed", done.error);
-    assert.equal(await readFile(path.join(created.path, "notes.md"), "utf8"), "from the agent\n");
+    assert.equal(await text(path.join(created.path, "notes.md")), "from the agent\n");
     await assert.rejects(() => stat(path.join(repo, "notes.md")), "the project folder is untouched");
     const status = await services.kernel.worktrees.status(thread.id);
     assert.deepEqual([status.ahead, status.dirty, status.changedFiles], [0, 1, ["notes.md"]]);
@@ -81,7 +87,7 @@ test("an isolated chat works in its own worktree and branch; finishing merges, k
     // Merge: the change reaches main, the worktree and branch are gone.
     const merged = await services.kernel.worktrees.finish(thread.id, "merge");
     assert.equal(merged.merged, true);
-    assert.equal((await readFile(path.join(repo, "notes.md"), "utf8")).replace(/\r\n/g, "\n"), "from the agent\n");
+    assert.equal(await text(path.join(repo, "notes.md")), "from the agent\n");
     assert.match(git(repo, "log", "--oneline", "-1"), /Merge saturn\//);
     assert.equal(git(repo, "branch", "--list", created.branch), "", "the branch was removed");
     await assert.rejects(() => stat(created.path), "the worktree folder was removed");
@@ -103,7 +109,7 @@ test("an isolated chat works in its own worktree and branch; finishing merges, k
     await writeFile(path.join(repo, "README.md"), "user version\n");
     git(repo, "commit", "-qam", "user edit");
     await assert.rejects(() => services.kernel.worktrees.finish(third.id, "merge"), /conflicts in README\.md/);
-    assert.equal(await readFile(path.join(repo, "README.md"), "utf8"), "user version\n", "the merge was aborted cleanly");
+    assert.equal(await text(path.join(repo, "README.md")), "user version\n", "the merge was aborted cleanly");
     assert.ok((await services.kernel.worktrees.status(third.id)).ahead >= 1, "the agent's work is committed on its branch");
 
     // Deleting the chat discards its worktree.
