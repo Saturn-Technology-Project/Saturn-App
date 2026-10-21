@@ -128,7 +128,7 @@
     "electron": "43.7.7",
     "electron-builder": "^26.15.3",
     "typescript": "^5.8.3",
-    "vite": "^6.3.3",
+    "vite": "^8.3.4",
     "wait-on": "^8.0.3"
   },
   "allowScripts": {
