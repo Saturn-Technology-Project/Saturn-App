@@ -64,8 +64,8 @@ export function createApp(store: FileStore) {
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "content-type, authorization, traceparent, tracestate, baggage");
-    // Lets the desktop read the file name the runtime suggests for telemetry downloads.
-    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+    // Lets the desktop read the file name the runtime suggests for downloads, and where a proxied page ended up.
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, X-Saturn-Url");
     if (req.method === "OPTIONS") {
       res.sendStatus(204);
       return;

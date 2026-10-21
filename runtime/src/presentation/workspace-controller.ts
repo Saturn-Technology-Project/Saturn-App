@@ -258,6 +258,42 @@ export function mountWorkspace(app: Express, services: AppServices): void {
     });
   });
 
+  // Sent into every page the in-app browser shows: link clicks and GET forms ask the Agent App to load the next
+  // page through this proxy, since the sandboxed frame cannot load most sites itself (they refuse to be framed).
+  const BROWSER_NAVIGATION_SCRIPT = `<script>(() => {
+  const go = (url) => parent.postMessage({ saturnNavigate: String(url) }, "*");
+  document.addEventListener("click", (event) => {
+    const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    if (!link || event.defaultPrevented || link.target === "_blank" || /^(javascript|mailto|tel):/i.test(link.getAttribute("href") || "")) return;
+    const url = new URL(link.href, document.baseURI);
+    if (url.hash && url.href.split("#")[0] === document.baseURI.split("#")[0]) return;
+    event.preventDefault();
+    go(url.href);
+  }, true);
+  const formUrl = (form, submitter) => {
+    const url = new URL(form.action || document.baseURI, document.baseURI);
+    url.search = new URLSearchParams(new FormData(form, submitter)).toString();
+    return url.href;
+  };
+  const isGet = (form) => (form.method || "get").toLowerCase() === "get";
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !isGet(form)) return;
+    event.preventDefault();
+    go(formUrl(form, event.submitter));
+  }, true);
+  // Scripts that submit a form or open a window themselves (a search box, say) skip the submit event.
+  const submit = HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit = function () {
+    if (isGet(this)) go(formUrl(this));
+    else submit.call(this);
+  };
+  window.open = (url) => {
+    if (url) go(new URL(String(url), document.baseURI).href);
+    return null;
+  };
+})();</script>`;
+
   // The in-app browser's page loader. Public addresses only, like the agents' web tool: this runs as the user, and
   // a page shown here could otherwise read anything on localhost or the private network (the runtime included).
   app.get("/workspace/browser/proxy", async (req, res) => {
@@ -287,20 +323,23 @@ export function mountWorkspace(app: Express, services: AppServices): void {
       if (!response) throw new Error("No response");
       const finalUrl = current.toString();
       const contentType = response.headers.get("content-type") || "text/html; charset=utf-8";
-      const body = await response.text();
-
-      res.setHeader("Content-Type", contentType.includes("html") ? "text/html; charset=utf-8" : contentType);
-      res.removeHeader("X-Frame-Options");
-      res.removeHeader("Content-Security-Policy");
-
+      // Always an HTML page: the Agent App shows it in a sandboxed srcdoc frame (it fetches this with its token,
+      // which a frame's own request could not carry). Links and GET forms go back to the app to load through here.
+      const baseTag = `<base href="${escapeAttr(finalUrl)}">${BROWSER_NAVIGATION_SCRIPT}`;
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("X-Saturn-Url", finalUrl);
       if (contentType.includes("html")) {
-        const baseTag = `<base href="${escapeAttr(finalUrl)}">`;
+        const body = await response.text();
         const injected = /<head[^>]*>/i.test(body)
           ? body.replace(/<head[^>]*>/i, (match) => `${match}${baseTag}`)
           : `${baseTag}${body}`;
         res.status(200).send(injected);
+      } else if (contentType.startsWith("image/")) {
+        await response.body?.cancel();
+        res.status(200).send(`<!doctype html><html><head>${baseTag}</head><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#111"><img src="${escapeAttr(finalUrl)}" style="max-width:100%"></body></html>`);
       } else {
-        res.status(200).send(body);
+        const body = await response.text();
+        res.status(200).send(`<!doctype html><html><head><meta charset="utf-8">${baseTag}</head><body style="margin:0"><pre style="white-space:pre-wrap;word-break:break-word;padding:16px;font:13px ui-monospace,monospace">${escapeAttr(body.slice(0, 2_000_000))}</pre></body></html>`);
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to load page";

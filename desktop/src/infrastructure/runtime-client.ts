@@ -56,6 +56,12 @@ export class RuntimeClient {
     }
   }
 
+  /** A response's text and headers, for routes that answer with something other than JSON. */
+  async text(path: string): Promise<{ text: string; headers: Headers }> {
+    const response = await this.send(path);
+    return { text: await response.text(), headers: response.headers };
+  }
+
   /** Fetches a file the runtime offers as a download, with the name it suggests. */
   async download(path: string): Promise<{ blob: Blob; filename: string }> {
     const response = await this.send(path);

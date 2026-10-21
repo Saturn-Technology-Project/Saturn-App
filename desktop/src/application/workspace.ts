@@ -1,4 +1,4 @@
-import { RUNTIME_ORIGIN, RuntimeClient } from "../infrastructure/runtime-client.js";
+import { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export interface TerminalInfo {
   cwd: string;
@@ -68,7 +68,9 @@ export class WorkspaceService {
     );
   }
 
-  proxyUrl(url: string): string {
-    return `${RUNTIME_ORIGIN}/workspace/browser/proxy?url=${encodeURIComponent(url)}`;
+  /** A public page through the runtime's proxy, as HTML for a sandboxed srcdoc frame, with the address it ended at. */
+  async loadPage(url: string): Promise<{ html: string; url: string }> {
+    const { text, headers } = await this.runtime.text(`/workspace/browser/proxy?url=${encodeURIComponent(url)}`);
+    return { html: text, url: headers.get("x-saturn-url") ?? url };
   }
 }

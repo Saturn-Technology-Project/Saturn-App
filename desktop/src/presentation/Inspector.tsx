@@ -490,7 +490,41 @@ function ManualBrowser(props: {
     }
   }
 
-  const iframeSrc = isLoopbackUrl(currentUrl) ? currentUrl : desktop.workspace.proxyUrl(currentUrl);
+  // A local dev server loads directly; a public page comes through the runtime's proxy (fetched with the token,
+  // which a frame's own request cannot carry) and is shown as srcdoc in a sandbox without allow-same-origin, so
+  // its scripts can reach neither this app nor the runtime.
+  const loopback = isLoopbackUrl(currentUrl);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const [page, setPage] = useState<{ html: string } | { error: string } | null>(null);
+  useEffect(() => {
+    if (loopback) return;
+    let stale = false;
+    setPage(null);
+    desktop.workspace.loadPage(currentUrl).then(
+      (loaded) => {
+        if (stale) return;
+        setPage({ html: loaded.html });
+        if (loaded.url !== currentUrl) setAddressInput(loaded.url);
+      },
+      (reason) => {
+        if (!stale) setPage({ error: reason instanceof Error ? reason.message : "Could not load the page" });
+      },
+    );
+    return () => {
+      stale = true;
+    };
+  }, [currentUrl, reloadKey, loopback]);
+
+  // Links and GET forms in the page ask to load their target here (see the runtime's proxy).
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== frameRef.current?.contentWindow) return;
+      const next = (event.data as { saturnNavigate?: unknown } | null)?.saturnNavigate;
+      if (typeof next === "string" && /^https?:\/\//i.test(next)) navigateTo(next);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  });
 
   return (
     <div className="browser-shell">
@@ -545,13 +579,26 @@ function ManualBrowser(props: {
       </form>
 
       <div className="browser-viewport">
-        <iframe
-          key={`${currentUrl}-${reloadKey}`}
-          src={iframeSrc}
-          title="Embedded Workspace Browser"
-          className="browser-iframe"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-        />
+        {loopback ? (
+          <iframe
+            key={`${currentUrl}-${reloadKey}`}
+            src={currentUrl}
+            title="Embedded Workspace Browser"
+            className="browser-iframe"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          />
+        ) : page && "html" in page ? (
+          <iframe
+            ref={frameRef}
+            key={`${currentUrl}-${reloadKey}`}
+            srcDoc={page.html}
+            title="Embedded Workspace Browser"
+            className="browser-iframe"
+            sandbox="allow-scripts allow-forms allow-popups"
+          />
+        ) : (
+          <div className="agent-browser-empty">{page && "error" in page ? page.error : "Loading…"}</div>
+        )}
       </div>
     </div>
   );
