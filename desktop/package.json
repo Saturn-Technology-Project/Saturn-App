@@ -129,7 +129,7 @@
     "electron-builder": "^26.15.3",
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
-    "wait-on": "^8.0.3"
+    "wait-on": "^9.5.1"
   },
   "allowScripts": {
     "electron-winstaller": false,
