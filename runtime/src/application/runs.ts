@@ -19,6 +19,7 @@ import { SpanKind, instruments, seconds, traced } from "../infrastructure/teleme
 import { COMPACTION_PROMPT, budgetHistory, compactActions, contextTokensFor, estimateTokens, historyBudgetChars, splitForCompaction } from "../domain/context.js";
 import { DEFAULT_SANDBOX, type SandboxSettings } from "../infrastructure/sandbox.js";
 import { runsOnPlan } from "../domain/llm/catalog.js";
+import { listSkills, loadSkill, skillsPrompt } from "./skill-files.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 /** computer_wait up to this long blocks inline; longer waits suspend the run and the scheduler resumes it. */
@@ -659,6 +660,11 @@ export class RunService {
     });
   }
 
+  /** The user's own skills, available in every chat. */
+  userSkillsDir(): string {
+    return path.join(this.kernel.store.root, "skills");
+  }
+
   /** Background commands belong to the chat, or to the agent outside one, so they outlive the turn. */
   jobScopeOf(runId: string): string {
     const run = this.kernel.store.state.runs.find((item) => item.id === runId);
@@ -723,6 +729,15 @@ export class RunService {
     const serverId = this.toolServer(agent, input.toolId);
     if (!serverId) {
       return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `Unknown tool: ${input.toolId}` };
+    }
+    if (serverId === GENERAL_SKILLS_ID && input.toolId === "skill") {
+      const name = typeof input.arguments.name === "string" ? input.arguments.name : "";
+      const loaded = name ? await loadSkill(this.workdirOf(input.runId), this.userSkillsDir(), name) : undefined;
+      if (!loaded) {
+        const known = (await listSkills(this.workdirOf(input.runId), this.userSkillsDir())).map((item) => item.name).join(", ") || "none";
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `No skill named "${name}". Available: ${known}` };
+      }
+      return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result: loaded };
     }
     if (serverId === GENERAL_SKILLS_ID && input.toolId === "delegate") {
       try {
@@ -805,9 +820,12 @@ export class RunService {
     }
     if (serverId === ANTIGRAVITY_SKILLS_ID || serverId === "antigravity-skills") {
       try {
+        // Rules and skills are written in the chat's project (or the agent's workspace), not the runtime's own folder.
+        const workspaceDir = this.workdirOf(input.runId) ?? path.join(this.kernel.store.root, "workspace");
         const result = await runAntigravitySkill(this.kernel.store.root, input.toolId, input.arguments, input.signal, {
           automations: this.kernel.automations,
           agentId: input.agentId,
+          workspaceDir,
         });
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
@@ -1386,9 +1404,12 @@ export class RunService {
       rules,
       planApproval,
       mode: current?.mode,
-      context: workdir
-        ? `Working directory: ${workdir}\nThis chat belongs to the project in that folder. The files and code tools read, write and run commands there; paths are relative to it.${context ? `\n\n${context}` : ""}`
-        : context,
+      context: [
+        workdir ? `Working directory: ${workdir}\nThis chat belongs to the project in that folder. The files and code tools read, write and run commands there; paths are relative to it.` : "",
+        context,
+        // Only when the agent has the skill tool (General Skills): names and descriptions, loaded on demand.
+        agent.mcpConnectionIds.includes(GENERAL_SKILLS_ID) ? skillsPrompt(await listSkills(workdir, this.userSkillsDir())) : "",
+      ].filter(Boolean).join("\n\n"),
       serverIds: agent.mcpConnectionIds,
     });
     // Earlier turns within the model's budget: the chat's summary, then the turns after it (see historyFor).

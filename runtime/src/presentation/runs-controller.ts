@@ -4,6 +4,7 @@ import { imagePath, parseImages } from "../application/run-images.js";
 import path from "node:path";
 import type { RunMode } from "../domain/model.js";
 import { HttpError } from "../domain/errors.js";
+import { listSkills, loadSkill } from "../application/skill-files.js";
 import type { AppServices } from "../application/services.js";
 import { param, respond } from "./http.js";
 
@@ -79,6 +80,25 @@ export function mountRuns(app: Express, services: AppServices): void {
   // How full the chat's context is for its model, and the "/compact" command: fold its turns into the summary now.
   app.get("/threads/:id/context", (req, res, next) => {
     respond(res, next, () => services.kernel.runs.contextUsage(param(req.params.id)));
+  });
+
+  // Skills a chat can use (its project's, then the user's), and one skill's file: the composer's "/" menu.
+  app.get("/skills", (req, res, next) => {
+    respond(res, next, async () => {
+      const projectId = typeof req.query.projectId === "string" && req.query.projectId ? req.query.projectId : undefined;
+      const root = projectId ? services.kernel.projects.workdir(projectId) : undefined;
+      return listSkills(root, services.kernel.runs.userSkillsDir());
+    });
+  });
+
+  app.get("/skills/:name", (req, res, next) => {
+    respond(res, next, async () => {
+      const projectId = typeof req.query.projectId === "string" && req.query.projectId ? req.query.projectId : undefined;
+      const root = projectId ? services.kernel.projects.workdir(projectId) : undefined;
+      const skill = await loadSkill(root, services.kernel.runs.userSkillsDir(), param(req.params.name));
+      if (!skill) throw new HttpError(404, "No such skill");
+      return skill;
+    });
   });
 
   // Background commands the chat's agent started (code with background: true).

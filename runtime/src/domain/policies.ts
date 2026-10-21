@@ -75,7 +75,7 @@ export function isSensitiveOperation(toolId: string, args: Record<string, unknow
 
 /** Tools that only look: they read files, pages, the screen or a repository and change nothing. */
 const READ_ONLY_TOOL_IDS = new Set([
-  "web", "code_output", "delegate", "computer_screenshot", "computer_apps", "computer_app_state", "computer_check_permissions", "computer_resolve_app", "computer_wait",
+  "web", "code_output", "delegate", "skill", "computer_screenshot", "computer_apps", "computer_app_state", "computer_check_permissions", "computer_resolve_app", "computer_wait",
   "customizations_list", "plugins_list", "automation_list", "workflows_scan",
 ]);
 /** Names MCP servers commonly give tools that only read (GitHub's get_file_contents, list_commits, pull_request_read…). */

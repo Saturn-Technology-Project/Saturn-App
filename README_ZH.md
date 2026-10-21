@@ -40,6 +40,7 @@
 | 🔍 **審查** | 每回合的 diff 可逐行留言並回送 Agent，計畫可編輯，每回合有摘要卡片、終端機輸出，以及可重播的瀏覽器錄影。 |
 | ↩️ **檢查點** | 每次檔案修改都有紀錄。可保留或回復整個回合，或將工作區還原到任一步驟。 |
 | 👥 **群組** | 多個 Agent 在同一對話中協作；各自判斷是否被點名，並以 `@mention` 分派工作。 |
+| 📚 **Skills** | 含 `SKILL.md`（名稱、說明、步驟）的資料夾，放在專案的 `.agents/skills`、`.saturn/skills` 或 `.claude/skills`，或你的 `~/.saturn-app/skills`。Agent 只看到名稱與說明，任務需要時才載入；你也可以在輸入框打 `/名稱` 直接使用。 |
 | 🪆 **子 Agent** | Agent 可把獨立的任務（大範圍搜尋、調查、子任務）交給擁有全新上下文的子 Agent，只取回它的答案；可多個平行執行，預設唯讀，巢狀顯示在啟動它的步驟下，核准與檢查點與對話相同。 |
 | 🛠️ **工具** | 檔案系統、shell（支援背景指令：dev server 或 watcher 可跨回合持續執行，在 Terminal 分頁讀取輸出或停止）、網頁擷取、headless 瀏覽器、多步驟規劃、macOS 與 Windows 電腦操作、GitHub、自動化，以及內建市集中的任何 [MCP](https://modelcontextprotocol.io) 伺服器。 |
 | ⏰ **自動化** | 以 cron 排程執行 Agent，內建範本如每日審查 pull request。 |
