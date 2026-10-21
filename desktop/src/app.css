@@ -9222,3 +9222,21 @@ button.trace-row:hover {
 
 /* Automations: why agents on a Claude subscription are disabled. */
 .automation-policy-note { margin: 4px 0 0; font-size: 11px; color: var(--muted, #8a8a93); }
+
+/* ─── The chat's followed pull request ─── */
+.pr-bar { margin: 0 auto; width: min(100%, 860px); padding: 6px 16px 0; }
+.pr-bar-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 12.5px; }
+.pr-bar-link { font-weight: 600; color: var(--fg); text-decoration: none; }
+.pr-bar-link:hover { text-decoration: underline; }
+.pr-bar-state { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: var(--code-bg); color: var(--muted); }
+.pr-bar-state.ok { color: #3fb950; }
+.pr-bar-state.failed { color: var(--off, #f85149); }
+.pr-bar-detail { color: var(--muted); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+.pr-bar-detail.failed { color: var(--off, #f85149); }
+.pr-bar-spacer { flex: 1; }
+.pr-feedback { margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.pr-feedback ul { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
+.pr-feedback li { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12.5px; }
+.pr-feedback li code { font-size: 11.5px; color: var(--muted); }
+.pr-feedback li span { flex-basis: 100%; white-space: pre-wrap; }
+.pr-feedback-actions { display: flex; justify-content: flex-end; gap: 6px; }

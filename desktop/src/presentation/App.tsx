@@ -17,6 +17,7 @@ import { Onboarding } from "./Onboarding";
 import { RunImages } from "./RunImages";
 import { ContextPicker } from "./ContextPicker";
 import { SlashMenu } from "./SlashMenu";
+import { PullRequestBar } from "./PullRequestBar";
 import { BUILTIN_COMMANDS, hiddenContext, parseSlash, type SlashEntry } from "../domain/slash";
 import { AgentsBoard } from "./AgentsBoard";
 import { InteractivePlan } from "./InteractivePlan";
@@ -2336,6 +2337,9 @@ ${skill.instructions}`);
           />
         ) : (
           <>
+            {currentConversation?.pullRequest ? (
+              <PullRequestBar threadId={currentConversation.id} pr={currentConversation.pullRequest} busy={busy} onError={setNotice} />
+            ) : null}
             <section className="thread" ref={threadRef} onScroll={handleThreadScroll}>
               <div ref={columnRef} className={thread.length ? "column" : "column empty"}>
                 {thread.length === 0 ? (

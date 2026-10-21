@@ -660,6 +660,16 @@ export class RunService {
     });
   }
 
+  /** The project's .git folder when the run works in a chat's worktree (empty otherwise). */
+  private async worktreeGitDir(runId: string): Promise<string[]> {
+    const run = this.kernel.store.state.runs.find((item) => item.id === runId);
+    const thread = run?.threadId ? (this.kernel.store.state.threads ?? []).find((item) => item.id === run.threadId) : undefined;
+    const folder = thread?.worktree ? this.kernel.worktrees.pathOf(thread) : undefined;
+    if (!folder) return [];
+    const dir = await this.kernel.worktrees.gitCommonDir(folder);
+    return dir ? [dir] : [];
+  }
+
   /** The user's own prompt commands (the composer's "/" menu). */
   userCommandsDir(): string {
     return path.join(this.kernel.store.root, "commands");
@@ -761,7 +771,8 @@ export class RunService {
           return action.result;
         }, input.signal, workdir, workdir ? withStep(this.kernel.checkpoints.forRun(this.rootRunId(input.runId), workdir), input.actionId) : undefined, {
           sandbox: this.sandboxOf(input.runId),
-          writable: [path.join(this.kernel.store.root, "workspace")],
+          // A worktree keeps its git data in the project's .git: sandboxed commits must be able to write there.
+          writable: [path.join(this.kernel.store.root, "workspace"), ...(input.toolId === "code" ? await this.worktreeGitDir(input.runId) : [])],
           jobs: { table: this.kernel.jobs, scope: this.jobScopeOf(input.runId) },
         });
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
@@ -1169,12 +1180,14 @@ export class RunService {
     void this.kernel.memory.noteRun(current);
     void this.kernel.verify.afterRun(current).catch((error) => this.kernel.log("agent", "warning", `Verification failed to run: ${errorText(error)}`, { "saturn.run.id": runId }));
     void this.kernel.hooks.afterRun(current).catch((error) => this.kernel.log("agent", "warning", `Stop hooks failed to run: ${errorText(error)}`, { "saturn.run.id": runId }));
+    void this.kernel.pullRequests.afterRun(runId);
   }
 
   /** A Claude Code or Codex turn that completed feeds memory, as a local run's does when it finishes. */
   private noteFinished(runId: string, generation: number): void {
     const run = this.kernel.store.state.runs.find((item) => item.id === runId);
     if (!run || (run.generation ?? 0) !== generation || run.status !== "completed") return;
+    void this.kernel.pullRequests.afterRun(runId);
     void this.kernel.memory.noteRun(run);
     void this.kernel.verify.afterRun(run).catch((error) => this.kernel.log("agent", "warning", `Verification failed to run: ${errorText(error)}`, { "saturn.run.id": runId }));
   }

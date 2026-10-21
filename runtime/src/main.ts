@@ -43,6 +43,7 @@ await services.kernel.worktrees.sweep();
 services.kernel.automations.start();
 // Resumes runs that suspended themselves with a long computer_wait, including ones due while Saturn was closed.
 services.kernel.runs.startWakeups();
+services.kernel.pullRequests.start();
 services.kernel.groups.resume();
 observeActiveRuns(() => store.state.runs.filter((run) => run.status === "running" || run.status === "queued").length);
 const telemetry =

@@ -158,6 +158,23 @@ export function mountRuns(app: Express, services: AppServices): void {
   });
 
   // A pull request from a chat's worktree branch (pushes it first; needs the user's GitHub token).
+  // Following the chat's pull request: look now, stop or resume following, send or dismiss review comments.
+  app.post("/threads/:id/pull-request/check", (req, res, next) => {
+    respond(res, next, () => services.kernel.pullRequests.check(param(req.params.id)));
+  });
+
+  app.post("/threads/:id/pull-request/watch", (req, res, next) => {
+    respond(res, next, () => services.kernel.pullRequests.setWatching(param(req.params.id), req.body?.watching !== false));
+  });
+
+  app.post("/threads/:id/pull-request/feedback/send", (req, res, next) => {
+    respond(res, next, () => services.kernel.pullRequests.sendFeedback(param(req.params.id), Array.isArray(req.body?.ids) ? req.body.ids.map(String) : undefined));
+  });
+
+  app.post("/threads/:id/pull-request/feedback/dismiss", (req, res, next) => {
+    respond(res, next, () => services.kernel.pullRequests.dismissFeedback(param(req.params.id), Array.isArray(req.body?.ids) ? req.body.ids.map(String) : undefined));
+  });
+
   app.post("/threads/:id/pull-request", (req, res, next) => {
     respond(res, next, () => services.openPullRequest(param(req.params.id), {
       ...(typeof req.body?.title === "string" ? { title: req.body.title } : {}),

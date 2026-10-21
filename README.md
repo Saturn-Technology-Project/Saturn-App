@@ -35,6 +35,7 @@ Most agent products run the control plane in a vendor cloud, or hand a model an 
 | 🤖 **Agents** | Per-agent system prompt, model, reasoning effort, tool set and approval policy. Agent, Ask (read-only) and Plan modes per message. |
 | 📋 **Agents board** | One view of every running, queued, blocked and finished task across chats, with an inbox for approvals and failures, and native notifications. |
 | 🌿 **Isolated worktrees** | Run a task in its own git worktree and branch, in the background. Merge, keep or discard it; resolve conflicts with the agent; open a pull request from the branch. |
+| 🔁 **Pull request follow-up** | After Saturn opens a pull request it follows it every 2 minutes with your GitHub token. Failing checks go back to the agent with their log tails, at most twice, and its fix is committed and pushed so they run again. New comments and unresolved review threads wait in the chat until you send them to the agent (its answer is pushed too) or dismiss them. It stops when the pull request is merged or closed. |
 | 📎 **Context** | `@`-mention files, folders, git changes and URLs; paste screenshots; per-project rules from `AGENTS.md` and similar files; semantic code search backed by a bundled on-device embedding model. |
 | ✅ **Verification loop** | After a turn edits files, the project's check command (typecheck, lint, tests) runs, and failures go back to the agent for up to two automatic fix rounds. |
 | 🔍 **Review** | Per-turn diffs with inline comments sent back to the agent, editable plans, a summary card per turn, terminal output, and replayable browser recordings. |
@@ -490,6 +491,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 | `POST` | `/runs/:id/restore` | Restore the workspace to a step |
 | `POST` | `/runs/:id/stop` | Cancel a turn |
 | `POST` | `/threads/:id/worktree` · `/worktree/finish` · `/pull-request` | Isolated worktrees: create, merge/keep/discard, open a PR |
+| `POST` | `/threads/:id/pull-request/check` · `/watch` · `/feedback/send` · `/feedback/dismiss` | Follow the PR: look now, stop or resume, send or dismiss review comments |
 | `GET` `POST` | `/groups` · `/groups/:id/messages` | Group conversations |
 | `GET` `POST` | `/automations` | Scheduled runs |
 | `GET` | `/usage/summary?from=&to=` | Tokens and cost over a time window |

@@ -60,15 +60,10 @@ export class WorktreeService {
     const folder = this.pathOf(thread);
     if (!thread.worktree || !folder || !thread.projectId) throw new HttpError(404, "This chat has no worktree branch to open a pull request from");
     const { branch, base } = thread.worktree;
-    const dirty = await this.git(folder, ["status", "--porcelain"], true);
-    if (dirty) {
-      await this.git(folder, ["add", "-A"]);
-      await this.git(folder, ["-c", "user.name=Saturn", "-c", "user.email=saturn@localhost", "commit", "-q", "-m", `Saturn: ${thread.title}`]);
-    }
     const remote = await this.git(folder, ["remote", "get-url", "origin"], true);
     const repository = input.repository?.trim() || githubRepository(remote);
     if (!repository) throw new HttpError(409, remote ? `The origin remote (${remote}) is not a GitHub repository` : "The project has no origin remote to push to");
-    await this.git(folder, ["push", "-u", "origin", branch]);
+    await this.push(threadId, `Saturn: ${thread.title}`);
     const [owner, repo] = repository.split("/");
     const title = input.title?.trim() || thread.title;
     const body = input.body ?? this.summaryOf(threadId);
@@ -83,6 +78,29 @@ export class WorktreeService {
     const pr = result.pullRequest ?? {};
     logger.info("worktrees", `Opened pull request #${pr.number ?? "?"} from ${branch}`);
     return { url: String(pr.url ?? ""), number: Number(pr.number ?? 0), branch };
+  }
+
+  /**
+   * Commits whatever the chat's worktree has pending (as Saturn) and pushes its branch to origin. Returns whether
+   * anything was committed. The pull request flow and the CI follow-up both push through here.
+   */
+  async push(threadId: string, message: string): Promise<{ committed: boolean; branch: string; head: string }> {
+    const thread = this.thread(threadId);
+    const folder = this.pathOf(thread);
+    if (!thread.worktree || !folder) throw new HttpError(404, "This chat has no worktree branch to push");
+    const dirty = await this.git(folder, ["status", "--porcelain"], true);
+    if (dirty) {
+      await this.git(folder, ["add", "-A"]);
+      await this.git(folder, ["-c", "user.name=Saturn", "-c", "user.email=saturn@localhost", "commit", "-q", "-m", message]);
+    }
+    await this.git(folder, ["push", "-u", "origin", thread.worktree.branch]);
+    return { committed: Boolean(dirty), branch: thread.worktree.branch, head: await this.git(folder, ["rev-parse", "HEAD"]) };
+  }
+
+  /** The repository folder that holds a worktree's git data (its common .git), which sandboxed commits must reach. */
+  async gitCommonDir(folder: string): Promise<string | undefined> {
+    const dir = await this.git(folder, ["rev-parse", "--path-format=absolute", "--git-common-dir"], true);
+    return dir || undefined;
   }
 
   /** The "## Summary" of the chat's last reply, for a pull request's description. */

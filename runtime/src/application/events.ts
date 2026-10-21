@@ -43,7 +43,7 @@ function otherFingerprint(kernel: RuntimeKernel): string {
   return JSON.stringify([
     state.agents.map((agent) => [agent.id, agent.name, agent.modelConnectionId, agent.autonomy, agent.status]),
     // Not updatedAt: a new turn moves it, and the run change already refreshes that agent's chats.
-    (state.threads ?? []).map((thread) => [thread.id, thread.title, thread.worktree?.branch ?? "", thread.summary?.turns ?? 0]),
+    (state.threads ?? []).map((thread) => [thread.id, thread.title, thread.worktree?.branch ?? "", thread.summary?.turns ?? 0, thread.pullRequest ? [thread.pullRequest.state, thread.pullRequest.checks, thread.pullRequest.watching, thread.pullRequest.fixRounds, thread.pullRequest.feedback.length, thread.pullRequest.error ?? ""] : 0]),
     (state.projects ?? []).map((project) => [project.id, project.name, project.access ? 1 : 0]),
     state.models.map((model) => [model.id, model.name, model.effort ?? ""]),
     state.mcp.map((server) => [server.id, server.status ?? "", server.tools.length]),

@@ -35,6 +35,7 @@
 | 🤖 **Agent** | 每個 Agent 各自設定 system prompt、模型、推理強度、工具集與核准策略。每則訊息可切換 Agent、Ask（唯讀）與 Plan 模式。 |
 | 📋 **Agents 總覽** | 跨對話檢視所有執行中、排隊、受阻與已完成的任務，含核准與失敗的收件匣，以及系統原生通知。 |
 | 🌿 **隔離 worktree** | 任務在獨立的 git worktree 與分支中於背景執行。可合併、保留或捨棄；由 Agent 協助解決衝突；直接從分支開 pull request。 |
+| 🔁 **Pull request 追蹤** | Saturn 開出 pull request 後，會用你的 GitHub token 每 2 分鐘追蹤一次。檢查失敗時，會把失敗紀錄的結尾交給 Agent 修正（最多兩次），修好後自動 commit 並推送，讓檢查重跑。新留言與未解決的 review 討論會留在對話中，等你送給 Agent（它的回應也會推送）或略過。pull request 合併或關閉後即停止追蹤。 |
 | 📎 **上下文** | 以 `@` 引用檔案、資料夾、git 變更與網址；貼上截圖；從 `AGENTS.md` 等檔案載入專案規則；以內建的裝置端嵌入模型做語意程式碼搜尋。 |
 | ✅ **驗證迴圈** | 回合修改檔案後，自動執行專案的檢查指令（型別檢查、lint、測試），失敗時回饋給 Agent，最多自動修正兩輪。 |
 | 🔍 **審查** | 每回合的 diff 可逐行留言並回送 Agent，計畫可編輯，每回合有摘要卡片、終端機輸出，以及可重播的瀏覽器錄影。 |
@@ -489,6 +490,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 | `POST` | `/runs/:id/restore` | 將工作區還原到某一步 |
 | `POST` | `/runs/:id/stop` | 取消回合 |
 | `POST` | `/threads/:id/worktree` · `/worktree/finish` · `/pull-request` | 隔離 worktree：建立、合併／保留／捨棄、開 PR |
+| `POST` | `/threads/:id/pull-request/check` · `/watch` · `/feedback/send` · `/feedback/dismiss` | 追蹤 PR：立即檢查、停止或恢復追蹤、送出或略過 review 留言 |
 | `GET` `POST` | `/groups` · `/groups/:id/messages` | 群組對話 |
 | `GET` `POST` | `/automations` | 排程執行 |
 | `GET` | `/usage/summary?from=&to=` | 指定期間的 token 數與成本 |

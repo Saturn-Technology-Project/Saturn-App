@@ -132,11 +132,40 @@ export type Conversation = {
   codexThreadId?: string;
   /** Set while this chat works in its own git worktree and branch (see application/worktrees.ts). */
   worktree?: { branch: string; base: string };
+  /** The pull request Saturn opened from this chat's worktree, and what following it found (see pull-requests.ts). */
+  pullRequest?: PullRequestWatch;
   /** The running summary of this chat's earlier turns, through `throughRunId`; later turns are sent whole. */
   summary?: { text: string; throughRunId: string; turns: number; createdAt: string };
   title: string;
   createdAt: string;
   updatedAt: string;
+};
+
+/** A comment or unresolved review thread on a followed pull request, waiting for the user to send it to the agent. */
+export type PullRequestFeedback = { id: string; author: string; body: string; at: string; path?: string; line?: number };
+
+export type PullRequestWatch = {
+  number: number;
+  url: string;
+  /** owner/name on GitHub. */
+  repository: string;
+  branch: string;
+  openedAt: string;
+  watching: boolean;
+  state: "open" | "merged" | "closed";
+  checks: "pending" | "success" | "failure" | "none";
+  failed?: { name: string; url: string }[];
+  head?: string;
+  /** The head whose failing checks were already handed to the agent (or given up on). */
+  handledHead?: string;
+  fixRounds: number;
+  fixRunId?: string;
+  /** The turn answering review comments the user sent; its changes are pushed when it ends, like a fix round's. */
+  pushRunId?: string;
+  feedback: PullRequestFeedback[];
+  seenFeedback: string[];
+  lastCheckedAt?: string;
+  error?: string;
 };
 
 export type Run = {

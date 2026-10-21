@@ -126,8 +126,12 @@ export class AppServices {
     return await this.kernel.runs.startRun(agentId, input, threadId, projectId, options);
   }
 
-  openPullRequest(threadId: string, input: { title?: string; body?: string }): Promise<{ url: string; number: number; branch: string }> {
-    return this.kernel.worktrees.pullRequest(threadId, input, { secret: (id) => this.kernel.store.secret(id) });
+  async openPullRequest(threadId: string, input: { title?: string; body?: string }): Promise<{ url: string; number: number; branch: string }> {
+    const opened = await this.kernel.worktrees.pullRequest(threadId, input, { secret: (id) => this.kernel.store.secret(id) });
+    // Followed from here on: its checks (a failure goes back to the agent) and its review comments.
+    const repository = /github\.com\/([^/]+\/[^/]+)\/pull\//.exec(opened.url)?.[1];
+    if (repository && opened.number) await this.kernel.pullRequests.follow(threadId, { number: opened.number, url: opened.url, repository, branch: opened.branch });
+    return opened;
   }
 
   recordings(runId: string): { name: string; frames: number; seconds?: number; exported?: boolean }[] {

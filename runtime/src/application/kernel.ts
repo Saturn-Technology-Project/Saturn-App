@@ -48,6 +48,7 @@ import { JobTable } from "../infrastructure/jobs.js";
 import { HookService } from "./hooks.js";
 import { PluginService } from "./plugins.js";
 import { EventHub } from "./events.js";
+import { PullRequestService } from "./pull-requests.js";
 
 /** Shared local runtime state. */
 export class RuntimeKernel {
@@ -76,6 +77,7 @@ export class RuntimeKernel {
   readonly hooks: HookService;
   readonly plugins: PluginService;
   readonly events: EventHub;
+  readonly pullRequests: PullRequestService;
   /** Background commands agents started (see infrastructure/jobs.ts). */
   readonly jobs = new JobTable();
   readonly clients = new ClientRegistry();
@@ -115,6 +117,7 @@ export class RuntimeKernel {
     this.hooks = new HookService(this);
     this.plugins = new PluginService(this);
     this.events = new EventHub(this);
+    this.pullRequests = new PullRequestService(this);
   }
 
   health() {

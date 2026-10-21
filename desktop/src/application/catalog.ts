@@ -1,4 +1,4 @@
-import type { Agent, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run, ContextUsage, BackgroundJob } from "../domain/model.js";
+import type { Agent, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run, ContextUsage, BackgroundJob, PullRequestWatch } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export type WorkspaceSnapshot = {
@@ -78,6 +78,23 @@ export class CatalogService {
   /** How full the chat's context is for its agent's model (an estimate), and what its summary covers. */
   threadContext(threadId: string): Promise<ContextUsage> {
     return this.runtime.request<ContextUsage>(`/threads/${encodeURIComponent(threadId)}/context`);
+  }
+
+  /** Looks at the chat's pull request now (checks, comments) instead of waiting for the next 2-minute look. */
+  checkPullRequest(threadId: string): Promise<PullRequestWatch> {
+    return this.runtime.request<PullRequestWatch>(`/threads/${encodeURIComponent(threadId)}/pull-request/check`, { method: "POST" });
+  }
+
+  watchPullRequest(threadId: string, watching: boolean): Promise<PullRequestWatch> {
+    return this.runtime.request<PullRequestWatch>(`/threads/${encodeURIComponent(threadId)}/pull-request/watch`, { method: "POST", body: JSON.stringify({ watching }) });
+  }
+
+  sendPullRequestFeedback(threadId: string, ids?: string[]): Promise<{ runId: string; sent: number }> {
+    return this.runtime.request(`/threads/${encodeURIComponent(threadId)}/pull-request/feedback/send`, { method: "POST", body: JSON.stringify(ids ? { ids } : {}) });
+  }
+
+  dismissPullRequestFeedback(threadId: string, ids?: string[]): Promise<PullRequestWatch> {
+    return this.runtime.request<PullRequestWatch>(`/threads/${encodeURIComponent(threadId)}/pull-request/feedback/dismiss`, { method: "POST", body: JSON.stringify(ids ? { ids } : {}) });
   }
 
   /** The skills a chat can use: its project's, then the user's. */

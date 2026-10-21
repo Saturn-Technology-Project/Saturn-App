@@ -124,6 +124,8 @@ export type Conversation = {
   projectId?: string;
   /** Set while the chat works in its own git worktree and branch. */
   worktree?: { branch: string; base: string };
+  /** The pull request Saturn opened from this chat, and what following it found. */
+  pullRequest?: PullRequestWatch;
   /** The running summary of the chat's earlier turns; later turns are sent whole. */
   summary?: { text: string; throughRunId: string; turns: number; createdAt: string };
   title: string;
@@ -157,6 +159,23 @@ export type Plugin = {
 
 /** A background command an agent started in a chat (code with background: true). */
 export type BackgroundJob = { id: string; scope: string; command: string; pid?: number; startedAt: string; endedAt?: string; exitCode?: number | null; running: boolean; bytes: number };
+
+/** A followed pull request: its state, its checks, the CI fix rounds, and review comments waiting to be sent. */
+export type PullRequestWatch = {
+  number: number;
+  url: string;
+  repository: string;
+  branch: string;
+  watching: boolean;
+  state: "open" | "merged" | "closed";
+  checks: "pending" | "success" | "failure" | "none";
+  failed?: { name: string; url: string }[];
+  fixRounds: number;
+  fixRunId?: string;
+  feedback: { id: string; author: string; body: string; at: string; path?: string; line?: number }[];
+  lastCheckedAt?: string;
+  error?: string;
+};
 
 /** How full a chat's context is for its model (an estimate in tokens), and what its summary covers. */
 export type ContextUsage = { usedTokens: number; budgetTokens: number; windowTokens: number; percent: number; turns: number; summary: { turns: number; createdAt: string } | null };

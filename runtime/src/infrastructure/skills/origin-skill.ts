@@ -114,6 +114,9 @@ export class OriginSkill {
         return this.pullRequestRead(args, signal);
       case "checks_read":
         return this.checksRead(args, signal);
+      // Not offered to agents: the pull request follow-up reads a failed check's log tail with it.
+      case "check_run_log":
+        return this.checkRunLog(args, signal);
       case "create_pull_request":
         return this.createPullRequest(args, signal);
       case "update_pull_request":
@@ -635,6 +638,33 @@ export class OriginSkill {
             ? "success"
             : "none";
     return { sha: sha || null, checkRuns: runs, totalCount: result.total_count, ...(rollup ? { rollup } : {}), nextPageToken: more ? String(at + 1) : null };
+  }
+
+  /**
+   * The end of a failed check's output: the GitHub Actions job log when the check is an Actions job (its check run id
+   * is the job id), else the check's own summary and text, plus its annotations.
+   */
+  private async checkRunLog(args: Args, signal?: AbortSignal) {
+    const base = this.repoRoute(args);
+    const id = encodeURIComponent(str(args.checkRunId));
+    const limit = Math.min(20_000, Math.max(500, num(args.limit, 4000)));
+    const run = await this.api<Record<string, any>>("GET", `${base}/check-runs/${id}`, undefined, signal);
+    let log = "";
+    try {
+      log = await this.api<string>("GET", `${base}/actions/jobs/${id}/logs`, undefined, signal, "application/vnd.github.v3.raw");
+    } catch {
+      log = [run.output?.summary, run.output?.text].filter(Boolean).join("\n\n");
+    }
+    const annotations = await this.api<Record<string, any>[]>("GET", `${base}/check-runs/${id}/annotations?per_page=20`, undefined, signal).catch(() => []);
+    // Timestamps at the start of each Actions log line only take room.
+    const text = String(log).replace(/^\d{4}-\d\d-\d\dT[\d:.]+Z /gm, "");
+    return {
+      name: run.name,
+      conclusion: run.conclusion,
+      url: run.html_url,
+      annotations: annotations.map((item) => `${item.path}:${item.start_line} ${item.annotation_level}: ${item.message}`).slice(0, 20),
+      log: text.length > limit ? `…${text.slice(-limit)}` : text,
+    };
   }
 
   private async parentHead(args: Args, signal?: AbortSignal): Promise<string | undefined> {
