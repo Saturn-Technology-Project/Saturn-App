@@ -51,13 +51,23 @@ test("Windows computer use drives Notepad end to end", { skip: process.platform 
     assert.ok(editor, `Notepad's text area in the tree:\n${state.text.slice(0, 2000)}`);
     const elementId = Number(/\[(\d+)\]/.exec(editor!)![1]);
 
+    // Notepad's text area reports its text to UI Automation a moment after it has drawn it, so read until it shows.
+    const stateShowing = async (pattern: RegExp) => {
+      let state = (await skill.run("computer_app_state", { target })) as State;
+      for (let i = 0; i < 20 && !pattern.test(state.text); i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        state = (await skill.run("computer_app_state", { target })) as State;
+      }
+      return state;
+    };
+
     await skill.run("computer_type", { target, text: "Hello Saturn 你好\nsecond line", element_id: elementId, snapshot_id: state.snapshot_id });
-    let after = (await skill.run("computer_app_state", { target })) as State;
+    let after = await stateShowing(/Hello Saturn 你好/);
     assert.match(after.text, /Hello Saturn 你好/, "typed text, including Chinese, reached the editor");
 
     await skill.run("computer_key", { target, key: "ctrl+a" });
     await skill.run("computer_type", { target, text: "replaced" });
-    after = (await skill.run("computer_app_state", { target })) as State;
+    after = await stateShowing(/value="replaced"/);
     assert.match(after.text, /value="replaced"/, `Ctrl+A then typing replaced the text:\n${after.text.slice(0, 1500)}`);
 
     const click = (await skill.run("computer_click", { target, coordinate_token: shot.coordinate_token, x: 640, y: 400 })) as { success: boolean };
