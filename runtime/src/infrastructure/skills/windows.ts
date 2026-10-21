@@ -34,6 +34,19 @@ class Helper {
     return { script, source };
   }
 
+  /**
+   * Keeps Node's event loop alive only while a request is waiting: an idle helper (its process and pipes) must not
+   * stop the runtime, or a test run, from exiting.
+   */
+  private hold(on: boolean): void {
+    const child = this.child;
+    if (!child) return;
+    for (const handle of [child, child.stdin, child.stdout, child.stderr] as unknown as { ref?: () => void; unref?: () => void }[]) {
+      if (on) handle.ref?.();
+      else handle.unref?.();
+    }
+  }
+
   private start(): Promise<void> {
     const { script, source } = this.files();
     const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
@@ -53,6 +66,7 @@ class Helper {
         }
         if (message.ready) {
           clearTimeout(startup);
+          if (!this.pending.size) this.hold(false);
           resolve();
           return;
         }
@@ -60,6 +74,7 @@ class Helper {
         if (!waiting) return;
         this.pending.delete(message.id!);
         clearTimeout(waiting.timer);
+        if (!this.pending.size) this.hold(false);
         if (message.ok) waiting.resolve(message.result);
         else waiting.reject(explain(message.error ?? "The Windows action failed"));
       });
@@ -89,9 +104,11 @@ class Helper {
     return await new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
+        if (!this.pending.size) this.hold(false);
         reject(new Error("Windows did not answer in time; the app may be busy. Try again."));
       }, timeout);
       this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
+      this.hold(true);
       this.child!.stdin.write(`${JSON.stringify({ id, op, ...args })}\n`);
     });
   }

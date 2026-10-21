@@ -417,6 +417,16 @@ public static class SaturnDesktop
             }
             catch { }
         }
+        else if (Has(element, AutomationElement.IsTextPatternAvailableProperty))
+        {
+            // Documents and rich edits (Notepad's text area, for one) expose their text through TextPattern only.
+            try
+            {
+                value = ((TextPattern)element.GetCurrentPattern(TextPattern.Pattern)).DocumentRange.GetText(400) ?? "";
+                settable = element.Current.IsKeyboardFocusable && element.Current.IsEnabled;
+            }
+            catch { }
+        }
         if (Has(element, AutomationElement.IsTogglePatternAvailableProperty))
         {
             actions.Add("AXToggle");
@@ -526,8 +536,16 @@ public static class SaturnDesktop
         try { element.SetFocus(); } catch { }
         if (focusOnly) return;
         object p = Pattern(element, ValuePattern.Pattern);
-        if (p == null) throw new Exception("This element has no settable value. Click it and use computer_type instead.");
-        ((ValuePattern)p).SetValue(value);
+        if (p != null && !((ValuePattern)p).Current.IsReadOnly) { ((ValuePattern)p).SetValue(value); return; }
+        if (Pattern(element, TextPattern.Pattern) != null && element.Current.IsKeyboardFocusable)
+        {
+            // A text-only control: replace its contents the way a person would, select all and type.
+            Thread.Sleep(100);
+            Key(new int[] { 0x11 }, 0, "a", false);
+            if (value.Length == 0) Key(new int[0], 0x2E, "", true); else TypeText(value);
+            return;
+        }
+        throw new Exception("This element has no settable value. Click it and use computer_type instead.");
     }
 }
 `;
