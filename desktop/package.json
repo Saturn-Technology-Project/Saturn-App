@@ -70,7 +70,6 @@
           ]
         }
       ],
-      "signExecutable": false,
       "extraResources": [
         {
           "from": ".staging/runtime-win32-x64/node_modules",

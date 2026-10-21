@@ -176,12 +176,25 @@ jobs:
         shell: pwsh
         run: node Saturn-IDE/test/smoke/smoke.mjs VSCode-win32-x64
 
+      - name: Code-signing certificate (self-signed)
+        shell: pwsh
+        env:
+          PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
+        run: .github/scripts/windows-signing-cert.ps1
+
       - name: Package the Saturn installer
         working-directory: desktop
         shell: pwsh
         run: |
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
           npm run dist:win
+
+      - name: Check the signatures
+        shell: pwsh
+        env:
+          EXPECTED: ${{ secrets.WINDOWS_SIGNING_PFX && 'D285DA425077C16A3D115D61F9748AFA574BC786' || '' }}
+        run: .github/scripts/check-windows-signatures.ps1 -Release desktop/release -Expected "$env:EXPECTED"
 
       - name: Checksums
         working-directory: desktop/release

@@ -51,6 +51,12 @@ exports.default = async function bundleIde(context) {
   fs.rmSync(target, { recursive: true, force: true });
   fs.cpSync(source, target, { recursive: true, dereference: false });
   console.log(`  • bundled Saturn IDE  ${path.relative(process.cwd(), target)}`);
+  // electron-builder signs Saturn's own executables; the IDE's comes from another build, so it is signed here, with
+  // the same certificate, whenever one is configured (WIN_CSC_LINK). Without one, signIf skips it.
+  const ideExe = path.join(target, "Saturn IDE.exe");
+  if (platform === "win32" && fs.existsSync(ideExe) && typeof context.packager.signIf === "function") {
+    await context.packager.signIf(ideExe);
+  }
 };
 
 /**
