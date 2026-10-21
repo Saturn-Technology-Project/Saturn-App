@@ -17,6 +17,7 @@ import { rulesFor } from "./agent-sessions.js";
 import { runGeneralSkill, runComputerUseSkill, runOriginSkill, runAntigravitySkill, runBrowserSkill } from "../infrastructure/skills.js";
 import { SpanKind, instruments, seconds, traced } from "../infrastructure/telemetry.js";
 import { budgetHistory, compactActions } from "../domain/context.js";
+import { DEFAULT_SANDBOX, type SandboxSettings } from "../infrastructure/sandbox.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 /** computer_wait up to this long blocks inline; longer waits suspend the run and the scheduler resumes it. */
@@ -571,6 +572,14 @@ export class RunService {
     });
   }
 
+  /** The sandbox the run's commands get: the project's setting, else the setting for everywhere, else the default. */
+  sandboxOf(runId: string): SandboxSettings {
+    const run = this.kernel.store.state.runs.find((item) => item.id === runId);
+    const thread = run?.threadId ? (this.kernel.store.state.threads ?? []).find((t) => t.id === run.threadId) : undefined;
+    const project = thread?.projectId ? (this.kernel.store.state.projects ?? []).find((item) => item.id === thread.projectId) : undefined;
+    return project?.sandbox ?? this.kernel.store.state.settings.sandbox ?? DEFAULT_SANDBOX;
+  }
+
   /** The project folder a run works in, or undefined for chats outside a project (the private sandbox). */
   private workdirOf(runId: string): string | undefined {
     const run = this.kernel.store.state.runs.find((item) => item.id === runId);
@@ -629,7 +638,10 @@ export class RunService {
           const action = await this.executeTool({ ...input, toolId, arguments: args, actionId: newId("act") });
           if (action.status !== "completed") throw new Error(action.reason || "MCP call failed");
           return action.result;
-        }, input.signal, workdir, workdir ? withStep(this.kernel.checkpoints.forRun(input.runId, workdir), input.actionId) : undefined);
+        }, input.signal, workdir, workdir ? withStep(this.kernel.checkpoints.forRun(input.runId, workdir), input.actionId) : undefined, {
+          sandbox: this.sandboxOf(input.runId),
+          writable: [path.join(this.kernel.store.root, "workspace")],
+        });
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
         return {
@@ -830,7 +842,12 @@ export class RunService {
       let requiresApproval = false;
       let approvalReason = "";
 
-      if (ruling?.effect === "ask") {
+      // Leaving the sandbox (`code` with sandbox: "off") asks in every mode but bypass, whatever the rules say.
+      const escapes = call.name === "code" && call.arguments.sandbox === "off" && this.sandboxOf(runId).mode !== "off";
+      if (escapes && mode !== "bypass") {
+        requiresApproval = true;
+        approvalReason = "Runs outside the sandbox: this command may write anywhere on this computer";
+      } else if (ruling?.effect === "ask") {
         requiresApproval = true;
         approvalReason = this.kernel.permissions.explain(ruling);
       } else if (ruling?.effect === "allow") {

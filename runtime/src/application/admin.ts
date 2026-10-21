@@ -1,5 +1,6 @@
 import { HttpError } from "../domain/errors.js";
 import type { AppSettings } from "../domain/model.js";
+import { sandboxMode, type SandboxSettings } from "../infrastructure/sandbox.js";
 import { logLevel, logger } from "../infrastructure/logger.js";
 import type { RuntimeKernel } from "./kernel.js";
 
@@ -11,7 +12,7 @@ export class AdminService {
     return this.kernel.store.state.settings;
   }
 
-  async updateSettings(patch: Partial<AppSettings> & { onboardedAt?: string | null }): Promise<AppSettings> {
+  async updateSettings(patch: Partial<Omit<AppSettings, "sandbox">> & { onboardedAt?: string | null; sandbox?: SandboxSettings | null }): Promise<AppSettings> {
     const logging = patch.logging;
     if (logging && !["debug", "info", "warning", "error"].includes(logging)) {
       throw new HttpError(400, "Unknown logging level");
@@ -31,6 +32,7 @@ export class AdminService {
     if (patch.embeddingConnectionId && !this.kernel.store.state.models.some((item) => item.id === patch.embeddingConnectionId)) {
       throw new HttpError(400, "Unknown model connection for embeddings");
     }
+    const sandbox = patch.sandbox === undefined ? undefined : patch.sandbox === null ? null : checkSandbox(patch.sandbox);
     const previous = this.kernel.store.state.settings;
     let next = previous;
     await this.kernel.store.update((state) => {
@@ -45,6 +47,7 @@ export class AdminService {
         planApproval: typeof patch.planApproval === "boolean" ? patch.planApproval : state.settings.planApproval,
         // Edited through /permissions, never through this patch.
         permissions: state.settings.permissions,
+        sandbox: sandbox === undefined ? state.settings.sandbox : sandbox ?? undefined,
         embeddingSource: embeddingSource ?? state.settings.embeddingSource,
         embeddingModel: typeof patch.embeddingModel === "string" ? patch.embeddingModel.trim() || undefined : state.settings.embeddingModel,
         embeddingConnectionId: typeof patch.embeddingConnectionId === "string" ? patch.embeddingConnectionId || undefined : state.settings.embeddingConnectionId,
@@ -94,4 +97,12 @@ export class AdminService {
       return true;
     });
   }
+}
+
+/** A sandbox setting from a request: a known mode, and whether commands may use the network. */
+export function checkSandbox(value: unknown): SandboxSettings {
+  const input = (value ?? {}) as { mode?: unknown; network?: unknown };
+  const mode = sandboxMode(input.mode);
+  if (!mode) throw new HttpError(400, "sandbox.mode must be workspace-write, read-only or off");
+  return { mode, network: input.network !== false };
 }

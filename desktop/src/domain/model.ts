@@ -111,6 +111,8 @@ export type Project = {
   verifyCommand?: string;
   /** Permission rules for agents working here, kept by Saturn (the folder's .saturn/settings.json is read too). */
   permissions?: PermissionRule[];
+  /** The sandbox for commands run here; unset uses the setting for everywhere. */
+  sandbox?: SandboxSettings;
   lastOpenedAt?: string;
   isDefault?: boolean;
 };
@@ -230,12 +232,17 @@ export type Profile = {
   embeddingSource?: EmbeddingSource;
   /** The embedding model's name for that source. */
   embeddingModel?: string;
+  /** The sandbox for commands (default: workspace-write, network allowed). */
+  sandbox?: SandboxSettings;
   /** For the OpenAI-compatible source: the model connection whose endpoint and key are used. */
   embeddingConnectionId?: string;
   /** When the first-launch onboarding was finished or skipped; unset shows it. */
   onboardedAt?: string;
 };
 export type EmbeddingSource = "builtin" | "lmstudio" | "openai";
+/** How the `code` tool's commands are confined: writes only in the workspace, none at all, or no sandbox. */
+export type SandboxMode = "workspace-write" | "read-only" | "off";
+export type SandboxSettings = { mode: SandboxMode; network: boolean };
 export type RunMode = "agent" | "ask" | "plan";
 export type PendingTask = { id: string; agentId: string; agentName: string; input: string; toolId: string };
 

@@ -89,8 +89,8 @@ export function generalSkills(): McpConnection {
       ),
       skill(
         "code",
-        "Run a shell command in the workspace. cwd must stay inside the workspace. timeout is milliseconds, at most 30000.",
-        { command: { type: "string" }, cwd: { type: "string" }, timeout: { type: "integer" } },
+        "Run a shell command in the workspace. cwd must stay inside the workspace. timeout is milliseconds, at most 30000. Commands run in a sandbox that can write only inside the workspace (and temp and cache folders); pass sandbox: \"off\" only when a command must write elsewhere or the sandbox blocks it, which asks the user first.",
+        { command: { type: "string" }, cwd: { type: "string" }, timeout: { type: "integer" }, sandbox: { type: "string", enum: ["off"] } },
         ["command"],
       ),
       skill(

@@ -1,5 +1,6 @@
 import type { FileCheckpoint } from "../domain/skills/checkpoint.js";
 import { GeneralSkills, type ToolCaller } from "./skills/general-skills.js";
+import type { CodeOptions } from "./skills/code-skill.js";
 import { ComputerUseSkill } from "./skills/computer-use-skill.js";
 import { OriginSkill, type OriginContext } from "./skills/origin-skill.js";
 import { AntigravitySkill, type AntigravityContext } from "./skills/antigravity-skill.js";
@@ -25,8 +26,9 @@ export async function runGeneralSkill(
   signal?: AbortSignal,
   workdir?: string,
   checkpoint?: FileCheckpoint,
+  code: CodeOptions = {},
 ): Promise<unknown> {
-  return new GeneralSkills(dataDir, callTool, signal, workdir, checkpoint).run(toolId, args);
+  return new GeneralSkills(dataDir, callTool, signal, workdir, checkpoint, code).run(toolId, args);
 }
 
 export async function runComputerUseSkill(

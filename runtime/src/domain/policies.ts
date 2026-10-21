@@ -170,7 +170,7 @@ export function buildSystemPrompt(input: {
     capabilities.push(
       "### Workspace & System Tools (General Skills)\n" +
       "- `files`: Inspect directory trees, read, write, or patch files in the workspace with unified diff hunks.\n" +
-      "- `code`: Execute shell commands, test scripts, and build processes directly in the workspace.\n" +
+      "- `code`: Execute shell commands, test scripts, and build processes in the workspace, inside a sandbox that writes only there. If a command needs to write elsewhere, call it again with sandbox: \"off\" (the user is asked).\n" +
       "- `web`: Retrieve and read readable text from public web documentation and resources.\n" +
       "- `multi_step`: Structure and maintain step-by-step task execution plans.\n" +
       "- `mcp`: Invoke additional tools from connected MCP servers."

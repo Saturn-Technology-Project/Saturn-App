@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
-import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo } from "../domain/model";
+import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings } from "../domain/model";
 import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -951,6 +951,19 @@ function General(props: {
   const [memory, setMemory] = useState(props.profile.memory !== false);
   const [notify, setNotify] = useState(localStorage.getItem("saturn-notify") !== "off");
   const [planApproval, setPlanApproval] = useState(props.profile.planApproval === true);
+  const [sandbox, setSandbox] = useState<SandboxSettings>(props.profile.sandbox ?? { mode: "workspace-write", network: true });
+
+  async function chooseSandbox(next: SandboxSettings) {
+    const previous = sandbox;
+    setSandbox(next);
+    try {
+      await props.onSaved(await desktop.admin.updateSettings({ sandbox: next }));
+      props.onError("");
+    } catch (reason) {
+      setSandbox(previous);
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
   // Settings from before the source could be chosen (a model name only) meant LM Studio.
   const savedSource: EmbeddingSource = props.profile.embeddingSource ?? (props.profile.embeddingModel && !BUILTIN_EMBEDDING_MODELS.some((item) => item.id === props.profile.embeddingModel) ? "lmstudio" : "builtin");
   const [embeddingSource, setEmbeddingSource] = useState<EmbeddingSource>(savedSource);
@@ -1209,6 +1222,32 @@ function General(props: {
       </div>
 
       <div className="settings-section">
+        <div className="settings-section-title">Sandbox</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Commands</span>
+              <span className="settings-row-desc">
+                Where a shell command run by an agent may write. <strong>Workspace</strong> confines it to the project folder (plus temp and cache folders) with the operating system's sandbox, so a stray <code>rm</code> or a script cannot touch anything else; <strong>Read-only</strong> lets it write nowhere; <strong>Off</strong> runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows cannot. A project can override this.
+              </span>
+            </div>
+            <select className="input tiny settings-select-fit" aria-label="Sandbox mode" value={sandbox.mode} onChange={(event) => void chooseSandbox({ ...sandbox, mode: event.target.value as SandboxMode })}>
+              <option value="workspace-write">Workspace</option>
+              <option value="read-only">Read-only</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Network</span>
+              <span className="settings-row-desc">Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.</span>
+            </div>
+            <Toggle on={sandbox.network} label="Network for commands" onChange={(next) => void chooseSandbox({ ...sandbox, network: next })} />
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <div className="settings-section-title">Workspace</div>
         <div className="settings-card">
           <div className="settings-card-row">
@@ -1286,6 +1325,18 @@ function ProjectSettingsTab(props: {
   const [saved, setSaved] = useState(false);
   const [verifyCommand, setVerifyCommand] = useState(props.project.verifyCommand ?? "");
   const [verifySaved, setVerifySaved] = useState(false);
+  const [sandbox, setSandbox] = useState<SandboxSettings | null>(props.project.sandbox ?? null);
+
+  async function chooseSandbox(next: SandboxSettings | null) {
+    const previous = sandbox;
+    setSandbox(next);
+    try {
+      await desktop.projects.update(props.project.id, { sandbox: next });
+    } catch (reason) {
+      setSandbox(previous);
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
 
   async function saveVerify() {
     try {
@@ -1368,6 +1419,27 @@ function ProjectSettingsTab(props: {
               <input className="input tiny" aria-label="Verify command" value={verifyCommand} placeholder="auto, or e.g. npm test" onChange={(event) => setVerifyCommand(event.target.value)} />
               <button type="submit" className="btn tiny" disabled={(props.project.verifyCommand ?? "") === verifyCommand.trim()}>{verifySaved ? "Saved" : "Save"}</button>
             </form>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Sandbox</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Commands in this project</span>
+              <span className="settings-row-desc">Overrides the sandbox under Settings → General for commands run here. Workspace confines writes to this folder; Read-only allows none; Off runs commands as you.</span>
+            </div>
+            <div className="settings-inline-form">
+              <select className="input tiny settings-select-fit" aria-label="Sandbox for this project" value={sandbox?.mode ?? "inherit"} onChange={(event) => void chooseSandbox(event.target.value === "inherit" ? null : { mode: event.target.value as SandboxMode, network: sandbox?.network ?? true })}>
+                <option value="inherit">Same as General</option>
+                <option value="workspace-write">Workspace</option>
+                <option value="read-only">Read-only</option>
+                <option value="off">Off</option>
+              </select>
+              {sandbox ? <Toggle on={sandbox.network} label="Network for commands" onChange={(next) => void chooseSandbox({ ...sandbox, network: next })} /> : null}
+            </div>
           </div>
         </div>
       </div>

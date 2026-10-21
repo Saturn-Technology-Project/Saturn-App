@@ -1,4 +1,4 @@
-import type { ContextItem, Project } from "../domain/model.js";
+import type { ContextItem, Project, SandboxSettings } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export class ProjectService {
@@ -33,7 +33,7 @@ export class ProjectService {
     });
   }
 
-  update(id: string, patch: Partial<Project>): Promise<Project> {
+  update(id: string, patch: Partial<Omit<Project, "sandbox">> & { sandbox?: SandboxSettings | null }): Promise<Project> {
     return this.runtime.request<Project>(`/projects/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(patch),

@@ -2,7 +2,7 @@ import path from "node:path";
 import type { FileCheckpoint } from "../../domain/skills/checkpoint.js";
 import { TaskPlan } from "../../domain/skills/plan.js";
 import { Workspace } from "../../domain/skills/workspace.js";
-import { CodeSkill } from "./code-skill.js";
+import { CodeSkill, type CodeOptions } from "./code-skill.js";
 import { FileSkill } from "./file-skill.js";
 import { text } from "./text.js";
 import { WebSkill } from "./web-skill.js";
@@ -25,6 +25,7 @@ export class GeneralSkills {
     /** The project folder the chat works in; without one, the agent's private sandbox. */
     workdir?: string,
     checkpoint?: FileCheckpoint,
+    private readonly code_options: CodeOptions = {},
   ) {
     this.workspace = new Workspace(workdir ?? path.join(dataDir, "workspace"));
     this.files = new FileSkill(this.workspace, checkpoint);
@@ -33,7 +34,7 @@ export class GeneralSkills {
 
   async run(toolId: string, args: Record<string, unknown>): Promise<unknown> {
     if (toolId === "files") return this.files.run(args);
-    if (toolId === "code") return this.code.run(args, this.signal);
+    if (toolId === "code") return this.code.run(args, this.signal, this.code_options);
     if (toolId === "web") return this.web.run(args, this.signal);
     if (toolId === "multi_step") {
       const plan = TaskPlan.fromArgs(args);

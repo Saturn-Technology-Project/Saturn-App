@@ -1,4 +1,5 @@
 import type { PermissionRule } from "./permissions.js";
+import type { SandboxSettings } from "../infrastructure/sandbox.js";
 export type AgentStatus = "active" | "paused";
 export type RunStatus =
   | "queued"
@@ -263,6 +264,8 @@ export type AppSettings = {
   planApproval?: boolean;
   /** Permission rules that apply to every agent in every project. */
   permissions?: PermissionRule[];
+  /** The sandbox for the `code` tool's commands (default workspace-write with network). */
+  sandbox?: SandboxSettings;
   /**
    * What embeds the code index: Saturn's built-in model (default), LM Studio, or an OpenAI-compatible endpoint
    * (the model connection `embeddingConnectionId`). Unset with an `embeddingModel` means LM Studio, as before.
@@ -325,6 +328,8 @@ export type Project = {
   verifyCommand?: string;
   /** Permission rules for agents working in this project, kept by Saturn (the folder's `.saturn/settings.json` is read too). */
   permissions?: PermissionRule[];
+  /** The sandbox for commands run in this project; unset uses the setting for everywhere. */
+  sandbox?: SandboxSettings;
   lastOpenedAt?: string;
   isDefault?: boolean;
 };

@@ -10,6 +10,8 @@ import { newId } from "../domain/ids.js";
 import type { Project } from "../domain/model.js";
 import { errorText, logger } from "../infrastructure/logger.js";
 import type { RuntimeKernel } from "./kernel.js";
+import { checkSandbox } from "./admin.js";
+import type { SandboxSettings } from "../infrastructure/sandbox.js";
 import { launchEnv } from "../infrastructure/launch-env.js";
 function resolveHome(inputPath: string): string {
   const trimmed = inputPath.trim();
@@ -413,7 +415,7 @@ export class ProjectService {
     return target;
   }
 
-  async update(id: string, patch: Partial<Project>): Promise<Project> {
+  async update(id: string, patch: Partial<Omit<Project, "sandbox">> & { sandbox?: SandboxSettings | null }): Promise<Project> {
     const folders = patch.folders !== undefined ? await resolveFolders(patch.folders) : undefined;
     if (patch.name !== undefined && !patch.name.trim()) throw new HttpError(400, "Workspace name is required");
     let updated: Project | undefined;
@@ -428,6 +430,7 @@ export class ProjectService {
         description: patch.description !== undefined ? patch.description.trim() : existing.description,
         rules: patch.rules !== undefined ? patch.rules : existing.rules,
         verifyCommand: patch.verifyCommand !== undefined ? patch.verifyCommand.trim() || undefined : existing.verifyCommand,
+        sandbox: patch.sandbox !== undefined ? (patch.sandbox === null ? undefined : checkSandbox(patch.sandbox)) : existing.sandbox,
         gitBranch: patch.gitBranch !== undefined ? patch.gitBranch : existing.gitBranch,
         ...(folders ? { folders, path: folders[0]! } : {}),
       };

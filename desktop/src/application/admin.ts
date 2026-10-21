@@ -1,4 +1,4 @@
-import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, PermissionLayer, PermissionRule, PermissionScope, Profile, RuntimeInfo, UsageSummary, EmbeddingSource } from "../domain/model.js";
+import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, PermissionLayer, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -97,7 +97,7 @@ export class AdminService {
     return this.runtime.request(`/memory/${encodeURIComponent(scope)}`, { method: "PUT", body: JSON.stringify({ content }) });
   }
 
-  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string; onboardedAt?: string | null }): Promise<Profile> {
+  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string; onboardedAt?: string | null; sandbox?: SandboxSettings | null }): Promise<Profile> {
     return this.runtime.request<Profile>("/settings", { method: "PATCH", body: JSON.stringify(patch) });
   }
 
