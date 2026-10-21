@@ -10,6 +10,8 @@ import { createApp } from "../src/presentation/app.js";
 
 const COMMAND = "printf 'v2\\n' > tracked.txt && printf 'more\\n' >> edited.txt && printf 'new\\n' > added.txt && rm gone.txt && mkdir -p build && printf 'x' > build/out.js";
 
+let nextCall: Record<string, unknown> = { command: COMMAND };
+
 async function shellModel() {
   const server = createServer((req, res) => {
     let raw = "";
@@ -18,7 +20,7 @@ async function shellModel() {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
       const ran = messages.some((item) => item.role === "assistant" && item.content?.includes('"toolId"'));
       res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify({ choices: [{ message: ran ? { content: "done" } : { content: "", tool_calls: [{ id: "c0", type: "function", function: { name: "code", arguments: JSON.stringify({ command: COMMAND }) } }] } }] }));
+      res.end(JSON.stringify({ choices: [{ message: ran ? { content: "done" } : { content: "", tool_calls: [{ id: "c0", type: "function", function: { name: "code", arguments: JSON.stringify(nextCall) } }] } }] }));
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -64,6 +66,74 @@ test("files a shell command changes in a git project join the run's changes, and
     assert.equal(readFileSync(path.join(folder, "edited.txt"), "utf8"), "base\nmine\n", "the user's own edit survives the revert");
     assert.equal(readFileSync(path.join(folder, "gone.txt"), "utf8"), "bye\n");
     assert.equal(existsSync(path.join(folder, "added.txt")), false);
+  } finally {
+    model.server.close();
+  }
+});
+
+async function setUp(folder: string) {
+  const model = await shellModel();
+  const store = new FileStore(mkdtempSync(path.join(os.tmpdir(), "saturn-shell-changes-data-")));
+  await store.load();
+  const { services } = createApp(store);
+  const connection = await services.createModel({ name: "M", provider: "openai", baseUrl: model.url });
+  const agent = await services.createAgent({ name: "A", modelConnectionId: connection.id, autonomy: "bypass" });
+  const project = await services.createProject({ path: folder });
+  await services.setProjectAccess(project.id, true);
+  const thread = await services.kernel.runs.createThread(agent.id, "Shell", project.id);
+  const run = async (input: string) => {
+    const started = await services.kernel.runs.startRun(agent.id, input, thread.id);
+    for (let i = 0; i < 400 && store.state.runs.find((item) => item.id === started.id)?.status !== "completed"; i += 1) await new Promise((resolve) => setTimeout(resolve, 25));
+    return started.id;
+  };
+  return { model, services, run };
+}
+
+test("outside git, a private snapshot of the folder tracks the same changes, and revert undoes them", async () => {
+  const folder = mkdtempSync(path.join(os.tmpdir(), "saturn-shell-nogit-"));
+  writeFileSync(path.join(folder, "tracked.txt"), "v1\n");
+  writeFileSync(path.join(folder, "edited.txt"), "base\nmine\n");
+  writeFileSync(path.join(folder, "gone.txt"), "bye\n");
+  nextCall = { command: COMMAND };
+  const { model, services, run } = await setUp(folder);
+  try {
+    const id = await run("change things");
+    const changes = await services.kernel.checkpoints.changes(id);
+    assert.deepEqual(Object.fromEntries(changes.files.map((file) => [file.path, file.status])), { "added.txt": "added", "edited.txt": "modified", "gone.txt": "deleted", "tracked.txt": "modified" }, "build/ is left out by default");
+    assert.equal(existsSync(path.join(folder, ".git")), false, "nothing is written into the folder");
+    await services.kernel.checkpoints.revert(id);
+    assert.equal(readFileSync(path.join(folder, "tracked.txt"), "utf8"), "v1\n");
+    assert.equal(readFileSync(path.join(folder, "edited.txt"), "utf8"), "base\nmine\n");
+    assert.equal(readFileSync(path.join(folder, "gone.txt"), "utf8"), "bye\n");
+    assert.equal(existsSync(path.join(folder, "added.txt")), false);
+  } finally {
+    model.server.close();
+  }
+});
+
+test("a background command's changes are recorded under the step that started it, once it ends", async () => {
+  const folder = mkdtempSync(path.join(os.tmpdir(), "saturn-shell-bg-"));
+  git(folder, "init", "-q");
+  writeFileSync(path.join(folder, "server.log.txt"), "start\n");
+  git(folder, "add", ".");
+  git(folder, "commit", "-q", "-m", "init");
+  nextCall = { command: "sleep 0.5 && printf 'later\\n' > made-later.txt && printf 'more\\n' >> server.log.txt", background: true };
+  const { model, services, run } = await setUp(folder);
+  try {
+    const id = await run("start it");
+    const action = services.kernel.getRun(id).actions[0]!;
+    assert.equal(action.status, "completed");
+    for (let i = 0; i < 100 && !existsSync(path.join(folder, "made-later.txt")); i += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+    let paths: string[] = [];
+    for (let i = 0; i < 100 && paths.length < 2; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      paths = (await services.kernel.checkpoints.changes(id)).files.map((file) => file.path).sort();
+    }
+    assert.deepEqual(paths, ["made-later.txt", "server.log.txt"]);
+    assert.ok(services.kernel.getRun(id).checkpoint?.steps?.every((step) => step.actionId === action.id));
+    await services.kernel.checkpoints.revert(id);
+    assert.equal(readFileSync(path.join(folder, "server.log.txt"), "utf8"), "start\n");
+    assert.equal(existsSync(path.join(folder, "made-later.txt")), false);
   } finally {
     model.server.close();
   }

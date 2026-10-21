@@ -28,7 +28,7 @@ export type JobView = {
   bytes: number;
 };
 
-type Job = JobView & { child: ChildProcess; chunks: Buffer[]; kept: number; waiters: (() => void)[] };
+type Job = JobView & { child: ChildProcess; chunks: Buffer[]; kept: number; waiters: (() => void)[]; ended: Promise<void>; finish: () => void };
 
 export class JobTable {
   private readonly jobs = new Map<string, Job>();
@@ -44,7 +44,11 @@ export class JobTable {
       windowsVerbatimArguments: invocation.windowsVerbatimArguments,
       detached: process.platform !== "win32",
     });
+    let finish = () => {};
+    const ended = new Promise<void>((resolve) => (finish = resolve));
     const job: Job = {
+      ended,
+      finish,
       id: newId("job"),
       scope,
       command,
@@ -76,6 +80,7 @@ export class JobTable {
       job.signal = signal;
       job.endedAt = new Date().toISOString();
       this.wake(job);
+      job.finish();
     };
     child.on("exit", end);
     child.on("error", (error) => {
@@ -85,6 +90,11 @@ export class JobTable {
     child.unref();
     this.jobs.set(job.id, job);
     return view(job);
+  }
+
+  /** Resolves when the job ends (at once for an ended or unknown job). */
+  whenEnded(id: string): Promise<void> {
+    return this.jobs.get(id)?.ended ?? Promise.resolve();
   }
 
   get(id: string): JobView | undefined {
@@ -179,6 +189,6 @@ function kill(job: Job): void {
 }
 
 function view(job: Job): JobView {
-  const { child: _child, chunks: _chunks, kept: _kept, waiters: _waiters, ...rest } = job;
+  const { child: _child, chunks: _chunks, kept: _kept, waiters: _waiters, ended: _ended, finish: _finish, ...rest } = job;
   return { ...rest };
 }

@@ -13,13 +13,24 @@ import type { RuntimeKernel } from "./kernel.js";
 const COMMAND_SNAPSHOT_LIMIT = 2000;
 const COMMAND_FILE_LIMIT = 10 * 1024 * 1024;
 
-/** What a project folder's files were just before a shell command: git's view, plus the bytes of files git does not have. */
-export type CommandSnapshot = { root: string; prefix: string; dirty: Map<string, string | null> };
+/** A folder outside git taking longer than this to snapshot is not tracked (for a while). */
+const SHADOW_TIMEOUT_MS = 8_000;
+/** Left out of a folder's private snapshots: dependencies, builds, caches. */
+const SHADOW_EXCLUDES = ["node_modules/", ".venv/", "venv/", "__pycache__/", "dist/", "build/", "target/", ".next/", ".nuxt/", ".cache/", ".turbo/", ".gradle/", "Pods/", "DerivedData/", "*.log", ".DS_Store"];
 
-function git(cwd: string, args: string[]): Promise<Buffer> {
+/**
+ * What a project folder's files were just before a shell command. In a git folder: git's view, plus the bytes of
+ * files already changed. Elsewhere: a tree in a private git repository Saturn keeps for that folder in its own
+ * data, never in the folder itself.
+ */
+export type CommandSnapshot =
+  | { kind: "git"; root: string; prefix: string; dirty: Map<string, string | null> }
+  | { kind: "shadow"; root: string; gitDir: string; tree: string };
+
+function git(cwd: string, args: string[], options: { env?: NodeJS.ProcessEnv; timeout?: number } = {}): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     // GIT_OPTIONAL_LOCKS=0: reading the status must not take the index lock the agent's own git may need.
-    execFile("git", ["-C", cwd, ...args], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } }, (error, stdout) => (error ? reject(error) : resolve(stdout)));
+    execFile("git", ["-C", cwd, ...args], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024, timeout: options.timeout, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...options.env } }, (error, stdout) => (error ? reject(error) : resolve(stdout)));
   });
 }
 
@@ -68,6 +79,9 @@ export class CheckpointService {
   /** One capture at a time per run, so parallel tool calls on one file keep the first original. */
   private readonly locks = new Map<string, Promise<void>>();
 
+  /** Folders outside git too big to snapshot, until when they are not tried again. */
+  private readonly tooBig = new Map<string, number>();
+
   constructor(private readonly kernel: RuntimeKernel) {}
 
   private dir(runId: string): string {
@@ -106,6 +120,10 @@ export class CheckpointService {
     let dirty: string[];
     try {
       prefix = (await git(root, ["rev-parse", "--show-prefix"])).toString("utf8").trim();
+    } catch {
+      return this.shadowSnapshot(root);
+    }
+    try {
       dirty = await changedPaths(root);
     } catch {
       return null;
@@ -114,7 +132,7 @@ export class CheckpointService {
       this.kernel.log("agent", "info", `Shell changes in ${root} are not tracked for this command: ${dirty.length} files were already changed`);
       return null;
     }
-    const snapshot: CommandSnapshot = { root, prefix, dirty: new Map() };
+    const snapshot: CommandSnapshot = { kind: "git", root, prefix, dirty: new Map() };
     for (const file of dirty) {
       const bytes = await readBytes(path.join(root, file.slice(prefix.length)));
       if (bytes && bytes.length > COMMAND_FILE_LIMIT) continue;
@@ -128,6 +146,7 @@ export class CheckpointService {
    * write, with the original from the snapshot (a file changed before) or from git (a file that was clean).
    */
   async afterCommand(runId: string, snapshot: CommandSnapshot, actionId: string): Promise<void> {
+    if (snapshot.kind === "shadow") return this.afterShadow(runId, snapshot, actionId);
     const { root, prefix } = snapshot;
     let now: string[];
     try {
@@ -149,8 +168,57 @@ export class CheckpointService {
         before = await this.save(runId, original);
       }
       const after = await this.save(runId, current);
-      if (before === after) continue;
       await this.locked(runId, () => this.recordChange(runId, root, relative.split(path.sep).join("/"), before, after, actionId));
+    }
+  }
+
+  /** A private git repository for a folder outside git, in Saturn's data; its index makes repeat snapshots fast. */
+  private async shadowSnapshot(root: string): Promise<CommandSnapshot | null> {
+    if ((this.tooBig.get(root) ?? 0) > Date.now()) return null;
+    const gitDir = path.join(this.kernel.store.root, "checkpoints", "folders", sha256(Buffer.from(root)).slice(0, 16));
+    try {
+      if (!(await readBytes(path.join(gitDir, "HEAD")))) {
+        await mkdir(gitDir, { recursive: true });
+        await git(root, ["--git-dir", gitDir, "init", "-q"]);
+        await mkdir(path.join(gitDir, "info"), { recursive: true });
+        await writeFile(path.join(gitDir, "info", "exclude"), `${SHADOW_EXCLUDES.join("\n")}\n`);
+      }
+      return { kind: "shadow", root, gitDir, tree: await this.shadowTree(root, gitDir) };
+    } catch (error) {
+      this.tooBig.set(root, Date.now() + 10 * 60_000);
+      this.kernel.log("agent", "info", `Shell changes in ${root} are not tracked for now: ${(error as { killed?: boolean }).killed ? "the folder is too big to snapshot quickly" : (error as Error).message}`);
+      return null;
+    }
+  }
+
+  private async shadowTree(root: string, gitDir: string): Promise<string> {
+    const env = { GIT_DIR: gitDir, GIT_WORK_TREE: root };
+    const config = ["-c", "core.autocrlf=false", "-c", "core.fsmonitor=false", "-c", "core.quotepath=false"];
+    await git(root, [...config, "add", "-A", "--ignore-errors", "--", "."], { env, timeout: SHADOW_TIMEOUT_MS }).catch((error: { killed?: boolean }) => {
+      // --ignore-errors still exits 1 when a file could not be read; only a timeout means the snapshot failed.
+      if (error.killed) throw error;
+    });
+    return (await git(root, ["write-tree"], { env, timeout: SHADOW_TIMEOUT_MS })).toString("utf8").trim();
+  }
+
+  private async afterShadow(runId: string, snapshot: Extract<CommandSnapshot, { kind: "shadow" }>, actionId: string): Promise<void> {
+    const { root, gitDir } = snapshot;
+    let tree: string;
+    try {
+      tree = await this.shadowTree(root, gitDir);
+    } catch {
+      return;
+    }
+    if (tree === snapshot.tree) return;
+    const env = { GIT_DIR: gitDir };
+    const names = (await git(root, ["diff-tree", "-r", "-z", "--no-renames", "--name-only", snapshot.tree, tree], { env })).toString("utf8").split("\0").filter(Boolean);
+    for (const file of names) {
+      const original = await git(root, ["cat-file", "blob", `${snapshot.tree}:${file}`], { env }).catch(() => null);
+      const current = await readBytes(path.join(root, file));
+      if ((original && original.length > COMMAND_FILE_LIMIT) || (current && current.length > COMMAND_FILE_LIMIT)) continue;
+      const before = await this.save(runId, original);
+      const after = await this.save(runId, current);
+      await this.locked(runId, () => this.recordChange(runId, root, file, before, after, actionId));
     }
   }
 
@@ -159,6 +227,9 @@ export class CheckpointService {
     await this.kernel.store.update((state) => {
       const current = state.runs.find((item) => item.id === runId);
       if (!current) return;
+      const known = current.checkpoint?.root === root && current.checkpoint.files.some((item) => item.path === file);
+      // Unchanged and not seen before: nothing to record. (Seen before: it may have been changed back.)
+      if (before === after && !known) return;
       if (!current.checkpoint || current.checkpoint.root !== root) current.checkpoint = { root, files: [] };
       const steps = (current.checkpoint.steps ??= []);
       if (!steps.some((item) => item.actionId === actionId && item.path === file)) steps.push({ actionId, path: file, hash: before });

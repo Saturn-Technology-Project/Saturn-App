@@ -6,6 +6,7 @@ import { errorText } from "../infrastructure/logger.js";
 import { GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID } from "../domain/builtin.js";
 import { BROWSER_ID } from "../domain/browser-tools.js";
 import { ON_DEMAND_TOOLKITS, toolkitServer } from "../domain/toolkits.js";
+import type { CommandSnapshot } from "./checkpoints.js";
 import { IDE_ID } from "../domain/ide-tools.js";
 import type { Agent, Conversation, ModelConnection, Run, RunAction, RunMode } from "../domain/model.js";
 import { autonomyLine, autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isReadOnlyCall, isSensitiveOperation, mayReadOnly, readOnlyRefusal, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
@@ -69,7 +70,16 @@ export type RunSummary = {
 const SEES_IMAGES = new Set(["claude", "openai", "gemini", "lmstudio", "claude-code", "codex"]);
 
 export class RunService {
+  /** Background commands whose file changes are recorded, against the snapshot taken when they started. */
+  private readonly trackedJobs = new Map<string, { runId: string; snapshot: CommandSnapshot; actionId: string }>();
+
   constructor(private readonly kernel: RuntimeKernel) {}
+
+  /** Records what a background command has changed so far (again when it is read, stopped, and when it ends). */
+  private async recordJob(jobId: string): Promise<void> {
+    const tracked = this.trackedJobs.get(jobId);
+    if (tracked) await this.kernel.checkpoints.afterCommand(tracked.runId, tracked.snapshot, tracked.actionId).catch(() => undefined);
+  }
 
   async startRun(agentId: string, input: string, threadId?: string, projectId?: string, options: { images?: ImagePart[]; mode?: RunMode; automatic?: boolean; parent?: { runId: string; task: string; tools: "read-only" | "all" } } = {}): Promise<Run> {
     const agent = this.kernel.getAgent(agentId);
@@ -782,7 +792,8 @@ export class RunService {
       try {
         const workdir = this.workdirOf(input.runId);
         // A shell command's file changes join the run's checkpoint too (git folders), so they can be reviewed and reverted.
-        const tracked = input.toolId === "code" && workdir && input.arguments.background !== true
+        const background = input.arguments.background === true;
+        const tracked = input.toolId === "code" && workdir
           ? await this.kernel.checkpoints.beforeCommand(this.rootRunId(input.runId), workdir)
           : null;
         const result = await runGeneralSkill(this.kernel.store.root, input.toolId, input.arguments, async (toolId, args) => {
@@ -796,8 +807,18 @@ export class RunService {
           jobs: { table: this.kernel.jobs, scope: this.jobScopeOf(input.runId) },
         }).finally(async () => {
           // A failing command can still have changed files.
-          if (tracked) await this.kernel.checkpoints.afterCommand(this.rootRunId(input.runId), tracked, input.actionId).catch(() => undefined);
+          if (tracked && !background) await this.kernel.checkpoints.afterCommand(this.rootRunId(input.runId), tracked, input.actionId).catch(() => undefined);
         });
+        const jobId = (result as { jobId?: unknown } | undefined)?.jobId;
+        if (tracked && background && typeof jobId === "string") {
+          // A background command changes files as it runs: recorded when it is read or stopped, and when it ends.
+          this.trackedJobs.set(jobId, { runId: this.rootRunId(input.runId), snapshot: tracked, actionId: input.actionId });
+          void this.kernel.jobs.whenEnded(jobId).then(async () => {
+            await this.recordJob(jobId);
+            this.trackedJobs.delete(jobId);
+          });
+        }
+        if ((input.toolId === "code_output" || input.toolId === "code_stop") && typeof input.arguments.jobId === "string") await this.recordJob(input.arguments.jobId);
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
         return {
