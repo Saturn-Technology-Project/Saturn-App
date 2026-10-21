@@ -81,6 +81,8 @@ Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) 
 
 The macOS app is not signed with an Apple Developer ID yet: approve the first launch in **System Settings → Privacy & Security → Open Anyway**. Windows builds are Authenticode-signed with Saturn's self-signed certificate (SHA-1 thumbprint `D285DA425077C16A3D115D61F9748AFA574BC786`, public half in [`desktop/build/saturn-code-signing.cer`](desktop/build/saturn-code-signing.cer)). Windows does not trust a self-signed publisher, so SmartScreen still asks: choose **More info → Run anyway**. No separate Node.js install is needed: the bundled runtime runs on the app's own Electron binary.
 
+**One app.** Saturn IDE and the runtime ship inside Saturn: on macOS in `Saturn.app/Contents/Resources/Saturn IDE.app`, on Windows in `resources\Saturn IDE\`. Applications, Launchpad and Spotlight list Saturn alone. While Saturn IDE is open it has its own Dock icon, and once it has run, macOS may offer it under **Open With** for code files, as it does for any editor.
+
 On first launch, onboarding walks through connecting a model, creating an agent and granting a project folder. Claude Code and Codex are not in the installer: Saturn uses your own installation if it finds one, or downloads the official program when you first need it (see [Models](#models)).
 
 ## Build from source
@@ -130,6 +132,8 @@ cd ..
 npm run build:ide --prefix desktop       # macOS: VSCode-darwin-arm64/Saturn IDE.app
 npm run build:ide:win --prefix desktop   # Windows: VSCode-win32-x64/ (run on Windows)
 ```
+
+On a development Mac, Spotlight lists the build output `VSCode-darwin-arm64/Saturn IDE.app` as an app of its own (downloads never contain it). Packaging copies Saturn IDE from that folder, so keep it, and exclude it under **System Settings → Spotlight → Search Privacy** if it gets in the way.
 
 Native modules are compiled against the host toolchain, so the Windows IDE is built on Windows; the [Windows workflow](.github/workflows/windows.yml) produces it on every push to `main`. On Windows the IDE runs in place from `resources\Saturn IDE\`.
 
@@ -550,9 +554,10 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 npm test            # runtime test suite
 npm run typecheck   # strict type-check of runtime and desktop
 npm run test:ide    # Saturn IDE extension checks
+npm run test:sdk    # the SDK against a real runtime and a scripted model
 ```
 
-Tests boot the runtime's HTTP API against a temporary data directory and fake model servers, so they need no credentials and never touch your data.
+Tests boot the runtime's HTTP API against a temporary data directory and fake model servers, so they need no credentials and never touch your data. CI runs them on Node 24 (`Saturn-IDE/.nvmrc`), macOS and Windows; on Windows the few tests that script POSIX shell commands are skipped. Give `node --test` a glob (`node --test 'test/*.test.js'`), not a folder: Node 24 runs a folder argument as a module and fails.
 
 **Task evals.** `scripts/eval` runs coding tasks end to end through Saturn's agent loop with a real model and grades them with tests the agent never sees: pass rate, steps, tokens, cost and time. Fourteen tasks range from small fixes to a bug whose symptom is in another module, an async concurrency limit, a feature across layers that must read old files, a CSV parser from a crash report, a quadratic function that must handle 200,000 rows, a read-only search past a decoy, a promise API beside callbacks, and a time-zone bug. `node --test scripts/eval/self-test.mjs` checks the harness with a scripted model, and that every task's hidden checks fail as given and pass with its reference fix (`solution/`, never shown to the agent); it costs nothing. A real run spends tokens:
 

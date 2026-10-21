@@ -81,6 +81,8 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 
 macOS 版本尚未以 Apple Developer ID 簽章：首次開啟時請到 **系統設定 → 隱私權與安全性 → 強制打開**。Windows 版本以 Saturn 的自簽憑證進行 Authenticode 簽章（SHA-1 指紋 `D285DA425077C16A3D115D61F9748AFA574BC786`，公開憑證位於 [`desktop/build/saturn-code-signing.cer`](desktop/build/saturn-code-signing.cer)）。Windows 不信任自簽的發行者，所以 SmartScreen 仍會詢問：請選擇 **其他資訊 → 仍要執行**。不需另外安裝 Node.js：內建的 Runtime 直接使用 App 本身的 Electron 執行檔。
 
+**只有一個 App。** Saturn IDE 與 Runtime 都包在 Saturn 裡：macOS 位於 `Saturn.app/Contents/Resources/Saturn IDE.app`，Windows 位於 `resources\Saturn IDE\`。「應用程式」、Launchpad 與 Spotlight 都只會列出 Saturn。Saturn IDE 開啟時在 Dock 有自己的圖示；執行過一次後，macOS 可能會在程式碼檔案的 **打開檔案的應用程式** 選單中列出它，與其他編輯器相同。
+
 首次啟動時，引導流程會帶你連接模型、建立 Agent 並授權專案資料夾。Claude Code 與 Codex 不在安裝程式裡：Saturn 會使用你已安裝的版本，或在你第一次需要時下載官方程式（見[模型](#模型)）。
 
 ## 從原始碼建置
@@ -130,6 +132,8 @@ cd ..
 npm run build:ide --prefix desktop       # macOS：VSCode-darwin-arm64/Saturn IDE.app
 npm run build:ide:win --prefix desktop   # Windows：VSCode-win32-x64/（須在 Windows 上執行）
 ```
+
+在開發用的 Mac 上，Spotlight 會把建置產出 `VSCode-darwin-arm64/Saturn IDE.app` 當成一個獨立的 App 列出（下載的版本不會包含它）。打包時會從這個資料夾複製 Saturn IDE，所以請保留它；若造成困擾，可在 **系統設定 → Spotlight → 搜尋隱私權** 中排除。
 
 原生模組依主機的工具鏈編譯，因此 Windows 版 IDE 必須在 Windows 上建置；[Windows workflow](.github/workflows/windows.yml) 會在每次推送到 `main` 時產出。Windows 上的 IDE 直接從 `resources\Saturn IDE\` 執行。
 
@@ -549,9 +553,10 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 npm test            # Runtime 測試
 npm run typecheck   # Runtime 與桌面應用程式的嚴格型別檢查
 npm run test:ide    # Saturn IDE 擴充套件檢查
+npm run test:sdk    # 以真的 Runtime 與腳本化模型測試 SDK
 ```
 
-測試會以暫存資料目錄與假的模型伺服器啟動 Runtime 的 HTTP API，不需要任何憑證，也不會動到你的資料。
+測試會以暫存資料目錄與假的模型伺服器啟動 Runtime 的 HTTP API，不需要任何憑證，也不會動到你的資料。CI 在 Node 24（`Saturn-IDE/.nvmrc`）、macOS 與 Windows 上執行；Windows 上會略過少數以 POSIX shell 指令撰寫的測試。`node --test` 請傳 glob（`node --test 'test/*.test.js'`）而不是資料夾：Node 24 會把資料夾參數當成模組執行而失敗。
 
 **任務評測。** `scripts/eval` 會用真的模型，透過 Saturn 的 Agent 迴圈完整執行程式任務，並以 Agent 看不到的測試評分：通過率、步數、token、花費與時間。共 14 題，從小修正到：症狀出現在別的模組的 bug、非同步並行上限、要相容舊檔案的跨層功能、從當機報告修好 CSV 解析、要處理 20 萬筆資料的平方複雜度函式、繞過誘餌的唯讀搜尋、在 callback 旁加上 promise API，以及時區 bug。`node --test scripts/eval/self-test.mjs` 用腳本化的假模型檢查評測工具本身，並確認每題的隱藏測試在原始 repo 上會失敗、套上參考解答（`solution/`，Agent 看不到）後會通過；不花錢。實際執行會花費 token：
 
