@@ -1,0 +1,52 @@
+name: Supply chain
+
+# Checks what Saturn installs and ships, on every change and weekly (so an advisory published against an unchanged
+# dependency still fails the check):
+# - every lock file resolves only to the npm registry, with sha512 integrity (scripts/check-lockfiles.mjs);
+# - every installed package has a valid npm registry signature, and provenance where its publisher provides it;
+# - no known high or critical vulnerability in what the runtime and the desktop app ship;
+# - the Claude Code and Codex download manifest still pins exactly what the lock file says.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: Saturn-IDE/.nvmrc
+
+      - name: Lock files resolve only to the npm registry, with sha512 integrity
+        run: node scripts/check-lockfiles.mjs
+
+      - name: Install without running any install script
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix runtime
+          npm ci --ignore-scripts --no-audit --no-fund --prefix desktop
+
+      - name: Registry signatures and provenance
+        run: |
+          (cd runtime && npm audit signatures)
+          (cd desktop && npm audit signatures)
+
+      - name: No high or critical vulnerabilities in what ships
+        run: |
+          (cd runtime && npm audit --omit=dev --audit-level=high)
+          (cd desktop && npm audit --omit=dev --audit-level=high)
+
+      - name: The Claude Code and Codex download manifest matches the lock file
+        working-directory: runtime
+        run: npx tsx --import ./test/setup.ts --test --test-name-pattern="manifest pins" test/agent-programs.test.ts
