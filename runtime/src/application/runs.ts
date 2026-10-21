@@ -5,6 +5,7 @@ import { newId } from "../domain/ids.js";
 import { errorText } from "../infrastructure/logger.js";
 import { GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVITY_SKILLS_ID } from "../domain/builtin.js";
 import { BROWSER_ID } from "../domain/browser-tools.js";
+import { ON_DEMAND_TOOLKITS, toolkitServer } from "../domain/toolkits.js";
 import { IDE_ID } from "../domain/ide-tools.js";
 import type { Agent, Conversation, ModelConnection, Run, RunAction, RunMode } from "../domain/model.js";
 import { autonomyLine, autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isReadOnlyCall, isSensitiveOperation, mayReadOnly, readOnlyRefusal, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
@@ -745,6 +746,10 @@ export class RunService {
     if (!serverId) {
       return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `Unknown tool: ${input.toolId}` };
     }
+    // A toolkit's tool called before loading it (its name is in the instructions): it counts as loaded.
+    if (ON_DEMAND_TOOLKITS[serverId] && !this.loadedToolkits(input.runId).has(serverId)) {
+      await this.loadToolkits(input.runId, [serverId]);
+    }
     if (serverId === GENERAL_SKILLS_ID && input.toolId === "skill") {
       const name = typeof input.arguments.name === "string" ? input.arguments.name : "";
       const loaded = name ? await loadSkill(this.workdirOf(input.runId), this.userSkillsDir(), name, this.kernel.plugins.enabledFolders()) : undefined;
@@ -753,6 +758,17 @@ export class RunService {
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `No skill named "${name}". Available: ${known}` };
       }
       return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result: loaded };
+    }
+    if (serverId === GENERAL_SKILLS_ID && input.toolId === "load_tools") {
+      const names = Array.isArray(input.arguments.toolkits) ? input.arguments.toolkits.map(String) : [String(input.arguments.toolkits ?? "")];
+      const ids = names.map(toolkitServer).filter((id): id is string => Boolean(id) && agent.mcpConnectionIds.includes(id!));
+      if (!ids.length) {
+        const offered = agent.mcpConnectionIds.filter((id) => ON_DEMAND_TOOLKITS[id]).map((id) => ON_DEMAND_TOOLKITS[id]!.name).join(", ") || "none";
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `No such toolkit for this agent. Available: ${offered}` };
+      }
+      await this.loadToolkits(input.runId, ids);
+      const loaded = this.kernel.store.state.mcp.filter((server) => ids.includes(server.id)).map((server) => ({ toolkit: ON_DEMAND_TOOLKITS[server.id]!.name, tools: server.tools.filter((tool) => !server.disabledTools?.includes(tool.toolId)).map((tool) => tool.toolId) }));
+      return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result: { loaded, note: "These tools can be called from the next step on." } };
     }
     if (serverId === GENERAL_SKILLS_ID && input.toolId === "delegate") {
       try {
@@ -1139,6 +1155,8 @@ export class RunService {
   ): Promise<void> {
     if (!this.kernel.alive(runId, generation)) return;
     const run = this.kernel.getRun(runId);
+    // Tools the run has taken so far may have loaded a toolkit (load_tools).
+    tools = this.toolList(agent, run.mode, runId);
     let response = answered;
     if (!response) {
       const startedAt = performance.now();
@@ -1152,6 +1170,8 @@ export class RunService {
       rounds += 1;
       const waiting = await this.runTools(agent, runId, generation, calls, actions, signal ?? new AbortController().signal);
       if (waiting || !this.kernel.alive(runId, generation)) return;
+      // A toolkit loaded in this round brings its tools to the next request.
+      tools = this.toolList(agent, run.mode, runId);
       const startedAt = performance.now();
       response = await this.complete(model, agent, runId, run.input, context, tools, actions, signal);
       await this.noteThinking(runId, generation, response, seconds(startedAt));
@@ -1193,16 +1213,43 @@ export class RunService {
   }
 
   /** The tools the model is offered; an Ask or Plan turn gets only those that can read without changing anything. */
+  /** On-demand toolkits loaded in this chat so far (any of its turns), or by this run and its parent. */
+  loadedToolkits(runId?: string): Set<string> {
+    const runs = this.kernel.store.state.runs;
+    const run = runId ? runs.find((item) => item.id === runId) : undefined;
+    if (!run) return new Set();
+    const related = runs.filter((item) => item.id === run.id || item.id === run.parentRunId || (run.threadId && !run.parentRunId && item.threadId === run.threadId && !item.parentRunId));
+    return new Set(related.flatMap((item) => item.toolkits ?? []));
+  }
+
+  /** The agent's on-demand toolkits not loaded yet; none without General Skills, which has load_tools. */
+  deferredToolkits(agent: Agent, runId?: string): string[] {
+    if (!agent.mcpConnectionIds.includes(GENERAL_SKILLS_ID)) return [];
+    const loaded = this.loadedToolkits(runId);
+    return agent.mcpConnectionIds.filter((id) => ON_DEMAND_TOOLKITS[id] && !loaded.has(id));
+  }
+
+  private async loadToolkits(runId: string, ids: string[]): Promise<void> {
+    if (!ids.length) return;
+    await this.kernel.store.update((state) => {
+      const run = state.runs.find((item) => item.id === runId);
+      if (run) run.toolkits = [...new Set([...(run.toolkits ?? []), ...ids])];
+    });
+  }
+
   toolList(agent: Agent, mode?: RunMode, runId?: string) {
     const readOnly = mode === "ask" || mode === "plan";
     // The editor tools only when Saturn IDE has this chat's project open.
     const ide = this.kernel.ide.available(runId ? this.workdirOf(runId) : undefined);
+    const deferred = this.deferredToolkits(agent, runId);
     return this.kernel.store.state.mcp
       .filter((item) => agent.mcpConnectionIds.includes(item.id))
       .filter((item) => item.id !== IDE_ID || ide)
+      .filter((item) => !deferred.includes(item.id))
       .flatMap((server) =>
         server.tools
           .filter((tool) => !server.disabledTools?.includes(tool.toolId))
+          .filter((tool) => tool.toolId !== "load_tools" || deferred.length > 0)
           .filter((tool) => !readOnly || mayReadOnly(tool.toolId, tool.category))
           .map((tool) => ({
             type: "function",
@@ -1430,6 +1477,7 @@ export class RunService {
         agent.mcpConnectionIds.includes(GENERAL_SKILLS_ID) ? skillsPrompt(await listSkills(workdir, this.userSkillsDir(), this.kernel.plugins.enabledFolders())) : "",
       ].filter(Boolean).join("\n\n"),
       serverIds: agent.mcpConnectionIds,
+      deferred: this.deferredToolkits(agent, runId),
     });
     // Earlier turns within the model's budget: the chat's summary, then the turns after it (see historyFor).
     const messages: ChatMessage[] = [

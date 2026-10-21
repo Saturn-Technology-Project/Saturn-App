@@ -202,6 +202,8 @@ export type Run = {
   /** A sub-agent's run: started by the `delegate` tool of this run, in the same chat, with its own context. */
   parentRunId?: string;
   delegated?: { task: string; tools: "read-only" | "all" };
+  /** On-demand toolkits (server ids) loaded during this run; they stay loaded for the rest of the chat. */
+  toolkits?: string[];
   /** Only on a run as the chat lists it: the sub-agent runs its `delegate` calls started. */
   children?: Run[];
 };

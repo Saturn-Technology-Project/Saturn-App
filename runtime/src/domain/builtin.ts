@@ -107,6 +107,12 @@ export function generalSkills(): McpConnection {
         ["name"],
       ),
       skill(
+        "load_tools",
+        "Load toolkits listed as not loaded in your instructions (github, computer, browser, automations); their tools are available from the next step on, for the rest of the chat.",
+        { toolkits: { type: "array", items: { type: "string" } } },
+        ["toolkits"],
+      ),
+      skill(
         "delegate",
         "Hand a self-contained task to a sub-agent with a fresh context, and get back only its final answer: a wide search or investigation, a report on part of the code, an independent subtask. Several tasks run in parallel. tools: read-only (the default) lets the sub-agent only read and run read-only tools; all lets it change files and run commands under the same approvals as you. agent names another agent to run it; otherwise it is you, with your model.",
         {

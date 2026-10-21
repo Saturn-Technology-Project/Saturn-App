@@ -1,4 +1,5 @@
 import type { Agent, RunAction } from "./model.js";
+import { loadNote } from "./toolkits.js";
 
 export type ToolCall = { name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
 
@@ -75,7 +76,7 @@ export function isSensitiveOperation(toolId: string, args: Record<string, unknow
 
 /** Tools that only look: they read files, pages, the screen or a repository and change nothing. */
 const READ_ONLY_TOOL_IDS = new Set([
-  "web", "code_output", "delegate", "skill", "computer_screenshot", "computer_apps", "computer_app_state", "computer_check_permissions", "computer_resolve_app", "computer_wait",
+  "web", "code_output", "delegate", "skill", "load_tools", "computer_screenshot", "computer_apps", "computer_app_state", "computer_check_permissions", "computer_resolve_app", "computer_wait",
   "customizations_list", "plugins_list", "automation_list", "workflows_scan",
 ]);
 /** Names MCP servers commonly give tools that only read (GitHub's get_file_contents, list_commits, pull_request_read…). */
@@ -97,6 +98,14 @@ export function mayReadOnly(toolId: string, category?: "read" | "write"): boolea
   if (category) return category === "read";
   return toolId === "files" || isReadOnlyCall(toolId, {}, undefined);
 }
+
+/** The heading each on-demand toolkit's section of the system prompt starts with. */
+const SECTION_HEADS: Record<string, string> = {
+  browser: "### Browser (Browser)",
+  "computer-use": "### Computer Use:",
+  origin: "### Origin & Git Repository Tools",
+  automations: "### Automations & Antigravity Capabilities",
+};
 
 /** What an Ask or Plan turn is told about itself (nothing for an Agent turn). */
 export function modeInstructions(mode: "agent" | "ask" | "plan" | undefined): string {
@@ -141,6 +150,8 @@ export function buildSystemPrompt(input: {
   agent: Agent;
   context?: string;
   serverIds?: string[];
+  /** Toolkits the agent has but has not loaded (see domain/toolkits.ts): their sections say how to load them. */
+  deferred?: string[];
   /** Notes Saturn kept from earlier chats (see application/memory.ts). */
   memory?: string;
   /** The project's own rules for agents (AGENTS.md and the like; see application/rules.ts). */
@@ -219,7 +230,12 @@ export function buildSystemPrompt(input: {
     );
   }
 
-  parts.push(capabilities.join("\n\n"));
+  // A section whose toolkit is not loaded yet says how to load it; the section stands as its catalog.
+  const sections = capabilities.map((section) => {
+    const deferred = (input.deferred ?? []).find((id) => section.startsWith(SECTION_HEADS[id] ?? "\u0000"));
+    return deferred ? `${section}\n${loadNote(deferred)}` : section;
+  });
+  parts.push(sections.join("\n\n"));
 
   // How a task is run and reported, so the user can review the plan before and the outcome after.
   parts.push(
