@@ -8,6 +8,15 @@ const path = require("node:path");
 
 const ARCHES = { 1: "x64", 3: "arm64" };
 
+/**
+ * Names Saturn IDE where upstream's interface text says "VS Code" (Saturn-IDE/build/saturn/rebrand.mjs), in the
+ * copy that ships and before it is signed, so the IDE's sources stay upstream's.
+ */
+function rebrand(appDir) {
+  const script = path.resolve(__dirname, "..", "..", "Saturn-IDE", "build", "saturn", "rebrand.mjs");
+  console.log(`  • ${execFileSync(process.execPath, [script, appDir], { encoding: "utf8" }).trim()}`);
+}
+
 const LAYOUT = {
   darwin: { build: (arch) => `VSCode-darwin-${arch}`, inBuild: "Saturn IDE.app", product: ["Contents", "Resources", "app", "product.json"], target: "Saturn IDE.app" },
   win32: { build: (arch) => `VSCode-win32-${arch}`, inBuild: "", product: ["resources", "app", "product.json"], target: "Saturn IDE" },
@@ -43,6 +52,7 @@ exports.default = async function bundleIde(context) {
     fs.rmSync(target, { recursive: true, force: true });
     execFileSync("ditto", [source, target]);
     console.log(`  • bundled Saturn IDE  ${path.relative(process.cwd(), target)}`);
+    rebrand(path.join(target, "Contents", "Resources", "app"));
     adHocSign(target);
     adHocSign(app);
     return;
@@ -51,6 +61,7 @@ exports.default = async function bundleIde(context) {
   fs.rmSync(target, { recursive: true, force: true });
   fs.cpSync(source, target, { recursive: true, dereference: false });
   console.log(`  • bundled Saturn IDE  ${path.relative(process.cwd(), target)}`);
+  rebrand(path.join(target, "resources", "app"));
   // electron-builder signs Saturn's own executables; the IDE's comes from another build, so it is signed here, with
   // the same certificate, whenever one is configured (WIN_CSC_LINK). Without one, signIf skips it.
   const ideExe = path.join(target, "Saturn IDE.exe");

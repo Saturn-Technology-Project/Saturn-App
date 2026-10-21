@@ -22,7 +22,7 @@ The sync workflow updates this table when it merges a new release.
 
 ## What Saturn changes
 
-Compared with the base, outside `extensions/saturn/`: 49 files, all edits or additions, none deleted.
+Compared with the base, outside `extensions/saturn/`: 50 files, all edits or additions, none deleted.
 
 **Build and packaging**
 - `build/gulpfile.vscode.ts`: leaves GitHub Copilot and the agent host's Claude, Codex and Copilot CLI binaries out of the package (Saturn's runtime has its own); Saturn product metadata.
@@ -30,6 +30,7 @@ Compared with the base, outside `extensions/saturn/`: 49 files, all edits or add
 - `build/lib/git.ts`: finds the commit when Saturn IDE is a folder of a larger repository or a worktree.
 - `build/npm/dirs.ts`: `extensions/copilot` is not installed (saves 1.4 GB per `npm ci`).
 - `build/saturn/undo-telemetry.mjs` (new): replaces Microsoft telemetry hostnames (`*.data.microsoft.com`) in the source before a build, as VSCodium does.
+- `build/saturn/rebrand.mjs` (new): names Saturn IDE where the interface text says "VS Code", in a finished build (the localized message tables, extension manifests, and the `l10n.t` messages of extension bundles), keeping the phrases that mean the real product (its marketplace, Insiders, team, newsletter, logo). The Saturn app runs it as it bundles the IDE (`desktop/scripts/bundle-ide.cjs`), so no source string is edited.
 - `package.json`, `package-lock.json`: no Copilot compile and watch scripts; the agent host's Anthropic packages, which only served the Claude harness Saturn IDE turns off, are removed.
 
 **Product and branding**
@@ -48,7 +49,6 @@ Compared with the base, outside `extensions/saturn/`: 49 files, all edits or add
 **Interface**
 - `src/vs/workbench/contrib/saturn/browser/saturn.contribution.ts` and `media/saturn.css` (new), imported from `src/vs/workbench/workbench.common.main.ts`: Saturn's theme and layout.
 - `src/vs/workbench/browser/parts/titlebar/commandCenterControl.ts`, `titlebarPart.ts`, `src/vs/workbench/browser/media/floatingPanels.css`, `src/vs/workbench/contrib/scm/browser/media/scm.css`: title bar and Source Control layout.
-- `src/vs/workbench/contrib/welcomeGettingStarted/browser/gettingStartedService.ts`: the built-in walkthroughs say the product's name (Saturn IDE) where upstream says "VS Code" ("Get started with Saturn IDE"), replaced as they are registered so `gettingStartedContent.ts` stays upstream's.
 - `src/vs/workbench/contrib/welcomeGettingStarted/browser/gettingStarted.contribution.ts`, `terminalContrib/inlineHint/browser/terminal.initialHint.contribution.ts`, `preferences/common/preferencesContribution.ts`, `src/vs/workbench/browser/workbench.contribution.ts`, `src/vs/workbench/electron-browser/desktop.contribution.ts`, `remoteTunnel/electron-browser/remoteTunnel.contribution.ts`: quieter defaults (no walkthrough or Welcome page on start, no Copilot prompts in the terminal hint, no remote-tunnel prompt without its extension).
 - `extensions/github-authentication/src/config.ts`: Saturn IDE's own GitHub OAuth app, so GitHub's consent page names Saturn.
 
@@ -57,7 +57,7 @@ Compared with the base, outside `extensions/saturn/`: 49 files, all edits or add
 - `extensions/markdown-language-features/package-lock.json`, `extensions/extension-editing/package-lock.json`: markdown-it 14.3.3 (GHSA-gfr2-rv44-r23c).
 
 **Tests**
-- `test/smoke/smoke.mjs`, `diff.test.mjs`, `webview.test.mjs` (new): Saturn's smoke test and panel checks.
+- `test/smoke/smoke.mjs`, `diff.test.mjs`, `webview.test.mjs`, `rebrand.test.mjs` (new): Saturn's smoke test and panel checks.
 
 Regenerate the list with:
 
