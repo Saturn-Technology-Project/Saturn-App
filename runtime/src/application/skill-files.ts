@@ -118,3 +118,53 @@ export function skillsPrompt(skills: SkillInfo[]): string {
   }
   return `# Skills\nInstructions for particular tasks, loaded on demand. When a task matches one, call the \`skill\` tool with its name before starting, and follow it.\n${lines.join("\n")}`;
 }
+
+/**
+ * Commands: prompt templates a user runs from the composer as `/name arguments`. A Markdown file in the project's
+ * `.saturn/commands` or `.claude/commands` (Claude Code's), or the user's `~/.saturn-app/commands`; `$ARGUMENTS`
+ * in it becomes what follows the name. Frontmatter `description:` (or the first line) says what it does.
+ */
+export const PROJECT_COMMAND_DIRS = [".saturn/commands", ".claude/commands"] as const;
+
+export type CommandInfo = { name: string; description: string; path: string; source: SkillSource };
+
+async function scanCommands(dir: string, source: SkillSource): Promise<CommandInfo[]> {
+  let names: string[] = [];
+  try {
+    names = (await readdir(dir)).filter((name) => name.endsWith(".md") && NAME.test(name.slice(0, -3))).sort();
+  } catch {
+    return [];
+  }
+  const commands: CommandInfo[] = [];
+  for (const file of names) {
+    try {
+      const parsed = parseSkill(await readFile(path.join(dir, file), "utf8"), file.slice(0, -3));
+      commands.push({ name: file.slice(0, -3), description: parsed.description.split("\n")[0]!.slice(0, 160), path: path.join(dir, file), source });
+    } catch {
+      // Unreadable: skipped.
+    }
+  }
+  return commands;
+}
+
+export async function listCommands(root: string | undefined, userDir: string): Promise<CommandInfo[]> {
+  const found: CommandInfo[] = [];
+  if (root) for (const dir of PROJECT_COMMAND_DIRS) found.push(...(await scanCommands(path.join(root, dir), "project")));
+  found.push(...(await scanCommands(userDir, "user")));
+  const seen = new Set<string>();
+  return found.filter((command) => {
+    const key = command.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** A command's prompt with `$ARGUMENTS` (or, without it, an appended line) filled in. */
+export async function expandCommand(root: string | undefined, userDir: string, name: string, args: string): Promise<{ name: string; prompt: string } | undefined> {
+  const command = (await listCommands(root, userDir)).find((item) => item.name.toLowerCase() === name.trim().replace(/^\//, "").toLowerCase());
+  if (!command) return undefined;
+  const body = parseSkill(await readFile(command.path, "utf8"), command.name).body;
+  const prompt = body.includes("$ARGUMENTS") ? body.split("$ARGUMENTS").join(args) : args ? `${body}\n\n${args}` : body;
+  return { name: command.name, prompt: prompt.slice(0, SKILL_LIMIT) };
+}

@@ -80,6 +80,24 @@ export class CatalogService {
     return this.runtime.request<ContextUsage>(`/threads/${encodeURIComponent(threadId)}/context`);
   }
 
+  /** The skills a chat can use: its project's, then the user's. */
+  skills(projectId?: string): Promise<{ name: string; description: string; source: string }[]> {
+    return this.runtime.request(`/skills${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`);
+  }
+
+  skill(name: string, projectId?: string): Promise<{ name: string; instructions: string; files: string[] }> {
+    return this.runtime.request(`/skills/${encodeURIComponent(name)}${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`);
+  }
+
+  /** Prompt commands for the "/" menu: the project's .saturn/commands and .claude/commands, then the user's. */
+  commands(projectId?: string): Promise<{ name: string; description: string; source: string }[]> {
+    return this.runtime.request(`/commands${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`);
+  }
+
+  expandCommand(name: string, args: string, projectId?: string): Promise<{ name: string; prompt: string }> {
+    return this.runtime.request(`/commands/${encodeURIComponent(name)}/expand`, { method: "POST", body: JSON.stringify({ arguments: args, ...(projectId ? { projectId } : {}) }) });
+  }
+
   /** Background commands the chat's agent started, running or recently ended. */
   threadJobs(threadId: string): Promise<BackgroundJob[]> {
     return this.runtime.request<BackgroundJob[]>(`/threads/${encodeURIComponent(threadId)}/jobs`);

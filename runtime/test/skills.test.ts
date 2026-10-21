@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { listSkills, loadSkill, parseSkill, skillsPrompt } from "../src/application/skill-files.js";
+import { expandCommand, listCommands, listSkills, loadSkill, parseSkill, skillsPrompt } from "../src/application/skill-files.js";
 import type { Run } from "../src/domain/model.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
@@ -100,4 +100,19 @@ test("an agent sees the skills in its prompt and loads one with the skill tool; 
   } finally {
     server.close();
   }
+});
+
+test("prompt commands: the project's .saturn and .claude commands, then the user's; $ARGUMENTS is filled in", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "saturn-commands-"));
+  const project = path.join(root, "project");
+  const user = path.join(root, "user-commands");
+  await mkdir(path.join(project, ".claude", "commands"), { recursive: true });
+  await mkdir(user, { recursive: true });
+  await writeFile(path.join(project, ".claude", "commands", "explain.md"), "---\ndescription: Explain a file\n---\nExplain $ARGUMENTS simply.");
+  await writeFile(path.join(user, "standup.md"), "Write my standup.");
+  await writeFile(path.join(user, "explain.md"), "Shadowed by the project's.");
+  assert.deepEqual((await listCommands(project, user)).map((item) => [item.name, item.source, item.description]), [["explain", "project", "Explain a file"], ["standup", "user", "Write my standup."]]);
+  assert.deepEqual(await expandCommand(project, user, "/explain", "util.ts"), { name: "explain", prompt: "Explain util.ts simply." });
+  assert.deepEqual(await expandCommand(project, user, "standup", "for Friday"), { name: "standup", prompt: "Write my standup.\n\nfor Friday" });
+  assert.equal(await expandCommand(project, user, "missing", ""), undefined);
 });

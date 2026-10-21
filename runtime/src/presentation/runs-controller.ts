@@ -4,7 +4,7 @@ import { imagePath, parseImages } from "../application/run-images.js";
 import path from "node:path";
 import type { RunMode } from "../domain/model.js";
 import { HttpError } from "../domain/errors.js";
-import { listSkills, loadSkill } from "../application/skill-files.js";
+import { expandCommand, listCommands, listSkills, loadSkill } from "../application/skill-files.js";
 import type { AppServices } from "../application/services.js";
 import { param, respond } from "./http.js";
 
@@ -98,6 +98,23 @@ export function mountRuns(app: Express, services: AppServices): void {
       const skill = await loadSkill(root, services.kernel.runs.userSkillsDir(), param(req.params.name));
       if (!skill) throw new HttpError(404, "No such skill");
       return skill;
+    });
+  });
+
+  // Prompt templates for the composer's "/" menu, and one filled in with its arguments.
+  app.get("/commands", (req, res, next) => {
+    respond(res, next, async () => {
+      const projectId = typeof req.query.projectId === "string" && req.query.projectId ? req.query.projectId : undefined;
+      return listCommands(projectId ? services.kernel.projects.workdir(projectId) : undefined, services.kernel.runs.userCommandsDir());
+    });
+  });
+
+  app.post("/commands/:name/expand", (req, res, next) => {
+    respond(res, next, async () => {
+      const projectId = typeof req.body?.projectId === "string" && req.body.projectId ? req.body.projectId : undefined;
+      const expanded = await expandCommand(projectId ? services.kernel.projects.workdir(projectId) : undefined, services.kernel.runs.userCommandsDir(), param(req.params.name), String(req.body?.arguments ?? ""));
+      if (!expanded) throw new HttpError(404, "No such command");
+      return expanded;
     });
   });
 

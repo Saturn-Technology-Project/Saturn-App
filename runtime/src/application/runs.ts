@@ -660,6 +660,11 @@ export class RunService {
     });
   }
 
+  /** The user's own prompt commands (the composer's "/" menu). */
+  userCommandsDir(): string {
+    return path.join(this.kernel.store.root, "commands");
+  }
+
   /** The user's own skills, available in every chat. */
   userSkillsDir(): string {
     return path.join(this.kernel.store.root, "skills");

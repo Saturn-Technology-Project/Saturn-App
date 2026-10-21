@@ -16,6 +16,8 @@ import { ProjectsMenu, arrangeProjects, useProjectView } from "./ProjectsMenu";
 import { Onboarding } from "./Onboarding";
 import { RunImages } from "./RunImages";
 import { ContextPicker } from "./ContextPicker";
+import { SlashMenu } from "./SlashMenu";
+import { BUILTIN_COMMANDS, hiddenContext, parseSlash, type SlashEntry } from "../domain/slash";
 import { AgentsBoard } from "./AgentsBoard";
 import { InteractivePlan } from "./InteractivePlan";
 import {
@@ -119,6 +121,10 @@ export function App() {
   const [contextOpen, setContextOpen] = useState(false);
   /** The rule files agents follow in the current chat's project (the "§ Rules" chip). */
   const [ruleSources, setRuleSources] = useState<{ path: string; chars: number }[]>([]);
+  /** The "/" menu: what it offers in this chat, and what follows the slash while it is open. */
+  const [slashEntries, setSlashEntries] = useState<SlashEntry[]>(BUILTIN_COMMANDS);
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const slashKeyRef = useRef<((event: React.KeyboardEvent) => boolean) | null>(null);
   /** How full the current chat's context is (the "Context · n%" chip). */
   const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null);
   const [compacting, setCompacting] = useState(false);
@@ -785,12 +791,49 @@ export function App() {
   async function send(text?: string) {
     const typed = (text ?? task).trim();
     if (!agent || (!typed && !pendingImages.length) || busy || editing) return;
-    if (typed === "/compact") {
-      setTask("");
-      await compactNow();
-      return;
+    setSlashQuery(null);
+    // "/" commands: Saturn's own, then the chat's skills and prompt commands; anything else is sent as typed.
+    const slash = parseSlash(typed);
+    let turnMode = mode;
+    let extra = "";
+    if (slash) {
+      const entry = slashEntries.find((item) => item.name.toLowerCase() === slash.name.toLowerCase());
+      const projectId = currentConversation?.projectId;
+      if (entry?.kind === "builtin" && slash.name === "compact") {
+        setTask("");
+        await compactNow();
+        return;
+      }
+      if (entry?.kind === "builtin" && slash.name === "new") {
+        const project = projects.find((item) => item.id === projectId);
+        setTask("");
+        if (project) withAccess(project, (granted) => void newProjectChat(granted));
+        return;
+      }
+      if (entry?.kind === "builtin" && (slash.name === "plan" || slash.name === "ask")) {
+        if (!slash.rest) {
+          setNotice(`Type what to ${slash.name === "plan" ? "plan" : "ask"} after /${slash.name}.`);
+          return;
+        }
+        turnMode = slash.name;
+      }
+      try {
+        if (entry?.kind === "skill") {
+          const skill = await desktop.catalog.skill(entry.name, projectId);
+          extra = hiddenContext(`skill: ${skill.name}`, `The user invoked the skill "${skill.name}" for this message. Follow it.${skill.files.length ? ` Its folder also has: ${skill.files.join(", ")}.` : ""}
+
+${skill.instructions}`);
+        } else if (entry?.kind === "command") {
+          const expanded = await desktop.catalog.expandCommand(entry.name, slash.rest, projectId);
+          extra = hiddenContext(`command: ${expanded.name}`, expanded.prompt);
+        }
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Could not load that command");
+        return;
+      }
     }
-    let input = typed || `Look at the attached image${pendingImages.length === 1 ? "" : "s"}.`;
+    let input = (turnMode !== mode && slash ? slash.rest : typed) || `Look at the attached image${pendingImages.length === 1 ? "" : "s"}.`;
+    input += extra;
     const images = pendingImages;
     isNearBottomRef.current = true;
     scrollToBottom(false);
@@ -801,7 +844,7 @@ export function App() {
         const attached = await desktop.projects.expandContext(currentConversation.projectId, pendingContext);
         if (attached.text) input = `${input}\n\n<saturn_context sources="${attached.sources.join("; ").replace(/"/g, "'")}">\n<attached_context>\n${attached.text}\n</attached_context>\n</saturn_context>`;
       }
-      started = await desktop.runs.start(agent.id, input, selectedThreadId || undefined, { images, mode });
+      started = await desktop.runs.start(agent.id, input, selectedThreadId || undefined, { images, mode: turnMode });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Run failed");
       return;
@@ -915,6 +958,25 @@ export function App() {
       stale = true;
     };
   }, [currentProjectId, thread.length]);
+
+  // The "/" menu's skills and prompt commands follow the chat's project.
+  useEffect(() => {
+    let stale = false;
+    const projectId = currentConversation?.projectId;
+    void Promise.all([desktop.catalog.skills(projectId).catch(() => []), desktop.catalog.commands(projectId).catch(() => [])]).then(([skills, commands]) => {
+      if (stale) return;
+      const builtins = BUILTIN_COMMANDS.filter((item) => item.name !== "new" || projectId);
+      const taken = new Set(builtins.map((item) => item.name));
+      setSlashEntries([
+        ...builtins,
+        ...skills.filter((item) => !taken.has(item.name)).map((item) => ({ name: item.name, description: item.description, kind: "skill" as const })),
+        ...commands.filter((item) => !taken.has(item.name) && !skills.some((skill) => skill.name === item.name)).map((item) => ({ name: item.name, description: item.description, kind: "command" as const })),
+      ]);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [currentConversation?.projectId, selectedThreadId]);
 
   // The context chip follows the chat: refreshed when the chat changes and after each turn finishes.
   useEffect(() => {
@@ -2465,6 +2527,8 @@ export function App() {
                       setContextOpen(true);
                       return;
                     }
+                    // "/" at the start, until the first space, filters the command menu.
+                    setSlashQuery(/^\/[A-Za-z0-9_-]*$/.test(value) ? value.slice(1) : null);
                     setTask(value);
                   }}
                   onPaste={(event) => {
@@ -2485,12 +2549,31 @@ export function App() {
                     }
                   }}
                   onKeyDown={(event) => {
+                    if (slashQuery !== null && slashKeyRef.current?.(event)) {
+                      event.preventDefault();
+                      return;
+                    }
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
                       void send();
                     }
                   }}
                 />
+                {slashQuery !== null ? (
+                  <div className="slash-anchor">
+                    <SlashMenu
+                      entries={slashEntries}
+                      query={slashQuery}
+                      keyRef={slashKeyRef}
+                      onPick={(entry) => {
+                        setTask(`/${entry.name} `);
+                        setSlashQuery(null);
+                        composerInputRef.current?.focus();
+                      }}
+                      onClose={() => setSlashQuery(null)}
+                    />
+                  </div>
+                ) : null}
                 <div className="composer-bar">
                   <div className="composer-controls">
                     <div className="context-anchor">
