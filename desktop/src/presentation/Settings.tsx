@@ -1660,13 +1660,13 @@ export function CodexLogin() {
     <>
       <div className="settings-card-row">
         <div className="settings-row-text">
-          <span className="settings-row-label">ChatGPT Account</span>
+          <span className="settings-row-label">Codex Sign-In</span>
           <span className="settings-row-desc">
             {status === null
               ? busy ? "Checking…" : "Status unavailable."
               : status.loggedIn
                 ? ["Signed in", method].filter(Boolean).join(" · ")
-                : "Not signed in. Codex models run on your own ChatGPT login; Saturn never sees your credentials."}
+                : "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; Saturn never sees your credentials."}
           </span>
         </div>
         <div className="settings-row-actions">
@@ -1681,7 +1681,7 @@ export function CodexLogin() {
             </button>
           ) : (
             <button type="button" className="btn tiny" disabled={busy !== null || status === null} onClick={() => void run("starting", () => desktop.admin.codexSignIn("device"), "Could not start sign-in")}>
-              {busy === "starting" ? "Starting…" : "Sign In"}
+              {busy === "starting" ? "Starting…" : "Sign In to Codex"}
             </button>
           )}
         </div>
@@ -1690,7 +1690,7 @@ export function CodexLogin() {
         <div className="settings-card-row settings-card-stack">
           {signIn.mode === "device" ? (
             <>
-              <span className="settings-row-desc">Open the OpenAI page, sign in, and enter this one-time code. It expires in 15 minutes; this card updates once you're done.</span>
+              <span className="settings-row-desc">Codex shows this one-time code: open the OpenAI page, sign in, and enter it. It expires in 15 minutes; this card updates once you're done.</span>
               <div className="claude-login-command">
                 <code className="codex-device-code">{signIn.code ?? "Waiting for a code…"}</code>
                 {signIn.code ? <button type="button" className="btn ghost tiny" onClick={() => void copyCode()}>{copied ? "Copied" : "Copy"}</button> : null}

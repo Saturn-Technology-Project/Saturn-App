@@ -164,7 +164,7 @@ Launching Saturn starts the runtime, then opens the default surface: the agent a
 |---|---|---|
 | Claude | API key | Effort levels and adaptive thinking where supported |
 | Claude (via Claude Code) | Claude subscription | Runs Claude Code through the Claude Agent SDK; Saturn sends no API request for these models (see [Claude and Anthropic's terms](#claude-and-anthropics-terms)). Uses your `claude` on the PATH, or downloads the official program from **Settings → General** (about 95 MB). Sign in once with it; Saturn never handles the credential. |
-| Codex | ChatGPT subscription | Codex SDK. Uses your `codex` on the PATH, or downloads the official program from **Settings → General** (about 135 MB). Device-code sign-in from Settings. |
+| Codex | ChatGPT subscription | Runs the official Codex program through the Codex SDK (see [Codex and OpenAI's terms](#codex-and-openais-terms)). Uses your `codex` on the PATH, or downloads the official program from **Settings → General** (about 135 MB). Codex's own device-code sign-in, started from Settings. |
 | OpenAI | API key | Chat Completions and Responses APIs; reasoning effort on reasoning models |
 | Google Gemini | API key | Thinking level (3.x and later) or thinking budget (2.5) |
 | DeepSeek | API key | |
@@ -192,6 +192,26 @@ How Saturn follows Anthropic's [Claude Code legal and compliance terms](https://
 - **Naming.** Saturn says in plain text that this provider runs Claude Code; it does not use Claude Code or Anthropic as the name of its own product or features, and it is not built, endorsed or partnered by Anthropic.
 
 This is our reading of Anthropic's published terms, not legal advice, and Anthropic has the final say: if your use differs (a team deployment, a hosted service), use the Claude provider with an API key, or [ask Anthropic](https://code.claude.com/docs/en/legal-and-compliance).
+
+### Codex and OpenAI's terms
+
+Saturn offers OpenAI models in two ways, kept apart like Claude's:
+
+| Provider | Authentication | What Saturn sends |
+|---|---|---|
+| OpenAI | Your OpenAI API key, under OpenAI's [Business Terms](https://openai.com/policies/business-terms/) | API requests from Saturn to OpenAI |
+| Codex | Your own ChatGPT plan, signed in to the official `codex` program | No API request at all: every turn runs in Codex, driven through the [Codex SDK](https://developers.openai.com/codex/sdk) |
+
+How Saturn follows OpenAI's [Terms of Use](https://openai.com/policies/terms-of-use/), the [Codex authentication guide](https://learn.chatgpt.com/docs/auth) and OpenAI's [brand guidelines](https://openai.com/brand/):
+
+- **Codex signs you in, not Saturn.** Settings starts `codex login` (device code, or the browser) and shows what Codex prints. Saturn is not a "Sign in with ChatGPT" app, has no ChatGPT login of its own, and never reads Codex's `auth.json`; Codex keeps it in a Saturn-specific `CODEX_HOME`.
+- **The official program.** Codex is open source under Apache-2.0, and OpenAI publishes the SDK for integrating Codex into other applications. Saturn runs the npm release its SDK was built against, checked against a pinned SHA-512, or your own installation.
+- **Your own account.** OpenAI's terms do not let you share your account or credentials; each person signs in with their own, and Saturn does not resell or intermediate ChatGPT usage. Usage counts toward your plan's limits, which Saturn does not work around.
+- **Enforced in code.** The model broker refuses any API request for a Codex model, a Codex model cannot hold an API key, and Saturn removes API-key variables (`OPENAI_API_KEY`, `CODEX_API_KEY`, `CODEX_ACCESS_TOKEN`) from Codex's environment so it always runs on the sign-in you chose.
+- **Automations.** OpenAI documents ChatGPT sign-in for trusted scripts and schedulers but recommends API keys for automation; for scheduled work, prefer an agent on the OpenAI provider.
+- **Naming.** Saturn names OpenAI's products only to say what a provider runs. It does not use ChatGPT, GPT, Codex or OpenAI's logos in its own name or features, and it is not built, endorsed or partnered by OpenAI.
+
+This is our reading of OpenAI's published terms, not legal advice; OpenAI's terms govern your account.
 
 ### Local models
 
@@ -373,7 +393,7 @@ Saturn ships about a thousand open-source packages, Electron, a Code-OSS fork an
 
 **Upstream Code-OSS**
 
-Saturn IDE is microsoft/vscode with a small, listed set of changes. [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) records the base commit and version, the rules (Saturn's features live in their own extension; upstream files are excluded from the build, never deleted) and each of the 45 files Saturn edits. A weekly [upstream sync](.github/workflows/upstream-sync.yml) three-way merges every new VS Code release against upstream's history, builds and tests it, and opens a pull request, as a draft listing the conflicts when it needs a person. Monthly releases are merged within two weeks, upstream security fixes within a week.
+Saturn IDE is microsoft/vscode with a small, listed set of changes. [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) records the base commit and version, the rules (Saturn's features live in their own extension; upstream files are excluded from the build, never deleted) and each of the 48 files Saturn edits. A weekly [upstream sync](.github/workflows/upstream-sync.yml) three-way merges every new VS Code release against upstream's history, builds and tests it, and opens a pull request, as a draft listing the conflicts when it needs a person. Monthly releases are merged within two weeks, upstream security fixes within a week.
 
 **Reviewed exceptions.** Advisories that cannot be fixed yet (no patch, or the patch needs an upstream change), and those Dependabot reports in code that never ships, are listed with their reason and closing condition in [`docs/known-advisories.md`](docs/known-advisories.md).
 
@@ -483,3 +503,12 @@ Before opening a pull request:
 ## License
 
 [MIT](LICENSE) © 2026 Prism Capital LLC
+
+### Saturn IDE and Microsoft's terms
+
+Saturn IDE is built from [Code-OSS](https://github.com/microsoft/vscode), the MIT-licensed source of Visual Studio Code, © Microsoft Corporation. It ships Code-OSS's license and third-party notices. It is not Visual Studio Code, which Microsoft builds and licenses separately, and it is not built, endorsed or partnered by Microsoft.
+
+- **Name and icons.** Saturn IDE uses its own name, icons, bundle identifiers and links, not Microsoft's trademarks.
+- **Extensions come from [Open VSX](https://open-vsx.org).** The Visual Studio Marketplace's terms allow its extensions only in Microsoft's products, so Saturn IDE does not connect to it.
+- **Microsoft's proprietary extensions are not included.** Some Microsoft extensions (for example C/C++, Pylance, C# Dev Kit, Remote - SSH and Live Share) are licensed for Microsoft's Visual Studio products only. Saturn IDE neither bundles nor recommends them; installing one by hand is outside its license. The Microsoft extensions Saturn IDE does include (JavaScript Debugger) are MIT-licensed.
+- **No Microsoft services by default.** Telemetry goes to the Saturn runtime on `127.0.0.1`; there is no Microsoft update service, settings sync or experiment service, and GitHub sign-in uses Saturn IDE's own OAuth app. See [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) for every change from Code-OSS.

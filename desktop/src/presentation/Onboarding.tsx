@@ -164,7 +164,7 @@ export function Onboarding(props: {
               <LlmPage models={props.models} onChanged={props.onChanged} onError={setError} />
             </div>
             <details className="onboarding-details">
-              <summary>Use my Claude or ChatGPT plan instead</summary>
+              <summary>Use Claude Code or Codex on my own plan instead</summary>
               <div className="onboarding-embed">
                 <ProgramGate id="claude-code">
                   <ClaudeCodeLogin />

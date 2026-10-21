@@ -22,7 +22,7 @@ The sync workflow updates this table when it merges a new release.
 
 ## What Saturn changes
 
-Compared with the base, outside `extensions/saturn/`: 45 files, all edits or additions, none deleted.
+Compared with the base, outside `extensions/saturn/`: 48 files, all edits or additions, none deleted.
 
 **Build and packaging**
 - `build/gulpfile.vscode.ts`: leaves GitHub Copilot and the agent host's Claude, Codex and Copilot CLI binaries out of the package (Saturn's runtime has its own); Saturn product metadata.
@@ -34,7 +34,7 @@ Compared with the base, outside `extensions/saturn/`: 45 files, all edits or add
 
 **Product and branding**
 - `product.json`: Saturn's name, icons and links; Open VSX as the extension gallery; no update URL, since the Saturn app updates Saturn IDE.
-- `resources/darwin/code.icns`, `resources/linux/code.png`: Saturn's icon.
+- `resources/darwin/code.icns`, `resources/linux/code.png`, `resources/win32/code.ico`, `code_70x70.png`, `code_150x150.png`: Saturn's icon.
 
 **Telemetry stays on the machine**
 - `src/vs/platform/telemetry/node/saturnAppender.ts` (new), `src/vs/platform/telemetry/common/telemetryService.ts`, `src/vs/code/electron-utility/sharedProcess/sharedProcessMain.ts`: telemetry goes to the Saturn runtime on `127.0.0.1` instead of Microsoft.

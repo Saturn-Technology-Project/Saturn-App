@@ -163,7 +163,7 @@ runtime/src/                    desktop/src/
 |---|---|---|
 | Claude | API 金鑰 | 支援的模型可設定推理強度與 adaptive thinking |
 | Claude（透過 Claude Code） | Claude 訂閱方案 | 透過 Claude Agent SDK 執行 Claude Code；Saturn 不會為這類模型送出任何 API 請求（見[Claude 與 Anthropic 的條款](#claude-與-anthropic-的條款)）。使用你 PATH 上的 `claude`，或在 **設定 → 一般** 下載官方程式（約 95 MB）。用它登入一次；Saturn 從不經手憑證。 |
-| Codex | ChatGPT 訂閱方案 | Codex SDK。使用你 PATH 上的 `codex`，或在 **設定 → 一般** 下載官方程式（約 135 MB）。在設定中以 device code 登入。 |
+| Codex | ChatGPT 訂閱方案 | 透過 Codex SDK 執行官方 Codex 程式（見[Codex 與 OpenAI 的條款](#codex-與-openai-的條款)）。使用你 PATH 上的 `codex`，或在 **設定 → 一般** 下載官方程式（約 135 MB）。從設定啟動 Codex 自己的 device code 登入。 |
 | OpenAI | API 金鑰 | Chat Completions 與 Responses API；推理模型可設定推理強度 |
 | Google Gemini | API 金鑰 | Thinking level（3.x 起）或 thinking budget（2.5） |
 | DeepSeek | API 金鑰 | |
@@ -191,6 +191,26 @@ Saturn 如何遵循 Anthropic 的 [Claude Code 法律與合規條款](https://co
 - **命名。** Saturn 以純文字說明此供應商執行 Claude Code；不以 Claude Code 或 Anthropic 作為自己產品或功能的名稱，也並非由 Anthropic 打造、背書或與其合作。
 
 以上是我們對 Anthropic 公開條款的解讀，不構成法律意見，最終由 Anthropic 決定：若你的用法不同（團隊部署、託管服務），請改用 Claude 供應商與 API 金鑰，或[洽詢 Anthropic](https://code.claude.com/docs/en/legal-and-compliance)。
+
+### Codex 與 OpenAI 的條款
+
+Saturn 以兩種方式提供 OpenAI 的模型，和 Claude 一樣嚴格分開：
+
+| 供應商 | 驗證方式 | Saturn 送出的內容 |
+|---|---|---|
+| OpenAI | 你的 OpenAI API 金鑰，適用 OpenAI 的 [Business Terms](https://openai.com/policies/business-terms/) | 由 Saturn 送往 OpenAI 的 API 請求 |
+| Codex | 你自己的 ChatGPT 方案，登入官方 `codex` 程式 | 完全沒有 API 請求：每一回合都在 Codex 中執行，透過 [Codex SDK](https://developers.openai.com/codex/sdk) 驅動 |
+
+Saturn 如何遵循 OpenAI 的[使用條款](https://openai.com/policies/terms-of-use/)、[Codex 驗證說明](https://learn.chatgpt.com/docs/auth)與[品牌指南](https://openai.com/brand/)：
+
+- **由 Codex 登入，不是 Saturn。** 設定頁會啟動 `codex login`（device code 或瀏覽器），並顯示 Codex 輸出的內容。Saturn 不是「Sign in with ChatGPT」App，沒有自己的 ChatGPT 登入，也從不讀取 Codex 的 `auth.json`；Codex 把它存放在 Saturn 專用的 `CODEX_HOME`。
+- **官方程式。** Codex 以 Apache-2.0 開源，OpenAI 也發布了讓其他應用程式整合 Codex 的 SDK。Saturn 執行其 SDK 建置時所用的 npm 版本，並以固定的 SHA-512 驗證，或使用你自己安裝的版本。
+- **你自己的帳號。** OpenAI 的條款不允許分享帳號或憑證；每個人以自己的帳號登入，Saturn 不轉售或居中處理 ChatGPT 的用量。用量計入你方案的額度，Saturn 不會繞過。
+- **由程式強制。** 模型代理層會拒絕對 Codex 模型發出任何 API 請求，Codex 模型無法設定 API 金鑰，Saturn 也會從 Codex 的環境中移除 API 金鑰變數（`OPENAI_API_KEY`、`CODEX_API_KEY`、`CODEX_ACCESS_TOKEN`），讓它一律使用你選擇的登入方式。
+- **自動化任務。** OpenAI 的文件允許可信任的腳本與排程使用 ChatGPT 登入，但建議自動化使用 API 金鑰；排程工作建議改用 OpenAI 供應商的 Agent。
+- **命名。** Saturn 提到 OpenAI 的產品，只是為了說明供應商執行的是什麼。Saturn 不在自己的名稱或功能中使用 ChatGPT、GPT、Codex 或 OpenAI 的 logo，也並非由 OpenAI 打造、背書或與其合作。
+
+以上是我們對 OpenAI 公開條款的解讀，不構成法律意見；你的帳號受 OpenAI 的條款約束。
 
 ### 本機模型
 
@@ -372,7 +392,7 @@ Saturn 內含約一千個開源套件、Electron、一個 Code-OSS 分支與一�
 
 **上游 Code-OSS**
 
-Saturn IDE 是 microsoft/vscode 加上一小組列明的修改。[`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) 記錄基準 commit 與版本、修改規則（Saturn 的功能放在自己的擴充套件；上游檔案只從建置中排除，絕不刪除），以及 Saturn 修改的全部 45 個檔案。每週的 [upstream sync](.github/workflows/upstream-sync.yml) 會以上游歷史為基準，將每個新的 VS Code 版本進行三方合併、建置並測試，再開出 pull request；需要人工處理時則以草稿列出衝突。每月版本在兩週內合併，上游安全修補在一週內合併。
+Saturn IDE 是 microsoft/vscode 加上一小組列明的修改。[`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) 記錄基準 commit 與版本、修改規則（Saturn 的功能放在自己的擴充套件；上游檔案只從建置中排除，絕不刪除），以及 Saturn 修改的全部 48 個檔案。每週的 [upstream sync](.github/workflows/upstream-sync.yml) 會以上游歷史為基準，將每個新的 VS Code 版本進行三方合併、建置並測試，再開出 pull request；需要人工處理時則以草稿列出衝突。每月版本在兩週內合併，上游安全修補在一週內合併。
 
 **已審視的例外。** 目前無法修補的公告（沒有修補版本，或修補需要上游變更），以及 Dependabot 在不會出貨的程式碼中回報的公告，連同原因與結案條件都列在 [`docs/known-advisories.md`](docs/known-advisories.md)。
 
@@ -482,3 +502,12 @@ npm run test:ide    # Saturn IDE 擴充套件檢查
 ## 授權
 
 [MIT](LICENSE) © 2026 Prism Capital LLC
+
+### Saturn IDE 與 Microsoft 的條款
+
+Saturn IDE 建置自 [Code-OSS](https://github.com/microsoft/vscode)，也就是 Visual Studio Code 以 MIT 授權的原始碼，© Microsoft Corporation，並隨附 Code-OSS 的授權與第三方聲明。它不是 Visual Studio Code（那是 Microsoft 另行建置與授權的產品），也並非由 Microsoft 打造、背書或與其合作。
+
+- **名稱與圖示。** Saturn IDE 使用自己的名稱、圖示、bundle identifier 與連結，不使用 Microsoft 的商標。
+- **擴充套件來自 [Open VSX](https://open-vsx.org)。** Visual Studio Marketplace 的條款只允許其擴充套件用於 Microsoft 的產品，所以 Saturn IDE 不連線到它。
+- **不包含 Microsoft 的專有擴充套件。** 部分 Microsoft 擴充套件（例如 C/C++、Pylance、C# Dev Kit、Remote - SSH、Live Share）只授權用於 Microsoft 的 Visual Studio 產品。Saturn IDE 既不內建也不推薦它們；手動安裝不在其授權範圍內。Saturn IDE 內建的 Microsoft 擴充套件（JavaScript Debugger）採 MIT 授權。
+- **預設不使用 Microsoft 的服務。** 遙測送往 `127.0.0.1` 上的 Saturn Runtime；沒有 Microsoft 的更新服務、設定同步或實驗服務，GitHub 登入使用 Saturn IDE 自己的 OAuth App。與 Code-OSS 的每一項差異見 [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md)。
