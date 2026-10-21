@@ -1,0 +1,47 @@
+# Dependency updates. Security updates arrive as soon as an advisory is published (repository setting); version
+# updates come weekly, grouped, and only after a release has been public for a week, so a compromised or broken
+# version that is pulled within days never reaches a pull request.
+#
+# Saturn IDE (Saturn-IDE/) is not here: its dependencies are Code-OSS's and move with the monthly upstream sync
+# (.github/workflows/upstream-sync.yml). Electron is not either: the desktop app follows Saturn IDE's version.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /runtime
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      runtime-minor-and-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, runtime]
+
+  - package-ecosystem: npm
+    directory: /desktop
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: electron
+    groups:
+      desktop-minor-and-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, desktop]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies, ci]
