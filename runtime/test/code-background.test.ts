@@ -20,13 +20,18 @@ const alive = (pid: number | undefined) => {
   }
 };
 
-test("a background command returns at once, its output can be read and waited for, and it can be stopped", { skip: process.platform === "win32" && "POSIX shell" }, async () => {
+/** Commands both shells (sh and cmd) run the same way: node scripts in double quotes, no $ or %. */
+const node = (script: string) => `"${process.execPath}" -e "${script}"`;
+const TICKS = node("let i=0;const t=setInterval(()=>{console.log('tick'+(++i));if(i===3){clearInterval(t);console.log('end')}},200)");
+const WAIT = (seconds: number) => node(`setTimeout(()=>{},${seconds * 1000})`);
+
+test("a background command returns at once, its output can be read and waited for, and it can be stopped", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "saturn-jobs-"));
   const table = new JobTable();
   const skill = new CodeSkill(new Workspace(root));
   const options = { sandbox: { mode: "off" as const, network: true }, jobs: { table, scope: "thread_1" } };
   try {
-    const started = (await skill.run({ command: "for i in 1 2 3; do echo tick$i; sleep 0.2; done; echo end", background: true }, undefined, options)) as Started;
+    const started = (await skill.run({ command: TICKS, background: true }, undefined, options)) as Started;
     assert.match(started.jobId, /^job_/);
     assert.equal(started.running, true);
     assert.match(started.note, /code_output/);
@@ -44,13 +49,14 @@ test("a background command returns at once, its output can be read and waited fo
     assert.ok(done.output.length >= partial.output.length);
 
     // A long one is stopped, together with the process the shell started.
-    const long = (await skill.run({ command: "sleep 60", background: true }, undefined, options)) as Started;
+    const long = (await skill.run({ command: WAIT(60), background: true }, undefined, options)) as Started;
     assert.equal(long.running, true);
     assert.ok(alive(long.pid));
     const stopped = (await skill.stop({ jobId: long.jobId }, options)) as { stopped: boolean };
     assert.equal(stopped.stopped, true);
     for (let attempt = 0; attempt < 50 && table.get(long.jobId)?.running; attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50));
     assert.equal(table.get(long.jobId)?.running, false);
+    for (let attempt = 0; attempt < 50 && alive(long.pid); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50));
     assert.ok(!alive(long.pid), "the shell is gone");
 
     // A command that fails at once comes back with its error and exit code.
@@ -63,7 +69,7 @@ test("a background command returns at once, its output can be read and waited fo
     const list = table.list("thread_1");
     assert.ok(list.some((job) => job.id === started.jobId));
     assert.deepEqual(table.list("thread_2"), []);
-    const server = (await skill.run({ command: "sleep 60", background: true }, undefined, options)) as Started;
+    const server = (await skill.run({ command: WAIT(60), background: true }, undefined, options)) as Started;
     assert.equal(table.stopAll("thread_1"), 1, "one job was still running");
     assert.deepEqual(table.list("thread_1"), []);
     for (let attempt = 0; attempt < 50 && alive(server.pid); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 50));
@@ -71,8 +77,8 @@ test("a background command returns at once, its output can be read and waited fo
 
     // A cap on running jobs.
     const many: Started[] = [];
-    for (let index = 0; index < MAX_JOBS; index += 1) many.push((await skill.run({ command: "sleep 30", background: true }, undefined, options)) as Started);
-    await assert.rejects(skill.run({ command: "sleep 30", background: true }, undefined, options), /already runs/);
+    for (let index = 0; index < MAX_JOBS; index += 1) many.push((await skill.run({ command: WAIT(30), background: true }, undefined, options)) as Started);
+    await assert.rejects(skill.run({ command: WAIT(30), background: true }, undefined, options), /already runs/);
   } finally {
     table.stopAll();
   }

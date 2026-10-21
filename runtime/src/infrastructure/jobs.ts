@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { newId } from "../domain/ids.js";
 
 /**
@@ -146,12 +146,20 @@ export class JobTable {
   }
 }
 
+/** Windows has no process groups to signal: taskkill /T ends the shell and everything it started. */
+function killTree(pid: number): void {
+  execFile("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true }, () => undefined);
+}
+
 function kill(job: Job): void {
   if (!job.running || !job.child.pid) return;
+  if (process.platform === "win32") {
+    killTree(job.child.pid);
+    return;
+  }
   try {
     // The process group, so a shell's children (the server it started) go too.
-    if (process.platform !== "win32") process.kill(-job.child.pid, "SIGTERM");
-    else job.child.kill();
+    process.kill(-job.child.pid, "SIGTERM");
   } catch {
     try {
       job.child.kill();
@@ -163,8 +171,7 @@ function kill(job: Job): void {
   setTimeout(() => {
     if (!job.running) return;
     try {
-      if (process.platform !== "win32") process.kill(-pid, "SIGKILL");
-      else job.child.kill("SIGKILL");
+      process.kill(-pid, "SIGKILL");
     } catch {
       // Already gone.
     }

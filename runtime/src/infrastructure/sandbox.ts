@@ -7,6 +7,9 @@ import path from "node:path";
  * inside the workspace (and the usual temporary and cache folders); `read-only` lets it write nowhere; `off` runs it
  * as the runtime itself. macOS uses seatbelt (`sandbox-exec`), Linux bubblewrap when it is installed; Windows has
  * no sandbox, and the result says so.
+ *
+ * Seatbelt profiles do not nest: this works because the packaged app (whose Electron runs the runtime) does not
+ * carry the App Sandbox entitlement. A build that adds `com.apple.security.app-sandbox` would need another way.
  */
 export type SandboxMode = "workspace-write" | "read-only" | "off";
 

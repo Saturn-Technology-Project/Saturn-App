@@ -610,6 +610,14 @@ class AgentView {
 					});
 					this.watch(message.runId);
 					break;
+				case 'allowAlways':
+					// Saves an allow rule for calls like this one (see Settings → Permissions in the app), then approves it.
+					await this.runtime.request(`/runs/${encodeURIComponent(message.runId)}/actions/${encodeURIComponent(message.actionId)}/allow-always`, {
+						method: 'POST',
+						body: JSON.stringify({ scope: message.scope, pattern: message.pattern }),
+					});
+					this.watch(message.runId);
+					break;
 				case 'reviewFile':
 					await shared.review.open(message.runId, message.root, message.path);
 					break;
@@ -2128,6 +2136,10 @@ class AgentView {
 	.approval-bar .approval-text { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
 	.approval-actions { display: inline-flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
 	.approval-bar code { font-family: var(--vscode-editor-font-family); font-size: 11.5px; }
+	.approval-always { flex-basis: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-top: 6px; border-top: 1px solid var(--vscode-panel-border, rgba(128,128,128,0.25)); }
+	.approval-always input, .approval-always select { font: inherit; font-size: 12px; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); border-radius: 4px; padding: 2px 6px; }
+	.approval-always input { width: 160px; font-family: var(--vscode-editor-font-family); }
+	.approval-always .muted { opacity: 0.75; }
 	.btn-small {
 		border: 1px solid var(--vscode-button-border, transparent);
 		border-radius: 5px;
@@ -2971,7 +2983,28 @@ class AgentView {
 		return wrap;
 	}
 
-	/** The tool call waiting for the user, with Approve and Deny. */
+	/** Open "Always Allow" forms by action id, so a re-render keeps what the user typed. */
+	const alwaysDrafts = new Map();
+
+	/** The rule offered on "Always Allow": a command prefix, a folder of files, or any call of the tool. */
+	function suggestedPattern(action) {
+		const args = action.arguments || {};
+		if (action.toolId === 'code') {
+			const first = String(args.command || '').split(/\\s*(?:&&|\\|\\||;|\\||&|\\n)\\s*/)[0].trim().replace(/\\s+/g, ' ');
+			const words = first.split(' ');
+			const second = words[1] && !words[1].startsWith('-') ? words[1] : '';
+			return words[0] ? words[0] + (second ? ' ' + second : '') + ' *' : '*';
+		}
+		if (action.toolId === 'files') {
+			const target = String(args.path || '').replace(/\\\\/g, '/').replace(/^\\.\\//, '');
+			const folder = target.includes('/') ? target.slice(0, target.lastIndexOf('/')) : '';
+			const mode = args.action === 'append' ? 'write' : String(args.action || '*');
+			return mode + ' ' + (folder ? folder + '/**' : '**');
+		}
+		return '*';
+	}
+
+	/** The tool call waiting for the user, with Approve, Deny and Always Allow. */
 	function renderApproval(run) {
 		const action = (run.actions || []).find((item) => item.status === 'waiting_approval');
 		const bar = el('div', 'approval-bar');
@@ -2998,9 +3031,63 @@ class AgentView {
 			};
 			deny.onclick = () => answer(false);
 			allow.onclick = () => answer(true);
+			const always = el('button', 'btn-small', T('Always Allow…'));
+			always.type = 'button';
+			always.title = T('Save a rule so calls like this one run without asking');
+			// The run re-renders on every poll, so the open form lives in alwaysDrafts and is rebuilt from it.
+			const openForm = () => {
+				const draft = alwaysDrafts.get(action.id) || { pattern: suggestedPattern(action), scope: 'project', focused: true };
+				alwaysDrafts.set(action.id, draft);
+				always.remove();
+				const form = el('form', 'approval-always');
+				const pattern = document.createElement('input');
+				pattern.value = draft.pattern;
+				pattern.setAttribute('aria-label', T('Rule pattern'));
+				pattern.oninput = () => { draft.pattern = pattern.value; };
+				pattern.onfocus = () => { draft.focused = true; };
+				pattern.onblur = () => { draft.focused = false; };
+				const scope = document.createElement('select');
+				scope.setAttribute('aria-label', T('Where the rule applies'));
+				for (const [value, label] of [['project', T('this project')], ['agent', T('this agent')], ['user', T('everywhere')]]) {
+					const option = document.createElement('option');
+					option.value = value;
+					option.textContent = label;
+					scope.append(option);
+				}
+				scope.value = draft.scope;
+				scope.onchange = () => { draft.scope = scope.value; };
+				const save = el('button', 'btn-small primary', T('Save and Approve'));
+				save.type = 'submit';
+				const cancel = el('button', 'btn-small', T('Cancel'));
+				cancel.type = 'button';
+				cancel.onclick = () => {
+					alwaysDrafts.delete(action.id);
+					form.remove();
+					buttons.append(always);
+				};
+				form.append(el('span', 'muted', T('Allow')), el('code', '', action.toolId), el('span', 'muted', T('matching')), pattern, el('span', 'muted', T('in')), scope, save, cancel);
+				form.onsubmit = (event) => {
+					event.preventDefault();
+					if (!pattern.value.trim()) { return; }
+					save.disabled = true;
+					allow.disabled = true;
+					deny.disabled = true;
+					alwaysDrafts.delete(action.id);
+					vscode.postMessage({ type: 'allowAlways', runId: run.id, actionId: action.id, scope: scope.value, pattern: pattern.value.trim() });
+				};
+				bar.append(form);
+				if (draft.focused) {
+					setTimeout(() => {
+						pattern.focus();
+						pattern.setSelectionRange(pattern.value.length, pattern.value.length);
+					}, 0);
+				}
+			};
+			always.onclick = openForm;
 			const buttons = el('span', 'approval-actions');
-			buttons.append(deny, allow);
+			buttons.append(deny, allow, always);
 			bar.append(buttons);
+			if (alwaysDrafts.has(action.id)) { openForm(); }
 		}
 		return bar;
 	}

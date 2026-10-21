@@ -151,5 +151,16 @@
   "Welcome to Saturn IDE: agents, inline edits and Tab completion, all through the Saturn app on this computer.": "歡迎使用 Saturn IDE：Agent、行內編輯與 Tab 補全，全部透過這台電腦上的 Saturn App 執行。",
   "{0} → {1}: {2} use(s) in {3} other file(s)": "{0} → {1}：其他 {3} 個檔案還有 {2} 處使用",
   "You renamed {0} to {1}. Click to review the other files that still use {0}.": "你把 {0} 改名為 {1}。點一下檢視其他仍在使用 {0} 的檔案。",
-  "Rename {0} to {1} in these places": "在這些地方把 {0} 改名為 {1}"
+  "Rename {0} to {1} in these places": "在這些地方把 {0} 改名為 {1}",
+  "Always Allow…": "永遠允許…",
+  "Save a rule so calls like this one run without asking": "存成一條規則，之後類似的呼叫不再詢問",
+  "Rule pattern": "規則樣式",
+  "Where the rule applies": "規則套用範圍",
+  "this project": "這個專案",
+  "this agent": "這個 Agent",
+  "everywhere": "所有地方",
+  "Save and Approve": "儲存並核准",
+  "Allow": "允許",
+  "matching": "符合",
+  "in": "套用於"
 }
