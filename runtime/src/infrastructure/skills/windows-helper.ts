@@ -112,13 +112,13 @@ public static class SaturnDesktop
             case "launch": Process.Start(new ProcessStartInfo(Str(r, "target")) { UseShellExecute = true }); return null;
             case "activate": Activate(Int(r, "pid")); return null;
             case "frame": return Frame(Int(r, "pid"));
-            case "mouse": Mouse(Str(r, "kind"), Int(r, "x"), Int(r, "y"), Int(r, "toX"), Int(r, "toY"), Str(r, "button"), Int(r, "count")); return null;
-            case "scroll": Scroll(Int(r, "x"), Int(r, "y"), Int(r, "dx"), Int(r, "dy")); return null;
-            case "key": Key(Ints(r, "modifiers"), Int(r, "vk"), Str(r, "char"), r.ContainsKey("extended") && (bool)r["extended"]); return null;
-            case "type": TypeText(Str(r, "text")); return null;
+            case "mouse": Mouse(Str(r, "kind"), Int(r, "x"), Int(r, "y"), Int(r, "toX"), Int(r, "toY"), Str(r, "button"), Int(r, "count")); Settle(); return null;
+            case "scroll": Scroll(Int(r, "x"), Int(r, "y"), Int(r, "dx"), Int(r, "dy")); Settle(); return null;
+            case "key": Key(Ints(r, "modifiers"), Int(r, "vk"), Str(r, "char"), r.ContainsKey("extended") && (bool)r["extended"]); Settle(); return null;
+            case "type": TypeText(Str(r, "text")); Settle(); return null;
             case "tree": return Tree(Int(r, "pid"), Ints(r, "root"), Int(r, "limit"), Int(r, "depth"));
-            case "action": Act(Int(r, "pid"), Ints(r, "path"), Str(r, "action")); return null;
-            case "setValue": SetValue(Int(r, "pid"), Ints(r, "path"), Str(r, "value"), r.ContainsKey("focusOnly") && (bool)r["focusOnly"]); return null;
+            case "action": Act(Int(r, "pid"), Ints(r, "path"), Str(r, "action")); Settle(); return null;
+            case "setValue": SetValue(Int(r, "pid"), Ints(r, "path"), Str(r, "value"), r.ContainsKey("focusOnly") && (bool)r["focusOnly"]); Settle(); return null;
             default: throw new Exception("Unknown operation " + op);
         }
     }
@@ -273,6 +273,19 @@ public static class SaturnDesktop
         uint sent = SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf(typeof(INPUT)));
         if (sent != inputs.Count)
             throw new Exception("Windows blocked the input (error " + Marshal.GetLastWin32Error() + "). The app may be running as administrator, which Saturn cannot control unless it runs as administrator too.");
+    }
+
+    // SendInput only queues input: wait until the app in front has processed it, so what is read next sees the result.
+    static void Settle()
+    {
+        try
+        {
+            uint pid;
+            GetWindowThreadProcessId(GetForegroundWindow(), out pid);
+            if (pid != 0) Process.GetProcessById((int)pid).WaitForInputIdle(3000);
+        }
+        catch { }
+        Thread.Sleep(50);
     }
 
     static INPUT MouseInput(uint flags, int dx, int dy, uint data)
