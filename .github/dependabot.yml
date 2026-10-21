@@ -14,6 +14,10 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    ignore:
+      # The runtime runs on the Node inside Electron (24 with Electron 43): its types follow that, not the newest Node.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       runtime-minor-and-patch:
         update-types: [minor, patch]
