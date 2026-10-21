@@ -31,7 +31,7 @@ jobs:
           node-version: 22
 
       - name: Runtime dependencies
-        run: npm ci --prefix runtime
+        run: npm ci --ignore-scripts --prefix runtime
 
       - name: Drive Notepad
         working-directory: runtime

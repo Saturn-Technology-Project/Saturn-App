@@ -130,5 +130,10 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
     "wait-on": "^8.0.3"
+  },
+  "allowScripts": {
+    "electron-winstaller": false,
+    "esbuild": false,
+    "fsevents": false
   }
 }

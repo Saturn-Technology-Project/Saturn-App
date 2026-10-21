@@ -39,5 +39,12 @@
     "@types/node": "^22.15.3",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
+  },
+  "allowScripts": {
+    "@google/genai": false,
+    "esbuild": false,
+    "fsevents": false,
+    "onnxruntime-node": false,
+    "protobufjs": false
   }
 }

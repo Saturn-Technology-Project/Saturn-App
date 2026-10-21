@@ -55,8 +55,8 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
-          npm ci --prefix runtime
-          npm ci --prefix desktop
+          npm ci --ignore-scripts --prefix runtime
+          npm ci --ignore-scripts --prefix desktop
 
       - name: Runtime tests and type checks
         shell: pwsh
