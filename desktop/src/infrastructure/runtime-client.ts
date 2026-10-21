@@ -20,6 +20,42 @@ export class RuntimeClient {
     return response.json() as Promise<T>;
   }
 
+  /**
+   * Reads a server-sent event stream (fetch, since EventSource cannot send the token) and calls `onEvent` for each
+   * event until `signal` aborts or the stream ends; resolves then, rejects when it cannot connect.
+   */
+  async stream(path: string, onEvent: (event: string, data: unknown) => void, signal: AbortSignal): Promise<void> {
+    const response = await this.send(path, { signal, headers: { accept: "text/event-stream" } });
+    const reader = response.body?.getReader();
+    if (!reader) return;
+    const decoder = new TextDecoder();
+    let buffer = "";
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) return;
+        buffer += decoder.decode(value, { stream: true });
+        let index: number;
+        while ((index = buffer.indexOf("\n\n")) >= 0) {
+          const block = buffer.slice(0, index);
+          buffer = buffer.slice(index + 2);
+          const event = /^event: (.*)$/m.exec(block)?.[1];
+          const data = /^data: (.*)$/m.exec(block)?.[1];
+          if (event && data) {
+            try {
+              onEvent(event, JSON.parse(data));
+            } catch {
+              // A malformed event is skipped.
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (signal.aborted) return;
+      throw error;
+    }
+  }
+
   /** Fetches a file the runtime offers as a download, with the name it suggests. */
   async download(path: string): Promise<{ blob: Blob; filename: string }> {
     const response = await this.send(path);

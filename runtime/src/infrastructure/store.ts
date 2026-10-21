@@ -75,10 +75,25 @@ export class FileStore {
 
   state: AppState = empty();
 
+  /** Called after every saved change, for the event streams (see application/events.ts). */
+  private readonly listeners = new Set<() => void>();
+
+  onChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
   update(change: (state: AppState) => void): Promise<AppState> {
     const run = this.queue.then(async () => {
       change(this.state);
       await this.persist();
+      for (const listener of this.listeners) {
+        try {
+          listener();
+        } catch {
+          // A listener's failure never fails the change.
+        }
+      }
       return this.state;
     });
     this.queue = run.then(

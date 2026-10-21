@@ -457,6 +457,19 @@ Windows asks for no permission. A single helper process (Windows PowerShell runn
 | `SATURN_SKIP_IDE` | unset | `1` packages without Saturn IDE |
 | `SATURN_IDE_BUILD` | the local build | IDE build to embed when packaging |
 
+## Command line
+
+**Settings → General → Command Line** installs `saturn` in `~/.local/bin`. It runs the app's own CLI against the running Saturn, so it always matches the app:
+
+```bash
+saturn run "fix the failing test" --agent Saturn --project .
+saturn run - --agent Reviewer --json < prompt.txt
+saturn runs
+saturn approve RUN ACTION
+```
+
+`saturn run` streams the agent's steps to stderr and its answer to stdout (`--json` prints the whole run). An approval is asked on a terminal; in a script `saturn` exits with code 3 and prints the `saturn approve` command that answers it. As with automations, an agent on Claude (via Claude Code) only runs from a terminal, never unattended.
+
 ## Local API
 
 The desktop app and the IDE are clients of the same HTTP API, and so can your scripts be:
@@ -480,6 +493,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 | `GET` `POST` | `/groups` · `/groups/:id/messages` | Group conversations |
 | `GET` `POST` | `/automations` | Scheduled runs |
 | `GET` | `/usage/summary?from=&to=` | Tokens and cost over a time window |
+| `GET` | `/events` · `/runs/:id/events` | Live updates as server-sent events: which runs changed, or one run as it changes |
 | `GET` | `/network` | Outbound request log: hosts and recent requests |
 | `GET` | `/telemetry/traces` · `/telemetry/logs` · `/telemetry/metrics` | Local OpenTelemetry data |
 | `POST` | `/complete` · `/complete/stream` | Single model call (IDE Tab completion and inline edits) |

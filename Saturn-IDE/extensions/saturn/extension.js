@@ -71,6 +71,38 @@ class Runtime {
 		}
 	}
 
+	/**
+	 * Reads a server-sent event stream from the runtime, calling onEvent(name, data) per event, until the signal
+	 * aborts or the stream ends. Rejects when it cannot connect (an older runtime has no stream).
+	 * @param {string} path @param {(event: string, data: any) => void} onEvent @param {AbortSignal} signal
+	 */
+	async stream(path, onEvent, signal) {
+		const token = this.token();
+		const response = await fetch(this.base() + path, { signal, headers: { accept: 'text/event-stream', ...(token ? { authorization: `Bearer ${token}` } : {}) } });
+		if (!response.ok || !response.body) { throw new Error(`Saturn runtime returned ${response.status}`); }
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let buffered = '';
+		try {
+			for (;;) {
+				const { value, done } = await reader.read();
+				if (done) { return; }
+				buffered += decoder.decode(value, { stream: true });
+				let index;
+				while ((index = buffered.indexOf('\n\n')) >= 0) {
+					const block = buffered.slice(0, index);
+					buffered = buffered.slice(index + 2);
+					const event = /^event: (.*)$/m.exec(block);
+					const data = /^data: (.*)$/m.exec(block);
+					if (event && data) { onEvent(event[1], JSON.parse(data[1])); }
+				}
+			}
+		} catch (error) {
+			if (signal.aborted) { return; }
+			throw error;
+		}
+	}
+
 	/** @param {string} path @param {RequestInit} [init] */
 	async request(path, init) {
 		const token = this.token();
@@ -745,8 +777,33 @@ class AgentView {
 		}
 	}
 
-	/** Polls a run until it settles; a sleeping run is checked slowly until it wakes. @param {string} runId */
+	/**
+	 * Follows a run: its event stream while the runtime offers one (each change as it happens, approvals answered
+	 * in the Saturn app included), polling otherwise. @param {string} runId
+	 */
 	watch(runId) {
+		this.stopPolling();
+		const controller = new AbortController();
+		this.streaming = controller;
+		/** @param {any} run */
+		const show = (run) => {
+			this.post({ type: 'run', run });
+			shared.terminal.feed(run);
+			if (run.status === 'completed' && !this.verified.has(run.id)) {
+				this.verified.add(run.id);
+				void this.verify(run);
+			}
+			if (run.status === 'completed' || run.status === 'failed' || run.status === 'cancelled') { controller.abort(); }
+		};
+		this.runtime.stream(`/runs/${encodeURIComponent(runId)}/events`, (event, data) => {
+			if (event === 'run') { show(data); }
+		}, controller.signal).catch(() => {
+			if (!controller.signal.aborted) { this.pollRun(runId); }
+		});
+	}
+
+	/** Polls a run until it settles; a sleeping run is checked slowly until it wakes. @param {string} runId */
+	pollRun(runId) {
 		this.stopPolling();
 		const tick = async () => {
 			try {
@@ -822,6 +879,10 @@ class AgentView {
 			clearTimeout(this.poll);
 		}
 		this.poll = undefined;
+		if (this.streaming) {
+			this.streaming.abort();
+		}
+		this.streaming = undefined;
 	}
 
 	/** Clears the panel; the chat itself is created with its first message. */

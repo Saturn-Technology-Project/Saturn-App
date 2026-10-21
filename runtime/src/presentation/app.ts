@@ -18,6 +18,7 @@ import { mountGroups } from "./groups-controller.js";
 import { mountPermissions } from "./permissions-controller.js";
 import { mountHooks } from "./hooks-controller.js";
 import { mountPlugins } from "./plugins-controller.js";
+import { mountEvents } from "./events-controller.js";
 import { recordRequestError, traceRequests } from "./telemetry-middleware.js";
 import { loadOrCreateToken, tokenMatches } from "../infrastructure/auth.js";
 import { runtimeOrigin } from "../application/agent-skills.js";
@@ -110,6 +111,7 @@ export function createApp(store: FileStore) {
   mountPermissions(app, services);
   mountHooks(app, services);
   mountPlugins(app, services);
+  mountEvents(app, services);
 
   app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
     recordRequestError(res, error);

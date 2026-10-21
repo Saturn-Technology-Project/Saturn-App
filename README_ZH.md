@@ -456,6 +456,19 @@ Windows 不需要任何權限。所有動作由單一輔助程序處理（Window
 | `SATURN_SKIP_IDE` | 未設定 | `1` 打包時不含 Saturn IDE |
 | `SATURN_IDE_BUILD` | 本機建置 | 打包時內嵌的 IDE 建置 |
 
+## 命令列
+
+**設定 → 一般 → Command Line** 會在 `~/.local/bin` 安裝 `saturn`。它對正在執行的 Saturn 執行 App 自己的 CLI，所以版本永遠與 App 一致：
+
+```bash
+saturn run "fix the failing test" --agent Saturn --project .
+saturn run - --agent Reviewer --json < prompt.txt
+saturn runs
+saturn approve RUN ACTION
+```
+
+`saturn run` 會把 Agent 的步驟輸出到 stderr、答案輸出到 stdout（`--json` 輸出整個 run）。需要核准時，在終端機會直接詢問；在腳本中 `saturn` 會以代碼 3 結束，並印出可回答它的 `saturn approve` 指令。與自動化任務相同，使用 Claude（透過 Claude Code）的 Agent 只能在終端機中執行，不能無人值守。
+
 ## 本機 API
 
 桌面應用程式與 IDE 都是同一個 HTTP API 的用戶端，你的腳本也可以是：
@@ -479,6 +492,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 | `GET` `POST` | `/groups` · `/groups/:id/messages` | 群組對話 |
 | `GET` `POST` | `/automations` | 排程執行 |
 | `GET` | `/usage/summary?from=&to=` | 指定期間的 token 數與成本 |
+| `GET` | `/events` · `/runs/:id/events` | 以 server-sent events 即時更新：哪些 run 有變化，或單一 run 的每次變化 |
 | `GET` | `/network` | 對外請求紀錄：主機與最近的請求 |
 | `GET` | `/telemetry/traces` · `/telemetry/logs` · `/telemetry/metrics` | 本機 OpenTelemetry 資料 |
 | `POST` | `/complete` · `/complete/stream` | 單次模型呼叫（IDE 的 Tab 補全與行內編輯） |

@@ -136,6 +136,9 @@ export type HookEvent = "pre_tool" | "post_tool" | "stop";
 export type Hook = { event: HookEvent; matcher?: string; command: string; timeoutMs?: number };
 export type HookSet = { source: "user" | "project-file" | "claude-file" | "plugin"; path?: string; hooks: Hook[]; fingerprint?: string; approved: boolean };
 
+/** The `saturn` command's launcher. */
+export type CliStatus = { path: string; installed: boolean; current: boolean; onPath: boolean; folder: string };
+
 /** An installed plugin: what it bundles, whether it is on, and whether its hooks are allowed. */
 export type Plugin = {
   name: string;

@@ -1,4 +1,4 @@
-import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
+import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, CliStatus, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -133,6 +133,15 @@ export class AdminService {
 
   revokeHooks(projectId: string, file: string): Promise<HookSet[]> {
     return this.runtime.request<HookSet[]>(`/projects/${encodeURIComponent(projectId)}/hooks/approve`, { method: "DELETE", body: JSON.stringify({ file }) });
+  }
+
+  /** The `saturn` command's launcher in ~/.local/bin: installed, current, and whether that folder is on PATH. */
+  cliStatus(): Promise<CliStatus> {
+    return this.runtime.request<CliStatus>("/cli");
+  }
+
+  installCli(): Promise<CliStatus> {
+    return this.runtime.request<CliStatus>("/cli/install", { method: "POST" });
   }
 
   plugins(): Promise<Plugin[]> {

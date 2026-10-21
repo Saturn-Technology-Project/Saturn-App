@@ -121,6 +121,9 @@ export function App() {
   const [contextOpen, setContextOpen] = useState(false);
   /** The rule files agents follow in the current chat's project (the "§ Rules" chip). */
   const [ruleSources, setRuleSources] = useState<{ path: string; chars: number }[]>([]);
+  /** Whether the runtime's live event stream is up; polling then only backs it up, every 30 s. */
+  const [liveConnected, setLiveConnected] = useState(false);
+  useEffect(() => desktop.live.onStatus(setLiveConnected), []);
   /** The "/" menu: what it offers in this chat, and what follows the slash while it is open. */
   const [slashEntries, setSlashEntries] = useState<SlashEntry[]>(BUILTIN_COMMANDS);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
@@ -457,42 +460,60 @@ export function App() {
       }
     }
     void sync();
-    const timer = window.setInterval(() => void sync(), 2000);
+    const timer = window.setInterval(() => void sync(), liveConnected ? 30_000 : 2000);
+    // Agents, models, projects and the like changed: reload them now.
+    const unsubscribe = desktop.live.onChange((change) => {
+      if (change.other) void sync();
+    });
     return () => {
       stop = true;
       window.clearInterval(timer);
+      unsubscribe();
     };
-  }, []);
+  }, [liveConnected]);
 
   useEffect(() => {
     if (agents.length === 0) return;
     let stop = false;
-    async function syncThreads() {
+    /** The chat lists of `only` (those agents), or of every agent. */
+    async function syncThreads(only?: Set<string>) {
       try {
         const entries = await Promise.all(
-          agents.map(async (a) => {
+          agents.filter((a) => !only || only.has(a.id)).map(async (a) => {
             const list = await desktop.catalog.listThreads(a.id);
             return [a.id, list] as const;
           })
         );
         if (!stop) {
-          const map: Record<string, Conversation[]> = {};
-          for (const [id, list] of entries) {
-            map[id] = list;
-          }
-          setAgentThreads(map);
+          setAgentThreads((current) => {
+            const map: Record<string, Conversation[]> = only ? { ...current } : {};
+            for (const [id, list] of entries) {
+              map[id] = list;
+            }
+            return map;
+          });
         }
       } catch {
         // ignore
       }
     }
     void syncThreads();
-    const timer = window.setInterval(() => void syncThreads(), 3000);
+    const timer = window.setInterval(() => void syncThreads(), liveConnected ? 30_000 : 3000);
+    // A chat was added, renamed or removed (everyone), or a run's status changed (that agent's chats only).
+    const unsubscribe = desktop.live.onChange((change) => {
+      if (change.other) {
+        void syncThreads();
+        return;
+      }
+      const touched = new Set(change.runs.filter((run) => !run.parentRunId).map((run) => run.agentId));
+      if (touched.size) void syncThreads(touched);
+    });
     return () => {
       stop = true;
       window.clearInterval(timer);
+      unsubscribe();
     };
-  }, [agents]);
+  }, [agents, liveConnected]);
 
   // Opening an agent shows its chats once; after that its folder stays as the user left it. (This used to run on
   // every 3-second thread refresh, so collapsing the selected agent was undone moments later.)
@@ -524,12 +545,17 @@ export function App() {
       }
     }
     void pull();
-    const timer = window.setInterval(() => void pull(), 2000);
+    const timer = window.setInterval(() => void pull(), liveConnected ? 30_000 : 2000);
+    // A run of this chat (or of this agent, outside a chat) changed: pull the chat now.
+    const unsubscribe = desktop.live.onChange((change) => {
+      if (change.other || change.runs.some((run) => run.agentId === agentId && (!threadId || run.threadId === threadId))) void pull();
+    });
     return () => {
       stop = true;
       window.clearInterval(timer);
+      unsubscribe();
     };
-  }, [selected, selectedThreadId]);
+  }, [selected, selectedThreadId, liveConnected]);
 
   const agent = agents.find((item) => item.id === selected) ?? null;
   const currentThreadKey = selectedThreadId || (selected ? `agent_${selected}` : "");
@@ -563,6 +589,27 @@ export function App() {
   }
 
   function watch(runId: string, agentId: string, threadKey: string) {
+    // The run's own stream while the runtime offers it: each change arrives as it happens. Polling otherwise.
+    const streamed = new AbortController();
+    let settledOnce = false;
+    void desktop.live.watchRun(runId, (current) => {
+      setThreads((existing) => {
+        const list = existing[threadKey] ?? [];
+        if (!list.some((item) => item.id === runId)) return existing;
+        return { ...existing, [threadKey]: upsertRun(list, current) };
+      });
+      const settled = current.status === "completed" || current.status === "failed" || current.status === "cancelled";
+      if ((settled || current.status === "waiting_approval" || current.status === "sleeping") && !settledOnce) {
+        settledOnce = true;
+        void desktop.catalog.listThreads(agentId).then((list) => setAgentThreads((prev) => ({ ...prev, [agentId]: list })));
+      }
+      if (settled) streamed.abort();
+    }, streamed.signal).then(() => undefined, () => pollRun(runId, agentId, threadKey));
+    // The stream ends by itself only with the run; the chat refresh covers anything later.
+    window.setTimeout(() => streamed.abort(), 60 * 60 * 1000);
+  }
+
+  function pollRun(runId: string, agentId: string, threadKey: string) {
     const timer = window.setInterval(() => {
       void desktop.runs.get(runId)
         .then((current) => {

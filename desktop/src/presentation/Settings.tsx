@@ -3,7 +3,7 @@ import { desktop } from "../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
-import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings } from "../domain/model";
+import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../domain/model";
 import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -250,6 +250,46 @@ export function Settings(props: {
               </>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Settings → General → Command line: install the `saturn` command, which runs this app's own CLI. */
+function CommandLine(props: { onError: (message: string) => void }) {
+  const [status, setStatus] = useState<CliStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void desktop.admin.cliStatus().then(setStatus, () => setStatus(null));
+  }, []);
+  async function install() {
+    setBusy(true);
+    try {
+      setStatus(await desktop.admin.installCli());
+      props.onError("");
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : "Could not install the command");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="settings-section">
+      <div className="settings-section-title">Command Line</div>
+      <div className="settings-card">
+        <div className="settings-card-row">
+          <div className="settings-row-text">
+            <span className="settings-row-label">The saturn command</span>
+            <span className="settings-row-desc">
+              Run agents from a terminal or a script while Saturn is open: <code>saturn run "fix the failing test" --agent Saturn --project .</code>, <code>saturn runs</code>, <code>saturn approve</code>. It uses this app's own runtime, so it never goes out of date.
+              {status?.installed ? (status.current ? ` Installed at ${status.path}.` : ` Installed at ${status.path}, for another copy of Saturn: reinstall to point it here.`) : ""}
+              {status?.installed && !status.onPath ? ` Add ${status.folder} to your PATH to type just "saturn".` : ""}
+            </span>
+          </div>
+          <button type="button" className="btn tiny" disabled={busy || status?.current === true} onClick={() => void install()}>
+            {status?.current ? "Installed" : status?.installed ? "Reinstall" : busy ? "Installing…" : "Install"}
+          </button>
         </div>
       </div>
     </div>
@@ -1247,6 +1287,8 @@ function General(props: {
           </div>
         </div>
       </div>
+
+      <CommandLine onError={props.onError} />
 
       <div className="settings-section">
         <div className="settings-section-title">Sandbox</div>

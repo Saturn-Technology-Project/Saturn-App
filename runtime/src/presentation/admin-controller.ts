@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { AppServices } from "../application/services.js";
 import { param, respond } from "./http.js";
+import { cliStatus, installCli } from "../application/cli-install.js";
 
 export function mountAdmin(app: Express, services: AppServices): void {
   app.get("/health", (_req, res) => {
@@ -13,6 +14,15 @@ export function mountAdmin(app: Express, services: AppServices): void {
 
   app.patch("/settings", (req, res, next) => {
     respond(res, next, () => services.updateSettings(req.body));
+  });
+
+  // The `saturn` command: whether its launcher is installed (and current), and installing it in ~/.local/bin.
+  app.get("/cli", (_req, res, next) => {
+    respond(res, next, () => cliStatus());
+  });
+
+  app.post("/cli/install", (_req, res, next) => {
+    respond(res, next, () => installCli());
   });
 
   // What Saturn remembers across chats: global notes, or one project's. Plain text the user may edit.
