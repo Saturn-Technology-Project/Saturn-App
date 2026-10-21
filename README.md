@@ -40,7 +40,7 @@ Most agent products run the control plane in a vendor cloud, or hand a model an 
 | 🔍 **Review** | Per-turn diffs with inline comments sent back to the agent, editable plans, a summary card per turn, terminal output, and replayable browser recordings. |
 | ↩️ **Checkpoints** | Every file edit is recorded. Keep or revert a turn, or restore the workspace to any individual step. |
 | 👥 **Groups** | Several agents in one conversation; each decides whether it is addressed and delegates with `@mentions`. |
-| 🛠️ **Tools** | Filesystem, shell, web fetch, a headless browser, multi-step planning, macOS computer use, GitHub, automations, and any [MCP](https://modelcontextprotocol.io) server from the built-in marketplace. |
+| 🛠️ **Tools** | Filesystem, shell, web fetch, a headless browser, multi-step planning, computer use on macOS and Windows, GitHub, automations, and any [MCP](https://modelcontextprotocol.io) server from the built-in marketplace. |
 | ⏰ **Automations** | Cron-scheduled agent runs, with templates such as a daily pull request review. |
 | 💸 **Usage and cost** | Token counts and cost at list price, per model and per agent, over any time range. |
 | 📈 **Observability** | OpenTelemetry traces, metrics and logs, an outbound network log, and optional OTLP export to your own collector. |
@@ -50,9 +50,9 @@ Most agent products run the control plane in a vendor cloud, or hand a model an 
 
 Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) for macOS on Apple Silicon, and a setup `.exe` for Windows x64. Releases are pre-releases while Saturn is in preview. Each file ships with a SHA-256 checksum and a signed build provenance attestation ([verify a download](#5-verify-the-release-provenance)).
 
-Builds are not code-signed yet. On macOS, approve the first launch in **System Settings → Privacy & Security → Open Anyway**; on Windows, choose **More info → Run anyway** in SmartScreen. No separate Node.js install is needed: the bundled runtime runs on the app's own Electron binary.
+The macOS app is not signed with an Apple Developer ID yet: approve the first launch in **System Settings → Privacy & Security → Open Anyway**. Windows builds are Authenticode-signed with Saturn's self-signed certificate (SHA-1 thumbprint `D285DA425077C16A3D115D61F9748AFA574BC786`, public half in [`desktop/build/saturn-code-signing.cer`](desktop/build/saturn-code-signing.cer)). Windows does not trust a self-signed publisher, so SmartScreen still asks: choose **More info → Run anyway**. No separate Node.js install is needed: the bundled runtime runs on the app's own Electron binary.
 
-On first launch, onboarding walks through connecting a model, creating an agent and granting a project folder.
+On first launch, onboarding walks through connecting a model, creating an agent and granting a project folder. Claude Code and Codex are not in the installer: Saturn uses your own installation if it finds one, or downloads the official program when you first need it (see [Models](#models)).
 
 ## Build from source
 
@@ -86,7 +86,7 @@ npm run dist:win   # Windows x64 NSIS installer in desktop/release/
 
 The macOS package embeds Saturn IDE, so build the IDE first (below), or set `SATURN_SKIP_IDE=1` to package the agent app alone.
 
-`dist:win` runs on macOS or Windows. It installs the runtime's production dependencies for `win32-x64` into `desktop/.staging/` (Claude Code and Codex ship per-platform native packages) and packages those rather than the host's `runtime/node_modules`.
+`dist:win` runs on macOS or Windows. It installs the runtime's production dependencies for `win32-x64` into `desktop/.staging/` and packages those rather than the host's `runtime/node_modules`. Staging drops the Claude Code and Codex programs (about 530 MB), which Saturn downloads on demand.
 
 Release builds come from the [release workflow](.github/workflows/release.yml): it builds and tests both platforms on GitHub-hosted runners, smoke-tests the IDE, attests the artifacts and publishes the release when a `v*` tag is pushed.
 
@@ -110,7 +110,7 @@ Saturn's editor integration lives in [`Saturn-IDE/extensions/saturn/`](Saturn-ID
 
 ### Platform notes
 
-- **Computer use** drives the screen through macOS accessibility APIs and is macOS-only.
+- **Computer use** runs on macOS (accessibility APIs) and Windows (SendInput and UI Automation); see [Computer use](#computer-use).
 - **Claude Code** on Windows requires [Git for Windows](https://git-scm.com/downloads/win), which provides the Bash it executes commands in.
 - On Windows, the `code` tool and the Terminal panel run commands under `cmd.exe`.
 - The Windows build is CI-tested but has seen little use on real hardware so far.
@@ -163,14 +163,46 @@ Launching Saturn starts the runtime, then opens the default surface: the agent a
 | Provider | Authentication | Notes |
 |---|---|---|
 | Anthropic | API key | Effort levels and adaptive thinking where supported |
-| Claude Code | Claude subscription | Claude Agent SDK. Sign in once with the official `claude` CLI; Saturn never handles the credential. |
-| Codex | ChatGPT subscription | Codex SDK. Device-code sign-in from Settings. |
+| Claude Code | Claude subscription | Claude Agent SDK. Uses your `claude` on the PATH, or downloads the official program from **Settings → General** (about 95 MB). Sign in once with it; Saturn never handles the credential. |
+| Codex | ChatGPT subscription | Codex SDK. Uses your `codex` on the PATH, or downloads the official program from **Settings → General** (about 135 MB). Device-code sign-in from Settings. |
 | OpenAI | API key | Chat Completions and Responses APIs; reasoning effort on reasoning models |
 | Google Gemini | API key | Thinking level (3.x and later) or thinking budget (2.5) |
 | DeepSeek | API key | |
 | LM Studio | None | Any locally served model, fully offline |
 
 API keys are stored encrypted in `~/.saturn-app/secrets.json` (AES-256-GCM, key in the OS key store; see [Data at rest](#data-at-rest)), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider.
+
+### Local models
+
+**Built-in embedding models.** The code index runs its own embedding model on the CPU, so semantic search works with no model connected and no network. Choose it in **Settings → General → Embedding model**:
+
+| Model | Size | Notes |
+|---|---|---|
+| Multilingual E5 small (default) | 118 MB, bundled | Chinese and English questions, 512-token passages |
+| Jina v2 code | 162 MB, downloaded on first use | English questions about code, 2,048-token passages |
+
+You can also use an embedding model served by LM Studio (default `text-embedding-nomic-embed-text-v1.5`) or OpenAI.
+
+**Chat and agent models through LM Studio.** Two settings decide whether a local model works as a Saturn agent:
+
+- **Tool calling.** Agents act through tools, so the model must be trained for function calling (LM Studio marks these models with a tool icon). Models without it answer, but never act.
+- **Context length of 32K or more.** Saturn's system prompt and tool definitions alone exceed LM Studio's default 8K load, which fails with *"tokens to keep … greater than the context length"*. Load the model with a larger context in LM Studio, or:
+
+```bash
+lms load qwen/qwen3.5-4b --context-length 32768
+```
+
+**Tested models.** Each model ran three agent tasks twice through Saturn's own tools (read a file and answer from it; write a script, run it and report its output; fix a bug and verify the fix with a command), and one Tab completion. Results are checked on disk, not taken from the model's reply. Tested on 2026-10-21 on an Apple M1 Pro with 16 GB, LM Studio 0.4.26, 4-bit weights, 32K context:
+
+| Model | Size | Agent tasks | Median task | Tab completion | Use it for |
+|---|---|---|---|---|---|
+| Qwen3.5 4B (`qwen/qwen3.5-4b`) | 3.1 GB | 6/6 | 29 s | correct, 10 s | Agents on 16 GB machines: fastest and smallest |
+| Gemma 4 E4B (`google/gemma-4-e4b`) | 6.9 GB | 6/6 | 48 s | correct, 12 s | Agents |
+| Ministral 3 8B (`mistralai/ministral-3-8b`) | 6.1 GB | 6/6 | 65 s | correct, 1.5 s | Agents, and Tab completion |
+| Qwen3.5 9B (`qwen/qwen3.5-9b`) | 6.0 GB | 6/6 | 71 s | correct, 8 s | Agents |
+| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | n/a | correct, 1 s | Tab completion only: unreliable tool use |
+
+Reasoning models (Qwen3.5, Gemma 4) think before every completion, which is too slow for Tab: pair one of them for agents with Ministral 3 8B or Qwen2.5-Coder 7B as the completion model (**Settings → General → Completion model**). These are small tasks on one machine; larger models (Qwen3.6 27B, Qwen3-Coder 30B and up) need 32 GB or more and were not tested.
 
 ## Security and trust
 
@@ -190,6 +222,7 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 | Outbound request log | `network.log` | JSON Lines: timestamp, method, host, path. Query strings and bodies are never recorded. Rotates at 5 MB. |
 | Memory, code index, checkpoints, attachments | `memory/`, `index/`, `checkpoints/`, `run-images/` | Local files. Embeddings are computed on-device by the bundled model. |
 | API session token | `runtime-token` | Mode `0600`. |
+| Claude Code and Codex programs | `tools/` | Downloaded only when you ask, checked against a sha512 pinned in Saturn before they are unpacked. Removable from Settings. |
 | Saturn IDE telemetry | Ingested by the runtime on `127.0.0.1` | Code-OSS's Microsoft telemetry and crash-reporting endpoints are replaced; nothing is sent to Microsoft. |
 
 ### Egress inventory
@@ -203,6 +236,7 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 | Open VSX and `raw.githubusercontent.com` | Saturn IDE: the extension gallery, plus once at startup | Extension metadata, and Open VSX's extension blocklist. |
 | GitHub (from Saturn IDE) | Only after you sign in to GitHub in the IDE | Git and GitHub extension traffic. |
 | Hugging Face | Only if you select an embedding model that is not bundled | The model download. |
+| `registry.npmjs.org` | Only when you press **Download** for Claude Code or Codex | The official program's npm package, the exact version Saturn's SDKs were built against, verified against a pinned sha512. |
 | Your OpenTelemetry collector | Only if `OTEL_EXPORTER_OTLP_ENDPOINT` is set | Saturn's traces, metrics and logs. |
 
 There is no other egress: no product analytics, no crash reporting, no account and no hosted service.
@@ -242,7 +276,7 @@ It is captured from Node's `diagnostics_channel` hooks for `undici` and `http`/`
 
 #### 3. Run air-gapped
 
-Connect a local model in [LM Studio](https://lmstudio.ai), block Saturn in your firewall, and keep working: agents, Tab completion and the code index all run offline.
+Connect a local model in [LM Studio](https://lmstudio.ai) (one that supports tool calling, loaded with a 32K context; see [Local models](#local-models)), block Saturn in your firewall, and keep working: agents, Tab completion and the code index all run offline.
 
 #### 4. Inspect data at rest
 
@@ -260,6 +294,12 @@ Every release artifact has a SHA-256 checksum and a signed [build provenance att
 ```bash
 shasum -a 256 -c Saturn-<version>-mac-arm64-unsigned.dmg.sha256
 gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
+```
+
+On Windows, the installer's Authenticode signature names Saturn's certificate:
+
+```powershell
+(Get-AuthenticodeSignature .\Saturn-<version>-win-x64-setup.exe).SignerCertificate.Thumbprint   # D285DA425077C16A3D115D61F9748AFA574BC786
 ```
 
 Build logs are public on the [Actions](../../actions/workflows/release.yml) page. Alternatively, [build from source](#build-from-source).
@@ -288,18 +328,30 @@ Build logs are public on the [Actions](../../actions/workflows/release.yml) page
 
 ### Known limitations
 
-Saturn is an early preview and has not had a third-party security audit. Builds are not yet code-signed or notarized. API keys are encrypted at rest, which keeps them out of backups, synced folders, disk images and copied data folders; but any process running as your user can still ask the OS key store for the key, as with every app that keeps credentials in the Keychain or DPAPI. Settings → About shows which key store is in use. An agent granted full autonomy can execute arbitrary commands within its granted folders; that is inherent to the design, so scope grants accordingly. Claude Code, Codex and git run as separate processes and do not appear in the runtime's network log; observe them with OS-level tools.
+Saturn is an early preview and has not had a third-party security audit. macOS builds are not yet Developer ID-signed or notarized, and Windows builds are signed with a self-signed certificate that Windows does not trust. API keys are encrypted at rest, which keeps them out of backups, synced folders, disk images and copied data folders; but any process running as your user can still ask the OS key store for the key, as with every app that keeps credentials in the Keychain or DPAPI. Settings → About shows which key store is in use. An agent granted full autonomy can execute arbitrary commands within its granted folders; that is inherent to the design, so scope grants accordingly. Claude Code, Codex and git run as separate processes and do not appear in the runtime's network log; observe them with OS-level tools.
 
 Report vulnerabilities privately to [security@saturn-core.com](mailto:security@saturn-core.com) rather than in a public issue.
 
-## Computer use (macOS)
+## Computer use
 
-Computer use tools observe the screen through screenshots and act through synthesized mouse and keyboard events and the accessibility API. macOS requires two TCC permissions for **Saturn**, under System Settings → Privacy & Security:
+Computer use tools observe the screen through screenshots and act through synthesized mouse and keyboard events and the platform's element tree: the accessibility API on macOS, UI Automation on Windows.
+
+### macOS
+
+macOS requires two TCC permissions for **Saturn**, under System Settings → Privacy & Security:
 
 - **Accessibility**, to click, type and read the UI tree.
 - **Screen & System Audio Recording**, to capture screenshots.
 
 macOS keys these grants to the app's code signature. Ad-hoc-signed builds present a new identity after every update, so the grants stop applying: if an agent reports a missing permission that is already enabled, remove Saturn with − and add it again. While the screen is locked, agents report it rather than act.
+
+### Windows
+
+Windows asks for no permission. A single helper process (Windows PowerShell running a small compiled C# module) handles every action: SendInput for the mouse, wheel and keys, Unicode input for typing (any language, without touching the clipboard), GDI+ for screenshots, and UI Automation for reading and acting on an app's elements. It is DPI aware, so coordinates match on scaled displays. A chord written the macOS way (`cmd+c`) means Ctrl.
+
+- Windows lets an app control only apps at its own privilege level: an app running as administrator ignores Saturn's input unless Saturn runs as administrator too, and agents say so.
+- Nothing can be seen or clicked while the lock screen or a UAC prompt (the secure desktop) is showing; agents report it rather than act.
+- The [Windows computer use workflow](.github/workflows/computer-use-windows.yml) drives Notepad on a real Windows desktop for every change.
 
 ## Configuration
 
@@ -344,6 +396,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 | `GET` | `/network` | Outbound request log: hosts and recent requests |
 | `GET` | `/telemetry/traces` · `/telemetry/logs` · `/telemetry/metrics` | Local OpenTelemetry data |
 | `POST` | `/complete` · `/complete/stream` | Single model call (IDE Tab completion and inline edits) |
+| `GET` `POST` `DELETE` | `/programs` · `/programs/:id` · `/programs/:id/install` | Claude Code and Codex: installed or not, where from, download, remove |
 
 ## Development
 
@@ -363,7 +416,7 @@ Before opening a pull request:
 
 ## Roadmap
 
-- Developer ID-signed, notarized macOS builds and Authenticode-signed Windows builds
+- Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
 
 ## License
