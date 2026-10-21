@@ -34,7 +34,7 @@ test("cursor tools definitions contain exact tools matching Cursor schemas", () 
   assert.ok(writes.some((t) => t.toolId === "create_pull_request"));
 });
 
-test("computer use skills can check permissions and list apps", { skip: process.platform !== "darwin" && "computer use is macOS only" }, async () => {
+test("computer use skills can check permissions and list apps", { skip: process.platform !== "darwin" && "this test checks the macOS permissions and app list" }, async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "saturn-cu-test-"));
   const perms = (await runComputerUseSkill(dir, "computer_check_permissions", {})) as {
     status: string;
@@ -182,7 +182,7 @@ test("buildSystemPrompt informs model of its capabilities and removes restrictiv
 
   // Confirms capabilities awareness
   assert.ok(prompt.includes("Custom user goal here"));
-  assert.ok(prompt.includes("Computer Use & macOS Desktop Automation"));
+  assert.ok(prompt.includes("Computer Use: Desktop Automation on macOS and Windows"));
   assert.ok(prompt.includes("computer_screenshot"));
   assert.ok(prompt.includes("Origin & Git Repository Tools"));
   assert.ok(prompt.includes("get_repository"));

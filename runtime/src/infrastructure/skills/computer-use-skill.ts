@@ -1,33 +1,12 @@
-import { execFile } from "node:child_process";
-import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
-import { launchEnv } from "../launch-env.js";
-import {
-  PermissionError,
-  SCREEN_LOCKED_HELP,
-  SCREEN_RECORDING_HELP,
-  ACCESSIBILITY_HELP,
-  accessibilityAction,
-  accessibilitySetValue,
-  accessibilityTree,
-  activate,
-  displaySize,
-  explain,
-  key,
-  mouse,
-  permissions,
-  runningApps,
-  screenLocked,
-  scroll,
-  typeText,
-  windowFrame,
-  type AxNode,
-  type MouseButton,
-} from "./macos.js";
+import * as macos from "./macos.js";
+import { PermissionError, type AxNode, type MouseButton } from "./macos.js";
+import * as windows from "./windows.js";
 
-const execFileAsync = promisify(execFile);
+/** The desktop primitives for this platform: macOS (JXA, CoreGraphics, accessibility) or Windows (SendInput, UI Automation). */
+const desktop = process.platform === "win32" ? windows : macos;
+const { ACCESSIBILITY_HELP, SCREEN_LOCKED_HELP, SCREEN_RECORDING_HELP } = desktop;
+const SUPPORTED = process.platform === "darwin" || process.platform === "win32";
 
 /** Every coordinate the model sends or sees is a pixel in this canvas (see the tool definitions in cursor-tools.ts). */
 export const CANVAS = { width: 1280, height: 800 } as const;
@@ -101,9 +80,9 @@ export function axAction(name: string): string {
 type Snapshot = { pid: number; elements: Map<number, number[]>; nextId: number };
 
 /**
- * The computer-use tools on macOS: real screenshots, CoreGraphics mouse input, System Events keys and typing, and the
- * accessibility tree. Every action either happens or throws a reason (a missing permission says what to turn on);
- * nothing reports success it did not have.
+ * The computer-use tools on macOS and Windows: real screenshots, real mouse and keyboard input, and the app's element
+ * tree (macOS accessibility, Windows UI Automation). Every action either happens or throws a reason (a missing
+ * permission says what to turn on); nothing reports success it did not have.
  */
 export class ComputerUseSkill {
   private displayControlled = false;
@@ -115,11 +94,11 @@ export class ComputerUseSkill {
 
   async run(toolId: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
     if (signal?.aborted) throw new Error("Operation aborted");
-    if (process.platform !== "darwin" && toolId !== "computer_wait") {
-      throw new Error("Computer use is available on macOS only for now.");
+    if (!SUPPORTED && toolId !== "computer_wait") {
+      throw new Error("Computer use is available on macOS and Windows.");
     }
     // On the lock screen every screenshot is the wallpaper and every click is lost, so say so instead.
-    if (!PASSIVE_TOOLS.has(toolId) && (await screenLocked())) throw new Error(SCREEN_LOCKED_HELP);
+    if (!PASSIVE_TOOLS.has(toolId) && (await desktop.screenLocked())) throw new Error(SCREEN_LOCKED_HELP);
     switch (toolId) {
       case "computer_check_permissions":
         return this.checkPermissions();
@@ -162,7 +141,7 @@ export class ComputerUseSkill {
 
   private async checkPermissions() {
     const granted = await this.permissions(true);
-    const locked = await screenLocked();
+    const locked = await desktop.screenLocked();
     const canvas = { width: CANVAS.width, height: CANVAS.height };
     const status = !granted.accessibility ? "requires_accessibility_permission" : !granted.screenRecording ? "requires_screen_recording_permission" : "ready";
     return {
@@ -177,7 +156,7 @@ export class ComputerUseSkill {
 
   private async permissions(fresh = false) {
     if (!fresh && this.granted && Date.now() - this.permissionsCheckedAt < PERMISSION_TTL_MS) return this.granted;
-    this.granted = await permissions();
+    this.granted = await desktop.permissions();
     this.permissionsCheckedAt = Date.now();
     return this.granted;
   }
@@ -198,11 +177,11 @@ export class ComputerUseSkill {
   }
 
   private async listApps() {
-    const apps = await runningApps();
+    const apps = await desktop.runningApps();
     return { apps: apps.map((app) => ({ ...app, target_id: `app_${app.pid}` })), count: apps.length };
   }
 
-  /** Finds an app by exactly one selector, launching it in the background (`open -g`) when it is not running. */
+  /** Finds an app by exactly one selector, launching it (in the background on macOS) when it is not running. */
   private async resolveApp(args: Record<string, unknown>) {
     const pid = typeof args.pid === "number" ? args.pid : 0;
     const bundleId = text(args.bundle_id);
@@ -211,22 +190,19 @@ export class ComputerUseSkill {
     if ([pid, bundleId, appPath, appName].filter(Boolean).length !== 1) {
       throw new Error("Give exactly one of pid, bundle_id, app_path or app_name.");
     }
-    const match = (app: { pid: number; bundle_id: string; name: string }) =>
+    const same = (a: string | undefined, b: string) => !!a && a.toLowerCase() === b.toLowerCase();
+    const stem = (file: string) => path.basename(file.replace(/\\/g, "/")).replace(/\.(app|exe)$/i, "");
+    const match = (app: { pid: number; bundle_id: string; name: string; process?: string }) =>
       (pid && app.pid === pid) ||
-      (bundleId && app.bundle_id === bundleId) ||
-      (appName && app.name.toLowerCase() === appName.toLowerCase()) ||
-      (appPath && path.basename(appPath, ".app").toLowerCase() === app.name.toLowerCase());
-    let found = (await runningApps()).find(match);
+      (bundleId && same(app.bundle_id, bundleId)) ||
+      (appName && (same(app.name, appName) || same(app.process, stem(appName)))) ||
+      (appPath && (same(app.bundle_id, appPath) || same(app.name, stem(appPath)) || same(app.process, stem(appPath))));
+    let found = (await desktop.runningApps()).find(match);
     if (!found && !pid) {
-      const how = bundleId ? ["-g", "-b", bundleId] : appPath ? ["-g", appPath] : ["-g", "-a", appName];
-      try {
-        await execFileAsync("open", how, { env: launchEnv(), timeout: 15_000 });
-      } catch (error) {
-        throw new Error(`Could not open ${bundleId || appPath || appName}: ${explain(error).message}`);
-      }
+      await desktop.launchApp({ bundleId, appPath, appName });
       for (let attempt = 0; attempt < 20 && !found; attempt += 1) {
         await sleep(250);
-        found = (await runningApps()).find(match);
+        found = (await desktop.runningApps()).find(match);
       }
     }
     if (!found) throw new Error(`No running app matches ${pid ? `pid ${pid}` : bundleId || appPath || appName}.`);
@@ -246,7 +222,7 @@ export class ComputerUseSkill {
   private async regionFor(args: Record<string, unknown>): Promise<{ region: Region; pid: number | null }> {
     const pid = this.appTarget(args);
     if (pid === null) {
-      const display = await displaySize();
+      const display = await desktop.displaySize();
       return { region: { x: 0, y: 0, ...display }, pid: null };
     }
     const token = text(args.coordinate_token);
@@ -259,12 +235,12 @@ export class ComputerUseSkill {
     const pid = this.appTarget(args);
     let region: Region;
     if (pid === null) {
-      region = { x: 0, y: 0, ...(await displaySize()) };
+      region = { x: 0, y: 0, ...(await desktop.displaySize()) };
     } else {
       await this.requireAccessibility();
-      region = await windowFrame(pid);
+      region = await desktop.windowFrame(pid);
     }
-    const image = await capture(pid === null ? null : region);
+    const image = await desktop.capture(pid === null ? null : region, CANVAS);
     return {
       image,
       width: CANVAS.width,
@@ -281,7 +257,7 @@ export class ComputerUseSkill {
     if (pid !== null) return action;
     await sleep(350);
     try {
-      return { ...action, image: await capture(null), width: CANVAS.width, height: CANVAS.height };
+      return { ...action, image: await desktop.capture(null, CANVAS), width: CANVAS.width, height: CANVAS.height };
     } catch {
       return action;
     }
@@ -290,11 +266,11 @@ export class ComputerUseSkill {
   private async click(args: Record<string, unknown>) {
     await this.requireAccessibility();
     const { region, pid } = await this.regionFor(args);
-    if (pid !== null) await activate(pid);
+    if (pid !== null) await desktop.activate(pid);
     const point = toScreen(region, number(args.x), number(args.y));
     const button = (["left", "right", "middle"].includes(String(args.button)) ? args.button : "left") as MouseButton;
     const count = Math.max(1, Math.min(3, number(args.count ?? args.click_count, 1)));
-    await mouse({ kind: "click", ...point, button, count });
+    await desktop.mouse({ kind: "click", ...point, button, count });
     return this.after({ action: "click", x: number(args.x), y: number(args.y), screen: point, button, count, success: true }, pid);
   }
 
@@ -302,34 +278,34 @@ export class ComputerUseSkill {
     await this.requireAccessibility();
     const { region, pid } = await this.regionFor(args);
     const point = toScreen(region, number(args.x), number(args.y));
-    await mouse({ kind: "move", ...point });
+    await desktop.mouse({ kind: "move", ...point });
     return this.after({ action: "move", x: number(args.x), y: number(args.y), screen: point, success: true }, pid);
   }
 
   private async drag(args: Record<string, unknown>) {
     await this.requireAccessibility();
     const { region, pid } = await this.regionFor(args);
-    if (pid !== null) await activate(pid);
+    if (pid !== null) await desktop.activate(pid);
     const from = (args.from ?? { x: args.start_x, y: args.start_y }) as { x?: unknown; y?: unknown };
     const to = (args.to ?? { x: args.end_x, y: args.end_y }) as { x?: unknown; y?: unknown };
     const start = toScreen(region, number(from.x), number(from.y));
     const end = toScreen(region, number(to.x), number(to.y));
     const button = (["left", "right", "middle"].includes(String(args.button)) ? args.button : "left") as MouseButton;
-    await mouse({ kind: "drag", ...start, to: end, button });
+    await desktop.mouse({ kind: "drag", ...start, to: end, button });
     return this.after({ action: "drag", from: start, to: end, success: true }, pid);
   }
 
   private async scroll(args: Record<string, unknown>) {
     await this.requireAccessibility();
     const { region, pid } = await this.regionFor(args);
-    if (pid !== null) await activate(pid);
+    if (pid !== null) await desktop.activate(pid);
     const point = toScreen(region, number(args.x), number(args.y));
     const amount = Math.max(1, Math.min(50, number(args.amount, 3)));
     const direction = ["up", "down", "left", "right"].includes(String(args.direction)) ? String(args.direction) : "down";
     // Wheel ticks: positive moves content down the page view (wheel up), as macOS scroll events count them.
     const dy = direction === "up" ? amount : direction === "down" ? -amount : 0;
     const dx = direction === "left" ? amount : direction === "right" ? -amount : 0;
-    await scroll(point.x, point.y, dx, dy);
+    await desktop.scroll(point.x, point.y, dx, dy);
     return this.after({ action: "scroll", direction, amount, screen: point, success: true }, pid);
   }
 
@@ -338,8 +314,8 @@ export class ComputerUseSkill {
     const chord = text(args.key);
     if (!chord) throw new Error("No key given");
     const pid = this.appTarget(args);
-    if (pid !== null) await activate(pid);
-    await key(chord);
+    if (pid !== null) await desktop.activate(pid);
+    await desktop.key(chord);
     return this.after({ action: "key", key: chord, success: true }, pid);
   }
 
@@ -349,12 +325,12 @@ export class ComputerUseSkill {
     if (!value) throw new Error("No text given");
     const pid = this.appTarget(args);
     if (pid === null) throw new Error("Screen-scope typing is refused: type into an app target (from computer_apps or computer_resolve_app).");
-    await activate(pid);
+    await desktop.activate(pid);
     if (args.element_id !== undefined) {
       const elementPath = this.element(args, pid);
-      await accessibilitySetValue(pid, elementPath, "", true);
+      await desktop.accessibilitySetValue(pid, elementPath, "", true);
     }
-    await typeText(value);
+    await desktop.typeText(value);
     return { action: "type", length: value.length, success: true };
   }
 
@@ -382,7 +358,7 @@ export class ComputerUseSkill {
     const snapshotId = expanding ? text(args.snapshot_id) : `snap_${Date.now().toString(36)}`;
     const snapshot: Snapshot = expanding ? this.snapshot(snapshotId, pid) : { pid, elements: new Map(), nextId: 1 };
     const root = expanding ? this.element(args, pid) : [];
-    const nodes = (await accessibilityTree(pid, { root, limit: TREE_LIMIT })).map((node) => {
+    const nodes = (await desktop.accessibilityTree(pid, { root, limit: TREE_LIMIT })).map((node) => {
       const id = snapshot.nextId++;
       snapshot.elements.set(id, node.path);
       return { ...node, id };
@@ -412,7 +388,7 @@ export class ComputerUseSkill {
     const pid = this.appTarget(args);
     if (pid === null) throw new Error("computer_set_value needs an app target.");
     const value = typeof args.value === "string" ? args.value : "";
-    await accessibilitySetValue(pid, this.element(args, pid), value);
+    await desktop.accessibilitySetValue(pid, this.element(args, pid), value);
     return { action: "set_value", element_id: args.element_id, length: value.length, success: true };
   }
 
@@ -421,31 +397,8 @@ export class ComputerUseSkill {
     const pid = this.appTarget(args);
     if (pid === null) throw new Error("computer_app_action needs an app target.");
     const action = axAction(text(args.action));
-    await accessibilityAction(pid, this.element(args, pid), action);
+    await desktop.accessibilityAction(pid, this.element(args, pid), action);
     return { action: actionName(action), element_id: args.element_id, success: true };
-  }
-}
-
-/**
- * A screenshot of the display (or of `region`, in points) stretched to the 1280×800 canvas, as a JPEG data URL.
- * Throws instead of returning a blank image when macOS refuses it.
- */
-async function capture(region: Region | null): Promise<string> {
-  const raw = path.join(os.tmpdir(), `saturn-shot-${process.pid}-${Date.now()}.png`);
-  const jpeg = raw.replace(/\.png$/, ".jpg");
-  try {
-    const where = region ? ["-R", `${Math.round(region.x)},${Math.round(region.y)},${Math.round(region.width)},${Math.round(region.height)}`] : ["-m"];
-    await execFileAsync("/usr/sbin/screencapture", ["-x", "-C", "-t", "png", ...where, raw], { env: launchEnv(), timeout: 15_000 });
-    await execFileAsync("/usr/bin/sips", ["-z", String(CANVAS.height), String(CANVAS.width), "-s", "format", "jpeg", "-s", "formatOptions", "70", raw, "--out", jpeg], { env: launchEnv(), timeout: 15_000 });
-    const buffer = await fs.readFile(jpeg);
-    if (buffer.length < 1000) throw new Error("macOS returned an empty screenshot");
-    return `data:image/jpeg;base64,${buffer.toString("base64")}`;
-  } catch (error) {
-    const reason = explain(error);
-    throw reason instanceof PermissionError ? reason : new Error(`Could not take a screenshot: ${reason.message}`);
-  } finally {
-    await fs.rm(raw, { force: true });
-    await fs.rm(jpeg, { force: true });
   }
 }
 

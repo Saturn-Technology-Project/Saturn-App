@@ -1,4 +1,7 @@
 import { execFile } from "node:child_process";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { promisify } from "node:util";
 import { launchEnv } from "../launch-env.js";
 
@@ -204,7 +207,7 @@ export async function typeText(text: string): Promise<void> {
   }`, { text });
 }
 
-export type RunningApp = { name: string; pid: number; bundle_id: string; frontmost: boolean };
+export type RunningApp = { name: string; pid: number; bundle_id: string; frontmost: boolean; process?: string; window_title?: string };
 
 /** Regular running apps (those with a Dock icon), frontmost first. Needs no permission. */
 export async function runningApps(): Promise<RunningApp[]> {
@@ -314,4 +317,37 @@ export async function accessibilitySetValue(pid: number, path: number[], value: 
     if (!p.focusOnly) el.value = p.value;
     return 'null';
   }`, { pid, path, value, focusOnly });
+}
+
+/**
+ * A screenshot of the display (or of `region`, in points) stretched to `canvas`, as a JPEG data URL.
+ * Throws instead of returning a blank image when macOS refuses it.
+ */
+export async function capture(region: { x: number; y: number; width: number; height: number } | null, canvas: { width: number; height: number }): Promise<string> {
+  const raw = path.join(os.tmpdir(), `saturn-shot-${process.pid}-${Date.now()}.png`);
+  const jpeg = raw.replace(/\.png$/, ".jpg");
+  try {
+    const where = region ? ["-R", `${Math.round(region.x)},${Math.round(region.y)},${Math.round(region.width)},${Math.round(region.height)}`] : ["-m"];
+    await execFileAsync("/usr/sbin/screencapture", ["-x", "-C", "-t", "png", ...where, raw], { env: launchEnv(), timeout: 15_000 });
+    await execFileAsync("/usr/bin/sips", ["-z", String(canvas.height), String(canvas.width), "-s", "format", "jpeg", "-s", "formatOptions", "70", raw, "--out", jpeg], { env: launchEnv(), timeout: 15_000 });
+    const buffer = await fs.readFile(jpeg);
+    if (buffer.length < 1000) throw new Error("macOS returned an empty screenshot");
+    return `data:image/jpeg;base64,${buffer.toString("base64")}`;
+  } catch (error) {
+    const reason = explain(error);
+    throw reason instanceof PermissionError ? reason : new Error(`Could not take a screenshot: ${reason.message}`);
+  } finally {
+    await fs.rm(raw, { force: true });
+    await fs.rm(jpeg, { force: true });
+  }
+}
+
+/** Opens an app in the background (`open -g`) by bundle id, .app path or name. */
+export async function launchApp(selector: { bundleId?: string; appPath?: string; appName?: string }): Promise<void> {
+  const how = selector.bundleId ? ["-g", "-b", selector.bundleId] : selector.appPath ? ["-g", selector.appPath] : ["-g", "-a", selector.appName ?? ""];
+  try {
+    await execFileAsync("open", how, { env: launchEnv(), timeout: 15_000 });
+  } catch (error) {
+    throw new Error(`Could not open ${selector.bundleId || selector.appPath || selector.appName}: ${explain(error).message}`);
+  }
 }

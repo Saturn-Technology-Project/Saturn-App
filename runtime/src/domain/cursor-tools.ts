@@ -20,7 +20,7 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
       "type": "object",
       "properties": {
         "target": {
-          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one macOS app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
+          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one desktop app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
           "oneOf": [
             {
               "type": "object",
@@ -75,7 +75,7 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
       "type": "object",
       "properties": {
         "target": {
-          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one macOS app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
+          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one desktop app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
           "oneOf": [
             {
               "type": "object",
@@ -166,7 +166,7 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
       "type": "object",
       "properties": {
         "target": {
-          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one macOS app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
+          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one desktop app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
           "oneOf": [
             {
               "type": "object",
@@ -242,7 +242,7 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
       "type": "object",
       "properties": {
         "target": {
-          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one macOS app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
+          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one desktop app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
           "oneOf": [
             {
               "type": "object",
@@ -350,12 +350,12 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
     "toolId": "computer_type",
     "serverId": "computer-use",
     "category": "write",
-    "description": "Type into a macOS app. Prefer computer_set_value or computer_type with element_id. Without element_id, inserts into the click-selected field via AX, or the focused field. A missed click target is refused. If nothing is focused, click a field first. Does not raise or move the real cursor. Screen-scope typing is refused. The result is text only.",
+    "description": "Type into an app. Prefer computer_set_value or computer_type with element_id. Without element_id, inserts into the click-selected field via AX, or the focused field. A missed click target is refused. If nothing is focused, click a field first. Does not raise or move the real cursor. Screen-scope typing is refused. The result is text only.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "target": {
-          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one macOS app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
+          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one desktop app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
           "oneOf": [
             {
               "type": "object",
@@ -434,7 +434,7 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
       "type": "object",
       "properties": {
         "target": {
-          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one macOS app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
+          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one desktop app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
           "oneOf": [
             {
               "type": "object",
@@ -497,7 +497,7 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
       "type": "object",
       "properties": {
         "target": {
-          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one macOS app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
+          "description": "Default: {\"scope\":\"app\",\"pid\":…,\"target_id\":…} from computer_apps or computer_resolve_app. That drives one desktop app without taking screen control or moving the real cursor (a cursor overlay is still shown), and needs no computer_start_control. Omit (or {\"scope\":\"screen\"}) only to escalate to full-display remote control.",
           "oneOf": [
             {
               "type": "object",
@@ -647,7 +647,7 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
     "toolId": "computer_apps",
     "serverId": "computer-use",
     "category": "write",
-    "description": "List running macOS apps, frontmost first, with the pid and target_id an app target needs. Regular applications only: Spotlight, Notification Center, and menu extras are unsupported. No permission or screen control is required.",
+    "description": "List running desktop apps (macOS or Windows), frontmost first, with the pid and target_id an app target needs. Regular applications with a window only: on macOS, Spotlight, Notification Center and menu extras are unsupported. No permission or screen control is required.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -660,7 +660,7 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
     "toolId": "computer_resolve_app",
     "serverId": "computer-use",
     "category": "write",
-    "description": "Resolve one macOS app by exactly one selector, launching it without activating it if it is not running, and return the pid and target_id for its app target.",
+    "description": "Resolve one desktop app by exactly one selector, launching it if it is not running (in the background on macOS), and return the pid and target_id for its app target.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -670,15 +670,15 @@ export const COMPUTER_USE_TOOLS: ToolRoute[] = [
         },
         "bundle_id": {
           "type": "string",
-          "description": "Bundle identifier, e.g. \"com.apple.calculator\"."
+          "description": "macOS: bundle identifier, e.g. \"com.apple.calculator\". Windows: the executable path that computer_apps reports as bundle_id."
         },
         "app_path": {
           "type": "string",
-          "description": "Path to the .app bundle."
+          "description": "Path to the .app bundle (macOS) or the .exe (Windows)."
         },
         "app_name": {
           "type": "string",
-          "description": "Localized app name, e.g. \"Calculator\"."
+          "description": "App name, e.g. \"Calculator\" on macOS or \"Notepad\" (or a program name the Run dialog knows, such as \"notepad\" or \"calc\") on Windows."
         }
       },
       "oneOf": [

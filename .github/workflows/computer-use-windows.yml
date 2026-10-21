@@ -1,0 +1,40 @@
+name: Computer use (Windows)
+
+# Drives Notepad on a real Windows desktop through Saturn's computer-use tools: screenshots, the UI Automation tree,
+# Unicode typing, shortcuts, clicks and scrolling. Runs on its own (a few minutes), without building Saturn IDE.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "runtime/src/infrastructure/skills/**"
+      - "runtime/test/computer-use-windows.test.ts"
+      - ".github/workflows/computer-use-windows.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: computer-use-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  notepad:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: No line-ending conversion
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Runtime dependencies
+        run: npm ci --prefix runtime
+
+      - name: Drive Notepad
+        working-directory: runtime
+        env:
+          SATURN_TEST_DESKTOP: "1"
+        run: npx tsx --import ./test/setup.ts --test test/computer-use-windows.test.ts

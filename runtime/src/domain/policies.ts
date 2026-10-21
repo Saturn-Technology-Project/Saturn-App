@@ -187,15 +187,15 @@ export function buildSystemPrompt(input: {
 
   if (serverIds.includes("computer-use") || serverIds.includes("cursor-computer-use")) {
     capabilities.push(
-      "### Computer Use & macOS Desktop Automation (Computer Use)\n" +
+      "### Computer Use: Desktop Automation on macOS and Windows\n" +
       "- `computer_screenshot`: Capture full display or app window screenshots to visually inspect UI state.\n" +
-      "- `computer_apps` & `computer_resolve_app`: Inspect running applications and launch any macOS application by name or bundle identifier.\n" +
-      "- `computer_app_state`: Inspect the accessibility UI element tree of an application.\n" +
+      "- `computer_apps` & `computer_resolve_app`: Inspect running applications and launch one by name, bundle identifier (macOS) or executable path (Windows).\n" +
+      "- `computer_app_state`: Inspect an application's UI element tree (macOS accessibility, Windows UI Automation).\n" +
       "- `computer_click`, `computer_move`, `computer_drag`: Simulate mouse clicks, movements, and drag operations.\n" +
       "- `computer_type`, `computer_key`, `computer_scroll`: Send keyboard input, press key combinations/shortcuts, and scroll displays.\n" +
       "- `computer_set_value` & `computer_app_action`: Modify UI field values and trigger button/menu actions.\n" +
       "- `computer_start_control` & `computer_release_control`: Escalation to take over or release display controls.\n" +
-      "- `computer_check_permissions`: Verify Accessibility and Screen Recording permissions."
+      "- `computer_check_permissions`: Verify Accessibility and Screen Recording permissions (macOS; Windows needs none)."
     );
   }
 
