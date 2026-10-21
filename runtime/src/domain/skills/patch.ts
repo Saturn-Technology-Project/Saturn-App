@@ -16,7 +16,7 @@ export class PatchDocument {
     let index = 1;
     while (index < lines.length) {
       const line = lines[index] ?? "";
-      if (line === "*** End Patch") return new PatchDocument(changes);
+      if (line.trim() === "*** End Patch") return new PatchDocument(changes);
       if (line.startsWith("*** Add File: ")) {
         const file = line.slice("*** Add File: ".length).trim();
         index += 1;
@@ -52,7 +52,11 @@ export class PatchDocument {
               index += 1;
               break;
             }
-            if (row.startsWith("+")) next.push(row.slice(1));
+            if (row === "") {
+              // A blank context line whose leading space was dropped (models often do).
+              old.push("");
+              next.push("");
+            } else if (row.startsWith("+")) next.push(row.slice(1));
             else if (row.startsWith("-")) old.push(row.slice(1));
             else if (row.startsWith(" ")) {
               old.push(row.slice(1));
@@ -68,6 +72,8 @@ export class PatchDocument {
       }
       throw new Error(`Unknown patch line: ${line}`);
     }
+    // A patch complete but for its closing line: models often drop it, and nothing is ambiguous without it.
+    if (changes.length) return new PatchDocument(changes);
     throw new Error("Patch must end with *** End Patch");
   }
 

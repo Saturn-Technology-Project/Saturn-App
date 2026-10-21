@@ -1,14 +1,14 @@
 {
   "model": "claude/claude-sonnet-5-5",
-  "at": "2026-10-21T10:16:58.450Z",
+  "at": "2026-10-21T10:33:37.020Z",
   "passRate": 1,
-  "passed": 6,
-  "total": 6,
-  "steps": 40,
-  "inputTokens": 132264,
-  "outputTokens": 6188,
-  "cost": 0.1783,
-  "seconds": 78,
+  "passed": 14,
+  "total": 14,
+  "steps": 107,
+  "inputTokens": 407010,
+  "outputTokens": 25643,
+  "cost": 0.6374,
+  "seconds": 279,
   "results": [
     {
       "task": "add-cli-flag",
@@ -17,10 +17,34 @@
       "checks": true,
       "answer": true,
       "steps": 8,
-      "seconds": 13.1,
-      "inputTokens": 29188,
-      "outputTokens": 1197,
-      "cost": 0.036064
+      "seconds": 14.1,
+      "inputTokens": 28989,
+      "outputTokens": 1090,
+      "cost": 0.0345085
+    },
+    {
+      "task": "concurrency-limit",
+      "passed": true,
+      "status": "completed",
+      "checks": true,
+      "answer": true,
+      "steps": 11,
+      "seconds": 26.2,
+      "inputTokens": 37023,
+      "outputTokens": 2678,
+      "cost": 0.0607587
+    },
+    {
+      "task": "csv-bug-report",
+      "passed": true,
+      "status": "completed",
+      "checks": true,
+      "answer": true,
+      "steps": 11,
+      "seconds": 27.2,
+      "inputTokens": 39055,
+      "outputTokens": 2940,
+      "cost": 0.0673931
     },
     {
       "task": "explain-without-changing",
@@ -29,10 +53,22 @@
       "checks": true,
       "answer": true,
       "steps": 5,
-      "seconds": 13.1,
+      "seconds": 17.1,
       "inputTokens": 17560,
-      "outputTokens": 1302,
-      "cost": 0.0277592
+      "outputTokens": 1295,
+      "cost": 0.0276892
+    },
+    {
+      "task": "find-the-sender",
+      "passed": true,
+      "status": "completed",
+      "checks": true,
+      "answer": true,
+      "steps": 4,
+      "seconds": 13.1,
+      "inputTokens": 25308,
+      "outputTokens": 1090,
+      "cost": 0.035184
     },
     {
       "task": "handle-bad-input",
@@ -41,10 +77,10 @@
       "checks": true,
       "answer": true,
       "steps": 7,
-      "seconds": 12.1,
-      "inputTokens": 24032,
-      "outputTokens": 982,
-      "cost": 0.0307316
+      "seconds": 14.1,
+      "inputTokens": 24033,
+      "outputTokens": 981,
+      "cost": 0.0307145
     },
     {
       "task": "implement-function",
@@ -55,8 +91,8 @@
       "steps": 4,
       "seconds": 9.1,
       "inputTokens": 13402,
-      "outputTokens": 720,
-      "cost": 0.021326199999999997
+      "outputTokens": 734,
+      "cost": 0.0214566
     },
     {
       "task": "off-by-one",
@@ -65,10 +101,22 @@
       "checks": true,
       "answer": true,
       "steps": 9,
-      "seconds": 14.1,
-      "inputTokens": 23051,
-      "outputTokens": 966,
-      "cost": 0.0285607
+      "seconds": 13.1,
+      "inputTokens": 28098,
+      "outputTokens": 899,
+      "cost": 0.030827
+    },
+    {
+      "task": "promise-config",
+      "passed": true,
+      "status": "completed",
+      "checks": true,
+      "answer": true,
+      "steps": 7,
+      "seconds": 33.2,
+      "inputTokens": 33626,
+      "outputTokens": 3445,
+      "cost": 0.069219
     },
     {
       "task": "rename-across-files",
@@ -78,9 +126,57 @@
       "answer": true,
       "steps": 7,
       "seconds": 16.1,
-      "inputTokens": 25031,
-      "outputTokens": 1021,
-      "cost": 0.0338687
+      "inputTokens": 25028,
+      "outputTokens": 1160,
+      "cost": 0.0352416
+    },
+    {
+      "task": "slow-dedupe",
+      "passed": true,
+      "status": "completed",
+      "checks": true,
+      "answer": true,
+      "steps": 6,
+      "seconds": 26.2,
+      "inputTokens": 24284,
+      "outputTokens": 1921,
+      "cost": 0.040895600000000004
+    },
+    {
+      "task": "timezone-header",
+      "passed": true,
+      "status": "completed",
+      "checks": true,
+      "answer": true,
+      "steps": 12,
+      "seconds": 29.2,
+      "inputTokens": 50546,
+      "outputTokens": 2992,
+      "cost": 0.07800779999999999
+    },
+    {
+      "task": "todo-due-dates",
+      "passed": true,
+      "status": "completed",
+      "checks": true,
+      "answer": true,
+      "steps": 4,
+      "seconds": 22.1,
+      "inputTokens": 29175,
+      "outputTokens": 2807,
+      "cost": 0.0609463
+    },
+    {
+      "task": "wrong-layer-bug",
+      "passed": true,
+      "status": "completed",
+      "checks": true,
+      "answer": true,
+      "steps": 12,
+      "seconds": 18.1,
+      "inputTokens": 30883,
+      "outputTokens": 1611,
+      "cost": 0.044561500000000004
     }
   ]
 }
