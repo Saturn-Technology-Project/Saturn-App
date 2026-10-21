@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -111,8 +112,9 @@ test("pre_tool blocks or allows, post_tool adds feedback, stop sends a follow-up
     assert.equal(again?.status, "completed");
     assert.ok(model.seen.some((text) => text.includes("remember the changelog")), "the model saw the feedback");
     let events = (await readFile(log, "utf8")).trim().split("\n");
-    const real = await realpath(folder);
-    assert.ok(events.every((line) => line.endsWith(real)), "hooks run in the project folder");
+    // Compared resolved: on Windows the hook may see the temp folder's short (8.3) name.
+    const real = realpathSync.native(folder);
+    assert.ok(events.every((line) => realpathSync.native(line.split(" ").slice(2).join(" ")) === real), `hooks run in the project folder: ${JSON.stringify(events)}`);
     assert.ok(!events.some((line) => line.startsWith("stop")), "the unapproved stop hook did not run");
 
     // Allowing the exact set: a stale fingerprint is refused, the right one runs it at the next turn's end.

@@ -46,7 +46,9 @@ export function launcherScript(options: {
   if (env.SATURN_RUNTIME_PORT && env.SATURN_RUNTIME_PORT !== DEFAULT_PORT) extra.SATURN_RUNTIME_PORT = env.SATURN_RUNTIME_PORT;
   if (env.SATURN_DATA_DIR) extra.SATURN_DATA_DIR = env.SATURN_DATA_DIR;
   if (electron) extra.ELECTRON_RUN_AS_NODE = "1";
-  const tsx = entry.typescript ? path.resolve(path.dirname(entry.file), "..", "node_modules", "tsx", "dist", "cli.mjs") : "";
+  // The launcher's platform's own path rules, not this machine's: a POSIX path stays POSIX when written on Windows.
+  const paths = platform === "win32" ? path.win32 : path.posix;
+  const tsx = entry.typescript ? paths.join(paths.dirname(entry.file), "..", "node_modules", "tsx", "dist", "cli.mjs") : "";
   if (platform === "win32") {
     const sets = Object.entries(extra).map(([key, value]) => `@set "${key}=${value}"`).join("\r\n");
     const command = entry.typescript ? `@"${exec}" "${tsx}" "${entry.file}" %*` : `@"${exec}" "${entry.file}" %*`;

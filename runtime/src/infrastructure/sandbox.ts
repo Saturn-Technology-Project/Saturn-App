@@ -54,11 +54,12 @@ export function sandboxSupport(platform: NodeJS.Platform = process.platform, env
   return { available: false, reason: "Windows has no sandbox for commands" };
 }
 
-function real(folder: string): string {
+/** The folder with symlinks resolved; a missing one is resolved with the target platform's path rules. */
+function real(folder: string, platform: NodeJS.Platform = process.platform): string {
   try {
     return realpathSync(folder);
   } catch {
-    return path.resolve(folder);
+    return (platform === "win32" ? path.win32 : path.posix).resolve(folder);
   }
 }
 
@@ -66,14 +67,15 @@ function real(folder: string): string {
 function cacheFolders(home: string, platform: NodeJS.Platform): string[] {
   const common = [".npm", ".cache", ".yarn", ".pnpm-store", ".bun", ".cargo/registry", ".cargo/git", ".gradle", ".m2", ".nuget", "go/pkg", ".local/share/pnpm"];
   const extra = platform === "darwin" ? ["Library/Caches"] : [];
-  return [...common, ...extra].map((item) => path.join(home, item));
+  const paths = platform === "win32" ? path.win32 : path.posix;
+  return [...common, ...extra].map((item) => paths.join(home, item));
 }
 
 /** The folders a command may write to under `workspace-write`: the workspace, temp, and the caches. */
 export function writableFolders(root: string, extra: string[] = [], env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): string[] {
   const home = env.HOME || os.homedir();
   const folders = [root, ...extra, os.tmpdir(), "/tmp", "/private/tmp", ...(env.TMPDIR ? [env.TMPDIR] : []), ...cacheFolders(home, platform)];
-  return [...new Set(folders.map(real))];
+  return [...new Set(folders.map((folder) => real(folder, platform)))];
 }
 
 const quote = (value: string) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
