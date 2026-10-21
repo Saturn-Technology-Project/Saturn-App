@@ -1,6 +1,7 @@
 import type { PermissionRule } from "./permissions.js";
 import type { SandboxSettings } from "../infrastructure/sandbox.js";
 import type { Hook } from "../application/hooks.js";
+import type { PluginRecord } from "../application/plugins.js";
 export type AgentStatus = "active" | "paused";
 export type RunStatus =
   | "queued"
@@ -56,6 +57,8 @@ export type McpConnection = {
   auth?: "none" | "oauth" | "token";
   /** Set when installed from Customizations. */
   marketplaceId?: string;
+  /** Set when a plugin brought this server; removed with the plugin, or when it is turned off. */
+  pluginName?: string;
   status?: "connecting" | "signing_in" | "ready" | "error";
   statusDetail?: string;
   /** While signing in: the provider page the browser was sent to. */
@@ -282,6 +285,8 @@ export type AppSettings = {
   hooks?: Hook[];
   /** Claude Code loads the project's own `.claude/settings.json` (its hooks, permissions and settings). Default off. */
   claudeProjectSettings?: boolean;
+  /** Installed plugins (see application/plugins.ts); their files live in ~/.saturn-app/plugins/<name>. */
+  plugins?: PluginRecord[];
   /**
    * What embeds the code index: Saturn's built-in model (default), LM Studio, or an OpenAI-compatible endpoint
    * (the model connection `embeddingConnectionId`). Unset with an `embeddingModel` means LM Studio, as before.

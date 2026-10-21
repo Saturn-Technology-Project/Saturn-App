@@ -48,8 +48,9 @@ export class AdminService {
         // Edited through /permissions, never through this patch.
         permissions: state.settings.permissions,
         sandbox: sandbox === undefined ? state.settings.sandbox : sandbox ?? undefined,
-        // Edited through /hooks, never through this patch.
+        // Edited through /hooks and /plugins, never through this patch.
         hooks: state.settings.hooks,
+        plugins: state.settings.plugins,
         claudeProjectSettings: typeof patch.claudeProjectSettings === "boolean" ? patch.claudeProjectSettings : state.settings.claudeProjectSettings,
         embeddingSource: embeddingSource ?? state.settings.embeddingSource,
         embeddingModel: typeof patch.embeddingModel === "string" ? patch.embeddingModel.trim() || undefined : state.settings.embeddingModel,

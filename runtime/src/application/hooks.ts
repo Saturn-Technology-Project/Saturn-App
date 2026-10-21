@@ -33,7 +33,7 @@ export type Hook = {
   timeoutMs?: number;
 };
 
-export type HookSource = "user" | "project-file" | "claude-file";
+export type HookSource = "user" | "project-file" | "claude-file" | "plugin";
 
 export type HookSet = { source: HookSource; path?: string; hooks: Hook[]; fingerprint?: string; approved: boolean };
 
@@ -137,6 +137,8 @@ export class HookService {
   /** Every hook set that applies in a project (or only the user's, outside one), approved or not. */
   async sets(projectId?: string): Promise<HookSet[]> {
     const sets: HookSet[] = [{ source: "user", hooks: this.kernel.store.state.settings.hooks ?? [], approved: true }];
+    // The plugins that are on: their hooks run once the user allowed that exact set (Settings → Plugins).
+    for (const plugin of await this.kernel.plugins.hookSets()) sets.push({ source: "plugin", path: plugin.name, hooks: plugin.hooks, fingerprint: plugin.fingerprint, approved: plugin.approved });
     const project = projectId ? (this.kernel.store.state.projects ?? []).find((item) => item.id === projectId) : undefined;
     if (!project) return sets;
     const saturn = await readJson(path.join(project.path, HOOKS_FILE));

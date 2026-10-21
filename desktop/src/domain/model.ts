@@ -134,7 +134,23 @@ export type Conversation = {
 /** A hook: a command that runs before or after a tool call, or when a turn ends (see Settings → Hooks). */
 export type HookEvent = "pre_tool" | "post_tool" | "stop";
 export type Hook = { event: HookEvent; matcher?: string; command: string; timeoutMs?: number };
-export type HookSet = { source: "user" | "project-file" | "claude-file"; path?: string; hooks: Hook[]; fingerprint?: string; approved: boolean };
+export type HookSet = { source: "user" | "project-file" | "claude-file" | "plugin"; path?: string; hooks: Hook[]; fingerprint?: string; approved: boolean };
+
+/** An installed plugin: what it bundles, whether it is on, and whether its hooks are allowed. */
+export type Plugin = {
+  name: string;
+  source: string;
+  installedAt: string;
+  enabled: boolean;
+  version?: string;
+  description: string;
+  skills: string[];
+  commands: string[];
+  hooks: Hook[];
+  hooksFingerprint?: string;
+  hooksApproved: boolean;
+  mcpServers: { name: string; id?: string; kind: "command" | "url" }[];
+};
 
 /** A background command an agent started in a chat (code with background: true). */
 export type BackgroundJob = { id: string; scope: string; command: string; pid?: number; startedAt: string; endedAt?: string; exitCode?: number | null; running: boolean; bytes: number };

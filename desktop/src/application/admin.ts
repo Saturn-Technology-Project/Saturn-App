@@ -1,4 +1,4 @@
-import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, Hook, HookSet, PermissionLayer, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
+import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -133,6 +133,26 @@ export class AdminService {
 
   revokeHooks(projectId: string, file: string): Promise<HookSet[]> {
     return this.runtime.request<HookSet[]>(`/projects/${encodeURIComponent(projectId)}/hooks/approve`, { method: "DELETE", body: JSON.stringify({ file }) });
+  }
+
+  plugins(): Promise<Plugin[]> {
+    return this.runtime.request<Plugin[]>("/plugins");
+  }
+
+  installPlugin(source: string): Promise<Plugin> {
+    return this.runtime.request<Plugin>("/plugins", { method: "POST", body: JSON.stringify({ source }) });
+  }
+
+  setPluginEnabled(name: string, enabled: boolean): Promise<Plugin> {
+    return this.runtime.request<Plugin>(`/plugins/${encodeURIComponent(name)}`, { method: "PATCH", body: JSON.stringify({ enabled }) });
+  }
+
+  approvePluginHooks(name: string, fingerprint: string): Promise<Plugin> {
+    return this.runtime.request<Plugin>(`/plugins/${encodeURIComponent(name)}/hooks/approve`, { method: "POST", body: JSON.stringify({ fingerprint }) });
+  }
+
+  removePlugin(name: string): Promise<void> {
+    return this.runtime.request<void>(`/plugins/${encodeURIComponent(name)}`, { method: "DELETE" });
   }
 
   providers(): Promise<LlmProvider[]> {

@@ -39,7 +39,7 @@ export function HooksPage(props: { projects: Project[]; onError: (message: strin
     let active = true;
     void desktop.admin.hooks().then((sets) => { if (active) setUserHooks(sets.find((set) => set.source === "user")?.hooks ?? []); }, (reason) => props.onError(reason instanceof Error ? reason.message : "Could not load hooks"));
     for (const project of props.projects) {
-      void desktop.admin.hooks(project.id).then((sets) => { if (active) setProjectSets((prev) => ({ ...prev, [project.id]: sets.filter((set) => set.source !== "user") })); }, () => undefined);
+      void desktop.admin.hooks(project.id).then((sets) => { if (active) setProjectSets((prev) => ({ ...prev, [project.id]: sets.filter((set) => set.source === "project-file" || set.source === "claude-file") })); }, () => undefined);
     }
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,7 +61,7 @@ export function HooksPage(props: { projects: Project[]; onError: (message: strin
   async function allow(projectId: string, set: HookSet, allowed: boolean) {
     try {
       const sets = allowed ? await desktop.admin.approveHooks(projectId, set.path!, set.fingerprint!) : await desktop.admin.revokeHooks(projectId, set.path!);
-      setProjectSets((prev) => ({ ...prev, [projectId]: sets.filter((item) => item.source !== "user") }));
+      setProjectSets((prev) => ({ ...prev, [projectId]: sets.filter((item) => item.source === "project-file" || item.source === "claude-file") }));
     } catch (reason) {
       props.onError(reason instanceof Error ? reason.message : "Could not change the approval");
     }

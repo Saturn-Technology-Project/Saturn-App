@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { HooksPage } from "./Hooks";
+import { PluginsPage } from "./Plugins";
 import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings } from "../domain/model";
 import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
@@ -20,6 +21,7 @@ export type SettingsPage =
   | "memory"
   | "permissions"
   | "hooks"
+  | "plugins"
   | "shortcuts";
 
 const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
@@ -33,6 +35,7 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
       ["memory", "Memory", "What Saturn remembers across chats"],
       ["permissions", "Permissions", "What agents may do without asking"],
       ["hooks", "Hooks", "Commands around tool calls and turns"],
+      ["plugins", "Plugins", "Bundles of skills, commands, hooks and MCP servers"],
     ],
   },
   {
@@ -207,6 +210,7 @@ export function Settings(props: {
                 {page === "memory" ? <Memory projects={props.projects ?? []} /> : null}
                 {page === "permissions" ? <PermissionsPage projects={props.projects ?? []} agents={props.agents} onError={setError} /> : null}
                 {page === "hooks" ? <HooksPage projects={props.projects ?? []} onError={setError} /> : null}
+                {page === "plugins" ? <PluginsPage onError={setError} /> : null}
                 {page === "mcp" ? (
                   <McpPage
                     agent={props.agent}

@@ -24,17 +24,21 @@ export type AntigravityContext = {
   /** The agent making the call; new automations run on it unless the tool names another. */
   agentId?: string;
   workspaceDir?: string;
+  /** Installed plugins: listed and turned on or off by plugins_list and plugins_toggle. */
+  plugins?: { list(): Promise<unknown[]>; setEnabled(name: string, enabled: boolean): Promise<unknown> };
 };
 
 export class AntigravitySkill {
   private readonly workspaceDir: string;
   private readonly automations?: AutomationPort;
   private readonly agentId?: string;
+  private readonly plugins?: AntigravityContext["plugins"];
 
   constructor(_dataDir: string, context: AntigravityContext = {}) {
     this.workspaceDir = context.workspaceDir || process.cwd();
     this.automations = context.automations;
     this.agentId = context.agentId;
+    this.plugins = context.plugins;
   }
 
   async run(toolId: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
@@ -408,75 +412,51 @@ ${content}
   // --------------------------------------------------------------------------
   // Plugins
   // --------------------------------------------------------------------------
-  private async pluginsList(_args: Record<string, unknown>) {
-    const pluginsDir = path.join(this.workspaceDir, "plugins");
-    const plugins: Array<Record<string, unknown>> = [];
-
-    try {
-      const dirs = await fs.readdir(pluginsDir, { withFileTypes: true });
-      for (const d of dirs) {
-        if (d.isDirectory()) {
-          const manifestFile = path.join(pluginsDir, d.name, "plugin.json");
-          try {
-            const raw = await fs.readFile(manifestFile, "utf8");
-            plugins.push(JSON.parse(raw));
-          } catch {
-            plugins.push({ name: d.name, status: "unconfigured" });
-          }
-        }
-      }
-    } catch {}
-
-    return {
-      total: plugins.length,
-      plugins,
-    };
+  /** The installed plugins (Settings → Plugins), with what each bundles and whether it is on. */
+  private async pluginsList(args: Record<string, unknown>) {
+    if (!this.plugins) throw new Error("Plugins are not available here");
+    const all = (await this.plugins.list()) as { enabled: boolean }[];
+    const plugins = args.includeDisabled === false ? all.filter((plugin) => plugin.enabled) : all;
+    return { total: plugins.length, plugins };
   }
 
+  /**
+   * Packages a plugin folder in the workspace (plugins/<name>): plugin.json, and copies of the named skills from
+   * .agents/skills. The user installs it from Settings → Plugins (or shares the folder).
+   */
   private async pluginsBundle(args: Record<string, unknown>) {
     const name = String(args.name || "custom-plugin").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
-    const manifest = {
-      name,
-      displayName: String(args.displayName || name),
-      description: String(args.description || ""),
-      skills: Array.isArray(args.skills) ? args.skills : [],
-      mcpServers: Array.isArray(args.mcpServers) ? args.mcpServers : [],
-      disabled: false,
-      createdAt: new Date().toISOString(),
-    };
-
+    const manifest = { name, description: String(args.description || args.displayName || ""), version: "0.1.0" };
     const pluginDir = path.join(this.workspaceDir, "plugins", name);
     await fs.mkdir(pluginDir, { recursive: true });
     const targetFile = path.join(pluginDir, "plugin.json");
     await fs.writeFile(targetFile, JSON.stringify(manifest, null, 2), "utf8");
-
+    const copied: string[] = [];
+    for (const skill of Array.isArray(args.skills) ? args.skills.map(String) : []) {
+      if (!/^[a-z0-9][a-z0-9_-]*$/i.test(skill)) continue;
+      const from = path.join(this.workspaceDir, ".agents", "skills", skill);
+      try {
+        await fs.cp(from, path.join(pluginDir, "skills", skill), { recursive: true });
+        copied.push(skill);
+      } catch {
+        // Not a skill of this workspace: skipped.
+      }
+    }
     return {
       success: true,
       plugin: manifest,
-      path: targetFile,
-      message: `Created plugin bundle "${name}" with manifest plugin.json.`,
+      path: pluginDir,
+      skills: copied,
+      message: `Packaged the plugin "${name}" in plugins/${name}${copied.length ? ` with ${copied.length} skill${copied.length === 1 ? "" : "s"}` : ""}. Install it from Settings → Plugins with that folder.`,
     };
   }
 
   private async pluginsToggle(args: Record<string, unknown>) {
+    if (!this.plugins) throw new Error("Plugins are not available here");
     const name = String(args.pluginName || "");
     const enabled = Boolean(args.enabled);
-    const targetFile = path.join(this.workspaceDir, "plugins", name, "plugin.json");
-
-    try {
-      const content = await fs.readFile(targetFile, "utf8");
-      const manifest = JSON.parse(content);
-      manifest.disabled = !enabled;
-      await fs.writeFile(targetFile, JSON.stringify(manifest, null, 2), "utf8");
-      return {
-        success: true,
-        pluginName: name,
-        enabled,
-        message: `Plugin "${name}" is now ${enabled ? "enabled" : "disabled"}.`,
-      };
-    } catch {
-      throw new Error(`Plugin "${name}" manifest not found at ${targetFile}`);
-    }
+    await this.plugins.setEnabled(name, enabled);
+    return { success: true, pluginName: name, enabled, message: `Plugin "${name}" is now ${enabled ? "on" : "off"}.` };
   }
 }
 

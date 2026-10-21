@@ -46,6 +46,7 @@ import { ClientRegistry } from "./clients.js";
 import { PermissionService } from "./permissions.js";
 import { JobTable } from "../infrastructure/jobs.js";
 import { HookService } from "./hooks.js";
+import { PluginService } from "./plugins.js";
 
 /** Shared local runtime state. */
 export class RuntimeKernel {
@@ -72,6 +73,7 @@ export class RuntimeKernel {
   readonly groups: GroupService;
   readonly permissions: PermissionService;
   readonly hooks: HookService;
+  readonly plugins: PluginService;
   /** Background commands agents started (see infrastructure/jobs.ts). */
   readonly jobs = new JobTable();
   readonly clients = new ClientRegistry();
@@ -109,6 +111,7 @@ export class RuntimeKernel {
     this.groups = new GroupService(this);
     this.permissions = new PermissionService(this);
     this.hooks = new HookService(this);
+    this.plugins = new PluginService(this);
   }
 
   health() {

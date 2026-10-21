@@ -7,10 +7,11 @@ import path from "node:path";
  * description; the `skill` tool, or the user's `/name` in the composer, brings in the whole file.
  *
  * Read from the project's `.agents/skills`, `.saturn/skills` and `.claude/skills` (Claude Code's), then the user's
- * `~/.saturn-app/skills`. A name found twice keeps the first, so a project can override a personal skill.
+ * `~/.saturn-app/skills`, then the `skills` of the plugins that are on. A name found twice keeps the first, so a
+ * project can override a personal skill, and a personal skill a plugin's.
  */
 
-export type SkillSource = "project" | "user";
+export type SkillSource = "project" | "user" | "plugin";
 
 export type SkillInfo = { name: string; description: string; path: string; source: SkillSource; folder: string };
 
@@ -71,10 +72,11 @@ async function scan(dir: string, source: SkillSource): Promise<SkillInfo[]> {
 }
 
 /** Every skill available to a chat in `root` (a project folder, or none), the first of each name winning. */
-export async function listSkills(root: string | undefined, userDir: string): Promise<SkillInfo[]> {
+export async function listSkills(root: string | undefined, userDir: string, pluginDirs: string[] = []): Promise<SkillInfo[]> {
   const found: SkillInfo[] = [];
   if (root) for (const dir of PROJECT_SKILL_DIRS) found.push(...(await scan(path.join(root, dir), "project")));
   found.push(...(await scan(userDir, "user")));
+  for (const plugin of pluginDirs) found.push(...(await scan(path.join(plugin, "skills"), "plugin")));
   const seen = new Set<string>();
   return found.filter((skill) => {
     const key = skill.name.toLowerCase();
@@ -85,8 +87,8 @@ export async function listSkills(root: string | undefined, userDir: string): Pro
 }
 
 /** One skill's whole file, with the other files in its folder listed (scripts, templates it refers to). */
-export async function loadSkill(root: string | undefined, userDir: string, name: string): Promise<{ name: string; description: string; path: string; instructions: string; files: string[] } | undefined> {
-  const skill = (await listSkills(root, userDir)).find((item) => item.name.toLowerCase() === name.trim().replace(/^\//, "").toLowerCase());
+export async function loadSkill(root: string | undefined, userDir: string, name: string, pluginDirs: string[] = []): Promise<{ name: string; description: string; path: string; instructions: string; files: string[] } | undefined> {
+  const skill = (await listSkills(root, userDir, pluginDirs)).find((item) => item.name.toLowerCase() === name.trim().replace(/^\//, "").toLowerCase());
   if (!skill) return undefined;
   const parsed = parseSkill(await readFile(skill.path, "utf8"), skill.name);
   let files: string[] = [];
@@ -147,10 +149,11 @@ async function scanCommands(dir: string, source: SkillSource): Promise<CommandIn
   return commands;
 }
 
-export async function listCommands(root: string | undefined, userDir: string): Promise<CommandInfo[]> {
+export async function listCommands(root: string | undefined, userDir: string, pluginDirs: string[] = []): Promise<CommandInfo[]> {
   const found: CommandInfo[] = [];
   if (root) for (const dir of PROJECT_COMMAND_DIRS) found.push(...(await scanCommands(path.join(root, dir), "project")));
   found.push(...(await scanCommands(userDir, "user")));
+  for (const plugin of pluginDirs) found.push(...(await scanCommands(path.join(plugin, "commands"), "plugin")));
   const seen = new Set<string>();
   return found.filter((command) => {
     const key = command.name.toLowerCase();
@@ -161,8 +164,8 @@ export async function listCommands(root: string | undefined, userDir: string): P
 }
 
 /** A command's prompt with `$ARGUMENTS` (or, without it, an appended line) filled in. */
-export async function expandCommand(root: string | undefined, userDir: string, name: string, args: string): Promise<{ name: string; prompt: string } | undefined> {
-  const command = (await listCommands(root, userDir)).find((item) => item.name.toLowerCase() === name.trim().replace(/^\//, "").toLowerCase());
+export async function expandCommand(root: string | undefined, userDir: string, name: string, args: string, pluginDirs: string[] = []): Promise<{ name: string; prompt: string } | undefined> {
+  const command = (await listCommands(root, userDir, pluginDirs)).find((item) => item.name.toLowerCase() === name.trim().replace(/^\//, "").toLowerCase());
   if (!command) return undefined;
   const body = parseSkill(await readFile(command.path, "utf8"), command.name).body;
   const prompt = body.includes("$ARGUMENTS") ? body.split("$ARGUMENTS").join(args) : args ? `${body}\n\n${args}` : body;

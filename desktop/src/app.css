@@ -8273,6 +8273,10 @@ button.trace-row:hover {
 .hook-set-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .hook-set-head .settings-row-label { flex: 1; min-width: 0; }
 .hook-state { font-size: 11.5px; }
+.permission-form > .input.plugin-source { flex: 1 1 260px; width: auto; }
+.plugin-version { font-weight: 400; color: var(--muted); font-size: 12px; }
+.plugin-parts { font-size: 12px; }
+.plugin-hooks { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
 .hook-state.allowed { color: var(--ok, #3fb950); }
 .hook-state.waiting { color: var(--wait, #d29922); }
 

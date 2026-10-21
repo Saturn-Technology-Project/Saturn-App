@@ -737,9 +737,9 @@ export class RunService {
     }
     if (serverId === GENERAL_SKILLS_ID && input.toolId === "skill") {
       const name = typeof input.arguments.name === "string" ? input.arguments.name : "";
-      const loaded = name ? await loadSkill(this.workdirOf(input.runId), this.userSkillsDir(), name) : undefined;
+      const loaded = name ? await loadSkill(this.workdirOf(input.runId), this.userSkillsDir(), name, this.kernel.plugins.enabledFolders()) : undefined;
       if (!loaded) {
-        const known = (await listSkills(this.workdirOf(input.runId), this.userSkillsDir())).map((item) => item.name).join(", ") || "none";
+        const known = (await listSkills(this.workdirOf(input.runId), this.userSkillsDir(), this.kernel.plugins.enabledFolders())).map((item) => item.name).join(", ") || "none";
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `No skill named "${name}". Available: ${known}` };
       }
       return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result: loaded };
@@ -831,6 +831,7 @@ export class RunService {
           automations: this.kernel.automations,
           agentId: input.agentId,
           workspaceDir,
+          plugins: this.kernel.plugins,
         });
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
@@ -1413,7 +1414,7 @@ export class RunService {
         workdir ? `Working directory: ${workdir}\nThis chat belongs to the project in that folder. The files and code tools read, write and run commands there; paths are relative to it.` : "",
         context,
         // Only when the agent has the skill tool (General Skills): names and descriptions, loaded on demand.
-        agent.mcpConnectionIds.includes(GENERAL_SKILLS_ID) ? skillsPrompt(await listSkills(workdir, this.userSkillsDir())) : "",
+        agent.mcpConnectionIds.includes(GENERAL_SKILLS_ID) ? skillsPrompt(await listSkills(workdir, this.userSkillsDir(), this.kernel.plugins.enabledFolders())) : "",
       ].filter(Boolean).join("\n\n"),
       serverIds: agent.mcpConnectionIds,
     });

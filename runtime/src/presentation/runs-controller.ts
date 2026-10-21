@@ -87,7 +87,7 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, async () => {
       const projectId = typeof req.query.projectId === "string" && req.query.projectId ? req.query.projectId : undefined;
       const root = projectId ? services.kernel.projects.workdir(projectId) : undefined;
-      return listSkills(root, services.kernel.runs.userSkillsDir());
+      return listSkills(root, services.kernel.runs.userSkillsDir(), services.kernel.plugins.enabledFolders());
     });
   });
 
@@ -95,7 +95,7 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, async () => {
       const projectId = typeof req.query.projectId === "string" && req.query.projectId ? req.query.projectId : undefined;
       const root = projectId ? services.kernel.projects.workdir(projectId) : undefined;
-      const skill = await loadSkill(root, services.kernel.runs.userSkillsDir(), param(req.params.name));
+      const skill = await loadSkill(root, services.kernel.runs.userSkillsDir(), param(req.params.name), services.kernel.plugins.enabledFolders());
       if (!skill) throw new HttpError(404, "No such skill");
       return skill;
     });
@@ -105,14 +105,14 @@ export function mountRuns(app: Express, services: AppServices): void {
   app.get("/commands", (req, res, next) => {
     respond(res, next, async () => {
       const projectId = typeof req.query.projectId === "string" && req.query.projectId ? req.query.projectId : undefined;
-      return listCommands(projectId ? services.kernel.projects.workdir(projectId) : undefined, services.kernel.runs.userCommandsDir());
+      return listCommands(projectId ? services.kernel.projects.workdir(projectId) : undefined, services.kernel.runs.userCommandsDir(), services.kernel.plugins.enabledFolders());
     });
   });
 
   app.post("/commands/:name/expand", (req, res, next) => {
     respond(res, next, async () => {
       const projectId = typeof req.body?.projectId === "string" && req.body.projectId ? req.body.projectId : undefined;
-      const expanded = await expandCommand(projectId ? services.kernel.projects.workdir(projectId) : undefined, services.kernel.runs.userCommandsDir(), param(req.params.name), String(req.body?.arguments ?? ""));
+      const expanded = await expandCommand(projectId ? services.kernel.projects.workdir(projectId) : undefined, services.kernel.runs.userCommandsDir(), param(req.params.name), String(req.body?.arguments ?? ""), services.kernel.plugins.enabledFolders());
       if (!expanded) throw new HttpError(404, "No such command");
       return expanded;
     });
