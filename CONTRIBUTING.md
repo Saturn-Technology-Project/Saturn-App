@@ -51,6 +51,7 @@ Dependabot opens security updates at once and grouped version updates every Mond
 2. Let CI finish: the supply-chain workflow, the runtime tests and the Windows build.
 3. An SDK bump fails the manifest test until you regenerate it as above.
 4. Electron is not updated by Dependabot: it follows Saturn IDE's version (`Saturn-IDE/.npmrc`, `target`), which moves with upstream Code-OSS.
+5. An advisory that cannot be fixed now (no patch yet, or the fix needs an upstream change) goes into [`docs/known-advisories.md`](docs/known-advisories.md) with the reason and what closes it, and its Dependabot alert is dismissed with a link to that file. Remove the entry in the change that ships the fix. The README links to that file, so it never needs editing for this.
 
 ## Saturn IDE and upstream Code-OSS
 
