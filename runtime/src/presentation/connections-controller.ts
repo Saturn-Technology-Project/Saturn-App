@@ -27,6 +27,11 @@ export function mountConnections(app: Express, services: AppServices): void {
     respond(res, next, () => services.createMcp(req.body), 201);
   });
 
+  // Allows a local MCP server's command to run; the body names the fingerprint the user was shown.
+  app.post("/connections/mcp/:id/approve", (req, res, next) => {
+    respond(res, next, () => services.approveMcp(param(req.params.id), String(req.body?.fingerprint ?? "")));
+  });
+
   app.post("/connections/mcp/:id/discover", (req, res, next) => {
     respond(res, next, () => services.discoverMcp(param(req.params.id)));
   });

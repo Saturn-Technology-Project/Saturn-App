@@ -15,7 +15,10 @@ import type { Agent, McpConnection, ModelConnection, RagConnection, ToolRoute } 
 import { listLmStudioModels } from "../infrastructure/llm.js";
 import { errorText, logger } from "../infrastructure/logger.js";
 import { namespacedTool } from "../domain/marketplace.js";
+import type { McpTarget } from "../infrastructure/mcp.js";
 import type { RuntimeKernel } from "./kernel.js";
+import { CommandNotApproved, commandAddress, commandFingerprint, commandLine, commandView, envSecretKey, parseCommand, serverEnvironment } from "./mcp-command.js";
+import path from "node:path";
 
 /** Host only: MCP and RAG URLs can carry tokens in their path or query. */
 function hostOf(url: string): string {
@@ -112,6 +115,7 @@ export class CatalogService {
   async listConnections(kind: "models" | "mcp" | "rag") {
     if (kind === "mcp") await this.kernel.ensureBuiltins();
     if (kind === "models") return this.kernel.store.state.models.map((model) => this.withKey(model));
+    if (kind === "mcp") return this.kernel.store.state.mcp.map((server) => ({ ...server, ...commandView(server, this.commandEnv(server.id)) }));
     return this.kernel.store.state[kind];
   }
 
@@ -221,8 +225,9 @@ export class CatalogService {
         agent.mcpConnectionIds = agent.mcpConnectionIds.filter((item) => item !== id);
       }
     });
-    // Its session and any saved sign-in (OAuth tokens, client, pasted token) go with it.
+    // Its session (a local server's process) and any saved sign-in or environment go with it.
     await this.kernel.mcp.forget(id);
+    await this.kernel.store.deleteSecret(envSecretKey(id));
     this.kernel.log("catalog", "info", `MCP server ${server.name} (${hostOf(server.url)}) removed and detached from all agents`);
   }
 
@@ -251,10 +256,21 @@ export class CatalogService {
     return { ...model, hasSecret: this.kernel.llm.hasKey(model) };
   }
 
-  async createMcp(input: { name: string; url: string; tools?: { toolId: string; description?: string }[] }) {
+  async createMcp(input: { name: string; url?: string; command?: unknown; tools?: { toolId: string; description?: string }[] }) {
     const id = newId("mcp");
     const tools = (input.tools ?? []).map((tool) => this.kernel.route(id, tool.toolId, tool.description ?? ""));
-    const connection: McpConnection = { id, name: input.name, url: mcpEndpoint(input.url), tools, origin: "local" };
+    if (input.command !== undefined) {
+      // A local server: stored, but it does not start until the user has seen this exact command and allowed it.
+      const { command, env } = parseCommand(input.command);
+      if (Object.keys(env).length) await this.kernel.store.putSecret(envSecretKey(id), JSON.stringify(env));
+      const connection: McpConnection = { id, name: input.name?.trim() || path.basename(command.program), url: commandAddress(command), command, tools, origin: "local" };
+      await this.kernel.store.update((state) => {
+        state.mcp.push(connection);
+      });
+      this.kernel.log("catalog", "info", `Local MCP server ${connection.name} added (${commandLine(command)}); it waits for approval before it starts`);
+      return { ...connection, ...commandView(connection, env) };
+    }
+    const connection: McpConnection = { id, name: input.name, url: mcpEndpoint(input.url ?? ""), tools, origin: "local" };
     await this.kernel.store.update((state) => {
       state.mcp.push(connection);
     });
@@ -262,20 +278,71 @@ export class CatalogService {
     return connection;
   }
 
+  /** A local server's environment variables, from the secrets file. */
+  commandEnv(id: string): Record<string, string> {
+    const saved = this.kernel.store.secret(envSecretKey(id));
+    return saved ? (JSON.parse(saved) as Record<string, string>) : {};
+  }
+
+  /**
+   * Allows a local server's command to run. `fingerprint` is the one Settings showed the user; if the command
+   * changed since, nothing is allowed and the user is asked to look again.
+   */
+  async approveMcp(id: string, fingerprint: string) {
+    const server = this.kernel.store.state.mcp.find((item) => item.id === id);
+    if (!server) throw new HttpError(404, "MCP connection not found");
+    if (!server.command) throw new HttpError(400, "Only local MCP servers need approval");
+    const current = commandFingerprint(server.command, this.commandEnv(id));
+    if (fingerprint !== current) throw new HttpError(409, "The command changed since you looked at it. Review it again before allowing it.");
+    await this.kernel.store.update((state) => {
+      const item = state.mcp.find((entry) => entry.id === id);
+      if (item) item.approvedCommand = current;
+    });
+    this.kernel.log("catalog", "info", `Allowed the local MCP server ${server.name} to run: ${commandLine(server.command)}`);
+    const updated = this.kernel.store.state.mcp.find((item) => item.id === id)!;
+    return { ...updated, ...commandView(updated, this.commandEnv(id)) };
+  }
+
+  /** How to reach a server. A local one must have its current command approved, or this throws CommandNotApproved. */
+  targetFor(server: McpConnection): McpTarget {
+    if (!server.command) return { id: server.id, url: server.url, auth: server.auth ?? "none" };
+    const env = this.commandEnv(server.id);
+    if (server.approvedCommand !== commandFingerprint(server.command, env)) throw new CommandNotApproved(server.name, commandLine(server.command));
+    return {
+      id: server.id,
+      url: server.url,
+      auth: "none",
+      command: { program: server.command.program, args: server.command.args, env: serverEnvironment(env), cwd: path.join(this.kernel.store.root, "workspace") },
+    };
+  }
+
   async updateMcp(
     id: string,
-    patch: { name?: string; url?: string; tools?: { toolId: string; description?: string }[]; disabledTools?: string[] },
+    patch: { name?: string; url?: string; command?: unknown; tools?: { toolId: string; description?: string }[]; disabledTools?: string[] },
   ): Promise<McpConnection> {
     if ((patch.name !== undefined || patch.url !== undefined || patch.tools !== undefined) && id === GENERAL_SKILLS_ID) {
       throw new HttpError(403, "General Skills is built in");
     }
     if (patch.url !== undefined) patch = { ...patch, url: mcpEndpoint(patch.url) };
+    // A new command (or new variables) starts over: the old approval no longer applies and the running server stops.
+    const changedCommand = patch.command !== undefined ? parseCommand(patch.command) : undefined;
+    if (changedCommand) {
+      if (!this.kernel.store.state.mcp.find((item) => item.id === id)?.command) throw new HttpError(400, "This MCP server is reached by its URL; add a local server separately.");
+      if (Object.keys(changedCommand.env).length) await this.kernel.store.putSecret(envSecretKey(id), JSON.stringify(changedCommand.env));
+      else await this.kernel.store.deleteSecret(envSecretKey(id));
+      await this.kernel.mcp.close(id);
+    }
     let updated: McpConnection | undefined;
     await this.kernel.store.update((state) => {
       const current = state.mcp.find((item) => item.id === id);
       if (!current) return;
       if (patch.name !== undefined) current.name = patch.name;
       if (patch.url !== undefined) current.url = patch.url;
+      if (changedCommand) {
+        current.command = changedCommand.command;
+        current.url = commandAddress(changedCommand.command);
+        delete current.approvedCommand;
+      }
       if (patch.disabledTools !== undefined) current.disabledTools = patch.disabledTools;
       if (patch.tools) {
         current.tools = patch.tools.map((tool) => this.kernel.route(id, tool.toolId, tool.description ?? ""));
@@ -286,11 +353,12 @@ export class CatalogService {
     const fields = [
       patch.name !== undefined && "name",
       patch.url !== undefined && "url",
+      changedCommand && "command (approval needed again)",
       patch.tools && "tools",
       patch.disabledTools && "disabledTools",
     ].filter(Boolean);
     this.kernel.log("catalog", "info", `MCP server ${updated.name} updated: ${fields.join(", ") || "nothing"}`);
-    return updated;
+    return { ...updated, ...commandView(updated, this.commandEnv(id)) };
   }
 
   async discoverMcp(id: string) {
@@ -305,7 +373,7 @@ export class CatalogService {
     } else if (id === ANTIGRAVITY_SKILLS_ID) {
       tools = antigravitySkills().tools;
     } else {
-      tools = (await this.kernel.mcp.listTools({ id, url: server.url, auth: server.auth ?? "none" })).map((tool) =>
+      tools = (await this.kernel.mcp.listTools(this.targetFor(server))).map((tool) =>
         server.marketplaceId
           ? { ...tool, serverId: id, toolId: namespacedTool(server.marketplaceId, tool.toolId), remoteName: tool.toolId }
           : { ...tool, serverId: id },

@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
+import { mkdir } from "node:fs/promises";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { UnauthorizedError, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { ToolRoute } from "../domain/model.js";
@@ -17,6 +19,8 @@ export type McpTarget = {
   url: string;
   /** "oauth": sign in through the browser; "token": a bearer token the user pasted; "none": open server. */
   auth?: "none" | "oauth" | "token";
+  /** A local server to start and talk to over stdio (already approved by the user), instead of the URL. */
+  command?: { program: string; args: string[]; env: Record<string, string>; cwd?: string };
 };
 
 export type McpVault = {
@@ -58,7 +62,7 @@ const detectingFetch: typeof fetch = async (input, init) => {
   return response;
 };
 
-type Session = { client: Client; transport: StreamableHTTPClientTransport | SSEClientTransport } | { legacy: true };
+type Session = { client: Client; transport: StreamableHTTPClientTransport | SSEClientTransport | StdioClientTransport } | { legacy: true };
 
 const secretKey = (id: string, part: "client" | "tokens" | "verifier" | "token") => `mcp:${id}:${part}`;
 
@@ -195,6 +199,13 @@ export class McpClient {
     return waiting.target;
   }
 
+  /** Ends a server's session (stopping a local server's process) without touching its credentials. */
+  async close(id: string): Promise<void> {
+    const session = await this.sessions.get(id)?.catch(() => null);
+    if (session && "client" in session) await session.client.close().catch(() => undefined);
+    this.sessions.delete(id);
+  }
+
   /** Drops the session and every stored credential for a server. */
   async forget(id: string): Promise<void> {
     const session = await this.sessions.get(id)?.catch(() => null);
@@ -230,6 +241,7 @@ export class McpClient {
   }
 
   private async open(target: McpTarget): Promise<Session> {
+    if (target.command) return await this.openLocal(target, target.command);
     const url = new URL(target.url);
     const requestInit = this.requestInit(target);
     const oauth = target.auth === "oauth" ? this.oauthFor(target) : undefined;
@@ -271,6 +283,30 @@ export class McpClient {
     return { legacy: true };
   }
 
+  /**
+   * Starts a local server and speaks MCP over its stdin and stdout. Its stderr is kept (the last few KB) so a
+   * server that fails to start says why. The process ends when the session is closed or the runtime exits.
+   */
+  private async openLocal(target: McpTarget, command: NonNullable<McpTarget["command"]>): Promise<Session> {
+    // A missing working folder fails the spawn with a misleading ENOENT for the program itself.
+    if (command.cwd) await mkdir(command.cwd, { recursive: true });
+    const transport = new StdioClientTransport({ command: command.program, args: command.args, env: command.env, cwd: command.cwd, stderr: "pipe" });
+    let stderr = "";
+    transport.stderr?.on("data", (chunk: Buffer) => {
+      stderr = (stderr + chunk.toString("utf8")).slice(-4000);
+    });
+    const client = new Client({ name: "saturn", version: "0.1.0" });
+    try {
+      await client.connect(transport, { timeout: HANDSHAKE_MS * 4 });
+    } catch (error) {
+      await client.close().catch(() => undefined);
+      const detail = stderr.trim().split("\n").slice(-6).join("\n");
+      throw new Error(`Could not start ${command.program}: ${errorText(error)}${detail ? `\n${detail}` : ""}`);
+    }
+    logger.info("mcp", `Started local MCP server ${target.id} (${command.program}, pid ${transport.pid ?? "?"})`);
+    return { client, transport };
+  }
+
   private oauthFor(target: McpTarget): OAuthState {
     const vault = this.options.vault;
     if (!vault) throw new Error("Sign-in needs a secret store");
@@ -303,7 +339,7 @@ export class McpClient {
       try {
         const session = await this.session(target);
         if ("legacy" in session) return await this.send(target.url, method, params, headers, signal);
-        span.setAttribute("saturn.mcp.transport", session.transport instanceof SSEClientTransport ? "sse" : "streamable-http");
+        span.setAttribute("saturn.mcp.transport", session.transport instanceof StdioClientTransport ? "stdio" : session.transport instanceof SSEClientTransport ? "sse" : "streamable-http");
         if (method === "tools/list") return (await session.client.listTools(undefined, { signal })) as Record<string, unknown>;
         return (await session.client.callTool({ name: tool, arguments: params.arguments ?? {} }, undefined, { signal })) as Record<string, unknown>;
       } catch (error) {

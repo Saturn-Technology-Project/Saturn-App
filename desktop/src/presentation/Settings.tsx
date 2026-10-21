@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../application/desktop";
-import { EFFORT_LABELS, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo } from "../domain/model";
+import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo } from "../domain/model";
 import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -331,6 +331,10 @@ function McpPage(props: {
   onError: (message: string) => void;
 }) {
   const [url, setUrl] = useState("");
+  const [kind, setKind] = useState<"url" | "command">("url");
+  const [commandText, setCommandText] = useState("");
+  const [commandName, setCommandName] = useState("");
+  const [envText, setEnvText] = useState("");
   const [ragUrl, setRagUrl] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -356,6 +360,41 @@ function McpPage(props: {
       await props.onChanged();
     } catch (reason) {
       props.onError(reason instanceof Error ? reason.message : "Could not connect MCP");
+    }
+  }
+
+  /** Adds a local server. Nothing runs yet: its card then shows the exact command for the user to allow. */
+  async function addLocal() {
+    try {
+      const [program, ...args] = splitCommandLine(commandText);
+      if (!program) throw new Error("Type the command that starts the server, for example npx -y @modelcontextprotocol/server-filesystem /path/to/folder");
+      const env: Record<string, string> = {};
+      for (const line of envText.split("\n").map((item) => item.trim()).filter(Boolean)) {
+        const at = line.indexOf("=");
+        if (at < 1) throw new Error(`"${line}" is not NAME=value`);
+        env[line.slice(0, at).trim()] = line.slice(at + 1);
+      }
+      const created = await desktop.admin.createLocalMcp({ name: commandName.trim(), program, args, env });
+      setCommandText("");
+      setCommandName("");
+      setEnvText("");
+      setOpen((current) => ({ ...current, [created.id]: true }));
+      props.onError("");
+      await props.onChanged();
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : "Could not add the local MCP server");
+    }
+  }
+
+  async function allow(item: Mcp) {
+    try {
+      await desktop.admin.approveMcp(item.id, item.commandFingerprint ?? "");
+      await desktop.admin.discoverMcp(item.id);
+      props.onError("");
+      await props.onChanged();
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : "Could not start the MCP server");
+      await props.onChanged();
     }
   }
 
@@ -394,7 +433,11 @@ function McpPage(props: {
             <Chevron open={expanded} />
             <span>
               <strong>{item.name}</strong>
-              <span className="hint">{item.tools.length} tools · {builtin ? "Built-in workspace skills" : item.url}</span>
+              <span className="hint">
+                {item.command
+                  ? `${item.approval === "approved" ? `${item.tools.length} tools · ` : ""}Local program · ${item.commandLine ?? item.command.program}`
+                  : `${item.tools.length} tools · ${builtin ? "Built-in workspace skills" : item.url}`}
+              </span>
             </span>
           </button>
           <span className="actions">
@@ -434,6 +477,20 @@ function McpPage(props: {
             ) : null}
           </span>
         </div>
+        {item.command && item.approval !== "approved" ? (
+          <div className="mcp-approval">
+            <p>
+              <strong>This server runs a program on your computer</strong>, with your user account&apos;s permissions. Allow it only if you
+              trust it. It starts with only a minimal environment, not Saturn&apos;s keys.
+            </p>
+            <code className="mcp-command-line">{item.commandLine}</code>
+            {item.command.env?.length ? <p className="hint">Environment variables: {item.command.env.join(", ")} (values hidden)</p> : null}
+            <div className="actions">
+              <button className="btn primary-btn tiny" type="button" onClick={() => void allow(item)}>Allow and Start</button>
+              <button className="btn ghost tiny" type="button" onClick={() => void removeServer(item.id)}>Remove</button>
+            </div>
+          </div>
+        ) : null}
         {expanded ? (
           <div className="tool-chip-grid">
             {item.tools.map((tool) => (
@@ -449,13 +506,36 @@ function McpPage(props: {
     <>
       <section className="card">
         <div className="label">Connect MCP Server</div>
-        <p className="hint">Register a local or HTTP MCP endpoint. Tools will be discovered automatically.</p>
-        <div className="inline-form">
-          <input value={url} placeholder="http://127.0.0.1:3000/mcp" onChange={(event) => setUrl(event.target.value)} />
-          <button className="btn primary-btn" type="button" disabled={!url.trim()} onClick={() => void addMcp()}>
-            Connect MCP
-          </button>
+        <div className="segmented mcp-kind">
+          <button type="button" className={kind === "url" ? "seg-btn active" : "seg-btn"} onClick={() => setKind("url")}>URL</button>
+          <button type="button" className={kind === "command" ? "seg-btn active" : "seg-btn"} onClick={() => setKind("command")}>Local Program</button>
         </div>
+        {kind === "url" ? (
+          <>
+            <p className="hint">An MCP server reached over HTTP(S). Tools are discovered automatically.</p>
+            <div className="inline-form">
+              <input value={url} placeholder="https://mcp.example.com/mcp" onChange={(event) => setUrl(event.target.value)} />
+              <button className="btn primary-btn" type="button" disabled={!url.trim()} onClick={() => void addMcp()}>
+                Connect MCP
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="hint">
+              A server Saturn starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is
+              used, so ~, $VARIABLES and pipes are not expanded: write full paths.
+            </p>
+            <div className="mcp-local-form">
+              <input value={commandName} placeholder="Name (optional)" onChange={(event) => setCommandName(event.target.value)} />
+              <input value={commandText} placeholder="npx -y @modelcontextprotocol/server-filesystem /Users/you/Documents" onChange={(event) => setCommandText(event.target.value)} />
+              <textarea value={envText} rows={2} placeholder={"Environment variables, one per line (optional)\nGITHUB_TOKEN=…"} onChange={(event) => setEnvText(event.target.value)} />
+              <button className="btn primary-btn" type="button" disabled={!commandText.trim()} onClick={() => void addLocal()}>
+                Add Local Server
+              </button>
+            </div>
+          </>
+        )}
       </section>
 
       <div className="section-subtitle">Built in</div>

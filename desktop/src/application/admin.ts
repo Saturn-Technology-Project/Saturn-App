@@ -144,6 +144,16 @@ export class AdminService {
     return this.runtime.request<Mcp>("/connections/mcp", { method: "POST", body: JSON.stringify({ name: "MCP", url }) });
   }
 
+  /** Adds a local (stdio) MCP server. It does not start until approveMcp allows its exact command. */
+  createLocalMcp(input: { name: string; program: string; args: string[]; env: Record<string, string> }): Promise<Mcp> {
+    return this.runtime.request<Mcp>("/connections/mcp", { method: "POST", body: JSON.stringify({ name: input.name, command: { program: input.program, args: input.args, env: input.env } }) });
+  }
+
+  /** Allows a local server to run the command the user was shown (by its fingerprint). */
+  approveMcp(id: string, fingerprint: string): Promise<Mcp> {
+    return this.runtime.request<Mcp>(`/connections/mcp/${id}/approve`, { method: "POST", body: JSON.stringify({ fingerprint }) });
+  }
+
   discoverMcp(id: string): Promise<void> {
     return this.runtime.request(`/connections/mcp/${id}/discover`, { method: "POST" });
   }

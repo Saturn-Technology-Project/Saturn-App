@@ -904,7 +904,7 @@ export class RunService {
     };
     try {
       const remote = server.tools.find((tool) => tool.toolId === input.toolId)?.remoteName ?? input.toolId;
-      const target = { id: server.id, url: server.url, auth: server.auth ?? "none" };
+      const target = this.kernel.catalog.targetFor(server);
       const result = await this.kernel.mcp.call(target, remote, input.arguments, signal, headers);
       return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
     } catch (error) {

@@ -9043,3 +9043,29 @@ button.trace-row:hover {
   background: var(--accent, #6b5cff);
   transition: width 0.4s ease;
 }
+
+/* Local (stdio) MCP servers: the add form and the approval panel (Settings → MCP & Skills). */
+.mcp-kind { margin: 8px 0 4px; }
+.mcp-local-form { display: grid; gap: 8px; margin-top: 8px; }
+.mcp-local-form textarea { resize: vertical; font-family: var(--mono, ui-monospace, Menlo, monospace); font-size: 12px; }
+.mcp-local-form .btn { justify-self: start; }
+.mcp-approval {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #d97706 45%, transparent);
+  background: color-mix(in srgb, #d97706 8%, transparent);
+  display: grid;
+  gap: 8px;
+}
+.mcp-approval p { margin: 0; font-size: 12.5px; line-height: 1.45; }
+.mcp-command-line {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--card, rgba(127, 127, 127, 0.08));
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.mcp-approval .actions { display: flex; gap: 6px; }

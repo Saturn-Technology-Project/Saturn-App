@@ -33,10 +33,17 @@ export type ModelConnection = {
 
 export type McpOrigin = "local";
 
+/** A local MCP server: a program Saturn starts and talks to over stdio. Variable values live in the secrets file. */
+export type McpCommand = { program: string; args: string[]; env?: string[] };
+
 export type McpConnection = {
   id: string;
   name: string;
   url: string;
+  /** Set for a local server Saturn starts itself (stdio); url then only names it. */
+  command?: McpCommand;
+  /** Fingerprint of the command the user allowed to run; the server starts only while it matches. */
+  approvedCommand?: string;
   tools: ToolRoute[];
   origin?: McpOrigin;
   disabledTools?: string[];

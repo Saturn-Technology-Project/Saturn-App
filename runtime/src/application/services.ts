@@ -72,13 +72,17 @@ export class AppServices {
     return await this.kernel.catalog.deleteConnection(kind, id);
   }
 
-  async createMcp(input: { name: string; url: string; tools?: { toolId: string; description?: string }[] }) {
+  async approveMcp(id: string, fingerprint: string) {
+    return await this.kernel.catalog.approveMcp(id, fingerprint);
+  }
+
+  async createMcp(input: { name: string; url?: string; command?: unknown; tools?: { toolId: string; description?: string }[] }) {
     return await this.kernel.catalog.createMcp(input);
   }
 
   async updateMcp(
     id: string,
-    patch: { name?: string; url?: string; tools?: { toolId: string; description?: string }[]; disabledTools?: string[] },
+    patch: { name?: string; url?: string; command?: unknown; tools?: { toolId: string; description?: string }[]; disabledTools?: string[] },
   ): Promise<McpConnection> {
     return await this.kernel.catalog.updateMcp(id, patch);
   }

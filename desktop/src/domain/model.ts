@@ -42,7 +42,56 @@ export function supportsEffort(provider?: string): boolean {
   return provider !== "lmstudio" && provider !== "deepseek";
 }
 export type McpTool = { toolId: string; description?: string; category?: "read" | "write"; inputSchema?: Record<string, unknown> };
-export type Mcp = { id: string; name: string; url: string; origin?: "local"; tools: McpTool[]; disabledTools?: string[] };
+export type Mcp = {
+  id: string;
+  name: string;
+  url: string;
+  origin?: "local";
+  tools: McpTool[];
+  disabledTools?: string[];
+  /** A local server Saturn starts itself (stdio): the program, its arguments and the names of its variables. */
+  command?: { program: string; args: string[]; env?: string[] };
+  /** The command as it reads in a terminal, and the fingerprint the user approves. */
+  commandLine?: string;
+  commandFingerprint?: string;
+  approval?: "approved" | "needed";
+};
+
+/**
+ * Splits a command line the way a shell would, without running one: whitespace separates arguments; single and
+ * double quotes group them; a backslash escapes only a quote or a space (inside double quotes, a quote or a
+ * backslash), so Windows paths like C:\\Program Files\\nodejs keep theirs. Nothing is expanded.
+ */
+export function splitCommandLine(text: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let quote: "'" | '"' | null = null;
+  let started = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i]!;
+    if (quote) {
+      if (char === quote) quote = null;
+      else if (char === "\\" && quote === '"' && (text[i + 1] === '"' || text[i + 1] === "\\")) current += text[++i];
+      else current += char;
+    } else if (char === "'" || char === '"') {
+      quote = char;
+      started = true;
+    } else if (char === "\\" && i + 1 < text.length && /['"\s]/.test(text[i + 1]!)) {
+      current += text[++i];
+      started = true;
+    } else if (/\s/.test(char)) {
+      if (started) parts.push(current);
+      current = "";
+      started = false;
+    } else {
+      current += char;
+      started = true;
+    }
+  }
+  if (quote) throw new Error("The command has an unclosed quote.");
+  if (started) parts.push(current);
+  return parts;
+}
 export type Rag = { id: string; name: string; url: string };
 
 export type Project = {
