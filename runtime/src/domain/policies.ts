@@ -75,7 +75,7 @@ export function isSensitiveOperation(toolId: string, args: Record<string, unknow
 
 /** Tools that only look: they read files, pages, the screen or a repository and change nothing. */
 const READ_ONLY_TOOL_IDS = new Set([
-  "web", "computer_screenshot", "computer_apps", "computer_app_state", "computer_check_permissions", "computer_resolve_app", "computer_wait",
+  "web", "code_output", "computer_screenshot", "computer_apps", "computer_app_state", "computer_check_permissions", "computer_resolve_app", "computer_wait",
   "customizations_list", "plugins_list", "automation_list", "workflows_scan",
 ]);
 /** Names MCP servers commonly give tools that only read (GitHub's get_file_contents, list_commits, pull_request_read…). */
@@ -170,7 +170,7 @@ export function buildSystemPrompt(input: {
     capabilities.push(
       "### Workspace & System Tools (General Skills)\n" +
       "- `files`: Inspect directory trees, read, write, or patch files in the workspace with unified diff hunks.\n" +
-      "- `code`: Execute shell commands, test scripts, and build processes in the workspace, inside a sandbox that writes only there. If a command needs to write elsewhere, call it again with sandbox: \"off\" (the user is asked).\n" +
+      "- `code`: Execute shell commands, test scripts, and build processes in the workspace, inside a sandbox that writes only there. If a command needs to write elsewhere, call it again with sandbox: \"off\" (the user is asked). A server or watcher goes in the background with background: true; read it with `code_output`, end it with `code_stop`.\n" +
       "- `web`: Retrieve and read readable text from public web documentation and resources.\n" +
       "- `multi_step`: Structure and maintain step-by-step task execution plans.\n" +
       "- `mcp`: Invoke additional tools from connected MCP servers."

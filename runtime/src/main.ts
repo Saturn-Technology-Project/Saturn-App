@@ -23,6 +23,7 @@ const stopTelemetry = await startTelemetry(directory);
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
     logger.info("runtime", `Stopping (${signal})`);
+    services.kernel.jobs.stopAll();
     void stopTelemetry().finally(() => process.exit(0));
   });
 }

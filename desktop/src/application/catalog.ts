@@ -1,4 +1,4 @@
-import type { Agent, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run, ContextUsage } from "../domain/model.js";
+import type { Agent, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run, ContextUsage, BackgroundJob } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export type WorkspaceSnapshot = {
@@ -78,6 +78,15 @@ export class CatalogService {
   /** How full the chat's context is for its agent's model (an estimate), and what its summary covers. */
   threadContext(threadId: string): Promise<ContextUsage> {
     return this.runtime.request<ContextUsage>(`/threads/${encodeURIComponent(threadId)}/context`);
+  }
+
+  /** Background commands the chat's agent started, running or recently ended. */
+  threadJobs(threadId: string): Promise<BackgroundJob[]> {
+    return this.runtime.request<BackgroundJob[]>(`/threads/${encodeURIComponent(threadId)}/jobs`);
+  }
+
+  stopJob(threadId: string, jobId: string): Promise<BackgroundJob> {
+    return this.runtime.request<BackgroundJob>(`/threads/${encodeURIComponent(threadId)}/jobs/${encodeURIComponent(jobId)}/stop`, { method: "POST" });
   }
 
   /** "/compact": folds the chat's finished turns into its summary now. */

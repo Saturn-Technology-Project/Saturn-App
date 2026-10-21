@@ -90,9 +90,16 @@ export function generalSkills(): McpConnection {
       skill(
         "code",
         "Run a shell command in the workspace. cwd must stay inside the workspace. timeout is milliseconds, at most 30000. Commands run in a sandbox that can write only inside the workspace (and temp and cache folders); pass sandbox: \"off\" only when a command must write elsewhere or the sandbox blocks it, which asks the user first.",
-        { command: { type: "string" }, cwd: { type: "string" }, timeout: { type: "integer" }, sandbox: { type: "string", enum: ["off"] } },
+        { command: { type: "string" }, cwd: { type: "string" }, timeout: { type: "integer" }, sandbox: { type: "string", enum: ["off"] }, background: { type: "boolean", description: "Start the command and return at once with a jobId (a dev server, a watcher, a long build). Read it with code_output, end it with code_stop; it keeps running after this turn." } },
         ["command"],
       ),
+      skill(
+        "code_output",
+        "The recent output and state of a background command started with code { background: true }. wait is milliseconds to wait for more output or for it to end (at most 30000).",
+        { jobId: { type: "string" }, wait: { type: "integer" } },
+        ["jobId"],
+      ),
+      skill("code_stop", "Stops a background command started with code { background: true }.", { jobId: { type: "string" } }, ["jobId"]),
       skill(
         "mcp",
         "Call a tool on another MCP server that is enabled for this agent.",

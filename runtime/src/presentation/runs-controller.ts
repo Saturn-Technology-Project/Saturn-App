@@ -81,6 +81,19 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.kernel.runs.contextUsage(param(req.params.id)));
   });
 
+  // Background commands the chat's agent started (code with background: true).
+  app.get("/threads/:id/jobs", (req, res, next) => {
+    respond(res, next, () => services.kernel.jobs.list(param(req.params.id)));
+  });
+
+  app.post("/threads/:id/jobs/:jobId/stop", (req, res, next) => {
+    respond(res, next, () => {
+      const job = services.kernel.jobs.get(param(req.params.jobId));
+      if (!job || job.scope !== param(req.params.id)) throw new HttpError(404, "No such background command in this chat");
+      return services.kernel.jobs.stop(job.id);
+    });
+  });
+
   app.post("/threads/:id/compact", (req, res, next) => {
     respond(res, next, () => services.kernel.runs.compactThread(param(req.params.id)));
   });

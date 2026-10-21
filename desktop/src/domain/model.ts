@@ -131,6 +131,9 @@ export type Conversation = {
   updatedAt: string;
 };
 
+/** A background command an agent started in a chat (code with background: true). */
+export type BackgroundJob = { id: string; scope: string; command: string; pid?: number; startedAt: string; endedAt?: string; exitCode?: number | null; running: boolean; bytes: number };
+
 /** How full a chat's context is for its model (an estimate in tokens), and what its summary covers. */
 export type ContextUsage = { usedTokens: number; budgetTokens: number; windowTokens: number; percent: number; turns: number; summary: { turns: number; createdAt: string } | null };
 

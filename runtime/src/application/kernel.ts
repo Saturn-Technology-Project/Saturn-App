@@ -44,6 +44,7 @@ import { CompletionService } from "./completions.js";
 import { GroupService } from "./groups.js";
 import { ClientRegistry } from "./clients.js";
 import { PermissionService } from "./permissions.js";
+import { JobTable } from "../infrastructure/jobs.js";
 
 /** Shared local runtime state. */
 export class RuntimeKernel {
@@ -69,6 +70,8 @@ export class RuntimeKernel {
   readonly completions: CompletionService;
   readonly groups: GroupService;
   readonly permissions: PermissionService;
+  /** Background commands agents started (see infrastructure/jobs.ts). */
+  readonly jobs = new JobTable();
   readonly clients = new ClientRegistry();
   /** Saturn IDE windows that answer editor-tool requests (see ide-bridge.ts). */
   readonly ide = new IdeBridge();

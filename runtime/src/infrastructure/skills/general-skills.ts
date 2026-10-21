@@ -7,7 +7,7 @@ import { FileSkill } from "./file-skill.js";
 import { text } from "./text.js";
 import { WebSkill } from "./web-skill.js";
 
-const DIRECT_SKILLS = ["files", "code", "mcp", "web", "multi_step"];
+const DIRECT_SKILLS = ["files", "code", "code_output", "code_stop", "mcp", "web", "multi_step"];
 
 export type ToolCaller = (toolId: string, args: Record<string, unknown>) => Promise<unknown>;
 
@@ -35,6 +35,8 @@ export class GeneralSkills {
   async run(toolId: string, args: Record<string, unknown>): Promise<unknown> {
     if (toolId === "files") return this.files.run(args);
     if (toolId === "code") return this.code.run(args, this.signal, this.code_options);
+    if (toolId === "code_output") return this.code.output(args, this.code_options);
+    if (toolId === "code_stop") return this.code.stop(args, this.code_options);
     if (toolId === "web") return this.web.run(args, this.signal);
     if (toolId === "multi_step") {
       const plan = TaskPlan.fromArgs(args);

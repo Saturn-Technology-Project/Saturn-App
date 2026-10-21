@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
 import type { WorkspaceFileEntry } from "../application/workspace";
-import type { Run, RunAction } from "../domain/model";
+import type { Run, RunAction, BackgroundJob } from "../domain/model";
 import { RunChangesCard, hasFileChanges } from "./RunChanges";
 
 export type InspectorFeature = "changes" | "browser" | "terminal" | "file";
@@ -95,7 +95,8 @@ export function Inspector(props: {
   );
 
   const browserActions = allActions.filter(({ action }) => action.toolId === "web");
-  const terminalActions = allActions.filter(({ action }) => action.toolId === "code");
+  const terminalActions = allActions.filter(({ action }) => action.toolId === "code" || action.toolId === "code_output" || action.toolId === "code_stop");
+  const threadId = props.runs.find((run) => run.threadId)?.threadId ?? null;
   const fileActions = allActions.filter(
     ({ action }) =>
       action.toolId === "files" &&
@@ -258,6 +259,7 @@ export function Inspector(props: {
             {tab.feature === "terminal" ? (
               <TerminalView
                 items={terminalActions}
+                threadId={threadId}
                 onTitleChange={(title) => updateTabTitle(tab.id, title)}
               />
             ) : null}
@@ -488,8 +490,42 @@ function isLoopbackUrl(url: string): boolean {
 }
 
 /* ─── 3. Real Interactive Terminal View ─── */
+/** The chat's background commands (a dev server, a watcher): what runs, with a Stop button; polled while shown. */
+function BackgroundJobs(props: { threadId: string }) {
+  const [jobs, setJobs] = useState<BackgroundJob[]>([]);
+  useEffect(() => {
+    let stale = false;
+    const load = () => desktop.catalog.threadJobs(props.threadId).then((list) => { if (!stale) setJobs(list); }, () => undefined);
+    void load();
+    const timer = window.setInterval(() => void load(), 3000);
+    return () => {
+      stale = true;
+      window.clearInterval(timer);
+    };
+  }, [props.threadId]);
+  if (!jobs.length) return null;
+  return (
+    <div className="terminal-jobs">
+      <div className="terminal-jobs-title">Background commands</div>
+      {jobs.map((job) => (
+        <div className="terminal-job" key={job.id}>
+          <span className={job.running ? "terminal-job-dot running" : "terminal-job-dot"} aria-hidden="true" />
+          <code className="terminal-job-cmd" title={`${job.id} · started ${new Date(job.startedAt).toLocaleTimeString()}`}>{job.command}</code>
+          <span className="terminal-job-state">{job.running ? "running" : `exit ${job.exitCode ?? "?"}`}</span>
+          {job.running ? (
+            <button type="button" className="btn ghost tiny" onClick={() => void desktop.catalog.stopJob(props.threadId, job.id).then(() => desktop.catalog.threadJobs(props.threadId)).then(setJobs, () => undefined)}>
+              Stop
+            </button>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TerminalView(props: {
   items: { runId: string; prompt: string; action: RunAction }[];
+  threadId?: string | null;
   onTitleChange?: (title: string) => void;
 }) {
   const [cwd, setCwd] = useState<string>("~");
@@ -581,12 +617,17 @@ function TerminalView(props: {
   return (
     <div className="terminal-shell" onClick={() => inputRef.current?.focus()}>
       <div className="terminal-logs">
+        {props.threadId ? <BackgroundJobs threadId={props.threadId} /> : null}
 
-        {/* Agent executed commands */}
+        {/* Agent executed commands, background ones included (started, read with code_output, stopped) */}
         {props.items.map(({ runId, action }, idx) => {
-          const cmd = String(action.arguments?.command ?? "");
-          const res = action.result as { stdout?: string; stderr?: string; exitCode?: number } | undefined;
-          const stdout = res?.stdout ?? (typeof action.result === "string" ? action.result : "");
+          const res = action.result as { stdout?: string; stderr?: string; exitCode?: number; jobId?: string; output?: string; running?: boolean; command?: string; stopped?: boolean } | undefined;
+          const cmd = action.toolId === "code"
+            ? `${String(action.arguments?.command ?? "")}${action.arguments?.background === true ? "  &" : ""}`
+            : action.toolId === "code_output"
+              ? `output of ${res?.command ?? String(action.arguments?.jobId ?? "")}${res && !res.running ? ` (exit ${res.exitCode ?? "?"})` : ""}`
+              : `stop ${res?.command ?? String(action.arguments?.jobId ?? "")}`;
+          const stdout = res?.stdout ?? res?.output ?? (typeof action.result === "string" ? action.result : "");
           const stderr = res?.stderr ?? action.reason ?? "";
 
           return (

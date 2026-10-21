@@ -302,6 +302,7 @@ export class RunService {
     const thread = (this.kernel.store.state.threads ?? []).find((t) => t.id === threadId);
     if (thread?.worktree) await this.kernel.worktrees.finish(threadId, "discard").catch(() => undefined);
     const removed = this.kernel.store.state.runs.filter((r) => r.threadId === threadId).map((r) => r.id);
+    this.kernel.jobs.stopAll(threadId);
     await this.kernel.store.update((state) => {
       state.threads = (state.threads ?? []).filter((t) => t.id !== threadId);
       state.runs = state.runs.filter((r) => r.threadId !== threadId);
@@ -573,6 +574,12 @@ export class RunService {
     });
   }
 
+  /** Background commands belong to the chat, or to the agent outside one, so they outlive the turn. */
+  jobScopeOf(runId: string): string {
+    const run = this.kernel.store.state.runs.find((item) => item.id === runId);
+    return run?.threadId ?? `agent:${run?.agentId ?? "unknown"}`;
+  }
+
   /** The sandbox the run's commands get: the project's setting, else the setting for everywhere, else the default. */
   sandboxOf(runId: string): SandboxSettings {
     const run = this.kernel.store.state.runs.find((item) => item.id === runId);
@@ -642,6 +649,7 @@ export class RunService {
         }, input.signal, workdir, workdir ? withStep(this.kernel.checkpoints.forRun(input.runId, workdir), input.actionId) : undefined, {
           sandbox: this.sandboxOf(input.runId),
           writable: [path.join(this.kernel.store.root, "workspace")],
+          jobs: { table: this.kernel.jobs, scope: this.jobScopeOf(input.runId) },
         });
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
