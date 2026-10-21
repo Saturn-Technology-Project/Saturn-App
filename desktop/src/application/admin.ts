@@ -238,6 +238,16 @@ export class AdminService {
     return this.runtime.request("/computer/permissions");
   }
 
+  /** The private snapshots Saturn keeps of project folders outside git, with their size on disk. */
+  snapshotStorage(): Promise<{ folders: { id: string; folder: string | null; bytes: number }[]; bytes: number }> {
+    return this.runtime.request("/storage/snapshots");
+  }
+
+  /** Deletes one folder's snapshots, or all of them. */
+  deleteSnapshots(id?: string): Promise<{ deleted: boolean }> {
+    return this.runtime.request(id ? `/storage/snapshots/${encodeURIComponent(id)}` : "/storage/snapshots", { method: "DELETE" });
+  }
+
   /** Opens the System Settings pane where the user grants one of those permissions. */
   openPermissionPane(which: "accessibility" | "screenRecording"): Promise<{ ok: boolean }> {
     return this.runtime.request("/computer/permissions/open", { method: "POST", body: JSON.stringify({ which }) });

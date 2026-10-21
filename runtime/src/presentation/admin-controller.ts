@@ -8,6 +8,28 @@ export function mountAdmin(app: Express, services: AppServices): void {
     res.json(services.health());
   });
 
+  // Settings → Storage: the private snapshots Saturn keeps of folders outside git, and deleting them.
+  app.get("/storage/snapshots", (_req, res, next) => {
+    respond(res, next, async () => {
+      const folders = await services.kernel.checkpoints.snapshotFolders();
+      return { folders, bytes: folders.reduce((sum, item) => sum + item.bytes, 0) };
+    });
+  });
+
+  app.delete("/storage/snapshots", (_req, res, next) => {
+    respond(res, next, async () => {
+      await services.kernel.checkpoints.deleteSnapshotFolders();
+      return { deleted: true };
+    });
+  });
+
+  app.delete("/storage/snapshots/:id", (req, res, next) => {
+    respond(res, next, async () => {
+      await services.kernel.checkpoints.deleteSnapshotFolders(param(req.params.id));
+      return { deleted: true };
+    });
+  });
+
   app.get("/settings", (_req, res) => {
     res.json(services.settings());
   });

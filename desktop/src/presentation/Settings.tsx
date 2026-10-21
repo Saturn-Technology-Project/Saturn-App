@@ -1,3 +1,5 @@
+import { SnapshotStorage } from "./SnapshotStorage";
+import { ComputerPermissions } from "./ComputerPermissions";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
@@ -1197,6 +1199,20 @@ function General(props: {
             </div>
             {themeButtons}
           </div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Computer use</div>
+        <div className="settings-card">
+          <ComputerPermissions />
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Storage</div>
+        <div className="settings-card">
+          <SnapshotStorage onError={props.onError} />
         </div>
       </div>
 

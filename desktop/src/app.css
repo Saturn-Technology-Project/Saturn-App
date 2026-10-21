@@ -9077,7 +9077,23 @@ button.trace-row:hover {
 }
 .onboarding-list li strong { grid-area: name; font-size: 13px; }
 .onboarding-list li .hint { grid-area: detail; font-size: 12px; }
-.onboarding-list li .onboarding-ok, .onboarding-list li button { grid-area: action; }
+.onboarding-list li .onboarding-ok, .onboarding-list li button, .onboarding-list li .permission-actions { grid-area: action; }
+.permission-actions { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+/* The same permission rows inside a Settings card: separated by its own row lines. */
+.permission-list { list-style: none; margin: 0; padding: 0; }
+.permission-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name action" "detail action";
+  align-items: center;
+  gap: 2px 12px;
+  padding: 12px 16px;
+}
+.permission-list li + li { border-top: 1px solid var(--line); }
+.snapshot-folder { font-family: var(--mono, ui-monospace, monospace); font-size: 12px; overflow-wrap: anywhere; }
+.permission-list li strong { grid-area: name; font-size: 13px; font-weight: 500; }
+.permission-list li .hint { grid-area: detail; font-size: 12px; }
+.permission-list li .onboarding-ok, .permission-list li .permission-actions { grid-area: action; }
 .onboarding-starters { margin-top: 4px; }
 .onboarding-error { margin: 0; }
 .about-rerun { margin-left: auto; align-self: center; }

@@ -102,6 +102,14 @@ test("outside git, a private snapshot of the folder tracks the same changes, and
     const changes = await services.kernel.checkpoints.changes(id);
     assert.deepEqual(Object.fromEntries(changes.files.map((file) => [file.path, file.status])), { "added.txt": "added", "edited.txt": "modified", "gone.txt": "deleted", "tracked.txt": "modified" }, "build/ is left out by default");
     assert.equal(existsSync(path.join(folder, ".git")), false, "nothing is written into the folder");
+    // Settings → Storage lists the snapshot with its folder and size; deleting it keeps the run revertible.
+    const listed = await services.kernel.checkpoints.snapshotFolders();
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0]!.folder, folder);
+    assert.ok(listed[0]!.bytes > 0);
+    await services.kernel.checkpoints.deleteSnapshotFolders(listed[0]!.id);
+    assert.deepEqual(await services.kernel.checkpoints.snapshotFolders(), []);
+    await assert.rejects(services.kernel.checkpoints.deleteSnapshotFolders("../../etc"), /No such snapshot folder/);
     await services.kernel.checkpoints.revert(id);
     assert.equal(readFileSync(path.join(folder, "tracked.txt"), "utf8"), "v1\n");
     assert.equal(readFileSync(path.join(folder, "edited.txt"), "utf8"), "base\nmine\n");

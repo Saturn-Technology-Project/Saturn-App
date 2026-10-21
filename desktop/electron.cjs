@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Notification, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, Notification, desktopCapturer, dialog, ipcMain, systemPreferences } = require("electron");
 const { ROOT_CONTEXT, SpanStatusCode, propagation } = require("@opentelemetry/api");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
@@ -333,6 +333,21 @@ ipcMain.on("saturn:notify", (event, options) => {
     if (options.threadId) window.webContents.send("saturn:open-thread", { agentId: options.agentId, threadId: options.threadId });
   });
   notification.show();
+});
+
+// macOS permissions for computer use, asked by Saturn itself: macOS then shows its own prompt and lists Saturn in
+// System Settings, so there is nothing to find or add by hand. Accessibility prompts once per launch at most;
+// Screen Recording is asked by a one-pixel capture. Elsewhere there is nothing to grant.
+ipcMain.handle("saturn:request-permission", async (_event, which) => {
+  if (process.platform !== "darwin") return { granted: true };
+  if (which === "accessibility") return { granted: systemPreferences.isTrustedAccessibilityClient(true) };
+  if (which === "screenRecording") {
+    if (systemPreferences.getMediaAccessStatus("screen") !== "granted") {
+      await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: { width: 1, height: 1 } }).catch(() => undefined);
+    }
+    return { granted: systemPreferences.getMediaAccessStatus("screen") === "granted" };
+  }
+  return { granted: false };
 });
 
 // Workspace folders: the native picker, attached to the window that asked.

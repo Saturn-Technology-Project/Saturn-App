@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { HttpError } from "../domain/errors.js";
 import { unifiedDiff } from "../domain/diff.js";
@@ -172,6 +172,31 @@ export class CheckpointService {
     }
   }
 
+  private foldersDir(): string {
+    return path.join(this.kernel.store.root, "checkpoints", "folders");
+  }
+
+  /** The private snapshots of folders outside git: which folder, how much disk each takes. */
+  async snapshotFolders(): Promise<{ id: string; folder: string | null; bytes: number }[]> {
+    const ids = await readdir(this.foldersDir()).catch(() => [] as string[]);
+    const folders = await Promise.all(ids.filter((id) => /^[0-9a-f]{16}$/.test(id)).map(async (id) => {
+      const dir = path.join(this.foldersDir(), id);
+      const folder = (await readBytes(path.join(dir, "saturn-folder")))?.toString("utf8") ?? null;
+      return { id, folder, bytes: await sizeOf(dir) };
+    }));
+    return folders.sort((a, b) => b.bytes - a.bytes);
+  }
+
+  /**
+   * Deletes one folder's private snapshots (or all). Earlier runs keep their own copies, so their changes can
+   * still be reverted; the folder's next command takes a fresh snapshot.
+   */
+  async deleteSnapshotFolders(id?: string): Promise<void> {
+    if (id !== undefined && !/^[0-9a-f]{16}$/.test(id)) throw new HttpError(404, "No such snapshot folder");
+    await rm(id ? path.join(this.foldersDir(), id) : this.foldersDir(), { recursive: true, force: true });
+    this.tooBig.clear();
+  }
+
   /** A private git repository for a folder outside git, in Saturn's data; its index makes repeat snapshots fast. */
   private async shadowSnapshot(root: string): Promise<CommandSnapshot | null> {
     if ((this.tooBig.get(root) ?? 0) > Date.now()) return null;
@@ -182,6 +207,8 @@ export class CheckpointService {
         await git(root, ["--git-dir", gitDir, "init", "-q"]);
         await mkdir(path.join(gitDir, "info"), { recursive: true });
         await writeFile(path.join(gitDir, "info", "exclude"), `${SHADOW_EXCLUDES.join("\n")}\n`);
+        // Which folder this is, for Settings → Storage.
+        await writeFile(path.join(gitDir, "saturn-folder"), root);
       }
       return { kind: "shadow", root, gitDir, tree: await this.shadowTree(root, gitDir) };
     } catch (error) {
@@ -530,4 +557,15 @@ async function readBytes(target: string): Promise<Buffer | null> {
   } catch {
     return null;
   }
+}
+
+/** Bytes a folder takes on disk, its files counted recursively. */
+async function sizeOf(dir: string): Promise<number> {
+  let total = 0;
+  for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) total += await sizeOf(full);
+    else if (entry.isFile()) total += (await stat(full).catch(() => ({ size: 0 }))).size;
+  }
+  return total;
 }

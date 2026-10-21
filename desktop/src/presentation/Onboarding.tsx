@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ComputerPermissions } from "./ComputerPermissions";
 import { desktop } from "../application/desktop";
 import type { Agent, Autonomy, Model, Project } from "../domain/model";
 import { GuardrailSelector } from "./GuardrailSelector";
@@ -259,20 +260,7 @@ export function Onboarding(props: {
                   To click, type and read the screen on your behalf, macOS asks you to allow Saturn two things. Both can wait until
                   you first ask an agent to use an app.
                 </p>
-                <ul className="onboarding-list">
-                  <PermissionRow
-                    label="Accessibility"
-                    detail="Lets agents click, type and read what is on screen."
-                    granted={permissions?.accessibility ?? false}
-                    onOpen={() => void desktop.admin.openPermissionPane("accessibility")}
-                  />
-                  <PermissionRow
-                    label="Screen Recording"
-                    detail="Lets agents take screenshots to see what they are doing."
-                    granted={permissions?.screenRecording ?? false}
-                    onOpen={() => void desktop.admin.openPermissionPane("screenRecording")}
-                  />
-                </ul>
+                <ComputerPermissions compact />
                 <p className="hint">After allowing, macOS may ask you to quit and reopen Saturn.</p>
               </>
             )}
@@ -324,16 +312,3 @@ export function Onboarding(props: {
   );
 }
 
-function PermissionRow(props: { label: string; detail: string; granted: boolean; onOpen: () => void }) {
-  return (
-    <li>
-      <strong>{props.label}</strong>
-      <span className="hint">{props.detail}</span>
-      {props.granted ? (
-        <span className="onboarding-ok">✓ allowed</span>
-      ) : (
-        <button type="button" className="btn ghost tiny" onClick={props.onOpen}>Open System Settings</button>
-      )}
-    </li>
-  );
-}

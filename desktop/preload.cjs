@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("saturnDesktop", {
     ipcRenderer.on("saturn:open-thread", handler);
     return () => ipcRenderer.removeListener("saturn:open-thread", handler);
   },
+  /** Asks macOS for Accessibility or Screen Recording (its own prompt, and Saturn listed in System Settings). */
+  requestPermission: (which) => ipcRenderer.invoke("saturn:request-permission", which),
   /** Whether this window is the one the user is looking at (notifications are skipped then). */
   isFocused: () => ipcRenderer.sendSync("saturn:window-focused") === true,
 });
