@@ -1,0 +1,8 @@
+{
+  "name": "add-cli-flag",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

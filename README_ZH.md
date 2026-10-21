@@ -28,6 +28,30 @@
 - **不綁定模型供應商。** Anthropic、OpenAI、Google、DeepSeek 以你的 API 金鑰呼叫；Claude Code 與 Codex 透過官方 SDK 使用你既有的訂閱方案；或以 LM Studio 執行完全離線的本機模型。
 - **預設最小權限。** Agent 只能存取授權的資料夾，有副作用的操作須經過核准策略，每次修改都有檢查點，可逐步回復。
 
+### Saturn、Claude Code 與 Codex
+
+Saturn 自己的 Agent 迴圈（API 模型與本機模型；使用 Claude Code 或 Codex 的 Agent 則用那兩個程式自己的機制）與兩者的比較。「—」表示本表未查證。
+
+| | Saturn | Claude Code | Codex |
+|---|---|---|---|
+| 在你的電腦上執行，任何供應商或本機模型 | 是：Anthropic、OpenAI、Google、DeepSeek、LM Studio | Anthropic 模型 | OpenAI 模型，可用 `--oss` 跑本機模型 |
+| 權限規則（依樣式允許、詢問、拒絕） | 是，也會讀 `.claude/settings.json` 的規則 | 是 | 核准模式 |
+| 指令的作業系統沙箱 | macOS、Linux（bubblewrap）；Windows 沒有 | 是 | 是 |
+| 上下文壓縮 | 是，含 `/compact` | 是 | 是 |
+| 子 Agent | 是（`delegate`） | 是 | — |
+| 背景指令 | 是 | 是 | — |
+| Hooks | 是（`pre_tool`、`post_tool`、`stop`；可讀 Claude Code 格式） | 是 | — |
+| Skills 與斜線指令 | 是（`SKILL.md`，可讀 `.claude/commands`） | 是 | — |
+| Plugins | 是（Claude Code 的格式可直接安裝） | 是 | — |
+| 無介面 CLI | `saturn run` | `claude -p` | `codex exec` |
+| SDK | 尚未提供：本機 HTTP API 與其事件串流 | Agent SDK | Codex SDK |
+| Pull request 追蹤（修正失敗的檢查） | 是，最多兩輪 | 是，在網頁版 Claude Code | — |
+| 桌面應用程式與 IDE | Agent App、Saturn IDE（Code-OSS） | 桌面應用程式、IDE 擴充套件 | IDE 擴充套件、App |
+| 電腦操作、瀏覽器、多 Agent 群組、排程 | 是 | — | — |
+| 評測 | 任務評測（`scripts/eval`），設定金鑰後每夜執行 | Anthropic 自己的評測 | OpenAI 自己的評測 |
+
+Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它的 Agent 迴圈改動的方法。
+
 ## 功能
 
 | | |
@@ -509,6 +533,14 @@ npm run test:ide    # Saturn IDE 擴充套件檢查
 ```
 
 測試會以暫存資料目錄與假的模型伺服器啟動 Runtime 的 HTTP API，不需要任何憑證，也不會動到你的資料。
+
+**任務評測。** `scripts/eval` 會用真的模型，透過 Saturn 的 Agent 迴圈完整執行小型程式任務，並以 Agent 看不到的測試評分：通過率、步數、token、花費與時間。`node --test scripts/eval/self-test.mjs` 用腳本化的假模型檢查評測工具本身，不花錢；實際執行會花費 token：
+
+```bash
+SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_KEY=… node scripts/eval/run.mjs
+```
+
+[Evals workflow](.github/workflows/evals.yml) 會在 repository 設定 `SATURN_EVAL_API_KEY` secret 以及 `SATURN_EVAL_PROVIDER`、`SATURN_EVAL_MODEL` 變數後每夜執行，通過率比 `scripts/eval/baseline.json` 低 15 個百分點以上時會失敗。
 
 開 pull request 前：
 

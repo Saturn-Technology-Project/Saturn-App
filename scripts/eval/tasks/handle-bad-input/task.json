@@ -1,0 +1,5 @@
+{
+  "prompt": "parseConfig crashes on malformed input. Make it return the defaults merged with whatever valid JSON object it gets, and the defaults alone for anything else (invalid JSON, arrays, null). The tests describe it.",
+  "check": "node --test .eval-check/",
+  "timeoutMs": 300000
+}

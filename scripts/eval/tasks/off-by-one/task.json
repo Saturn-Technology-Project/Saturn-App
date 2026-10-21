@@ -1,0 +1,5 @@
+{
+  "prompt": "The tests fail. Find the bug in the library and fix it; do not change the tests.",
+  "check": "node --test .eval-check/",
+  "timeoutMs": 300000
+}

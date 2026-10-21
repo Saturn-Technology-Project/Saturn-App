@@ -1,0 +1,8 @@
+{
+  "name": "rename-across-files",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

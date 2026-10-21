@@ -28,6 +28,30 @@ Most agent products run the control plane in a vendor cloud, or hand a model an 
 - **Model-agnostic.** Anthropic, OpenAI, Google and DeepSeek over their APIs with your keys; Claude Code and Codex on your existing subscriptions through their official SDKs; or fully offline models served by LM Studio.
 - **Least privilege by default.** Agents are confined to granted folders, side-effecting actions go through an approval policy, and every edit is checkpointed and revertible per step.
 
+### Saturn, Claude Code and Codex
+
+What Saturn's own agent loop does (for API and local models; agents on Claude Code or Codex get those programs' own versions), next to the two programs. "—" means not checked for this table.
+
+| | Saturn | Claude Code | Codex |
+|---|---|---|---|
+| Runs on your machine, any provider or a local model | Yes: Anthropic, OpenAI, Google, DeepSeek, LM Studio | Anthropic models | OpenAI models, local through `--oss` |
+| Permission rules (allow, ask, deny by pattern) | Yes, with `.claude/settings.json` rules read too | Yes | Approval modes |
+| OS sandbox for commands | macOS, Linux (bubblewrap); none on Windows | Yes | Yes |
+| Context compaction | Yes, and `/compact` | Yes | Yes |
+| Sub-agents | Yes (`delegate`) | Yes | — |
+| Background commands | Yes | Yes | — |
+| Hooks | Yes (`pre_tool`, `post_tool`, `stop`; Claude Code's format read) | Yes | — |
+| Skills and slash commands | Yes (`SKILL.md`, `.claude/commands` read) | Yes | — |
+| Plugins | Yes (Claude Code's layout installs as is) | Yes | — |
+| Headless CLI | `saturn run` | `claude -p` | `codex exec` |
+| SDK | Not yet: the local HTTP API and its event streams | Agent SDK | Codex SDK |
+| Pull request follow-up (fix failing checks) | Yes, at most two rounds | Yes, in Claude Code on the web | — |
+| Desktop app and IDE | Agent app, Saturn IDE (Code-OSS) | Desktop app, IDE extensions | IDE extension, app |
+| Computer use, browser, multi-agent groups, schedules | Yes | — | — |
+| Measured | Task evals (`scripts/eval`), nightly when a key is set | Anthropic's evaluations | OpenAI's evaluations |
+
+Saturn is younger than both and has had far less real-world use; the evals are how changes to its loop are checked.
+
 ## Features
 
 | | |
@@ -510,6 +534,14 @@ npm run test:ide    # Saturn IDE extension checks
 ```
 
 Tests boot the runtime's HTTP API against a temporary data directory and fake model servers, so they need no credentials and never touch your data.
+
+**Task evals.** `scripts/eval` runs small coding tasks end to end through Saturn's agent loop with a real model and grades them with tests the agent never sees: pass rate, steps, tokens, cost and time. `node --test scripts/eval/self-test.mjs` checks the harness with a scripted model and costs nothing; a real run spends tokens:
+
+```bash
+SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_KEY=… node scripts/eval/run.mjs
+```
+
+The [Evals workflow](.github/workflows/evals.yml) runs them nightly once the repository has the `SATURN_EVAL_API_KEY` secret and the `SATURN_EVAL_PROVIDER` and `SATURN_EVAL_MODEL` variables, and fails when the pass rate drops more than 15 points under `scripts/eval/baseline.json`.
 
 Before opening a pull request:
 

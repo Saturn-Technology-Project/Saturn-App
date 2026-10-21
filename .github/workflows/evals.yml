@@ -1,0 +1,71 @@
+name: Evals
+
+# Saturn's task evals (scripts/eval): small coding tasks run end to end through Saturn's agent loop with a real
+# model, graded by hidden tests, nightly and on demand. A drop of more than 15 points under the committed baseline
+# fails the run. Each run spends model tokens, so it runs only where the repository has the secret
+# SATURN_EVAL_API_KEY and the variables SATURN_EVAL_PROVIDER and SATURN_EVAL_MODEL (an API provider, never a plan).
+# The harness self-test (a scripted model, no tokens) runs on every change instead.
+
+on:
+  schedule:
+    - cron: "41 4 * * *"
+  workflow_dispatch:
+    inputs:
+      tasks:
+        description: "Comma-separated task names (empty: all)"
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - "scripts/eval/**"
+      - "runtime/**"
+      - ".github/workflows/evals.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: Saturn-IDE/.nvmrc
+      - name: Install the runtime without install scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix runtime
+      - name: Git identity for the task repositories
+        run: git config --global user.name "Saturn CI" && git config --global user.email "ci@saturn.invalid"
+      - name: Harness self-test (scripted model)
+        run: node --test scripts/eval/self-test.mjs
+
+  evals:
+    needs: self-test
+    if: github.event_name != 'push' && vars.SATURN_EVAL_PROVIDER != '' && vars.SATURN_EVAL_MODEL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: Saturn-IDE/.nvmrc
+      - name: Install the runtime without install scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix runtime
+      - name: Git identity for the task repositories
+        run: git config --global user.name "Saturn CI" && git config --global user.email "ci@saturn.invalid"
+      - name: Run the evals
+        env:
+          SATURN_EVAL_PROVIDER: ${{ vars.SATURN_EVAL_PROVIDER }}
+          SATURN_EVAL_MODEL: ${{ vars.SATURN_EVAL_MODEL }}
+          SATURN_EVAL_EFFORT: ${{ vars.SATURN_EVAL_EFFORT }}
+          SATURN_EVAL_API_KEY: ${{ secrets.SATURN_EVAL_API_KEY }}
+          TASKS: ${{ inputs.tasks }}
+        run: node scripts/eval/run.mjs --baseline scripts/eval/baseline.json --out eval-results.json ${TASKS:+--tasks "$TASKS"}
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: eval-results
+          path: eval-results.json
+          if-no-files-found: ignore

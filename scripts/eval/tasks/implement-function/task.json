@@ -1,0 +1,5 @@
+{
+  "prompt": "Implement `slugify` in src/slug.js so the tests in test/slug.test.js pass.",
+  "check": "node --test .eval-check/",
+  "timeoutMs": 300000
+}

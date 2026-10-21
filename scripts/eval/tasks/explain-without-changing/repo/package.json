@@ -1,0 +1,8 @@
+{
+  "name": "explain-without-changing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
