@@ -115,3 +115,23 @@ test("LM Studio sends an agent's tools to its OpenAI-compatible endpoint and rea
     server.close();
   }
 });
+
+test("LM Studio gets strictly alternating turns: same-role turns merged, empty ones dropped, a user turn first", async () => {
+  const { alternating } = await import("../src/infrastructure/llm/lmstudio.js");
+  const result = alternating([
+    { role: "system", content: "rules" },
+    { role: "assistant", content: "earlier summary" },
+    { role: "user", content: "one" },
+    { role: "user", content: "two" },
+    { role: "assistant", content: "" },
+    { role: "assistant", content: "answer" },
+    { role: "assistant", content: "more" },
+  ]);
+  assert.deepEqual(result.map((m) => [m.role, m.content]), [
+    ["system", "rules"],
+    ["user", "(continuing the conversation)"],
+    ["assistant", "earlier summary"],
+    ["user", "one\n\ntwo"],
+    ["assistant", "answer\n\nmore"],
+  ]);
+});

@@ -189,3 +189,38 @@ test("a plain reply finishes the run with one model call, and restarts fail stuc
     server.close();
   }
 });
+
+test("a turn that recovers from a failed tool call and answers is completed; one that ends without an answer failed", async () => {
+  // Each scenario: the model first reads a file that does not exist (the tool fails), then says what it says.
+  for (const [final, expected] of [["The file is missing, so I created it instead.", "completed"], ["", "failed"]] as const) {
+    let calls = 0;
+    const server = createServer((req, res) => {
+      req.resume();
+      req.on("end", () => {
+        calls += 1;
+        res.setHeader("content-type", "application/json");
+        const message = calls === 1
+          ? { content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "files", arguments: JSON.stringify({ action: "read", path: "missing.txt" }) } }] }
+          : { content: final };
+        res.end(JSON.stringify({ choices: [{ message }], usage: { prompt_tokens: 5, completion_tokens: 1 } }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("no port");
+    const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-app-")));
+    await store.load();
+    const { services } = createApp(store);
+    try {
+      const model = await services.createModel({ name: "Local", provider: "openai", model: "m", baseUrl: `http://127.0.0.1:${address.port}` });
+      const agent = await services.createAgent({ name: "Chat", modelConnectionId: model.id, autonomy: "auto" });
+      await services.startRun(agent.id, "read missing.txt");
+      for (let i = 0; i < 150 && store.state.runs[0]?.status === "running"; i += 1) await new Promise((r) => setTimeout(r, 20));
+      const run = store.state.runs[0]!;
+      assert.equal(run.actions[0]?.status, "failed", "the tool call itself failed");
+      assert.equal(run.status, expected, `final reply ${JSON.stringify(final)}`);
+    } finally {
+      server.close();
+    }
+  }
+});

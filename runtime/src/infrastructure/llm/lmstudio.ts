@@ -24,6 +24,29 @@ async function withImages(client: LMStudioClient, messages: ChatMessage[]) {
   }));
 }
 
+/**
+ * The conversation with consecutive turns of the same role merged, and a user turn first after the system prompt:
+ * some models' chat templates (Mistral's, for one) reject anything but strict user/assistant alternation.
+ */
+export function alternating(messages: ChatMessage[]): ChatMessage[] {
+  const out: ChatMessage[] = [];
+  for (const message of messages) {
+    if (message.role !== "system" && !message.content.trim() && !message.images?.length) continue;
+    const last = out[out.length - 1];
+    if (last && last.role === message.role && message.role !== "system") {
+      out[out.length - 1] = {
+        ...last,
+        content: [last.content, message.content].filter((part) => part.trim()).join("\n\n"),
+        ...(last.images?.length || message.images?.length ? { images: [...(last.images ?? []), ...(message.images ?? [])] } : {}),
+      };
+      continue;
+    }
+    if (message.role === "assistant" && (!last || last.role === "system")) out.push({ role: "user", content: "(continuing the conversation)" });
+    out.push(message);
+  }
+  return out;
+}
+
 /** LM Studio's OpenAI-compatible endpoint (http://host:port/v1) for a connection saved as http://host:port. */
 export function openAICompatibleUrl(baseUrl: string): string {
   const url = new URL(baseUrl.replace(/^ws(s?):/, "http$1:"));
@@ -42,7 +65,7 @@ export const lmStudio: ProviderAdapter = {
   completeRaw: lmStudioRaw,
   async complete(request) {
     if (request.tools.length > 0) {
-      return openAIChat.complete({ ...request, baseUrl: openAICompatibleUrl(request.baseUrl), apiKey: request.apiKey || "lm-studio", effort: undefined });
+      return openAIChat.complete({ ...request, messages: alternating(request.messages), baseUrl: openAICompatibleUrl(request.baseUrl), apiKey: request.apiKey || "lm-studio", effort: undefined });
     }
     const client = new LMStudioClient({
       baseUrl: socket(request.baseUrl),

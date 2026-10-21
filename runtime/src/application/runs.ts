@@ -979,9 +979,11 @@ export class RunService {
       if (!current || (current.generation ?? 0) !== generation) return;
       current.actions = actions;
       current.output = cutOff ? [textOf(response).trim(), stepLimitNote()].filter(Boolean).join("\n\n") : textOf(response);
-      current.status = actions.some((item) => item.status === "failed" || (item.status === "denied" && item.reason !== DENIED_BY_USER && !item.reason?.includes("mode only reads")))
-        ? "failed"
-        : "completed";
+      // A failed tool call the agent recovered from (a rejected patch it redid as a write, say) is part of the work:
+      // the turn failed only when something went wrong and the agent ended without an answer.
+      const troubled = actions.some((item) => item.status === "failed" || (item.status === "denied" && item.reason !== DENIED_BY_USER && !item.reason?.includes("mode only reads")));
+      const answered = !cutOff && textOf(response).trim().length > 0;
+      current.status = troubled && !answered ? "failed" : "completed";
       saved = true;
     });
     if (!saved) return;
