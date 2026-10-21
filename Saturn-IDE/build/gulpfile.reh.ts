@@ -31,6 +31,7 @@ import { runEsbuildBundle, getBootstrapEntryPointsForTarget } from './lib/esbuil
 import { fetchUrls } from './lib/fetch.ts';
 import { downloadFeedPackage } from './lib/azureFeed.ts';
 import { ensureCopilotPlatformPackage, getCopilotExcludeFilter, getCopilotRuntimePrebuildFiles, getCopilotTgrepExcludeFilter, getRipgrepExcludeFilter, prepareBuiltInCopilotRipgrepShim } from './lib/copilot.ts';
+import { readAgentSdkResults } from './agent-sdk/common.ts';
 
 
 const rcedit = promisify(rceditCallback);
@@ -330,6 +331,16 @@ function packageTask(type: string, platform: string, arch: string, sourceFolderN
 				json.nlsMetadataHash = computeNLSMetadataHash(path.join(REPO_ROOT, sourceFolderName), commit);
 				json.date = readISODate(sourceFolderName);
 				json.version = version;
+				// Stamp agentSdks from the per-platform results file produced
+				// by `build/agent-sdk/produce.ts`. REH-only: REH-web is
+				// browser-served and the agent host is node-only, so the
+				// SDK config has no consumer there.
+				if (type === 'reh') {
+					const agentSdks = readAgentSdkResults();
+					if (Object.keys(agentSdks).length > 0) {
+						json.agentSdks = agentSdks;
+					}
+				}
 				return json;
 			}))
 			.pipe(es.through(function (file) {
