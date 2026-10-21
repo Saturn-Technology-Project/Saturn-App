@@ -50,7 +50,7 @@ test("the SDK starts runs, follows their steps, answers approvals, and refuses p
     assert.equal(done.output, "wrote it");
     assert.deepEqual(steps.map((step) => step.toolId), ["code"]);
     assert.equal(readFileSync(path.join(folder, "note.txt"), "utf8"), "hello\n", "it ran in the project folder");
-    assert.ok(Array.isArray((await saturn.changes(done.id)).files));
+    assert.deepEqual((await saturn.changes(done.id)).files.map((file) => file.path), ["note.txt"]);
     assert.ok((await saturn.runs(5)).some((run) => run.id === done.id));
 
     // Without onApproval the run comes back waiting; deciding and waiting again finishes it.

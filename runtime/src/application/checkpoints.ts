@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -7,6 +8,35 @@ import type { FileChange, Run } from "../domain/model.js";
 import type { FileCheckpoint } from "../domain/skills/checkpoint.js";
 import { Workspace } from "../domain/skills/workspace.js";
 import type { RuntimeKernel } from "./kernel.js";
+
+/** Files already changed before a shell command, kept so the command's own changes can be undone. */
+const COMMAND_SNAPSHOT_LIMIT = 2000;
+const COMMAND_FILE_LIMIT = 10 * 1024 * 1024;
+
+/** What a project folder's files were just before a shell command: git's view, plus the bytes of files git does not have. */
+export type CommandSnapshot = { root: string; prefix: string; dirty: Map<string, string | null> };
+
+function git(cwd: string, args: string[]): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    // GIT_OPTIONAL_LOCKS=0: reading the status must not take the index lock the agent's own git may need.
+    execFile("git", ["-C", cwd, ...args], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } }, (error, stdout) => (error ? reject(error) : resolve(stdout)));
+  });
+}
+
+/** Paths git reports as changed or untracked under `cwd` (ignored files are left out), relative to the repository. */
+async function changedPaths(cwd: string): Promise<string[]> {
+  const out = (await git(cwd, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."])).toString("utf8");
+  const parts = out.split("\0");
+  const paths: string[] = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const entry = parts[i]!;
+    if (entry.length < 4) continue;
+    paths.push(entry.slice(3));
+    // A rename or copy is followed by its old path.
+    if (entry[0] === "R" || entry[0] === "C") paths.push(parts[++i] ?? "");
+  }
+  return paths.filter(Boolean);
+}
 
 /** Diffs longer than this are cut in API answers; reverting still restores every byte. */
 const DIFF_LIMIT = 200_000;
@@ -65,6 +95,81 @@ export class CheckpointService {
         if (file) await this.locked(runId, () => this.captureAfter(runId, workspace.root, file));
       },
     };
+  }
+
+  /**
+   * Before a shell command in `root`: when it is a git folder, the files already changed there, with their bytes.
+   * Null (nothing tracked) outside git, or when too many files are already changed to keep a copy of.
+   */
+  async beforeCommand(runId: string, root: string): Promise<CommandSnapshot | null> {
+    let prefix: string;
+    let dirty: string[];
+    try {
+      prefix = (await git(root, ["rev-parse", "--show-prefix"])).toString("utf8").trim();
+      dirty = await changedPaths(root);
+    } catch {
+      return null;
+    }
+    if (dirty.length > COMMAND_SNAPSHOT_LIMIT) {
+      this.kernel.log("agent", "info", `Shell changes in ${root} are not tracked for this command: ${dirty.length} files were already changed`);
+      return null;
+    }
+    const snapshot: CommandSnapshot = { root, prefix, dirty: new Map() };
+    for (const file of dirty) {
+      const bytes = await readBytes(path.join(root, file.slice(prefix.length)));
+      if (bytes && bytes.length > COMMAND_FILE_LIMIT) continue;
+      snapshot.dirty.set(file, await this.save(runId, bytes));
+    }
+    return snapshot;
+  }
+
+  /**
+   * After a shell command: every file it added, changed or deleted joins the run's checkpoint like a files-tool
+   * write, with the original from the snapshot (a file changed before) or from git (a file that was clean).
+   */
+  async afterCommand(runId: string, snapshot: CommandSnapshot, actionId: string): Promise<void> {
+    const { root, prefix } = snapshot;
+    let now: string[];
+    try {
+      now = await changedPaths(root);
+    } catch {
+      return;
+    }
+    const candidates = new Set([...snapshot.dirty.keys(), ...now]);
+    for (const file of candidates) {
+      if (!file.startsWith(prefix)) continue;
+      const relative = file.slice(prefix.length);
+      const current = await readBytes(path.join(root, relative));
+      if (current && current.length > COMMAND_FILE_LIMIT) continue;
+      let before: string | null;
+      if (snapshot.dirty.has(file)) before = snapshot.dirty.get(file) ?? null;
+      else {
+        // Clean before the command: the working copy matched git's index.
+        const original = await git(root, ["show", `:${file}`]).catch(() => null);
+        before = await this.save(runId, original);
+      }
+      const after = await this.save(runId, current);
+      if (before === after) continue;
+      await this.locked(runId, () => this.recordChange(runId, root, relative.split(path.sep).join("/"), before, after, actionId));
+    }
+  }
+
+  /** A change made outside the files tool: the run's first original of the file is kept, its latest state recorded. */
+  private async recordChange(runId: string, root: string, file: string, before: string | null, after: string | null, actionId: string): Promise<void> {
+    await this.kernel.store.update((state) => {
+      const current = state.runs.find((item) => item.id === runId);
+      if (!current) return;
+      if (!current.checkpoint || current.checkpoint.root !== root) current.checkpoint = { root, files: [] };
+      const steps = (current.checkpoint.steps ??= []);
+      if (!steps.some((item) => item.actionId === actionId && item.path === file)) steps.push({ actionId, path: file, hash: before });
+      const entry = current.checkpoint.files.find((item) => item.path === file);
+      if (!entry) current.checkpoint.files.push({ path: file, before, after });
+      else {
+        // A reverted file was back to its original, so this change starts from that same original.
+        delete entry.review;
+        entry.after = after;
+      }
+    });
   }
 
   private async locked(runId: string, work: () => Promise<void>): Promise<void> {

@@ -781,6 +781,10 @@ export class RunService {
     if (serverId === GENERAL_SKILLS_ID) {
       try {
         const workdir = this.workdirOf(input.runId);
+        // A shell command's file changes join the run's checkpoint too (git folders), so they can be reviewed and reverted.
+        const tracked = input.toolId === "code" && workdir && input.arguments.background !== true
+          ? await this.kernel.checkpoints.beforeCommand(this.rootRunId(input.runId), workdir)
+          : null;
         const result = await runGeneralSkill(this.kernel.store.root, input.toolId, input.arguments, async (toolId, args) => {
           const action = await this.executeTool({ ...input, toolId, arguments: args, actionId: newId("act") });
           if (action.status !== "completed") throw new Error(action.reason || "MCP call failed");
@@ -790,6 +794,9 @@ export class RunService {
           // A worktree keeps its git data in the project's .git: sandboxed commits must be able to write there.
           writable: [path.join(this.kernel.store.root, "workspace"), ...(input.toolId === "code" ? await this.worktreeGitDir(input.runId) : [])],
           jobs: { table: this.kernel.jobs, scope: this.jobScopeOf(input.runId) },
+        }).finally(async () => {
+          // A failing command can still have changed files.
+          if (tracked) await this.kernel.checkpoints.afterCommand(this.rootRunId(input.runId), tracked, input.actionId).catch(() => undefined);
         });
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
