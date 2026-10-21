@@ -31,6 +31,8 @@ export type ModelConnection = {
   hasSecret: boolean;
   /** Reasoning effort (low … max); every provider maps it to its own control. Unset uses the model's default. */
   effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  /** The model's context window in tokens, when known better than the catalog's figure (see domain/context.ts). */
+  contextTokens?: number;
 };
 
 export type McpOrigin = "local";
@@ -126,6 +128,8 @@ export type Conversation = {
   codexThreadId?: string;
   /** Set while this chat works in its own git worktree and branch (see application/worktrees.ts). */
   worktree?: { branch: string; base: string };
+  /** The running summary of this chat's earlier turns, through `throughRunId`; later turns are sent whole. */
+  summary?: { text: string; throughRunId: string; turns: number; createdAt: string };
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -160,6 +164,8 @@ export type Run = {
   automatic?: boolean;
   /** The project's check command after this turn's changes (see verify.ts). */
   verification?: { command: string; ok: boolean; code: number | null; output: string };
+  /** Before this turn, the chat's earlier turns were folded into its summary to fit the model's context. */
+  compacted?: { turns: number; at: string };
 };
 
 export type RunMode = "agent" | "ask" | "plan";
@@ -236,7 +242,7 @@ export type UsageRecord = {
   provider: string;
   /** The model id sent to the provider. */
   model: string;
-  purpose?: "run" | "automation_draft" | "completion" | "memory";
+  purpose?: "run" | "automation_draft" | "completion" | "memory" | "compaction";
   inputTokens: number;
   outputTokens: number;
   /** USD per 1M tokens; null when the model has no official price (custom endpoints, unlisted models). */

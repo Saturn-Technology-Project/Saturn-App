@@ -157,6 +157,8 @@ runtime/src/                    desktop/src/
 
 啟動 Saturn 會先啟動 Runtime，再開啟預設介面：Agent App 或 IDE。關閉最後一個視窗會停止 Runtime，除非 IDE 仍開著。父程序 watchdog 會在桌面應用程式異常結束時終止 Runtime，確保它不會比宿主活得更久。
 
+**上下文。** 對話較早的回合會在依模型 context window 計算的預算內送出（視窗的一半；模型連線可自行指定 `contextTokens`）。超過預算時，最舊的回合會由同一個模型摘要成對話的累積摘要，之後的回合都以它為基礎；對話中會在發生處顯示「⤵ 已將 n 個較早回合併入摘要」。標頭的 **Context · n%** 標籤顯示對話的用量，點它或送出 `/compact` 可立即摘要。Claude Code 與 Codex 自行管理各自的上下文。
+
 ## 模型
 
 | 供應商 | 驗證方式 | 說明 |

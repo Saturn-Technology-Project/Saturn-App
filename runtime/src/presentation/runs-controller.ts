@@ -76,6 +76,15 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.deleteThread(param(req.params.id)), 204);
   });
 
+  // How full the chat's context is for its model, and the "/compact" command: fold its turns into the summary now.
+  app.get("/threads/:id/context", (req, res, next) => {
+    respond(res, next, () => services.kernel.runs.contextUsage(param(req.params.id)));
+  });
+
+  app.post("/threads/:id/compact", (req, res, next) => {
+    respond(res, next, () => services.kernel.runs.compactThread(param(req.params.id)));
+  });
+
   // A chat's own git worktree: create it, read its state, and finish it (merge, keep the branch, or discard).
   app.post("/threads/:id/worktree", (req, res, next) => {
     respond(res, next, () => services.kernel.worktrees.create(param(req.params.id)), 201);

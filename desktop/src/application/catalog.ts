@@ -1,4 +1,4 @@
-import type { Agent, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run } from "../domain/model.js";
+import type { Agent, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run, ContextUsage } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export type WorkspaceSnapshot = {
@@ -73,6 +73,16 @@ export class CatalogService {
       method: "POST",
       body: JSON.stringify({ title, ...(projectId ? { projectId } : {}) }),
     });
+  }
+
+  /** How full the chat's context is for its agent's model (an estimate), and what its summary covers. */
+  threadContext(threadId: string): Promise<ContextUsage> {
+    return this.runtime.request<ContextUsage>(`/threads/${encodeURIComponent(threadId)}/context`);
+  }
+
+  /** "/compact": folds the chat's finished turns into its summary now. */
+  compactThread(threadId: string): Promise<{ folded: number }> {
+    return this.runtime.request<{ folded: number }>(`/threads/${encodeURIComponent(threadId)}/compact`, { method: "POST" });
   }
 
   renameThread(threadId: string, title: string): Promise<Conversation> {

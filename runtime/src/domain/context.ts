@@ -1,10 +1,11 @@
-import type { RunAction } from "./model.js";
+import type { ModelConnection, RunAction } from "./model.js";
 
 /**
  * Keeps what each model call carries bounded on long runs, in the spirit of the Claude API's context
  * editing and Claude Code / Cursor auto-summarization: the latest tool results stay whole, older ones
  * are cleared to a stub (the full result stays in the run for the UI), and one oversized result is
- * clipped to its head and tail. Earlier turns of the thread are kept newest-first within a budget.
+ * clipped to its head and tail. Earlier turns of the thread fit a budget sized to the model's context window;
+ * when they do not, the oldest are summarized into the chat's running summary (see RunService.historyFor).
  */
 
 export const CONTEXT_LIMITS = {
@@ -12,9 +13,40 @@ export const CONTEXT_LIMITS = {
   recentActions: 6,
   /** Characters of one tool result the model sees, head and tail together. */
   resultChars: 8_000,
-  /** Characters of earlier turns in the thread sent before the current request. */
+  /** Characters of earlier turns sent before the current request, when the model's window is unknown. */
   historyChars: 60_000,
 };
+
+/** A rough 4 characters per token, the usual estimate for English and code. */
+export const CHARS_PER_TOKEN = 4;
+
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
+}
+
+/** Context windows by provider and model family, in tokens. A connection's own `contextTokens` wins. */
+const CONTEXT_WINDOWS: { provider: string; model?: RegExp; tokens: number }[] = [
+  { provider: "claude", tokens: 200_000 },
+  { provider: "openai", model: /^gpt-6/, tokens: 400_000 },
+  { provider: "openai", tokens: 128_000 },
+  { provider: "gemini", tokens: 1_000_000 },
+  { provider: "deepseek", tokens: 128_000 },
+  { provider: "lmstudio", tokens: 32_000 },
+];
+
+export function contextTokensFor(model: Pick<ModelConnection, "provider" | "model" | "contextTokens">): number {
+  if (model.contextTokens && model.contextTokens > 0) return model.contextTokens;
+  const match = CONTEXT_WINDOWS.find((item) => item.provider === model.provider && (!item.model || item.model.test(model.model)));
+  return match?.tokens ?? 128_000;
+}
+
+/**
+ * Characters of earlier turns a request may carry: half the window, leaving the rest for the system prompt,
+ * the tools, this turn's tool results and the answer.
+ */
+export function historyBudgetChars(model: Pick<ModelConnection, "provider" | "model" | "contextTokens">): number {
+  return Math.floor((contextTokensFor(model) * CHARS_PER_TOKEN) / 2);
+}
 
 function serialized(value: unknown): string {
   if (typeof value === "string") return value;
@@ -64,3 +96,27 @@ export function budgetHistory<T extends { role: string; content: string }>(turns
   while (start < turns.length && turns[start].role !== "user") start += 1;
   return { kept: turns.slice(start), omitted: start };
 }
+
+/**
+ * Which earlier turns to fold into the summary: the oldest ones, so that what stays fits `keepChars`.
+ * The newest turn always stays, so the model sees the exchange it is continuing.
+ */
+export function splitForCompaction<T extends { chars: number }>(turns: T[], keepChars: number): { old: T[]; recent: T[] } {
+  let used = 0;
+  let start = turns.length;
+  while (start > 0) {
+    const size = turns[start - 1]!.chars;
+    if (used + size > keepChars && start < turns.length) break;
+    used += size;
+    start -= 1;
+  }
+  return { old: turns.slice(0, start), recent: turns.slice(start) };
+}
+
+/** The instruction the summarizing call gets; the turns follow as the conversation itself. */
+export const COMPACTION_PROMPT =
+  "You are compacting the earlier part of a conversation between a user and an AI agent so the agent can continue it with less context. " +
+  "Write a summary for the agent, in the user's language, under 600 words. Keep what later turns depend on: the user's goal and the decisions made, " +
+  "files, paths, commands and identifiers that mattered, what was done and what is still open, errors seen and how they were resolved, and the user's " +
+  "preferences and constraints. Leave out pleasantries and anything superseded. If an earlier summary is given, fold it in rather than repeating it. " +
+  "Answer with the summary only.";

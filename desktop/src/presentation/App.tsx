@@ -27,7 +27,7 @@ import {
   upsertRun,
   visibleThread,
 } from "../domain/conversation";
-import type { Agent, Autonomy, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode, RunSummary } from "../domain/model";
+import type { Agent, Autonomy, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode, RunSummary, ContextUsage } from "../domain/model";
 
 const isElectron =
   typeof window !== "undefined" &&
@@ -119,6 +119,9 @@ export function App() {
   const [contextOpen, setContextOpen] = useState(false);
   /** The rule files agents follow in the current chat's project (the "§ Rules" chip). */
   const [ruleSources, setRuleSources] = useState<{ path: string; chars: number }[]>([]);
+  /** How full the current chat's context is (the "Context · n%" chip). */
+  const [contextUsage, setContextUsage] = useState<ContextUsage | null>(null);
+  const [compacting, setCompacting] = useState(false);
   /** The pull-request form for the current chat's branch, while it is open. */
   const [prDraft, setPrDraft] = useState<{ threadId: string; title: string; body: string; busy: boolean; error: string } | null>(null);
   /** Files that conflicted when a chat's branch was merged, with the branch and base, until dealt with. */
@@ -764,9 +767,29 @@ export function App() {
   }
 
   /** Sends the composer's text, or `text` when given (a plan sent back, diff comments). */
+  /** "/compact" and the context chip: fold the chat's earlier turns into its summary now. */
+  async function compactNow() {
+    if (!selectedThreadId || compacting) return;
+    setCompacting(true);
+    try {
+      const result = await desktop.catalog.compactThread(selectedThreadId);
+      setNotice(`Compacted: ${result.folded} earlier ${result.folded === 1 ? "turn" : "turns"} folded into the chat's summary.`);
+      setContextUsage(await desktop.catalog.threadContext(selectedThreadId));
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not compact");
+    } finally {
+      setCompacting(false);
+    }
+  }
+
   async function send(text?: string) {
     const typed = (text ?? task).trim();
     if (!agent || (!typed && !pendingImages.length) || busy || editing) return;
+    if (typed === "/compact") {
+      setTask("");
+      await compactNow();
+      return;
+    }
     let input = typed || `Look at the attached image${pendingImages.length === 1 ? "" : "s"}.`;
     const images = pendingImages;
     isNearBottomRef.current = true;
@@ -892,6 +915,19 @@ export function App() {
       stale = true;
     };
   }, [currentProjectId, thread.length]);
+
+  // The context chip follows the chat: refreshed when the chat changes and after each turn finishes.
+  useEffect(() => {
+    if (!selectedThreadId || busy) {
+      if (!selectedThreadId) setContextUsage(null);
+      return;
+    }
+    let stale = false;
+    desktop.catalog.threadContext(selectedThreadId).then((usage) => { if (!stale) setContextUsage(usage); }, () => { if (!stale) setContextUsage(null); });
+    return () => {
+      stale = true;
+    };
+  }, [selectedThreadId, thread.length, busy]);
 
 
   /** Gives the chat its own git worktree and branch; the agent's changes then stay off the project checkout. */
@@ -1945,6 +1981,17 @@ export function App() {
                 § Rules{ruleSources.length ? ` · ${ruleSources.length}` : ""}
               </button>
             ) : null}
+            {currentConversation && contextUsage ? (
+              <button
+                type="button"
+                className={`titlebar-pill-btn context-chip${contextUsage.percent >= 80 ? " high" : ""}`}
+                disabled={compacting || busy}
+                title={`About ${contextUsage.usedTokens.toLocaleString()} of the ${contextUsage.budgetTokens.toLocaleString()} tokens of earlier turns this model carries (window ${contextUsage.windowTokens.toLocaleString()}). ${contextUsage.summary ? `${contextUsage.summary.turns} earlier turns are in the summary. ` : ""}Click, or send /compact, to fold the earlier turns into a summary now.`}
+                onClick={() => void compactNow()}
+              >
+                {compacting ? "Compacting…" : `Context · ${contextUsage.percent}%`}
+              </button>
+            ) : null}
             {currentConversation?.projectId ? (
               <WorktreeControl
                 conversation={currentConversation}
@@ -2321,6 +2368,11 @@ export function App() {
                           <RunSteps run={run} busy={run.status === "running" || run.status === "queued"} />
 
                           <RunChangesCard run={run} onComment={(text) => void send(text)} />
+                          {run.compacted ? (
+                            <div className="verify-line" title="The oldest turns were summarized by the model before this turn, so the chat fits its context window.">
+                              ⤵ {run.compacted.turns} earlier {run.compacted.turns === 1 ? "turn" : "turns"} folded into the chat's summary before this turn
+                            </div>
+                          ) : null}
                           {run.verification ? (
                             <div className={run.verification.ok ? "verify-line ok" : "verify-line failed"} title={run.verification.output.slice(0, 2000)}>
                               {run.verification.ok

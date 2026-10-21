@@ -16,8 +16,9 @@ import { forgetImages, loadImages, saveImages } from "./run-images.js";
 import { rulesFor } from "./agent-sessions.js";
 import { runGeneralSkill, runComputerUseSkill, runOriginSkill, runAntigravitySkill, runBrowserSkill } from "../infrastructure/skills.js";
 import { SpanKind, instruments, seconds, traced } from "../infrastructure/telemetry.js";
-import { budgetHistory, compactActions } from "../domain/context.js";
+import { COMPACTION_PROMPT, budgetHistory, compactActions, contextTokensFor, estimateTokens, historyBudgetChars, splitForCompaction } from "../domain/context.js";
 import { DEFAULT_SANDBOX, type SandboxSettings } from "../infrastructure/sandbox.js";
+import { runsOnPlan } from "../domain/llm/catalog.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 /** computer_wait up to this long blocks inline; longer waits suspend the run and the scheduler resumes it. */
@@ -1088,7 +1089,8 @@ export class RunService {
     return chunks.join("\n");
   }
 
-  priorMessages(agentId: string, runId: string): ChatMessage[] {
+  /** The finished turns before `runId` in its chat (or, outside a chat, the agent's), oldest first. */
+  priorTurns(agentId: string, runId: string): Run[] {
     const currentRun = this.kernel.store.state.runs.find((item) => item.id === runId);
     const threadId = currentRun?.threadId;
     // A group turn carries the group transcript in its input.
@@ -1097,16 +1099,143 @@ export class RunService {
       item.agentId === agentId && (threadId ? item.threadId === threadId : true)
     );
     const index = turns.findIndex((item) => item.id === runId);
-    const older = (index < 0 ? [] : turns.slice(index + 1))
+    return (index < 0 ? [] : turns.slice(index + 1))
       .filter((item) => item.status === "completed" || item.status === "failed" || item.status === "cancelled")
       .reverse();
+  }
+
+  private turnMessages(turns: Run[]): ChatMessage[] {
     const messages: ChatMessage[] = [];
-    for (const turn of older) {
+    for (const turn of turns) {
       const attached = turn.inputImages?.length ? `\n[${turn.inputImages.length} ${turn.inputImages.length === 1 ? "image was" : "images were"} attached to this message]` : "";
       messages.push({ role: "user", content: turn.input + attached });
       if (turn.output) messages.push({ role: "assistant", content: turn.output, reasoning: turn.thinking });
     }
     return messages;
+  }
+
+  priorMessages(agentId: string, runId: string): ChatMessage[] {
+    return this.turnMessages(this.priorTurns(agentId, runId));
+  }
+
+  /** The turns a chat's summary does not cover yet, oldest first. */
+  private turnsAfterSummary(turns: Run[], summary: Conversation["summary"]): Run[] {
+    if (!summary) return turns;
+    const index = turns.findIndex((item) => item.id === summary.throughRunId);
+    // The summarized turn was removed (an edit, a restore): the summary still stands, and every turn left is newer.
+    return index < 0 ? turns : turns.slice(index + 1);
+  }
+
+  private summaryMessage(summary: NonNullable<Conversation["summary"]>): ChatMessage {
+    return { role: "user", content: `[Summary of the earlier conversation, ${summary.turns} ${summary.turns === 1 ? "turn" : "turns"}, written by the assistant to continue it]\n${summary.text}` };
+  }
+
+  /**
+   * The earlier turns a request carries: the chat's summary (when it has one) and the turns after it. When they
+   * exceed the model's budget, the oldest turns are folded into the summary first, by the same model; if that
+   * fails the oldest turns are left out, as before.
+   */
+  async historyFor(agent: Agent, model: ModelConnection, runId: string, signal?: AbortSignal): Promise<ChatMessage[]> {
+    const run = this.kernel.store.state.runs.find((item) => item.id === runId);
+    const thread = run?.threadId ? (this.kernel.store.state.threads ?? []).find((item) => item.id === run.threadId) : undefined;
+    const all = this.priorTurns(agent.id, runId);
+    let summary = thread?.summary;
+    let turns = this.turnsAfterSummary(all, summary);
+    const budget = historyBudgetChars(model);
+    const sized = () => turns.map((turn) => ({ turn, chars: this.turnMessages([turn]).reduce((sum, item) => sum + item.content.length, 0) }));
+    const total = () => sized().reduce((sum, item) => sum + item.chars, 0) + (summary?.text.length ?? 0);
+
+    if (thread && total() > budget && turns.length > 1) {
+      const { old, recent } = splitForCompaction(sized(), Math.floor(budget / 2));
+      if (old.length) {
+        try {
+          const text = await this.summarize(agent, model, runId, summary?.text, old.map((item) => item.turn), signal);
+          const next = { text, throughRunId: old[old.length - 1]!.turn.id, turns: (summary?.turns ?? 0) + old.length, createdAt: new Date().toISOString() };
+          await this.kernel.store.update((state) => {
+            const current = (state.threads ?? []).find((item) => item.id === thread.id);
+            if (current) current.summary = next;
+            const active = state.runs.find((item) => item.id === runId);
+            if (active) active.compacted = { turns: old.length, at: next.createdAt };
+          });
+          this.kernel.log("agent", "info", `${agent.name}: ${old.length} earlier ${old.length === 1 ? "turn" : "turns"} of the chat folded into its summary (${estimateTokens(text)} tokens)`, { "saturn.run.id": runId });
+          summary = next;
+          turns = recent.map((item) => item.turn);
+        } catch (error) {
+          this.kernel.log("agent", "warning", `Could not summarize the chat's earlier turns: ${explainRunError(error)}; the oldest are left out instead`, { "saturn.run.id": runId });
+        }
+      }
+    }
+    const history = budgetHistory(this.turnMessages(turns), Math.max(1, budget - (summary?.text.length ?? 0)));
+    return [
+      ...(summary ? [this.summaryMessage(summary)] : []),
+      ...(history.omitted ? [{ role: "user" as const, content: `[${history.omitted} earlier messages in this conversation are omitted to save context.]` }] : []),
+      ...history.kept,
+    ];
+  }
+
+  /** One model call that writes the summary of `turns` (folding in `previous` when there is one). */
+  private async summarize(agent: Agent, model: ModelConnection, runId: string, previous: string | undefined, turns: Run[], signal?: AbortSignal): Promise<string> {
+    const body = await this.kernel.llm.complete(model, {
+      context: { agentId: agent.id, agentName: agent.name, runId, purpose: "compaction" },
+      temperature: 0,
+      maxOutput: 1500,
+      thinking: "low",
+      messages: [
+        { role: "system", content: COMPACTION_PROMPT },
+        ...(previous ? [{ role: "user" as const, content: `Earlier summary:\n${previous}` }] : []),
+        ...this.turnMessages(turns),
+        { role: "user", content: "Write the summary now." },
+      ],
+      signal,
+    });
+    const text = textOf(body).trim();
+    if (!text) throw new Error("the model returned no summary");
+    return text;
+  }
+
+  /** How full the chat's context is for its agent's model, and what its summary covers. */
+  contextUsage(threadId: string): { usedTokens: number; budgetTokens: number; windowTokens: number; percent: number; turns: number; summary: { turns: number; createdAt: string } | null } {
+    const thread = (this.kernel.store.state.threads ?? []).find((item) => item.id === threadId);
+    if (!thread) throw new HttpError(404, "Chat not found");
+    const agent = this.kernel.getAgent(thread.agentId);
+    const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
+    const finished = this.kernel.store.state.runs
+      .filter((item) => item.threadId === threadId && (item.status === "completed" || item.status === "failed" || item.status === "cancelled"))
+      .reverse();
+    const turns = this.turnsAfterSummary(finished, thread.summary);
+    const chars = this.turnMessages(turns).reduce((sum, item) => sum + item.content.length, 0) + (thread.summary?.text.length ?? 0);
+    const budgetChars = model ? historyBudgetChars(model) : 60_000;
+    return {
+      usedTokens: estimateTokens(" ".repeat(chars)),
+      budgetTokens: estimateTokens(" ".repeat(budgetChars)),
+      windowTokens: model ? contextTokensFor(model) : 0,
+      percent: Math.min(100, Math.round((chars / budgetChars) * 100)),
+      turns: turns.length,
+      summary: thread.summary ? { turns: thread.summary.turns, createdAt: thread.summary.createdAt } : null,
+    };
+  }
+
+  /** Folds every finished turn of the chat into its summary now (the "/compact" command). */
+  async compactThread(threadId: string): Promise<{ summary: NonNullable<Conversation["summary"]>; folded: number }> {
+    const thread = (this.kernel.store.state.threads ?? []).find((item) => item.id === threadId);
+    if (!thread) throw new HttpError(404, "Chat not found");
+    const agent = this.kernel.getAgent(thread.agentId);
+    const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
+    if (!model) throw new HttpError(409, "This agent has no model connection");
+    if (runsOnPlan(model.provider)) throw new HttpError(409, `${model.name} runs in its own program, which manages its own context; there is nothing for Saturn to compact.`);
+    const finished = this.kernel.store.state.runs
+      .filter((item) => item.threadId === threadId && (item.status === "completed" || item.status === "failed" || item.status === "cancelled"))
+      .reverse();
+    const turns = this.turnsAfterSummary(finished, thread.summary);
+    if (!turns.length) throw new HttpError(409, thread.summary ? "Every turn is in the summary already" : "Nothing to compact yet");
+    const text = await this.summarize(agent, model, finished[finished.length - 1]!.id, thread.summary?.text, turns);
+    const summary = { text, throughRunId: turns[turns.length - 1]!.id, turns: (thread.summary?.turns ?? 0) + turns.length, createdAt: new Date().toISOString() };
+    await this.kernel.store.update((state) => {
+      const current = (state.threads ?? []).find((item) => item.id === threadId);
+      if (current) current.summary = summary;
+    });
+    this.kernel.log("agent", "info", `${agent.name}: the chat was compacted on request (${turns.length} ${turns.length === 1 ? "turn" : "turns"} folded)`);
+    return { summary, folded: turns.length };
   }
 
   async complete(
@@ -1140,14 +1269,10 @@ export class RunService {
         : context,
       serverIds: agent.mcpConnectionIds,
     });
-    // Earlier turns newest-first within a budget, so a long thread does not grow every request.
-    const history = budgetHistory(this.priorMessages(agent.id, runId));
+    // Earlier turns within the model's budget: the chat's summary, then the turns after it (see historyFor).
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
-      ...(history.omitted
-        ? [{ role: "user" as const, content: `[${history.omitted} earlier messages in this conversation are omitted to save context.]` }]
-        : []),
-      ...history.kept,
+      ...(await this.historyFor(agent, model, runId, signal)),
       images.length ? { role: "user", content: input, images } : { role: "user", content: input },
     ];
     if (actions.length) {

@@ -9053,6 +9053,8 @@ button.trace-row:hover {
 .context-picker-actions { display: flex; justify-content: space-between; gap: 6px; }
 .user-context { display: block; text-align: right; margin-top: 4px; font-size: 11px; color: var(--muted); }
 .rules-chip { font-family: var(--mono, ui-monospace, monospace); font-size: 11.5px; }
+.context-chip { font-family: var(--mono, ui-monospace, monospace); font-size: 11.5px; }
+.context-chip.high { color: var(--warning, #d29922); }
 .verify-line { margin: 6px 0 2px; font-size: 12px; color: var(--muted); }
 .verify-line.ok { color: #3fb950; }
 .verify-line.failed { color: var(--warning, #d29922); }

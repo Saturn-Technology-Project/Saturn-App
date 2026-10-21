@@ -124,10 +124,15 @@ export type Conversation = {
   projectId?: string;
   /** Set while the chat works in its own git worktree and branch. */
   worktree?: { branch: string; base: string };
+  /** The running summary of the chat's earlier turns; later turns are sent whole. */
+  summary?: { text: string; throughRunId: string; turns: number; createdAt: string };
   title: string;
   createdAt: string;
   updatedAt: string;
 };
+
+/** How full a chat's context is for its model (an estimate in tokens), and what its summary covers. */
+export type ContextUsage = { usedTokens: number; budgetTokens: number; windowTokens: number; percent: number; turns: number; summary: { turns: number; createdAt: string } | null };
 
 /** A permission rule: what a tool may do without asking (allow), must ask about (ask), or may never do (deny). */
 export type PermissionRule = { tool: string; pattern: string; effect: "allow" | "deny" | "ask" };
@@ -166,6 +171,8 @@ export type Run = {
   /** Saturn sent this message itself (an automatic fix round after verification). */
   automatic?: boolean;
   /** The project's check command after this turn's changes. */
+  /** Before this turn, earlier turns were folded into the chat's summary to fit the model's context. */
+  compacted?: { turns: number; at: string };
   verification?: { command: string; ok: boolean; code: number | null; output: string };
   /** Set on a group chat turn: the group and the message the agent was asked to consider. */
   groupId?: string;

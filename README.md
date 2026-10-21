@@ -158,6 +158,8 @@ runtime/src/                    desktop/src/
 
 Launching Saturn starts the runtime, then opens the default surface: the agent app or the IDE. Closing the last window stops the runtime unless the IDE is still open. A parent-process watchdog terminates the runtime if the desktop app exits abnormally, so it never outlives its host.
 
+**Context.** A chat's earlier turns are sent within a budget sized to the model's context window (half of it; a connection can state its own `contextTokens`). When they outgrow it, the oldest turns are summarized by the same model into the chat's running summary, which later turns ride on; the chat shows `⤵ n earlier turns folded` where it happened. The header's **Context · n%** chip shows how full the chat is, and clicking it, or sending `/compact`, folds the turns now. Claude Code and Codex manage their own context.
+
 ## Models
 
 | Provider | Authentication | Notes |
