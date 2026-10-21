@@ -36,6 +36,8 @@ jobs:
         run: npm ci
         env:
           npm_config_foreground_scripts: "1"
+          # @vscode/ripgrep downloads its binary through the GitHub API; unauthenticated calls hit the runner's rate limit.
+          GITHUB_TOKEN: ${{ github.token }}
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
 
