@@ -1,0 +1,153 @@
+name: Upstream sync (Saturn IDE)
+
+# Proposes each new VS Code release for Saturn IDE as a pull request.
+#
+# Saturn-IDE/ started from a snapshot of microsoft/vscode, recorded in Saturn-IDE/UPSTREAM.md (commit and version).
+# This workflow fetches upstream's history (commits only; file contents on demand), rebuilds Saturn IDE's current
+# tree as a commit on top of that recorded upstream commit, and three-way merges the new release tag into it with
+# git merge-tree: git finds the real common ancestor in upstream's history, so only files that both Saturn and
+# upstream changed can conflict. The result replaces Saturn-IDE/ on a branch, UPSTREAM.md records the new base, and
+# without conflicts the IDE is built, tested and smoke-tested before the pull request opens. With conflicts the pull
+# request opens as a draft that lists them (the files carry conflict markers), for a maintainer to resolve.
+
+on:
+  schedule:
+    - cron: "41 4 * * 2"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "VS Code release tag to merge (default: the newest release, if it is newer than the base)"
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: macos-14
+    timeout-minutes: 240
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Choose the release
+        id: pick
+        run: |
+          base_commit=$(sed -n 's/^| Upstream commit | \[`\([0-9a-f]\{40\}\)`\].*/\1/p' Saturn-IDE/UPSTREAM.md)
+          base_version=$(sed -n 's/^| Version | \([0-9][0-9.]*\).*/\1/p' Saturn-IDE/UPSTREAM.md)
+          if [ -z "$base_commit" ] || [ -z "$base_version" ]; then echo "::error::Saturn-IDE/UPSTREAM.md has no Upstream commit or Version"; exit 1; fi
+          tag="${{ inputs.tag }}"
+          [ -n "$tag" ] || tag=$(gh api repos/microsoft/vscode/releases/latest --jq .tag_name)
+          tag_commit=$(gh api "repos/microsoft/vscode/commits/$tag" --jq .sha)
+          newest=$(printf '%s\n%s\n' "$base_version" "$tag" | sort -V | tail -1)
+          branch="upstream/vscode-$tag"
+          echo "base $base_version ($base_commit), candidate $tag ($tag_commit)"
+          if [ "$newest" != "$tag" ] || [ "$tag_commit" = "$base_commit" ]; then
+            echo "Saturn IDE is already at or past VS Code $tag."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+            echo "VS Code $tag is already proposed on $branch."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            { echo "skip=false"; echo "base_commit=$base_commit"; echo "base_version=$base_version"; echo "tag=$tag"; echo "tag_commit=$tag_commit"; echo "branch=$branch"; } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge the release into Saturn-IDE/
+        id: merge
+        if: steps.pick.outputs.skip == 'false'
+        env:
+          BASE: ${{ steps.pick.outputs.base_commit }}
+          TAG: ${{ steps.pick.outputs.tag }}
+          TAG_COMMIT: ${{ steps.pick.outputs.tag_commit }}
+          BRANCH: ${{ steps.pick.outputs.branch }}
+        run: |
+          git config user.name "Saturn upstream sync"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add vscode https://github.com/microsoft/vscode.git
+          git config remote.vscode.promisor true
+          git config remote.vscode.partialclonefilter tree:0
+          # Commits only (trees and files arrive on demand), back far enough to reach the release branch's fork point.
+          git fetch --filter=tree:0 --no-tags --shallow-since="9 months ago" vscode "$BASE" "refs/tags/$TAG:refs/tags/vscode-$TAG"
+          if ! git merge-base "$BASE" "refs/tags/vscode-$TAG" >/dev/null; then
+            echo "::error::No common history between $BASE and $TAG in the last 9 months of upstream"
+            exit 1
+          fi
+          ours=$(git commit-tree "$(git rev-parse HEAD:Saturn-IDE)" -p "$BASE" -m "Saturn IDE at $(git rev-parse --short HEAD)")
+          set +e
+          git merge-tree --write-tree --name-only --no-messages "$ours" "refs/tags/vscode-$TAG" > "$RUNNER_TEMP/merge.out"
+          rc=$?
+          set -e
+          if [ "$rc" -gt 1 ]; then exit "$rc"; fi
+          tree=$(head -1 "$RUNNER_TEMP/merge.out")
+          sed -n '2,$p' "$RUNNER_TEMP/merge.out" | sed '/^$/d' | sed 's#^#Saturn-IDE/#' > "$RUNNER_TEMP/conflicts.txt"
+          conflicts=$(wc -l < "$RUNNER_TEMP/conflicts.txt" | tr -d ' ')
+
+          git checkout -b "$BRANCH"
+          git rm -rq --cached Saturn-IDE
+          rm -rf Saturn-IDE
+          git read-tree --prefix=Saturn-IDE/ "$tree"
+          git checkout -- Saturn-IDE
+          # Record the new base.
+          perl -pi -e "s/\Q$BASE\E/$TAG_COMMIT/g; s/^\| Version \| [0-9][0-9.]*[^\n]*/| Version | $TAG |/" Saturn-IDE/UPSTREAM.md
+          git add -A Saturn-IDE
+          git commit -q -m "Saturn IDE: merge VS Code $TAG" -m "Three-way merge of microsoft/vscode $TAG ($TAG_COMMIT) into Saturn IDE, based on $BASE. Conflicted files: $conflicts."
+          echo "conflicts=$conflicts" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.merge.outputs.conflicts == '0'
+        with:
+          node-version-file: Saturn-IDE/.nvmrc
+
+      - name: Build and test the merged IDE
+        id: build
+        if: steps.merge.outputs.conflicts == '0'
+        continue-on-error: true
+        env:
+          npm_config_foreground_scripts: "1"
+          GITHUB_TOKEN: ${{ github.token }}
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          CFLAGS: "-mmacosx-version-min=11.0"
+          CXXFLAGS: "-mmacosx-version-min=11.0"
+          LDFLAGS: "-mmacosx-version-min=11.0"
+        run: |
+          (cd Saturn-IDE && npm ci && npm run gulp vscode-darwin-arm64-min)
+          npm run test:ide
+          node Saturn-IDE/test/smoke/smoke.mjs "VSCode-darwin-arm64/Saturn IDE.app"
+
+      - name: Open the pull request
+        if: steps.pick.outputs.skip == 'false'
+        env:
+          TAG: ${{ steps.pick.outputs.tag }}
+          BRANCH: ${{ steps.pick.outputs.branch }}
+          BASE_VERSION: ${{ steps.pick.outputs.base_version }}
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+          BUILD: ${{ steps.build.outcome }}
+        run: |
+          git push origin "$BRANCH"
+          body="$RUNNER_TEMP/body.md"
+          {
+            echo "Merges [VS Code $TAG](https://github.com/microsoft/vscode/releases/tag/$TAG) into Saturn IDE (from $BASE_VERSION), proposed by the weekly upstream sync."
+            echo
+            if [ "$CONFLICTS" = "0" ]; then
+              echo "No conflicts. Build, \`npm run test:ide\` and the smoke test: **$BUILD**."
+            else
+              echo "**$CONFLICTS files conflict** and carry conflict markers. Resolve them following Saturn-IDE/UPSTREAM.md, update its change list, then build and run the smoke test:"
+              echo
+              sed 's/^/- `/; s/$/`/' "$RUNNER_TEMP/conflicts.txt"
+            fi
+            echo
+            echo "Before merging: check the release notes for security fixes and for changes to the files Saturn edits (listed in Saturn-IDE/UPSTREAM.md), and run Saturn IDE once by hand."
+            echo
+            echo "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+          } > "$body"
+          draft=""
+          if [ "$CONFLICTS" != "0" ] || [ "$BUILD" != "success" ]; then draft="--draft"; fi
+          gh pr create --base main --head "$BRANCH" --title "Saturn IDE: merge VS Code $TAG" --body-file "$body" $draft
