@@ -28,6 +28,7 @@ import { UsageService } from "./usage.js";
 import { MarketplaceService } from "./marketplace.js";
 import { ProjectService } from "./projects.js";
 import { ClaudeCodeService } from "./claude-code.js";
+import { AgentProgramsService } from "./agent-programs.js";
 import { CodexService } from "./codex.js";
 import { IndexService } from "./index.js";
 import { WorktreeService } from "./worktrees.js";
@@ -54,6 +55,7 @@ export class RuntimeKernel {
   readonly usage: UsageService;
   readonly marketplace: MarketplaceService;
   readonly projects: ProjectService;
+  readonly programs: AgentProgramsService;
   readonly claudeCode: ClaudeCodeService;
   readonly codex: CodexService;
   readonly index: IndexService;
@@ -89,6 +91,7 @@ export class RuntimeKernel {
     this.context = new ContextService(this);
     this.verify = new VerifyService(this);
     this.recordings = new RecordingService(this);
+    this.programs = new AgentProgramsService(this);
     this.claudeCode = new ClaudeCodeService(this);
     this.codex = new CodexService(this);
     this.index = new IndexService(this);

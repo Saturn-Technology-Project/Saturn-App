@@ -1,8 +1,6 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { promisify } from "node:util";
 import { Codex, type ThreadItem, type ThreadOptions, type Usage } from "@openai/codex-sdk";
@@ -52,6 +50,8 @@ export type CodexStatus = {
   configDir: string;
   signIn?: CodexSignIn;
   error?: string;
+  /** False when the program is not installed: Settings offers the download instead of the sign-in. */
+  installed?: boolean;
 };
 
 /**
@@ -75,17 +75,9 @@ export class CodexService {
     return path.join(this.kernel.store.root, "codex");
   }
 
-  /** The `codex` program bundled with the SDK (its platform package keeps it under vendor/<target>/bin). */
+  /** The `codex` program: Saturn's download, a development checkout's SDK copy, or the user's own install. */
   cliPath(): string {
-    const require = createRequire(import.meta.url);
-    const manifest = require.resolve(`@openai/codex-${process.platform}-${process.arch}/package.json`);
-    const vendor = path.join(path.dirname(manifest), "vendor");
-    const name = process.platform === "win32" ? "codex.exe" : "codex";
-    for (const target of readdirSync(vendor)) {
-      const candidate = path.join(vendor, target, "bin", name);
-      if (existsSync(candidate)) return candidate;
-    }
-    throw new Error("codex binary not found");
+    return this.kernel.programs.path("codex");
   }
 
   /** Codex's environment: the runtime's own, minus every credential that outranks the user's login. */
@@ -102,7 +94,7 @@ export class CodexService {
     try {
       return this.cliPath();
     } catch {
-      throw new HttpError(500, "The Codex program is missing from this Saturn install.");
+      throw new HttpError(409, "Codex is not installed. Download it in Saturn Settings → General → Codex.");
     }
   }
 
@@ -115,7 +107,7 @@ export class CodexService {
     try {
       cli = this.cliPath();
     } catch {
-      return { loggedIn: false, authMethod: "none", ...base, error: "The Codex program is missing from this Saturn install." };
+      return { loggedIn: false, authMethod: "none", ...base, installed: false };
     }
     // `codex login status` prints e.g. "Logged in using ChatGPT", and exits non-zero when signed out.
     const answer = await exec(cli, ["login", "status"], { env: this.environment(), timeout: 20_000 }).then(

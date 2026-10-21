@@ -3,7 +3,7 @@ import { desktop } from "../application/desktop";
 import type { Agent, Autonomy, Model, Project } from "../domain/model";
 import { GuardrailSelector } from "./GuardrailSelector";
 import { chooseFolder, folderName } from "./ProjectAccess";
-import { ClaudeCodeLogin, CodexLogin, LlmPage } from "./Settings";
+import { ClaudeCodeLogin, CodexLogin, LlmPage, ProgramGate } from "./Settings";
 
 type StepId = "welcome" | "model" | "agent" | "project" | "permissions" | "done";
 
@@ -166,8 +166,12 @@ export function Onboarding(props: {
             <details className="onboarding-details">
               <summary>Use my Claude or ChatGPT plan instead</summary>
               <div className="onboarding-embed">
-                <ClaudeCodeLogin />
-                <CodexLogin />
+                <ProgramGate id="claude-code">
+                  <ClaudeCodeLogin />
+                </ProgramGate>
+                <ProgramGate id="codex">
+                  <CodexLogin />
+                </ProgramGate>
               </div>
             </details>
             <div className="onboarding-actions">

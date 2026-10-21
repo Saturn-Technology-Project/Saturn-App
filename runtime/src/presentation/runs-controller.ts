@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { PROGRAM_IDS, programId } from "../application/agent-programs.js";
 import { imagePath, parseImages } from "../application/run-images.js";
 import path from "node:path";
 import type { RunMode } from "../domain/model.js";
@@ -193,6 +194,23 @@ export function mountRuns(app: Express, services: AppServices): void {
         req.query.side === "before" ? "before" : "after",
       ),
     );
+  });
+
+  // Claude Code and Codex: whether each is installed (and where from), and downloading Saturn's tested copy.
+  app.get("/programs", (_req, res, next) => {
+    respond(res, next, () => Promise.all(PROGRAM_IDS.map((id) => services.kernel.programs.status(id))));
+  });
+
+  app.get("/programs/:id", (req, res, next) => {
+    respond(res, next, () => services.kernel.programs.status(programId(param(req.params.id))));
+  });
+
+  app.post("/programs/:id/install", (req, res, next) => {
+    respond(res, next, () => services.kernel.programs.install(programId(param(req.params.id))), 202);
+  });
+
+  app.delete("/programs/:id", (req, res, next) => {
+    respond(res, next, () => services.kernel.programs.remove(programId(param(req.params.id))));
   });
 
   app.get("/claude-code/status", (_req, res, next) => {

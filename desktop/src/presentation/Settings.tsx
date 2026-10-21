@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../application/desktop";
 import { EFFORT_LABELS, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo } from "../domain/model";
-import type { CodexStatus } from "../application/admin";
+import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
 import { ConfigureMcpModal } from "./ConfigureMcpModal";
@@ -1004,14 +1004,18 @@ function General(props: {
       <div className="settings-section">
         <div className="settings-section-title">Claude Code</div>
         <div className="settings-card">
-          <ClaudeCodeLogin />
+          <ProgramGate id="claude-code">
+            <ClaudeCodeLogin />
+          </ProgramGate>
         </div>
       </div>
 
       <div className="settings-section">
         <div className="settings-section-title">Codex</div>
         <div className="settings-card">
-          <CodexLogin />
+          <ProgramGate id="codex">
+            <CodexLogin />
+          </ProgramGate>
         </div>
       </div>
 
@@ -1399,6 +1403,113 @@ function Chevron(props: { open: boolean }) {
     <svg className={props.open ? "chevron open" : "chevron"} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+/**
+ * Claude Code and Codex are separate official programs that Saturn no longer ships in its installer. Until one is
+ * found (Saturn's download, or the user's own install on the PATH), this offers the download; once it is, it shows
+ * where it comes from and then the sign-in (children).
+ */
+export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNode }) {
+  const [status, setStatus] = useState<ProgramStatus | null>(null);
+  const [error, setError] = useState("");
+  const load = () => desktop.admin.program(props.id).then(setStatus, (reason) => setError(reason instanceof Error ? reason.message : "Could not reach the runtime"));
+
+  useEffect(() => {
+    void load();
+  }, [props.id]);
+
+  const busy = status?.install && ["downloading", "verifying", "unpacking"].includes(status.install.state);
+  useEffect(() => {
+    if (!busy) return;
+    const timer = window.setInterval(() => void load(), 700);
+    return () => window.clearInterval(timer);
+  }, [busy]);
+
+  async function install() {
+    setError("");
+    try {
+      setStatus(await desktop.admin.installProgram(props.id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not start the download");
+    }
+  }
+
+  async function remove() {
+    if (!window.confirm(`Remove Saturn's copy of ${status?.label}? ${status?.label} models stop working until it is downloaded again or found on your system.`)) return;
+    try {
+      setStatus(await desktop.admin.removeProgram(props.id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not remove it");
+    }
+  }
+
+  const label = status?.label ?? (props.id === "codex" ? "Codex" : "Claude Code");
+  const megabytes = status?.downloadSize ? `${Math.round(status.downloadSize / 1048576)} MB` : "";
+  if (status === null) {
+    return (
+      <div className="settings-card-row">
+        <div className="settings-row-text">
+          <span className="settings-row-label">Program</span>
+          <span className="settings-row-desc">{error || "Checking…"}</span>
+        </div>
+      </div>
+    );
+  }
+  if (!status.installed) {
+    const progress = status.install;
+    const percent = progress && progress.total ? Math.min(100, Math.round((progress.received / progress.total) * 100)) : 0;
+    return (
+      <>
+        <div className="settings-card-row">
+          <div className="settings-row-text">
+            <span className="settings-row-label">{label} is not installed</span>
+            <span className="settings-row-desc">
+              {busy
+                ? progress!.state === "downloading"
+                  ? `Downloading… ${Math.round(progress!.received / 1048576)} of ${Math.round(progress!.total / 1048576)} MB`
+                  : progress!.state === "verifying" ? "Checking the download against its pinned checksum…" : "Unpacking…"
+                : `Saturn downloads the official ${label} program${status.downloadVersion ? ` (${status.downloadVersion})` : ""} from the npm registry and checks it against a checksum pinned in Saturn, or uses one you have installed yourself.`}
+            </span>
+            {busy ? (
+              <div className="program-progress" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+                <div style={{ width: `${progress!.state === "downloading" ? percent : 100}%` }} />
+              </div>
+            ) : null}
+          </div>
+          <div className="settings-row-actions">
+            <Status ok={false} label="Not installed" />
+            <button type="button" className="btn tiny" disabled={Boolean(busy) || !status.downloadVersion} onClick={() => void install()}>
+              {busy ? "Downloading…" : progress?.state === "failed" ? "Try Again" : megabytes ? `Download (${megabytes})` : "Download"}
+            </button>
+          </div>
+        </div>
+        {error || progress?.state === "failed" ? <p className="settings-row-error">{error || progress?.error}</p> : null}
+      </>
+    );
+  }
+  const where =
+    status.source === "saturn" ? `Saturn's copy${status.version ? ` · ${status.version}` : ""}`
+    : status.source === "system" ? `Your installed ${label}${status.version ? ` · ${status.version}` : ""} · ${status.path}`
+    : `Development copy${status.version ? ` · ${status.version}` : ""}`;
+  return (
+    <>
+      <div className="settings-card-row">
+        <div className="settings-row-text">
+          <span className="settings-row-label">Program</span>
+          <span className="settings-row-desc" title={status.path ?? ""}>{where}</span>
+        </div>
+        <div className="settings-row-actions">
+          <Status ok label="Installed" />
+          {status.source === "saturn" ? (
+            <button type="button" className="btn ghost tiny" onClick={() => void remove()}>Remove</button>
+          ) : null}
+        </div>
+      </div>
+      {error ? <p className="settings-row-error">{error}</p> : null}
+      {props.children}
+    </>
   );
 }
 

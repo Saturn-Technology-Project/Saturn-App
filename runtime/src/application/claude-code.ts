@@ -1,6 +1,5 @@
 import { execFile } from "node:child_process";
 import { mkdir } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { promisify } from "node:util";
 import { query, type CanUseTool, type Options, type SDKMessage, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -48,6 +47,8 @@ export type ClaudeCodeStatus = {
   loginCommand: string;
   configDir: string;
   error?: string;
+  /** False when the program is not installed: Settings offers the download instead of the sign-in. */
+  installed?: boolean;
 };
 
 /**
@@ -67,11 +68,9 @@ export class ClaudeCodeService {
     return path.join(this.kernel.store.root, "claude");
   }
 
-  /** The `claude` program bundled with the SDK. */
+  /** The `claude` program: Saturn's download, a development checkout's SDK copy, or the user's own install. */
   cliPath(): string {
-    const require = createRequire(import.meta.url);
-    const manifest = require.resolve(`@anthropic-ai/claude-agent-sdk-${process.platform}-${process.arch}/package.json`);
-    return path.join(path.dirname(manifest), process.platform === "win32" ? "claude.exe" : "claude");
+    return this.kernel.programs.path("claude-code");
   }
 
   /** The SDK's environment: the runtime's own, minus every credential that outranks the user's login. */
@@ -92,7 +91,7 @@ export class ClaudeCodeService {
     try {
       cli = this.cliPath();
     } catch {
-      return { loggedIn: false, authMethod: "none", loginCommand: "", configDir: this.configDir(), error: "The Claude Code program is missing from this Saturn install." };
+      return { loggedIn: false, authMethod: "none", loginCommand: "", configDir: this.configDir(), installed: false };
     }
     // The SDK's bundled `claude` is headless (a bare start waits for a --print prompt), so sign-in is its
     // `auth login` subcommand: the Claude-subscription flow in the browser.
@@ -129,7 +128,7 @@ export class ClaudeCodeService {
     try {
       cli = this.cliPath();
     } catch {
-      throw new HttpError(500, "The Claude Code program is missing from this Saturn install.");
+      throw new HttpError(409, "Claude Code is not installed. Download it in Saturn Settings → General → Claude Code.");
     }
     try {
       await exec(cli, ["auth", "logout"], { env: this.environment(), timeout: 20_000 });

@@ -17,6 +17,19 @@ export type CodexStatus = {
   error?: string;
 };
 
+/** Claude Code or Codex: whether it is installed, where from, and a download in progress. */
+export type ProgramStatus = {
+  id: "claude-code" | "codex";
+  label: string;
+  installed: boolean;
+  source: "saturn" | "bundled" | "system" | null;
+  path: string | null;
+  version: string | null;
+  downloadVersion: string | null;
+  downloadSize: number;
+  install?: { state: "downloading" | "verifying" | "unpacking" | "done" | "failed"; received: number; total: number; error?: string };
+};
+
 export class AdminService {
   constructor(private readonly runtime: RuntimeClient) {}
 
@@ -27,6 +40,19 @@ export class AdminService {
       this.runtime.request<LogLine[]>("/logs"),
     ]);
     return { profile, information, logs };
+  }
+
+  program(id: ProgramStatus["id"]): Promise<ProgramStatus> {
+    return this.runtime.request(`/programs/${id}`);
+  }
+
+  /** Starts downloading Saturn's tested copy of the program; the status reports progress. */
+  installProgram(id: ProgramStatus["id"]): Promise<ProgramStatus> {
+    return userAction("program.install", { "saturn.program": id }, () => this.runtime.request<ProgramStatus>(`/programs/${id}/install`, { method: "POST" }));
+  }
+
+  removeProgram(id: ProgramStatus["id"]): Promise<ProgramStatus> {
+    return this.runtime.request(`/programs/${id}`, { method: "DELETE" });
   }
 
   /** Claude Code's login, as the official `claude` program reports it; Saturn never handles the credential. */

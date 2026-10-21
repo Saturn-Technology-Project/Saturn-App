@@ -1,7 +1,6 @@
 // Installs the runtime's production dependencies for a target platform into .staging/runtime-<os>-<cpu>, for
-// electron-builder to ship as runtime/node_modules. Claude Code and Codex come as per-platform optional packages
-// (@anthropic-ai/claude-agent-sdk-win32-x64, @openai/codex-win32-x64), so a Windows build cannot reuse the Mac's
-// ../runtime/node_modules; and a clean production install leaves out the dev tools (TypeScript, esbuild, tsx).
+// electron-builder to ship as runtime/node_modules. A clean production install leaves out the dev tools
+// (TypeScript, esbuild, tsx), and the Claude Code and Codex programs are left for Saturn to download on demand.
 // Files nothing loads at run time are then removed: source maps, type declarations and TypeScript sources, plus
 // other platforms' ONNX Runtime binaries.
 //
@@ -33,11 +32,21 @@ execSync(`npm ci --omit=dev --os=${os} --cpu=${cpu} --ignore-scripts --no-audit 
   stdio: "inherit",
 });
 
-const required = [`@anthropic-ai/claude-agent-sdk-${os}-${cpu}`, `@openai/codex-${os}-${cpu}`];
-const missing = required.filter((name) => !existsSync(path.join(staging, "node_modules", name, "package.json")));
-if (missing.length) {
-  console.error(`Staged runtime is missing ${missing.join(", ")}; npm did not install the ${os}-${cpu} packages.`);
-  process.exit(1);
+// Claude Code and Codex are downloaded on demand (Settings → General), not shipped: drop their platform packages,
+// about 530 MB unpacked. The SDKs that drive them stay; the runtime points them at the downloaded program.
+const scopes = { "@anthropic-ai": /^claude-agent-sdk-(darwin|linux|win32)-/, "@openai": /^codex-(darwin|linux|win32)-/ };
+for (const [scope, pattern] of Object.entries(scopes)) {
+  const dir = path.join(staging, "node_modules", scope);
+  if (!existsSync(dir)) continue;
+  for (const name of readdirSync(dir)) {
+    if (pattern.test(name)) rmSync(path.join(dir, name), { recursive: true, force: true });
+  }
+}
+for (const name of ["@anthropic-ai/claude-agent-sdk", "@openai/codex-sdk"]) {
+  if (!existsSync(path.join(staging, "node_modules", name, "package.json"))) {
+    console.error(`Staged runtime is missing ${name}.`);
+    process.exit(1);
+  }
 }
 // ONNX Runtime (the built-in embedding model) ships every platform's binaries; keep only the target's.
 const onnx = path.join(staging, "node_modules", "onnxruntime-node", "bin");
