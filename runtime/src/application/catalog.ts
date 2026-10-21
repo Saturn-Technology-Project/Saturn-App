@@ -26,6 +26,24 @@ function hostOf(url: string): string {
   }
 }
 
+/**
+ * An MCP server is a network endpoint: Saturn speaks MCP only over HTTP(S), so adding a server never makes Saturn
+ * start a program on this computer. Anything else (a command line, a file: or stdio: address) is refused.
+ */
+export function mcpEndpoint(url: string): string {
+  const value = url.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new HttpError(400, "An MCP server is added by its URL (https://…). Saturn does not start local programs as MCP servers.");
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new HttpError(400, `MCP servers are reached over HTTP(S), not ${parsed.protocol.replace(/:$/, "")}. Saturn does not start local programs as MCP servers.`);
+  }
+  return value;
+}
+
 /** Local agents and the model, MCP, and knowledge connections they use. */
 export class CatalogService {
 
@@ -236,7 +254,7 @@ export class CatalogService {
   async createMcp(input: { name: string; url: string; tools?: { toolId: string; description?: string }[] }) {
     const id = newId("mcp");
     const tools = (input.tools ?? []).map((tool) => this.kernel.route(id, tool.toolId, tool.description ?? ""));
-    const connection: McpConnection = { id, name: input.name, url: input.url, tools, origin: "local" };
+    const connection: McpConnection = { id, name: input.name, url: mcpEndpoint(input.url), tools, origin: "local" };
     await this.kernel.store.update((state) => {
       state.mcp.push(connection);
     });
@@ -251,6 +269,7 @@ export class CatalogService {
     if ((patch.name !== undefined || patch.url !== undefined || patch.tools !== undefined) && id === GENERAL_SKILLS_ID) {
       throw new HttpError(403, "General Skills is built in");
     }
+    if (patch.url !== undefined) patch = { ...patch, url: mcpEndpoint(patch.url) };
     let updated: McpConnection | undefined;
     await this.kernel.store.update((state) => {
       const current = state.mcp.find((item) => item.id === id);
