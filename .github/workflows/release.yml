@@ -157,6 +157,8 @@ jobs:
       - name: Runtime and desktop dependencies
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
           npm ci --prefix runtime
           npm ci --prefix desktop
 
@@ -168,6 +170,8 @@ jobs:
       - name: Tests and type checks
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
           npm test --prefix runtime
           npm run typecheck
           npm run test:ide
@@ -187,6 +191,8 @@ jobs:
         working-directory: desktop
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
           npm run dist:win
 

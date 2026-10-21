@@ -49,12 +49,16 @@ jobs:
       - name: Runtime and desktop dependencies
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
           npm ci --prefix runtime
           npm ci --prefix desktop
 
       - name: Runtime tests and type checks
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
           npm test --prefix runtime
           npm run typecheck
           npm run test:ide

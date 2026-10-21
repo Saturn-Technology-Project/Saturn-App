@@ -70,6 +70,9 @@
           ]
         }
       ],
+      "signtoolOptions": {
+        "sign": "scripts/sign-windows.cjs"
+      },
       "extraResources": [
         {
           "from": ".staging/runtime-win32-x64/node_modules",

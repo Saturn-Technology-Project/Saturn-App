@@ -154,13 +154,16 @@ export class WorktreeService {
     if (how === "merge") {
       const mainDirty = await this.git(root, ["status", "--porcelain", "--untracked-files=no"], true);
       if (mainDirty) throw new HttpError(409, "The project has uncommitted changes; commit or stash them before merging a chat's branch into it");
+      // The merge commit is the user's when git knows who they are; otherwise it is Saturn's, like the branch's commit.
+      const identity = (await this.git(root, ["config", "user.email"], true)).trim() ? [] : ["-c", "user.name=Saturn", "-c", "user.email=saturn@localhost"];
       try {
-        await this.git(root, ["merge", "--no-ff", "-m", `Merge ${branch}: ${thread.title}`, branch]);
+        await this.git(root, [...identity, "merge", "--no-ff", "-m", `Merge ${branch}: ${thread.title}`, branch]);
         merged = true;
       } catch (error) {
         conflicts = (await this.git(root, ["diff", "--name-only", "--diff-filter=U"], true)).split("\n").filter(Boolean);
         await this.git(root, ["merge", "--abort"], true);
-        throw new HttpError(409, `Merging ${branch} into ${base} conflicts in ${conflicts.join(", ") || "some files"}. Keep the branch and merge it by hand, or discard it. (${errorText(error)})`);
+        if (!conflicts.length) throw new HttpError(409, `Could not merge ${branch} into ${base}: ${errorText(error)}`);
+        throw new HttpError(409, `Merging ${branch} into ${base} conflicts in ${conflicts.join(", ")}. Keep the branch and merge it by hand, or discard it.`);
       }
     }
     await this.git(root, ["worktree", "remove", "--force", folder], true);
