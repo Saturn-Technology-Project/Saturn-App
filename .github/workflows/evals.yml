@@ -41,7 +41,7 @@ jobs:
       - name: Harness self-test (scripted model)
         run: node --test scripts/eval/self-test.mjs
       - name: SDK against a real runtime (scripted model)
-        run: node --test packages/sdk/test/
+        run: node --test 'packages/sdk/test/*.test.ts'
 
   evals:
     needs: self-test

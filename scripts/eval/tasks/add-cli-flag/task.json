@@ -1,5 +1,5 @@
 {
   "prompt": "Add a `--json` flag to the CLI in src/cli.js: with it, print the counts as one JSON object instead of lines. Add a test for it next to the existing one, and keep that one passing.",
-  "check": "node --test .eval-check/",
+  "check": "node --test '.eval-check/*.test.js'",
   "timeoutMs": 300000
 }

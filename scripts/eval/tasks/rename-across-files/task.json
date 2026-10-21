@@ -1,5 +1,5 @@
 {
   "prompt": "Rename the function `fetchUser` to `loadUser` everywhere in the project (definition, imports, calls). Keep the tests passing.",
-  "check": "node --test .eval-check/",
+  "check": "node --test '.eval-check/*.test.js'",
   "timeoutMs": 300000
 }

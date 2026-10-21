@@ -1,5 +1,5 @@
 {
   "prompt": "readConfig in src/config.js only takes a callback. Add a promise version: called without a callback, it returns a promise of the same config (rejecting where the callback would get an error). Every existing callback caller must keep working exactly as before: errors go to the callback, never thrown, and the callback is still called asynchronously, once.",
-  "check": "node --test .eval-check/",
+  "check": "node --test '.eval-check/*.test.js'",
   "timeoutMs": 420000
 }

@@ -1,5 +1,5 @@
 {
   "prompt": "A customer reports that a cart with three items at $0.29 each totals $0.84 instead of $0.87. Find and fix the root cause; do not change the tests.",
-  "check": "node --test .eval-check/",
+  "check": "node --test '.eval-check/*.test.js'",
   "timeoutMs": 420000
 }

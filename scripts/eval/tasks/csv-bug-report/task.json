@@ -1,5 +1,5 @@
 {
   "prompt": "Importing contacts crashes with:\n\n    TypeError: Cannot read properties of undefined (reading 'trim')\n        at toContact (src/import.js:4)\n\nThe file has lines like these:\n\n    name,email,note\n    \"Smith, Jane\",jane@example.com,\"Said \"\"hi\"\"\"\n    Bob,bob@example.com,\"Line one\n    line two\"\n\nFix the import so files like this load correctly.",
-  "check": "node --test .eval-check/",
+  "check": "node --test '.eval-check/*.test.js'",
   "timeoutMs": 420000
 }

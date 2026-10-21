@@ -80,7 +80,7 @@ async function checkPasses(name, withSolution) {
 		try {
 			// Before the fix a check may hang (slow-dedupe's is the slowness itself); 20 s is plenty to fail.
 			await exec('/bin/sh', ['-c', task.check], { cwd: work, env, timeout: withSolution ? 60_000 : 20_000 });
-			if (withSolution) await exec('/bin/sh', ['-c', 'node --test test/ 2>/dev/null || [ ! -d test ]'], { cwd: work, env, timeout: 60_000 });
+			if (withSolution) await exec('/bin/sh', ['-c', "[ ! -d test ] || node --test 'test/*.test.js' 2>/dev/null"], { cwd: work, env, timeout: 60_000 });
 			return true;
 		} catch {
 			return false;

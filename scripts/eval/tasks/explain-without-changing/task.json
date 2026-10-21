@@ -1,6 +1,6 @@
 {
   "prompt": "Without changing any file, explain in your answer what `cache.js` does and name the bug in it (when does it return a stale value?).",
-  "check": "node --test .eval-check/",
+  "check": "node --test '.eval-check/*.test.js'",
   "timeoutMs": 300000,
   "answerMatches": "1000|seconds|second"
 }

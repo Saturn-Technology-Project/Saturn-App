@@ -30,7 +30,10 @@ async function shellModel() {
 
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } });
 
-test("files a shell command changes in a git project join the run's changes, and revert undoes them", async () => {
+/** The scripted commands are POSIX shell; Windows runs the code tool's commands in PowerShell. */
+const posixOnly = { skip: process.platform === "win32" && "the scripted commands are POSIX shell" };
+
+test("files a shell command changes in a git project join the run's changes, and revert undoes them", posixOnly, async () => {
   const model = await shellModel();
   try {
     const folder = mkdtempSync(path.join(os.tmpdir(), "saturn-shell-changes-"));
@@ -90,7 +93,7 @@ async function setUp(folder: string) {
   return { model, services, run };
 }
 
-test("outside git, a private snapshot of the folder tracks the same changes, and revert undoes them", async () => {
+test("outside git, a private snapshot of the folder tracks the same changes, and revert undoes them", posixOnly, async () => {
   const folder = mkdtempSync(path.join(os.tmpdir(), "saturn-shell-nogit-"));
   writeFileSync(path.join(folder, "tracked.txt"), "v1\n");
   writeFileSync(path.join(folder, "edited.txt"), "base\nmine\n");
@@ -120,7 +123,7 @@ test("outside git, a private snapshot of the folder tracks the same changes, and
   }
 });
 
-test("a background command's changes are recorded under the step that started it, once it ends", async () => {
+test("a background command's changes are recorded under the step that started it, once it ends", posixOnly, async () => {
   const folder = mkdtempSync(path.join(os.tmpdir(), "saturn-shell-bg-"));
   git(folder, "init", "-q");
   writeFileSync(path.join(folder, "server.log.txt"), "start\n");

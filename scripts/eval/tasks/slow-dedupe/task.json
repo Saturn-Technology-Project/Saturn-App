@@ -1,5 +1,5 @@
 {
   "prompt": "uniqueBy in src/dedupe.js is far too slow on large inputs: importing 200,000 rows takes minutes. Make it fast without changing what it returns.",
-  "check": "node --test .eval-check/",
+  "check": "node --test '.eval-check/*.test.js'",
   "timeoutMs": 420000
 }
