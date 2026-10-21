@@ -1,10 +1,21 @@
 // The eval harness itself, without spending tokens: a scripted OpenAI-compatible model solves two tasks (one by
 // editing a file, one by answering), and one it leaves unsolved, through a real runtime started by the harness.
+// And every task's hidden checks: they fail on the repo as given and pass with the task's reference fix
+// (solution/, never shown to the agent); a task without one (answer only) must pass untouched.
 // Run: node --test scripts/eval/self-test.mjs
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { cp, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { markdown, runTask, setUp, startRuntime, summarize } from './run.mjs';
+
+const tasksDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'tasks');
+const exec = promisify(execFile);
 
 const FIXED = '/** The page numbers for `total` items, `size` per page: [1, 2, …]. */\nexport function pages(total, size) {\n  const count = Math.ceil(total / size);\n  return Array.from({ length: count }, (_, index) => index + 1);\n}\n';
 
@@ -53,4 +64,40 @@ test('the harness runs tasks end to end and grades them with the hidden checks',
 test('plan providers are refused for unattended evals', async () => {
 	await assert.rejects(setUp(async () => ({}), { SATURN_EVAL_PROVIDER: 'claude-code', SATURN_EVAL_MODEL: 'x' }), /not for unattended evals/);
 	await assert.rejects(setUp(async () => ({}), {}), /Set SATURN_EVAL_PROVIDER/);
+});
+
+/** Runs a task's check in a copy of its repo, optionally with the reference fix laid over it. */
+async function checkPasses(name, withSolution) {
+	const folder = path.join(tasksDir, name);
+	const task = JSON.parse(await readFile(path.join(folder, 'task.json'), 'utf8'));
+	const work = await mkdtemp(path.join(os.tmpdir(), `saturn-eval-check-${name}-`));
+	try {
+		await cp(path.join(folder, 'repo'), work, { recursive: true });
+		if (withSolution) await cp(path.join(folder, 'solution'), work, { recursive: true });
+		await cp(path.join(folder, 'check'), path.join(work, '.eval-check'), { recursive: true });
+		const { NODE_TEST_CONTEXT: _context, ...env } = process.env;
+		try {
+			// Before the fix a check may hang (slow-dedupe's is the slowness itself); 20 s is plenty to fail.
+			await exec('/bin/sh', ['-c', task.check], { cwd: work, env, timeout: withSolution ? 60_000 : 20_000 });
+			if (withSolution) await exec('/bin/sh', ['-c', 'node --test test/ 2>/dev/null || [ ! -d test ]'], { cwd: work, env, timeout: 60_000 });
+			return true;
+		} catch {
+			return false;
+		}
+	} finally {
+		await rm(work, { recursive: true, force: true });
+	}
+}
+
+test("every task's hidden checks fail as given and pass with its reference fix", { timeout: 300_000 }, async () => {
+	for (const name of (await readdir(tasksDir)).sort()) {
+		const task = JSON.parse(await readFile(path.join(tasksDir, name, 'task.json'), 'utf8'));
+		const hasSolution = await readdir(path.join(tasksDir, name, 'solution')).then(() => true, () => false);
+		if (task.answerMatches) {
+			assert.equal(await checkPasses(name, false), true, `${name}: an answer-only task passes untouched`);
+			continue;
+		}
+		assert.equal(await checkPasses(name, false), false, `${name}: the checks fail before the fix`);
+		if (hasSolution) assert.equal(await checkPasses(name, true), true, `${name}: the checks and the visible tests pass with the fix`);
+	}
 });

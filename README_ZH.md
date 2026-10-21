@@ -534,7 +534,7 @@ npm run test:ide    # Saturn IDE 擴充套件檢查
 
 測試會以暫存資料目錄與假的模型伺服器啟動 Runtime 的 HTTP API，不需要任何憑證，也不會動到你的資料。
 
-**任務評測。** `scripts/eval` 會用真的模型，透過 Saturn 的 Agent 迴圈完整執行小型程式任務，並以 Agent 看不到的測試評分：通過率、步數、token、花費與時間。`node --test scripts/eval/self-test.mjs` 用腳本化的假模型檢查評測工具本身，不花錢；實際執行會花費 token：
+**任務評測。** `scripts/eval` 會用真的模型，透過 Saturn 的 Agent 迴圈完整執行程式任務，並以 Agent 看不到的測試評分：通過率、步數、token、花費與時間。共 14 題，從小修正到：症狀出現在別的模組的 bug、非同步並行上限、要相容舊檔案的跨層功能、從當機報告修好 CSV 解析、要處理 20 萬筆資料的平方複雜度函式、繞過誘餌的唯讀搜尋、在 callback 旁加上 promise API，以及時區 bug。`node --test scripts/eval/self-test.mjs` 用腳本化的假模型檢查評測工具本身，並確認每題的隱藏測試在原始 repo 上會失敗、套上參考解答（`solution/`，Agent 看不到）後會通過；不花錢。實際執行會花費 token：
 
 ```bash
 SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_KEY=… node scripts/eval/run.mjs

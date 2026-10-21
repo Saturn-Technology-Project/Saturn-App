@@ -1,0 +1,6 @@
+{
+  "prompt": "Without changing any file: when a user is deleted in this codebase, which function actually sends the 'account-closed' email? Answer with the function's name and the file it is in.",
+  "check": "node --test .eval-check/",
+  "timeoutMs": 420000,
+  "answerMatches": "sendFarewell"
+}

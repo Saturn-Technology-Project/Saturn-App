@@ -1,0 +1,5 @@
+{
+  "prompt": "mapLimit in src/pool.js sometimes returns results in the wrong order, and it seems to run more calls at once than asked. Make it behave exactly as its doc comment says.",
+  "check": "node --test .eval-check/",
+  "timeoutMs": 420000
+}

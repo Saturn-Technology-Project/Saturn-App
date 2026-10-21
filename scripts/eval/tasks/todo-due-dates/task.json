@@ -1,0 +1,5 @@
+{
+  "prompt": "Add optional due dates to this todo app. `add <title> --due YYYY-MM-DD` stores the date (reject an invalid date with an error that mentions the date). `list` shows todos with a due date first, earliest first, then the ones without one in their original order; a todo with a date gets ` (due YYYY-MM-DD)` after its title. Numbers in `list` stay each todo's position in the file, so `done <n>` keeps working. Files written by the current version must still load. Keep the existing tests passing.",
+  "check": "node --test .eval-check/",
+  "timeoutMs": 420000
+}

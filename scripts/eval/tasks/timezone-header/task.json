@@ -1,0 +1,5 @@
+{
+  "prompt": "Users in New Zealand say the daily report header shows yesterday's date, while users in California sometimes see tomorrow's. The header should show the date of the report in the user's own time zone. Fix it; do not change the tests.",
+  "check": "TZ=Pacific/Auckland node --test .eval-check/ && TZ=America/Los_Angeles node --test .eval-check/",
+  "timeoutMs": 420000
+}

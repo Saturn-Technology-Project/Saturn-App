@@ -535,7 +535,7 @@ npm run test:ide    # Saturn IDE extension checks
 
 Tests boot the runtime's HTTP API against a temporary data directory and fake model servers, so they need no credentials and never touch your data.
 
-**Task evals.** `scripts/eval` runs small coding tasks end to end through Saturn's agent loop with a real model and grades them with tests the agent never sees: pass rate, steps, tokens, cost and time. `node --test scripts/eval/self-test.mjs` checks the harness with a scripted model and costs nothing; a real run spends tokens:
+**Task evals.** `scripts/eval` runs coding tasks end to end through Saturn's agent loop with a real model and grades them with tests the agent never sees: pass rate, steps, tokens, cost and time. Fourteen tasks range from small fixes to a bug whose symptom is in another module, an async concurrency limit, a feature across layers that must read old files, a CSV parser from a crash report, a quadratic function that must handle 200,000 rows, a read-only search past a decoy, a promise API beside callbacks, and a time-zone bug. `node --test scripts/eval/self-test.mjs` checks the harness with a scripted model, and that every task's hidden checks fail as given and pass with its reference fix (`solution/`, never shown to the agent); it costs nothing. A real run spends tokens:
 
 ```bash
 SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_KEY=… node scripts/eval/run.mjs
