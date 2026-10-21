@@ -237,6 +237,17 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Software bill of materials (CycloneDX)
+        run: |
+          version="${VERSION#v}"
+          node scripts/sbom.mjs "$version" "dist/Saturn-$version-sbom.cdx.json"
+          (cd dist && sha256sum "Saturn-$version-sbom.cdx.json" > "Saturn-$version-sbom.cdx.json.sha256")
+
+      - name: Attest the SBOM
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: dist/*-sbom.cdx.json
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}

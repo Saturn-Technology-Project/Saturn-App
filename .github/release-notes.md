@@ -24,4 +24,6 @@ shasum -a 256 -c Saturn-__VERSION__-mac-arm64-unsigned.dmg.sha256
 gh attestation verify Saturn-__VERSION__-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
 ```
 
+`Saturn-__VERSION__-sbom.cdx.json` lists every package, model and runtime this release ships (CycloneDX 1.5, with each package's SHA-512), for your scanner or your security team.
+
 ## Changes
