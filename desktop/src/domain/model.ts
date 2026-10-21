@@ -131,6 +131,11 @@ export type Conversation = {
   updatedAt: string;
 };
 
+/** A hook: a command that runs before or after a tool call, or when a turn ends (see Settings → Hooks). */
+export type HookEvent = "pre_tool" | "post_tool" | "stop";
+export type Hook = { event: HookEvent; matcher?: string; command: string; timeoutMs?: number };
+export type HookSet = { source: "user" | "project-file" | "claude-file"; path?: string; hooks: Hook[]; fingerprint?: string; approved: boolean };
+
 /** A background command an agent started in a chat (code with background: true). */
 export type BackgroundJob = { id: string; scope: string; command: string; pid?: number; startedAt: string; endedAt?: string; exitCode?: number | null; running: boolean; bytes: number };
 
@@ -248,6 +253,8 @@ export type Profile = {
   embeddingModel?: string;
   /** The sandbox for commands (default: workspace-write, network allowed). */
   sandbox?: SandboxSettings;
+  /** Claude Code loads the project's own .claude/settings.json (hooks, permissions, settings). */
+  claudeProjectSettings?: boolean;
   /** For the OpenAI-compatible source: the model connection whose endpoint and key are used. */
   embeddingConnectionId?: string;
   /** When the first-launch onboarding was finished or skipped; unset shows it. */

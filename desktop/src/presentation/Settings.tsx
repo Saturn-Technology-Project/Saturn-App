@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
+import { HooksPage } from "./Hooks";
 import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings } from "../domain/model";
 import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
@@ -18,6 +19,7 @@ export type SettingsPage =
   | "information"
   | "memory"
   | "permissions"
+  | "hooks"
   | "shortcuts";
 
 const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
@@ -30,6 +32,7 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
       ["usage", "Usage & Billing", "Token spend & costs"],
       ["memory", "Memory", "What Saturn remembers across chats"],
       ["permissions", "Permissions", "What agents may do without asking"],
+      ["hooks", "Hooks", "Commands around tool calls and turns"],
     ],
   },
   {
@@ -203,6 +206,7 @@ export function Settings(props: {
                 {page === "usage" ? <UsageBilling refreshOn={[props.models, props.agents]} /> : null}
                 {page === "memory" ? <Memory projects={props.projects ?? []} /> : null}
                 {page === "permissions" ? <PermissionsPage projects={props.projects ?? []} agents={props.agents} onError={setError} /> : null}
+                {page === "hooks" ? <HooksPage projects={props.projects ?? []} onError={setError} /> : null}
                 {page === "mcp" ? (
                   <McpPage
                     agent={props.agent}
@@ -951,6 +955,18 @@ function General(props: {
   const [memory, setMemory] = useState(props.profile.memory !== false);
   const [notify, setNotify] = useState(localStorage.getItem("saturn-notify") !== "off");
   const [planApproval, setPlanApproval] = useState(props.profile.planApproval === true);
+  const [claudeProjectSettings, setClaudeProjectSettings] = useState(props.profile.claudeProjectSettings === true);
+
+  async function chooseClaudeProjectSettings(next: boolean) {
+    setClaudeProjectSettings(next);
+    try {
+      await props.onSaved(await desktop.admin.updateSettings({ claudeProjectSettings: next }));
+      props.onError("");
+    } catch (reason) {
+      setClaudeProjectSettings(!next);
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
   const [sandbox, setSandbox] = useState<SandboxSettings>(props.profile.sandbox ?? { mode: "workspace-write", network: true });
 
   async function chooseSandbox(next: SandboxSettings) {
@@ -1104,6 +1120,13 @@ function General(props: {
           <ProgramGate id="claude-code">
             <ClaudeCodeLogin />
           </ProgramGate>
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Use the project's Claude Code settings</span>
+              <span className="settings-row-desc">Claude Code loads the chat's project <code>.claude/settings.json</code>: its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.</span>
+            </div>
+            <Toggle on={claudeProjectSettings} label="Use the project's Claude Code settings" onChange={(next) => void chooseClaudeProjectSettings(next)} />
+          </div>
         </div>
       </div>
 

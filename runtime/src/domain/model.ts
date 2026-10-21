@@ -1,5 +1,6 @@
 import type { PermissionRule } from "./permissions.js";
 import type { SandboxSettings } from "../infrastructure/sandbox.js";
+import type { Hook } from "../application/hooks.js";
 export type AgentStatus = "active" | "paused";
 export type RunStatus =
   | "queued"
@@ -277,6 +278,10 @@ export type AppSettings = {
   permissions?: PermissionRule[];
   /** The sandbox for the `code` tool's commands (default workspace-write with network). */
   sandbox?: SandboxSettings;
+  /** The user's own hooks, which run in every project (see application/hooks.ts). */
+  hooks?: Hook[];
+  /** Claude Code loads the project's own `.claude/settings.json` (its hooks, permissions and settings). Default off. */
+  claudeProjectSettings?: boolean;
   /**
    * What embeds the code index: Saturn's built-in model (default), LM Studio, or an OpenAI-compatible endpoint
    * (the model connection `embeddingConnectionId`). Unset with an `embeddingModel` means LM Studio, as before.
@@ -341,6 +346,8 @@ export type Project = {
   permissions?: PermissionRule[];
   /** The sandbox for commands run in this project; unset uses the setting for everywhere. */
   sandbox?: SandboxSettings;
+  /** The fingerprint of each project file's hooks the user allowed (`.saturn/hooks.json`, `.claude/settings.json`). */
+  approvedHooks?: Record<string, string>;
   lastOpenedAt?: string;
   isDefault?: boolean;
 };

@@ -248,7 +248,8 @@ export class ClaudeCodeService {
       cwd: workdir,
       env: this.environment(),
       pathToClaudeCodeExecutable: this.cliPath(),
-      settingSources: [],
+      // None of the user's Claude settings; the project's own .claude/settings.json only when the user turned it on.
+      settingSources: this.kernel.store.state.settings.claudeProjectSettings === true ? ["project"] : [],
       model: model.model,
       ...(model.effort ? { effort: model.effort } : {}),
       ...(resumeId ? { resume: resumeId } : {}),

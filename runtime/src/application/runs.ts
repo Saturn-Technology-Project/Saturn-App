@@ -600,7 +600,7 @@ export class RunService {
       const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
       if (!model) throw new Error("Agent has no model connection");
       const done: RunAction = allow
-        ? await this.executeTool({ agentId: agent.id, toolId: pending.toolId, arguments: pending.arguments, runId, actionId: pending.id, signal })
+        ? await this.kernel.hooks.afterTool(agent, run, await this.executeTool({ agentId: agent.id, toolId: pending.toolId, arguments: pending.arguments, runId, actionId: pending.id, signal }), signal)
         : { ...pending, status: "denied", reason: DENIED_BY_USER };
       if (pending.thoughtSignature) done.thoughtSignature = pending.thoughtSignature;
       actions.push(done);
@@ -929,9 +929,25 @@ export class RunService {
         continue;
       }
 
+      // pre_tool hooks first: exit 2 or a "deny" answer refuses the call; "allow" and "ask" act like rules.
+      const hooked = await this.kernel.hooks.beforeTool(agent, this.kernel.getRun(runId), call.name, call.arguments, signal);
+      if (hooked.blocked) {
+        const refused: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "denied", reason: `Blocked by a hook: ${hooked.blocked}` };
+        if (call.thoughtSignature) refused.thoughtSignature = call.thoughtSignature;
+        actions.push(refused);
+        this.kernel.log("agent", "warning", `${agent.name} ${call.name} blocked by a pre_tool hook`);
+        continue;
+      }
+
       // The permission rules first (the user's, the project's, the agent's, the project's settings files): a
       // deny rule refuses the call, an allow rule runs it without asking in any mode, an ask rule asks.
-      const ruling = await this.kernel.permissions.decide(agent, { threadId: this.kernel.store.state.runs.find((item) => item.id === runId)?.threadId }, call.name, call.arguments);
+      const ruled = await this.kernel.permissions.decide(agent, { threadId: this.kernel.store.state.runs.find((item) => item.id === runId)?.threadId }, call.name, call.arguments);
+      // A hook's answer counts like a rule from the hook; the stricter of the two wins.
+      const ruling = hooked.decision === "ask" && ruled?.effect !== "deny"
+        ? { effect: "ask" as const, rule: { tool: call.name, pattern: "*", effect: "ask" as const }, scope: "user" as const, path: "hook" }
+        : hooked.decision === "allow" && !ruled
+          ? { effect: "allow" as const, rule: { tool: call.name, pattern: "*", effect: "allow" as const }, scope: "user" as const, path: "hook" }
+          : ruled;
       if (ruling?.effect === "deny") {
         const refused: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "denied", reason: this.kernel.permissions.explain(ruling) };
         if (call.thoughtSignature) refused.thoughtSignature = call.thoughtSignature;
@@ -951,7 +967,7 @@ export class RunService {
         approvalReason = "Runs outside the sandbox: this command may write anywhere on this computer";
       } else if (ruling?.effect === "ask") {
         requiresApproval = true;
-        approvalReason = this.kernel.permissions.explain(ruling);
+        approvalReason = ruling.path === "hook" ? hooked.reason ?? "Asked by a hook" : this.kernel.permissions.explain(ruling);
       } else if (ruling?.effect === "allow") {
         requiresApproval = false;
       } else if (mode === "review") {
@@ -994,14 +1010,14 @@ export class RunService {
         continue;
       }
 
-      const action = await this.executeTool({
+      const action = await this.kernel.hooks.afterTool(agent, this.kernel.getRun(runId), await this.executeTool({
         agentId: agent.id,
         toolId: call.name,
         arguments: call.arguments,
         runId,
         actionId: newId("act"),
         signal,
-      });
+      }), signal);
       if (call.thoughtSignature) action.thoughtSignature = call.thoughtSignature;
       actions.push(action);
       const detail = action.reason ? `: ${clip(action.reason, 80)}` : "";
@@ -1128,6 +1144,7 @@ export class RunService {
     if (current.parentRunId) return;
     void this.kernel.memory.noteRun(current);
     void this.kernel.verify.afterRun(current).catch((error) => this.kernel.log("agent", "warning", `Verification failed to run: ${errorText(error)}`, { "saturn.run.id": runId }));
+    void this.kernel.hooks.afterRun(current).catch((error) => this.kernel.log("agent", "warning", `Stop hooks failed to run: ${errorText(error)}`, { "saturn.run.id": runId }));
   }
 
   /** A Claude Code or Codex turn that completed feeds memory, as a local run's does when it finishes. */

@@ -1,4 +1,4 @@
-import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, PermissionLayer, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
+import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, Hook, HookSet, PermissionLayer, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -97,7 +97,7 @@ export class AdminService {
     return this.runtime.request(`/memory/${encodeURIComponent(scope)}`, { method: "PUT", body: JSON.stringify({ content }) });
   }
 
-  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string; onboardedAt?: string | null; sandbox?: SandboxSettings | null }): Promise<Profile> {
+  updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string; onboardedAt?: string | null; sandbox?: SandboxSettings | null; claudeProjectSettings?: boolean }): Promise<Profile> {
     return this.runtime.request<Profile>("/settings", { method: "PATCH", body: JSON.stringify(patch) });
   }
 
@@ -116,6 +116,23 @@ export class AdminService {
 
   removePermissionRule(scope: PermissionScope, rule: PermissionRule, target: { projectId?: string; agentId?: string } = {}): Promise<PermissionLayer[]> {
     return this.runtime.request<PermissionLayer[]>("/permissions/rules", { method: "DELETE", body: JSON.stringify({ scope, rule, ...target }) });
+  }
+
+  /** The user's hooks, and a project's file hooks with whether each set is allowed. */
+  hooks(projectId?: string): Promise<HookSet[]> {
+    return this.runtime.request<HookSet[]>(`/hooks${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ""}`);
+  }
+
+  setUserHooks(hooks: Hook[]): Promise<HookSet[]> {
+    return this.runtime.request<HookSet[]>("/hooks", { method: "PUT", body: JSON.stringify({ hooks }) });
+  }
+
+  approveHooks(projectId: string, file: string, fingerprint: string): Promise<HookSet[]> {
+    return this.runtime.request<HookSet[]>(`/projects/${encodeURIComponent(projectId)}/hooks/approve`, { method: "POST", body: JSON.stringify({ file, fingerprint }) });
+  }
+
+  revokeHooks(projectId: string, file: string): Promise<HookSet[]> {
+    return this.runtime.request<HookSet[]>(`/projects/${encodeURIComponent(projectId)}/hooks/approve`, { method: "DELETE", body: JSON.stringify({ file }) });
   }
 
   providers(): Promise<LlmProvider[]> {
