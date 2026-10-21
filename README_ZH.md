@@ -161,8 +161,8 @@ runtime/src/                    desktop/src/
 
 | 供應商 | 驗證方式 | 說明 |
 |---|---|---|
-| Anthropic | API 金鑰 | 支援的模型可設定推理強度與 adaptive thinking |
-| Claude Code | Claude 訂閱方案 | Claude Agent SDK。使用你 PATH 上的 `claude`，或在 **設定 → 一般** 下載官方程式（約 95 MB）。用它登入一次；Saturn 從不經手憑證。 |
+| Claude | API 金鑰 | 支援的模型可設定推理強度與 adaptive thinking |
+| Claude（透過 Claude Code） | Claude 訂閱方案 | 透過 Claude Agent SDK 執行 Claude Code；Saturn 不會為這類模型送出任何 API 請求（見[Claude 與 Anthropic 的條款](#claude-與-anthropic-的條款)）。使用你 PATH 上的 `claude`，或在 **設定 → 一般** 下載官方程式（約 95 MB）。用它登入一次；Saturn 從不經手憑證。 |
 | Codex | ChatGPT 訂閱方案 | Codex SDK。使用你 PATH 上的 `codex`，或在 **設定 → 一般** 下載官方程式（約 135 MB）。在設定中以 device code 登入。 |
 | OpenAI | API 金鑰 | Chat Completions 與 Responses API；推理模型可設定推理強度 |
 | Google Gemini | API 金鑰 | Thinking level（3.x 起）或 thinking budget（2.5） |
@@ -170,6 +170,26 @@ runtime/src/                    desktop/src/
 | LM Studio | 無 | 任何本機提供的模型，完全離線 |
 
 API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。
+
+### Claude 與 Anthropic 的條款
+
+Saturn 以兩種嚴格分開的方式提供 Claude：
+
+| 供應商 | 驗證方式 | Saturn 送出的內容 |
+|---|---|---|
+| Claude | 你的 Anthropic API 金鑰，適用 Anthropic 的 [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) | 由 Saturn 送往 Anthropic 的 API 請求 |
+| Claude（透過 Claude Code） | 你自己的 Claude 訂閱方案，以官方 `claude` 程式登入 | 完全沒有 API 請求：每一回合都在未修改的 Claude Code 程式中執行，透過 Claude Agent SDK 驅動 |
+
+Saturn 如何遵循 Anthropic 的 [Claude Code 法律與合規條款](https://code.claude.com/docs/en/legal-and-compliance)：
+
+- **透過 Anthropic 自己的流程登入。** 你在終端機以 `claude auth login` 登入 Claude Code。Saturn 沒有 Claude 登入按鈕，從不收集、儲存或轉送 Claude.ai 憑證或 session token；不讀取 `~/.claude` 或鑰匙圈，Claude Code 在自己的設定資料夾中執行，不載入你的任何 Claude 設定。
+- **未修改的程式。** Saturn 以 Anthropic 發布的原樣執行 Claude Code：其 SDK 建置時所用的 npm 套件，並以固定的 SHA-512 驗證，或使用你自己安裝的版本。
+- **你自己的方案，費用由你支付。** 每位使用者以自己的訂閱登入；Saturn 不代付、轉售或居中處理 Claude 的用量。
+- **由程式強制，而非靠慣例。** 模型代理層會拒絕對 Claude（透過 Claude Code）模型發出任何 API 請求，這類模型無法設定 API 金鑰，Saturn 的附屬工作（記憶整理、自動化草稿、編輯器補全）只使用 API 模型。測試確保這一點不會被改壞。
+- **一般、個人的使用。** Anthropic 的方案額度以此為前提，其 Consumer Terms 也只允許透過 API 金鑰進行自動化存取，因此自動化任務無法使用 Claude（透過 Claude Code）：這類 Agent 在自動化表單中是停用的，Runtime 也會拒絕。
+- **命名。** Saturn 以純文字說明此供應商執行 Claude Code；不以 Claude Code 或 Anthropic 作為自己產品或功能的名稱，也並非由 Anthropic 打造、背書或與其合作。
+
+以上是我們對 Anthropic 公開條款的解讀，不構成法律意見，最終由 Anthropic 決定：若你的用法不同（團隊部署、託管服務），請改用 Claude 供應商與 API 金鑰，或[洽詢 Anthropic](https://code.claude.com/docs/en/legal-and-compliance)。
 
 ### 本機模型
 

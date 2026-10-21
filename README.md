@@ -162,8 +162,8 @@ Launching Saturn starts the runtime, then opens the default surface: the agent a
 
 | Provider | Authentication | Notes |
 |---|---|---|
-| Anthropic | API key | Effort levels and adaptive thinking where supported |
-| Claude Code | Claude subscription | Claude Agent SDK. Uses your `claude` on the PATH, or downloads the official program from **Settings → General** (about 95 MB). Sign in once with it; Saturn never handles the credential. |
+| Claude | API key | Effort levels and adaptive thinking where supported |
+| Claude (via Claude Code) | Claude subscription | Runs Claude Code through the Claude Agent SDK; Saturn sends no API request for these models (see [Claude and Anthropic's terms](#claude-and-anthropics-terms)). Uses your `claude` on the PATH, or downloads the official program from **Settings → General** (about 95 MB). Sign in once with it; Saturn never handles the credential. |
 | Codex | ChatGPT subscription | Codex SDK. Uses your `codex` on the PATH, or downloads the official program from **Settings → General** (about 135 MB). Device-code sign-in from Settings. |
 | OpenAI | API key | Chat Completions and Responses APIs; reasoning effort on reasoning models |
 | Google Gemini | API key | Thinking level (3.x and later) or thinking budget (2.5) |
@@ -171,6 +171,26 @@ Launching Saturn starts the runtime, then opens the default surface: the agent a
 | LM Studio | None | Any locally served model, fully offline |
 
 API keys are stored encrypted in `~/.saturn-app/secrets.json` (AES-256-GCM, key in the OS key store; see [Data at rest](#data-at-rest)), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider.
+
+### Claude and Anthropic's terms
+
+Saturn offers Claude in two ways that are kept strictly apart:
+
+| Provider | Authentication | What Saturn sends |
+|---|---|---|
+| Claude | Your Anthropic API key, under Anthropic's [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) | API requests from Saturn to Anthropic |
+| Claude (via Claude Code) | Your own Claude subscription, signed in with the official `claude` program | No API request at all: every turn runs in the unmodified Claude Code program, driven through the Claude Agent SDK |
+
+How Saturn follows Anthropic's [Claude Code legal and compliance terms](https://code.claude.com/docs/en/legal-and-compliance):
+
+- **Sign-in through Anthropic's own flow.** You sign in to Claude Code with `claude auth login` in a terminal. Saturn has no Claude login button and never collects, stores or forwards Claude.ai credentials or session tokens; it does not read `~/.claude` or the Keychain, and Claude Code runs in its own config folder with none of your Claude settings loaded.
+- **The unmodified program.** Saturn runs Claude Code as Anthropic publishes it: the npm package its SDK was built against, checked against a pinned SHA-512, or your own installation.
+- **Your own plan, billed to you.** Each user signs in with their own subscription; Saturn does not pay for, resell or intermediate Claude usage.
+- **Enforced in code, not by convention.** The model broker refuses any API request for a Claude (via Claude Code) model, such a model cannot hold an API key, and Saturn's side tasks (memory notes, automation drafts, editor completions) use API models only. Tests keep it that way.
+- **Ordinary, individual use.** Anthropic's plan limits assume it, and its Consumer Terms allow automated access only through an API key, so automations cannot run on Claude (via Claude Code): those agents are disabled in the automation form and refused by the runtime.
+- **Naming.** Saturn says in plain text that this provider runs Claude Code; it does not use Claude Code or Anthropic as the name of its own product or features, and it is not built, endorsed or partnered by Anthropic.
+
+This is our reading of Anthropic's published terms, not legal advice, and Anthropic has the final say: if your use differs (a team deployment, a hosted service), use the Claude provider with an API key, or [ask Anthropic](https://code.claude.com/docs/en/legal-and-compliance).
 
 ### Local models
 

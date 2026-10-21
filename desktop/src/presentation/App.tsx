@@ -2160,6 +2160,7 @@ export function App() {
         ) : view === "automations" ? (
           <Automations
             agents={agents}
+            models={models}
             onOpenAgent={(agentId) => {
               setSelected(agentId);
               setSelectedTask(null);

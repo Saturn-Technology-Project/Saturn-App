@@ -1,4 +1,5 @@
 import { HttpError } from "../domain/errors.js";
+import { runsOnPlan } from "../domain/llm/catalog.js";
 import { errorText, logger } from "./logger.js";
 import { SpanKind, failSpan, instruments, seconds, traced } from "./telemetry.js";
 import { llmProvider } from "../domain/llm/catalog.js";
@@ -112,8 +113,11 @@ export class LlmBroker {
     }
   }
 
-  /** Which SDK module serves this model. */
+  /** Which SDK module serves this model. Subscription models have none: they never make API requests. */
   adapterFor(model: ModelConnection): ProviderAdapter {
+    if (runsOnPlan(model.provider)) {
+      throw new Error(`${model.name} runs through ${model.provider === "codex" ? "Codex" : "Claude Code"} on your own plan; Saturn never sends API requests for it. Use a model with an API key for this.`);
+    }
     const adapter = ADAPTERS[model.provider];
     if (adapter) return adapter;
     return isOfficialOpenAI(model.baseUrl) ? openAIResponses : openAIChat;

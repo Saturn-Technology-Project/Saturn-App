@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { desktop } from "../application/desktop";
-import type { Agent, Automation, AutomationFrequency, AutomationInput, AutomationTrigger } from "../domain/model";
+import type { Agent, Automation, AutomationFrequency, AutomationInput, AutomationTrigger, Model } from "../domain/model";
+
+/**
+ * Agents on Claude (via Claude Code) run on the user's Claude subscription, which Anthropic does not allow to run
+ * unattended on a schedule; the runtime refuses them too.
+ */
+function onClaudePlan(agent: Agent, models: Model[]): boolean {
+  return models.find((model) => model.id === agent.modelConnectionId)?.provider === "claude-code";
+}
 
 const FREQUENCIES: { id: AutomationFrequency; label: string }[] = [
   { id: "hourly", label: "Hourly" },
@@ -81,17 +89,17 @@ const TEMPLATES: { name: string; prompt: string; trigger: AutomationTrigger }[] 
   },
 ];
 
-function blankForm(agents: Agent[]): FormState {
+function blankForm(agents: Agent[], models: Model[] = []): FormState {
   return {
     name: "",
-    agentId: agents[0]?.id ?? "",
+    agentId: (agents.find((agent) => !onClaudePlan(agent, models)) ?? agents[0])?.id ?? "",
     prompt: "",
     trigger: { frequency: "daily", time: "09:00", weekday: 1 },
     timeZone: localZone(),
   };
 }
 
-export function Automations(props: { agents: Agent[]; onOpenAgent: (agentId: string) => void }) {
+export function Automations(props: { agents: Agent[]; models: Model[]; onOpenAgent: (agentId: string) => void }) {
   const [items, setItems] = useState<Automation[]>([]);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState<FormState | null>(null);
@@ -149,7 +157,7 @@ export function Automations(props: { agents: Agent[]; onOpenAgent: (agentId: str
               type="button"
               className="btn ghost"
               disabled={props.agents.length === 0}
-              onClick={() => setForm(blankForm(props.agents))}
+              onClick={() => setForm(blankForm(props.agents, props.models))}
             >
               <PlusIcon />
               <span>New</span>
@@ -243,6 +251,7 @@ export function Automations(props: { agents: Agent[]; onOpenAgent: (agentId: str
       {form ? (
         <AutomationDialog
           agents={props.agents}
+          models={props.models}
           initial={form}
           onClose={() => setForm(null)}
           onSaved={async () => {
@@ -258,7 +267,7 @@ export function Automations(props: { agents: Agent[]; onOpenAgent: (agentId: str
           onClose={() => setAsking(false)}
           onDrafted={(draft) => {
             setAsking(false);
-            setForm({ ...blankForm(props.agents), ...draft });
+            setForm({ ...blankForm(props.agents, props.models), ...draft });
           }}
         />
       ) : null}
@@ -268,6 +277,7 @@ export function Automations(props: { agents: Agent[]; onOpenAgent: (agentId: str
 
 function AutomationDialog(props: {
   agents: Agent[];
+  models: Model[];
   initial: FormState;
   onClose: () => void;
   onSaved: () => Promise<void>;
@@ -440,11 +450,21 @@ function AutomationDialog(props: {
               value={form.agentId}
               onChange={(event) => setForm({ ...form, agentId: event.target.value })}
             >
-              {props.agents.map((agent) => (
-                <option key={agent.id} value={agent.id}>{agent.name}</option>
-              ))}
+              {props.agents.map((agent) => {
+                const blocked = onClaudePlan(agent, props.models);
+                return (
+                  <option key={agent.id} value={agent.id} disabled={blocked}>
+                    {blocked ? `${agent.name} · Claude (via Claude Code)` : agent.name}
+                  </option>
+                );
+              })}
             </select>
           </div>
+          {props.agents.some((agent) => onClaudePlan(agent, props.models)) ? (
+            <p className="automation-policy-note" title="Scheduled runs on a Claude subscription are automated access, which Anthropic allows only with an API key.">
+              Agents on Claude (via Claude Code) are unavailable: Violation of Anthropic&apos;s policy
+            </p>
+          ) : null}
         </div>
 
         <div className="automation-field">

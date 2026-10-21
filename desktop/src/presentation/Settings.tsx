@@ -832,7 +832,7 @@ export function LlmPage(props: {
             </select>
             <p className="hint">
               {EFFORT_HINTS[providerId] ?? "How much the model reasons before answering. Higher is slower and costs more."}
-              {providerId === "claude-code" ? " Runs through the official Claude Code on your own Claude login (Settings → General → Claude Code). No API key." : ""}
+              {providerId === "claude-code" ? " Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Saturn never sends API requests for it, takes no API key, and does not schedule it." : ""}
               {providerId === "codex" ? " Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key." : ""}
             </p>
           </div>
@@ -1758,7 +1758,7 @@ export function ClaudeCodeLogin() {
   }, [signedOut]);
 
   async function signOut() {
-    if (!window.confirm("Sign Saturn out of Claude Code? Claude Code models stop working until you sign in again. Your other Claude apps stay signed in.")) return;
+    if (!window.confirm("Sign Saturn out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in.")) return;
     setBusy("signing_out");
     setError("");
     try {
@@ -1792,7 +1792,7 @@ export function ClaudeCodeLogin() {
               ? busy ? "Checking…" : "Status unavailable."
               : status.loggedIn
                 ? [status.email ?? "Signed in", plan].filter(Boolean).join(" · ")
-                : "Not signed in. Claude Code models run on your own Claude login; Saturn never sees your credentials."}
+                : "Not signed in. Claude (via Claude Code) models run on your own Claude login; Saturn never sees your credentials."}
           </span>
         </div>
         <div className="settings-row-actions">

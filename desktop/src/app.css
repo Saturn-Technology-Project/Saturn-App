@@ -9069,3 +9069,6 @@ button.trace-row:hover {
   white-space: pre-wrap;
 }
 .mcp-approval .actions { display: flex; gap: 6px; }
+
+/* Automations: why agents on a Claude subscription are disabled. */
+.automation-policy-note { margin: 4px 0 0; font-size: 11px; color: var(--muted, #8a8a93); }

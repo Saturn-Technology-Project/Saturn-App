@@ -1,6 +1,6 @@
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
-import { LLM_PROVIDERS, claudeEffort, llmProvider } from "../domain/llm/catalog.js";
+import { LLM_PROVIDERS, claudeEffort, llmProvider, runsOnPlan } from "../domain/llm/catalog.js";
 import {
   GENERAL_SKILLS_ID,
   withGeneralSkills,
@@ -137,7 +137,8 @@ export class CatalogService {
 
   async createModel(input: { name?: string; provider?: string; model?: string; baseUrl?: string; secret?: string; effort?: string }) {
     const provider = llmProvider(input.provider || "openai");
-    if (!provider) throw new HttpError(400, "Choose OpenAI, Claude, Claude Code, Codex, Gemini, DeepSeek, or LM Studio");
+    if (!provider) throw new HttpError(400, "Choose OpenAI, Claude, Claude (via Claude Code), Codex, Gemini, DeepSeek, or LM Studio");
+    if (runsOnPlan(provider.id) && input.secret) throw new HttpError(400, `${provider.label} runs on your own plan through its official program and takes no API key. For API access, add the model under Claude or OpenAI.`);
     const effort = claudeEffort(input.effort);
     const modelId = (input.model || input.name || "").trim();
     if (!modelId) throw new HttpError(400, "Choose a model");
@@ -145,7 +146,8 @@ export class CatalogService {
     const id = newId("mdl");
     const model: ModelConnection = {
       id,
-      name: (input.name || known?.label || modelId).trim(),
+      // A subscription model is named apart from the API model of the same name, so the two are never confused.
+      name: (input.name || (known?.label && provider.id === "claude-code" ? `${known.label} (via Claude Code)` : known?.label) || modelId).trim(),
       provider: provider.id,
       model: modelId,
       baseUrl: (input.baseUrl || provider.baseUrl).replace(/\/$/, ""),
@@ -190,6 +192,7 @@ export class CatalogService {
       updated = model;
     });
     if (!updated) throw new HttpError(404, "Model connection not found");
+    if (patch.secret && runsOnPlan(updated.provider)) throw new HttpError(400, "This model runs on your own plan through its official program and takes no API key.");
     if (patch.secret) await this.kernel.llm.saveKey(updated, patch.secret);
     if (patch.secret) fields.push("API key");
     if (fields.length) {

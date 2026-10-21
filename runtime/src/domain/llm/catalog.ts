@@ -36,7 +36,7 @@ export const LLM_PROVIDERS: LlmProvider[] = [
     // Runs through the official Claude Agent SDK and `claude` program on the user's own Claude login
     // (see application/claude-code.ts). Saturn holds no key and never sees the login.
     id: "claude-code",
-    label: "Claude Code (your Claude plan)",
+    label: "Claude (via Claude Code)",
     needsKey: false,
     baseUrl: "",
     models: [
@@ -98,6 +98,17 @@ export type ClaudeEffort = (typeof CLAUDE_EFFORTS)[number];
 
 export function claudeEffort(value: unknown): ClaudeEffort | undefined {
   return CLAUDE_EFFORTS.includes(value as ClaudeEffort) ? (value as ClaudeEffort) : undefined;
+}
+
+/**
+ * Providers that run on the user's own subscription through the vendor's official program (Claude Code, Codex).
+ * Saturn never sends an API request for their models: every turn goes through that program, signed in by the
+ * vendor's own flow. Models that call an API use the "claude", "openai" and other key-based providers.
+ */
+export const PLAN_PROVIDERS = new Set(["claude-code", "codex"]);
+
+export function runsOnPlan(provider: string | undefined): boolean {
+  return PLAN_PROVIDERS.has(provider ?? "");
 }
 
 export function llmProvider(id: string): LlmProvider | undefined {

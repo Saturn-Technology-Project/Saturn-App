@@ -1,4 +1,5 @@
 import { HttpError } from "../domain/errors.js";
+import { runsOnPlan } from "../domain/llm/catalog.js";
 import { newId } from "../domain/ids.js";
 import type { Automation } from "../domain/model.js";
 import { clip, textOf } from "../domain/policies.js";
@@ -34,12 +35,27 @@ export class AutomationService {
     return this.kernel.store.state.automations.map((item) => this.view(item, now));
   }
 
+  /**
+   * Automations run unattended on a schedule. Anthropic does not allow that on a Claude subscription (Consumer Terms
+   * §3: no automated access except through an API key; Claude Code's plan limits assume ordinary individual use),
+   * so an agent on Claude (via Claude Code) cannot be scheduled. Checked when saving and again before every run,
+   * since the agent's model can change later.
+   */
+  private allowedAgent(agentId: string) {
+    const agent = this.kernel.getAgent(agentId);
+    const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
+    if (model?.provider === "claude-code") {
+      throw new HttpError(409, `${agent.name} runs on Claude (via Claude Code), your Claude subscription. Running it on a schedule is a violation of Anthropic's policy; choose an agent on an API model (Claude with an API key, for example).`);
+    }
+    return agent;
+  }
+
   async create(input: AutomationInput, now = new Date()): Promise<AutomationView> {
     const name = String(input.name ?? "").trim();
     const prompt = String(input.prompt ?? "").trim();
     if (!name) throw new HttpError(400, "Automation name is required");
     if (!prompt) throw new HttpError(400, "Automation prompt is required");
-    const agent = this.kernel.getAgent(String(input.agentId ?? ""));
+    const agent = this.allowedAgent(String(input.agentId ?? ""));
     const trigger = triggerOf(input.trigger);
     const timeZone = validTimeZone(input.timeZone);
     const automation: Automation = {
@@ -71,7 +87,7 @@ export class AutomationService {
       next.prompt = String(patch.prompt).trim();
       if (!next.prompt) throw new HttpError(400, "Automation prompt is required");
     }
-    if (patch.agentId !== undefined) next.agentId = this.kernel.getAgent(String(patch.agentId)).id;
+    if (patch.agentId !== undefined) next.agentId = this.allowedAgent(String(patch.agentId)).id;
     if (patch.trigger !== undefined) next.trigger = triggerOf(patch.trigger, current.trigger);
     if (patch.timeZone !== undefined) next.timeZone = validTimeZone(patch.timeZone);
     if (patch.enabled !== undefined) next.enabled = Boolean(patch.enabled);
@@ -136,9 +152,13 @@ export class AutomationService {
     const text = String(input.text ?? "").trim();
     if (!text) throw new HttpError(400, "Describe the automation first");
     const agents = this.kernel.store.state.agents;
+    const models = this.kernel.store.state.models;
     const agent = agents.find((item) => item.id === input.agentId) ?? agents.find((item) => item.modelConnectionId);
-    const model = this.kernel.store.state.models.find((item) => item.id === agent?.modelConnectionId);
-    if (!model) throw new HttpError(409, "Connect a model to an agent to draft automations");
+    // Drafting is a plain API call: it uses the agent's model only if that model has an API, else the completion
+    // model or any API model. Subscription models (Claude Code, Codex) never receive API requests.
+    const own = models.find((item) => item.id === agent?.modelConnectionId);
+    const model = [own, models.find((item) => item.id === this.kernel.store.state.settings.completionModelId), ...models].find((item) => item && !runsOnPlan(item.provider));
+    if (!agent || !model) throw new HttpError(409, "Drafting needs a model with an API key (Claude, OpenAI, Gemini, DeepSeek or LM Studio)");
     const body = await this.kernel.llm.complete(model, {
       context: { agentId: agent!.id, agentName: agent!.name, purpose: "automation_draft" },
       temperature: 0,
@@ -191,6 +211,7 @@ export class AutomationService {
       },
     }, async (span) => {
       try {
+        this.allowedAgent(automation.agentId);
         const run = await this.kernel.runs.startRun(automation.agentId, automation.prompt);
         runId = run.id;
         span.setAttribute("saturn.run.id", run.id);
