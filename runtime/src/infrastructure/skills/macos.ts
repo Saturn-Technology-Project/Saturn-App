@@ -258,10 +258,18 @@ export type AxNode = { path: number[]; depth: number; role: string; name: string
 /**
  * Reads an app's front-window accessibility tree breadth-first, a level at a time with bulk queries (one Apple
  * event per property per parent, not per element), up to `limit` elements. `root` starts below an element instead.
+ *
+ * A big web page can hold thousands of elements in one container, and asking for all their properties at once can
+ * take System Events longer than any timeout. So the walk has a time budget and returns what it read so far
+ * (`truncated`), and a container with more than `wide` children is not read in bulk: the element shows how many it
+ * holds and can be expanded on its own, which reads its first `wide` children one by one.
  */
-export async function accessibilityTree(pid: number, options: { root?: number[]; limit?: number; depth?: number } = {}): Promise<AxNode[]> {
-  return await jxa<AxNode[]>(`function run(argv) {
+export async function accessibilityTree(pid: number, options: { root?: number[]; limit?: number; depth?: number; budgetMs?: number; wide?: number } = {}): Promise<AxNode[] & { truncated?: boolean }> {
+  const budgetMs = options.budgetMs ?? 18_000;
+  const result = await jxa<{ nodes: AxNode[]; truncated: boolean }>(`function run(argv) {
     const p = JSON.parse(argv[0]);
+    const started = Date.now();
+    const late = () => Date.now() - started > p.budget;
     const proc = Application('System Events').processes.whose({ unixId: p.pid })[0];
     if (!proc.windows().length) throw new Error('The app has no open window');
     let root = proc.windows[0];
@@ -270,30 +278,51 @@ export async function accessibilityTree(pid: number, options: { root?: number[];
     const safe = (f, fallback) => { try { const v = f(); return v === null || v === undefined ? fallback : v; } catch (e) { return fallback; } };
     const text = (v) => typeof v === 'string' ? v : (typeof v === 'number' || typeof v === 'boolean') ? String(v) : '';
     const out = [];
-    let level = [{ el: root, path: p.root, depth: 0 }];
-    while (level.length && out.length < p.limit) {
+    let truncated = false;
+    const add = (parent, i, role, name, title, desc, value, actions) => {
+      const node = { path: parent.path.concat([i]), depth: parent.depth + 1, role: role || 'AXUnknown',
+        name: text(name) || text(title) || text(desc), value: text(value).slice(0, 200),
+        actions: (actions || []).filter((a) => a !== 'AXPress' && a !== 'AXShowDefaultUI'),
+        settable: settableRoles.indexOf(role) >= 0, omitted: 0 };
+      out.push(node);
+      return node;
+    };
+    let level = [{ el: root, path: p.root, depth: 0, node: null }];
+    while (level.length && out.length < p.limit && !truncated) {
       const next = [];
       for (const parent of level) {
         if (out.length >= p.limit || parent.depth >= p.depth) break;
+        if (late()) { truncated = true; break; }
         const kids = parent.el.uiElements;
+        const count = safe(() => kids.length, 0);
+        if (!count) continue;
+        if (count > p.wide) {
+          if (parent.node) { parent.node.omitted += count; continue; }
+          // The element being expanded is itself huge: its first children, one at a time, within the budget.
+          for (let i = 0; i < Math.min(count, p.wide); i++) {
+            if (out.length >= p.limit || late()) { truncated = true; break; }
+            const kid = kids[i];
+            const node = add(parent, i, safe(() => kid.role(), ''), safe(() => kid.name(), ''), safe(() => kid.title(), ''), safe(() => kid.description(), ''), safe(() => kid.value(), ''), safe(() => kid.actions.name(), []));
+            next.push({ el: kid, path: node.path, depth: node.depth, node });
+          }
+          if (out.length) out[out.length - 1].omitted += Math.max(0, count - p.wide);
+          continue;
+        }
         const roles = safe(() => kids.role(), []);
         if (!roles.length) continue;
         const names = safe(() => kids.name(), []), descs = safe(() => kids.description(), []), titles = safe(() => kids.title(), []);
         const values = safe(() => kids.value(), []), actions = safe(() => kids.actions.name(), []);
         for (let i = 0; i < roles.length; i++) {
           if (out.length >= p.limit) { out[out.length - 1].omitted += roles.length - i; break; }
-          const node = { path: parent.path.concat([i]), depth: parent.depth + 1, role: roles[i] || 'AXUnknown',
-            name: text(names[i]) || text(titles[i]) || text(descs[i]), value: text(values[i]).slice(0, 200),
-            actions: (actions[i] || []).filter((a) => a !== 'AXPress' && a !== 'AXShowDefaultUI'),
-            settable: settableRoles.indexOf(roles[i]) >= 0, omitted: 0 };
-          out.push(node);
-          next.push({ el: kids[i], path: node.path, depth: node.depth });
+          const node = add(parent, i, roles[i], names[i], titles[i], descs[i], values[i], actions[i]);
+          next.push({ el: kids[i], path: node.path, depth: node.depth, node });
         }
       }
       level = next;
     }
-    return JSON.stringify(out);
-  }`, { pid, root: options.root ?? [], limit: options.limit ?? 250, depth: options.depth ?? 12 }, 30_000);
+    return JSON.stringify({ nodes: out, truncated });
+  }`, { pid, root: options.root ?? [], limit: options.limit ?? 250, depth: options.depth ?? 12, budget: budgetMs, wide: options.wide ?? 150 }, budgetMs + 15_000);
+  return Object.assign(result.nodes, { truncated: result.truncated });
 }
 
 /** Performs an accessibility action ("AXPress", "AXShowMenu"…) on the element at `path` in the front window. */

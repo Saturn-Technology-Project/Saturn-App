@@ -358,7 +358,8 @@ export class ComputerUseSkill {
     const snapshotId = expanding ? text(args.snapshot_id) : `snap_${Date.now().toString(36)}`;
     const snapshot: Snapshot = expanding ? this.snapshot(snapshotId, pid) : { pid, elements: new Map(), nextId: 1 };
     const root = expanding ? this.element(args, pid) : [];
-    const nodes = (await desktop.accessibilityTree(pid, { root, limit: TREE_LIMIT })).map((node) => {
+    const tree: AxNode[] & { truncated?: boolean } = await desktop.accessibilityTree(pid, { root, limit: TREE_LIMIT });
+    const nodes = tree.map((node) => {
       const id = snapshot.nextId++;
       snapshot.elements.set(id, node.path);
       return { ...node, id };
@@ -367,7 +368,11 @@ export class ComputerUseSkill {
     // Keep only recent snapshots; ids from older ones are reported as stale.
     for (const old of [...this.snapshots.keys()].slice(0, -20)) this.snapshots.delete(old);
     if (!nodes.length) return { snapshot_id: snapshotId, pid, text: `(no elements)\nsnapshot_id=${snapshotId}` };
-    return { snapshot_id: snapshotId, pid, count: nodes.length, text: formatTree(nodes, snapshotId) };
+    // A big page (a web page full of items, say) is read only partly; the agent hears how to see more.
+    const note = tree.truncated || nodes.some((node) => node.omitted)
+      ? "\nThis tree is partial: the app answered slowly or an element holds many children. Expand an element with snapshot_id and its id to read inside it. For a web page, the browser tools (browser_snapshot) read it much faster."
+      : "";
+    return { snapshot_id: snapshotId, pid, count: nodes.length, ...(tree.truncated ? { truncated: true } : {}), text: formatTree(nodes, snapshotId) + note };
   }
 
   private snapshot(snapshotId: string, pid: number): Snapshot {
