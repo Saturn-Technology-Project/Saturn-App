@@ -4,7 +4,7 @@ import type { ChatMessage, TokenUsage, ToolCall } from "./types.js";
 export function choice(content: string, calls: ToolCall[], thinking = "", usage?: TokenUsage): Record<string, unknown> {
   const visible = splitThinkTags(content);
   return {
-    usage: { input_tokens: usage?.input, output_tokens: usage?.output },
+    usage: { input_tokens: usage?.input, output_tokens: usage?.output, ...(usage?.cached ? { cached_input_tokens: usage.cached } : {}) },
     choices: [
       {
         message: {
@@ -171,6 +171,23 @@ export function isTransient(error: unknown): boolean {
   return false;
 }
 
+/** The wait a failed request's Retry-After header asks for (seconds or an HTTP date), in ms. */
+export function retryAfterMs(error: unknown, now = Date.now()): number | undefined {
+  for (let current: unknown = error, depth = 0; current && depth < 5; depth += 1) {
+    const failed = current as { headers?: unknown; response?: { headers?: unknown }; cause?: unknown };
+    const headers = failed.headers ?? failed.response?.headers;
+    const value = headers instanceof Headers ? headers.get("retry-after") : headers && typeof headers === "object" ? (headers as Record<string, unknown>)["retry-after"] ?? (headers as Record<string, unknown>)["Retry-After"] : undefined;
+    if (typeof value === "string" || typeof value === "number") {
+      const seconds = Number(value);
+      if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+      const date = Date.parse(String(value));
+      if (Number.isFinite(date)) return Math.max(0, date - now);
+    }
+    current = failed.cause;
+  }
+  return undefined;
+}
+
 /**
  * Runs `send`, trying again (up to `retries` more times, waiting 1 s, then 3 s…) when it fails transiently. For
  * providers whose SDK has no retries of its own; a stopped run is never retried.
@@ -181,6 +198,7 @@ export async function withTransientRetry<T>(
 ): Promise<T> {
   const retries = options.retries ?? 2;
   const delayMs = options.delayMs ?? 1000;
+  const MAX_RETRY_AFTER_MS = 30_000;
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await send();
@@ -188,7 +206,9 @@ export async function withTransientRetry<T>(
       if (attempt >= retries || options.signal?.aborted || !isTransient(error)) throw error;
       options.onRetry?.(error, attempt + 1);
       await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, delayMs * (attempt === 0 ? 1 : 3 ** attempt));
+        // A provider that says when to come back (Retry-After on a 429 or 503) is believed, up to 30 s.
+        const asked = retryAfterMs(error);
+        const timer = setTimeout(resolve, asked !== undefined ? Math.min(asked, MAX_RETRY_AFTER_MS) : delayMs * (attempt === 0 ? 1 : 3 ** attempt));
         options.signal?.addEventListener("abort", () => {
           clearTimeout(timer);
           resolve();

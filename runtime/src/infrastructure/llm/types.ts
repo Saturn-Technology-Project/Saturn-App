@@ -20,7 +20,7 @@ export type ToolDef = {
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 /** Tokens a provider reports for one call; either side may be missing. */
-export type TokenUsage = { input?: number; output?: number };
+export type TokenUsage = { input?: number; output?: number; /** Prompt tokens read from the provider's cache (cheaper, faster). */ cached?: number };
 
 export type ToolCall = { name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
 
@@ -43,6 +43,8 @@ export type ChatRequest = {
    * its provider's control; unset leaves the provider's default. thinking: "low" takes precedence.
    */
   effort?: Effort;
+  /** Groups requests that share a prompt prefix (an agent's), for providers whose caching takes a key (OpenAI). */
+  cacheKey?: string;
   signal?: AbortSignal;
 };
 

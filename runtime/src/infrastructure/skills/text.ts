@@ -9,6 +9,8 @@ export function integer(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) ? Math.trunc(parsed) : fallback;
 }
 
+/** The text up to TEXT_LIMIT; past that, a note says how much was cut, so the model reads less instead of guessing. */
 export function clip(value: string): string {
-  return value.length <= TEXT_LIMIT ? value : `${value.slice(0, TEXT_LIMIT)}…`;
+  if (value.length <= TEXT_LIMIT) return value;
+  return `${value.slice(0, TEXT_LIMIT)}\n…[${value.length - TEXT_LIMIT} more characters cut. Read a narrower part: filter with grep, head or tail, or read a file with offset and limit.]`;
 }

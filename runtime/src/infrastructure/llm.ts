@@ -165,6 +165,7 @@ export class LlmBroker {
             maxOutput: input.maxOutput,
             ...(input.thinking ? { thinking: input.thinking } : {}),
             ...(model.effort ? { effort: model.effort } : {}),
+            cacheKey: `saturn:${input.context.agentId}`,
             signal: input.signal,
           });
         // One dropped connection (read ETIMEDOUT) should not end a long agent run. The Anthropic and OpenAI SDKs
@@ -175,7 +176,8 @@ export class LlmBroker {
               signal: input.signal,
               onRetry: (error, attempt) => logger.warn("llm", `chat ${requestModel} failed (${errorText(error)}); retrying (${attempt}/2)`),
             });
-        const usage = (body.usage ?? {}) as { input_tokens?: number; output_tokens?: number };
+        const usage = (body.usage ?? {}) as { input_tokens?: number; output_tokens?: number; cached_input_tokens?: number };
+        if (usage.cached_input_tokens !== undefined) span.setAttribute("gen_ai.usage.cache_read.input_tokens", usage.cached_input_tokens);
         const calls = ((body.choices as { message?: { tool_calls?: unknown[] } }[] | undefined)?.[0]?.message?.tool_calls ?? []).length;
         span.setAttribute("saturn.llm.tool_calls", calls);
         if (usage.input_tokens !== undefined) {

@@ -79,9 +79,12 @@ export const openAIChat: ProviderAdapter = {
       {
         reasoning_effort: { value: effort, rejectedWhen: /reasoning|effort/i },
         temperature: { value: request.temperature, rejectedWhen: /temperature/i },
+        // OpenAI caches long prompt prefixes by itself; the key keeps an agent's requests on the same cache.
+        prompt_cache_key: { value: request.cacheKey && isOfficialOpenAI(request.baseUrl) ? request.cacheKey : undefined, rejectedWhen: /prompt_cache_key/i },
       },
       (active) => client(request).chat.completions.create({
         model: request.model,
+        ...(active.prompt_cache_key ? { prompt_cache_key: active.prompt_cache_key as string } : {}),
         messages: toOpenAIMessages(request.messages) as any,
         ...(active.temperature !== undefined ? { temperature: active.temperature as number } : {}),
         ...(active.reasoning_effort ? { reasoning_effort: active.reasoning_effort as "low" | "medium" | "high" } : {}),
@@ -112,6 +115,7 @@ export const openAIChat: ProviderAdapter = {
     return choice(message?.content ?? "", calls, chatThinking(message), {
       input: completion.usage?.prompt_tokens,
       output: completion.usage?.completion_tokens,
+      cached: completion.usage?.prompt_tokens_details?.cached_tokens ?? undefined,
     });
   },
 };
@@ -149,9 +153,11 @@ export const openAIResponses: ProviderAdapter = {
       {
         reasoning: { value: reasoning ? { summary: "auto", ...(effort ? { effort } : {}) } : undefined, rejectedWhen: /reasoning|effort|summary/i },
         temperature: { value: reasoning ? undefined : request.temperature, rejectedWhen: /temperature/i },
+        prompt_cache_key: { value: request.cacheKey && isOfficialOpenAI(request.baseUrl) ? request.cacheKey : undefined, rejectedWhen: /prompt_cache_key/i },
       },
       (active) => client(request).responses.create({
         model: request.model,
+        ...(active.prompt_cache_key ? { prompt_cache_key: active.prompt_cache_key as string } : {}),
         instructions: system || undefined,
         input: formattedInput.length ? (formattedInput as any) : "",
         ...(active.temperature !== undefined ? { temperature: active.temperature as number } : {}),
@@ -184,6 +190,7 @@ export const openAIResponses: ProviderAdapter = {
     return choice(texts.join(""), calls, thoughts.join("\n\n"), {
       input: response.usage?.input_tokens,
       output: response.usage?.output_tokens,
+      cached: response.usage?.input_tokens_details?.cached_tokens ?? undefined,
     });
   },
 };

@@ -100,6 +100,7 @@ export const claude: ProviderAdapter = {
       // input_tokens excludes cached tokens; count every prompt token so usage stays comparable across providers.
       input: response.usage.input_tokens + (response.usage.cache_creation_input_tokens ?? 0) + (response.usage.cache_read_input_tokens ?? 0),
       output: response.usage.output_tokens,
+      cached: response.usage.cache_read_input_tokens ?? undefined,
     });
   },
 };
