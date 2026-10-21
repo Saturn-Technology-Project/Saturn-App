@@ -69,7 +69,7 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 | 🧩 **Plugins** | 把 skills、`/` 指令、hooks 與 MCP 伺服器打包在一個資料夾，在 **設定 → Plugins** 從資料夾或 git URL 安裝，整組開啟或關閉。Claude Code 的 plugin（`.claude-plugin/plugin.json`）可直接安裝。安裝時不會執行任何東西：plugin 的 hooks 與本機 MCP 伺服器都要各自經你核准。 |
 | ⌨️ **斜線指令** | 在輸入框打 `/` 會列出 Saturn 內建指令（`/compact`、`/plan`、`/ask`、`/new`）、對話可用的 skills，以及專案 `.saturn/commands`、`.claude/commands` 或你的 `~/.saturn-app/commands` 中的提示範本（`$ARGUMENTS` 會換成指令名稱後的內容）。對話只顯示你輸入的內容，展開後的內容會送給 Agent。 |
 | 🪆 **子 Agent** | Agent 可把獨立的任務（大範圍搜尋、調查、子任務）交給擁有全新上下文的子 Agent，只取回它的答案；可多個平行執行，預設唯讀，巢狀顯示在啟動它的步驟下，核准與檢查點與對話相同。 |
-| 🛠️ **工具** | 檔案系統、shell（支援背景指令：dev server 或 watcher 可跨回合持續執行，在 Terminal 分頁讀取輸出或停止）、網頁擷取、看得見 Agent 操作的瀏覽器（在聊天的 Browser 分頁即時顯示，連同 Agent 的游標；或用 Saturn 專用設定檔的可見 Chrome 視窗，在設定 → 一般 → Agent 瀏覽器切換）、多步驟規劃、macOS 與 Windows 電腦操作、GitHub、自動化，以及內建市集中的任何 [MCP](https://modelcontextprotocol.io) 伺服器。 |
+| 🛠️ **工具** | 檔案系統、shell（支援背景指令：dev server 或 watcher 可跨回合持續執行，在 Terminal 分頁讀取輸出或停止）、網頁擷取、看得見 Agent 操作的瀏覽器（在聊天的 Browser 分頁即時顯示，連同 Agent 的游標；或用 Saturn 專用設定檔的可見 Chrome 視窗，或 macOS 上的 Safari 自動化視窗（需先在 Safari 開啟一次「開發 → 允許遠端自動化」），在設定 → 一般 → Agent 瀏覽器切換）、多步驟規劃、macOS 與 Windows 電腦操作、GitHub、自動化，以及內建市集中的任何 [MCP](https://modelcontextprotocol.io) 伺服器。 |
 | ⏰ **自動化** | 以 cron 排程執行 Agent，內建範本如每日審查 pull request。 |
 | 💸 **用量與成本** | 依模型與 Agent 統計任意期間的 token 數與牌價成本。 |
 | 📈 **可觀測性** | OpenTelemetry trace、metric 與 log，對外網路請求紀錄，並可選擇以 OTLP 匯出到自己的 collector。 |

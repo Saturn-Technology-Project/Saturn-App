@@ -6,6 +6,7 @@ import path from "node:path";
 import { PublicAddress } from "../../domain/skills/public-address.js";
 import { launchEnv } from "../launch-env.js";
 import { errorText, logger } from "../logger.js";
+import { SafariBrowser } from "./safari-browser.js";
 
 /**
  * A browser the agent drives through the Chrome DevTools Protocol: pages read as an accessibility tree (one
@@ -17,14 +18,15 @@ import { errorText, logger } from "../logger.js";
  * Two ways for the user to watch it, set in Settings → General → Agent browser:
  * - "saturn" (default): the browser runs without a window and its page streams live into the Agent App's Browser
  *   panel (`frames()`), the way Codex shows its own browser;
- * - "system": a visible window of the installed Chrome (Edge, Brave…), with Saturn's own profile, never the user's.
- * Either way a cursor drawn in the page moves to what the agent points at and ripples when it clicks.
+ * - "system": a visible window of the installed Chrome (Edge, Brave…), with Saturn's own profile, never the user's;
+ * - "safari": a Safari automation window on macOS, through safaridriver (see safari-browser.ts).
+ * Every way a cursor drawn in the page moves to what the agent points at and ripples when it clicks.
  */
 
-export type BrowserMode = "saturn" | "system";
+export type BrowserMode = "saturn" | "system" | "safari";
 
 /** One frame of the page as the agent's browser shows it, for the live view. */
-export type BrowserFrame = { data: string; width: number; height: number; url: string; title: string };
+export type BrowserFrame = { data: string; format?: "jpeg" | "png"; width: number; height: number; url: string; title: string };
 
 /** The cursor drawn into every page: a pointer that glides to a point, and a ripple on click. Hidden from the accessibility tree. */
 const CURSOR_SCRIPT = `(() => {
@@ -135,17 +137,30 @@ export class BrowserSkill {
   private nodes = new Map<number, number>();
   private recording?: { file: string; frames: number; started: number; chunks: string[] };
 
-  constructor(private readonly dataDir: string) {}
+  private readonly safari: SafariBrowser;
+
+  /** `safariEndpoint`: an already running WebDriver server to use instead of safaridriver (tests). */
+  constructor(private readonly dataDir: string, safariEndpoint?: string) {
+    this.safari = new SafariBrowser(dataDir, {
+      watched: () => this.viewers.size > 0,
+      emit: (frame) => {
+        for (const viewer of this.viewers) viewer(frame);
+      },
+      cursorScript: CURSOR_SCRIPT,
+    }, safariEndpoint);
+  }
 
   /** Which browser to use from the next launch; a running browser of the other kind is closed. */
   async setMode(mode: BrowserMode): Promise<void> {
     if (mode === this.mode) return;
     this.mode = mode;
     if (this.child) await this.close();
+    if (this.safari.open) await this.safari.close();
   }
 
   /** What the live view shows when it opens. */
   state(): { open: boolean; mode: BrowserMode; url: string; title: string } {
+    if (this.mode === "safari") return { open: this.safari.open, mode: this.mode, ...this.safari.state() };
     return { open: Boolean(this.cdp), mode: this.mode, ...this.current };
   }
 
@@ -153,9 +168,11 @@ export class BrowserSkill {
   frames(listener: (frame: BrowserFrame) => void): () => void {
     this.viewers.add(listener);
     void this.syncScreencast();
+    this.safari.sync();
     return () => {
       this.viewers.delete(listener);
       void this.syncScreencast();
+      this.safari.sync();
     };
   }
 
@@ -178,6 +195,7 @@ export class BrowserSkill {
   async run(toolId: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
     if (signal?.aborted) throw new Error("Operation aborted");
     this.touch();
+    if (this.mode === "safari") return this.safari.run(toolId, args);
     switch (toolId) {
       case "browser_navigate":
         return this.navigate(String(args.url ?? ""));
@@ -308,7 +326,7 @@ export class BrowserSkill {
         writeFileSync(file, Buffer.from(frame.data, "base64"));
         recording.chunks.push(`file '${path.basename(file)}'`);
       }
-      const shown: BrowserFrame = { data: frame.data, width: frame.metadata?.deviceWidth ?? 1280, height: frame.metadata?.deviceHeight ?? 800, ...this.current };
+      const shown: BrowserFrame = { data: frame.data, format: "jpeg", width: frame.metadata?.deviceWidth ?? 1280, height: frame.metadata?.deviceHeight ?? 800, ...this.current };
       for (const viewer of this.viewers) viewer(shown);
     });
     cdp.on("Page.frameNavigated", (params, sessionId) => {
@@ -330,6 +348,7 @@ export class BrowserSkill {
   }
 
   async close(): Promise<void> {
+    if (this.safari.open) await this.safari.close();
     if (this.recording) await this.recordStop().catch(() => undefined);
     this.cdp?.close();
     this.child?.kill();

@@ -274,11 +274,11 @@ export type AgentUsage = UsageTally & {
 /** Token and cost totals, from usage recorded per call with the agent, model and official rate at that moment. */
 export type UsageSummary = { currency: "USD"; range?: { from: string | null; to: string | null }; since: string | null; totals: UsageTally; models: ModelUsage[]; agents: AgentUsage[] };
 
-export type AgentBrowser = "saturn" | "system";
+export type AgentBrowser = "saturn" | "system" | "safari";
 
 /** The agent's browser as the runtime reports it, and one frame of its page (base64 JPEG). */
 export type AgentBrowserState = { open: boolean; mode: AgentBrowser; url: string; title: string };
-export type AgentBrowserFrame = { data: string; width: number; height: number; url: string; title: string };
+export type AgentBrowserFrame = { data: string; format?: "jpeg" | "png"; width: number; height: number; url: string; title: string };
 
 export type LaunchApp = "agent" | "ide";
 export type Profile = {
@@ -300,7 +300,7 @@ export type Profile = {
   sandbox?: SandboxSettings;
   /** Claude Code loads the project's own .claude/settings.json (hooks, permissions, settings). */
   claudeProjectSettings?: boolean;
-  /** Where the agent's browser shows: live in the Browser panel ("saturn", default) or a visible Chrome window ("system"). */
+  /** Where the agent's browser shows: live in the Browser panel ("saturn", default), a visible Chrome window ("system"), or Safari ("safari", macOS). */
   browser?: AgentBrowser;
   /** For the OpenAI-compatible source: the model connection whose endpoint and key are used. */
   embeddingConnectionId?: string;

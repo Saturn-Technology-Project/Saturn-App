@@ -423,7 +423,7 @@ function BrowserView(props: {
     return (
       <div className="browser-shell">
         <div className="browser-url-bar agent-browser-bar">
-          <span className="agent-browser-badge" title={agent.mode === "system" ? "The agent is also using a Chrome window" : "The agent's own browser"}>
+          <span className="agent-browser-badge" title={agent.mode === "system" ? "The agent is also using a Chrome window" : agent.mode === "safari" ? "The agent is using a Safari window; this view refreshes about once a second" : "The agent's own browser"}>
             <span className="agent-browser-dot" aria-hidden="true" />
             Agent
           </span>
@@ -434,9 +434,9 @@ function BrowserView(props: {
         </div>
         <div className="browser-viewport agent-browser-viewport">
           {frame ? (
-            <img className="agent-browser-frame" src={`data:image/jpeg;base64,${frame.data}`} alt={frame.title || "The agent's browser"} />
+            <img className="agent-browser-frame" src={`data:image/${frame.format ?? "jpeg"};base64,${frame.data}`} alt={frame.title || "The agent's browser"} />
           ) : (
-            <div className="agent-browser-empty">{agent.mode === "system" ? "The agent is browsing in a Chrome window." : "Waiting for the page…"}</div>
+            <div className="agent-browser-empty">{agent.mode === "system" ? "The agent is browsing in a Chrome window." : agent.mode === "safari" ? "The agent is browsing in a Safari window." : "Waiting for the page…"}</div>
           )}
         </div>
       </div>

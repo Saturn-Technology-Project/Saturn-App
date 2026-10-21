@@ -1001,6 +1001,8 @@ function General(props: {
   const [planApproval, setPlanApproval] = useState(props.profile.planApproval === true);
   const [claudeProjectSettings, setClaudeProjectSettings] = useState(props.profile.claudeProjectSettings === true);
   const [agentBrowser, setAgentBrowser] = useState<AgentBrowser>(props.profile.browser ?? "saturn");
+  // Safari's automation (safaridriver) exists only on macOS.
+  const isMac = /Mac/i.test(navigator.userAgent);
 
   async function chooseAgentBrowser(next: AgentBrowser) {
     if (next === agentBrowser) return;
@@ -1168,11 +1170,13 @@ function General(props: {
               <span className="settings-row-desc">
                 {agentBrowser === "system"
                   ? "Agents browse in a visible window of your Chrome (or Edge, Brave), with Saturn's own profile: your logins and tabs stay out of it. You watch the cursor there."
-                  : "Agents browse in Saturn's own browser, shown live in the chat's Browser tab with the agent's cursor."}
+                  : agentBrowser === "safari"
+                    ? "Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second."
+                    : "Agents browse in Saturn's own browser, shown live in the chat's Browser tab with the agent's cursor."}
               </span>
             </div>
             <div className="segmented-pill" role="radiogroup" aria-label="Agent browser">
-              {([["saturn", "Saturn"], ["system", "System browser"]] as const).map(([value, label]) => (
+              {(isMac ? ([["saturn", "Saturn"], ["system", "Chrome"], ["safari", "Safari"]] as const) : ([["saturn", "Saturn"], ["system", "Chrome"]] as const)).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
