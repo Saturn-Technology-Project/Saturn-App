@@ -14,6 +14,7 @@ import { withTransientRetry } from "./llm/shared.js";
 import { isOfficialOpenAI, openAIChat, openAIResponses } from "./llm/openai.js";
 import type { ChatMessage, ProviderAdapter, ToolDef } from "./llm/types.js";
 
+import { flattenToolTurns } from "./llm/shared.js";
 export { geminiContents } from "./llm/gemini.js";
 export { listLmStudioModels } from "./llm/lmstudio.js";
 export type { ChatMessage } from "./llm/types.js";
@@ -154,12 +155,13 @@ export class LlmBroker {
         // Which key, never the key: the model's own, the provider's shared one, or none.
         const source = this.vault.secret(model.id) ? "model key" : this.keyFor(model) ? "provider key" : "no key";
         logger.debug("llm", `chat ${requestModel} via ${adapter.id} (${source})`);
-        const send = () =>
+        const native = input.messages.some((item) => item.role === "tool" || item.toolCalls?.length);
+        const call = (messages: ChatMessage[]) =>
           adapter.complete({
             model: requestModel,
             baseUrl: model.baseUrl,
             apiKey: this.keyFor(model),
-            messages: input.messages,
+            messages,
             tools,
             temperature: input.temperature,
             maxOutput: input.maxOutput,
@@ -168,6 +170,14 @@ export class LlmBroker {
             cacheKey: `saturn:${input.context.agentId}`,
             signal: input.signal,
           });
+        // A provider or server that rejects native tool turns (a 400 or 422) is asked again with them as text, the
+        // format every provider took before; the run goes on, and the log says so.
+        const send = () => call(input.messages).catch((error: unknown) => {
+          const status = (error as { status?: number }).status;
+          if (!native || (status !== 400 && status !== 422)) throw error;
+          logger.warn("llm", `chat ${requestModel} via ${adapter.id} refused native tool turns (${errorText(error)}); sent them as text`);
+          return call(flattenToolTurns(input.messages));
+        });
         // One dropped connection (read ETIMEDOUT) should not end a long agent run. The Anthropic and OpenAI SDKs
         // (Claude, OpenAI, DeepSeek) already retry; Gemini's and the local LM Studio client do not.
         const body = SDK_RETRIES.has(adapter.id)

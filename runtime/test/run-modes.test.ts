@@ -8,6 +8,7 @@ import { MAX_IMAGES, parseImages } from "../src/application/run-images.js";
 import { isReadOnlyCall } from "../src/domain/policies.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 // A 1×1 transparent PNG.
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
@@ -97,7 +98,7 @@ test("a model that cannot see refuses images up front", async () => {
 test("an Ask turn is offered only reading tools, is told so, and a write it tries anyway is refused", async () => {
   const fake = await recorder((body) => {
     const messages = body.messages as { role: string; content?: string }[];
-    const tried = messages.some((item) => item.role === "assistant" && String(item.content ?? "").includes("\"toolId\""));
+    const tried = toolSteps(messages).length > 0;
     return {
       choices: [{
         message: tried

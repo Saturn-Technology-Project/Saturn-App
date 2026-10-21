@@ -9,6 +9,7 @@ import { describeAction, main, parseArgs } from "../src/cli.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
 import { TEST_TOKEN } from "./runtime-token.js";
+import { toolSteps } from "./tool-steps.js";
 
 test("arguments, step lines and the launcher scripts", () => {
   assert.deepEqual(parseArgs(["fix", "it", "--agent", "Saturn", "--json", "--mode=plan", "--", "--literal"]), { positional: ["fix", "it", "--literal"], flags: { agent: "Saturn", json: true, mode: "plan" } });
@@ -47,7 +48,7 @@ test("saturn run follows a run to its answer, exits 3 on an approval it cannot a
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
-      const ran = messages.some((item) => item.role === "assistant" && item.content?.includes("\"toolId\""));
+      const ran = toolSteps(messages).length > 0;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ choices: [{ message: ran ? { content: "all done" } : { content: "", tool_calls: [{ id: "c0", type: "function", function: { name: "code", arguments: JSON.stringify({ command: "echo cli" }) } }] } }] }));
     });

@@ -9,6 +9,7 @@ import { PullRequestService } from "../src/application/pull-requests.js";
 import type { Run } from "../src/domain/model.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 function git(cwd: string, ...args: string[]): string {
   return execFileSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).trim();
@@ -65,7 +66,7 @@ async function fixingModel() {
   const server = createServer(async (req, res) => {
     const messages = (JSON.parse((await body(req)) || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
     const first = messages.filter((item) => item.role === "user").at(-1)?.content ?? "";
-    const acted = messages.some((item) => item.role === "assistant" && item.content?.includes("\"toolId\""));
+    const acted = toolSteps(messages).length > 0;
     const ask = messages.filter((item) => item.role === "user" && /checks failed|Review comments/.test(item.content ?? "")).at(-1)?.content ?? first;
     if (!acted) inputs.push(ask);
     res.setHeader("content-type", "application/json");

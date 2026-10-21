@@ -1,6 +1,6 @@
 import { LMStudioClient } from "@lmstudio/sdk";
 import { openAIChat } from "./openai.js";
-import { choice, plainMessages, untilAbort } from "./shared.js";
+import { choice, plainMessages, untilAbort, flattenToolTurns } from "./shared.js";
 import type { ChatMessage, ProviderAdapter, RawRequest } from "./types.js";
 
 function socket(baseUrl: string): string {
@@ -15,7 +15,8 @@ function socket(baseUrl: string): string {
  * them; LM Studio answers with an error naming the model when the loaded one cannot).
  */
 async function withImages(client: LMStudioClient, messages: ChatMessage[]) {
-  const plain = plainMessages(messages);
+  // Tool turns arrive flattened to text (see complete), so only user, assistant and system remain.
+  const plain = plainMessages(messages) as { role: "user" | "assistant" | "system"; content: string }[];
   return await Promise.all(plain.map(async (message, index) => {
     const images = messages[index]?.images;
     if (!images?.length || message.role !== "user") return message;
@@ -64,6 +65,8 @@ export const lmStudio: ProviderAdapter = {
   id: "lmstudio",
   completeRaw: lmStudioRaw,
   async complete(request) {
+    // Local models' chat templates vary in how (and whether) they take tool turns: they get them as text.
+    request = { ...request, messages: flattenToolTurns(request.messages) };
     if (request.tools.length > 0) {
       return openAIChat.complete({ ...request, messages: alternating(request.messages), baseUrl: openAICompatibleUrl(request.baseUrl), apiKey: request.apiKey || "lm-studio", effort: undefined });
     }

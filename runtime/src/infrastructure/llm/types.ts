@@ -3,13 +3,28 @@ export type ImagePart = {
   base64: string;
 };
 
+/** A tool call as the model made it, sent back in the provider's own format on the next request. */
+export type ChatToolCall = { id: string; name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
+
+/** A provider's own reply, kept to send back verbatim to that provider (Claude's signed thinking blocks). */
+export type Replay = { provider: string; data: unknown };
+
 export type ChatMessage = {
-  role: "system" | "user" | "assistant";
+  /** "tool": one tool call's result, right after the assistant turn that made the call. */
+  role: "system" | "user" | "assistant" | "tool";
   content: string;
   /** The model's chain of thought for an assistant turn. Only providers that need it sent back read it. */
   reasoning?: string;
   /** Multimodal images attached to this message turn (e.g. computer_screenshot). */
   images?: ImagePart[];
+  /** An assistant turn's tool calls. */
+  toolCalls?: ChatToolCall[];
+  /** An assistant turn's raw reply, for the provider that wrote it. */
+  replay?: Replay;
+  /** A tool result: the call it answers, the tool's name, and whether it failed or was refused. */
+  toolCallId?: string;
+  toolName?: string;
+  failed?: boolean;
 };
 
 export type ToolDef = {
@@ -22,7 +37,7 @@ export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 /** Tokens a provider reports for one call; either side may be missing. */
 export type TokenUsage = { input?: number; output?: number; /** Prompt tokens read from the provider's cache (cheaper, faster). */ cached?: number; /** Prompt tokens written to it, where the provider bills writes. */ cacheWrite?: number };
 
-export type ToolCall = { name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
+export type ToolCall = { id?: string; name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
 
 /** One model call after the broker has picked the SDK and the key. */
 export type ChatRequest = {

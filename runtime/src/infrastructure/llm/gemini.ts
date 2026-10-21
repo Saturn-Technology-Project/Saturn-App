@@ -13,8 +13,35 @@ type GeminiContent = { role: "user" | "model"; parts: GeminiPart[] };
 /** Gemini needs tool calls and their results replayed as functionCall / functionResponse turns. */
 export function geminiContents(messages: ChatMessage[]): GeminiContent[] {
   const contents: GeminiContent[] = [];
-  for (const item of messages) {
+  for (let i = 0; i < messages.length; i += 1) {
+    const item = messages[i]!;
     if (item.role === "system") continue;
+    // Native tool turns: the model's text and functionCall parts (each with its thought signature), then one user
+    // turn of functionResponse parts, with any screenshots.
+    if (item.role === "assistant" && item.toolCalls?.length) {
+      contents.push({
+        role: "model",
+        parts: [
+          ...(item.content.trim() ? [{ text: item.content }] : []),
+          ...item.toolCalls.map((call) => ({ functionCall: { name: call.name, args: call.arguments }, ...(call.thoughtSignature ? { thoughtSignature: call.thoughtSignature } : {}) })),
+        ],
+      });
+      const parts: GeminiPart[] = [];
+      while (messages[i + 1]?.role === "tool") {
+        const result = messages[++i]!;
+        let outcome: { status?: string; result?: unknown; reason?: string } = {};
+        try {
+          outcome = JSON.parse(result.content) as typeof outcome;
+        } catch {
+          outcome = { result: result.content };
+        }
+        parts.push({ functionResponse: { name: result.toolName ?? "", response: functionResponseBody(outcome) } });
+        for (const img of result.images ?? []) parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+      }
+      contents.push({ role: "user", parts });
+      continue;
+    }
+    if (item.role === "tool") continue;
     if (item.images && item.images.length > 0 && item.role === "user") {
       const parts: GeminiPart[] = [{ text: item.content || "Attached screenshot:" }];
       for (const img of item.images) {

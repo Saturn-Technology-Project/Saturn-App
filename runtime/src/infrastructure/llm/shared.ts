@@ -1,7 +1,46 @@
-import type { ChatMessage, TokenUsage, ToolCall } from "./types.js";
+import type { ChatMessage, Replay, TokenUsage, ToolCall } from "./types.js";
 
-/** Wraps a provider reply in the OpenAI chat-completion shape the run loop reads. */
-export function choice(content: string, calls: ToolCall[], thinking = "", usage?: TokenUsage): Record<string, unknown> {
+/** Asks the model to go on after tool results sent as text (the format before native tool turns). */
+export const CONTINUE_AFTER_TOOLS = "Continue from the tool results above: use more tools if the task needs them, otherwise give your answer.";
+
+/**
+ * Native tool turns (an assistant turn with toolCalls, then "tool" results) as text, the way every provider read
+ * them before: the calls with their results as a JSON list in an assistant turn, then a user turn asking to go on
+ * (with any screenshots). For providers, or rounds, that cannot be sent natively; `keep` leaves a round native.
+ */
+export function flattenToolTurns(messages: ChatMessage[], keep: (assistant: ChatMessage) => boolean = () => false): ChatMessage[] {
+  const out: ChatMessage[] = [];
+  for (let i = 0; i < messages.length; i += 1) {
+    const message = messages[i]!;
+    if (message.role === "tool") continue;
+    if (message.role !== "assistant" || !message.toolCalls?.length || keep(message)) {
+      out.push(message);
+      if (message.role === "assistant" && message.toolCalls?.length) while (messages[i + 1]?.role === "tool") out.push(messages[++i]!);
+      continue;
+    }
+    const results: ChatMessage[] = [];
+    while (messages[i + 1]?.role === "tool") results.push(messages[++i]!);
+    const steps = message.toolCalls.map((call) => {
+      const answer = results.find((item) => item.toolCallId === call.id);
+      let outcome: Record<string, unknown> = {};
+      try {
+        outcome = answer ? (JSON.parse(answer.content) as Record<string, unknown>) : {};
+      } catch {
+        outcome = { result: answer?.content };
+      }
+      return { toolId: call.name, arguments: call.arguments, ...(call.thoughtSignature ? { thoughtSignature: call.thoughtSignature } : {}), ...outcome };
+    });
+    out.push({ role: "assistant", content: JSON.stringify(steps), reasoning: message.reasoning });
+    const images = results.flatMap((item) => item.images ?? []);
+    out.push(images.length
+      ? { role: "user", content: "Observation from computer_screenshot (attached as multimodal image input):", images }
+      : { role: "user", content: CONTINUE_AFTER_TOOLS });
+  }
+  return out;
+}
+
+/** Wraps a provider reply in the OpenAI chat-completion shape the run loop reads; `replay` rides along for the next request. */
+export function choice(content: string, calls: ToolCall[], thinking = "", usage?: TokenUsage, replay?: Replay): Record<string, unknown> {
   const visible = splitThinkTags(content);
   return {
     usage: { input_tokens: usage?.input, output_tokens: usage?.output, ...(usage?.cached ? { cached_input_tokens: usage.cached } : {}), ...(usage?.cacheWrite ? { cache_write_input_tokens: usage.cacheWrite } : {}) },
@@ -11,9 +50,11 @@ export function choice(content: string, calls: ToolCall[], thinking = "", usage?
           content: visible.content,
           thinking: joinThinking(thinking, visible.thinking),
           tool_calls: calls.map((call) => ({
+            ...(call.id ? { id: call.id } : {}),
             function: { name: call.name, arguments: JSON.stringify(call.arguments) },
             ...(call.thoughtSignature ? { thoughtSignature: call.thoughtSignature } : {}),
           })),
+          ...(replay ? { replay } : {}),
         },
       },
     ],

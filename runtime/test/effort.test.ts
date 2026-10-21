@@ -7,6 +7,7 @@ import test from "node:test";
 import { flatInputSchema, withOptionalFields } from "../src/infrastructure/llm/shared.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 test("an optional field the provider rejects is dropped and the call retried; other errors pass through", async () => {
   const sent: Record<string, unknown>[] = [];
@@ -215,12 +216,12 @@ test("Claude: a conversation that ends on the assistant gets a user turn, since 
   }
 });
 
-test("after a round of tool calls, the next model call ends on a user turn", async () => {
+test("after a round of tool calls, the next model call never ends on the assistant", async () => {
   const roles: string[][] = [];
   const fake = await recorder((body) => {
     const messages = body.messages as { role: string; content?: string }[];
     roles.push(messages.map((item) => item.role));
-    const sawResult = messages.some((item) => item.role === "assistant" && String(item.content ?? "").includes("\"toolId\""));
+    const sawResult = toolSteps(messages).length > 0;
     return {
       json: {
         choices: [{
@@ -243,7 +244,7 @@ test("after a round of tool calls, the next model call ends on a user turn", asy
     }
     assert.equal(services.kernel.getRun(run.id).status, "completed", services.kernel.getRun(run.id).error ?? "run did not complete");
     assert.ok(roles.length >= 2, "a second model call followed the tool round");
-    assert.deepEqual(roles.map((list) => list.at(-1)), roles.map(() => "user"), "every call ends on the user");
+    assert.ok(roles.every((list) => list.at(-1) === "user" || list.at(-1) === "tool"), `every call ends on the user or a tool result: ${JSON.stringify(roles.map((list) => list.at(-1)))}`);
   } finally {
     fake.server.close();
   }

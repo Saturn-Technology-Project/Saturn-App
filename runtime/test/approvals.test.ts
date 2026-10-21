@@ -8,6 +8,7 @@ import { parseNextEdit } from "../src/application/completions.js";
 import type { Run } from "../src/domain/model.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 /** A model that asks to delete a folder (a sensitive command), then answers once it sees the tool result. */
 async function deletingModel() {
@@ -16,7 +17,7 @@ async function deletingModel() {
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
-      const sawResult = messages.some((item) => item.role === "assistant" && typeof item.content === "string" && item.content.includes("\"toolId\""));
+      const sawResult = toolSteps(messages).length > 0;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({
         choices: [{

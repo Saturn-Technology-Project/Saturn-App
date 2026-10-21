@@ -7,6 +7,7 @@ import test from "node:test";
 import { MAX_GROUP_DEPTH, mentions } from "../src/application/groups.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 /** A model that answers as whichever agent the group prompt says it is, by `reply(agent, latestMessage)`. */
 async function groupModel(reply: (agent: string, latest: string, from: string) => string) {
@@ -179,7 +180,7 @@ test("a group's approval setting replaces its members' own while they work there
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
-      const sawResult = messages.some((item) => item.role === "assistant" && typeof item.content === "string" && item.content.includes("\"toolId\""));
+      const sawResult = toolSteps(messages).length > 0;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({
         choices: [{

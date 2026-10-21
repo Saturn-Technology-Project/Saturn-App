@@ -8,6 +8,7 @@ import type { Run } from "../src/domain/model.js";
 import { commandSegments, fromClaudeRule, matchesRule, resolvePermission, suggestedPattern, type PermissionLayer } from "../src/domain/permissions.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 const code = (command: string) => ({ command });
 const layer = (scope: PermissionLayer["scope"], ...rules: PermissionLayer["rules"]): PermissionLayer => ({ scope, rules });
@@ -70,7 +71,7 @@ async function commandModel(commands: string[]) {
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
       // Every tool result so far, however the runtime packs them into messages.
-      const done = messages.reduce((count, item) => count + (typeof item.content === "string" ? item.content.split("\"toolId\"").length - 1 : 0), 0);
+      const done = toolSteps(messages).length;
       const next = commands[done];
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({

@@ -48,7 +48,7 @@ export const deepseek: ProviderAdapter = {
     } | undefined;
     const calls = (message?.tool_calls ?? []).flatMap((call) => {
       if (call.type !== "function") return [];
-      return [{ name: call.function.name, arguments: parseArguments(call.function.arguments) }];
+      return [{ id: call.id, name: call.function.name, arguments: parseArguments(call.function.arguments) }];
     });
     return choice(message?.content ?? "", calls, (message?.reasoning_content || message?.thinking || "").trim(), {
       input: completion.usage?.prompt_tokens,
@@ -59,10 +59,18 @@ export const deepseek: ProviderAdapter = {
   },
 };
 
+/** OpenAI-style messages; assistant turns carry their reasoning_content back when tools are in play. No images. */
 function messagesFor(messages: ChatMessage[], withTools: boolean) {
-  return messages.map((item) =>
-    withTools && item.role === "assistant"
-      ? { role: item.role, content: item.content, reasoning_content: item.reasoning ?? "" }
-      : { role: item.role, content: item.content },
-  );
+  return messages.map((item) => {
+    if (item.role === "tool") return { role: "tool" as const, tool_call_id: item.toolCallId ?? "", content: item.content };
+    if (item.role === "assistant") {
+      return {
+        role: "assistant" as const,
+        content: item.content,
+        ...(withTools || item.toolCalls?.length ? { reasoning_content: item.reasoning ?? "" } : {}),
+        ...(item.toolCalls?.length ? { tool_calls: item.toolCalls.map((call) => ({ id: call.id, type: "function" as const, function: { name: call.name, arguments: JSON.stringify(call.arguments) } })) } : {}),
+      };
+    }
+    return { role: item.role, content: item.content };
+  }) as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 }

@@ -7,6 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 async function recorder(answer: (body: Record<string, unknown>) => unknown) {
   const bodies: Record<string, unknown>[] = [];
@@ -73,7 +74,7 @@ test("after a turn changes files, the project's check command runs; a failure go
   // Every turn writes a file (so every verification runs again) and then answers.
   const fake = await recorder((body) => {
     const messages = body.messages as { role: string; content?: string }[];
-    const wrote = messages.some((item) => item.role === "assistant" && String(item.content ?? "").includes("\"toolId\""));
+    const wrote = toolSteps(messages).length > 0;
     return {
       choices: [{
         message: wrote

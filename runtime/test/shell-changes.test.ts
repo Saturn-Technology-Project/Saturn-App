@@ -7,6 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 const COMMAND = "printf 'v2\\n' > tracked.txt && printf 'more\\n' >> edited.txt && printf 'new\\n' > added.txt && rm gone.txt && mkdir -p build && printf 'x' > build/out.js";
 
@@ -18,7 +19,7 @@ async function shellModel() {
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
-      const ran = messages.some((item) => item.role === "assistant" && item.content?.includes('"toolId"'));
+      const ran = toolSteps(messages).length > 0;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ choices: [{ message: ran ? { content: "done" } : { content: "", tool_calls: [{ id: "c0", type: "function", function: { name: "code", arguments: JSON.stringify(nextCall) } }] } }] }));
     });

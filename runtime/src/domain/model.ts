@@ -108,6 +108,19 @@ export type RunAction = {
   result?: unknown;
   reason?: string;
   thoughtSignature?: string;
+  /** The model's id for the tool call this step answers (see Run.rounds). */
+  callId?: string;
+};
+
+/**
+ * One model reply that called tools, as the run sends it back: its calls (with the ids each step answers), its
+ * text and reasoning, and the provider's raw reply where that provider needs it verbatim.
+ */
+export type ToolRound = {
+  calls: { id: string; name: string; arguments: Record<string, unknown>; thoughtSignature?: string }[];
+  text?: string;
+  thinking?: string;
+  replay?: { provider: string; data: unknown };
 };
 
 /**
@@ -178,6 +191,8 @@ export type Run = {
   thinking?: string;
   thoughts?: RunThought[];
   actions: RunAction[];
+  /** The model replies that called tools this turn, in order (absent on runs from before native tool turns). */
+  rounds?: ToolRound[];
   error?: string;
   generation: number;
   /** While sleeping: when to resume, why, and which computer_wait action receives the result. */

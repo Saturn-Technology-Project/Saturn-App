@@ -8,6 +8,7 @@ import { expandCommand, listCommands, listSkills, loadSkill, parseSkill, skillsP
 import type { Run } from "../src/domain/model.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 async function writeSkill(dir: string, folder: string, text: string, extra: Record<string, string> = {}) {
   await mkdir(path.join(dir, folder), { recursive: true });
@@ -55,9 +56,10 @@ test("an agent sees the skills in its prompt and loads one with the skill tool; 
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
-      const last = messages.filter((item) => item.role === "assistant" && item.content?.includes("\"toolId\"")).at(-1)?.content ?? "";
+      const steps = toolSteps(messages);
+      const last = steps.length ? JSON.stringify(steps) : "";
       requests.push({ system: messages.find((item) => item.role === "system")?.content ?? "", lastResult: last });
-      const done = last ? (JSON.parse(last) as unknown[]).length : 0;
+      const done = steps.length;
       const calls = [
         { name: "skill", arguments: { name: "deploy" } },
         { name: "customizations_create_skill", arguments: { name: "made-here", description: "Made by the agent", instructions: "Steps" } },

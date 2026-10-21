@@ -8,6 +8,7 @@ import { MAX_DELEGATION_DEPTH } from "../src/application/runs.js";
 import type { Run } from "../src/domain/model.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolRounds, toolSteps } from "./tool-steps.js";
 
 type Message = { role: string; content: string };
 
@@ -27,7 +28,7 @@ async function familyModel() {
       // The request's own message: the last one that is a task or a question (not the "continue" after tool results).
       const input = users.filter((item) => /^(hello|look into|CHILD)/.test(item.content)).at(-1)?.content ?? "";
       const tools = (body.tools ?? []).map((item) => item.function?.name ?? "");
-      const results = messages.filter((item) => item.role === "assistant" && item.content.includes("\"toolId\"")).length;
+      const results = toolRounds(messages);
       requests.push({ input, tools, history: users.length });
       const call = (name: string, args: unknown) => ({ content: "", tool_calls: [{ id: `c${results}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] });
       let message: unknown;
@@ -35,10 +36,10 @@ async function familyModel() {
         // The parent: delegate two tasks, then answer from the results.
         message = results === 0
           ? call("delegate", { tasks: ["CHILD: count the files", "CHILD: name the newest file"], tools: "read-only" })
-          : { content: `parent done: ${(messages.at(-2)?.content ?? "").includes("answer for") ? "both answered" : "no answers"}` };
+          : { content: `parent done: ${JSON.stringify(toolSteps(messages)).includes("answer for") ? "both answered" : "no answers"}` };
       } else if (input.startsWith("CHILD: nest")) {
         // Delegates the same task again, as deep as it is allowed to.
-        message = results === 0 ? call("delegate", { task: "CHILD: nest" }) : { content: `nested: ${messages.at(-2)?.content.includes("may not delegate") ? "refused" : "ok"}` };
+        message = results === 0 ? call("delegate", { task: "CHILD: nest" }) : { content: `nested: ${JSON.stringify(toolSteps(messages)).includes("may not delegate") ? "refused" : "ok"}` };
       } else if (input.startsWith("CHILD:")) {
         message = results === 0 ? call("files", { action: "list", path: "." }) : { content: `answer for ${input.slice(7)}` };
       } else {
@@ -136,7 +137,7 @@ test("stopping the delegating run stops its sub-agents", async () => {
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: Message[] }).messages ?? [];
       const input = messages.find((item) => item.role === "user")?.content ?? "";
-      const results = messages.filter((item) => item.role === "assistant" && item.content.includes("\"toolId\"")).length;
+      const results = toolRounds(messages);
       const call = (name: string, args: unknown) => ({ content: "", tool_calls: [{ id: `c${results}`, type: "function", function: { name, arguments: JSON.stringify(args) } }] });
       const message = results > 0 ? { content: "done" } : input.startsWith("CHILD") ? call("code", { command: "sleep 20", timeout: 25_000 }) : call("delegate", { task: "CHILD wait", tools: "all" });
       res.setHeader("content-type", "application/json");

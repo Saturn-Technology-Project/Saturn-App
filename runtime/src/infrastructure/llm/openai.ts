@@ -22,8 +22,38 @@ function client(request: { apiKey?: string; baseUrl: string }): OpenAI {
   });
 }
 
+/** Chat Completions messages: native tool calls and results; a tool's screenshots follow its results as a user turn. */
 function toOpenAIMessages(messages: ChatMessage[]) {
-  return messages.map((item) => {
+  const out: unknown[] = [];
+  let pendingImages: ChatMessage["images"] = [];
+  const flushImages = () => {
+    if (!pendingImages?.length) return;
+    out.push({ role: "user", content: [{ type: "text", text: "Screenshots from the tool results above:" }, ...pendingImages.map((img) => ({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.base64}` } }))] });
+    pendingImages = [];
+  };
+  for (const item of messages) {
+    if (item.role !== "tool") flushImages();
+    if (item.role === "tool") {
+      out.push({ role: "tool", tool_call_id: item.toolCallId ?? "", content: item.content });
+      pendingImages = [...(pendingImages ?? []), ...(item.images ?? [])];
+      continue;
+    }
+    if (item.role === "assistant" && item.toolCalls?.length) {
+      out.push({
+        role: "assistant",
+        content: item.content || null,
+        tool_calls: item.toolCalls.map((call) => ({ id: call.id, type: "function", function: { name: call.name, arguments: JSON.stringify(call.arguments) } })),
+      });
+      continue;
+    }
+    out.push(plainOpenAIMessage(item));
+  }
+  flushImages();
+  return out;
+}
+
+function plainOpenAIMessage(item: ChatMessage) {
+  {
     if (item.images && item.images.length > 0 && item.role === "user") {
       return {
         role: "user" as const,
@@ -46,7 +76,7 @@ function toOpenAIMessages(messages: ChatMessage[]) {
       role: item.role,
       content,
     };
-  });
+  }
 }
 
 /** The legacy /completions endpoint (raw prompt in, text out), which OpenAI-compatible local servers still serve. */
@@ -110,7 +140,7 @@ export const openAIChat: ProviderAdapter = {
     } | undefined;
     const calls = (message?.tool_calls ?? []).flatMap((call) => {
       if (call.type !== "function") return [];
-      return [{ name: call.function.name, arguments: parseArguments(call.function.arguments) }];
+      return [{ id: call.id, name: call.function.name, arguments: parseArguments(call.function.arguments) }];
     });
     return choice(message?.content ?? "", calls, chatThinking(message), {
       input: completion.usage?.prompt_tokens,
@@ -126,9 +156,23 @@ export const openAIResponses: ProviderAdapter = {
   async complete(request) {
     const system = systemText(request.messages);
     const inputMessages = request.messages.filter((item) => item.role !== "system");
-    const formattedInput = inputMessages.map((item) => {
+    const formattedInput = inputMessages.flatMap((item): unknown[] => {
+      // Native tool turns: the assistant's text and function_call items, then each call's function_call_output
+      // (a tool's screenshots follow as a user turn).
+      if (item.role === "assistant" && item.toolCalls?.length) {
+        return [
+          ...(item.content ? [{ role: "assistant", content: item.content }] : []),
+          ...item.toolCalls.map((call) => ({ type: "function_call", call_id: call.id, name: call.name, arguments: JSON.stringify(call.arguments) })),
+        ];
+      }
+      if (item.role === "tool") {
+        return [
+          { type: "function_call_output", call_id: item.toolCallId ?? "", output: item.content },
+          ...(item.images?.length ? [{ role: "user", content: [{ type: "input_text", text: "Screenshot from the tool result above:" }, ...item.images.map((img) => ({ type: "input_image", image_url: `data:${img.mimeType};base64,${img.base64}` }))] }] : []),
+        ];
+      }
       if (item.images && item.images.length > 0 && item.role === "user") {
-        return {
+        return [{
           role: "user" as const,
           content: [
             { type: "input_text" as const, text: item.content || "Attached screenshot:" },
@@ -137,13 +181,13 @@ export const openAIResponses: ProviderAdapter = {
               image_url: `data:${img.mimeType};base64,${img.base64}`,
             })),
           ],
-        };
+        }];
       }
       let content = item.content;
       if (content.includes("data:image/")) {
         content = content.replace(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]{100,}/g, "[image attached as visual input]");
       }
-      return { role: item.role, content };
+      return [{ role: item.role, content }];
     });
     // Reasoning models get a reasoning effort (and a summary of their reasoning) and no temperature; other
     // models the reverse. A model that rejects either is retried without it.
@@ -184,7 +228,7 @@ export const openAIResponses: ProviderAdapter = {
       } else if (item.type === "message") {
         texts.push(item.content.filter((part) => part.type === "output_text").map((part) => part.text).join(""));
       } else if (item.type === "function_call") {
-        calls.push({ name: item.name, arguments: parseArguments(item.arguments) });
+        calls.push({ id: item.call_id, name: item.name, arguments: parseArguments(item.arguments) });
       }
     }
     return choice(texts.join(""), calls, thoughts.join("\n\n"), {

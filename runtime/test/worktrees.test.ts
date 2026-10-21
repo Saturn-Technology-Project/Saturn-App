@@ -7,6 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 /** A model that writes one file with the files tool, then answers. */
 async function writingModel(file: string, content: string) {
@@ -15,7 +16,7 @@ async function writingModel(file: string, content: string) {
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
-      const wrote = messages.some((item) => item.role === "assistant" && typeof item.content === "string" && item.content.includes("\"toolId\""));
+      const wrote = toolSteps(messages).length > 0;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({
         choices: [{

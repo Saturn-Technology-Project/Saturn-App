@@ -16,7 +16,7 @@ async function scriptedModel() {
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
-      const ran = messages.some((item) => item.role === "assistant" && item.content?.includes('"toolId"'));
+      const ran = messages.some((item) => item.role === "tool");
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ choices: [{ message: ran ? { content: "wrote it" } : { content: "", tool_calls: [{ id: "c0", type: "function", function: { name: "code", arguments: JSON.stringify({ command: "echo hello > note.txt" }) } }] } }] }));
     });

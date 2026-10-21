@@ -1,7 +1,7 @@
 import type { Agent, RunAction } from "./model.js";
 import { loadNote } from "./toolkits.js";
 
-export type ToolCall = { name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
+export type ToolCall = { id?: string; name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
 
 
 export function clip(text: string, limit = 120): string {
@@ -261,7 +261,7 @@ export function toolCalls(body: Record<string, unknown>): ToolCall[] {
   const calls = message?.tool_calls ?? [];
   return calls.flatMap((item) => {
     if (!item || typeof item !== "object") return [];
-    const record = item as { function?: { name?: string; arguments?: string }; thoughtSignature?: string };
+    const record = item as { id?: string; function?: { name?: string; arguments?: string }; thoughtSignature?: string };
     const fn = record.function;
     if (!fn?.name) return [];
     let args: Record<string, unknown> = {};
@@ -270,7 +270,7 @@ export function toolCalls(body: Record<string, unknown>): ToolCall[] {
     } catch {
       args = {};
     }
-    return [{ name: fn.name, arguments: args, thoughtSignature: record.thoughtSignature }];
+    return [{ ...(record.id ? { id: record.id } : {}), name: fn.name, arguments: args, thoughtSignature: record.thoughtSignature }];
   });
 }
 

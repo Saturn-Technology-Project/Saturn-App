@@ -8,7 +8,7 @@ import { BROWSER_ID } from "../domain/browser-tools.js";
 import { ON_DEMAND_TOOLKITS, toolkitServer } from "../domain/toolkits.js";
 import type { CommandSnapshot } from "./checkpoints.js";
 import { IDE_ID } from "../domain/ide-tools.js";
-import type { Agent, Conversation, ModelConnection, Run, RunAction, RunMode } from "../domain/model.js";
+import type { Agent, Conversation, ModelConnection, Run, RunAction, RunMode, ToolRound } from "../domain/model.js";
 import { autonomyLine, autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isReadOnlyCall, isSensitiveOperation, mayReadOnly, readOnlyRefusal, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
 import type { ToolCall } from "./runtime-state.js";
 import type { ChatMessage } from "../infrastructure/llm.js";
@@ -460,6 +460,7 @@ export class RunService {
       run.thinking = "";
       run.thoughts = [];
       run.actions = [];
+      delete run.rounds;
       delete run.error;
       run.status = "running";
       run.generation = (run.generation ?? 0) + 1;
@@ -535,7 +536,7 @@ export class RunService {
     const run = this.kernel.getRun(runId);
     const requested = Math.min(MAX_WAIT_MS, Math.max(0, Number(call.arguments.ms ?? call.arguments.duration_ms ?? 0)));
     const reason = typeof call.arguments.reason === "string" ? call.arguments.reason.slice(0, 300) : undefined;
-    const action: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "sleeping", ...(reason ? { reason } : {}) };
+    const action: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "sleeping", ...(reason ? { reason } : {}), ...(call.id ? { callId: call.id } : {}) };
     if (call.thoughtSignature) action.thoughtSignature = call.thoughtSignature;
     if ((run.sleeps ?? 0) >= MAX_SLEEPS) {
       action.status = "completed";
@@ -615,6 +616,7 @@ export class RunService {
         ? await this.kernel.hooks.afterTool(agent, run, await this.executeTool({ agentId: agent.id, toolId: pending.toolId, arguments: pending.arguments, runId, actionId: pending.id, signal }), signal)
         : { ...pending, status: "denied", reason: DENIED_BY_USER };
       if (pending.thoughtSignature) done.thoughtSignature = pending.thoughtSignature;
+      if (pending.callId) done.callId = pending.callId;
       actions.push(done);
       this.kernel.log("agent", "info", `${agent.name} ${pending.toolId} ${allow ? "approved" : "denied"} by the user`, { "saturn.run.id": runId });
       if (!this.kernel.alive(runId, generation)) return;
@@ -977,7 +979,7 @@ export class RunService {
       await this.noteThinking(runId, generation, first, seconds(startedAt));
       const actions: RunAction[] = [];
       const calls = toolCalls(first);
-      const waiting = await this.runTools(agent, runId, generation, calls, actions, signal);
+      const waiting = await this.runTools(agent, runId, generation, calls, actions, signal, first);
       if (waiting || !this.kernel.alive(runId, generation)) return;
       // A reply with no tool calls is already the answer; asking again would only double the cost.
       await this.finishFromModel(runId, generation, agent, model, context, tools, actions, signal, calls.length ? undefined : first);
@@ -989,7 +991,29 @@ export class RunService {
     }
   }
 
-  async runTools(agent: Agent, runId: string, generation: number, calls: ToolCall[], actions: RunAction[], signal: AbortSignal): Promise<boolean> {
+  async runTools(agent: Agent, runId: string, generation: number, calls: ToolCall[], actions: RunAction[], signal: AbortSignal, reply?: Record<string, unknown>): Promise<boolean> {
+    // Each call gets an id (the provider's, or one of ours), and the reply is kept as a round, so the next request
+    // sends the calls and their results back in the provider's own tool format.
+    for (const call of calls) call.id ??= newId("call");
+    if (calls.length) {
+      const message = (Array.isArray(reply?.choices) ? (reply.choices[0] as { message?: { replay?: ToolRound["replay"] } }).message : undefined) ?? {};
+      const round: ToolRound = {
+        calls: calls.map((call) => ({ id: call.id!, name: call.name, arguments: call.arguments, ...(call.thoughtSignature ? { thoughtSignature: call.thoughtSignature } : {}) })),
+        ...(reply && textOf(reply) ? { text: textOf(reply) } : {}),
+        ...(reply && thinkingOf(reply) ? { thinking: thinkingOf(reply) } : {}),
+        ...(message.replay ? { replay: message.replay } : {}),
+      };
+      await this.kernel.store.update((state) => {
+        const current = state.runs.find((item) => item.id === runId);
+        if (current && (current.generation ?? 0) === generation) current.rounds = [...(current.rounds ?? []), round];
+      });
+    }
+    /** The step answers the call: its id, and Gemini's signature for it. */
+    const tag = (action: RunAction, call: ToolCall): RunAction => {
+      if (call.thoughtSignature) action.thoughtSignature = call.thoughtSignature;
+      action.callId = call.id;
+      return action;
+    };
     // In a group, the group's approval setting (when it has one) replaces the agent's own.
     const groupId = this.kernel.store.state.runs.find((item) => item.id === runId)?.groupId;
     const groupAutonomy = groupId ? (this.kernel.store.state.groups ?? []).find((item) => item.id === groupId)?.autonomy : undefined;
@@ -1003,8 +1027,7 @@ export class RunService {
       // An Ask or Plan turn only reads: a tool that would change something is refused, and the model is told why.
       if ((turnMode === "ask" || turnMode === "plan") && !isReadOnlyCall(call.name, call.arguments, this.toolCategory(agent, call.name))) {
         const refused: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "denied", reason: readOnlyRefusal(turnMode) };
-        if (call.thoughtSignature) refused.thoughtSignature = call.thoughtSignature;
-        actions.push(refused);
+        actions.push(tag(refused, call));
         continue;
       }
 
@@ -1012,8 +1035,7 @@ export class RunService {
       const hooked = await this.kernel.hooks.beforeTool(agent, this.kernel.getRun(runId), call.name, call.arguments, signal);
       if (hooked.blocked) {
         const refused: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "denied", reason: `Blocked by a hook: ${hooked.blocked}` };
-        if (call.thoughtSignature) refused.thoughtSignature = call.thoughtSignature;
-        actions.push(refused);
+        actions.push(tag(refused, call));
         this.kernel.log("agent", "warning", `${agent.name} ${call.name} blocked by a pre_tool hook`);
         continue;
       }
@@ -1029,8 +1051,7 @@ export class RunService {
           : ruled;
       if (ruling?.effect === "deny") {
         const refused: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "denied", reason: this.kernel.permissions.explain(ruling) };
-        if (call.thoughtSignature) refused.thoughtSignature = call.thoughtSignature;
-        actions.push(refused);
+        actions.push(tag(refused, call));
         this.kernel.log("agent", "warning", `${agent.name} ${call.name} denied by a permission rule (${ruling.scope})`);
         continue;
       }
@@ -1067,8 +1088,7 @@ export class RunService {
           status: "waiting_approval",
           reason: approvalReason,
         };
-        if (call.thoughtSignature) action.thoughtSignature = call.thoughtSignature;
-        actions.push(action);
+        actions.push(tag(action, call));
         this.kernel.log("agent", "info", `${agent.name} ${action.toolId} waiting_approval: ${approvalReason}`);
         if (this.kernel.alive(runId, generation)) {
           await this.kernel.store.update((state) => {
@@ -1085,7 +1105,7 @@ export class RunService {
         const slept = await this.sleep(agent, runId, generation, call, actions);
         // Suspended: the round ends here, with no model call while the run waits.
         if (slept.status === "sleeping") return true;
-        actions.push(slept);
+        actions.push(tag(slept, call));
         continue;
       }
 
@@ -1097,8 +1117,7 @@ export class RunService {
         actionId: newId("act"),
         signal,
       }), signal);
-      if (call.thoughtSignature) action.thoughtSignature = call.thoughtSignature;
-      actions.push(action);
+      actions.push(tag(action, call));
       const detail = action.reason ? `: ${clip(action.reason, 80)}` : "";
       this.kernel.log("agent", action.status === "failed" || action.status === "denied" ? "warning" : "info", `${agent.name} ${action.toolId} ${action.status}${detail}`);
       if (this.kernel.alive(runId, generation)) {
@@ -1196,7 +1215,7 @@ export class RunService {
       const calls = toolCalls(response);
       if (!calls.length || !this.kernel.alive(runId, generation)) break;
       rounds += 1;
-      const waiting = await this.runTools(agent, runId, generation, calls, actions, signal ?? new AbortController().signal);
+      const waiting = await this.runTools(agent, runId, generation, calls, actions, signal ?? new AbortController().signal, response);
       if (waiting || !this.kernel.alive(runId, generation)) return;
       // A toolkit loaded in this round brings its tools to the next request.
       tools = this.toolList(agent, run.mode, runId);
@@ -1513,7 +1532,12 @@ export class RunService {
       ...(await this.historyFor(agent, model, runId, signal)),
       images.length ? { role: "user", content: input, images } : { role: "user", content: input },
     ];
-    if (actions.length) {
+    const rounds = current?.rounds ?? [];
+    const native = actions.length > 0 && rounds.length > 0 && actions.every((action) => action.callId && rounds.some((round) => round.calls.some((call) => call.id === action.callId)));
+    if (native) {
+      messages.push(...toolTurns(rounds, actions));
+    } else if (actions.length) {
+      // Runs from before native tool turns: the steps as a JSON list, as the model saw them then.
       const thinking = this.kernel.store.state.runs.find((item) => item.id === runId)?.thinking;
       // Latest tool results whole (capped); older ones cleared to a stub. The run keeps the originals.
       // Screenshots become placeholders first (their pixels go as images), so trimming never clips base64.
@@ -1577,6 +1601,36 @@ export class RunService {
 /** Screenshots, and computer-use actions that return the screen after acting (click, key, scroll…). */
 function carriesImage(action: RunAction): boolean {
   return action.toolId.includes("screenshot") || action.toolId.startsWith("computer_");
+}
+
+/** A call the turn never ran (it paused for approval or a wait first): providers need a result for every call. */
+const NOT_RUN = JSON.stringify({ status: "not_run", reason: "Not run: the turn paused before this call. Call it again if it is still needed." });
+
+/**
+ * The turn's tool rounds as native messages: each model reply's calls, then one result per call (status, result
+ * or reason), compacted like the text format. The latest two screenshots go with their results as images.
+ */
+export function toolTurns(rounds: ToolRound[], actions: RunAction[]): ChatMessage[] {
+  const compacted = compactActions(sanitizeActionsForText(actions) as RunAction[]);
+  const withImages = new Set(actions.filter((action) => extractScreenshots([action]).length > 0).slice(-2).map((action) => action.id));
+  const messages: ChatMessage[] = [];
+  for (const round of rounds) {
+    messages.push({ role: "assistant", content: round.text ?? "", reasoning: round.thinking, toolCalls: round.calls, ...(round.replay ? { replay: round.replay } : {}) });
+    for (const call of round.calls) {
+      const index = compacted.findIndex((action) => action.callId === call.id);
+      const step = compacted[index];
+      const images = step && withImages.has(step.id) ? extractScreenshots([actions[index]!]) : [];
+      messages.push({
+        role: "tool",
+        toolCallId: call.id,
+        toolName: call.name,
+        content: step ? JSON.stringify({ status: step.status, ...(step.result !== undefined ? { result: step.result } : {}), ...(step.reason ? { reason: step.reason } : {}) }) : NOT_RUN,
+        ...(step && (step.status === "failed" || step.status === "denied") ? { failed: true } : {}),
+        ...(images.length ? { images } : {}),
+      });
+    }
+  }
+  return messages;
 }
 
 function extractScreenshots(actions: RunAction[]): { mimeType: string; base64: string }[] {

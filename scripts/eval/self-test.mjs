@@ -26,7 +26,8 @@ function scriptedModel() {
 		req.on('end', () => {
 			const messages = JSON.parse(raw || '{}').messages ?? [];
 			const ask = messages.filter((item) => item.role === 'user').map((item) => item.content).join('\n');
-			const acted = messages.some((item) => item.role === 'assistant' && String(item.content).includes('"toolId"'));
+			// A tool result comes back as a native tool turn (or, from older runtimes, as JSON in an assistant turn).
+			const acted = messages.some((item) => item.role === 'tool' || (item.role === 'assistant' && String(item.content).includes('"toolId"')));
 			let message = { content: 'I could not do this one.' };
 			if (/tests fail/.test(ask) && !acted) message = { content: '', tool_calls: [{ id: 'c0', type: 'function', function: { name: 'files', arguments: JSON.stringify({ action: 'write', path: 'src/pages.js', content: FIXED }) } }] };
 			else if (/tests fail/.test(ask)) message = { content: 'Fixed: the last partial page was dropped by Math.floor.' };

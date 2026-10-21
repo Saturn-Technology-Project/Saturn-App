@@ -8,6 +8,7 @@ import { fromClaudeHooks, matchesTool } from "../src/application/hooks.js";
 import type { Run } from "../src/domain/model.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
+import { toolSteps } from "./tool-steps.js";
 
 /** A model that runs `commands` in order, one per turn, then answers "finished"; it records the tool results it saw. */
 async function commandModel(commands: string[]) {
@@ -17,9 +18,10 @@ async function commandModel(commands: string[]) {
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
       const messages = (JSON.parse(raw || "{}") as { messages?: { role?: string; content?: string }[] }).messages ?? [];
-      const last = messages.filter((item) => item.role === "assistant" && typeof item.content === "string" && item.content.includes("\"toolId\"")).at(-1)?.content ?? "";
+      const steps = toolSteps(messages);
+      const last = steps.length ? JSON.stringify(steps) : "";
       if (last) seen.push(last);
-      const done = last ? (JSON.parse(last) as unknown[]).length : 0;
+      const done = steps.length;
       const next = commands[done];
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ choices: [{ message: next === undefined ? { content: "finished" } : { content: "", tool_calls: [{ id: `c${done}`, type: "function", function: { name: "code", arguments: JSON.stringify({ command: next }) } }] } }] }));
