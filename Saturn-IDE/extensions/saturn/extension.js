@@ -2278,6 +2278,46 @@ class AgentView {
 		background: var(--saturn-accent-subtle);
 	}
 	.code-actions { display: inline-flex; gap: 2px; }
+
+	/* ─── Narrow panels: the title, the send button and the text keep their room ─── */
+	.session-title-wrap, .session-title { flex: 1 1 auto; }
+	.session-meta {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0 12px 7px;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.session-meta::-webkit-scrollbar { display: none; }
+	.session-meta:not(:has(> :not([hidden]))) { display: none; }
+	.worktree-btn { font-family: inherit; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+	#folderBtn { max-width: 170px; }
+	footer { container-type: inline-size; container-name: composer; }
+	.toolbar-left { flex: 1 1 auto; overflow: hidden; }
+	.toolbar-right { flex: 0 0 auto; }
+	.context-pill { flex: 0 1 auto; min-width: 30px; }
+	.codebase-toggle { flex-shrink: 0; }
+	.codebase-toggle svg { flex-shrink: 0; opacity: 0.85; }
+	@container composer (max-width: 380px) {
+		.composer-card { padding: 8px 10px 6px; }
+		.toolbar-left, .toolbar-right { gap: 3px; }
+		.codebase-toggle { padding: 2px 5px; }
+		.codebase-toggle .label, .toolbar-divider { display: none; }
+	}
+	@container composer (max-width: 300px) {
+		#slashBtn { display: none; }
+		.context-pill .pill-name { display: none; }
+	}
+	.assistant { line-height: 1.5; }
+	.assistant code, .user code {
+		font-size: 0.88em;
+		padding: 0.5px 3.5px;
+		border-radius: 3px;
+		overflow-wrap: anywhere;
+	}
+	.user { padding: 6px 11px; }
+	#log { gap: 14px; }
 </style>
 </head>
 <body>
@@ -2289,9 +2329,6 @@ class AgentView {
 			<img class="saturn-header-logo" src="${icon}" alt="Saturn">
 			<span class="session-title" id="sessionTitle" title="${l('Click to rename session')}">Untitled</span>
 			<input type="text" class="session-title-input" id="sessionTitleInput" value="Untitled">
-			<button class="worktree-btn" id="folderBtn" type="button" hidden title="${l('The folder this chat works in')}"></button>
-			<button class="worktree-btn" id="rulesBtn" type="button" hidden title="${l('Project rules')}"></button>
-			<button class="worktree-btn" id="worktreeBtn" type="button" hidden title="${l('Work on an own git branch')}"></button>
 		</div>
 		<div class="session-actions">
 			<button class="hdr-btn" id="historyBtn" title="${l('Session history')}">
@@ -2311,6 +2348,13 @@ class AgentView {
 				</svg>
 			</button>
 		</div>
+	</div>
+
+	<!-- Where this chat works (folder, project rules, its own branch): its own row, so the title keeps the width -->
+	<div class="session-meta" id="sessionMeta">
+		<button class="worktree-btn" id="folderBtn" type="button" hidden title="${l('The folder this chat works in')}"></button>
+		<button class="worktree-btn" id="rulesBtn" type="button" hidden title="${l('Project rules')}"></button>
+		<button class="worktree-btn" id="worktreeBtn" type="button" hidden title="${l('Work on an own git branch')}"></button>
 	</div>
 
 	<!-- History Popover -->
@@ -2353,7 +2397,7 @@ class AgentView {
 						<path d="M10.6 8v1.1a1.9 1.9 0 0 0 3.8 0V8a6.4 6.4 0 1 0-2.5 5.1"/>
 					</svg>
 				</button>
-				<button type="button" class="codebase-toggle on" id="codebaseBtn" title="${l('Search the project for code related to your message and include it')}">${l('Codebase')}</button>
+				<button type="button" class="codebase-toggle on" id="codebaseBtn" title="${l('Search the project for code related to your message and include it')}"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><line x1="10.4" y1="10.4" x2="14" y2="14"/></svg><span class="label">${l('Codebase')}</span></button>
 				<button type="button" class="composer-btn" id="slashBtn" title="${l('Slash commands (/help, /clear, /compact)')}">
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
 						<rect x="2.5" y="2.5" width="11" height="11" rx="2.5"/>
