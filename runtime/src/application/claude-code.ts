@@ -15,20 +15,6 @@ import type { RuntimeKernel } from "./kernel.js";
 
 const exec = promisify(execFile);
 
-/**
- * Credentials that outrank the user's own `claude` login (Claude Code's documented order). They are removed
- * from the SDK's environment so a stray API key or cloud setting can never take over a subscription session.
- */
-const CREDENTIAL_VARIABLES = [
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "ANTHROPIC_BASE_URL",
-  "CLAUDE_CODE_OAUTH_TOKEN",
-  "CLAUDE_CODE_USE_BEDROCK",
-  "CLAUDE_CODE_USE_VERTEX",
-  "CLAUDE_CODE_USE_FOUNDRY",
-];
-
 /** Tools that only read; they run without asking. Everything else (edits, Bash, MCP) waits for the user. */
 const READ_ONLY_TOOLS = new Set(["Read", "Glob", "Grep", "LS", "NotebookRead", "TodoWrite", "Task", "ExitPlanMode"]);
 /** Tools that edit one file, with the input field naming it; their edits get a checkpoint for review. */
@@ -73,12 +59,18 @@ export class ClaudeCodeService {
     return this.kernel.programs.path("claude-code");
   }
 
-  /** The SDK's environment: the runtime's own, minus every credential that outranks the user's login. */
+  /**
+   * The SDK's environment: the runtime's own, unchanged. Anthropic's terms for running Claude Code in a product
+   * say no built-in authentication method may be removed, disabled or restricted, so whatever the user set up for
+   * Claude Code (their own ANTHROPIC_API_KEY, Bedrock, Vertex AI or Foundry settings) reaches it, and Claude Code
+   * picks by its own documented order. Saturn adds no credential of its own: keys saved for the Claude provider
+   * stay with that provider.
+   */
   environment(): Record<string, string> {
     const env: Record<string, string> = {};
     for (const [key, value] of Object.entries(process.env)) {
       // ELECTRON_* belong to the packaged runtime itself; commands the agent runs must not inherit them.
-      if (value !== undefined && !CREDENTIAL_VARIABLES.includes(key) && !key.startsWith("ELECTRON_")) env[key] = value;
+      if (value !== undefined && !key.startsWith("ELECTRON_")) env[key] = value;
     }
     env.CLAUDE_CONFIG_DIR = this.configDir();
     return env;

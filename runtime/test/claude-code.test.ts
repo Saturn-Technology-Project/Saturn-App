@@ -15,17 +15,20 @@ async function setup() {
   return { directory, store, ...createApp(store) };
 }
 
-test("Claude Code runs with no credential that could outrank the user's own login", async () => {
+test("Claude Code keeps every authentication method the user set up, and Saturn adds no credential of its own", async () => {
   const { directory, services } = await setup();
   const saved = { ...process.env };
-  process.env.ANTHROPIC_API_KEY = "sk-should-not-leak";
-  process.env.CLAUDE_CODE_OAUTH_TOKEN = "token-should-not-leak";
+  process.env.ANTHROPIC_API_KEY = "sk-the-users-own-key";
   process.env.CLAUDE_CODE_USE_BEDROCK = "1";
+  process.env.ELECTRON_RUN_AS_NODE = "1";
   try {
+    // A key saved in Saturn for the Claude (API) provider must not reach Claude Code.
+    await services.createModel({ provider: "claude", model: "claude-sonnet-5-5", secret: "sk-saved-in-saturn" });
     const env = services.kernel.claudeCode.environment();
-    assert.equal(env.ANTHROPIC_API_KEY, undefined);
-    assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, undefined);
-    assert.equal(env.CLAUDE_CODE_USE_BEDROCK, undefined);
+    assert.equal(env.ANTHROPIC_API_KEY, "sk-the-users-own-key", "the user's own API key is not removed");
+    assert.equal(env.CLAUDE_CODE_USE_BEDROCK, "1", "cloud provider settings are not removed");
+    assert.ok(!Object.values(env).includes("sk-saved-in-saturn"), "Saturn's saved keys are not added");
+    assert.equal(env.ELECTRON_RUN_AS_NODE, undefined, "the packaged runtime's own variables are not passed on");
     assert.equal(env.CLAUDE_CONFIG_DIR, path.join(directory, "claude"), "a Saturn-only login, apart from other Claude apps");
     assert.equal(Object.entries(env).find(([key]) => key.toUpperCase() === "PATH")?.[1], Object.entries(process.env).find(([key]) => key.toUpperCase() === "PATH")?.[1]);
   } finally {
