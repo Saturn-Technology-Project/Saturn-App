@@ -230,7 +230,7 @@ Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的�
 |---|---|---|
 | 你的模型供應商（Anthropic、OpenAI、Google、DeepSeek） | Agent 回合、Tab 補全、行內編輯 | 對話內容、你或 Agent 附加的檔案、工具結果。金鑰只送往該供應商。 |
 | 經由 Claude Code 與 Codex 連至 Anthropic / OpenAI | 使用這兩個供應商的回合 | 官方 CLI 以你的訂閱方案連線至各自廠商。Saturn 從不讀取或轉送這些憑證。 |
-| 網站、API 與 MCP 伺服器 | Agent 擷取網址、操作瀏覽器、呼叫 GitHub，或使用你安裝的 MCP 伺服器時 | 該次工具呼叫所需的內容。web 與瀏覽器工具會拒絕私有、link-local 與 loopback 位址（SSRF 防護）。 |
+| 網站、API 與 MCP 伺服器 | Agent 擷取網址、操作瀏覽器、呼叫 GitHub，或使用你新增的 MCP 伺服器時 | 該次工具呼叫所需的內容。MCP 伺服器只透過 HTTP(S) 連線：新增伺服器絕不會讓 Saturn 在你的電腦上啟動程式。web 與瀏覽器工具會拒絕私有、link-local 與 loopback 位址（SSRF 防護）。 |
 | GitHub Releases | App 啟動時 | electron-updater 的更新檢查。macOS 上僅限 Developer ID 簽章的版本。設定 `SATURN_NO_UPDATES=1` 可停用。 |
 | Open VSX 與 `raw.githubusercontent.com` | Saturn IDE：擴充套件市集，以及啟動時一次 | 擴充套件中繼資料，以及 Open VSX 的封鎖清單。 |
 | GitHub（由 Saturn IDE） | 僅在你於 IDE 登入 GitHub 後 | Git 與 GitHub 擴充套件的流量。 |
@@ -315,6 +315,7 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technolo
 - **只綁定 loopback。** Runtime 只監聽 `127.0.0.1`，拒絕非 loopback 的 `Host` 標頭（防範 DNS rebinding），並拒絕 `null` 與非本機的瀏覽器來源（CORS）。
 - **憑證加密。** API 金鑰與 OAuth token 以 AES-256-GCM（含驗證）靜態加密；有作業系統金鑰庫時，加密金鑰不會出現在資料夾中，且只經由 stdin 傳給系統工具，從不放在命令列參數。找不到金鑰的檔案會被另存，絕不覆寫。
 - **Bearer 驗證。** 除 `/health` 與 OAuth 回呼外，所有路由都需要 `Authorization: Bearer <token>`。token 存於 `~/.saturn-app/runtime-token`（權限 `0600`），其他本機使用者與網頁都無法呼叫 API。
+- **MCP 只走 HTTP(S)。** MCP 伺服器是一個 URL；Saturn 拒絕指令與 `stdio:`、`file:` 位址，因此新增伺服器絕不會執行本機程式。
 - **檔案系統範圍限制。** Agent 只能在 Saturn 工作區與你授權的專案資料夾內讀寫與執行，授權可隨時撤銷。
 - **核准策略與檢查點。** 除非你選擇完全自主，有風險的指令與工作目錄外的寫入都會等待核准。每次修改都有檢查點，可回復到單一步驟。
 - **訂閱憑證隔離。** Claude Code 與 Codex 透過官方 CLI 驗證，憑證存於 Saturn 專用的設定目錄。Saturn 從不讀取、複製或轉送這些憑證，並從它們的環境變數中移除 API 金鑰與 token，避免任何金鑰覆蓋訂閱登入。
@@ -324,6 +325,47 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technolo
 - 為 Saturn 發放專用、設有花費上限的 API 金鑰，以便獨立輪替或撤銷。
 - 優先使用 **Default** 核准策略（有風險才詢問）而非完全自主，並只授權任務所需的專案資料夾。
 - 絕不能離開本機的程式碼，請透過 LM Studio 使用本機模型。
+
+### 供應鏈與上游維護
+
+Saturn 內含約一千個開源套件、Electron、一個 Code-OSS 分支與一個機器學習模型。每一項都經過固定、檢查且可替換，檢查都在公開的 CI 上執行。
+
+**安裝的內容**
+
+- **固定的 lock 檔。** Runtime、桌面應用程式與 Saturn IDE 將每個套件固定為 `https://registry.npmjs.org/` 上的確切版本，並附 SHA-512 完整性雜湊。[`scripts/check-lockfiles.mjs`](scripts/check-lockfiles.mjs) 遇到任何 git、tarball URL、http 或 file 來源都會讓 CI 失敗。
+- **Registry 簽章。** `npm audit signatures` 驗證每個已安裝套件的 registry 簽章，發行者提供時也驗證其來源證明。
+- **不執行安裝腳本。** 相依套件的安裝腳本是遭入侵套件最常見的執行管道，在 Saturn 中從不執行：Runtime 與桌面應用程式在 `allowScripts` 中逐一拒絕，CI 以 `--ignore-scripts` 安裝。Saturn IDE 沿用 Code-OSS 自己的白名單，用於必須編譯的原生模組。
+- **npm 以外的一切都以雜湊固定。** Claude Code 與 Codex 的下載固定為 lock 檔的 SHA-512（[`agent-programs-manifest.ts`](runtime/src/infrastructure/agent-programs-manifest.ts)，由測試保持一致）；內建嵌入模型固定為 SHA-256（[`fetch-embedding-model.mjs`](desktop/scripts/fetch-embedding-model.mjs)）；每個 GitHub Action 固定為完整的 commit SHA。
+
+**保持更新**
+
+- **Dependabot** 在安全公告發佈時立即開出安全更新，並每週開出分組的版本更新，且只針對已公開七天的版本，遭入侵或有問題的版本通常在這段期間被發現並下架。
+- **[Supply chain workflow](.github/workflows/supply-chain.yml)** 在每次變更與每週執行：檢查 lock 檔、registry 簽章，以及對所有出貨內容執行 high 等級的 `npm audit`。
+- **Electron** 在桌面應用程式與 Saturn IDE 使用同一版本（43.7.7），仍在 Electron 的安全修補支援範圍內，並隨上游 Code-OSS 更新。
+
+**出貨的內容與發佈權限**
+
+- **每個版本都附 SBOM。** `Saturn-<version>-sbom.cdx.json`（CycloneDX 1.5）列出約一千個元件及其授權與雜湊，另含 Electron 與模型。SBOM、安裝程式與壓縮檔都附有建置來源證明。
+- **有意義的簽章。** Windows 版本只簽署 Saturn 自己的執行檔，第三方程式保留其發行者的簽章。
+- **發佈權限。** 發佈須在受保護的 environment 中經維護者核准。Release tag 只有管理員能建立，且永遠不能移動或刪除；`main` 不能 force-push；[CODEOWNERS](.github/CODEOWNERS) 會在每個 pull request 要求維護者審查。建議所有具寫入權限的成員啟用雙重驗證。
+
+**上游 Code-OSS**
+
+Saturn IDE 是 microsoft/vscode 加上一小組列明的修改。[`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) 記錄基準 commit 與版本、修改規則（Saturn 的功能放在自己的擴充套件；上游檔案只從建置中排除，絕不刪除），以及 Saturn 修改的全部 45 個檔案。每週的 [upstream sync](.github/workflows/upstream-sync.yml) 會以上游歷史為基準，將每個新的 VS Code 版本進行三方合併、建置並測試，再開出 pull request；需要人工處理時則以草稿列出衝突。每月版本在兩週內合併，上游安全修補在一週內合併。
+
+**已審視的例外**，追蹤至上游發佈修正為止：
+
+- Saturn IDE 的 npm 與 Mermaid 擴充套件中的 `braces`：尚無修補版本。
+- Saturn IDE 的 Emmet 擴充套件中的 `image-size`：修正版本為 Emmet 尚未使用的新主版本，且只有對惡意圖片執行 Emmet 的 *Update Image Size* 才會觸發。
+- Dependabot 也會回報 Saturn IDE 的測試、建置工具、Rust CLI，以及為了乾淨合併而保留的 Copilot 原始碼中的公告；這些都不會出貨。
+
+**自行驗證**
+
+```bash
+node scripts/check-lockfiles.mjs
+(cd runtime && npm ci --ignore-scripts && npm audit signatures)
+gh attestation verify Saturn-<version>-sbom.cdx.json -R Saturn-Technology-Project/Saturn-App
+```
 
 ### 已知限制
 
@@ -412,6 +454,8 @@ npm run test:ide    # Saturn IDE 擴充套件檢查
 1. 遵守分層：domain 程式碼不得 import Express 或 React。
 2. 為 Runtime 行為新增或更新測試，並執行 `npm test` 與 `npm run typecheck`。
 3. 絕不記錄或回傳秘密。記錄使用了哪個憑證（供應商或模型），不要記錄它的值。
+
+[CONTRIBUTING.md](CONTRIBUTING.md) 說明相依套件的變更：更新 Claude Agent SDK 或 Codex SDK、安裝腳本核准、Dependabot pull request，以及 Saturn IDE 的上游合併。
 
 ## 路線圖
 

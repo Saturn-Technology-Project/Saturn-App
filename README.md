@@ -231,7 +231,7 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 |---|---|---|
 | Your model provider (Anthropic, OpenAI, Google, DeepSeek) | Agent turns, Tab completion, inline edits | The conversation, files you or the agent attach, tool results. The key goes only to that provider. |
 | Anthropic / OpenAI via Claude Code and Codex | Turns on those providers | Their official CLIs talk to their own vendor under your subscription. Saturn never reads or forwards those credentials. |
-| Sites, APIs and MCP servers | When an agent fetches a URL, drives the browser, calls GitHub, or uses an MCP server you installed | Whatever that tool call needs. The web and browser tools refuse private, link-local and loopback addresses (SSRF protection). |
+| Sites, APIs and MCP servers | When an agent fetches a URL, drives the browser, calls GitHub, or uses an MCP server you added | Whatever that tool call needs. MCP servers are reached over HTTP(S) only: adding one never makes Saturn start a program on your computer. The web and browser tools refuse private, link-local and loopback addresses (SSRF protection). |
 | GitHub Releases | App startup | Update check via electron-updater. On macOS, only for Developer ID-signed builds. Disable with `SATURN_NO_UPDATES=1`. |
 | Open VSX and `raw.githubusercontent.com` | Saturn IDE: the extension gallery, plus once at startup | Extension metadata, and Open VSX's extension blocklist. |
 | GitHub (from Saturn IDE) | Only after you sign in to GitHub in the IDE | Git and GitHub extension traffic. |
@@ -316,6 +316,7 @@ Build logs are public on the [Actions](../../actions/workflows/release.yml) page
 - **Loopback binding.** The runtime listens on `127.0.0.1` only, rejects any non-loopback `Host` header (defeating DNS rebinding), and refuses `null` and non-local browser origins (CORS).
 - **Encrypted credentials.** API keys and OAuth tokens are encrypted at rest (AES-256-GCM, authenticated); the key never touches the data folder when an OS key store is available, and is passed to the system tools on stdin, never as a command-line argument. A file whose key cannot be found is set aside, never overwritten.
 - **Bearer authentication.** Every route except `/health` and the OAuth redirect requires `Authorization: Bearer <token>`. The token lives in `~/.saturn-app/runtime-token` (mode `0600`), so other local users and web pages cannot call the API.
+- **MCP over HTTP(S) only.** An MCP server is a URL; Saturn refuses commands and `stdio:` or `file:` addresses, so adding a server never runs a local program.
 - **Filesystem scoping.** Agents read, write and execute only within Saturn's workspace and project folders you grant; grants are revocable at any time.
 - **Approval policy and checkpoints.** Risky commands and writes outside the working directory block on your approval unless you opt into full autonomy. Every edit is checkpointed and revertible down to a single step.
 - **Subscription credential isolation.** Claude Code and Codex authenticate through their official CLIs, in Saturn-specific config directories. Saturn never reads, copies or forwards those credentials, and strips API-key and token variables from their environment so no key can override the subscription session.
@@ -325,6 +326,47 @@ Build logs are public on the [Actions](../../actions/workflows/release.yml) page
 - Issue Saturn dedicated API keys with spend limits, so they can be rotated or revoked independently.
 - Prefer the **Default** approval policy (prompt on risky actions) over full autonomy, and grant only the project folders a task needs.
 - For code that must never leave the machine, use a local model through LM Studio.
+
+### Supply chain and upstream maintenance
+
+Saturn ships about a thousand open-source packages, Electron, a Code-OSS fork and a machine-learning model. Each one is pinned, checked and replaceable, and the checks run in public CI.
+
+**What gets installed**
+
+- **Pinned lock files.** The runtime, the desktop app and Saturn IDE pin every package to an exact version from `https://registry.npmjs.org/` with a SHA-512 integrity hash. [`scripts/check-lockfiles.mjs`](scripts/check-lockfiles.mjs) fails CI on any git, tarball-URL, http or file source.
+- **Registry signatures.** `npm audit signatures` verifies every installed package's registry signature, and its provenance attestation where the publisher provides one.
+- **No install scripts.** Dependency install scripts, the usual way a compromised package runs code, never run: the runtime and the desktop app deny each one in `allowScripts`, and CI installs them with `--ignore-scripts`. Saturn IDE keeps Code-OSS's own allowlist for the native modules it must compile.
+- **Hashes for everything outside npm.** The Claude Code and Codex downloads are pinned to the lock file's SHA-512 ([`agent-programs-manifest.ts`](runtime/src/infrastructure/agent-programs-manifest.ts), kept in step by a test); the bundled embedding model to SHA-256 ([`fetch-embedding-model.mjs`](desktop/scripts/fetch-embedding-model.mjs)); every GitHub Action to a full commit SHA.
+
+**Staying current**
+
+- **Dependabot** opens a security update as soon as an advisory is published, and grouped version updates weekly, only for releases that have been public for seven days, which is when compromised or broken versions are usually caught and pulled.
+- **The [Supply chain workflow](.github/workflows/supply-chain.yml)** runs on every change and weekly: lock files, registry signatures, and `npm audit` at high severity for everything that ships.
+- **Electron** is the same version in the desktop app and Saturn IDE (43.7.7), one that still receives Electron security fixes, and moves with upstream Code-OSS.
+
+**What ships, and who can ship it**
+
+- **An SBOM with every release.** `Saturn-<version>-sbom.cdx.json` (CycloneDX 1.5) lists about a thousand components with their licenses and hashes, plus Electron and the model. The SBOM, installers and archives all carry build provenance attestations.
+- **Signatures that mean something.** Windows builds sign only Saturn's own executables; third-party programs keep their publisher's signature.
+- **Release permissions.** Publishing waits for a maintainer's approval in a protected environment. Release tags can be created only by admins and can never be moved or deleted, `main` cannot be force-pushed, and [CODEOWNERS](.github/CODEOWNERS) requests the maintainer's review on every pull request. Two-factor authentication is recommended for every member with write access.
+
+**Upstream Code-OSS**
+
+Saturn IDE is microsoft/vscode with a small, listed set of changes. [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) records the base commit and version, the rules (Saturn's features live in their own extension; upstream files are excluded from the build, never deleted) and each of the 45 files Saturn edits. A weekly [upstream sync](.github/workflows/upstream-sync.yml) three-way merges every new VS Code release against upstream's history, builds and tests it, and opens a pull request, as a draft listing the conflicts when it needs a person. Monthly releases are merged within two weeks, upstream security fixes within a week.
+
+**Reviewed exceptions**, tracked until upstream ships fixes:
+
+- `braces` in Saturn IDE's npm and Mermaid extensions: no patched release exists.
+- `image-size` in Saturn IDE's Emmet extension: the fix is a major version Emmet does not use yet, and the flaw is reachable only through Emmet's *Update Image Size* on a crafted image.
+- Dependabot also reports advisories in Saturn IDE's tests, build tooling, Rust CLI and the Copilot source kept for clean merges. None of these ship.
+
+**Check it yourself**
+
+```bash
+node scripts/check-lockfiles.mjs
+(cd runtime && npm ci --ignore-scripts && npm audit signatures)
+gh attestation verify Saturn-<version>-sbom.cdx.json -R Saturn-Technology-Project/Saturn-App
+```
 
 ### Known limitations
 
@@ -413,6 +455,8 @@ Before opening a pull request:
 1. Respect the layering: domain code imports neither Express nor React.
 2. Add or update tests for runtime behavior, and run `npm test` and `npm run typecheck`.
 3. Never log or return a secret. Log which credential was used (provider or model), never its value.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers dependency changes: updating the Claude Agent SDK or Codex SDK, install-script approvals, Dependabot pull requests and Saturn IDE's upstream merges.
 
 ## Roadmap
 
