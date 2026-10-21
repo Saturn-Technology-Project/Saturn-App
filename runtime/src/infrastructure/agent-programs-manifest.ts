@@ -5,40 +5,40 @@ export type ProgramPackage = { version: string; url: string; integrity: string; 
 export const AGENT_PROGRAM_PACKAGES: Record<"claude-code" | "codex", Record<string, ProgramPackage>> = {
   "claude-code": {
     "darwin-arm64": {
-      "version": "0.3.281",
-      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-darwin-arm64/-/claude-agent-sdk-darwin-arm64-0.3.281.tgz",
-      "integrity": "sha512-wydRJU0CX7c/w1qEsgqGUJFzmlOMTvUpBkWHsj1pJFbrRFQUnIW0EWor+pDd4WiKWWihVqUhYEA+3LTmUiLZIQ==",
-      "size": 96875982
+      "version": "0.3.299",
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-darwin-arm64/-/claude-agent-sdk-darwin-arm64-0.3.299.tgz",
+      "integrity": "sha512-KfkR3Ve7Eku1QuxT3LhC5e9Oj7c8UXvLJFFLbCw0u3OrhpzJUQ0ldd9ArmYNU3J47gpaqYgafnk9ztVPLdcajA==",
+      "size": 108762700
     },
     "darwin-x64": {
-      "version": "0.3.281",
-      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-darwin-x64/-/claude-agent-sdk-darwin-x64-0.3.281.tgz",
-      "integrity": "sha512-yvtdCwCimbI7dcFcQ204gEX4quzZBcyW2orCh8ESlkZY/Mn480qKCjyKWGuR17vGKGePynoiS1W895rxWNfHZQ==",
-      "size": 100865465
+      "version": "0.3.299",
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-darwin-x64/-/claude-agent-sdk-darwin-x64-0.3.299.tgz",
+      "integrity": "sha512-7G6qjn+xNCmyewcQ/XG/ElBoEGr8uDD4D8X33bqXEbNZ4vXbssiOzmcyxfuWLa7YqR8g9cJnmaWB6UzFEwiC6Q==",
+      "size": 113407844
     },
     "linux-arm64": {
-      "version": "0.3.281",
-      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-linux-arm64/-/claude-agent-sdk-linux-arm64-0.3.281.tgz",
-      "integrity": "sha512-PrxuObUGayjtUS6yq5Sz+dMNXn8KaK1BeIXG/PRE+85Wt9DzchoIduycIoFaXWrG0xbbzYz0AKwttNqSAeDdSA==",
-      "size": 106946217
+      "version": "0.3.299",
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-linux-arm64/-/claude-agent-sdk-linux-arm64-0.3.299.tgz",
+      "integrity": "sha512-8b5apRvHageZ/9xDfoIu8tJ6lpPAGjg4tD9JYef4SjpsY4KM/gvR6qC+Kqq5JHiH/Tq/mjgGYZjMkTZS8TOnsQ==",
+      "size": 119088678
     },
     "linux-x64": {
-      "version": "0.3.281",
-      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-linux-x64/-/claude-agent-sdk-linux-x64-0.3.281.tgz",
-      "integrity": "sha512-3kxVGQrn9wNeFZV0MJEXI0XOj7U8e/1wL41W2MInYVIVWJnTanuX+pPqQH2DzyVNRcw6CMP5k3eockewGptWig==",
-      "size": 106703805
+      "version": "0.3.299",
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-linux-x64/-/claude-agent-sdk-linux-x64-0.3.299.tgz",
+      "integrity": "sha512-Q+sweKF/ruNq4Gmf4CzglwaKJmtQjhBK5MT3U1oUhlNStwHejgBg1GLa/KrQMRE0R4u0ayapLyVNrfu0hQYGkQ==",
+      "size": 118793645
     },
     "win32-arm64": {
-      "version": "0.3.281",
-      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-win32-arm64/-/claude-agent-sdk-win32-arm64-0.3.281.tgz",
-      "integrity": "sha512-ySM49+TS94VrMkIzk65RHcNKfvXKhx6YuR2mplw8BbaYpcnKL4RTAr5WVbH1JhMLjPEBaDGSP1uCLZy/YkA9gg==",
-      "size": 105886740
+      "version": "0.3.299",
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-win32-arm64/-/claude-agent-sdk-win32-arm64-0.3.299.tgz",
+      "integrity": "sha512-sKvddLLYlXzk0FwjT9gNZDzmdzupI7qI0Dok7uu/KYGFgMGiSEGIsB9bfg+31HMDDftaT16P80MLzH+F8zQBFA==",
+      "size": 117415616
     },
     "win32-x64": {
-      "version": "0.3.281",
-      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-win32-x64/-/claude-agent-sdk-win32-x64-0.3.281.tgz",
-      "integrity": "sha512-hbnymWj9O31K0VMd/VOpMTZ0CNT3BkwgGGe84zHdAP6MDxmoZvqyS94UEaLQit3xmozCxfkfGns7/WgWH1Q6Sg==",
-      "size": 109550926
+      "version": "0.3.299",
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk-win32-x64/-/claude-agent-sdk-win32-x64-0.3.299.tgz",
+      "integrity": "sha512-PWHbjAdrecVlmR0kdgsX20QvUiFgWQl4zskuWd6Ieg3e5w+Ol0FZGXYRLS+Erd+pYUEZBNjDCqK2yd2KdBbDQw==",
+      "size": 121929597
     }
   },
   "codex": {
