@@ -1,0 +1,13 @@
+# Every change needs the maintainer's review (requested automatically on pull requests, Dependabot's included).
+* @rickwengdev
+
+# Paths that decide what is built, signed, installed or downloaded: listed so they keep an owner even if the
+# default line above changes.
+/.github/                                              @rickwengdev
+/scripts/                                              @rickwengdev
+/runtime/package-lock.json                             @rickwengdev
+/desktop/package-lock.json                             @rickwengdev
+/Saturn-IDE/package-lock.json                          @rickwengdev
+/desktop/build/saturn-code-signing.cer                 @rickwengdev
+/desktop/scripts/                                      @rickwengdev
+/runtime/src/infrastructure/agent-programs-manifest.ts @rickwengdev

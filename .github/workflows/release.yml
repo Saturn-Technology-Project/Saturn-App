@@ -229,6 +229,8 @@ jobs:
     needs: [macos, windows]
     if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
+    # Publishing waits for a maintainer's approval (the "release" environment), and only v* tags or main may deploy.
+    environment: release
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
