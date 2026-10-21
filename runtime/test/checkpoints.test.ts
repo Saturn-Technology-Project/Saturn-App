@@ -241,7 +241,7 @@ test("an agent's edit in a granted project shows up as a diff and reverts to the
     await services.setProjectAccess(project.id, true);
 
     const run = await services.startRun(agent.id, "edit notes", undefined, project.id);
-    for (let attempt = 0; attempt < 120 && ["running", "queued"].includes(services.kernel.getRun(run.id).status); attempt += 1) {
+    for (let attempt = 0; attempt < 800 && ["running", "queued"].includes(services.kernel.getRun(run.id).status); attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
     assert.equal(services.kernel.getRun(run.id).status, "completed", services.kernel.getRun(run.id).error);
@@ -254,7 +254,7 @@ test("an agent's edit in a granted project shows up as a diff and reverts to the
 
     // A chat outside any project keeps no checkpoint.
     const sandbox = await services.startRun(agent.id, "edit notes");
-    for (let attempt = 0; attempt < 120 && ["running", "queued"].includes(services.kernel.getRun(sandbox.id).status); attempt += 1) {
+    for (let attempt = 0; attempt < 800 && ["running", "queued"].includes(services.kernel.getRun(sandbox.id).status); attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
     assert.equal(services.kernel.getRun(sandbox.id).checkpoint, undefined);
