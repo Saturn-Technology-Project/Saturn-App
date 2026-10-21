@@ -7,7 +7,7 @@ import { FileSkill } from "./file-skill.js";
 import { text } from "./text.js";
 import { WebSkill } from "./web-skill.js";
 
-const DIRECT_SKILLS = ["files", "code", "code_output", "code_stop", "mcp", "web", "multi_step"];
+const DIRECT_SKILLS = ["files", "code", "code_output", "code_stop", "mcp", "web", "multi_step", "delegate"];
 
 export type ToolCaller = (toolId: string, args: Record<string, unknown>) => Promise<unknown>;
 

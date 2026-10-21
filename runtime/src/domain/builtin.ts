@@ -101,6 +101,17 @@ export function generalSkills(): McpConnection {
       ),
       skill("code_stop", "Stops a background command started with code { background: true }.", { jobId: { type: "string" } }, ["jobId"]),
       skill(
+        "delegate",
+        "Hand a self-contained task to a sub-agent with a fresh context, and get back only its final answer: a wide search or investigation, a report on part of the code, an independent subtask. Several tasks run in parallel. tools: read-only (the default) lets the sub-agent only read and run read-only tools; all lets it change files and run commands under the same approvals as you. agent names another agent to run it; otherwise it is you, with your model.",
+        {
+          task: { type: "string", description: "What to do and what to report back, complete in itself: the sub-agent sees nothing of this conversation." },
+          tasks: { type: "array", items: { type: "string" }, description: "Several independent tasks, run at the same time." },
+          tools: { type: "string", enum: ["read-only", "all"] },
+          agent: { type: "string", description: "Another agent's name, when its model or tools fit the task better." },
+        },
+        [],
+      ),
+      skill(
         "mcp",
         "Call a tool on another MCP server that is enabled for this agent.",
         { tool: { type: "string" }, arguments: { type: "object" } },

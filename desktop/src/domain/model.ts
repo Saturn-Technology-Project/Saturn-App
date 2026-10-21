@@ -176,6 +176,10 @@ export type Run = {
   /** The project's check command after this turn's changes. */
   /** Before this turn, earlier turns were folded into the chat's summary to fit the model's context. */
   compacted?: { turns: number; at: string };
+  /** A sub-agent's run, started by the delegate tool of `parentRunId`; the chat shows it nested in that step. */
+  parentRunId?: string;
+  delegated?: { task: string; tools: "read-only" | "all" };
+  children?: Run[];
   verification?: { command: string; ok: boolean; code: number | null; output: string };
   /** Set on a group chat turn: the group and the message the agent was asked to consider. */
   groupId?: string;

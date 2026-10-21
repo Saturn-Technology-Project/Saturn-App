@@ -35,6 +35,10 @@ const DENIED_BY_USER = "Denied by the user";
 /** The user turn that follows a round of tool results, so the model either uses more tools or answers. */
 /** Tool rounds one turn may take before it stops and says so; long computer-use tasks need a good number. */
 export const MAX_TOOL_ROUNDS = 60;
+/** How many levels a sub-agent may delegate below the chat's own run. */
+export const MAX_DELEGATION_DEPTH = 2;
+/** Tasks one `delegate` call may run at once. */
+export const MAX_PARALLEL_DELEGATIONS = 6;
 
 /** What the user sees when a turn stops at the step limit. */
 export function stepLimitNote(): string {
@@ -65,7 +69,7 @@ const SEES_IMAGES = new Set(["claude", "openai", "gemini", "lmstudio", "claude-c
 export class RunService {
   constructor(private readonly kernel: RuntimeKernel) {}
 
-  async startRun(agentId: string, input: string, threadId?: string, projectId?: string, options: { images?: ImagePart[]; mode?: RunMode; automatic?: boolean } = {}): Promise<Run> {
+  async startRun(agentId: string, input: string, threadId?: string, projectId?: string, options: { images?: ImagePart[]; mode?: RunMode; automatic?: boolean; parent?: { runId: string; task: string; tools: "read-only" | "all" } } = {}): Promise<Run> {
     const agent = this.kernel.getAgent(agentId);
     this.kernel.guard(agent.id);
     const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
@@ -140,6 +144,10 @@ export class RunService {
     if (images.length) run.inputImages = await saveImages(this.kernel.store.root, run.id, images);
     if (options.mode && options.mode !== "agent") run.mode = options.mode;
     if (options.automatic) run.automatic = true;
+    if (options.parent) {
+      run.parentRunId = options.parent.runId;
+      run.delegated = { task: options.parent.task, tools: options.parent.tools };
+    }
     await this.kernel.store.update((state) => {
       state.runs.unshift(run);
     });
@@ -229,8 +237,84 @@ export class RunService {
     if (threadId) {
       list = list.filter((item) => item.threadId === threadId);
     }
-    return list.slice().reverse();
+    // Sub-agent runs ride on the run that delegated them (nested in its steps), not as turns of the chat.
+    return list.filter((item) => !item.parentRunId).map((item) => this.withChildren(item)).reverse();
   }
+
+  /** The run with its sub-agent runs attached, each with its own, newest first within the thread order. */
+  withChildren(run: Run): Run {
+    const children = this.kernel.store.state.runs.filter((item) => item.parentRunId === run.id).reverse().map((item) => this.withChildren(item));
+    return children.length ? { ...run, children } : run;
+  }
+
+  /** The run that started a chain of delegations, so checkpoints and reviews gather on it. */
+  rootRunId(runId: string): string {
+    let current = this.kernel.store.state.runs.find((item) => item.id === runId);
+    for (let depth = 0; current?.parentRunId && depth < 10; depth += 1) {
+      current = this.kernel.store.state.runs.find((item) => item.id === current!.parentRunId);
+    }
+    return current?.id ?? runId;
+  }
+
+  private depthOf(runId: string): number {
+    let depth = 0;
+    let current = this.kernel.store.state.runs.find((item) => item.id === runId);
+    while (current?.parentRunId && depth < 10) {
+      depth += 1;
+      current = this.kernel.store.state.runs.find((item) => item.id === current!.parentRunId);
+    }
+    return depth;
+  }
+
+  /** Waits for a run to settle; a stopped parent stops it instead. */
+  private async waitForRun(runId: string, signal?: AbortSignal): Promise<Run> {
+    for (;;) {
+      const run = this.kernel.getRun(runId);
+      if (run.status !== "running" && run.status !== "queued" && run.status !== "waiting_approval" && run.status !== "sleeping") return run;
+      if (signal?.aborted) {
+        await this.stopRun(runId);
+        throw new Error("The delegating run was stopped");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+
+  /**
+   * The `delegate` tool: one or more sub-agent runs in the same chat, each with a fresh context (only its task),
+   * run in parallel and waited for; only their final answers come back. A read-only sub-agent runs in Ask mode;
+   * one with all tools inherits this run's mode, approvals (its cards show nested under this step) and sandbox.
+   */
+  private async delegate(input: { agentId: string; arguments: Record<string, unknown>; runId: string; signal?: AbortSignal }): Promise<unknown> {
+    const parent = this.kernel.getRun(input.runId);
+    if (this.depthOf(input.runId) >= MAX_DELEGATION_DEPTH) throw new Error(`Sub-agents may not delegate further than ${MAX_DELEGATION_DEPTH} levels deep; do this task yourself.`);
+    const tasks = [
+      ...(typeof input.arguments.task === "string" && input.arguments.task.trim() ? [input.arguments.task.trim()] : []),
+      ...(Array.isArray(input.arguments.tasks) ? input.arguments.tasks.filter((item): item is string => typeof item === "string" && item.trim() !== "").map((item) => item.trim()) : []),
+    ];
+    if (!tasks.length) throw new Error("Give the sub-agent a task (task, or tasks for several)");
+    if (tasks.length > MAX_PARALLEL_DELEGATIONS) throw new Error(`At most ${MAX_PARALLEL_DELEGATIONS} tasks at once`);
+    const tools = input.arguments.tools === "all" ? "all" : "read-only";
+    const wanted = typeof input.arguments.agent === "string" ? input.arguments.agent.trim() : "";
+    const agent = wanted
+      ? this.kernel.store.state.agents.find((item) => item.id === wanted || item.name.toLowerCase() === wanted.toLowerCase())
+      : this.kernel.getAgent(input.agentId);
+    if (!agent) throw new Error(`No agent named "${wanted}"`);
+    // Read-only sub-agents run in Ask mode; others inherit the mode of this turn (an Ask turn cannot escape it).
+    const mode: RunMode = tools === "read-only" || parent.mode === "ask" || parent.mode === "plan" ? "ask" : parent.mode ?? "agent";
+    const started = await Promise.all(tasks.map((task) => this.startRun(agent.id, task, parent.threadId, undefined, { mode, parent: { runId: input.runId, task, tools } })));
+    this.kernel.log("agent", "info", `${agent.name}: ${started.length} sub-agent ${started.length === 1 ? "run" : "runs"} started by ${input.runId}`, { "saturn.run.id": input.runId });
+    const finished = await Promise.all(started.map((run) => this.waitForRun(run.id, input.signal)));
+    return {
+      results: finished.map((run) => ({
+        task: run.delegated?.task ?? run.input,
+        runId: run.id,
+        status: run.status,
+        answer: run.output || (run.error ? `(failed: ${run.error})` : "(no answer)"),
+        steps: run.actions.length,
+      })),
+    };
+  }
+
 
   async listThreads(agentId: string): Promise<Conversation[]> {
     this.kernel.getAgent(agentId);
@@ -320,7 +404,7 @@ export class RunService {
     const agents = new Map(this.kernel.store.state.agents.map((agent) => [agent.id, agent]));
     const active = new Set(["running", "queued", "waiting_approval", "sleeping"]);
     const runs = this.kernel.store.state.runs.filter((run) => {
-      if (run.groupId || !run.threadId) return false;
+      if (run.groupId || !run.threadId || run.parentRunId) return false;
       return !projectId || threads.get(run.threadId)?.projectId === projectId;
     });
     const picked = [...runs.filter((run) => active.has(run.status)), ...runs.filter((run) => !active.has(run.status)).slice(0, Math.max(0, limit))];
@@ -479,6 +563,7 @@ export class RunService {
       current.generation = (current.generation ?? 0) + 1;
       current.error = undefined;
     });
+    for (const child of this.kernel.store.state.runs.filter((item) => item.parentRunId === id)) await this.stopRun(child.id);
     const stopped = this.kernel.getRun(id);
     this.kernel.log("agent", "info", `${name} stopped`);
     return stopped;
@@ -613,7 +698,7 @@ export class RunService {
     const result = await this.kernel.ide.call(workdir, input.toolId, args, input.signal);
     if (input.toolId !== "ide_rename") return relativize(result, workdir);
     const edits = (result as { files?: { path: string; content: string }[] } | undefined)?.files ?? [];
-    const checkpoint = withStep(this.kernel.checkpoints.forRun(input.runId, workdir), input.actionId);
+    const checkpoint = withStep(this.kernel.checkpoints.forRun(this.rootRunId(input.runId), workdir), input.actionId);
     const changed: string[] = [];
     for (const edit of edits) {
       const target = inside(edit.path);
@@ -639,6 +724,14 @@ export class RunService {
     if (!serverId) {
       return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `Unknown tool: ${input.toolId}` };
     }
+    if (serverId === GENERAL_SKILLS_ID && input.toolId === "delegate") {
+      try {
+        const result = await this.delegate(input);
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
+      } catch (error) {
+        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: error instanceof Error ? error.message : "Delegation failed" };
+      }
+    }
     if (serverId === GENERAL_SKILLS_ID) {
       try {
         const workdir = this.workdirOf(input.runId);
@@ -646,7 +739,7 @@ export class RunService {
           const action = await this.executeTool({ ...input, toolId, arguments: args, actionId: newId("act") });
           if (action.status !== "completed") throw new Error(action.reason || "MCP call failed");
           return action.result;
-        }, input.signal, workdir, workdir ? withStep(this.kernel.checkpoints.forRun(input.runId, workdir), input.actionId) : undefined, {
+        }, input.signal, workdir, workdir ? withStep(this.kernel.checkpoints.forRun(this.rootRunId(input.runId), workdir), input.actionId) : undefined, {
           sandbox: this.sandboxOf(input.runId),
           writable: [path.join(this.kernel.store.root, "workspace")],
           jobs: { table: this.kernel.jobs, scope: this.jobScopeOf(input.runId) },
@@ -1031,6 +1124,8 @@ export class RunService {
     if (!saved) return;
     const current = this.kernel.getRun(runId);
     this.kernel.log("agent", current.status === "failed" ? "error" : "info", `${agent.name} ${current.status}`);
+    // A sub-agent's turn feeds neither memory nor verification: the run that delegated it does, once it finishes.
+    if (current.parentRunId) return;
     void this.kernel.memory.noteRun(current);
     void this.kernel.verify.afterRun(current).catch((error) => this.kernel.log("agent", "warning", `Verification failed to run: ${errorText(error)}`, { "saturn.run.id": runId }));
   }
@@ -1103,8 +1198,10 @@ export class RunService {
     const threadId = currentRun?.threadId;
     // A group turn carries the group transcript in its input.
     if (currentRun?.groupId) return [];
+    // A sub-agent run has a fresh context: no earlier turns at all. The chat's turns leave sub-agent runs out.
+    if (currentRun?.parentRunId) return [];
     const turns = this.kernel.store.state.runs.filter((item) =>
-      item.agentId === agentId && (threadId ? item.threadId === threadId : true)
+      item.agentId === agentId && !item.parentRunId && (threadId ? item.threadId === threadId : true)
     );
     const index = turns.findIndex((item) => item.id === runId);
     return (index < 0 ? [] : turns.slice(index + 1))
@@ -1208,7 +1305,7 @@ export class RunService {
     const agent = this.kernel.getAgent(thread.agentId);
     const model = this.kernel.store.state.models.find((item) => item.id === agent.modelConnectionId);
     const finished = this.kernel.store.state.runs
-      .filter((item) => item.threadId === threadId && (item.status === "completed" || item.status === "failed" || item.status === "cancelled"))
+      .filter((item) => item.threadId === threadId && !item.parentRunId && (item.status === "completed" || item.status === "failed" || item.status === "cancelled"))
       .reverse();
     const turns = this.turnsAfterSummary(finished, thread.summary);
     const chars = this.turnMessages(turns).reduce((sum, item) => sum + item.content.length, 0) + (thread.summary?.text.length ?? 0);
@@ -1232,7 +1329,7 @@ export class RunService {
     if (!model) throw new HttpError(409, "This agent has no model connection");
     if (runsOnPlan(model.provider)) throw new HttpError(409, `${model.name} runs in its own program, which manages its own context; there is nothing for Saturn to compact.`);
     const finished = this.kernel.store.state.runs
-      .filter((item) => item.threadId === threadId && (item.status === "completed" || item.status === "failed" || item.status === "cancelled"))
+      .filter((item) => item.threadId === threadId && !item.parentRunId && (item.status === "completed" || item.status === "failed" || item.status === "cancelled"))
       .reverse();
     const turns = this.turnsAfterSummary(finished, thread.summary);
     if (!turns.length) throw new HttpError(409, thread.summary ? "Every turn is in the summary already" : "Nothing to compact yet");

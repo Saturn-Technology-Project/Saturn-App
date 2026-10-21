@@ -306,7 +306,7 @@ test("default agents list is empty, general skills stay on, and custom agents ca
     const skills = servers.find((item) => item.id === "general-skills");
     assert.equal(skills?.name, "General Skills");
     assert.equal(skills?.url, "builtin://general-skills");
-    assert.deepEqual(skills?.tools.map((item) => item.toolId), ["files", "code", "code_output", "code_stop", "mcp", "web", "multi_step"]);
+    assert.deepEqual(skills?.tools.map((item) => item.toolId), ["files", "code", "code_output", "code_stop", "delegate", "mcp", "web", "multi_step"]);
     const agents = await fetch(`${runtime.base}/agents`);
     const listed = (await agents.json()) as { id: string; name: string; mcpConnectionIds: string[] }[];
     assert.equal(listed.length, 0);

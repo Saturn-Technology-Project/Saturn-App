@@ -40,6 +40,7 @@ Most agent products run the control plane in a vendor cloud, or hand a model an 
 | 🔍 **Review** | Per-turn diffs with inline comments sent back to the agent, editable plans, a summary card per turn, terminal output, and replayable browser recordings. |
 | ↩️ **Checkpoints** | Every file edit is recorded. Keep or revert a turn, or restore the workspace to any individual step. |
 | 👥 **Groups** | Several agents in one conversation; each decides whether it is addressed and delegates with `@mentions`. |
+| 🪆 **Sub-agents** | An agent hands a self-contained task (a wide search, an investigation, a subtask) to a sub-agent with a fresh context and gets back only its answer; several run in parallel, read-only by default, nested under the step that started them, with the same approvals and checkpoints as the chat. |
 | 🛠️ **Tools** | Filesystem, shell (with background commands: a dev server or watcher keeps running across turns, readable and stoppable from the Terminal tab), web fetch, a headless browser, multi-step planning, computer use on macOS and Windows, GitHub, automations, and any [MCP](https://modelcontextprotocol.io) server from the built-in marketplace. |
 | ⏰ **Automations** | Cron-scheduled agent runs, with templates such as a daily pull request review. |
 | 💸 **Usage and cost** | Token counts and cost at list price, per model and per agent, over any time range. |

@@ -332,7 +332,13 @@ export function actionLine(action: RunAction): ActionLine {
     }
     return { verb: "Listed", target: target || "workspace" };
   }
-  if (action.toolId === "code") return { verb: "Ran", target: str(args.command) || "command", mono: true };
+  if (action.toolId === "code") return { verb: args.background === true ? "Started" : "Ran", target: str(args.command) || "command", mono: true };
+  if (action.toolId === "code_output") return { verb: "Read output of", target: str(args.jobId) || "background command", mono: true };
+  if (action.toolId === "code_stop") return { verb: "Stopped", target: str(args.jobId) || "background command", mono: true };
+  if (action.toolId === "delegate") {
+    const count = (Array.isArray(args.tasks) ? args.tasks.length : 0) + (str(args.task) ? 1 : 0);
+    return { verb: "Delegated", target: count > 1 ? `${count} tasks to sub-agents` : str(args.task) || "a task to a sub-agent" };
+  }
   if (action.toolId === "web") return { verb: "Read", target: shortUrl(str(args.url)) || "web page" };
   if (action.toolId === "multi_step") {
     const steps = Array.isArray(args.steps) ? args.steps.length : 0;

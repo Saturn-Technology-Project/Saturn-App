@@ -166,6 +166,11 @@ export type Run = {
   verification?: { command: string; ok: boolean; code: number | null; output: string };
   /** Before this turn, the chat's earlier turns were folded into its summary to fit the model's context. */
   compacted?: { turns: number; at: string };
+  /** A sub-agent's run: started by the `delegate` tool of this run, in the same chat, with its own context. */
+  parentRunId?: string;
+  delegated?: { task: string; tools: "read-only" | "all" };
+  /** Only on a run as the chat lists it: the sub-agent runs its `delegate` calls started. */
+  children?: Run[];
 };
 
 export type RunMode = "agent" | "ask" | "plan";

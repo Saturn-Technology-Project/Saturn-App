@@ -18,7 +18,7 @@ import type { PermissionScope } from "../domain/model";
  * A run's work as a quiet Antigravity-style list: "Thought for 13s ›" rows between one-line tool
  * calls ("Analyzed TS mcp.ts#L1-73"), under a collapsible header, with "Working" while it runs.
  */
-export function RunSteps(props: { run: Run; busy: boolean }) {
+export function RunSteps(props: { run: Run; busy: boolean; nested?: boolean }) {
   const { run, busy } = props;
   const steps = runSteps(run);
   const [override, setOverride] = useState<boolean | null>(null);
@@ -33,7 +33,7 @@ export function RunSteps(props: { run: Run; busy: boolean }) {
   const open = override ?? (busy || !run.output);
 
   return (
-    <div className="run-steps">
+    <div className={props.nested ? "run-steps nested" : "run-steps"}>
       <button type="button" className="run-steps-head" onClick={() => setOverride(!open)} aria-expanded={open}>
         <span className="run-steps-title">{busy ? currentLabel(steps) : doneLabel(steps)}</span>
         <Chevron down={open} />
@@ -44,12 +44,37 @@ export function RunSteps(props: { run: Run; busy: boolean }) {
             step.kind === "thought" ? (
               <ThoughtRow key={step.key} thought={step.thought} />
             ) : (
-              <ActionRow key={step.key} runId={run.id} action={step.action} restorable={!busy && Boolean(run.checkpoint?.steps?.some((entry) => entry.actionId === step.action.id))} />
+              <ActionRow key={step.key} runId={run.id} action={step.action} restorable={!busy && Boolean(run.checkpoint?.steps?.some((entry) => entry.actionId === step.action.id))}>
+                {step.action.toolId === "delegate" && run.children?.length ? <SubAgentRuns runs={run.children} /> : null}
+              </ActionRow>
             ),
           )}
           {busy ? <WorkingRow /> : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The sub-agent runs a delegate step started: each one's task, state and its own steps, nested under the step. */
+function SubAgentRuns(props: { runs: Run[] }) {
+  return (
+    <div className="sub-agent-runs">
+      {props.runs.map((child) => {
+        const busy = child.status === "running" || child.status === "queued" || child.status === "waiting_approval" || child.status === "sleeping";
+        const state = child.status === "waiting_approval" ? "needs your approval" : child.status === "completed" ? "done" : child.status === "failed" ? "failed" : child.status === "cancelled" ? "stopped" : "working";
+        return (
+          <div className={`sub-agent-run ${child.status}`} key={child.id}>
+            <div className="sub-agent-head">
+              <span className="sub-agent-badge">{child.delegated?.tools === "all" ? "sub-agent" : "sub-agent · read-only"}</span>
+              <span className="sub-agent-task" title={child.delegated?.task ?? child.input}>{child.delegated?.task ?? child.input}</span>
+              <span className={`sub-agent-state ${child.status}`}>{state}</span>
+            </div>
+            <RunSteps run={child} busy={busy} nested />
+            {child.output ? <div className="sub-agent-answer">{child.output}</div> : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -111,7 +136,7 @@ function sanitizeResultForDisplay(val: unknown): unknown {
   return clone;
 }
 
-function ActionRow(props: { runId: string; action: RunAction; restorable?: boolean }) {
+function ActionRow(props: { runId: string; action: RunAction; restorable?: boolean; children?: ReactNode }) {
   // Only an action with an id can be answered.
   const waiting = props.action.status === "waiting_approval" && Boolean(props.action.id);
   const [open, setOpen] = useState(waiting);
@@ -230,6 +255,8 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
           )}
         </div>
       ) : null}
+
+      {props.children}
 
       {/* Screenshot displayed right below Called computer_screenshot */}
       {recording ? <RecordingPlayer runId={props.runId} name={recording.name} frames={recording.frames} seconds={recording.seconds} /> : null}
