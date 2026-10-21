@@ -815,11 +815,27 @@ export class RunService {
         continue;
       }
 
+      // The permission rules first (the user's, the project's, the agent's, the project's settings files): a
+      // deny rule refuses the call, an allow rule runs it without asking in any mode, an ask rule asks.
+      const ruling = await this.kernel.permissions.decide(agent, { threadId: this.kernel.store.state.runs.find((item) => item.id === runId)?.threadId }, call.name, call.arguments);
+      if (ruling?.effect === "deny") {
+        const refused: RunAction = { id: newId("act"), toolId: call.name, arguments: call.arguments, status: "denied", reason: this.kernel.permissions.explain(ruling) };
+        if (call.thoughtSignature) refused.thoughtSignature = call.thoughtSignature;
+        actions.push(refused);
+        this.kernel.log("agent", "warning", `${agent.name} ${call.name} denied by a permission rule (${ruling.scope})`);
+        continue;
+      }
+
       // Antigravity guardrail enforcement
       let requiresApproval = false;
       let approvalReason = "";
 
-      if (mode === "review") {
+      if (ruling?.effect === "ask") {
+        requiresApproval = true;
+        approvalReason = this.kernel.permissions.explain(ruling);
+      } else if (ruling?.effect === "allow") {
+        requiresApproval = false;
+      } else if (mode === "review") {
         requiresApproval = true;
         approvalReason = "Request Review mode: every command requires approval";
       } else if (mode === "default") {

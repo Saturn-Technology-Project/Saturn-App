@@ -43,6 +43,7 @@ import { CheckpointService } from "./checkpoints.js";
 import { CompletionService } from "./completions.js";
 import { GroupService } from "./groups.js";
 import { ClientRegistry } from "./clients.js";
+import { PermissionService } from "./permissions.js";
 
 /** Shared local runtime state. */
 export class RuntimeKernel {
@@ -67,6 +68,7 @@ export class RuntimeKernel {
   readonly checkpoints: CheckpointService;
   readonly completions: CompletionService;
   readonly groups: GroupService;
+  readonly permissions: PermissionService;
   readonly clients = new ClientRegistry();
   /** Saturn IDE windows that answer editor-tool requests (see ide-bridge.ts). */
   readonly ide = new IdeBridge();
@@ -100,6 +102,7 @@ export class RuntimeKernel {
     this.checkpoints = new CheckpointService(this);
     this.completions = new CompletionService(this);
     this.groups = new GroupService(this);
+    this.permissions = new PermissionService(this);
   }
 
   health() {

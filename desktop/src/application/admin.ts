@@ -1,4 +1,4 @@
-import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, Profile, RuntimeInfo, UsageSummary, EmbeddingSource } from "../domain/model.js";
+import type { LaunchApp, LlmChoice, LlmProvider, LogLine, Mcp, PermissionLayer, PermissionRule, PermissionScope, Profile, RuntimeInfo, UsageSummary, EmbeddingSource } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -99,6 +99,23 @@ export class AdminService {
 
   updateSettings(patch: { name?: string; environment?: string; logging?: string; launchApp?: LaunchApp; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string; onboardedAt?: string | null }): Promise<Profile> {
     return this.runtime.request<Profile>("/settings", { method: "PATCH", body: JSON.stringify(patch) });
+  }
+
+  /** The permission layers that apply to an agent in a project (both optional). */
+  permissions(target: { projectId?: string; agentId?: string } = {}): Promise<PermissionLayer[]> {
+    const query = new URLSearchParams();
+    if (target.projectId) query.set("projectId", target.projectId);
+    if (target.agentId) query.set("agentId", target.agentId);
+    const suffix = query.toString();
+    return this.runtime.request<PermissionLayer[]>(`/permissions${suffix ? `?${suffix}` : ""}`);
+  }
+
+  addPermissionRule(scope: PermissionScope, rule: PermissionRule, target: { projectId?: string; agentId?: string } = {}): Promise<PermissionLayer[]> {
+    return this.runtime.request<PermissionLayer[]>("/permissions/rules", { method: "POST", body: JSON.stringify({ scope, rule, ...target }) });
+  }
+
+  removePermissionRule(scope: PermissionScope, rule: PermissionRule, target: { projectId?: string; agentId?: string } = {}): Promise<PermissionLayer[]> {
+    return this.runtime.request<PermissionLayer[]>("/permissions/rules", { method: "DELETE", body: JSON.stringify({ scope, rule, ...target }) });
   }
 
   providers(): Promise<LlmProvider[]> {

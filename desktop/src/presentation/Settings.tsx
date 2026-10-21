@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../application/desktop";
+import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo } from "../domain/model";
 import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
@@ -16,6 +17,7 @@ export type SettingsPage =
   | "logs"
   | "information"
   | "memory"
+  | "permissions"
   | "shortcuts";
 
 const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
@@ -27,6 +29,7 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
       ["mcp", "MCP & Skills", "Tool servers & knowledge sources"],
       ["usage", "Usage & Billing", "Token spend & costs"],
       ["memory", "Memory", "What Saturn remembers across chats"],
+      ["permissions", "Permissions", "What agents may do without asking"],
     ],
   },
   {
@@ -199,6 +202,7 @@ export function Settings(props: {
               <>
                 {page === "usage" ? <UsageBilling refreshOn={[props.models, props.agents]} /> : null}
                 {page === "memory" ? <Memory projects={props.projects ?? []} /> : null}
+                {page === "permissions" ? <PermissionsPage projects={props.projects ?? []} agents={props.agents} onError={setError} /> : null}
                 {page === "mcp" ? (
                   <McpPage
                     agent={props.agent}
@@ -1367,6 +1371,8 @@ function ProjectSettingsTab(props: {
           </div>
         </div>
       </div>
+
+      <ProjectPermissions project={props.project} onError={props.onError} />
 
       <div className="settings-section">
         <div className="settings-section-title">Project Rules & Custom Instructions</div>

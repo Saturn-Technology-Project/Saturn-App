@@ -1,3 +1,4 @@
+import type { PermissionRule } from "./permissions.js";
 export type AgentStatus = "active" | "paused";
 export type RunStatus =
   | "queued"
@@ -88,6 +89,8 @@ export type Agent = {
   modelConnectionId: string | null;
   mcpConnectionIds: string[];
   ragConnectionIds: string[];
+  /** This agent's own permission rules (see domain/permissions.ts); the user's and the project's apply too. */
+  permissions?: PermissionRule[];
 };
 
 export type RunAction = {
@@ -258,6 +261,8 @@ export type AppSettings = {
   memory?: boolean;
   /** Agents write a plan and wait for the user's go-ahead before changing anything (default off). */
   planApproval?: boolean;
+  /** Permission rules that apply to every agent in every project. */
+  permissions?: PermissionRule[];
   /**
    * What embeds the code index: Saturn's built-in model (default), LM Studio, or an OpenAI-compatible endpoint
    * (the model connection `embeddingConnectionId`). Unset with an `embeddingModel` means LM Studio, as before.
@@ -318,6 +323,8 @@ export type Project = {
   rules?: string;
   /** Run after an agent changes files here: a shell command, or "auto" for package.json's typecheck/lint script. */
   verifyCommand?: string;
+  /** Permission rules for agents working in this project, kept by Saturn (the folder's `.saturn/settings.json` is read too). */
+  permissions?: PermissionRule[];
   lastOpenedAt?: string;
   isDefault?: boolean;
 };

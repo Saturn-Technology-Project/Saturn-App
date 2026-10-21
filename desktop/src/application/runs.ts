@@ -1,4 +1,4 @@
-import type { Run, RunChanges, RunMode, RunSummary } from "../domain/model.js";
+import type { PermissionRule, PermissionScope, Run, RunChanges, RunMode, RunSummary } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -42,6 +42,16 @@ export class RunService {
       this.runtime.request(`/runs/${encodeURIComponent(runId)}/actions/${encodeURIComponent(actionId)}/decision`, {
         method: "POST",
         body: JSON.stringify({ allow }),
+      }),
+    );
+  }
+
+  /** "Always allow": saves an allow rule for the waiting call's tool where the user chose, then approves it. */
+  allowAlways(runId: string, actionId: string, input: { scope: PermissionScope; pattern?: string }): Promise<{ ok: boolean; rule: PermissionRule; scope: PermissionScope }> {
+    return userAction("ui.allow_always", { "saturn.run.id": runId }, () =>
+      this.runtime.request(`/runs/${encodeURIComponent(runId)}/actions/${encodeURIComponent(actionId)}/allow-always`, {
+        method: "POST",
+        body: JSON.stringify(input),
       }),
     );
   }

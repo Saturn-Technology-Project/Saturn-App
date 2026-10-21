@@ -43,6 +43,8 @@ export class AdminService {
         completionModelId: completionModelId === undefined ? state.settings.completionModelId ?? null : completionModelId,
         memory: typeof patch.memory === "boolean" ? patch.memory : state.settings.memory,
         planApproval: typeof patch.planApproval === "boolean" ? patch.planApproval : state.settings.planApproval,
+        // Edited through /permissions, never through this patch.
+        permissions: state.settings.permissions,
         embeddingSource: embeddingSource ?? state.settings.embeddingSource,
         embeddingModel: typeof patch.embeddingModel === "string" ? patch.embeddingModel.trim() || undefined : state.settings.embeddingModel,
         embeddingConnectionId: typeof patch.embeddingConnectionId === "string" ? patch.embeddingConnectionId || undefined : state.settings.embeddingConnectionId,

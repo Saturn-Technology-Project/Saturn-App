@@ -98,6 +98,8 @@ export class CatalogService {
       modelConnectionId: patch.modelConnectionId === undefined ? current.modelConnectionId : patch.modelConnectionId,
       mcpConnectionIds: withGeneralSkills(patch.mcpConnectionIds ?? current.mcpConnectionIds),
       ragConnectionIds: patch.ragConnectionIds ?? current.ragConnectionIds,
+      // Edited through /permissions, never through this patch.
+      ...(current.permissions ? { permissions: current.permissions } : {}),
     };
     // Compared before saving: `current` is the stored object and is updated in place.
     const changed = (Object.keys(next) as (keyof Agent)[]).filter((key) => JSON.stringify(next[key]) !== JSON.stringify(current[key]));

@@ -10,6 +10,9 @@ import {
 import type { Run, RunAction, RunThought } from "../domain/model";
 import { desktop } from "../application/desktop";
 import { RecordingPlayer } from "./RecordingPlayer";
+import { SCOPE_CHOICES } from "./Permissions";
+import { suggestedPattern } from "../domain/permissions";
+import type { PermissionScope } from "../domain/model";
 
 /**
  * A run's work as a quiet Antigravity-style list: "Thought for 13s ›" rows between one-line tool
@@ -125,6 +128,21 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
   const state = statusTag(action.status, action.reason);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  // "Always allow": a rule for this tool, offered as a prefix of what it asked for.
+  const [always, setAlways] = useState(false);
+  const [pattern, setPattern] = useState(() => suggestedPattern(props.action.toolId, props.action.arguments ?? {}));
+  const [scope, setScope] = useState<PermissionScope>("project");
+
+  async function allowAlways() {
+    setDeciding(true);
+    setDecisionError("");
+    try {
+      if (action.id) await desktop.runs.allowAlways(props.runId, action.id, { scope, pattern });
+    } catch (reason) {
+      setDecisionError(reason instanceof Error ? reason.message : "Could not save the rule");
+      setDeciding(false);
+    }
+  }
 
   async function restoreHere() {
     setRestoring(true);
@@ -194,6 +212,22 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
           <button type="button" className="btn primary-btn tiny" disabled={deciding} onClick={() => void decide(true)}>
             Approve
           </button>
+          {always ? (
+            <form className="step-always" onSubmit={(event) => { event.preventDefault(); void allowAlways(); }}>
+              <span className="step-always-text">Allow <code>{action.toolId}</code> matching</span>
+              <input className="input tiny" aria-label="Rule pattern" value={pattern} onChange={(event) => setPattern(event.target.value)} />
+              <span className="step-always-text">in</span>
+              <select className="input tiny settings-select-fit" aria-label="Where the rule applies" value={scope} onChange={(event) => setScope(event.target.value as PermissionScope)}>
+                {SCOPE_CHOICES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+              <button type="submit" className="btn tiny" disabled={deciding || !pattern.trim()}>Save and approve</button>
+              <button type="button" className="btn ghost tiny" disabled={deciding} onClick={() => setAlways(false)}>Cancel</button>
+            </form>
+          ) : (
+            <button type="button" className="btn ghost tiny" disabled={deciding} onClick={() => setAlways(true)} title="Save a rule so calls like this one run without asking">
+              Always allow…
+            </button>
+          )}
         </div>
       ) : null}
 

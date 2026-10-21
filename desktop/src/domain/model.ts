@@ -109,6 +109,8 @@ export type Project = {
   rules?: string;
   /** Run after an agent changes files here: a shell command, or "auto" for package.json's typecheck/lint script. */
   verifyCommand?: string;
+  /** Permission rules for agents working here, kept by Saturn (the folder's .saturn/settings.json is read too). */
+  permissions?: PermissionRule[];
   lastOpenedAt?: string;
   isDefault?: boolean;
 };
@@ -124,6 +126,11 @@ export type Conversation = {
   createdAt: string;
   updatedAt: string;
 };
+
+/** A permission rule: what a tool may do without asking (allow), must ask about (ask), or may never do (deny). */
+export type PermissionRule = { tool: string; pattern: string; effect: "allow" | "deny" | "ask" };
+export type PermissionScope = "user" | "project" | "agent" | "project-file" | "claude-file";
+export type PermissionLayer = { scope: PermissionScope; rules: PermissionRule[]; path?: string; editable: boolean; label: string };
 
 export type RunAction = {
   id?: string;

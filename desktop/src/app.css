@@ -8165,6 +8165,109 @@ button.trace-row:hover {
   color: var(--off);
 }
 
+/* "Always allow…": the rule form under the Approve and Deny buttons. */
+.step-always {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.step-always-text {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.step-always .input {
+  width: 180px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ─── Settings: permission rules ─── */
+.permission-layer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.permission-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.permission-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.permission-rule code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.permission-tool {
+  color: var(--muted);
+}
+
+.permission-pattern {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.permission-effect {
+  width: 44px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 1px 0;
+  border-radius: 5px;
+  background: var(--code-bg);
+  color: var(--muted);
+}
+
+.permission-effect.allow { color: var(--ok, #3fb950); }
+.permission-effect.ask { color: var(--wait, #d29922); }
+.permission-effect.deny { color: var(--off, #f85149); }
+
+.permission-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.permission-form > .input,
+.permission-form > .btn {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.permission-form > .input.permission-pattern-input {
+  width: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.permission-hint {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
 /* ─── Settings: Claude Code login ─── */
 .claude-login-command {
   display: flex;
