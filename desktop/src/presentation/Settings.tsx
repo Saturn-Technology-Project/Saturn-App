@@ -3,7 +3,7 @@ import { desktop } from "../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
-import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../domain/model";
+import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../domain/model";
 import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -1000,6 +1000,20 @@ function General(props: {
   const [notify, setNotify] = useState(localStorage.getItem("saturn-notify") !== "off");
   const [planApproval, setPlanApproval] = useState(props.profile.planApproval === true);
   const [claudeProjectSettings, setClaudeProjectSettings] = useState(props.profile.claudeProjectSettings === true);
+  const [agentBrowser, setAgentBrowser] = useState<AgentBrowser>(props.profile.browser ?? "saturn");
+
+  async function chooseAgentBrowser(next: AgentBrowser) {
+    if (next === agentBrowser) return;
+    const previous = agentBrowser;
+    setAgentBrowser(next);
+    try {
+      await props.onSaved(await desktop.admin.updateSettings({ browser: next }));
+      props.onError("");
+    } catch (reason) {
+      setAgentBrowser(previous);
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
 
   async function chooseClaudeProjectSettings(next: boolean) {
     setClaudeProjectSettings(next);
@@ -1142,6 +1156,30 @@ function General(props: {
                   aria-checked={launchApp === value}
                   className={launchApp === value ? "active" : ""}
                   onClick={() => void chooseLaunchApp(value)}
+                >
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Agent browser</span>
+              <span className="settings-row-desc">
+                {agentBrowser === "system"
+                  ? "Agents browse in a visible window of your Chrome (or Edge, Brave), with Saturn's own profile: your logins and tabs stay out of it. You watch the cursor there."
+                  : "Agents browse in Saturn's own browser, shown live in the chat's Browser tab with the agent's cursor."}
+              </span>
+            </div>
+            <div className="segmented-pill" role="radiogroup" aria-label="Agent browser">
+              {([["saturn", "Saturn"], ["system", "System browser"]] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={agentBrowser === value}
+                  className={agentBrowser === value ? "active" : ""}
+                  onClick={() => void chooseAgentBrowser(value)}
                 >
                   <span>{label}</span>
                 </button>

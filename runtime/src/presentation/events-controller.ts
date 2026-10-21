@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import type { AppServices } from "../application/services.js";
 import { runFingerprint } from "../application/events.js";
+import { browserFor } from "../infrastructure/skills.js";
 import { param } from "./http.js";
 
 /** Starts a server-sent event stream; a comment every 20 s keeps proxies and sleeping laptops from dropping it. */
@@ -27,6 +28,38 @@ export function mountEvents(app: Express, services: AppServices): void {
     send("ready", { at: new Date().toISOString() });
     const unsubscribe = services.kernel.events.subscribe((event) => send("change", event));
     req.on("close", unsubscribe);
+  });
+
+  // The agent's browser: what it shows now, and its page live (frames as base64 JPEG), for the Browser panel.
+  app.get("/browser", async (_req, res) => {
+    const browser = browserFor(services.kernel.store.root);
+    await browser.setMode(services.kernel.store.state.settings.browser ?? "saturn");
+    res.json(browser.state());
+  });
+
+  app.get("/browser/live", (req, res) => {
+    const browser = browserFor(services.kernel.store.root);
+    const send = openStream(req, res);
+    send("state", browser.state());
+    let last = 0;
+    const unsubscribe = browser.frames((frame) => {
+      // At most ~12 frames a second to a viewer; the page keeps its own pace.
+      const now = Date.now();
+      if (now - last < 80) return;
+      last = now;
+      send("frame", frame);
+    });
+    // Opened, closed or navigated without a new frame (a closed browser sends none): checked every second.
+    let shown = JSON.stringify(browser.state());
+    const watch = setInterval(() => {
+      const now = JSON.stringify(browser.state());
+      if (now !== shown) send("state", JSON.parse((shown = now)));
+    }, 1000);
+    watch.unref?.();
+    req.on("close", () => {
+      clearInterval(watch);
+      unsubscribe();
+    });
   });
 
   app.get("/runs/:id/events", (req, res) => {

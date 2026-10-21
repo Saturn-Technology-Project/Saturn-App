@@ -52,6 +52,7 @@ export class AdminService {
         hooks: state.settings.hooks,
         plugins: state.settings.plugins,
         claudeProjectSettings: typeof patch.claudeProjectSettings === "boolean" ? patch.claudeProjectSettings : state.settings.claudeProjectSettings,
+        browser: patch.browser === "saturn" || patch.browser === "system" ? patch.browser : state.settings.browser,
         embeddingSource: embeddingSource ?? state.settings.embeddingSource,
         embeddingModel: typeof patch.embeddingModel === "string" ? patch.embeddingModel.trim() || undefined : state.settings.embeddingModel,
         embeddingConnectionId: typeof patch.embeddingConnectionId === "string" ? patch.embeddingConnectionId || undefined : state.settings.embeddingConnectionId,

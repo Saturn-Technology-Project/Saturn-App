@@ -1,5 +1,5 @@
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
-import type { Run } from "../domain/model.js";
+import type { AgentBrowserFrame, AgentBrowserState, Run } from "../domain/model.js";
 
 /** What the runtime's /events stream says after a change: the runs that changed, and whether anything else did. */
 export type LiveChange = { runs: { id: string; threadId?: string; agentId: string; status: string; parentRunId?: string }[]; other: boolean };
@@ -67,6 +67,14 @@ export class LiveService {
     return () => {
       this.statusListeners.delete(listener);
     };
+  }
+
+  /** The agent's browser live: its state when it opens, closes or navigates, and its page's frames; until `signal` aborts. */
+  watchBrowser(onState: (state: AgentBrowserState) => void, onFrame: (frame: AgentBrowserFrame) => void, signal: AbortSignal): Promise<void> {
+    return this.runtime.stream("/browser/live", (event, data) => {
+      if (event === "state") onState(data as AgentBrowserState);
+      else if (event === "frame") onFrame(data as AgentBrowserFrame);
+    }, signal);
   }
 
   /** One run as it changes, until `signal` aborts; resolves when the stream ends, rejects when it cannot open. */

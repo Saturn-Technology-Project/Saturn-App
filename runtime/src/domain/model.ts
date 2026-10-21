@@ -320,6 +320,8 @@ export type AppSettings = {
   hooks?: Hook[];
   /** Claude Code loads the project's own `.claude/settings.json` (its hooks, permissions and settings). Default off. */
   claudeProjectSettings?: boolean;
+  /** Where the agent's browser shows: streamed into the Agent App's Browser panel (default), or a visible Chrome window. */
+  browser?: "saturn" | "system";
   /** Installed plugins (see application/plugins.ts); their files live in ~/.saturn-app/plugins/<name>. */
   plugins?: PluginRecord[];
   /**

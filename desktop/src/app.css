@@ -3533,6 +3533,61 @@ body.is-resizing iframe {
   background: #ffffff;
 }
 
+/* The agent's browser, live in the Browser tab (frames from the runtime's /browser/live). */
+.agent-browser-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+button.agent-browser-badge {
+  cursor: pointer;
+}
+
+.agent-browser-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.25);
+}
+
+.agent-browser-bar input[readonly] {
+  color: var(--muted, var(--fg));
+}
+
+.agent-browser-viewport {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  background: #f4f4f5;
+}
+
+.agent-browser-frame {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: top center;
+  user-select: none;
+  pointer-events: none;
+}
+
+.agent-browser-empty {
+  margin: auto;
+  color: #71717a;
+  font-size: 13px;
+}
+
 /* Feature multi-item tabs */
 .feature-tabs {
   display: flex;

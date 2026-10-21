@@ -564,6 +564,11 @@ export function App() {
   const { visible, editIndex } = visibleThread(thread, editing);
   const latest = thread.at(-1);
   const busy = isBusy(latest);
+  // The agent started browsing in this turn: the Browser tab opens on its live page.
+  const browsing = Boolean(latest?.actions?.some((action) => action.toolId.startsWith("browser_")));
+  useEffect(() => {
+    if (browsing) setInspectorOpen(true);
+  }, [browsing, latest?.id]);
 
   function remember(run: Run, threadKey: string) {
     setThreads((current) => ({ ...current, [threadKey]: upsertRun(current[threadKey] ?? [], run) }));
@@ -2720,6 +2725,7 @@ ${skill.instructions}`);
       {view === "workspace" && inspectorOpen && agent ? (
         <Inspector
           runs={thread}
+          initialFeature={browsing ? "browser" : null}
           onClose={() => setInspectorOpen(false)}
           onResizeStart={handleInspectorResizeStart}
           onResizeReset={handleInspectorResizeReset}

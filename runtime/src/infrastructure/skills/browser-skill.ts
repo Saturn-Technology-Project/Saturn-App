@@ -13,7 +13,45 @@ import { errorText, logger } from "../logger.js";
  * recording to a file. Much faster and steadier than screenshot-and-coordinates computer use: the agent reads
  * text and names, not pixels. The browser is Chrome or Chromium when installed, else Saturn's own Electron with
  * a hidden window, so it works on a machine with no Chrome at all.
+ *
+ * Two ways for the user to watch it, set in Settings → General → Agent browser:
+ * - "saturn" (default): the browser runs without a window and its page streams live into the Agent App's Browser
+ *   panel (`frames()`), the way Codex shows its own browser;
+ * - "system": a visible window of the installed Chrome (Edge, Brave…), with Saturn's own profile, never the user's.
+ * Either way a cursor drawn in the page moves to what the agent points at and ripples when it clicks.
  */
+
+export type BrowserMode = "saturn" | "system";
+
+/** One frame of the page as the agent's browser shows it, for the live view. */
+export type BrowserFrame = { data: string; width: number; height: number; url: string; title: string };
+
+/** The cursor drawn into every page: a pointer that glides to a point, and a ripple on click. Hidden from the accessibility tree. */
+const CURSOR_SCRIPT = `(() => {
+  if (window.__saturnCursor) return;
+  const make = () => {
+    if (document.getElementById("__saturn_cursor")) return document.getElementById("__saturn_cursor");
+    const cursor = document.createElement("div");
+    cursor.id = "__saturn_cursor";
+    cursor.setAttribute("aria-hidden", "true");
+    cursor.style.cssText = "position:fixed;left:0;top:0;width:22px;height:22px;z-index:2147483647;pointer-events:none;transition:transform .28s cubic-bezier(.2,.8,.2,1);transform:translate(-40px,-40px);";
+    cursor.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22"><path d="M3 2l15 8-6.5 1.6L8.6 18z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    (document.body || document.documentElement).appendChild(cursor);
+    return cursor;
+  };
+  window.__saturnCursor = {
+    move(x, y) { make().style.transform = "translate(" + (x - 3) + "px," + (y - 2) + "px)"; },
+    click(x, y) {
+      this.move(x, y);
+      const ring = document.createElement("div");
+      ring.setAttribute("aria-hidden", "true");
+      ring.style.cssText = "position:fixed;left:" + (x - 14) + "px;top:" + (y - 14) + "px;width:28px;height:28px;border-radius:50%;border:2px solid #4f8cff;z-index:2147483646;pointer-events:none;opacity:.9;transition:transform .45s ease-out,opacity .45s ease-out;";
+      (document.body || document.documentElement).appendChild(ring);
+      requestAnimationFrame(() => { ring.style.transform = "scale(1.8)"; ring.style.opacity = "0"; });
+      setTimeout(() => ring.remove(), 500);
+    },
+  };
+})();`;
 
 const CHROME_CANDIDATES = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -84,6 +122,11 @@ type AxNode = { nodeId: string; backendDOMNodeId?: number; role?: { value?: stri
 
 export class BrowserSkill {
   private child?: ChildProcess;
+  private mode: BrowserMode = "saturn";
+  /** Live viewers of the page; the screencast runs while there is one, or a recording. */
+  private readonly viewers = new Set<(frame: BrowserFrame) => void>();
+  private screencasting = false;
+  private current = { url: "about:blank", title: "" };
   private cdp?: Cdp;
   private session?: string;
   private port = 0;
@@ -93,6 +136,44 @@ export class BrowserSkill {
   private recording?: { file: string; frames: number; started: number; chunks: string[] };
 
   constructor(private readonly dataDir: string) {}
+
+  /** Which browser to use from the next launch; a running browser of the other kind is closed. */
+  async setMode(mode: BrowserMode): Promise<void> {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    if (this.child) await this.close();
+  }
+
+  /** What the live view shows when it opens. */
+  state(): { open: boolean; mode: BrowserMode; url: string; title: string } {
+    return { open: Boolean(this.cdp), mode: this.mode, ...this.current };
+  }
+
+  /** Subscribes to the page's frames (while the browser is open); returns the unsubscribe. */
+  frames(listener: (frame: BrowserFrame) => void): () => void {
+    this.viewers.add(listener);
+    void this.syncScreencast();
+    return () => {
+      this.viewers.delete(listener);
+      void this.syncScreencast();
+    };
+  }
+
+  /** One screencast for live viewers and recordings together: on while either needs it. */
+  private async syncScreencast(): Promise<void> {
+    const wanted = Boolean(this.cdp && this.session && (this.viewers.size || this.recording));
+    if (wanted === this.screencasting || !this.cdp || !this.session) return;
+    this.screencasting = wanted;
+    if (wanted) await this.cdp.send("Page.startScreencast", { format: "jpeg", quality: 65, maxWidth: 1280, maxHeight: 800, everyNthFrame: 1 }, this.session).catch(() => { this.screencasting = false; });
+    else await this.cdp.send("Page.stopScreencast", {}, this.session).catch(() => undefined);
+  }
+
+  /** Moves the drawn cursor to (x, y), or ripples it there for a click, and gives the motion time to show. */
+  private async pointAt(x: number, y: number, click = false): Promise<void> {
+    if (!this.cdp || !this.session) return;
+    await this.cdp.send("Runtime.evaluate", { expression: `window.__saturnCursor && window.__saturnCursor.${click ? "click" : "move"}(${Math.round(x)}, ${Math.round(y)})` }, this.session).catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, click ? 120 : 300));
+  }
 
   async run(toolId: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
     if (signal?.aborted) throw new Error("Operation aborted");
@@ -139,7 +220,9 @@ export class BrowserSkill {
     mkdirSync(profile, { recursive: true, mode: 0o700 });
     const chrome = process.env.SATURN_BROWSER || CHROME_CANDIDATES.find((candidate) => existsSync(candidate));
     if (chrome) {
-      return { command: chrome, args: [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--headless=new", "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--window-size=1280,800", "about:blank"] };
+      // "system": a real window the user watches; "saturn": no window, the page streams into Saturn's Browser panel.
+      const visible = this.mode === "system";
+      return { command: chrome, args: [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, ...(visible ? [] : ["--headless=new"]), "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--window-size=1280,860", "about:blank"] };
     }
     // Electron: the runtime runs on it when packaged (process.execPath), or the desktop's dev copy.
     const electron = process.versions.electron ? process.execPath : process.env.SATURN_ELECTRON;
@@ -153,7 +236,7 @@ export class BrowserSkill {
         'const { app, BrowserWindow } = require("electron");',
         `app.commandLine.appendSwitch("remote-debugging-port", "${port}");`,
         `app.setPath("userData", ${JSON.stringify(profile)});`,
-        'app.whenReady().then(() => { const w = new BrowserWindow({ show: false, width: 1280, height: 800, webPreferences: { sandbox: true, contextIsolation: true } }); w.loadURL("about:blank"); });',
+        `app.whenReady().then(() => { const w = new BrowserWindow({ show: ${this.mode === "system"}, title: "Saturn Agent Browser", width: 1280, height: 800, webPreferences: { sandbox: true, contextIsolation: true } }); w.loadURL("about:blank"); });`,
         'app.on("window-all-closed", () => {});',
       ].join("\n"),
     );
@@ -210,8 +293,38 @@ export class BrowserSkill {
     await cdp.send("Accessibility.enable", {}, attached.sessionId);
     await cdp.send("DOM.enable", {}, attached.sessionId);
     await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false }, attached.sessionId);
+    // The visible cursor, in every page from now on and in this one.
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: CURSOR_SCRIPT }, attached.sessionId);
+    await cdp.send("Runtime.evaluate", { expression: CURSOR_SCRIPT }, attached.sessionId).catch(() => undefined);
+    // Frames go to live viewers and to a recording in progress.
+    cdp.on("Page.screencastFrame", (params, sessionId) => {
+      if (sessionId !== attached.sessionId) return;
+      const frame = params as { data: string; sessionId: number; metadata?: { deviceWidth?: number; deviceHeight?: number } };
+      void cdp.send("Page.screencastFrameAck", { sessionId: frame.sessionId }, attached.sessionId).catch(() => undefined);
+      const recording = this.recording;
+      if (recording) {
+        recording.frames += 1;
+        const file = path.join(recording.file, `frame-${String(recording.frames).padStart(5, "0")}.jpg`);
+        writeFileSync(file, Buffer.from(frame.data, "base64"));
+        recording.chunks.push(`file '${path.basename(file)}'`);
+      }
+      const shown: BrowserFrame = { data: frame.data, width: frame.metadata?.deviceWidth ?? 1280, height: frame.metadata?.deviceHeight ?? 800, ...this.current };
+      for (const viewer of this.viewers) viewer(shown);
+    });
+    cdp.on("Page.frameNavigated", (params, sessionId) => {
+      const navigated = params as { frame?: { url?: string; parentId?: string } };
+      if (sessionId === attached.sessionId && navigated.frame && !navigated.frame.parentId && navigated.frame.url) this.current = { url: navigated.frame.url, title: this.current.title };
+    });
+    cdp.on("Page.loadEventFired", (_params, sessionId) => {
+      if (sessionId !== attached.sessionId) return;
+      void cdp.send("Runtime.evaluate", { expression: "document.title", returnByValue: true }, attached.sessionId).then((result) => {
+        this.current = { ...this.current, title: String((result as { result?: { value?: unknown } }).result?.value ?? "") };
+      }, () => undefined);
+    });
     this.cdp = cdp;
     this.session = attached.sessionId;
+    this.screencasting = false;
+    void this.syncScreencast();
     logger.info("browser", `Browser started (${path.basename(command)}) on port ${this.port}`);
     return { cdp, session: attached.sessionId };
   }
@@ -223,6 +336,8 @@ export class BrowserSkill {
     this.cdp = undefined;
     this.session = undefined;
     this.child = undefined;
+    this.screencasting = false;
+    this.current = { url: "about:blank", title: "" };
     this.nodes.clear();
   }
 
@@ -306,6 +421,9 @@ export class BrowserSkill {
       const [x1, y1, x2, , , y3] = model.content;
       const x = (x1! + x2!) / 2;
       const y = (y1! + y3!) / 2;
+      // The cursor glides there and ripples, so whoever watches sees what is clicked.
+      await this.pointAt(x, y);
+      await this.pointAt(x, y, true);
       for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) {
         await cdp.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 }, session);
       }
@@ -321,6 +439,8 @@ export class BrowserSkill {
     const text = String(args.text ?? "");
     if (args.id !== undefined || args.selector) {
       const target = await this.resolve(args);
+      const { model } = (await cdp.send("DOM.getBoxModel", { objectId: target.objectId }, session).catch(() => ({ model: undefined }))) as { model?: { content: number[] } };
+      if (model) await this.pointAt((model.content[0]! + model.content[2]!) / 2, (model.content[1]! + model.content[5]!) / 2, true);
       await cdp.send("Runtime.callFunctionOn", { objectId: target.objectId, functionDeclaration: "function () { this.focus(); if ('select' in this) this.select(); }" }, session);
       if (args.clear !== false) await cdp.send("Runtime.callFunctionOn", { objectId: target.objectId, functionDeclaration: "function () { if ('value' in this) { this.value = ''; this.dispatchEvent(new Event('input', { bubbles: true })); } }" }, session);
     }
@@ -381,23 +501,15 @@ export class BrowserSkill {
 
   /** Records the page as a series of JPEG frames (a screencast) into a folder; stop writes an index. */
   private async recordStart(args: Record<string, unknown>) {
-    const { cdp, session } = await this.ensure();
+    await this.ensure();
     if (this.recording) throw new Error("Already recording; call browser_record_stop first.");
     const name = typeof args.name === "string" && args.name.trim() ? args.name.trim().replace(/[^\w.-]/g, "_") : `recording-${Date.now().toString(36)}`;
     const folder = path.resolve(this.dataDir, "workspace", "recordings", name);
     await mkdir(folder, { recursive: true });
     const recording = { file: folder, frames: 0, started: Date.now(), chunks: [] as string[] };
     this.recording = recording;
-    cdp.on("Page.screencastFrame", (params, sessionId) => {
-      if (sessionId !== session || this.recording !== recording) return;
-      const frame = params as { data: string; sessionId: number };
-      recording.frames += 1;
-      const file = path.join(folder, `frame-${String(recording.frames).padStart(5, "0")}.jpg`);
-      writeFileSync(file, Buffer.from(frame.data, "base64"));
-      recording.chunks.push(`file '${path.basename(file)}'`);
-      void cdp.send("Page.screencastFrameAck", { sessionId: frame.sessionId }, session).catch(() => undefined);
-    });
-    await cdp.send("Page.startScreencast", { format: "jpeg", quality: 70, maxWidth: 1280, maxHeight: 800, everyNthFrame: 2 }, session);
+    // The frames come from the screencast the live view shares (see ensure()).
+    await this.syncScreencast();
     return { recording: folder, note: "Frames are saved as JPEGs; browser_record_stop writes frames.txt for ffmpeg (ffmpeg -f concat -i frames.txt -r 10 out.mp4)." };
   }
 
@@ -405,7 +517,7 @@ export class BrowserSkill {
     const recording = this.recording;
     if (!recording) throw new Error("Not recording.");
     this.recording = undefined;
-    if (this.cdp && this.session) await this.cdp.send("Page.stopScreencast", {}, this.session).catch(() => undefined);
+    await this.syncScreencast();
     await writeFile(path.join(recording.file, "frames.txt"), recording.chunks.map((line) => `${line}\nduration 0.1`).join("\n") + "\n");
     return { recording: recording.file, frames: recording.frames, seconds: Math.round((Date.now() - recording.started) / 100) / 10 };
   }

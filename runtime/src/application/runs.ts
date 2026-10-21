@@ -796,7 +796,7 @@ export class RunService {
     }
     if (serverId === BROWSER_ID) {
       try {
-        const result = await runBrowserSkill(this.kernel.store.root, input.toolId, input.arguments, input.signal);
+        const result = await runBrowserSkill(this.kernel.store.root, input.toolId, input.arguments, input.signal, this.kernel.store.state.settings.browser ?? "saturn");
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
       } catch (error) {
         return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: error instanceof Error ? error.message : "Browser tool failed" };

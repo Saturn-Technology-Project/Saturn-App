@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
 import type { WorkspaceFileEntry } from "../application/workspace";
-import type { Run, RunAction, BackgroundJob } from "../domain/model";
+import type { Run, RunAction, BackgroundJob, AgentBrowserFrame, AgentBrowserState } from "../domain/model";
 import { RunChangesCard, hasFileChanges } from "./RunChanges";
 
 export type InspectorFeature = "changes" | "browser" | "terminal" | "file";
@@ -38,7 +38,10 @@ export function Inspector(props: {
   useEffect(() => {
     if (props.initialFeature && props.initialFeature !== lastInitialFeature.current) {
       lastInitialFeature.current = props.initialFeature;
-      openFeatureTab(props.initialFeature);
+      // A tab of that kind already open comes to the front instead of a second one.
+      const existing = tabs.find((tab) => tab.feature === props.initialFeature);
+      if (existing) setActiveTabId(existing.id);
+      else openFeatureTab(props.initialFeature);
     } else if (!props.initialFeature) {
       lastInitialFeature.current = null;
     }
@@ -94,7 +97,7 @@ export function Inspector(props: {
         typeof action.arguments?.patch === "string"),
   );
 
-  const browserActions = allActions.filter(({ action }) => action.toolId === "web");
+  const browserActions = allActions.filter(({ action }) => action.toolId === "web" || action.toolId.startsWith("browser_"));
   const terminalActions = allActions.filter(({ action }) => action.toolId === "code" || action.toolId === "code_output" || action.toolId === "code_stop");
   const threadId = props.runs.find((run) => run.threadId)?.threadId ?? null;
   const fileActions = allActions.filter(
@@ -367,9 +370,86 @@ function ChangesView(props: { runs: Run[]; items: { runId: string; prompt: strin
 }
 
 /* ─── 2. Real Interactive Browser View ─── */
+/**
+ * The Browser tab: while the agent's browser is open, its page live (cursor included, read-only), the way Codex
+ * shows its browser; otherwise a browser the user drives.
+ */
 function BrowserView(props: {
   items: { runId: string; prompt: string; action: RunAction }[];
   onTitleChange?: (title: string) => void;
+}) {
+  const [agent, setAgent] = useState<AgentBrowserState | null>(null);
+  const [frame, setFrame] = useState<AgentBrowserFrame | null>(null);
+  const [watchMine, setWatchMine] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loop = async () => {
+      while (!controller.signal.aborted) {
+        try {
+          await desktop.live.watchBrowser(
+            (state) => {
+              setAgent(state);
+              if (!state.open) setFrame(null);
+            },
+            setFrame,
+            controller.signal,
+          );
+        } catch {
+          // A runtime older than this app, or restarting: tried again below.
+        }
+        if (controller.signal.aborted) return;
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    };
+    void loop();
+    return () => controller.abort();
+  }, []);
+
+  // A new browsing session brings the live view back.
+  useEffect(() => {
+    if (agent?.open) setWatchMine(false);
+  }, [agent?.open]);
+
+  const live = agent?.open && !watchMine;
+  useEffect(() => {
+    if (!live) return;
+    const host = (frame?.url ?? agent?.url ?? "").replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
+    props.onTitleChange?.(host && host !== "about:blank" ? `Agent · ${host}` : "Agent browser");
+  }, [live, frame?.url, agent?.url]);
+
+  if (live && agent) {
+    const url = frame?.url ?? agent.url;
+    return (
+      <div className="browser-shell">
+        <div className="browser-url-bar agent-browser-bar">
+          <span className="agent-browser-badge" title={agent.mode === "system" ? "The agent is also using a Chrome window" : "The agent's own browser"}>
+            <span className="agent-browser-dot" aria-hidden="true" />
+            Agent
+          </span>
+          <input value={url === "about:blank" ? "" : url} readOnly aria-label="Agent browser URL" placeholder="Starting…" />
+          <button type="button" className="browser-icon-btn" onClick={() => setWatchMine(true)} title="Use your own browser here">
+            ⇄
+          </button>
+        </div>
+        <div className="browser-viewport agent-browser-viewport">
+          {frame ? (
+            <img className="agent-browser-frame" src={`data:image/jpeg;base64,${frame.data}`} alt={frame.title || "The agent's browser"} />
+          ) : (
+            <div className="agent-browser-empty">{agent.mode === "system" ? "The agent is browsing in a Chrome window." : "Waiting for the page…"}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return <ManualBrowser {...props} agentOpen={Boolean(agent?.open)} onWatchAgent={() => setWatchMine(false)} />;
+}
+
+function ManualBrowser(props: {
+  items: { runId: string; prompt: string; action: RunAction }[];
+  onTitleChange?: (title: string) => void;
+  agentOpen: boolean;
+  onWatchAgent: () => void;
 }) {
   const initialAgentUrl = props.items.at(-1)?.action.arguments?.url;
   const startUrl = typeof initialAgentUrl === "string" && initialAgentUrl ? initialAgentUrl : "https://example.com";
@@ -456,6 +536,12 @@ function BrowserView(props: {
           placeholder="Enter URL or search…"
           aria-label="Browser URL"
         />
+        {props.agentOpen ? (
+          <button type="button" className="agent-browser-badge" onClick={props.onWatchAgent} title="Watch the agent's browser">
+            <span className="agent-browser-dot" aria-hidden="true" />
+            Agent
+          </button>
+        ) : null}
       </form>
 
       <div className="browser-viewport">
