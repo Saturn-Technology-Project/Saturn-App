@@ -233,6 +233,8 @@ export const gemini: ProviderAdapter = {
     return choice(response.text ?? "", calls, thoughts, {
       input: usage?.promptTokenCount,
       output: usage ? (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0) : undefined,
+      // Implicit caching: the part of the prompt Gemini served from its cache.
+      cached: usage?.cachedContentTokenCount ?? undefined,
     });
   },
 };

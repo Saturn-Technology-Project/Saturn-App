@@ -30,7 +30,7 @@ test("official prices follow dates, prompt size and peak hours", () => {
   assert.equal(call("lmstudio", "qwen", "2026-10-18T00:00:00Z")?.costUsd, 0);
   assert.equal(call("gemini", "gemini-3.7-flash", "2026-10-18T00:00:00Z"), null);
   assert.equal(call("openai", "gpt-6-luna", "2026-10-18T00:00:00Z", 1, 1, false), null);
-  assert.match(describePrice("gemini", "gemini-4-argon", new Date("2026-10-18T00:00:00Z")) ?? "", /\$2\.00 in \/ \$10\.00 out .* from 2026-12-01/);
+  assert.match(describePrice("gemini", "gemini-4-argon", new Date("2026-10-18T00:00:00Z")) ?? "", /\$2\.00 in \(\$0\.10 cached\) \/ \$10\.00 out .* from 2026-12-01/);
 });
 
 test("usage is filed per call under the agent and the model that actually ran", async () => {
@@ -223,4 +223,27 @@ test("a turn that recovers from a failed tool call and answers is completed; one
       server.close();
     }
   }
+});
+
+test("cached prompt tokens are billed at the provider's cache rates", () => {
+  const priced = (provider: string, model: string, cachedTokens: number, cacheWriteTokens = 0, at = "2026-10-21T12:00:00Z") =>
+    priceCall({ provider, model, hosted: true, at: new Date(at), inputTokens: 1_000_000, outputTokens: 10_000, cachedTokens, cacheWriteTokens });
+  // Sonnet 5.5: 100K uncached at $2, 800K cache hits at $0.10 (0.05x), 100K 5-minute writes at $2.50, 10K out at $10.
+  const sonnet = priced("claude", "claude-sonnet-5-5", 800_000, 100_000);
+  assert.equal(sonnet?.costUsd.toFixed(4), (0.2 + 0.08 + 0.25 + 0.1).toFixed(4));
+  assert.equal(sonnet?.cachedRate, 0.1);
+  assert.equal(sonnet?.cacheWriteRate, 2.5);
+  // Fable 5.1 hits at 0.025x; Haiku 4.5 at the standard 0.1x.
+  assert.equal(priced("claude", "claude-fable-5-1", 1_000_000)?.cachedRate, 0.25);
+  assert.equal(priced("claude", "claude-haiku-4-5", 1_000_000)?.cachedRate, 0.1);
+  // OpenAI cached input, and its long-context cached rate (the tier goes by the whole prompt).
+  // 1M cached at the long-context $0.20, and 10K out at the long-context $15.
+  assert.equal(priced("openai", "gpt-6.1-sol", 1_000_000)?.costUsd.toFixed(4), (0.2 + 0.15).toFixed(4));
+  assert.equal(priced("openai", "gpt-6.1-sol", 1_000_000)?.cachedRate, 0.2, "1M input is long context: $0.20 cached");
+  // Gemini's dated change moves the cached rate too; DeepSeek's cache hits follow peak hours.
+  assert.equal(priced("gemini", "gemini-4-argon", 1_000_000, 0, "2026-12-02T00:00:00Z")?.cachedRate, 0.2);
+  assert.equal(priced("deepseek", "deepseek-flash", 1_000_000, 0, "2026-10-19T02:00:00Z")?.cachedRate, 0.006);
+  // More cached tokens than prompt tokens never bills below zero; no cache numbers bill as before.
+  assert.equal(priced("claude", "claude-sonnet-5-5", 5_000_000)?.costUsd.toFixed(4), (0.1 + 0.1).toFixed(4));
+  assert.equal(priced("claude", "claude-sonnet-5-5", 0)?.costUsd.toFixed(4), (2 + 0.1).toFixed(4));
 });

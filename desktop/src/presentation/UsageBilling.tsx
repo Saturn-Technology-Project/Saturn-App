@@ -169,7 +169,7 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
           <span className="label">Total tokens</span>
           <strong>{tokens(total(totals))}</strong>
           <small>
-            {tokens(totals.inputTokens)} input · {tokens(totals.outputTokens)} output · {totals.calls} {totals.calls === 1 ? "call" : "calls"}
+            {tokens(totals.inputTokens)} input{totals.cachedInputTokens ? ` (${tokens(totals.cachedInputTokens)} from cache, ${Math.round((totals.cachedInputTokens / Math.max(1, totals.inputTokens)) * 100)}%)` : ""} · {tokens(totals.outputTokens)} output · {totals.calls} {totals.calls === 1 ? "call" : "calls"}
           </small>
         </section>
         <section className="card usage-stat">
@@ -239,7 +239,7 @@ function ModelRow(props: { model: ModelUsage; totals: UsageTally }) {
         <span className="usage-share" aria-hidden="true"><span style={{ width: `${Math.max(share * 100, 1)}%` }} /></span>
       </span>
       <span>{model.calls}</span>
-      <span>{tokens(model.inputTokens)}</span>
+      <span title={model.cachedInputTokens ? `${tokens(model.cachedInputTokens)} of these from the cache, billed at its lower rate` : undefined}>{tokens(model.inputTokens)}{model.cachedInputTokens ? <small className="usage-cached"> · {Math.round((model.cachedInputTokens / Math.max(1, model.inputTokens)) * 100)}% cached</small> : null}</span>
       <span>{tokens(model.outputTokens)}</span>
       <span><strong>{tokens(total(model))}</strong></span>
       <Cost tally={model} />

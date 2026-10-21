@@ -20,7 +20,7 @@ export type ToolDef = {
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 /** Tokens a provider reports for one call; either side may be missing. */
-export type TokenUsage = { input?: number; output?: number; /** Prompt tokens read from the provider's cache (cheaper, faster). */ cached?: number };
+export type TokenUsage = { input?: number; output?: number; /** Prompt tokens read from the provider's cache (cheaper, faster). */ cached?: number; /** Prompt tokens written to it, where the provider bills writes. */ cacheWrite?: number };
 
 export type ToolCall = { name: string; arguments: Record<string, unknown>; thoughtSignature?: string };
 

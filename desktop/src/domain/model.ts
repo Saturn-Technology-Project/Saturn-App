@@ -262,7 +262,8 @@ export type FileChange = {
 };
 export type RunChanges = { runId: string; root: string | null; files: FileChange[] };
 
-export type UsageTally = { calls: number; inputTokens: number; outputTokens: number; costUsd: number; unpricedCalls: number };
+/** inputTokens counts every prompt token; cachedInputTokens (cache hits) and cacheWriteTokens are billed at cache rates. */
+export type UsageTally = { calls: number; inputTokens: number; outputTokens: number; cachedInputTokens?: number; cacheWriteTokens?: number; costUsd: number; unpricedCalls: number };
 export type ModelUsage = UsageTally & { provider: string; model: string; label: string; price: string | null };
 export type AgentUsage = UsageTally & {
   agentId: string;

@@ -4,7 +4,7 @@ import type { ChatMessage, TokenUsage, ToolCall } from "./types.js";
 export function choice(content: string, calls: ToolCall[], thinking = "", usage?: TokenUsage): Record<string, unknown> {
   const visible = splitThinkTags(content);
   return {
-    usage: { input_tokens: usage?.input, output_tokens: usage?.output, ...(usage?.cached ? { cached_input_tokens: usage.cached } : {}) },
+    usage: { input_tokens: usage?.input, output_tokens: usage?.output, ...(usage?.cached ? { cached_input_tokens: usage.cached } : {}), ...(usage?.cacheWrite ? { cache_write_input_tokens: usage.cacheWrite } : {}) },
     choices: [
       {
         message: {

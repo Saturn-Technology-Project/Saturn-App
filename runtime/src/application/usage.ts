@@ -4,7 +4,8 @@ import { HttpError } from "../domain/errors.js";
 import type { UsageRecord } from "../domain/model.js";
 import type { RuntimeKernel } from "./kernel.js";
 
-type Tally = { calls: number; inputTokens: number; outputTokens: number; costUsd: number; unpricedCalls: number };
+/** inputTokens counts every prompt token; cachedInputTokens and cacheWriteTokens are the parts billed at cache rates. */
+type Tally = { calls: number; inputTokens: number; outputTokens: number; cachedInputTokens: number; cacheWriteTokens: number; costUsd: number; unpricedCalls: number };
 
 export type ModelUsage = Tally & {
   provider: string;
@@ -36,12 +37,14 @@ export type UsageSummary = {
   agents: AgentUsage[];
 };
 
-const empty = (): Tally => ({ calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, unpricedCalls: 0 });
+const empty = (): Tally => ({ calls: 0, inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, costUsd: 0, unpricedCalls: 0 });
 
 function add(tally: Tally, record: UsageRecord, cost: number | null): void {
   tally.calls += 1;
   tally.inputTokens += record.inputTokens;
   tally.outputTokens += record.outputTokens;
+  tally.cachedInputTokens += record.cachedInputTokens ?? 0;
+  tally.cacheWriteTokens += record.cacheWriteTokens ?? 0;
   if (cost === null) tally.unpricedCalls += 1;
   else tally.costUsd += cost;
 }
@@ -73,6 +76,8 @@ export class UsageService {
       at: new Date(record.createdAt),
       inputTokens: record.inputTokens,
       outputTokens: record.outputTokens,
+      cachedTokens: record.cachedInputTokens,
+      cacheWriteTokens: record.cacheWriteTokens,
     })?.costUsd ?? null;
   }
 

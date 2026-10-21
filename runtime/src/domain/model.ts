@@ -281,11 +281,17 @@ export type UsageRecord = {
   /** The model id sent to the provider. */
   model: string;
   purpose?: "run" | "automation_draft" | "completion" | "memory" | "compaction";
+  /** Every prompt token, the cached and cache-written ones included. */
   inputTokens: number;
   outputTokens: number;
+  /** Of inputTokens: read from the provider's cache, and written to it (billed at their own rates). */
+  cachedInputTokens?: number;
+  cacheWriteTokens?: number;
   /** USD per 1M tokens; null when the model has no official price (custom endpoints, unlisted models). */
   inputRate?: number | null;
   outputRate?: number | null;
+  cachedRate?: number | null;
+  cacheWriteRate?: number | null;
   /** Which price applied: standard, long context, peak, off-peak, local, a dated rate, or unpriced. */
   pricing?: string;
   costUsd?: number | null;

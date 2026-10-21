@@ -53,6 +53,8 @@ export const deepseek: ProviderAdapter = {
     return choice(message?.content ?? "", calls, (message?.reasoning_content || message?.thinking || "").trim(), {
       input: completion.usage?.prompt_tokens,
       output: completion.usage?.completion_tokens,
+      // DeepSeek caches on disk by itself and reports the hits.
+      cached: (completion.usage as { prompt_cache_hit_tokens?: number } | undefined)?.prompt_cache_hit_tokens ?? undefined,
     });
   },
 };

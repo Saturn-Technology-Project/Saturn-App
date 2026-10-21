@@ -100,9 +100,9 @@ export class LlmBroker {
   }
 
   /** Files a call's tokens and cost. A failure to save is logged, never turned into a failed call. */
-  private async recordUsage(model: ModelConnection, requestModel: string, context: CallContext, inputTokens: number, outputTokens: number) {
+  private async recordUsage(model: ModelConnection, requestModel: string, context: CallContext, inputTokens: number, outputTokens: number, cache: { cached?: number; written?: number } = {}) {
     if (!inputTokens && !outputTokens) return;
-    const record = usageRecord(model, requestModel, this.hosted(model), context, inputTokens, outputTokens);
+    const record = usageRecord(model, requestModel, this.hosted(model), context, inputTokens, outputTokens, cache);
     if (record.costUsd === null) {
       logger.debug("llm", `No official price for ${model.provider}/${requestModel}; its ${inputTokens + outputTokens} tokens are recorded unpriced`);
     }
@@ -176,7 +176,7 @@ export class LlmBroker {
               signal: input.signal,
               onRetry: (error, attempt) => logger.warn("llm", `chat ${requestModel} failed (${errorText(error)}); retrying (${attempt}/2)`),
             });
-        const usage = (body.usage ?? {}) as { input_tokens?: number; output_tokens?: number; cached_input_tokens?: number };
+        const usage = (body.usage ?? {}) as { input_tokens?: number; output_tokens?: number; cached_input_tokens?: number; cache_write_input_tokens?: number };
         if (usage.cached_input_tokens !== undefined) span.setAttribute("gen_ai.usage.cache_read.input_tokens", usage.cached_input_tokens);
         const calls = ((body.choices as { message?: { tool_calls?: unknown[] } }[] | undefined)?.[0]?.message?.tool_calls ?? []).length;
         span.setAttribute("saturn.llm.tool_calls", calls);
@@ -189,7 +189,7 @@ export class LlmBroker {
           instruments().llmTokens.record(usage.output_tokens, { ...base, "gen_ai.token.type": "output" });
         }
         instruments().llmDuration.record(seconds(startedAt), base);
-        await this.recordUsage(model, requestModel, input.context, usage.input_tokens ?? 0, usage.output_tokens ?? 0);
+        await this.recordUsage(model, requestModel, input.context, usage.input_tokens ?? 0, usage.output_tokens ?? 0, { cached: usage.cached_input_tokens, written: usage.cache_write_input_tokens });
         return body;
       } catch (error) {
         const type = error instanceof HttpError ? `http_${error.status}` : error instanceof Error ? error.name : "error";
@@ -208,9 +208,10 @@ function usageRecord(
   context: CallContext,
   inputTokens: number,
   outputTokens: number,
+  cache: { cached?: number; written?: number } = {},
   at = new Date(),
 ): UsageRecord {
-  const priced = priceCall({ provider: model.provider, model: requestModel, hosted, at, inputTokens, outputTokens });
+  const priced = priceCall({ provider: model.provider, model: requestModel, hosted, at, inputTokens, outputTokens, cachedTokens: cache.cached, cacheWriteTokens: cache.written });
   return {
     id: newId("usage"),
     runId: context.runId ?? "",
@@ -223,8 +224,11 @@ function usageRecord(
     purpose: context.purpose,
     inputTokens,
     outputTokens,
+    ...(cache.cached ? { cachedInputTokens: cache.cached } : {}),
+    ...(cache.written ? { cacheWriteTokens: cache.written } : {}),
     inputRate: priced?.inputRate ?? null,
     outputRate: priced?.outputRate ?? null,
+    ...(cache.cached || cache.written ? { cachedRate: priced?.cachedRate ?? null, cacheWriteRate: priced?.cacheWriteRate ?? null } : {}),
     pricing: priced?.tier ?? "unpriced",
     costUsd: priced?.costUsd ?? null,
     createdAt: at.toISOString(),
