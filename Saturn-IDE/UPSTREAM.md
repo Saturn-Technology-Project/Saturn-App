@@ -22,7 +22,7 @@ The sync workflow updates this table when it merges a new release.
 
 ## What Saturn changes
 
-Compared with the base, outside `extensions/saturn/`: 48 files, all edits or additions, none deleted.
+Compared with the base, outside `extensions/saturn/`: 49 files, all edits or additions, none deleted.
 
 **Build and packaging**
 - `build/gulpfile.vscode.ts`: leaves GitHub Copilot and the agent host's Claude, Codex and Copilot CLI binaries out of the package (Saturn's runtime has its own); Saturn product metadata.
@@ -48,6 +48,7 @@ Compared with the base, outside `extensions/saturn/`: 48 files, all edits or add
 **Interface**
 - `src/vs/workbench/contrib/saturn/browser/saturn.contribution.ts` and `media/saturn.css` (new), imported from `src/vs/workbench/workbench.common.main.ts`: Saturn's theme and layout.
 - `src/vs/workbench/browser/parts/titlebar/commandCenterControl.ts`, `titlebarPart.ts`, `src/vs/workbench/browser/media/floatingPanels.css`, `src/vs/workbench/contrib/scm/browser/media/scm.css`: title bar and Source Control layout.
+- `src/vs/workbench/contrib/welcomeGettingStarted/browser/gettingStartedService.ts`: the built-in walkthroughs say the product's name (Saturn IDE) where upstream says "VS Code" ("Get started with Saturn IDE"), replaced as they are registered so `gettingStartedContent.ts` stays upstream's.
 - `src/vs/workbench/contrib/welcomeGettingStarted/browser/gettingStarted.contribution.ts`, `terminalContrib/inlineHint/browser/terminal.initialHint.contribution.ts`, `preferences/common/preferencesContribution.ts`, `src/vs/workbench/browser/workbench.contribution.ts`, `src/vs/workbench/electron-browser/desktop.contribution.ts`, `remoteTunnel/electron-browser/remoteTunnel.contribution.ts`: quieter defaults (no walkthrough or Welcome page on start, no Copilot prompts in the terminal hint, no remote-tunnel prompt without its extension).
 - `extensions/github-authentication/src/config.ts`: Saturn IDE's own GitHub OAuth app, so GitHub's consent page names Saturn.
 

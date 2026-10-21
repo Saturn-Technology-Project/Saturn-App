@@ -38,6 +38,7 @@ import { IWorkbenchLayoutService, Parts } from '../../../services/layout/browser
 import { extensionDefaultIcon } from '../../../services/extensionManagement/common/extensionsIcons.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { GettingStartedInput } from './gettingStartedInput.js';
+import product from '../../../../platform/product/common/product.js';
 
 export const HasMultipleNewFileEntries = new RawContextKey<boolean>('hasMultipleNewFileEntries', false);
 
@@ -181,7 +182,9 @@ export class WalkthroughsService extends Disposable implements IWalkthroughsServ
 
 	private registerWalkthroughs() {
 
-		walkthroughs.forEach(async (category, index) => {
+		// Saturn: the built-in walkthroughs say "VS Code"; they show the product's own name instead.
+		const named = <T>(value: T): T => typeof value === 'string' ? value.replace(/\bVS Code\b/g, product.nameShort) as T : Array.isArray(value) ? value.map(named) as T : value && Object.getPrototypeOf(value) === Object.prototype ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, named(item)])) as T : value;
+		named(walkthroughs).forEach(async (category, index) => {
 
 			this._registerWalkthrough({
 				...category,

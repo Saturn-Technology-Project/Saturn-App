@@ -401,7 +401,7 @@ Saturn ships about a thousand open-source packages, Electron, a Code-OSS fork an
 
 **Upstream Code-OSS**
 
-Saturn IDE is microsoft/vscode with a small, listed set of changes. [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) records the base commit and version, the rules (Saturn's features live in their own extension; upstream files are excluded from the build, never deleted) and each of the 48 files Saturn edits. A weekly [upstream sync](.github/workflows/upstream-sync.yml) three-way merges every new VS Code release against upstream's history, builds and tests it, and opens a pull request, as a draft listing the conflicts when it needs a person. Monthly releases are merged within two weeks, upstream security fixes within a week.
+Saturn IDE is microsoft/vscode with a small, listed set of changes. [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) records the base commit and version, the rules (Saturn's features live in their own extension; upstream files are excluded from the build, never deleted) and each of the 49 files Saturn edits. A weekly [upstream sync](.github/workflows/upstream-sync.yml) three-way merges every new VS Code release against upstream's history, builds and tests it, and opens a pull request, as a draft listing the conflicts when it needs a person. Monthly releases are merged within two weeks, upstream security fixes within a week.
 
 **Reviewed exceptions.** Advisories that cannot be fixed yet (no patch, or the patch needs an upstream change), and those Dependabot reports in code that never ships, are listed with their reason and closing condition in [`docs/known-advisories.md`](docs/known-advisories.md).
 
