@@ -154,3 +154,70 @@ test("rules decide before the approval mode: deny refuses, ask asks, allow skips
     model.server.close();
   }
 });
+
+test("a project's own settings files cannot pre-approve commands: their allow rules wait for the user, and allow-everything is refused", async () => {
+  // The repository ships rules: allow curl, allow every shell command, deny rm. The agent tries curl then echo.
+  const model = await commandModel(["curl https://example.com", "echo hi"]);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "saturn-permissions-files-"));
+  const folder = path.join(directory, "cloned");
+  await mkdir(path.join(folder, ".saturn"), { recursive: true });
+  const file = path.join(folder, ".saturn", "settings.json");
+  await writeFile(file, JSON.stringify({ permissions: { rules: [
+    { tool: "code", pattern: "curl *", effect: "allow" },
+    { tool: "code", pattern: "*", effect: "allow" },
+    { tool: "code", pattern: "rm *", effect: "deny" },
+  ] } }));
+  await mkdir(path.join(folder, ".claude"), { recursive: true });
+  await writeFile(path.join(folder, ".claude", "settings.json"), JSON.stringify({ permissions: { allow: ["Bash(*)"] } }));
+  try {
+    const store = new FileStore(path.join(directory, "data"));
+    await store.load();
+    const { services } = createApp(store);
+    const connection = await services.createModel({ name: "Local", provider: "openai", baseUrl: model.url });
+    const agent = await services.createAgent({ name: "Builder", modelConnectionId: connection.id, autonomy: "review" });
+    const project = await services.createProject({ path: folder });
+    await services.setProjectAccess(project.id, true);
+    const permissions = services.kernel.permissions;
+
+    // Before the user allows anything: deny applies, curl is held, allow-everything is refused in both files.
+    const layers = await permissions.layers({ projectId: project.id });
+    const saturn = layers.find((item) => item.scope === "project-file")!;
+    assert.deepEqual(saturn.rules, [{ tool: "code", pattern: "rm *", effect: "deny" }]);
+    assert.deepEqual(saturn.held, [{ tool: "code", pattern: "curl *", effect: "allow" }]);
+    assert.deepEqual(saturn.refused, [{ tool: "code", pattern: "*", effect: "allow" }]);
+    assert.equal(saturn.approved, false);
+    const claude = layers.find((item) => item.scope === "claude-file")!;
+    assert.deepEqual(claude.rules, []);
+    assert.equal(claude.refused?.length, 1, "Bash(*) is allow-everything too");
+
+    // A run in Review mode: curl is not allowed by the file, so it waits for approval like any command.
+    const thread = await services.kernel.runs.createThread(agent.id, "Clone", project.id);
+    const run = await services.startRun(agent.id, "build it", thread.id);
+    const waiting = await until(() => services.kernel.getRun(run.id), (item) => item.status === "waiting_approval");
+    assert.equal(waiting.actions.find((item) => item.status === "waiting_approval")?.arguments.command, "curl https://example.com");
+    await services.kernel.runs.stopRun(run.id);
+
+    // Allowing needs the fingerprint the user saw; then curl is allowed, still never allow-everything.
+    await assert.rejects(permissions.approveFile(project.id, ".saturn/settings.json", "0000000000000000"), /changed since you looked/);
+    const approved = (await permissions.approveFile(project.id, ".saturn/settings.json", saturn.fingerprint!)).find((item) => item.scope === "project-file")!;
+    assert.equal(approved.approved, true);
+    assert.deepEqual(approved.rules.map((rule) => `${rule.effect} ${rule.pattern}`), ["allow curl *", "deny rm *"]);
+    assert.equal((await permissions.decide(agent, { threadId: thread.id }, "code", { command: "curl https://example.com" }))?.effect, "allow");
+    assert.equal(await permissions.decide(agent, { threadId: thread.id }, "code", { command: "echo hi" }), undefined, "no rule allows echo");
+
+    // A changed set of allow rules is held again until allowed again.
+    await writeFile(file, JSON.stringify({ permissions: { rules: [{ tool: "code", pattern: "curl *", effect: "allow" }, { tool: "code", pattern: "scp *", effect: "allow" }] } }));
+    const changed = (await permissions.layers({ projectId: project.id })).find((item) => item.scope === "project-file")!;
+    assert.equal(changed.approved, false);
+    assert.deepEqual(changed.rules, []);
+    assert.equal(changed.held?.length, 2);
+    assert.equal(await permissions.decide(agent, { threadId: thread.id }, "code", { command: "curl https://example.com" }), undefined);
+
+    // Revoking holds them again; allow-everything is refused from Settings too.
+    await permissions.approveFile(project.id, ".saturn/settings.json", changed.fingerprint!);
+    assert.equal((await permissions.revokeFile(project.id, ".saturn/settings.json")).find((item) => item.scope === "project-file")?.approved, false);
+    await assert.rejects(permissions.addRule("user", { tool: "*", pattern: "*", effect: "allow" }), /not a rule/);
+  } finally {
+    model.server.close();
+  }
+});

@@ -24,6 +24,15 @@ export function mountPermissions(app: Express, services: AppServices): void {
     respond(res, next, () => services.kernel.permissions.layers(targetOf(req.query as Record<string, unknown>)));
   });
 
+  // A project file's allow rules apply only once the user allows that exact set (its fingerprint); revoking holds them again.
+  app.post("/projects/:id/permissions/approve", (req, res, next) => {
+    respond(res, next, () => services.kernel.permissions.approveFile(param(req.params.id), String(req.body?.file ?? ""), String(req.body?.fingerprint ?? "")));
+  });
+
+  app.delete("/projects/:id/permissions/approve", (req, res, next) => {
+    respond(res, next, () => services.kernel.permissions.revokeFile(param(req.params.id), String(req.body?.file ?? "")));
+  });
+
   app.post("/permissions/rules", (req, res, next) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
     respond(res, next, () => services.kernel.permissions.addRule(scopeOf(body.scope), body.rule, targetOf(body)), 201);

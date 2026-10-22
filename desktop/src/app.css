@@ -9090,6 +9090,8 @@ button.trace-row:hover {
   padding: 12px 16px;
 }
 .permission-list li + li { border-top: 1px solid var(--line); }
+.permission-held { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; margin: 6px 0; }
+.permission-file-approved { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .snapshot-folder { font-family: var(--mono, ui-monospace, monospace); font-size: 12px; overflow-wrap: anywhere; }
 .permission-list li strong { grid-area: name; font-size: 13px; font-weight: 500; }
 .permission-list li .hint { grid-area: detail; font-size: 12px; }

@@ -183,7 +183,19 @@ export type ContextUsage = { usedTokens: number; budgetTokens: number; windowTok
 /** A permission rule: what a tool may do without asking (allow), must ask about (ask), or may never do (deny). */
 export type PermissionRule = { tool: string; pattern: string; effect: "allow" | "deny" | "ask" };
 export type PermissionScope = "user" | "project" | "agent" | "project-file" | "claude-file";
-export type PermissionLayer = { scope: PermissionScope; rules: PermissionRule[]; path?: string; editable: boolean; label: string };
+export type PermissionLayer = {
+  scope: PermissionScope;
+  rules: PermissionRule[];
+  path?: string;
+  editable: boolean;
+  label: string;
+  /** A project file's allow rules waiting for the user to allow them (that exact set, by `fingerprint`). */
+  held?: PermissionRule[];
+  fingerprint?: string;
+  approved?: boolean;
+  /** Rules from a file that are never applied: they would allow everything. */
+  refused?: PermissionRule[];
+};
 
 export type RunAction = {
   id?: string;

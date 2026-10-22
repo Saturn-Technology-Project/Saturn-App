@@ -407,6 +407,8 @@ export type Project = {
   sandbox?: SandboxSettings;
   /** The fingerprint of each project file's hooks the user allowed (`.saturn/hooks.json`, `.claude/settings.json`). */
   approvedHooks?: Record<string, string>;
+  /** The fingerprint of each project file's allow rules the user allowed (`.saturn/settings.json`, `.claude/settings.json`). */
+  approvedRules?: Record<string, string>;
   lastOpenedAt?: string;
   isDefault?: boolean;
 };

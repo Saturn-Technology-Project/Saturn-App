@@ -35,7 +35,7 @@ Out of scope, reported to their owners instead:
 - Claude Code, Codex, MCP servers, model providers and other third-party programs Saturn starts or calls.
 - Advisories in dependencies that do not ship, or that [`docs/known-advisories.md`](docs/known-advisories.md) already lists as reviewed.
 
-What Saturn defends against, and what it deliberately leaves to you, is in the README's [Security and trust](README.md#security-and-trust) section. For example, an agent you put in full autonomy running a harmful command inside a folder you granted it is the documented design, not a vulnerability; the same command run without the approval your settings require is one.
+What Saturn defends against, and what it deliberately leaves to you, is in the [threat model](docs/threat-model.md), which also lists what an external review should cover first. For example, an agent you put in full autonomy running a harmful command inside a folder you granted it is the documented design, not a vulnerability; the same command run without the approval your settings require is one.
 
 Please test only against your own installation and accounts, do not access other people's data, and avoid degrading anyone's service.
 
@@ -78,6 +78,6 @@ Saturn 目前為預覽版，只有最新版本會收到安全修補；回報前�
 - Claude Code、Codex、MCP 伺服器、模型供應商，以及 Saturn 啟動或呼叫的其他第三方程式。
 - 不會出貨的相依套件中的公告，或 [`docs/known-advisories.md`](docs/known-advisories.md) 已列為審視過的公告。
 
-Saturn 防範什麼、刻意交由你決定什麼，見 README 的[安全與信任](README_ZH.md)章節。例如：你設為完全自主的 Agent 在你授權的資料夾內執行了有害指令，是文件中說明的設計，不是漏洞；同一個指令若在你的設定要求核准時卻未經核准就執行，才是漏洞。
+Saturn 防範什麼、刻意交由你決定什麼，見[威脅模型](docs/threat-model.md)，其中也列出外部審查應優先涵蓋的範圍。例如：你設為完全自主的 Agent 在你授權的資料夾內執行了有害指令，是文件中說明的設計，不是漏洞；同一個指令若在你的設定要求核准時卻未經核准就執行，才是漏洞。
 
 請只在你自己的安裝與帳號上測試，不要存取他人的資料，也不要影響任何人的服務。

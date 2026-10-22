@@ -38,6 +38,22 @@ export function RulesEditor(props: { layer: PermissionLayer; target: { projectId
     }
   }
 
+  /** A project file's allow rules: allowed as the exact set shown (its fingerprint), or held again. */
+  async function decideFile(allow: boolean) {
+    const projectId = props.target.projectId;
+    if (!projectId || !props.layer.path) return;
+    setBusy(true);
+    try {
+      props.onChanged(allow
+        ? await desktop.admin.approvePermissionFile(projectId, props.layer.path, props.layer.fingerprint ?? "")
+        : await desktop.admin.revokePermissionFile(projectId, props.layer.path));
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : "Could not change the rules");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function remove(rule: PermissionRule) {
     setBusy(true);
     try {
@@ -84,7 +100,37 @@ export function RulesEditor(props: { layer: PermissionLayer; target: { projectId
           <span className="permission-hint">{patternHint(toolId)} {EFFECTS.find((item) => item.id === effect)?.label} {EFFECTS.find((item) => item.id === effect)?.hint}.</span>
         </form>
       ) : (
-        <p className="settings-row-desc">Read from <code>{props.layer.path}</code> in the project folder; edit that file to change them.</p>
+        <>
+          {props.layer.held?.length ? (
+            <div className="permission-held">
+              <p className="settings-row-desc">
+                <strong>Waiting for you.</strong> These allow rules came with the folder, so they apply only after you allow them; until then these commands ask like any other. Allow them only if you trust whoever wrote <code>{props.layer.path}</code>.
+              </p>
+              <ul className="permission-rules">
+                {props.layer.held.map((rule, index) => (
+                  <li key={`held:${rule.tool}:${rule.pattern}:${index}`} className="permission-rule allow">
+                    <span className="permission-effect allow">allow</span>
+                    <code className="permission-tool">{rule.tool}</code>
+                    <code className="permission-pattern">{rule.pattern}</code>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="btn tiny" disabled={busy || !props.target.projectId} onClick={() => void decideFile(true)}>Allow these rules</button>
+            </div>
+          ) : null}
+          {props.layer.approved ? (
+            <p className="settings-row-desc permission-file-approved">
+              You allowed this file's allow rules; a change to them asks again.{" "}
+              <button type="button" className="btn ghost tiny" disabled={busy} onClick={() => void decideFile(false)}>Revoke</button>
+            </p>
+          ) : null}
+          {props.layer.refused?.length ? (
+            <p className="settings-row-desc">
+              Never applied, since they would allow every call: {props.layer.refused.map((rule) => <code key={`${rule.tool}:${rule.pattern}`}>{rule.tool} {rule.pattern}</code>)}.
+            </p>
+          ) : null}
+          <p className="settings-row-desc">Read from <code>{props.layer.path}</code> in the project folder; edit that file to change them.</p>
+        </>
       )}
     </div>
   );
@@ -115,7 +161,7 @@ export function PermissionsPage(props: { projects: Project[]; agents: { id: stri
         <div className="settings-card">
           <p className="settings-row-desc">
             A rule names a tool and a pattern. Before each tool call the rules are checked first: <strong>deny</strong> refuses the call, <strong>ask</strong> shows an approval card, <strong>allow</strong> runs it without asking in any approval mode. Deny beats ask beats allow. When no rule applies, the agent's approval mode decides, and sensitive commands (<code>rm -rf</code>, <code>sudo</code>, <code>git push --force</code>, deleting files, paths outside the project) always ask in the default mode.
-            Rules in a project's <code>.saturn/settings.json</code> and the <code>permissions</code> of its <code>.claude/settings.json</code> apply too.
+            Rules in a project's <code>.saturn/settings.json</code> and the <code>permissions</code> of its <code>.claude/settings.json</code> apply too. They come with the folder (a cloned repository, say), so their deny and ask rules apply at once, but their allow rules only after you allow them in the project's rules here. A rule that allows every command is never applied.
           </p>
         </div>
       </div>

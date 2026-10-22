@@ -127,6 +127,15 @@ export class AdminService {
     return this.runtime.request<HookSet[]>("/hooks", { method: "PUT", body: JSON.stringify({ hooks }) });
   }
 
+  /** Allows a project file's allow rules: the exact set the user saw, named by its fingerprint. */
+  approvePermissionFile(projectId: string, file: string, fingerprint: string): Promise<PermissionLayer[]> {
+    return this.runtime.request<PermissionLayer[]>(`/projects/${encodeURIComponent(projectId)}/permissions/approve`, { method: "POST", body: JSON.stringify({ file, fingerprint }) });
+  }
+
+  revokePermissionFile(projectId: string, file: string): Promise<PermissionLayer[]> {
+    return this.runtime.request<PermissionLayer[]>(`/projects/${encodeURIComponent(projectId)}/permissions/approve`, { method: "DELETE", body: JSON.stringify({ file }) });
+  }
+
   approveHooks(projectId: string, file: string, fingerprint: string): Promise<HookSet[]> {
     return this.runtime.request<HookSet[]>(`/projects/${encodeURIComponent(projectId)}/hooks/approve`, { method: "POST", body: JSON.stringify({ file, fingerprint }) });
   }
