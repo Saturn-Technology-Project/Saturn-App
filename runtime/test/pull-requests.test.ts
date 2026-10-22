@@ -6,7 +6,6 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { PullRequestService } from "../src/application/pull-requests.js";
-import type { Run } from "../src/domain/model.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
 import { toolSteps } from "./tool-steps.js";

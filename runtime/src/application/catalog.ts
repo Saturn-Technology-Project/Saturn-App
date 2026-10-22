@@ -13,7 +13,6 @@ import {
 } from "../domain/builtin.js";
 import type { Agent, McpConnection, ModelConnection, RagConnection, ToolRoute } from "../domain/model.js";
 import { listLmStudioModels } from "../infrastructure/llm.js";
-import { errorText, logger } from "../infrastructure/logger.js";
 import { namespacedTool } from "../domain/marketplace.js";
 import type { McpTarget } from "../infrastructure/mcp.js";
 import type { RuntimeKernel } from "./kernel.js";

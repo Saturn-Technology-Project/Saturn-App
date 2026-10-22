@@ -9,7 +9,7 @@ import { ON_DEMAND_TOOLKITS, toolkitServer } from "../domain/toolkits.js";
 import type { CommandSnapshot } from "./checkpoints.js";
 import { IDE_ID } from "../domain/ide-tools.js";
 import type { Agent, Conversation, ModelConnection, Run, RunAction, RunMode, ToolRound } from "../domain/model.js";
-import { autonomyLine, autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isReadOnlyCall, isSensitiveOperation, mayReadOnly, readOnlyRefusal, joinThinking, styleLine, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
+import { autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isReadOnlyCall, isSensitiveOperation, mayReadOnly, readOnlyRefusal, joinThinking, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
 import type { ToolCall } from "./runtime-state.js";
 import type { ChatMessage } from "../infrastructure/llm.js";
 import type { ImagePart } from "../infrastructure/llm/types.js";

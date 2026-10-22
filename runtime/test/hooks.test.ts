@@ -108,7 +108,7 @@ test("pre_tool blocks or allows, post_tool adds feedback, stop sends a follow-up
     assert.equal(blocked?.status, "denied");
     assert.match(blocked?.reason ?? "", /Blocked by a hook: no blocked commands here/);
     assert.equal(allowed?.status, "completed", "allowed by the hook: no approval card even in Review mode");
-    assert.equal((allowed?.result as { hookFeedback?: string }).hookFeedback, "post-check: remember the changelog");
+    assert.equal((allowed!.result as { hookFeedback?: string }).hookFeedback, "post-check: remember the changelog");
     assert.equal(again?.status, "completed");
     assert.ok(model.seen.some((text) => text.includes("remember the changelog")), "the model saw the feedback");
     let events = (await readFile(log, "utf8")).trim().split("\n");
@@ -140,6 +140,3 @@ test("pre_tool blocks or allows, post_tool adds feedback, stop sends a follow-up
   }
 });
 
-async function realpath(file: string): Promise<string> {
-  return (await import("node:fs/promises")).realpath(file);
-}

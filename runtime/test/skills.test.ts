@@ -96,7 +96,7 @@ test("an agent sees the skills in its prompt and loads one with the skill tool; 
     assert.match(requests[0]!.system, /# Skills[\s\S]*- deploy: Ship a preview build/, "the prompt lists the skill");
     const loaded = done.actions.find((item) => item.toolId === "skill");
     assert.equal(loaded?.status, "completed");
-    assert.equal((loaded?.result as { instructions: string }).instructions, "Run the build, then upload.");
+    assert.equal((loaded!.result as { instructions: string }).instructions, "Run the build, then upload.");
     assert.equal(done.actions.find((item) => item.toolId === "customizations_create_skill")?.status, "completed");
     assert.ok(await stat(path.join(folder, ".agents", "skills", "made-here", "SKILL.md")), "the new skill is in the project, not the runtime's folder");
   } finally {

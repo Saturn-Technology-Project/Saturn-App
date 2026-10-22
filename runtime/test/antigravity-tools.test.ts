@@ -39,7 +39,6 @@ test("antigravity tools definitions contain 14 tools and skips duplicate github 
 
 test("antigravity skill executes automations and serves UI templates", async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "saturn-ag-test-"));
-  const workspaceDir = await mkdtemp(path.join(os.tmpdir(), "saturn-ws-test-"));
   const store = new FileStore(dataDir);
   await store.load();
   const { services } = createApp(store);

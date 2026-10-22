@@ -41,6 +41,8 @@ const pageSize = (args: Args, fallback = 30) => Math.min(100, Math.max(1, num(ar
  * reads as an option ("--upload-pack=…"), whitespace/control characters, and ":" (ref:path addressing).
  */
 function safeRef(value: string, label = "ref"): string {
+  // Control characters are what this rejects: a ref never contains them.
+  // oxlint-disable-next-line no-control-regex
   if (!value || value.startsWith("-") || /[\s\0:]/.test(value) || /[\x00-\x1f\x7f]/.test(value)) {
     throw new Error(`Invalid ${label}: ${value || "(empty)"}`);
   }

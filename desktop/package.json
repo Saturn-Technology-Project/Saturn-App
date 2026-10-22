@@ -6,6 +6,7 @@
   "type": "module",
   "main": "electron.cjs",
   "scripts": {
+    "lint": "oxlint -c ../.oxlintrc.json --deny-warnings src electron.cjs preload.cjs scripts",
     "dev": "concurrently -k \"vite --port 5174\" \"wait-on http://127.0.0.1:5174 && electron electron.cjs\"",
     "build": "vite build",
     "build:runtime": "tsc -p ../runtime/tsconfig.build.json --pretty false",
@@ -127,6 +128,7 @@
     "concurrently": "^10.0.6",
     "electron": "43.7.7",
     "electron-builder": "^26.15.3",
+    "oxlint": "^1.89.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "wait-on": "^9.5.1"

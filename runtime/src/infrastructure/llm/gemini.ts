@@ -272,7 +272,7 @@ export const gemini: ProviderAdapter = {
  * Gemini 3.x and 2.5 keep their defaults (thinkingLevel is optional there, and 2.5 rejects it).
  */
 function thinkingLevel(model: string): { thinkingLevel?: ThinkingLevel } {
-  return /^gemini-4/.test(model) ? { thinkingLevel: ThinkingLevel.MEDIUM } : {};
+  return model.startsWith("gemini-4") ? { thinkingLevel: ThinkingLevel.MEDIUM } : {};
 }
 
 /**
@@ -280,7 +280,7 @@ function thinkingLevel(model: string): { thinkingLevel?: ThinkingLevel } {
  * level), a token budget on 2.5. A model that refuses them is retried without thinking settings.
  */
 function effortThinking(model: string, effort: Effort): { thinkingLevel?: ThinkingLevel; thinkingBudget?: number } {
-  if (/^gemini-2\.5/.test(model)) {
+  if (model.startsWith("gemini-2.5")) {
     const top = /pro/.test(model) ? 32768 : 24576;
     return { thinkingBudget: effort === "low" ? 1024 : effort === "medium" ? 8192 : effort === "high" ? Math.min(16384, top) : top };
   }
@@ -292,7 +292,7 @@ function effortThinking(model: string, effort: Effort): { thinkingLevel?: Thinki
  * thinking budget (0 turns it off on Flash); 3.x and 4 take a level. A model that refuses is retried without it.
  */
 function lowThinking(model: string): { includeThoughts: false; thinkingBudget?: number; thinkingLevel?: ThinkingLevel } {
-  return /^gemini-2\.5/.test(model)
+  return model.startsWith("gemini-2.5")
     ? { includeThoughts: false, thinkingBudget: /pro/.test(model) ? 128 : 0 }
-    : { includeThoughts: false, thinkingLevel: /^gemini-3/.test(model) ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL };
+    : { includeThoughts: false, thinkingLevel: model.startsWith("gemini-3") ? ThinkingLevel.LOW : ThinkingLevel.MINIMAL };
 }

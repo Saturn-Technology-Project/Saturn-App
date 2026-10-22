@@ -6,6 +6,7 @@ name: Supply chain
 # - every installed package has a valid npm registry signature, and provenance where its publisher provides it;
 # - no known high or critical vulnerability in what the runtime and the desktop app ship;
 # - the Claude Code and Codex download manifest still pins exactly what the lock file says.
+# It also enforces the coding standard (oxlint with .oxlintrc.json) on the runtime and the desktop app.
 
 on:
   push:
@@ -50,3 +51,9 @@ jobs:
       - name: The Claude Code and Codex download manifest matches the lock file
         working-directory: runtime
         run: npx tsx --import ./test/setup.ts --test --test-name-pattern="manifest pins" test/agent-programs.test.ts
+
+      - name: Coding standard (oxlint)
+        run: |
+          npm run lint --prefix runtime
+          npm run lint --prefix desktop
+          runtime/node_modules/.bin/oxlint -c .oxlintrc.json --deny-warnings packages/sdk

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { choice, joinThinking, parseArguments, plainMessages, systemText, withOptionalFields } from "./shared.js";
+import { choice, joinThinking, parseArguments, systemText, withOptionalFields } from "./shared.js";
 import type { ChatMessage, ChatRequest, Effort, ProviderAdapter, RawRequest, ToolCall } from "./types.js";
 
 /** OpenAI reasoning models (o-series, GPT-5 family): they take a reasoning effort and reject sampling settings. */

@@ -67,7 +67,7 @@ test("a long computer_wait suspends the run, survives a restart, and resumes wit
   const model = await waitingModel(5 * 60_000);
   const directory = await mkdtemp(path.join(os.tmpdir(), "saturn-wait-"));
   try {
-    const { store, services, agent } = await setup(directory, model.url);
+    const { services, agent } = await setup(directory, model.url);
     const started = await services.startRun(agent.id, "Message Alice, wait 5 minutes for a reply");
     const asleep = await until(() => services.kernel.getRun(started.id), (run) => run.status !== "running" && run.status !== "queued");
     assert.equal(asleep.status, "sleeping", asleep.error);
@@ -112,7 +112,7 @@ test("a sleeping run can be woken early or stopped", async () => {
     await until(() => services.kernel.getRun(first.id), (run) => run.status === "sleeping");
     await services.wakeRun(first.id);
     const woken = await until(() => services.kernel.getRun(first.id), (run) => run.status === "completed");
-    assert.equal((woken.actions[0]?.result as { woke: string }).woke, "early, by the user");
+    assert.equal((woken.actions[0]!.result as { woke: string }).woke, "early, by the user");
     await assert.rejects(() => services.wakeRun(first.id), /not waiting/);
 
     const thread = await services.createThread(agent.id);
@@ -139,7 +139,7 @@ test("a run that has slept too often is told to finish instead of sleeping again
     });
     const finished = await until(() => services.kernel.getRun(run.id), (item) => item.status === "completed" || item.status === "failed" || item.status === "sleeping");
     assert.equal(finished.status, "completed", finished.error);
-    assert.match(String((finished.actions[0]?.result as { error?: string }).error), /already waited/);
+    assert.match(String((finished.actions[0]!.result as { error?: string }).error), /already waited/);
   } finally {
     model.server.close();
   }

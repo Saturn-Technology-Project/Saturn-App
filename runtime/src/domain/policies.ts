@@ -1,4 +1,4 @@
-import type { Agent, RunAction } from "./model.js";
+import type { Agent } from "./model.js";
 import { loadNote } from "./toolkits.js";
 
 export type ToolCall = { id?: string; name: string; arguments: Record<string, unknown>; thoughtSignature?: string };

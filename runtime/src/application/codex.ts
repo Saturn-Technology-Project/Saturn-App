@@ -194,7 +194,7 @@ export class CodexService {
   /** Opens the sign-in page again: the link Codex printed for the sign-in in progress. */
   openSignInPage(): { opened: boolean } {
     const url = this.signIn?.info.url;
-    if (!url || !/^https:\/\//.test(url)) throw new HttpError(409, "No Codex sign-in is waiting");
+    if (!url || !url.startsWith("https://")) throw new HttpError(409, "No Codex sign-in is waiting");
     openInBrowser(url);
     return { opened: true };
   }

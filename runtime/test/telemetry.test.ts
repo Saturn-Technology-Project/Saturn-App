@@ -135,7 +135,7 @@ test("a run is traced end to end: request, agent, LLM, tool, MCP", async () => {
 
     const tokens = await points("gen_ai.client.token.usage");
     const input = tokens.find((point) => point.attributes["gen_ai.token.type"] === "input");
-    assert.equal((input?.value as { sum: number }).sum, 24);
+    assert.equal((input!.value as { sum: number }).sum, 24);
     const runs = await points("saturn.agent.runs");
     assert.equal(runs.find((point) => point.attributes["saturn.run.status"] === "completed")?.value, 1);
     const tools = await points("saturn.tool.calls");

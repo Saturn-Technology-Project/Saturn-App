@@ -25,12 +25,11 @@ import {
   extractPlanSteps,
   countdown,
   isBusy,
-  modelLabel,
   replaceRevised,
   upsertRun,
   visibleThread,
 } from "../domain/conversation";
-import type { Agent, Autonomy, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode, RunSummary, ContextUsage } from "../domain/model";
+import type { Agent, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode, RunSummary, ContextUsage } from "../domain/model";
 
 const isElectron =
   typeof window !== "undefined" &&
@@ -159,7 +158,7 @@ export function App() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({});
   /** A folder waiting for the user's Allow: a new one from the picker, or an existing project without access. */
-  const [accessRequest, setAccessRequest] = useState<{ path: string; name?: string; projectId?: string; then?: (project: Project) => void } | null>(null);
+  const [accessRequest, setAccessRequest] = useState<{ path: string; name?: string; projectId?: string; onAllowed?: (project: Project) => void } | null>(null);
   const [projectMenu, setProjectMenu] = useState<{ project: Project; x: number; y: number } | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [projectView, patchProjectView, resetProjectView] = useProjectView();
@@ -295,7 +294,7 @@ export function App() {
     try {
       const folder = await chooseFolder();
       if (!folder) return;
-      setAccessRequest({ path: folder, then: (project) => void newProjectChat(project) });
+      setAccessRequest({ path: folder, onAllowed: (project) => void newProjectChat(project) });
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Could not open the folder picker");
     }
@@ -307,13 +306,13 @@ export function App() {
       : await desktop.projects.create({ path: request.path, grant: true });
     await syncProjects();
     setOpenProjects((prev) => ({ ...prev, [project.id]: true }));
-    request.then?.(project);
+    request.onAllowed?.(project);
   }
 
   /** Runs `then` once the project's folder is accessible, asking the user first when it is not. */
   function withAccess(project: Project, then: (project: Project) => void) {
     if (project.access) then(project);
-    else setAccessRequest({ path: project.path, name: project.name, projectId: project.id, then });
+    else setAccessRequest({ path: project.path, name: project.name, projectId: project.id, onAllowed: then });
   }
 
   async function newProjectChat(project: Project) {
@@ -1044,7 +1043,6 @@ ${skill.instructions}`);
     };
   }, [selectedThreadId, thread.length, busy]);
 
-
   /** Gives the chat its own git worktree and branch; the agent's changes then stay off the project checkout. */
   async function isolateThread(threadId: string) {
     setWorktreeBusy(true);
@@ -1258,10 +1256,6 @@ ${skill.instructions}`);
     const timer = setTimeout(() => setIdeNotice(null), 2500);
     return () => clearTimeout(timer);
   }, [ideNotice]);
-
-  function handleOpenArtifacts() {
-    setInspectorOpen(true);
-  }
 
   function handleToggleInspector() {
     setInspectorOpen((prev) => !prev);
@@ -3048,15 +3042,6 @@ function GearIcon() {
   );
 }
 
-function SidebarIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="2.2" y="2.8" width="11.6" height="10.4" rx="2" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M10.2 2.8v10.4" stroke="currentColor" strokeWidth="1.3" />
-    </svg>
-  );
-}
-
 function ThemeIcon(props: { theme: "light" | "dark" }) {
   if (props.theme === "dark") {
     return (
@@ -3207,36 +3192,11 @@ function IdeWindowIcon() {
   );
 }
 
-function ArtifactDocumentIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="3" y="2.5" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function EmployeeIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <circle cx="8" cy="5" r="2.8" stroke="currentColor" strokeWidth="1.35" />
       <path d="M2.8 13.5c0-2.6 2.3-4.7 5.2-4.7s5.2 2.1 5.2 4.7" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function FolderIcon(props: { open?: boolean }) {
-  if (props.open) {
-    return (
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M1.5 4.5A1.5 1.5 0 0 1 3 3h3l1.5 1.5H13a1.5 1.5 0 0 1 1.5 1.5V6H3.3l-1.5 6.5A1.5 1.5 0 0 1 1.5 11V4.5z" stroke="currentColor" strokeWidth="1.3" />
-        <path d="M3.3 6h11.2l-1.8 6.5a1.5 1.5 0 0 1-1.4 1H2.7a1.5 1.5 0 0 1-1.4-1.9L3.3 6z" stroke="currentColor" strokeWidth="1.3" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M2 3.5A1.5 1.5 0 0 1 3.5 2h3l1.5 1.5H12.5A1.5 1.5 0 0 1 14 5v7.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5V3.5z" stroke="currentColor" strokeWidth="1.3" />
     </svg>
   );
 }
