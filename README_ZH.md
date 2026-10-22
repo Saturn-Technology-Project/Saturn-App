@@ -373,6 +373,12 @@ shasum -a 256 -c Saturn-<version>-mac-arm64-unsigned.dmg.sha256
 gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
 ```
 
+從 0.3.1 起，每次發布也會附上簽署過的證明本身（`Saturn-<version>-mac-arm64.sigstore.json`、`-win-x64.sigstore.json` 與 SBOM 的證明），不必向 GitHub 取得任何資料即可驗證下載檔：
+
+```bash
+gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<version>-mac-arm64.sigstore.json -R Saturn-Technology-Project/Saturn-App
+```
+
 在 Windows 上，安裝程式的 Authenticode 簽章應指向 Saturn 的憑證：
 
 ```powershell

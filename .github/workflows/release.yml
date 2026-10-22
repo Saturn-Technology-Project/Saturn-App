@@ -26,11 +26,9 @@ concurrency:
   group: release-${{ github.ref }}-${{ inputs.version || github.ref_name }}
   cancel-in-progress: false
 
+# Read-only by default; each job asks for what it needs (OpenSSF Scorecard's Token-Permissions).
 permissions:
-  contents: write
-  # Build provenance: anyone can check a download was built by this workflow from this repository.
-  id-token: write
-  attestations: write
+  contents: read
 
 env:
   VERSION: ${{ inputs.version || github.ref_name }}
@@ -39,6 +37,11 @@ jobs:
   macos:
     name: macOS (arm64)
     runs-on: macos-14
+    permissions:
+      contents: read
+      # Build provenance: anyone can check a download was built by this workflow from this repository.
+      id-token: write
+      attestations: write
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -102,11 +105,17 @@ jobs:
           npm run archive:mac
 
       - name: Attest build provenance
+        id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             desktop/release/*.dmg
             desktop/release/*.zip
+
+      # The signed attestation (a Sigstore bundle) ships beside the downloads, so it can be checked offline:
+      # gh attestation verify <file> --bundle <bundle> -R Saturn-Technology-Project/Saturn-App
+      - name: Keep the signed attestation
+        run: cp "${{ steps.attest.outputs.bundle-path }}" "desktop/release/Saturn-${{ steps.version.outputs.version }}-mac-arm64.sigstore.json"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -116,11 +125,16 @@ jobs:
             desktop/release/*.dmg.sha256
             desktop/release/*.zip
             desktop/release/*.zip.sha256
+            desktop/release/*.sigstore.json
           if-no-files-found: error
 
   windows:
     name: Windows (x64)
     runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     timeout-minutes: 180
     steps:
       # Keep the sources byte-for-byte as committed (LF): the packaged app and the tests expect it.
@@ -210,9 +224,14 @@ jobs:
           ls -la
 
       - name: Attest build provenance
+        id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: desktop/release/*.exe
+
+      - name: Keep the signed attestation
+        shell: bash
+        run: cp "${{ steps.attest.outputs.bundle-path }}" "desktop/release/Saturn-${{ steps.version.outputs.version }}-win-x64.sigstore.json"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -222,6 +241,7 @@ jobs:
             desktop/release/*.exe.sha256
             desktop/release/*.exe.blockmap
             desktop/release/latest.yml
+            desktop/release/*.sigstore.json
           if-no-files-found: error
 
   release:
@@ -231,6 +251,11 @@ jobs:
     runs-on: ubuntu-latest
     # Publishing waits for a maintainer's approval (the "release" environment), and only v* tags or main may deploy.
     environment: release
+    permissions:
+      # Create the release and upload its files.
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -246,9 +271,13 @@ jobs:
           (cd dist && sha256sum "Saturn-$version-sbom.cdx.json" > "Saturn-$version-sbom.cdx.json.sha256")
 
       - name: Attest the SBOM
+        id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/*-sbom.cdx.json
+
+      - name: Keep the SBOM's signed attestation
+        run: cp "${{ steps.attest.outputs.bundle-path }}" "dist/Saturn-${VERSION#v}-sbom.cdx.json.sigstore.json"
 
       - name: Publish
         env:

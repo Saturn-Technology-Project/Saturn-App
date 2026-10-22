@@ -374,6 +374,12 @@ shasum -a 256 -c Saturn-<version>-mac-arm64-unsigned.dmg.sha256
 gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
 ```
 
+From 0.3.1 on, each release also carries the signed attestations themselves (`Saturn-<version>-mac-arm64.sigstore.json`, `-win-x64.sigstore.json` and the SBOM's), so a download can be checked without fetching anything from GitHub:
+
+```bash
+gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<version>-mac-arm64.sigstore.json -R Saturn-Technology-Project/Saturn-App
+```
+
 On Windows, the installer's Authenticode signature names Saturn's certificate:
 
 ```powershell

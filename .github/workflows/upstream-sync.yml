@@ -19,9 +19,9 @@ on:
         description: "VS Code release tag to merge (default: the newest release, if it is newer than the base)"
         required: false
 
+# Read-only by default; the sync job asks for what it needs (OpenSSF Scorecard's Token-Permissions).
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: upstream-sync
@@ -30,6 +30,10 @@ concurrency:
 jobs:
   sync:
     runs-on: macos-14
+    permissions:
+      # Push the sync branch and open its pull request.
+      contents: write
+      pull-requests: write
     timeout-minutes: 240
     env:
       GH_TOKEN: ${{ github.token }}
