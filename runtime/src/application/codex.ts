@@ -300,15 +300,17 @@ export class CodexService {
         const waiting = action;
         waiting.status = "waiting_approval";
         waiting.reason = `${toolId} needs your approval`;
+        // Listening before the card is shown: an answer that comes as soon as it appears must find it waiting.
+        const key = `${runId}:${waiting.id}`;
+        const answer = new Promise<boolean>((resolve) => {
+          this.pending.set(key, resolve);
+          signal.addEventListener("abort", () => resolve(false), { once: true });
+        }).finally(() => this.pending.delete(key));
         await save((current) => {
           current.status = "waiting_approval";
         });
         this.kernel.log("agent", "info", `${agent.name} ${toolId} waiting_approval`, { "saturn.run.id": runId });
-        const key = `${runId}:${waiting.id}`;
-        const allow = await new Promise<boolean>((resolve) => {
-          this.pending.set(key, resolve);
-          signal.addEventListener("abort", () => resolve(false), { once: true });
-        }).finally(() => this.pending.delete(key));
+        const allow = await answer;
         waiting.status = allow ? "completed" : "denied";
         waiting.reason = allow ? undefined : "Denied by the user";
         await save((current) => {

@@ -220,15 +220,17 @@ export class ClaudeCodeService {
       const action = actionFor(options.toolUseID || newId("act"), toolName, input);
       action.status = "waiting_approval";
       action.reason = `${action.toolId} needs your approval`;
+      // Listening before the card is shown: an answer that comes as soon as it appears must find it waiting.
+      const key = `${runId}:${action.id}`;
+      const answer = new Promise<boolean>((resolve) => {
+        this.pending.set(key, resolve);
+        options.signal.addEventListener("abort", () => resolve(false), { once: true });
+      }).finally(() => this.pending.delete(key));
       await save((current) => {
         current.status = "waiting_approval";
       });
       this.kernel.log("agent", "info", `${agent.name} ${action.toolId} waiting_approval`, { "saturn.run.id": runId });
-      const allow = await new Promise<boolean>((resolve) => {
-        const key = `${runId}:${action.id}`;
-        this.pending.set(key, resolve);
-        options.signal.addEventListener("abort", () => resolve(false), { once: true });
-      }).finally(() => this.pending.delete(`${runId}:${action.id}`));
+      const allow = await answer;
       action.status = allow ? "completed" : "denied";
       action.reason = allow ? undefined : "Denied by the user";
       if (allow) await keepOriginal(action.id, toolName, input);

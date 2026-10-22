@@ -11,6 +11,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 ### Fixed
 
 - **Saturn no longer quits seconds after launch while indexing a project.** The built-in embedding model asked for one 2 GiB block of memory on large files, which Electron answers by ending the process. It now works in smaller batches and uses a fraction of the memory.
+- An approval card for a Claude Code or Codex agent could refuse an answer given the moment it appeared ("This approval is no longer waiting"). The card is now shown only once Saturn is listening for the answer.
 
 ### Changed
 
