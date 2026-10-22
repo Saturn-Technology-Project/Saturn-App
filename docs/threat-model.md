@@ -2,7 +2,7 @@
 
 [中文](#威脅模型)
 
-What Saturn protects, from whom, how, and what it deliberately leaves to you. It is written for security reviewers and for anyone deciding how much autonomy to give an agent. Each control names the code that implements it; [Review scope](#review-scope) lists what an external audit should cover first. Report a problem as described in [`SECURITY.md`](../SECURITY.md).
+What Saturn protects, from whom, how, and what it deliberately leaves to you. It is written for security reviewers and for anyone deciding how much autonomy to give an agent. Each control names the code that implements it; the [assurance case](#assurance-case) argues why the security requirements are met, with the tests that show it; [Review scope](#review-scope) lists what an external audit should cover first. Report a problem as described in [`SECURITY.md`](../SECURITY.md).
 
 ## The system
 
@@ -76,6 +76,43 @@ Out of scope: a process already running as the same user can read the token file
 - **macOS builds are not Developer ID-signed or notarized**, and Windows builds use a self-signed certificate, so users cannot rely on the OS to confirm a download's origin; the SHA-256 files and build provenance are the check.
 - **Network access is on by default** inside the sandbox, so package installs work; switch it off per project for sensitive work.
 - **No third-party security audit yet.**
+
+## Assurance case
+
+Why Saturn's security requirements are met: each requirement, the argument, and the evidence that can be checked. The controls are described above; the tests named here are in `runtime/test/` and run on every push to `main` (on Windows and Linux) and on macOS and Windows for every release.
+
+### Requirements and evidence
+
+| Requirement | Argument | Evidence |
+|---|---|---|
+| **R1. No tool call runs beyond what the user allowed.** | Every call passes `runTools`: rules (deny before ask before allow, one shell command at a time), then the approval mode and the sensitive-operation check; rules that come with a folder cannot allow on their own; commands run in the OS sandbox; every change is checkpointed. | `permissions.test.ts` (rule order, Review mode, rules from project files held until allowed, allow-everything refused), `approvals.test.ts`, `run-modes.test.ts`, `sandbox.test.ts` (writes outside the workspace fail on macOS), `shell-changes.test.ts`, `checkpoints.test.ts` |
+| **R2. Only the user's own clients can use the runtime.** | Loopback only; `Host` and `Origin` checks; a 256-bit token in a `0600` file on every route but the health probe and the OAuth redirect; the Codex route takes a per-turn token. | `runtime.test.ts`: "the runtime rejects requests without the session token, and a non-loopback Host", "CORS allows Saturn's loopback windows and rejects web pages, including sandboxed (null-origin) ones"; `agent-skills.test.ts`, `codex.test.ts` |
+| **R3. Credentials stay encrypted at rest and go only to their provider.** | AES-256-GCM with a random key in the OS key store and a random IV per write; authenticated, so tampering is detected; a key is attached only to its own provider's requests; values are never logged. | `secrets.test.ts` (ciphertext only, tampering rejected, plaintext migrated, key store fallbacks), `llm.test.ts` |
+| **R4. The agent's fetching tools cannot reach this computer or the private network.** | Every web, browser and Browser-tab request is checked against loopback, private and link-local ranges, after DNS resolution and on every redirect. | `runtime.test.ts`: "the in-app browser proxy refuses local and private addresses…", "a public name that resolves to a private address is refused (DNS rebinding)"; `browser-safari.test.ts` |
+| **R5. Things that come with a folder or plugin run only once allowed.** | Hooks, local MCP servers and project allow rules are approved by a fingerprint of exactly what the user saw; any change asks again. | `hooks.test.ts`, `mcp-stdio.test.ts`, `plugins.test.ts`, `permissions.test.ts` |
+| **R6. A download is what the public workflow built.** | Releases are built only by `release.yml` from a tagged commit; each file has a SHA-256 and signed build provenance; Claude Code and Codex downloads are checked against pinned SHA-512; no dependency install scripts run. | The attestations on every release (`gh attestation verify`), `agent-programs.test.ts` ("manifest pins"), `.github/workflows/supply-chain.yml` |
+
+### Secure design principles
+
+- **Least privilege**: agents get only the folders granted to them; shell commands write only inside the workspace; workflow tokens are read-only unless a job needs more.
+- **Fail-safe defaults**: the Default approval mode asks for risky operations; no rule means the normal approval applies; a missing or wrong token is refused; an unreadable secrets file is kept aside, never overwritten.
+- **Complete mediation**: every tool call goes through `runTools`, every API request through the authentication middleware, every fetch through the address check.
+- **Separation of privilege**: a project's own files can make rules stricter but cannot loosen them without the user.
+- **Economy of mechanism**: one local runtime, one HTTP API for every client, no Saturn backend.
+- **Open design**: the source, the threat model and the build are public; security does not rest on secrecy.
+- **Psychological acceptability**: approvals show the exact command and why it asks; Always allow turns a decision into a visible, removable rule.
+
+### Common weaknesses countered
+
+| Weakness | How Saturn counters it | Where |
+|---|---|---|
+| OS command injection (CWE-78) | Arguments are passed as arrays to `execFile`, never interpolated into a shell line by Saturn; the agent's own shell commands are judged one command at a time and sandboxed | `infrastructure/shell.ts`, `domain/permissions.ts`, `infrastructure/sandbox.ts` |
+| Path traversal (CWE-22) | Paths resolve inside the workspace or a granted project; symlinks are resolved first; a revert writes only the files its checkpoint lists, inside that project's folder | `domain/skills/workspace.ts`, `application/checkpoints.ts` |
+| Server-side request forgery (CWE-918) | Public-address checks after resolution and on redirects | R4 |
+| Cross-site request forgery and missing authentication (CWE-352, CWE-306) | Bearer token on every route, Origin and Host checks | R2 |
+| Cleartext storage and exposure of credentials (CWE-312, CWE-532) | Encryption at rest, no secrets in logs or URLs | R3 |
+| Untrusted content executing in the app (CWE-79) | Web pages shown in the app are sandboxed frames without the app's origin; agent output is rendered as text and Markdown, not executed | `desktop/src/presentation/Inspector.tsx` |
+| Inclusion of untrusted functionality (CWE-829) | Fingerprint approval of hooks, plugins and local MCP servers; pinned hashes for downloads | R5, R6 |
 
 ## Review scope
 
@@ -178,6 +215,43 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 - **macOS 版本未以 Developer ID 簽章或公證**，Windows 版本使用自簽憑證，使用者無法依賴作業系統確認下載來源；應以 SHA-256 檔與建置來源證明檢查。
 - **沙箱內預設可連網**，以便安裝套件；處理敏感工作時可針對專案關閉。
 - **尚未經過第三方安全審計。**
+
+## 保證論證
+
+Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗的證據。各項控制已在上文說明；這裡列出的測試位於 `runtime/test/`，在每次推送到 `main` 時（Windows 與 Linux）以及每次發布時（macOS 與 Windows）執行。
+
+### 需求與證據
+
+| 需求 | 論證 | 證據 |
+|---|---|---|
+| **R1. 工具呼叫不會超出使用者允許的範圍。** | 每個呼叫都經過 `runTools`：先看規則（拒絕優先於詢問，詢問優先於允許，shell 指令逐一判斷），再看核准模式與敏感操作檢查；隨資料夾而來的規則無法自行允許；指令在作業系統沙箱中執行；每次變更都有檢查點。 | `permissions.test.ts`（規則順序、Review 模式、專案檔案的規則在允許前暫緩、允許一切的規則被拒絕）、`approvals.test.ts`、`run-modes.test.ts`、`sandbox.test.ts`（macOS 上寫到工作目錄外會失敗）、`shell-changes.test.ts`、`checkpoints.test.ts` |
+| **R2. 只有使用者自己的 client 能使用 Runtime。** | 只監聽 loopback；檢查 `Host` 與 `Origin`；除健康檢查與 OAuth 重新導向外，每個路由都需要存於 `0600` 檔案的 256 位元 token；Codex 的路由改用每回合的 token。 | `runtime.test.ts`：「the runtime rejects requests without the session token, and a non-loopback Host」、「CORS allows Saturn's loopback windows and rejects web pages…」；`agent-skills.test.ts`、`codex.test.ts` |
+| **R3. 憑證靜態加密，且只送到它自己的供應商。** | AES-256-GCM，隨機金鑰存於作業系統金鑰庫，每次寫入使用隨機 IV；具驗證性，竄改會被發現；金鑰只附加在其供應商的請求上；值從不記錄於 log。 | `secrets.test.ts`（只有密文、拒絕被竄改的內容、明文自動遷移、金鑰庫的備援）、`llm.test.ts` |
+| **R4. Agent 的擷取工具無法連到這台電腦或私有網路。** | 每個 web、瀏覽器與 Browser 分頁的請求，都在 DNS 解析後與每次重新導向時，檢查是否為 loopback、私有或 link-local 位址。 | `runtime.test.ts`：「the in-app browser proxy refuses local and private addresses…」、「a public name that resolves to a private address is refused (DNS rebinding)」；`browser-safari.test.ts` |
+| **R5. 隨資料夾或外掛而來的東西，要經允許才會執行。** | Hooks、本機 MCP 伺服器與專案的允許規則，都以使用者實際看到內容的指紋核准；任何變更都會再次詢問。 | `hooks.test.ts`、`mcp-stdio.test.ts`、`plugins.test.ts`、`permissions.test.ts` |
+| **R6. 下載檔就是公開 workflow 建置的成果。** | 發布只由 `release.yml` 從打了 tag 的 commit 建置；每個檔案都有 SHA-256 與簽署的建置來源證明；Claude Code 與 Codex 的下載以固定的 SHA-512 驗證；不執行相依套件的安裝腳本。 | 每次發布附的證明（`gh attestation verify`）、`agent-programs.test.ts`（「manifest pins」）、`.github/workflows/supply-chain.yml` |
+
+### 安全設計原則
+
+- **最小權限**：Agent 只取得授權的資料夾；shell 指令只能寫入工作目錄；workflow 的 token 除非 job 需要，否則唯讀。
+- **預設安全**：Default 核准模式會對有風險的操作詢問；沒有規則就套用一般核准；缺少或錯誤的 token 一律拒絕；無法讀取的機密檔案會被保留在旁，從不覆寫。
+- **完全仲裁**：每個工具呼叫都經過 `runTools`，每個 API 請求都經過驗證 middleware，每次擷取都經過位址檢查。
+- **權限分離**：專案自己的檔案可以讓規則更嚴格，但未經使用者同意不能放寬。
+- **機制精簡**：一個本機 Runtime、所有 client 共用一套 HTTP API、沒有 Saturn 後端。
+- **公開設計**：原始碼、威脅模型與建置都是公開的；安全性不依賴保密。
+- **心理可接受性**：核准卡顯示確切的指令與詢問的原因；「永遠允許」會把決定變成一條看得見、可刪除的規則。
+
+### 已對應的常見弱點
+
+| 弱點 | Saturn 的對應方式 | 位置 |
+|---|---|---|
+| 作業系統指令注入（CWE-78） | Saturn 以陣列把參數傳給 `execFile`，從不把值插入 shell 指令串；Agent 自己的 shell 指令逐一判斷並在沙箱中執行 | `infrastructure/shell.ts`、`domain/permissions.ts`、`infrastructure/sandbox.ts` |
+| 路徑穿越（CWE-22） | 路徑解析在工作目錄或授權的專案內；先解析符號連結；還原只寫入其檢查點列出、且位於該專案資料夾內的檔案 | `domain/skills/workspace.ts`、`application/checkpoints.ts` |
+| 伺服器端請求偽造（CWE-918） | 解析後與重新導向時檢查公開位址 | R4 |
+| 跨站請求偽造與缺少驗證（CWE-352、CWE-306） | 每個路由都需要 Bearer token，並檢查 Origin 與 Host | R2 |
+| 憑證以明文儲存或外洩（CWE-312、CWE-532） | 靜態加密，log 與網址中沒有機密 | R3 |
+| 不可信內容在 App 中執行（CWE-79） | App 中顯示的網頁放在沒有 App origin 的沙箱 frame；Agent 的輸出以文字與 Markdown 呈現，不會被執行 | `desktop/src/presentation/Inspector.tsx` |
+| 引入不可信的功能（CWE-829） | 以指紋核准 hooks、外掛與本機 MCP 伺服器；下載檔以固定雜湊驗證 | R5、R6 |
 
 ## 審查範圍
 

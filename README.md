@@ -561,6 +561,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 ```bash
 npm test            # runtime test suite
 npm run typecheck   # strict type-check of runtime and desktop
+npm run lint        # the coding standard (oxlint)
 npm run test:ide    # Saturn IDE extension checks
 npm run test:sdk    # the SDK against a real runtime and a scripted model
 ```
@@ -578,15 +579,17 @@ The [Evals workflow](.github/workflows/evals.yml) runs them nightly once the rep
 Before opening a pull request:
 
 1. Respect the layering: domain code imports neither Express nor React.
-2. Add or update tests for runtime behavior, and run `npm test` and `npm run typecheck`.
+2. Add or update tests for runtime behavior (the [test policy](CONTRIBUTING.md#test-policy) is mandatory), and run `npm test`, `npm run typecheck` and `npm run lint`.
 3. Never log or return a secret. Log which credential was used (provider or model), never its value.
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers dependency changes: updating the Claude Agent SDK or Codex SDK, install-script approvals, Dependabot pull requests and Saturn IDE's upstream merges.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the coding standard and the test policy, and covers dependency changes: updating the Claude Agent SDK or Codex SDK, install-script approvals, Dependabot pull requests and Saturn IDE's upstream merges.
 
 ## Roadmap
 
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
+
+How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

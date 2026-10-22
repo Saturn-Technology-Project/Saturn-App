@@ -7,6 +7,7 @@ Thank you for helping. This file covers the parts of a change that keep Saturn's
 ```bash
 npm test            # runtime tests
 npm run typecheck   # runtime and desktop
+npm run lint        # the coding standard (oxlint)
 npm run test:ide    # Saturn IDE extension checks
 node scripts/check-lockfiles.mjs
 ```
@@ -14,6 +15,28 @@ node scripts/check-lockfiles.mjs
 - Domain code imports neither Express nor React.
 - Never log or return a secret: log which credential was used, never its value.
 - Commit lock files with the `package.json` change that produced them, made with npm 11.19 or later.
+
+By taking part you agree to the [code of conduct](CODE_OF_CONDUCT.md). How decisions are made and who reviews what is in [`GOVERNANCE.md`](GOVERNANCE.md).
+
+## Coding standard
+
+Saturn's TypeScript follows one standard, enforced automatically:
+
+- **TypeScript strict mode** (`strict: true`) for the runtime, the desktop app and the SDK; `npm run typecheck` must pass with no errors.
+- **oxlint with [`.oxlintrc.json`](.oxlintrc.json)**: every rule in its correctness category is an error, including unused code and, in the desktop app, React's rules of hooks; `npm run lint` must pass with no warnings. CI runs it on every push and pull request ([supply-chain workflow](.github/workflows/supply-chain.yml)). React's effect-dependency and set-state-in-effect rules are not enforced yet, until the existing effects have been reviewed.
+- **Write like the code around it**: the same naming, comment density and idiom; names in whole words; a short comment above a function or type that says what it is for.
+- **Layering**: domain code imports neither Express nor React; infrastructure is reached through the application layer.
+
+Saturn IDE's own changes follow Code-OSS's coding guidelines and [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md).
+
+## Test policy
+
+This policy is mandatory for every change to Saturn's own code (the runtime, the desktop app, the SDK, the scripts):
+
+1. **New functionality comes with tests.** A pull request that adds major functionality must add tests for it to the automated suite (`runtime/test/`, `packages/sdk/test/`, `scripts/eval/`), or say why it cannot be tested automatically; such a pull request is not merged until it does.
+2. **Every bug fix comes with a regression test** that fails before the fix and passes after it, wherever the bug can be reproduced in a test.
+3. **Tests use no credentials and touch no real data**: a temporary data folder and fake or scripted model servers, as the existing tests do.
+4. **The suite must pass** (`npm test`, and `npm run test:sdk` for the SDK) before a change merges; CI runs it on every push to `main` and before every release.
 
 ## Adding or updating a dependency
 

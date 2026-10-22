@@ -560,6 +560,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 ```bash
 npm test            # Runtime 測試
 npm run typecheck   # Runtime 與桌面應用程式的嚴格型別檢查
+npm run lint        # 程式碼規範（oxlint）
 npm run test:ide    # Saturn IDE 擴充套件檢查
 npm run test:sdk    # 以真的 Runtime 與腳本化模型測試 SDK
 ```
@@ -577,15 +578,17 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 開 pull request 前：
 
 1. 遵守分層：domain 程式碼不得 import Express 或 React。
-2. 為 Runtime 行為新增或更新測試，並執行 `npm test` 與 `npm run typecheck`。
+2. 為 Runtime 行為新增或更新測試（[測試政策](CONTRIBUTING.md#test-policy)為強制規定），並執行 `npm test`、`npm run typecheck` 與 `npm run lint`。
 3. 絕不記錄或回傳秘密。記錄使用了哪個憑證（供應商或模型），不要記錄它的值。
 
-[CONTRIBUTING.md](CONTRIBUTING.md) 說明相依套件的變更：更新 Claude Agent SDK 或 Codex SDK、安裝腳本核准、Dependabot pull request，以及 Saturn IDE 的上游合併。
+[CONTRIBUTING.md](CONTRIBUTING.md) 列出程式碼規範與測試政策，並說明相依套件的變更：更新 Claude Agent SDK 或 Codex SDK、安裝腳本核准、Dependabot pull request，以及 Saturn IDE 的上游合併。
 
 ## 路線圖
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
+
+專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。
 
 ## 授權
 
