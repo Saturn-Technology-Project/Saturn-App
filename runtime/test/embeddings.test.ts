@@ -3,7 +3,7 @@ import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { OnnxEmbedder, meanPool, modelDir } from "../src/infrastructure/embeddings.js";
+import { MAX_BATCH_TOKENS, OnnxEmbedder, meanPool, modelDir, tokenBudgetGroups } from "../src/infrastructure/embeddings.js";
 
 test("mean pooling averages a row's real tokens (not its padding) and scales to length 1", () => {
   // Two rows of width 3, two dims; row 1 has two real tokens and one padding token.
@@ -37,4 +37,14 @@ test("the built-in model finds the English code a Chinese question is about", as
     [await best("還原 agent 改過的檔案"), await best("讀取專案規則"), await best("檢查使用者附加的圖片大小"), await best("向量相似度")],
     [2, 1, 0, 3],
   );
+});
+
+test("embedding batches are split so no inference holds more padded tokens than the budget", () => {
+  const rows = (lengths: number[]) => lengths.map((length) => Array.from({ length }, () => 1));
+  // 32 full 512-token chunks, the batch that crashed Saturn inside Electron, become groups of 8.
+  const full = tokenBudgetGroups(rows(Array(32).fill(512)), MAX_BATCH_TOKENS);
+  assert.deepEqual(full.map((group) => group.length), [8, 8, 8, 8]);
+  // Order is kept, short rows share a group, and one row longer than the budget still runs alone.
+  assert.deepEqual(tokenBudgetGroups(rows([10, 10, 30, 5, 90]), 60).map((group) => group.map((row) => row.length)), [[10, 10], [30, 5], [90]]);
+  assert.deepEqual(tokenBudgetGroups([], 60), []);
 });

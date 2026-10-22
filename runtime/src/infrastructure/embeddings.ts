@@ -97,9 +97,13 @@ export class OnnxEmbedder implements Embedder {
       const { Tokenizer } = require("@huggingface/tokenizers") as { Tokenizer: new (tokenizer: object, config: object) => TokenizerLike };
       const [tokenizerJson, configJson] = await Promise.all([readFile(path.join(dir, "tokenizer.json"), "utf8"), readFile(path.join(dir, "tokenizer_config.json"), "utf8")]);
       const tokenizer = new Tokenizer(JSON.parse(tokenizerJson), JSON.parse(configJson));
+      // No arena and no memory pattern: the arena grows by powers of two, and inside Electron one request of
+      // 2 GiB or more is not refused but kills the process (PartitionAlloc traps instead of returning null).
       const session = await ort.InferenceSession.create(path.join(dir, "onnx", "model_quantized.onnx"), {
         intraOpNumThreads: Math.max(1, Math.floor(availableParallelism() / 2)),
         graphOptimizationLevel: "all",
+        enableCpuMemArena: false,
+        enableMemPattern: false,
       });
       return { session, tokenizer, ort };
     })();
@@ -113,24 +117,58 @@ export class OnnxEmbedder implements Embedder {
     signal?.throwIfAborted();
     const spec = BUILTIN_MODELS[this.name];
     const encoded = texts.map((text) => clipTokens(tokenizer.encode(spec.prefix[kind] + text).ids, spec.maxTokens));
+    const vectors: Float32Array[] = [];
+    for (const group of tokenBudgetGroups(encoded, MAX_BATCH_TOKENS)) {
+      signal?.throwIfAborted();
+      vectors.push(...(await this.run(session, ort, group)));
+    }
+    return vectors;
+  }
+
+  private async run(session: Session, ort: Ort, encoded: number[][]): Promise<Float32Array[]> {
     const width = Math.max(...encoded.map((ids) => ids.length));
-    const ids = new BigInt64Array(texts.length * width);
-    const mask = new BigInt64Array(texts.length * width);
+    const ids = new BigInt64Array(encoded.length * width);
+    const mask = new BigInt64Array(encoded.length * width);
     encoded.forEach((row, r) => row.forEach((id, c) => {
       ids[r * width + c] = BigInt(id);
       mask[r * width + c] = 1n;
     }));
-    const shape = [texts.length, width];
+    const shape = [encoded.length, width];
     const feeds: Record<string, InstanceType<Ort["Tensor"]>> = {
       input_ids: new ort.Tensor("int64", ids, shape),
       attention_mask: new ort.Tensor("int64", mask, shape),
     };
-    if (session.inputNames.includes("token_type_ids")) feeds.token_type_ids = new ort.Tensor("int64", new BigInt64Array(texts.length * width), shape);
+    if (session.inputNames.includes("token_type_ids")) feeds.token_type_ids = new ort.Tensor("int64", new BigInt64Array(encoded.length * width), shape);
     const output = (await session.run(feeds))[session.outputNames[0]!]!;
     const data = output.data as Float32Array;
     const dims = Number(output.dims[2]);
     return encoded.map((row, r) => meanPool(data, r, row.length, width, dims));
   }
+}
+
+/**
+ * Padded tokens one inference may hold. Attention memory grows with rows × width², so 32 full 512-token chunks
+ * at once needed over 400 MB per matrix; 4096 keeps a run of the default model near 100 MB.
+ */
+export const MAX_BATCH_TOKENS = 4096;
+
+/** Splits rows, in order, into groups whose padded size (rows × longest row) stays within the budget. */
+export function tokenBudgetGroups(rows: number[][], budget: number): number[][][] {
+  const groups: number[][][] = [];
+  let group: number[][] = [];
+  let width = 0;
+  for (const row of rows) {
+    const next = Math.max(width, row.length);
+    if (group.length && (group.length + 1) * next > budget) {
+      groups.push(group);
+      group = [];
+      width = 0;
+    }
+    group.push(row);
+    width = Math.max(width, row.length);
+  }
+  if (group.length) groups.push(group);
+  return groups;
 }
 
 /** Keeps the first tokens and the closing one, so a long chunk still ends the way the model expects. */
