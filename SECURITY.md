@@ -6,7 +6,7 @@ Saturn runs AI agents that execute commands, edit files and control apps on your
 
 ## Reporting a vulnerability
 
-Email **[security@saturn-core.com](mailto:security@saturn-core.com)**. Please do not open a public issue, discussion or pull request for a vulnerability.
+Email **[security@saturn-core.com](mailto:security@saturn-core.com)**, or use GitHub's **[Report a vulnerability](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories/new)** (private, under the Security tab). Please do not open a public issue, discussion or pull request for a vulnerability.
 
 Include what you can of:
 
@@ -49,7 +49,7 @@ Saturn 執行的 AI Agent 會在你的電腦上執行指令、修改檔案與操
 
 ## 回報漏洞
 
-請寄信至 **[security@saturn-core.com](mailto:security@saturn-core.com)**。請不要以公開的 issue、討論或 pull request 回報漏洞。
+請寄信至 **[security@saturn-core.com](mailto:security@saturn-core.com)**，或使用 GitHub 的 **[Report a vulnerability](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories/new)**（私密回報，位於 Security 分頁）。請不要以公開的 issue、討論或 pull request 回報漏洞。
 
 請盡量附上：
 
