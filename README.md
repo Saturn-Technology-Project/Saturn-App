@@ -46,7 +46,7 @@ What Saturn's own agent loop does (for API and local models; agents on Claude Co
 | Skills and slash commands | Yes (`SKILL.md`, `.claude/commands` read) | Yes | — |
 | Plugins | Yes (Claude Code's layout installs as is) | Yes | — |
 | Headless CLI | `saturn run` | `claude -p` | `codex exec` |
-| SDK | [`@saturn-app/sdk`](packages/sdk) (TypeScript, local) | Agent SDK | Codex SDK |
+| SDK | [`@saturn-app/sdk`](https://github.com/Saturn-Technology-Project/Saturn-SDK) (TypeScript, local) | Agent SDK | Codex SDK |
 | Pull request follow-up (fix failing checks) | Yes, at most two rounds | Yes, in Claude Code on the web | — |
 | Desktop app and IDE | Agent app, Saturn IDE (Code-OSS) | Desktop app, IDE extensions | IDE extension, app |
 | Computer use, browser, multi-agent groups, schedules | Yes | — | — |
@@ -509,7 +509,7 @@ saturn approve RUN ACTION
 
 `saturn run` streams the agent's steps to stderr and its answer to stdout (`--json` prints the whole run). An approval is asked on a terminal; in a script `saturn` exits with code 3 and prints the `saturn approve` command that answers it. As with automations, an agent on Claude (via Claude Code) only runs from a terminal, never unattended.
 
-**From code.** [`packages/sdk`](packages/sdk) is a dependency-free TypeScript client for the same API: start a run, get its steps as they happen, answer approvals in a callback, read its changes.
+**From code.** The [Saturn SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) (its own repository) has a dependency-free TypeScript client for the same API: start a run, get its steps as they happen, answer approvals in a callback, read its changes.
 
 ```ts
 import { Saturn } from "@saturn-app/sdk";
@@ -563,7 +563,6 @@ npm test            # runtime test suite
 npm run typecheck   # strict type-check of runtime and desktop
 npm run lint        # the coding standard (oxlint)
 npm run test:ide    # Saturn IDE extension checks
-npm run test:sdk    # the SDK against a real runtime and a scripted model
 ```
 
 Tests boot the runtime's HTTP API against a temporary data directory and fake model servers, so they need no credentials and never touch your data. CI runs them on Node 24 (`Saturn-IDE/.nvmrc`), macOS and Windows; on Windows the few tests that script POSIX shell commands are skipped. Give `node --test` a glob (`node --test 'test/*.test.js'`), not a folder: Node 24 runs a folder argument as a module and fails.

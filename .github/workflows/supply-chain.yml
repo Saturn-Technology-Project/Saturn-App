@@ -56,4 +56,3 @@ jobs:
         run: |
           npm run lint --prefix runtime
           npm run lint --prefix desktop
-          runtime/node_modules/.bin/oxlint -c .oxlintrc.json --deny-warnings packages/sdk

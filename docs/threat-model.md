@@ -6,7 +6,7 @@ What Saturn protects, from whom, how, and what it deliberately leaves to you. It
 
 ## The system
 
-Saturn is a desktop app (Electron, `desktop/`) and Saturn IDE (Code-OSS, `Saturn-IDE/`), both clients of one local **runtime** (`runtime/`): a Node.js HTTP server on `127.0.0.1:4700` that runs the agent loop, calls model providers, executes tools and keeps all state in `~/.saturn-app`. The `saturn` CLI and the SDK (`packages/sdk/`) are clients of the same API. There is no Saturn server: nothing is sent to Saturn's developers.
+Saturn is a desktop app (Electron, `desktop/`) and Saturn IDE (Code-OSS, `Saturn-IDE/`), both clients of one local **runtime** (`runtime/`): a Node.js HTTP server on `127.0.0.1:4700` that runs the agent loop, calls model providers, executes tools and keeps all state in `~/.saturn-app`. The `saturn` CLI and the [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) (its own repository) are clients of the same API. There is no Saturn server: nothing is sent to Saturn's developers.
 
 An agent turn: the runtime sends the conversation and tool definitions to a model; the model asks for tool calls (read or write files, run shell commands, fetch pages, drive a browser, control desktop apps, call GitHub or MCP servers); the runtime decides each call against permission rules and the approval policy, runs it (shell commands inside an OS sandbox), records file changes in a checkpoint, and sends the results back.
 
@@ -145,7 +145,7 @@ Saturn 保護什麼、防範誰、如何防範，以及刻意交由你決定的�
 
 ## 系統概要
 
-Saturn 由桌面應用程式（Electron，`desktop/`）與 Saturn IDE（Code-OSS，`Saturn-IDE/`）組成，兩者都是同一個本機 **Runtime**（`runtime/`）的 client：一個在 `127.0.0.1:4700` 的 Node.js HTTP 伺服器，負責執行 Agent 迴圈、呼叫模型供應商、執行工具，所有狀態存在 `~/.saturn-app`。`saturn` CLI 與 SDK（`packages/sdk/`）也是同一套 API 的 client。Saturn 沒有伺服器，不會傳送任何資料給 Saturn 的開發者。
+Saturn 由桌面應用程式（Electron，`desktop/`）與 Saturn IDE（Code-OSS，`Saturn-IDE/`）組成，兩者都是同一個本機 **Runtime**（`runtime/`）的 client：一個在 `127.0.0.1:4700` 的 Node.js HTTP 伺服器，負責執行 Agent 迴圈、呼叫模型供應商、執行工具，所有狀態存在 `~/.saturn-app`。`saturn` CLI 與 [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)（獨立的 repository）也是同一套 API 的 client。Saturn 沒有伺服器，不會傳送任何資料給 Saturn 的開發者。
 
 Agent 的一個回合：Runtime 把對話與工具定義送給模型；模型要求呼叫工具（讀寫檔案、執行 shell 指令、擷取網頁、操作瀏覽器、操作桌面 App、呼叫 GitHub 或 MCP 伺服器）；Runtime 依權限規則與核准策略決定每個呼叫，執行它（shell 指令在作業系統沙箱中），把檔案變更記錄在檢查點，再把結果送回模型。
 

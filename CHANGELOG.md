@@ -8,6 +8,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - **A project's settings files can no longer pre-approve tool calls.** The allow rules in a project's `.saturn/settings.json` and `.claude/settings.json`, which come with the folder (a cloned repository, say), applied without being shown to you, and a rule allowing every shell command was not refused. A repository could therefore let an agent run commands without an approval card. Now their deny and ask rules apply at once, their allow rules only after you allow that exact set in **Settings → Permissions** (any change asks again), and a rule that allows every command is never applied. Affects v0.3.0 and earlier: upgrade, and check the project rules of any repository you opened.
 
+### Changed
+
+- The TypeScript SDK (`@saturn-app/sdk`) moved to its own repository, [Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK), laid out for more languages.
+
 ### Added
 
 - `SECURITY.md` (how to report a vulnerability, privately by email or through GitHub) and a [threat model](docs/threat-model.md) with the scope for an external security review.
