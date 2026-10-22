@@ -2,11 +2,15 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
-## Unreleased
+## 0.3.1 (2026-10-22)
 
 ### Security
 
 - **A project's settings files can no longer pre-approve tool calls.** The allow rules in a project's `.saturn/settings.json` and `.claude/settings.json`, which come with the folder (a cloned repository, say), applied without being shown to you, and a rule allowing every shell command was not refused. A repository could therefore let an agent run commands without an approval card. Now their deny and ask rules apply at once, their allow rules only after you allow that exact set in **Settings → Permissions** (any change asks again), and a rule that allows every command is never applied. Affects v0.3.0 and earlier: upgrade, and check the project rules of any repository you opened.
+
+### Fixed
+
+- **Saturn no longer quits seconds after launch while indexing a project.** The built-in embedding model asked for one 2 GiB block of memory on large files, which Electron answers by ending the process. It now works in smaller batches and uses a fraction of the memory.
 
 ### Changed
 
