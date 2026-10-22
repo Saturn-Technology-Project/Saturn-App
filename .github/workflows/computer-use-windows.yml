@@ -16,6 +16,10 @@ concurrency:
   group: computer-use-windows-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only: these jobs check out, build and test; nothing is pushed or published.
+permissions:
+  contents: read
+
 jobs:
   notepad:
     runs-on: windows-latest
