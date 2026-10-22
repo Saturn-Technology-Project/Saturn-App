@@ -255,6 +255,29 @@ pre {
   -webkit-app-region: drag;
 }
 
+.titlebar-traffic-space.compact {
+  width: 8px;
+  min-width: 8px;
+  max-width: 8px;
+  padding-left: 0;
+}
+
+/*
+ * Windows draws its minimize, maximize and close buttons over the top right (Electron's titleBarOverlay); keep the bar
+ * under them clear. The width is 0 wherever there is no such overlay.
+ */
+.app {
+  --window-controls-width: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+}
+
+.app:not(.with-inspector) .stage-topbar {
+  padding-right: calc(12px + var(--window-controls-width));
+}
+
+.app.with-inspector .inspector-tabbar {
+  padding-right: calc(10px + var(--window-controls-width));
+}
+
 .traffic-lights-preview {
   display: flex;
   align-items: center;

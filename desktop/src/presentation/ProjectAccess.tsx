@@ -9,6 +9,7 @@ declare global {
       notify?(options: { title: string; body?: string; agentId?: string; threadId?: string; silent?: boolean }): void;
       onOpenThread?(listener: (payload: { agentId?: string; threadId?: string }) => void): () => void;
       isFocused?(): boolean;
+      setWindowControls?(colors: { color: string; symbolColor: string }): void;
     };
   }
 }

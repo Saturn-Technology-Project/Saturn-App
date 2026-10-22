@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld("saturnDesktop", {
   requestPermission: (which) => ipcRenderer.invoke("saturn:request-permission", which),
   /** Whether this window is the one the user is looking at (notifications are skipped then). */
   isFocused: () => ipcRenderer.sendSync("saturn:window-focused") === true,
+  /** Recolors the native minimize, maximize and close buttons (Windows only; ignored elsewhere). */
+  setWindowControls: (colors) => ipcRenderer.send("saturn:window-controls", colors ?? {}),
 });
 
 // Renderer spans reach the exporter in main only while telemetry is exported.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../application/desktop";
 import type { Agent, Mcp, Model, Project, Rag } from "../domain/model";
+import { syncWindowControls } from "../infrastructure/window-controls";
 import { Settings, type SettingsPage } from "./Settings";
 
 /**
@@ -43,6 +44,7 @@ export function SettingsWindow(props: { initialPage?: SettingsPage }) {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("saturn-theme", theme);
+    syncWindowControls("--panel");
   }, [theme]);
 
   return (
