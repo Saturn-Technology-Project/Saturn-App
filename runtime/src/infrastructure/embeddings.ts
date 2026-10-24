@@ -2,10 +2,10 @@ import { createRequire } from "node:module";
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import path from "node:path";
-import { LMStudioClient } from "@lmstudio/sdk";
 import OpenAI from "openai";
 import { HttpError } from "../domain/errors.js";
 import { errorText, logger } from "./logger.js";
+import { openAICompatibleUrl } from "./llm/lmstudio.js";
 
 /** A search question, or a piece of the code being indexed. Some models embed the two differently. */
 export type EmbedKind = "query" | "passage";
@@ -201,21 +201,14 @@ export class LmStudioEmbedder implements Embedder {
     this.id = `lmstudio:${model}`;
   }
 
-  async embed(texts: string[], _kind: EmbedKind, signal?: AbortSignal): Promise<Float32Array[]> {
-    const url = new URL(this.baseUrl);
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-    const client = new LMStudioClient({ baseUrl: url.toString().replace(/\/$/, "") });
+  async embed(texts: string[], kind: EmbedKind, signal?: AbortSignal): Promise<Float32Array[]> {
     try {
-      const model = await client.embedding.model(this.model, { signal });
-      const results = await model.embed(texts);
-      return results.map((item) => Float32Array.from(item.embedding.map(Number)));
+      return await new OpenAiEmbedder(openAICompatibleUrl(this.baseUrl), "lm-studio", this.model).embed(texts, kind, signal);
     } catch (error) {
       const text = errorText(error);
       if (/ECONNREFUSED|not running|connect/i.test(text)) throw new HttpError(503, "LM Studio is not running. Start it, or switch the code index to the built-in embedding model in Settings → General.");
-      if (/not found|no model|unknown model|does not exist/i.test(text)) throw new HttpError(409, `The embedding model "${this.model}" is not downloaded in LM Studio. Download it there, or choose another in Settings → General.`);
+      if (/not found|no model|unknown model|does not exist|not loaded|404/i.test(text)) throw new HttpError(409, `The embedding model "${this.model}" is not downloaded in LM Studio. Download it there, or choose another in Settings → General.`);
       throw error;
-    } finally {
-      void client[Symbol.asyncDispose]().catch(() => undefined);
     }
   }
 }

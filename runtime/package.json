@@ -15,7 +15,6 @@
     "@anthropic-ai/sdk": "^0.133.0",
     "@google/genai": "^2.30.0",
     "@huggingface/tokenizers": "0.2.0",
-    "@lmstudio/sdk": "^2.0.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@openai/codex-sdk": "^0.163.0",
     "@opentelemetry/api": "^1.9.1",

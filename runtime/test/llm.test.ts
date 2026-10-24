@@ -135,3 +135,73 @@ test("LM Studio gets strictly alternating turns: same-role turns merged, empty o
     ["assistant", "answer\n\nmore"],
   ]);
 });
+
+test("LM Studio without the SDK: chat, raw completions, the model list and embeddings all go over its HTTP API", async () => {
+  const requests: { url: string; body?: any }[] = [];
+  const server = createServer((req, res) => {
+    let data = "";
+    req.on("data", (chunk) => (data += chunk));
+    req.on("end", () => {
+      requests.push({ url: req.url ?? "", body: data ? JSON.parse(data) : undefined });
+      if (req.url === "/api/v0/models") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: [{ id: "qwen3-8b", type: "llm" }, { id: "gemma-3-4b", type: "vlm" }, { id: "nomic-embed-text", type: "embeddings" }] }));
+      } else if (req.url === "/v1/completions") {
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        res.write(`data: ${JSON.stringify({ choices: [{ text: "return " }] })}\n\n`);
+        res.end(`data: ${JSON.stringify({ choices: [{ text: "a + b;" }] })}\n\ndata: [DONE]\n\n`);
+      } else if (req.url === "/v1/embeddings") {
+        const model = JSON.parse(data).model;
+        if (model !== "nomic-embed-text") {
+          res.writeHead(404, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: { message: `Model "${model}" not found` } }));
+          return;
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ data: [{ index: 1, embedding: [0, 1] }, { index: 0, embedding: [1, 0] }] }));
+      } else {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ choices: [{ message: { role: "assistant", content: "A cat.", reasoning_content: "Looking at the image." } }], usage: { prompt_tokens: 40, completion_tokens: 3 } }));
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("no port");
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  try {
+    const { lmStudio, lmStudioRaw, listLmStudioModels } = await import("../src/infrastructure/llm/lmstudio.js");
+    const { LmStudioEmbedder } = await import("../src/infrastructure/embeddings.js");
+
+    const result = (await lmStudio.complete({
+      model: "gemma-3-4b",
+      baseUrl: baseUrl.replace("http:", "ws:"),
+      temperature: 1.5,
+      messages: [{ role: "user", content: "what is this?", images: [{ mimeType: "image/png", base64: "iVBORw0KGgo=" }] }],
+      tools: [],
+    })) as { choices: { message: { content: string; thinking?: string } }[]; usage: { input_tokens: number } };
+    const chat = requests.find((item) => item.url === "/v1/chat/completions")?.body;
+    assert.equal(chat.temperature, 1);
+    assert.equal(chat.tools, undefined);
+    assert.deepEqual(chat.messages[0].content.map((part: { type: string }) => part.type), ["text", "image_url"]);
+    assert.equal(result.choices[0]?.message.content, "A cat.");
+    assert.equal(result.choices[0]?.message.thinking, "Looking at the image.");
+    assert.equal(result.usage.input_tokens, 40);
+
+    const stops = ["<|fim_prefix|>", "<|fim_suffix|>", "<|fim_middle|>", "<|fim_pad|>", "<|endoftext|>", "<|repo_name|>", "<|file_sep|>"];
+    let text = "";
+    for await (const fragment of lmStudioRaw({ model: "qwen3-8b", baseUrl, prompt: "function add(a, b) {", stops, maxOutput: 32 })) text += fragment;
+    assert.equal(text, "return a + b;");
+    assert.deepEqual(requests.find((item) => item.url === "/v1/completions")?.body.stop, stops);
+
+    assert.deepEqual(await listLmStudioModels(baseUrl), [{ id: "qwen3-8b", label: "qwen3-8b" }, { id: "gemma-3-4b", label: "gemma-3-4b" }]);
+    await assert.rejects(listLmStudioModels("http://127.0.0.1:9"), /LM Studio is not running/);
+
+    const vectors = await new LmStudioEmbedder(baseUrl, "nomic-embed-text").embed(["a", "b"], "passage");
+    assert.deepEqual(vectors.map((vector) => [...vector]), [[1, 0], [0, 1]]);
+    await assert.rejects(new LmStudioEmbedder(baseUrl, "missing").embed(["a"], "passage"), (error: Error & { status?: number }) => error.status === 409);
+    await assert.rejects(new LmStudioEmbedder("http://127.0.0.1:9", "nomic-embed-text").embed(["a"], "passage"), (error: Error & { status?: number }) => error.status === 503);
+  } finally {
+    server.close();
+  }
+});
