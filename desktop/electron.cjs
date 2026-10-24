@@ -210,6 +210,14 @@ function runtimeRequest(method, route, timeout = 30_000) {
   });
 }
 
+/**
+ * On Windows the hidden title bar still gets the native minimize, maximize and close buttons, drawn over the top right
+ * of the page (the renderer recolors them to match its theme). macOS keeps its traffic lights.
+ */
+function windowControls(height) {
+  return process.platform === "win32" ? { titleBarOverlay: { color: "#1c1c1f", symbolColor: "#f4f4f5", height } } : {};
+}
+
 async function createWindow(parent, options = {}) {
   const window = new BrowserWindow({
     show: options.show !== false,
@@ -220,6 +228,7 @@ async function createWindow(parent, options = {}) {
     backgroundColor: "#161618",
     titleBarStyle: "hidden",
     trafficLightPosition: { x: 16, y: 12 },
+    ...windowControls(38),
     webPreferences: {
       contextIsolation: true,
       webviewTag: true,
@@ -259,6 +268,7 @@ async function openSettingsWindow(page) {
     backgroundColor: "#161618",
     titleBarStyle: "hidden",
     trafficLightPosition: { x: 16, y: 14 },
+    ...windowControls(38),
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, "preload.cjs"),
@@ -311,6 +321,14 @@ ipcMain.on("saturn:telemetry:enabled", (event) => {
 // The renderer reads the runtime token from here (it has no filesystem access) and sends it on every request.
 ipcMain.on("saturn:runtime-token", (event) => {
   event.returnValue = runtimeToken();
+});
+
+// The renderer recolors the Windows minimize, maximize and close buttons when its theme or the surface under them changes.
+ipcMain.on("saturn:window-controls", (event, colors) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  const hex = /^#[0-9a-f]{6}$/i;
+  if (process.platform !== "win32" || !window || !hex.test(colors?.color) || !hex.test(colors?.symbolColor)) return;
+  window.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor });
 });
 
 ipcMain.on("saturn:window-focused", (event) => {

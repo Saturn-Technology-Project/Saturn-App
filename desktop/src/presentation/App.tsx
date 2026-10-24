@@ -30,12 +30,14 @@ import {
   visibleThread,
 } from "../domain/conversation";
 import type { Agent, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode, RunSummary, ContextUsage } from "../domain/model";
+import { syncWindowControls } from "../infrastructure/window-controls";
 
 const isElectron =
   typeof window !== "undefined" &&
   Boolean((window as unknown as { process?: { type?: string } }).process?.type || window.navigator.userAgent.includes("Electron"));
 const isMac = typeof window !== "undefined" && navigator.userAgent.toLowerCase().includes("mac");
 const isElectronMac = isElectron && isMac;
+const isElectronWindows = isElectron && typeof window !== "undefined" && navigator.userAgent.includes("Windows");
 
 const STARTER_PROMPTS: { title: string; badge: string; prompt: string }[] = [
   {
@@ -558,6 +560,13 @@ export function App() {
   }, [selected, selectedThreadId, liveConnected]);
 
   const agent = agents.find((item) => item.id === selected) ?? null;
+  const inspectorShown =
+    inspectorOpen && Boolean(agent) && !["agents", "automations", "customizations", "project", "group"].includes(view);
+
+  // The Windows window buttons sit over the top right: the Inspector's tab bar when it is open, else the stage's.
+  useEffect(() => {
+    syncWindowControls(inspectorShown ? "--panel" : "--stage");
+  }, [theme, inspectorShown]);
   const currentThreadKey = selectedThreadId || (selected ? `agent_${selected}` : "");
   const thread = currentThreadKey ? threads[currentThreadKey] ?? [] : [];
   const { visible, editIndex } = visibleThread(thread, editing);
@@ -1551,19 +1560,16 @@ ${skill.instructions}`);
   const layoutClass = [
     "app",
     !sidebarOpen ? "no-sidebar" : "",
-    view === "agents" || view === "automations" || view === "customizations" || view === "project" || view === "group"
-      ? ""
-      : inspectorOpen && agent
-        ? "with-inspector"
-        : "",
+    inspectorShown ? "with-inspector" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   const renderNavControls = () => (
     <>
-      <div className="titlebar-traffic-space">
-        {!isElectronMac && (
+      {/* macOS draws its own traffic lights here, and Windows its own buttons at the top right. */}
+      <div className={isElectronWindows ? "titlebar-traffic-space compact" : "titlebar-traffic-space"}>
+        {!isElectronMac && !isElectronWindows && (
           <div className="traffic-lights-preview">
             <span className="traffic-dot close" />
             <span className="traffic-dot minimize" />
