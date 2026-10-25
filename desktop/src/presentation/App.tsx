@@ -1767,12 +1767,13 @@ export function App() {
 
             <button
               type="button"
-              className="titlebar-btn"
+              className="titlebar-btn titlebar-btn-labeled"
               onClick={() => handleOpenIde()}
               title="Open Workspace in Saturn IDE"
-              aria-label="Open Workspace in Saturn IDE"
+              aria-label="Open IDE"
             >
               <IdeWindowIcon />
+              <span>Open IDE</span>
             </button>
 
             {!inspectorOpen ? (

@@ -306,6 +306,16 @@ pre {
   flex-shrink: 0;
 }
 
+.titlebar-btn.titlebar-btn-labeled {
+  width: auto;
+  max-width: none;
+  padding: 0 9px;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .titlebar-btn:hover:not(:disabled) {
   background: var(--hover);
   color: var(--fg);
