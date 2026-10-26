@@ -11,8 +11,8 @@
     "lint": "oxlint -c ../.oxlintrc.json --deny-warnings src test"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "0.3.299",
-    "@anthropic-ai/sdk": "^0.133.0",
+    "@anthropic-ai/claude-agent-sdk": "0.3.303",
+    "@anthropic-ai/sdk": "^0.135.0",
     "@google/genai": "^2.30.0",
     "@huggingface/tokenizers": "0.2.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
