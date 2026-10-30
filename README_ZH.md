@@ -591,7 +591,7 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 
 ## 授權
 
-[MIT](LICENSE) © 2026 Prism Capital LLC
+[MIT](LICENSE) © 2026 Rick Weng
 
 ### Saturn IDE 與 Microsoft 的條款
 

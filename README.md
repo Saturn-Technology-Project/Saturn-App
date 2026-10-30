@@ -592,7 +592,7 @@ How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); e
 
 ## License
 
-[MIT](LICENSE) © 2026 Prism Capital LLC
+[MIT](LICENSE) © 2026 Rick Weng
 
 ### Saturn IDE and Microsoft's terms
 
