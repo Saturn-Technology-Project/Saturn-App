@@ -428,7 +428,7 @@ Saturn ships about a thousand open-source packages, Electron, a Code-OSS fork an
 
 - **Dependabot** opens a security update as soon as an advisory is published, and grouped version updates weekly, only for releases that have been public for seven days, which is when compromised or broken versions are usually caught and pulled.
 - **The [Supply chain workflow](.github/workflows/supply-chain.yml)** runs on every change and weekly: lock files, registry signatures, and `npm audit` at high severity for everything that ships.
-- **Electron** is the same version in the desktop app and Saturn IDE (43.7.7), one that still receives Electron security fixes, and moves with upstream Code-OSS.
+- **Electron** is the same version in the desktop app and Saturn IDE (43.8.3), one that still receives Electron security fixes, and moves with upstream Code-OSS.
 
 **What ships, and who can ship it**
 

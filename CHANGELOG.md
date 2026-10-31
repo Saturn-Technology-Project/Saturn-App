@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Security
 
+- **Electron 43.8.3 in the app and Saturn IDE** (from 43.7.7), which stops trusting the compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9). Saturn IDE is now based on VS Code 1.144.0.
 - **Saturn IDE's Markdown preview and Mermaid diagrams use DOMPurify 3.4.17**, which closes sanitizer bypasses (one critical) that a crafted Markdown file could use to run script in the preview. The IDE's HTTP client (undici 7.30.1) and validation library (zod 4.6.7) are also patched.
 
 ### Added

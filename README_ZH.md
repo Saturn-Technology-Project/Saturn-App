@@ -427,7 +427,7 @@ Saturn 內含約一千個開源套件、Electron、一個 Code-OSS 分支與一�
 
 - **Dependabot** 在安全公告發佈時立即開出安全更新，並每週開出分組的版本更新，且只針對已公開七天的版本，遭入侵或有問題的版本通常在這段期間被發現並下架。
 - **[Supply chain workflow](.github/workflows/supply-chain.yml)** 在每次變更與每週執行：檢查 lock 檔、registry 簽章，以及對所有出貨內容執行 high 等級的 `npm audit`。
-- **Electron** 在桌面應用程式與 Saturn IDE 使用同一版本（43.7.7），仍在 Electron 的安全修補支援範圍內，並隨上游 Code-OSS 更新。
+- **Electron** 在桌面應用程式與 Saturn IDE 使用同一版本（43.8.3），仍在 Electron 的安全修補支援範圍內，並隨上游 Code-OSS 更新。
 
 **出貨的內容與發佈權限**
 
