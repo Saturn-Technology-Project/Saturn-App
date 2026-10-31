@@ -36,9 +36,9 @@ const DEV_ONLY = {
 const SHIPS_ANYWAY = new Set(["electron"]);
 
 function lockFiles() {
-  const patterns = [":(glob)**/package-lock.json", ":(glob)**/Cargo.lock", ":(glob)**/requirements*.txt"];
+  const patterns = [":(glob)**/package-lock.json", ":(glob)**/Cargo.lock", ":(glob)**/requirements*.txt", ":(glob)**/pyproject.toml"];
   const files = execFileSync("git", ["ls-files", "--", ...patterns], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }).split("\n");
-  return files.filter((file) => /(^|\/)(package-lock\.json|Cargo\.lock|requirements[^/]*\.txt)$/.test(file));
+  return files.filter((file) => /(^|\/)(package-lock\.json|Cargo\.lock|requirements[^/]*\.txt|pyproject\.toml)$/.test(file));
 }
 
 /** Each locked package as { ecosystem, name, version, dev }. */
@@ -51,9 +51,11 @@ function packages(file) {
     });
   }
   if (file.endsWith("Cargo.lock")) {
-    return [...text.matchAll(/\[\[package\]\]\nname = "([^"]+)"\nversion = "([^"]+)"\nsource = "registry/g)].map((m) => ({ ecosystem: "crates.io", name: m[1], version: m[2], dev: false }));
+    // Crates from git count too: OSV matches them by name and version, as osv-scanner does.
+    return [...text.matchAll(/\[\[package\]\]\nname = "([^"]+)"\nversion = "([^"]+)"\nsource = /g)].map((m) => ({ ecosystem: "crates.io", name: m[1], version: m[2], dev: false }));
   }
-  return [...text.matchAll(/^([A-Za-z0-9_.-]+)==([^\s;#]+)/gm)].map((m) => ({ ecosystem: "PyPI", name: m[1], version: m[2], dev: true }));
+  // Python requirements and pyproject dependencies: a range is checked at its lowest version, as osv-scanner does.
+  return [...text.matchAll(/^\s*"?([A-Za-z0-9_.-]+)\s*(?:==|>=|~=)\s*([0-9][^\s;#",\]]*)/gm)].map((m) => ({ ecosystem: "PyPI", name: m[1], version: m[2], dev: true }));
 }
 
 /** OSV advisory ids for each "ecosystem name version", from the querybatch API. */
