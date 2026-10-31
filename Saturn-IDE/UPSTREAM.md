@@ -55,6 +55,10 @@ Compared with the base, outside `extensions/saturn/`: 50 files, all edits or add
 **Security fixes ahead of upstream** (drop them when upstream ships the same versions)
 - `package-lock.json`, `remote/package-lock.json`: shell-quote 1.12.0 (GHSA-pqg4-j6r4-53mv).
 - `extensions/markdown-language-features/package-lock.json`, `extensions/extension-editing/package-lock.json`: markdown-it 14.3.3 (GHSA-gfr2-rv44-r23c).
+- `extensions/markdown-language-features/package-lock.json`, `extensions/mermaid-markdown-features/package-lock.json`: DOMPurify 3.4.17 (GHSA-cg2g-xh64-v4q7, GHSA-mrv2-3pqr-j5jr).
+- `package-lock.json`, `remote/package-lock.json`: undici 7.30.1, zod 4.6.7 (GHSA-mrhx-c7xc-m3w5), ip-address 10.7.5.
+- `package.json`, `remote/package.json`: an `overrides` entry gives `@github/copilot-sdk` the same patched zod instead of its pinned 4.3.6.
+- `extensions/mermaid-markdown-features`, `extensions/markdown-math`, `remote/web` lock files: KaTeX 0.16.47 and postcss-selector-parser, the newest releases the manifests allow.
 
 **Tests**
 - `test/smoke/smoke.mjs`, `diff.test.mjs`, `webview.test.mjs`, `rebrand.test.mjs` (new): Saturn's smoke test and panel checks.

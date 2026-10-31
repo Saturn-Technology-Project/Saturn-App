@@ -4,6 +4,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+### Security
+
+- **Saturn IDE's Markdown preview and Mermaid diagrams use DOMPurify 3.4.17**, which closes sanitizer bypasses (one critical) that a crafted Markdown file could use to run script in the preview. The IDE's HTTP client (undici 7.30.1) and validation library (zod 4.6.7) are also patched.
+
 ### Added
 
 - **Other agents can operate Saturn.** Every button, chat, agent and dialog now has a role and a name in the accessibility tree, and the sidebar works from the keyboard, so a computer-use agent such as agent-desktop or Claude computer use can find and click them by name. See [Driving Saturn with another agent](README.md#driving-saturn-with-another-agent).

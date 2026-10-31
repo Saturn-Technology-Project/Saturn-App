@@ -61,7 +61,10 @@
       "node-addon-api": "7.1.0"
     },
     "koffi": "3.2.1",
-    "yauzl": "^3.3.1"
+    "yauzl": "^3.3.1",
+    "@github/copilot-sdk": {
+      "zod": "^4.6.6"
+    }
   },
   "allowScripts": {
     "kerberos@2.1.1": true,

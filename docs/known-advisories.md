@@ -10,6 +10,8 @@ Security advisories that affect a dependency Saturn carries, have been reviewed,
 |---|---|---|---|---|---|
 | `braces` | Saturn IDE: built-in npm and Mermaid extensions | [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) | High | No patched release exists. | A fixed release is published; Dependabot proposes it. |
 | `image-size` | Saturn IDE: built-in Emmet extension | [GHSA-w3rx-r6r6-pgpr](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr) | High | The fix is in 2.x, whose API Emmet does not use yet. The flaw is reachable only by running Emmet's *Update Image Size* on a crafted image. | Code-OSS moves Emmet to `image-size` 2.x; the [upstream sync](../.github/workflows/upstream-sync.yml) brings it in. |
+| `@azure/msal-node` | Saturn IDE: built-in Microsoft Authentication extension | [GHSA-xcx6-jx8p-x3h5](https://github.com/advisories/GHSA-xcx6-jx8p-x3h5) | High | The fix is in 7.1.0, two major versions past the 5.4 that Code-OSS uses; the extension does not call `acquireTokenByCode`, the flow the advisory names, and runs only when you sign in with a Microsoft account. | Code-OSS moves to `@azure/msal-node` 7.1 or later; the upstream sync brings it in. |
+| `zod` 3.x | Saturn IDE: `@vscode/sandbox-runtime`, inside the IDE and its remote server | [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) | High | Only zod 4.6.6 is patched and the package is built on the zod 3 API. It validates the terminal sandbox's own settings, not input from a network or a workspace file. | `@vscode/sandbox-runtime` moves to zod 4, or a zod 3 fix is published. |
 
 ## Reported but not shipped
 
@@ -38,6 +40,8 @@ An advisory goes here only after a review shows it cannot be fixed now (no patch
 |---|---|---|---|---|---|
 | `braces` | Saturn IDE：內建的 npm 與 Mermaid 擴充套件 | [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) | High | 尚無修補版本。 | 修補版本發布；Dependabot 會提出更新。 |
 | `image-size` | Saturn IDE：內建的 Emmet 擴充套件 | [GHSA-w3rx-r6r6-pgpr](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr) | High | 修正在 2.x，Emmet 尚未改用其 API。只有對惡意圖片執行 Emmet 的 *Update Image Size* 才會觸發。 | Code-OSS 將 Emmet 改用 `image-size` 2.x；[upstream sync](../.github/workflows/upstream-sync.yml) 會帶入。 |
+| `@azure/msal-node` | Saturn IDE：內建的 Microsoft Authentication 擴充套件 | [GHSA-xcx6-jx8p-x3h5](https://github.com/advisories/GHSA-xcx6-jx8p-x3h5) | High | 修正在 7.1.0，比 Code-OSS 使用的 5.4 高兩個主版本；此擴充套件不呼叫公告所指的 `acquireTokenByCode`，且只在以 Microsoft 帳號登入時執行。 | Code-OSS 改用 `@azure/msal-node` 7.1 以上；upstream sync 會帶入。 |
+| `zod` 3.x | Saturn IDE：`@vscode/sandbox-runtime`，在 IDE 與其遠端伺服器中 | [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) | High | 只有 zod 4.6.6 有修補，而此套件以 zod 3 的 API 撰寫。它只驗證終端機沙箱自己的設定，不處理來自網路或工作區檔案的輸入。 | `@vscode/sandbox-runtime` 改用 zod 4，或 zod 3 發布修補。 |
 
 ## 有回報但不會出貨
 

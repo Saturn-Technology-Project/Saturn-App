@@ -273,7 +273,10 @@
     },
     "koffi": "3.2.1",
     "serialize-javascript": "^7.0.3",
-    "yauzl": "^3.3.1"
+    "yauzl": "^3.3.1",
+    "@github/copilot-sdk": {
+      "zod": "^4.6.6"
+    }
   },
   "repository": {
     "type": "git",
