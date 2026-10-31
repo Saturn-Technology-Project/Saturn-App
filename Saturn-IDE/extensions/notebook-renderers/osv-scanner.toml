@@ -21,11 +21,6 @@ ignoreUntil = 2027-04-01
 reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
 
 [[IgnoredVulns]]
-id = "GHSA-68fv-2mgg-jv7q"
-ignoreUntil = 2027-04-01
-reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
-
-[[IgnoredVulns]]
 id = "GHSA-9fm3-97px-rjf6"
 ignoreUntil = 2027-04-01
 reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."

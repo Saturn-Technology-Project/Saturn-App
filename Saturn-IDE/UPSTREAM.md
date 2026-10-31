@@ -58,6 +58,8 @@ Compared with the base, outside `extensions/saturn/`: 50 files, all edits or add
 - `extensions/markdown-language-features/package-lock.json`, `extensions/mermaid-markdown-features/package-lock.json`: DOMPurify 3.4.17 (GHSA-cg2g-xh64-v4q7, GHSA-mrv2-3pqr-j5jr).
 - `package-lock.json`, `remote/package-lock.json`: undici 7.30.1, zod 4.6.7 (GHSA-mrhx-c7xc-m3w5), ip-address 10.7.5.
 - `package.json`, `remote/package.json`: an `overrides` entry gives `@github/copilot-sdk` the same patched zod instead of its pinned 4.3.6.
+- `package-lock.json`: follow-redirects 1.16.2 (GHSA-mrwp-f3q8-3g9p); `package.json`: an `overrides` entry gives `@microsoft/dev-tunnels-connections` uuid 11.1.1 instead of 3.4.0 (GHSA-w5hq-g745-h8pq; it only calls `v4()`).
+- `extensions/emmet/package.json`, `package-lock.json`, `src/imageSizeHelper.ts`: image-size 2.0.3 (GHSA-w3rx-r6r6-pgpr), reading files through `image-size/fromFile`.
 - `extensions/mermaid-markdown-features`, `extensions/markdown-math`, `remote/web` lock files: KaTeX 0.16.47 and postcss-selector-parser, the newest releases the manifests allow.
 
 **Supply-chain checks** (OpenSSF Scorecard)

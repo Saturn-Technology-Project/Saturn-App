@@ -56,11 +56,6 @@ ignoreUntil = 2027-04-01
 reason = "GitHub Copilot is neither installed nor packaged in Saturn IDE (build/npm/dirs.ts, excludedExtensions in build/lib/extensions.ts; see Saturn-IDE/UPSTREAM.md)."
 
 [[IgnoredVulns]]
-id = "GHSA-5r4p-p66f-jhc7"
-ignoreUntil = 2027-04-01
-reason = "GitHub Copilot is neither installed nor packaged in Saturn IDE (build/npm/dirs.ts, excludedExtensions in build/lib/extensions.ts; see Saturn-IDE/UPSTREAM.md)."
-
-[[IgnoredVulns]]
 id = "GHSA-6pq8-jhm2-2vcw"
 ignoreUntil = 2027-04-01
 reason = "GitHub Copilot is neither installed nor packaged in Saturn IDE (build/npm/dirs.ts, excludedExtensions in build/lib/extensions.ts; see Saturn-IDE/UPSTREAM.md)."

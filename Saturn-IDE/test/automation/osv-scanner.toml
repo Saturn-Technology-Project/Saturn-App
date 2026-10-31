@@ -4,8 +4,3 @@
 id = "GHSA-g3hv-75wg-m249"
 ignoreUntil = 2027-04-01
 reason = "Test harness, not part of the packaged app."
-
-[[IgnoredVulns]]
-id = "GHSA-pqg4-j6r4-53mv"
-ignoreUntil = 2027-04-01
-reason = "Test harness, not part of the packaged app."
