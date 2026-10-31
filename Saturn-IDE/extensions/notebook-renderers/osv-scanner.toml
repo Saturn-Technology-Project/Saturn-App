@@ -1,0 +1,46 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "GHSA-2m5v-pch6-74hx"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-4qv8-2p9j-2685"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-4w7w-5xrc-9h26"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-55wc-3pg8-jfw6"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-68fv-2mgg-jv7q"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-9fm3-97px-rjf6"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-f72v-6w45-q472"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-qrxm-fqhp-jwvm"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-xjj6-f33q-929c"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."

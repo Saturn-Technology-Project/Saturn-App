@@ -75,6 +75,7 @@ Dependabot opens security updates at once and grouped version updates every Mond
 3. An SDK bump fails the manifest test until you regenerate it as above.
 4. Electron is not updated by Dependabot: it follows Saturn IDE's version (`Saturn-IDE/.npmrc`, `target`), which moves with upstream Code-OSS.
 5. An advisory that cannot be fixed now (no patch yet, or the fix needs an upstream change) goes into [`docs/known-advisories.md`](docs/known-advisories.md) with the reason and what closes it, and its Dependabot alert is dismissed with a link to that file. Remove the entry in the change that ships the fix. The README links to that file, so it never needs editing for this.
+6. Advisories in code Saturn does not ship (development dependencies, test and build tooling, GitHub Copilot's sources, the IDE's Rust CLI) are waived for OSV and OpenSSF Scorecard in `osv-scanner.toml` files, each with its reason and an expiry. They are generated: after a dependency change run `node scripts/osv-waivers.mjs` and commit what it writes (`--check` reports when they are out of date). It never waives a production dependency of the runtime, the desktop app or Saturn IDE, nor Electron.
 
 ## Saturn IDE and upstream Code-OSS
 

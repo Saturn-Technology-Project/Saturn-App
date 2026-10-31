@@ -1,0 +1,141 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "GHSA-22jm-h49p-29qw"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-27r3-jxmh-p828"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-333x-w4r6-6crp"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-46jr-4wx8-v453"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-5r4p-p66f-jhc7"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-6g55-p6wh-862q"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-6pq8-jhm2-2vcw"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-6prh-2h8m-c8cw"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-6qxp-vccf-f47h"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-7fh5-64p2-3v2j"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-952p-6rrq-rcjv"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-f897-62hf-6gxq"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-fxqj-rqcc-2cmp"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-gfr2-rv44-r23c"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-grv7-fg5c-xmjg"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-m5mm-p8h7-m29v"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-qr28-fpjm-wq7f"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-qx2v-qp2m-jg93"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-r28c-9q8g-f849"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-rmxm-3fg6-px4f"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-rvq5-wwqv-78pq"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-vcc3-ghjq-m6fr"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-vfgh-jcmw-g37q"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-w74x-v6f9-j3xg"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-wjr9-j795-jxcr"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."
+
+[[IgnoredVulns]]
+id = "GHSA-xhq7-xmqj-769h"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."

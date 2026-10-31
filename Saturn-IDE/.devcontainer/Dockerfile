@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/devcontainers/typescript-node:24-bookworm
+# Saturn: pinned by digest (OpenSSF Scorecard, Pinned-Dependencies); update the digest with the tag.
+FROM mcr.microsoft.com/devcontainers/typescript-node:24-bookworm@sha256:973037be1c64ff7f0b9409ae136fd7fe83718b2af30e8872ba11ac69a422eb9b
 
 ADD install-vscode.sh /root/
 RUN /root/install-vscode.sh

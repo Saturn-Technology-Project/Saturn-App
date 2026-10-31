@@ -22,7 +22,8 @@ fi
 VSCODECRASHDIR=$ROOT/.build/crashes
 
 # Node modules
-test -d node_modules || npm i
+# Saturn: the locked versions (npm ci), not a fresh resolve.
+test -d node_modules || npm ci
 
 # Get electron
 if [[ -z "${VSCODE_SKIP_PRELAUNCH}" ]]; then

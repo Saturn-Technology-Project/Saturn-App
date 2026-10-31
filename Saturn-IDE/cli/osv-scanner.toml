@@ -1,0 +1,96 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "GHSA-8hxf-qr8p-62x4"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "GHSA-cq8v-f236-94qc"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "GHSA-m665-v7pm-7grj"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0384"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0388"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2025-0119"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0097"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0173"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0190"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0221"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0258"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0367"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0368"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0369"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0370"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0371"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0372"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0386"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0418"
+ignoreUntil = 2027-04-01
+reason = "The Rust CLI (code tunnel). Saturn builds Saturn IDE with the vscode-*-min gulp tasks, which do not build it; the app's bin/code is a shell script."

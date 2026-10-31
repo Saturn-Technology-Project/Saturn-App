@@ -1,0 +1,6 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-04-01
+reason = "A development dependency of the desktop app (build and dev tooling such as electron-builder, Vite and wait-on); electron-builder packages production dependencies only."

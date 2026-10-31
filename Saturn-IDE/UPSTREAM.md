@@ -60,6 +60,10 @@ Compared with the base, outside `extensions/saturn/`: 50 files, all edits or add
 - `package.json`, `remote/package.json`: an `overrides` entry gives `@github/copilot-sdk` the same patched zod instead of its pinned 4.3.6.
 - `extensions/mermaid-markdown-features`, `extensions/markdown-math`, `remote/web` lock files: KaTeX 0.16.47 and postcss-selector-parser, the newest releases the manifests allow.
 
+**Supply-chain checks** (OpenSSF Scorecard)
+- `.devcontainer/Dockerfile`: the base image pinned by digest. `.devcontainer/post-create.sh`, `scripts/test.sh`: `npm ci` instead of `npm i`.
+- `osv-scanner.toml` (new, next to lock files): advisories in code Saturn IDE does not ship, with the reason for each. Written by `scripts/osv-waivers.mjs` at the repository root; rerun it rather than editing them.
+
 **Tests**
 - `test/smoke/smoke.mjs`, `diff.test.mjs`, `webview.test.mjs`, `rebrand.test.mjs` (new): Saturn's smoke test and panel checks.
 

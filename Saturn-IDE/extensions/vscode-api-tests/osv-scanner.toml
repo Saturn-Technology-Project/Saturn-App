@@ -1,0 +1,61 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "GHSA-4487-j8r4-4g2f"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-4642-5mcj-2rqw"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-525v-9gp9-w22h"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-5cwg-6vw7-rj6p"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-5x38-2vff-x55p"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-6wvx-3r32-xmcg"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-7wch-p9px-956x"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-86w9-cpqp-85rv"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-8hrf-8g6f-7xwp"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-h6cr-wjv9-3cpp"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-hqq3-7jhf-c5jx"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."
+
+[[IgnoredVulns]]
+id = "GHSA-jc66-7q78-782g"
+ignoreUntil = 2027-04-01
+reason = "A test extension, excluded from the package (excludedExtensions in build/lib/extensions.ts)."

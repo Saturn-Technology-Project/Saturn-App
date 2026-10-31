@@ -1,0 +1,6 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "GHSA-mrhx-c7xc-m3w5"
+ignoreUntil = 2027-04-01
+reason = "A development dependency only (build and test tooling); the packaged app contains production dependencies only (build/lib/dependencies.ts runs npm ls --omit=dev)."

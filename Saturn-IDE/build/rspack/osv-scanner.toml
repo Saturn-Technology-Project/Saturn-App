@@ -1,0 +1,31 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "GHSA-333x-w4r6-6crp"
+ignoreUntil = 2027-04-01
+reason = "Code-OSS build tooling: it runs on the build machine and is not part of the packaged app."
+
+[[IgnoredVulns]]
+id = "GHSA-68fv-2mgg-jv7q"
+ignoreUntil = 2027-04-01
+reason = "Code-OSS build tooling: it runs on the build machine and is not part of the packaged app."
+
+[[IgnoredVulns]]
+id = "GHSA-mrhx-c7xc-m3w5"
+ignoreUntil = 2027-04-01
+reason = "Code-OSS build tooling: it runs on the build machine and is not part of the packaged app."
+
+[[IgnoredVulns]]
+id = "GHSA-w74x-v6f9-j3xg"
+ignoreUntil = 2027-04-01
+reason = "Code-OSS build tooling: it runs on the build machine and is not part of the packaged app."
+
+[[IgnoredVulns]]
+id = "GHSA-wjr9-j795-jxcr"
+ignoreUntil = 2027-04-01
+reason = "Code-OSS build tooling: it runs on the build machine and is not part of the packaged app."
+
+[[IgnoredVulns]]
+id = "GHSA-xhq7-xmqj-769h"
+ignoreUntil = 2027-04-01
+reason = "Code-OSS build tooling: it runs on the build machine and is not part of the packaged app."

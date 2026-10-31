@@ -1,0 +1,11 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "GHSA-rmvr-2pp2-xj38"
+ignoreUntil = 2027-04-01
+reason = "A helper extension for developing Code-OSS itself, not part of the packaged app."
+
+[[IgnoredVulns]]
+id = "GHSA-xx4v-prfh-6cgc"
+ignoreUntil = 2027-04-01
+reason = "A helper extension for developing Code-OSS itself, not part of the packaged app."

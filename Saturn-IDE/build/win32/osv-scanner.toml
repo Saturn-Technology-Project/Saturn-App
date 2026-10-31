@@ -1,0 +1,6 @@
+# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0190"
+ignoreUntil = 2027-04-01
+reason = "Code-OSS build tooling: it runs on the build machine and is not part of the packaged app."
