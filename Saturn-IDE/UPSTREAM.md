@@ -7,8 +7,8 @@ Everything else is upstream's, byte for byte, so each VS Code release can be mer
 
 | | |
 |---|---|
-| Upstream commit | [`cd759971726f26f5796ffa83f12a772aeac2d69e`](https://github.com/microsoft/vscode/commit/cd759971726f26f5796ffa83f12a772aeac2d69e) |
-| Version | 1.143.0 |
+| Upstream commit | [`2c33b50b16c472efe58357d1d2a8a5414bc23fbf`](https://github.com/microsoft/vscode/commit/2c33b50b16c472efe58357d1d2a8a5414bc23fbf) |
+| Version | 1.144.0 |
 | In this repository | `f6e8069f` ("Saturn IDE base"): the upstream tree as its own root commit, merged under `Saturn-IDE/` by `e2f86b13` |
 
 The sync workflow updates this table when it merges a new release.
@@ -44,7 +44,7 @@ Compared with the base, outside `extensions/saturn/`: 50 files, all edits or add
 
 **Code-OSS's AI features off, Saturn's on**
 - `src/vs/platform/agentHost/node/agentHostMain.ts`, `agentHostServerMain.ts`, `claude/claudeAgent.ts`, `claude/claudeSdkOptions.ts`, `common/claudeSessionConfigKeys.ts`: the agent host registers no Copilot agent and does not look for bundled CLIs.
-- `src/vs/workbench/contrib/chat/browser/chatParticipant.contribution.ts`, `chat.shared.contribution.ts`, `agentSessions/agentSessions.ts`, `src/vs/sessions/contrib/sessions/browser/views/sessionsListFilters.ts`: Copilot's chat panel is not the default side panel; harness labels.
+- `src/vs/workbench/contrib/chat/browser/chatParticipant.contribution.ts`, `chat.shared.contribution.ts`, `agentSessions/agentSessions.ts`, `src/vs/sessions/contrib/sessions/browser/views/sessionsListFilters.ts` and its test: Copilot's chat panel is not the default side panel; harness labels.
 
 **Interface**
 - `src/vs/workbench/contrib/saturn/browser/saturn.contribution.ts` and `media/saturn.css` (new), imported from `src/vs/workbench/workbench.common.main.ts`: Saturn's theme and layout.
