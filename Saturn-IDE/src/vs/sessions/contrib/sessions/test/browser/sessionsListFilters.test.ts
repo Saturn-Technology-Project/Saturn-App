@@ -20,10 +20,10 @@ suite('SessionsListFilters', () => {
 		return store.add(new SessionsListFilters(storage, store.add(new NullLogService())));
 	}
 
-	test('always offers the three harnesses, This Computer and Cloud, and their VS Code application choices', () => {
+	// Saturn: two harnesses, Claude Code and Codex (see sessionsListFilters.ts).
+	test('always offers the harnesses, This Computer and Cloud, and their VS Code application choices', () => {
 		assert.deepStrictEqual(getSessionFilterOptions([], []), [
-			{ filter: { kind: 'harness', id: 'copilot' }, label: 'Copilot', group: '1_harnesses' },
-			{ filter: { kind: 'harness', id: 'claude' }, label: 'Claude', group: '1_harnesses' },
+			{ filter: { kind: 'harness', id: 'claude' }, label: 'Claude Code', group: '1_harnesses' },
 			{ filter: { kind: 'harness', id: 'codex' }, label: 'Codex', group: '1_harnesses' },
 			{ filter: { kind: 'environment', id: 'local' }, label: 'This Computer', group: '2_environments' },
 			{ filter: { kind: 'environment', id: 'cloud' }, label: 'Cloud', group: '2_environments' },

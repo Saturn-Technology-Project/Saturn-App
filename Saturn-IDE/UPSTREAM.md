@@ -44,7 +44,7 @@ Compared with the base, outside `extensions/saturn/`: 50 files, all edits or add
 
 **Code-OSS's AI features off, Saturn's on**
 - `src/vs/platform/agentHost/node/agentHostMain.ts`, `agentHostServerMain.ts`, `claude/claudeAgent.ts`, `claude/claudeSdkOptions.ts`, `common/claudeSessionConfigKeys.ts`: the agent host registers no Copilot agent and does not look for bundled CLIs.
-- `src/vs/workbench/contrib/chat/browser/chatParticipant.contribution.ts`, `chat.shared.contribution.ts`, `agentSessions/agentSessions.ts`, `src/vs/sessions/contrib/sessions/browser/views/sessionsListFilters.ts`: Copilot's chat panel is not the default side panel; harness labels.
+- `src/vs/workbench/contrib/chat/browser/chatParticipant.contribution.ts`, `chat.shared.contribution.ts`, `agentSessions/agentSessions.ts`, `src/vs/sessions/contrib/sessions/browser/views/sessionsListFilters.ts` and its test: Copilot's chat panel is not the default side panel; harness labels.
 
 **Interface**
 - `src/vs/workbench/contrib/saturn/browser/saturn.contribution.ts` and `media/saturn.css` (new), imported from `src/vs/workbench/workbench.common.main.ts`: Saturn's theme and layout.

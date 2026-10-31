@@ -26,13 +26,6 @@ export function sessionFilterKey(filter: SessionFilter): string {
 	return JSON.stringify(filter.kind === 'application' ? [filter.kind, filter.environment, filter.id] : [filter.kind, filter.id]);
 }
 
-<<<<<<< 9c3119789b24f4cb4de330017040dc077a4dffa7
-export function getSessionFilterOptions(sessions: readonly ISession[], environments: readonly ISessionEnvironment[], reader?: IReader): ISessionFilterOption[] {
-	const options: ISessionFilterOption[] = [
-		{ filter: { kind: 'harness', id: 'claude' }, label: localize('harness.claude', "Claude Code"), group: '1_harnesses' },
-		{ filter: { kind: 'harness', id: 'codex' }, label: localize('harness.codex', "Codex"), group: '1_harnesses' },
-	];
-=======
 /** Orders environments as the Environment filter lists them: this computer, the cloud, then remote hosts by name. */
 export function compareSessionEnvironments(a: ISessionEnvironment, b: ISessionEnvironment): number {
 	const rank = (id: string) => id === 'local' ? 0 : id === 'cloud' ? 1 : 2;
@@ -52,7 +45,6 @@ export interface ISessionsListResettableState {
 }
 
 export function getSessionEnvironments(environments: readonly ISessionEnvironment[]): ISessionEnvironment[] {
->>>>>>> refs/tags/vscode-1.144.0
 	const byId = new Map<string, ISessionEnvironment>([
 		['local', { id: 'local', label: localize('environment.local', "This Computer") }],
 		['cloud', { id: 'cloud', label: localize('environment.cloud', "Cloud") }],
@@ -65,8 +57,8 @@ export function getSessionEnvironments(environments: readonly ISessionEnvironmen
 
 export function getSessionFilterOptions(sessions: readonly ISession[], environments: readonly ISessionEnvironment[], reader?: IReader): ISessionFilterOption[] {
 	const options: ISessionFilterOption[] = [
-		{ filter: { kind: 'harness', id: 'copilot' }, label: localize('harness.copilot', "Copilot"), group: '1_harnesses' },
-		{ filter: { kind: 'harness', id: 'claude' }, label: localize('harness.claude', "Claude"), group: '1_harnesses' },
+		// Saturn: no Copilot harness, and Claude means Claude Code.
+		{ filter: { kind: 'harness', id: 'claude' }, label: localize('harness.claude', "Claude Code"), group: '1_harnesses' },
 		{ filter: { kind: 'harness', id: 'codex' }, label: localize('harness.codex', "Codex"), group: '1_harnesses' },
 	];
 	const ordered = getSessionEnvironments(environments);
