@@ -1,6 +1,0 @@
-# Written by scripts/osv-waivers.mjs; rerun it after dependency updates.
-
-[[IgnoredVulns]]
-id = "GHSA-68fv-2mgg-jv7q"
-ignoreUntil = 2027-04-01
-reason = "Test harness, not part of the packaged app."
