@@ -297,7 +297,7 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
   return (
     <>
       <div className="telemetry-toolbar">
-        <input placeholder="Filter by span name or trace id…" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <input aria-label="Filter traces" placeholder="Filter by span name or trace id…" value={query} onChange={(event) => setQuery(event.target.value)} />
         <label className="telemetry-check">
           <input type="checkbox" checked={hideRoutine} onChange={(event) => setHideRoutine(event.target.checked)} />
           Hide polling ({routine})

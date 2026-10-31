@@ -18,6 +18,7 @@ import { RunImages } from "./RunImages";
 import { ContextPicker } from "./ContextPicker";
 import { SlashMenu } from "./SlashMenu";
 import { PullRequestBar } from "./PullRequestBar";
+import { activateOnKey } from "./keyboard";
 import { BUILTIN_COMMANDS, hiddenContext, parseSlash, type SlashEntry } from "../domain/slash";
 import { AgentsBoard } from "./AgentsBoard";
 import { InteractivePlan } from "./InteractivePlan";
@@ -1840,6 +1841,10 @@ ${skill.instructions}`);
                                       <div
                                         key={conv.id}
                                         className={active ? "agent-thread-item active" : "agent-thread-item"}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-current={active ? "page" : undefined}
+                                        onKeyDown={activateOnKey}
                                         onClick={() => openProjectChat(proj, conv)}
                                         title={agentName ? `${conv.title} · ${agentName}` : conv.title}
                                       >
@@ -1901,6 +1906,10 @@ ${skill.instructions}`);
                   <div key={item.id} className="agent-folder">
                     <div
                       className={isAgentSelected ? "agent-folder-header active" : "agent-folder-header"}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isOpen}
+                      onKeyDown={activateOnKey}
                       draggable
                       title="Drag onto a group to add this agent"
                       onDragStart={(event) => {
@@ -1914,6 +1923,7 @@ ${skill.instructions}`);
                     >
                       <span
                         className={isOpen ? "agent-folder-chevron open" : "agent-folder-chevron"}
+                        aria-hidden="true"
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpenFolders((prev) => ({ ...prev, [item.id]: !isOpen }));
@@ -1968,6 +1978,10 @@ ${skill.instructions}`);
                             <div
                               key={conv.id}
                               className={isConvActive ? "agent-thread-item active" : "agent-thread-item"}
+                              role="button"
+                              tabIndex={0}
+                              aria-current={isConvActive ? "page" : undefined}
+                              onKeyDown={activateOnKey}
                               onClick={() => {
                                 setSelected(item.id);
                                 setSelectedThreadId(conv.id);
@@ -2636,6 +2650,7 @@ ${skill.instructions}`);
                       <button
                         type="button"
                         className={pendingContext.length ? "composer-pill-btn on" : "composer-pill-btn"}
+                  aria-label="Attach context"
                         title={currentConversation?.projectId ? "Attach files, a folder, git changes, the terminal or a web page (@)" : "Start a chat in a project to attach its files"}
                         disabled={!agent || !currentConversation?.projectId}
                         onClick={() => setContextOpen((open) => !open)}
@@ -2695,6 +2710,7 @@ ${skill.instructions}`);
                     <button
                       type="button"
                       className="composer-pill-btn"
+                      aria-label="Run in the background"
                       title={agent ? "Run in the background: a new chat (on its own branch in a project) so you can keep working here; you are told when it finishes." : "Choose an agent first"}
                       disabled={!agent || editing !== null || !task.trim()}
                       onClick={() => {
@@ -2836,7 +2852,7 @@ ${skill.instructions}`);
       {/* ─── Antigravity Command / Search Palette ─── */}
       {searchOpen ? (
         <div className="command-palette-backdrop" onClick={() => setSearchOpen(false)}>
-          <div className="command-palette" onClick={(e) => e.stopPropagation()}>
+          <div className="command-palette" role="dialog" aria-modal="true" aria-label="Search" onClick={(e) => e.stopPropagation()}>
             <div className="command-palette-head">
               <SearchIcon />
               <input
@@ -2888,6 +2904,9 @@ ${skill.instructions}`);
         <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && !prDraft.busy && setPrDraft(null)}>
           <form
             className="modal-dialog pr-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Open a pull request"
             onSubmit={(event) => {
               event.preventDefault();
               const draft = prDraft;
@@ -2917,7 +2936,7 @@ ${skill.instructions}`);
       ) : null}
       {conflict ? (
         <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && setConflict(null)}>
-          <div className="modal-dialog">
+          <div className="modal-dialog" role="dialog" aria-modal="true" aria-label="Merge conflicts">
             <div className="modal-header"><h3>Merge conflicts</h3></div>
             <div className="modal-body">
               <p className="hint">Merging {conflict.branch} into {conflict.base} conflicts in {conflict.files.length} file{conflict.files.length === 1 ? "" : "s"}; the merge was undone and the branch kept:</p>

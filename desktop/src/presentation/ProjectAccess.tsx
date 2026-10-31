@@ -172,6 +172,7 @@ export function EditWorkspaceDialog(props: {
           <input
             type="text"
             className="workspace-input"
+            aria-label="Workspace name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Workspace name"
@@ -195,6 +196,7 @@ export function EditWorkspaceDialog(props: {
                     type="button"
                     className="workspace-folder-remove"
                     title="Remove folder"
+                    aria-label="Remove folder"
                     onClick={() => setFolders((prev) => prev.filter((_, i) => i !== idx))}
                   >
                     <TrashIcon />

@@ -10,6 +10,7 @@ import {
 import type { Run, RunAction, RunThought } from "../domain/model";
 import { desktop } from "../application/desktop";
 import { RecordingPlayer } from "./RecordingPlayer";
+import { activateOnKey } from "./keyboard";
 import { SCOPE_CHOICES } from "./Permissions";
 import { suggestedPattern } from "../domain/permissions";
 import type { PermissionScope } from "../domain/model";
@@ -264,6 +265,10 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
         <div className="step-screenshot-container">
           <div
             className="step-screenshot-wrap"
+            role="button"
+            tabIndex={0}
+            aria-label="View full screenshot"
+            onKeyDown={activateOnKey}
             onClick={() => setModalOpen(true)}
             title="Click to view full screenshot"
           >
@@ -280,7 +285,7 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
 
       {modalOpen && screenshotImg ? (
         <div className="screenshot-lightbox" onClick={() => setModalOpen(false)}>
-          <div className="screenshot-lightbox-content" onClick={(e) => e.stopPropagation()}>
+          <div className="screenshot-lightbox-content" role="dialog" aria-modal="true" aria-label="Screenshot" onClick={(e) => e.stopPropagation()}>
             <img src={screenshotImg} alt="Screenshot full view" />
             <button
               type="button"

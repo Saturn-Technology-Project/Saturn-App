@@ -478,6 +478,13 @@ Windows 不需要任何權限。所有動作由單一輔助程序處理（Window
 - 鎖定畫面或 UAC 提示（安全桌面）顯示時，什麼都看不到也點不到；Agent 會回報狀況而不執行操作。
 - [Windows 電腦操作 workflow](.github/workflows/computer-use-windows.yml) 會在每次變更時，於真實的 Windows 桌面上操作記事本。
 
+### 讓其他 Agent 操作 Saturn
+
+Saturn 本身也可以被電腦操作 Agent 操控，例如 [agent-desktop](https://github.com/vercel-labs/agent-desktop) 或 Claude computer use。視窗中每個控制項在輔助使用樹裡都有角色與名稱：圖示按鈕都有標籤，側邊欄的對話與 Agent 是可以用 Enter 和空白鍵觸發的按鈕，對話框以標題命名。Agent 因此能依名稱找到「New Agent」、「Settings」或某個對話，而不是靠像素。
+
+- **正在執行的 Saturn**：透過輔助使用樹操作，例如 `agent-desktop snapshot --app Saturn`。
+- **更快地操作網頁內容**：先結束 Saturn，再以 `agent-desktop launch Saturn --cdp` 啟動，它會在 127.0.0.1 開一個 DevTools 連接埠，讓 [agent-browser](https://agent-browser.dev) 連上。連接埠開著時，你帳號下的任何本機程序都能控制這個 App，所以只在需要的步驟使用，用完就結束 Saturn。
+
 ## 設定
 
 | 變數 | 預設值 | 用途 |

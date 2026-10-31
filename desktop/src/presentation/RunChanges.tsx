@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../application/desktop";
 import type { FileChange, Run, RunChanges } from "../domain/model";
+import { activateOnKey } from "./keyboard";
 
 /** Sent after any revert or restore, so every card (chat and Changes tab) reloads its files. */
 const CHANGED_EVENT = "saturn:run-changes";
@@ -208,6 +209,10 @@ export function DiffBlock(props: { diff: string; truncated?: boolean; comments?:
             <div
               className={`diff-line ${kind}${commentable ? " commentable" : ""}${comment ? " commented" : ""}`}
               title={commentable && !open ? "Click to comment on this line" : undefined}
+              role={commentable ? "button" : undefined}
+              tabIndex={commentable ? 0 : undefined}
+              aria-expanded={commentable ? open : undefined}
+              onKeyDown={commentable ? activateOnKey : undefined}
               onClick={commentable ? () => setCommenting((current) => (current === index ? null : index)) : undefined}
             >
               {line || " "}
@@ -217,6 +222,7 @@ export function DiffBlock(props: { diff: string; truncated?: boolean; comments?:
                 <input
                   className="input tiny"
                   autoFocus={commenting === index}
+                  aria-label="Comment for the agent"
                   placeholder="Comment for the agent…"
                   value={comment ?? ""}
                   onChange={(event) => props.onCommentChange?.(index, event.target.value)}

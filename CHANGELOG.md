@@ -2,6 +2,12 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **Other agents can operate Saturn.** Every button, chat, agent and dialog now has a role and a name in the accessibility tree, and the sidebar works from the keyboard, so a computer-use agent such as agent-desktop or Claude computer use can find and click them by name. See [Driving Saturn with another agent](README.md#driving-saturn-with-another-agent).
+
 ## 0.3.1 (2026-10-22)
 
 ### Security

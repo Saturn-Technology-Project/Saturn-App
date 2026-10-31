@@ -479,6 +479,13 @@ Windows asks for no permission. A single helper process (Windows PowerShell runn
 - Nothing can be seen or clicked while the lock screen or a UAC prompt (the secure desktop) is showing; agents report it rather than act.
 - The [Windows computer use workflow](.github/workflows/computer-use-windows.yml) drives Notepad on a real Windows desktop for every change.
 
+### Driving Saturn with another agent
+
+Saturn can itself be operated by a computer-use agent such as [agent-desktop](https://github.com/vercel-labs/agent-desktop) or Claude computer use. Every control in the window has a role and a name in the accessibility tree: icon buttons are labelled, chats and agents in the sidebar are buttons that answer Enter and Space, and modals are dialogs named after their title. An agent can therefore find "New Agent", "Settings" or a chat by name instead of by pixels.
+
+- **A running Saturn**: drive it through the accessibility tree, for example `agent-desktop snapshot --app Saturn`.
+- **The web contents, faster**: quit Saturn, then `agent-desktop launch Saturn --cdp` starts it with a DevTools port on 127.0.0.1 that [agent-browser](https://agent-browser.dev) connects to. Any local process of your user can control the app while that port is open, so use it only for the steps that need it and quit Saturn afterwards.
+
 ## Configuration
 
 | Variable | Default | Purpose |

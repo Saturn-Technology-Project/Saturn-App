@@ -127,6 +127,7 @@ export function ConfigureMcpModal({ server, onClose, onSave, onReload }: Props) 
                 <label className="cursor-switch">
                   <input
                     type="checkbox"
+                    aria-label={tool.toolId}
                     checked={isEnabled}
                     onChange={() => toggleTool(tool.toolId)}
                   />
@@ -142,7 +143,7 @@ export function ConfigureMcpModal({ server, onClose, onSave, onReload }: Props) 
 
   return (
     <div className="modal-backdrop configure-mcp-overlay" onClick={onClose}>
-      <div className="configure-mcp-dialog" onClick={(e) => e.stopPropagation()}>
+      <div className="configure-mcp-dialog" role="dialog" aria-modal="true" aria-label={`Configure ${server.name}`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="configure-mcp-header">
           <div className="configure-mcp-title-wrap">

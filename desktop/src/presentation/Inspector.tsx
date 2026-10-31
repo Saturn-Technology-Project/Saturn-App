@@ -428,7 +428,7 @@ function BrowserView(props: {
             Agent
           </span>
           <input value={url === "about:blank" ? "" : url} readOnly aria-label="Agent browser URL" placeholder="Starting…" />
-          <button type="button" className="browser-icon-btn" onClick={() => setWatchMine(true)} title="Use your own browser here">
+          <button type="button" className="browser-icon-btn" onClick={() => setWatchMine(true)} title="Use your own browser here" aria-label="Use your own browser here">
             ⇄
           </button>
         </div>
@@ -542,6 +542,7 @@ function ManualBrowser(props: {
             disabled={historyIndex <= 0}
             onClick={goBack}
             title="Back"
+            aria-label="Back"
           >
             ←
           </button>
@@ -551,6 +552,7 @@ function ManualBrowser(props: {
             disabled={historyIndex >= history.length - 1}
             onClick={goForward}
             title="Forward"
+            aria-label="Forward"
           >
             →
           </button>
@@ -559,6 +561,7 @@ function ManualBrowser(props: {
             className="browser-icon-btn"
             onClick={() => setReloadKey((k) => k + 1)}
             title="Reload page"
+            aria-label="Reload page"
           >
             ↻
           </button>
@@ -800,6 +803,7 @@ function TerminalView(props: {
           <input
             ref={inputRef}
             className="terminal-inline-input"
+            aria-label="Terminal command"
             value={command}
             disabled={running}
             onChange={(event) => setCommand(event.target.value)}

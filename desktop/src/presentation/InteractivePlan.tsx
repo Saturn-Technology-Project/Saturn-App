@@ -46,12 +46,12 @@ export function InteractivePlan(props: { runId: string; steps: PlanStep[]; busy:
               onChange={(event) => setDraft((current) => current.map((item, at) => (at === index ? { ...item, status: event.target.checked ? "completed" : "pending" } : item)))}
             />
             {editing ? (
-              <input className="plan-step-input" value={step.step} onChange={(event) => setDraft((current) => current.map((item, at) => (at === index ? { ...item, step: event.target.value } : item)))} />
+              <input className="plan-step-input" aria-label={`Step ${index + 1}`} value={step.step} onChange={(event) => setDraft((current) => current.map((item, at) => (at === index ? { ...item, step: event.target.value } : item)))} />
             ) : (
               <span>{step.step}</span>
             )}
             {editing ? (
-              <button type="button" className="plan-remove" title="Remove step" onClick={() => setDraft((current) => current.filter((_, at) => at !== index))}>✕</button>
+              <button type="button" className="plan-remove" title="Remove step" aria-label="Remove step" onClick={() => setDraft((current) => current.filter((_, at) => at !== index))}>✕</button>
             ) : null}
           </div>
         ))}
