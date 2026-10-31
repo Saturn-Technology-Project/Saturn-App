@@ -7,8 +7,8 @@ Everything else is upstream's, byte for byte, so each VS Code release can be mer
 
 | | |
 |---|---|
-| Upstream commit | [`cd759971726f26f5796ffa83f12a772aeac2d69e`](https://github.com/microsoft/vscode/commit/cd759971726f26f5796ffa83f12a772aeac2d69e) |
-| Version | 1.143.0 |
+| Upstream commit | [`2c33b50b16c472efe58357d1d2a8a5414bc23fbf`](https://github.com/microsoft/vscode/commit/2c33b50b16c472efe58357d1d2a8a5414bc23fbf) |
+| Version | 1.144.0 |
 | In this repository | `f6e8069f` ("Saturn IDE base"): the upstream tree as its own root commit, merged under `Saturn-IDE/` by `e2f86b13` |
 
 The sync workflow updates this table when it merges a new release.
