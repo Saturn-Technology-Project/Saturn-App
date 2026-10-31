@@ -20,3 +20,6 @@ desktop/release-test/
 
 # Runtime node_modules installed for another platform (desktop: npm run stage:runtime:win)
 desktop/.staging/
+
+# A personal MV project about building Saturn (kept out of the repository)
+saturn-mv/
