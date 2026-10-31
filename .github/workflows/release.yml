@@ -279,6 +279,14 @@ jobs:
       - name: Keep the SBOM's signed attestation
         run: cp "${{ steps.attest.outputs.bundle-path }}" "dist/Saturn-${VERSION#v}-sbom.cdx.json.sigstore.json"
 
+      # Every signed provenance attestation of the release in one JSON-lines file, the name SLSA tools look for:
+      # gh attestation verify <file> --bundle Saturn-<version>.intoto.jsonl -R Saturn-Technology-Project/Saturn-App
+      - name: Provenance of the whole release
+        run: |
+          version="${VERSION#v}"
+          for bundle in dist/*.sigstore.json; do jq -c . "$bundle"; done > "dist/Saturn-$version.intoto.jsonl"
+          test -s "dist/Saturn-$version.intoto.jsonl"
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}

@@ -379,6 +379,8 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg -R Saturn-Technolo
 gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<version>-mac-arm64.sigstore.json -R Saturn-Technology-Project/Saturn-App
 ```
 
+從下一個版本起，`Saturn-<version>.intoto.jsonl` 把一次發布的所有證明放在同一個檔案（每行一份），任何一個下載檔都能用它搭配 `--bundle` 驗證。
+
 在 Windows 上，安裝程式的 Authenticode 簽章應指向 Saturn 的憑證：
 
 ```powershell

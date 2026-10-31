@@ -380,6 +380,8 @@ From 0.3.1 on, each release also carries the signed attestations themselves (`Sa
 gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<version>-mac-arm64.sigstore.json -R Saturn-Technology-Project/Saturn-App
 ```
 
+From the next release on, `Saturn-<version>.intoto.jsonl` holds all of a release's attestations in one file (one per line), and works with `--bundle` for any of its downloads.
+
 On Windows, the installer's Authenticode signature names Saturn's certificate:
 
 ```powershell
