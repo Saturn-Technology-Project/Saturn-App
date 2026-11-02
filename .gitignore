@@ -25,4 +25,4 @@ desktop/.staging/
 saturn-mv/
 
 # Rust build output
-target/
+/target/

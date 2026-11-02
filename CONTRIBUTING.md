@@ -12,6 +12,9 @@ npm run test:ide    # Saturn IDE extension checks
 node scripts/check-lockfiles.mjs
 node scripts/contract-routes.mjs --check   # the route list in contract/
 cargo fmt --all --check && cargo clippy --all-targets && cargo test && cargo deny check   # the Rust rewrite
+cargo build -p saturn-server
+SATURN_TEST_RUNTIME=ts node --test contract/*.test.mjs     # the HTTP contract, on both runtimes
+SATURN_TEST_RUNTIME=rust node --test contract/*.test.mjs
 ```
 
 - Domain code imports neither Express nor React.
