@@ -41,7 +41,6 @@ export function Onboarding(props: {
   onChanged: () => Promise<void>;
   onCreateAgent: (input: { name: string; modelConnectionId: string | null; autonomy: Autonomy }) => Promise<Agent>;
   onAddProject: (path: string) => Promise<Project>;
-  onOpenIde: (project: Project) => Promise<void>;
   /** Ends the onboarding; `first` is a message to send right away in the first agent's chat. */
   onFinish: (first?: { agentId: string; projectId?: string; text: string }) => Promise<void>;
 }) {
@@ -296,11 +295,6 @@ export function Onboarding(props: {
             ) : null}
             <div className="onboarding-actions">
               <button type="button" className="btn ghost" onClick={() => go("permissions")}>Back</button>
-              {project?.access ? (
-                <button type="button" className="btn ghost" disabled={busy} onClick={() => void attempt(() => props.onOpenIde(project), "Could not open Saturn IDE")}>
-                  Open Saturn IDE
-                </button>
-              ) : null}
               <button type="button" className="btn primary-btn" disabled={busy} onClick={() => void props.onFinish()}>Open Saturn</button>
             </div>
           </div>

@@ -46,13 +46,6 @@ export class ProjectService {
     });
   }
 
-  openInEditor(id: string): Promise<{ opened: boolean; editor?: string }> {
-    return this.runtime.request<{ opened: boolean; editor?: string }>(
-      `/projects/${encodeURIComponent(id)}/editor`,
-      { method: "POST" },
-    );
-  }
-
   openInTerminal(id: string): Promise<{ opened: boolean; cwd: string }> {
     return this.runtime.request<{ opened: boolean; cwd: string }>(
       `/projects/${encodeURIComponent(id)}/terminal`,

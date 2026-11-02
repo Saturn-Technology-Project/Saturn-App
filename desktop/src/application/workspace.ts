@@ -48,13 +48,6 @@ export class WorkspaceService {
     });
   }
 
-  openNativeEditor(cwd?: string): Promise<{ opened: boolean; cwd?: string; editor?: string }> {
-    return this.runtime.request<{ opened: boolean; cwd?: string; editor?: string }>("/workspace/editor/open", {
-      method: "POST",
-      body: JSON.stringify({ cwd }),
-    });
-  }
-
   openNativeBrowser(url: string): Promise<{ opened: boolean; url: string }> {
     return this.runtime.request<{ opened: boolean; url: string }>("/workspace/browser/open", {
       method: "POST",
