@@ -51,6 +51,13 @@ test("a request without the right token is refused", async () => {
   }
 });
 
+test("the right token gets past the check", async () => {
+  // A route the runtime has not brought over yet answers 404, so this asserts only what the check decides.
+  const response = await request({ path: "/agents", headers: { authorization: `Bearer ${token}` } });
+  assert.notEqual(response.status, 401);
+  assert.notEqual(response.status, 403);
+});
+
 test("a Host that is not loopback is refused, even with the token and on open paths", async () => {
   for (const target of ["/health", "/agents"]) {
     const response = await request({ path: target, headers: { host: "rebind.example", authorization: `Bearer ${token}` } });
@@ -58,6 +65,8 @@ test("a Host that is not loopback is refused, even with the token and on open pa
     assert.deepEqual(JSON.parse(response.body), { error: "Forbidden" });
   }
   assert.equal((await request({ path: "/health", headers: { host: `localhost:${runtime.port}` } })).status, 200);
+  // IPv6 loopback is refused too: the runtime listens on IPv4 unless told otherwise.
+  assert.equal((await request({ path: "/health", headers: { host: `[::1]:${runtime.port}` } })).status, 403);
 });
 
 test("only loopback origins are allowed across origins", async () => {
@@ -73,5 +82,14 @@ test("only loopback origins are allowed across origins", async () => {
   for (const origin of ["https://evil.example", "null", "file://"]) {
     const refused = await preflight(origin);
     assert.equal(refused.headers["access-control-allow-origin"], undefined, origin);
+  }
+});
+
+test("the bind address can be a name, not only an IP address", async () => {
+  const named = await startRuntime({ host: "localhost" });
+  try {
+    assert.deepEqual(await (await fetch(`${named.origin}/health`)).json(), { ok: true });
+  } finally {
+    await named.stop();
   }
 });

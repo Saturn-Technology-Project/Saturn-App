@@ -35,16 +35,12 @@ pub fn allowed_origin(origin: &str) -> bool {
 /// The Host must be loopback, so a page using a name that resolves to 127.0.0.1 (DNS rebinding) cannot reach us.
 pub fn loopback_host(host: &str) -> bool {
     let host = authority_host(host).to_ascii_lowercase();
-    host == "127.0.0.1" || host == "localhost" || host == "[::1]"
+    host == "127.0.0.1" || host == "localhost"
 }
 
-/// The host of `host:port`, keeping the brackets of an IPv6 address.
+/// The host of `host:port`. An IPv6 address comes out as "[", which no check accepts: the runtime listens on IPv4
+/// loopback unless told otherwise, and the TypeScript runtime refuses these the same way.
 fn authority_host(authority: &str) -> &str {
-    if authority.starts_with('[') {
-        return authority
-            .split_once(']')
-            .map_or(authority, |(host, _)| &authority[..=host.len()]);
-    }
     authority.split(':').next().unwrap_or_default()
 }
 
@@ -136,18 +132,14 @@ mod tests {
 
     #[test]
     fn hosts() {
-        for host in [
-            "127.0.0.1",
-            "127.0.0.1:4700",
-            "localhost:1",
-            "[::1]",
-            "[::1]:4700",
-        ] {
+        for host in ["127.0.0.1", "127.0.0.1:4700", "localhost:1"] {
             assert!(loopback_host(host), "{host}");
         }
         for host in [
             "rebind.example",
             "127.0.0.1.rebind.example:4700",
+            "[::1]",
+            "[::1]:4700",
             "[::2]:4700",
         ] {
             assert!(!loopback_host(host), "{host}");

@@ -4,7 +4,6 @@ mod auth;
 mod guards;
 
 use std::env;
-use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -44,10 +43,8 @@ async fn stop_requested() {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let host: IpAddr = env::var("SATURN_RUNTIME_HOST")
-        .as_deref()
-        .unwrap_or("127.0.0.1")
-        .parse()?;
+    // An address or a name, as the TypeScript runtime takes it.
+    let host = env::var("SATURN_RUNTIME_HOST").unwrap_or_else(|_| "127.0.0.1".to_owned());
     let port: u16 = env::var("SATURN_RUNTIME_PORT")
         .as_deref()
         .unwrap_or("4700")
@@ -61,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(middleware::from_fn_with_state(token, guards::authenticate))
         .layer(middleware::from_fn(guards::cors));
 
-    let listener = tokio::net::TcpListener::bind((host, port)).await?;
+    let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
     println!("Saturn Runtime listening on http://{host}:{port}");
     axum::serve(listener, app)
         .with_graceful_shutdown(stop_requested())
