@@ -1,4 +1,4 @@
-// Turns the packaged Saturn.app (electron-builder's "dir" target, with Saturn IDE inside) into the two downloads a
+// Turns the packaged Saturn.app (electron-builder's "dir" target) into the two downloads a
 // release offers: a .dmg to drag into Applications and a .zip of the same app, each with a .sha256 beside it.
 // ditto keeps the bundle's symlinks, permissions and ad-hoc signature intact; hdiutil writes an LZMA-compressed image
 // (ULMO: about 30% smaller than the default zlib, readable on macOS 10.15 and later).

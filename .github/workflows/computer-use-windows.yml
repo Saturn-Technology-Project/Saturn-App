@@ -1,7 +1,7 @@
 name: Computer use (Windows)
 
 # Drives Notepad on a real Windows desktop through Saturn's computer-use tools: screenshots, the UI Automation tree,
-# Unicode typing, shortcuts, clicks and scrolling. Runs on its own (a few minutes), without building Saturn IDE.
+# Unicode typing, shortcuts, clicks and scrolling. Runs on its own (a few minutes).
 
 on:
   push:

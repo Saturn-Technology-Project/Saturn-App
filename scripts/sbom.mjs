@@ -1,5 +1,5 @@
-// Writes one CycloneDX 1.5 SBOM for a Saturn release: the npm packages that ship in the runtime, the desktop app,
-// Saturn IDE and each of its built-in extensions (from their lock files, without installing anything), plus what
+// Writes one CycloneDX 1.5 SBOM for a Saturn release: the npm packages that ship in the runtime and the desktop app
+// (from their lock files, without installing anything), plus what
 // npm does not know about: Electron and the bundled embedding model with its pinned hashes.
 //
 //   node scripts/sbom.mjs <version> <output.cdx.json>
@@ -36,11 +36,7 @@ function npmComponents(dir) {
   return out;
 }
 
-const projects = ["runtime", "desktop", "Saturn-IDE", "Saturn-IDE/remote"];
-const extensions = path.join(root, "Saturn-IDE", "extensions");
-for (const name of readdirSync(extensions)) {
-  if (existsSync(path.join(extensions, name, "package-lock.json")) && !/test/i.test(name)) projects.push(`Saturn-IDE/extensions/${name}`);
-}
+const projects = ["runtime", "desktop"];
 
 // Claude Code and Codex are downloaded on demand, not shipped: their per-platform packages are left out.
 const notShipped = /^pkg:npm\/(%40anthropic-ai\/claude-agent-sdk-|%40openai\/codex-)(darwin|linux|win32)-/;
@@ -55,11 +51,11 @@ for (const project of projects) {
   }
 }
 
-// Electron: the desktop app and Saturn IDE run on the same version.
+// Electron: what the desktop app runs on.
 const electron = JSON.parse(readFileSync(path.join(root, "desktop", "package.json"), "utf8")).devDependencies.electron.replace(/^[^\d]*/, "");
 components.set(`pkg:npm/electron@${electron}`, {
   type: "framework", name: "electron", version: electron, purl: `pkg:npm/electron@${electron}`, "bom-ref": `pkg:npm/electron@${electron}`,
-  licenses: [{ license: { id: "MIT" } }], properties: [{ name: "saturn:project", value: "desktop" }, { name: "saturn:project", value: "Saturn-IDE" }],
+  licenses: [{ license: { id: "MIT" } }], properties: [{ name: "saturn:project", value: "desktop" }],
 });
 
 // The embedding model, pinned by sha256 in desktop/scripts/fetch-embedding-model.mjs.

@@ -82,11 +82,6 @@ function startRuntime() {
     // Electron's fs treats .asar files as folders; the runtime copies and deletes bundles that contain them.
     env.ELECTRON_NO_ASAR = "1";
   }
-  // The bundled Saturn IDE (see scripts/bundle-ide.cjs): an app bundle on macOS, a folder with the executable
-  // elsewhere. In development the runtime finds the local build.
-  const ide = path.join(process.resourcesPath, process.platform === "darwin" ? "Saturn IDE.app" : "Saturn IDE");
-  const ideBinary = process.platform === "darwin" ? ide : path.join(ide, process.platform === "win32" ? "Saturn IDE.exe" : "saturn-ide");
-  if (packaged && !env.SATURN_IDE_APP && fs.existsSync(ideBinary)) env.SATURN_IDE_APP = ide;
   ownsRuntime = true;
   runtime = spawn(command, args, { cwd: root, stdio: "inherit", env });
   runtime.on("error", (error) => {
@@ -176,7 +171,6 @@ function serveUi() {
 }
 
 let mainWindow = null;
-let startedUp = false;
 
 /** The runtime's session token, from the 0600 token file in the data dir it uses (default ~/.saturn-app). */
 function runtimeToken() {
@@ -186,28 +180,6 @@ function runtimeToken() {
   } catch {
     return "";
   }
-}
-
-/** GET/POST against the local runtime from the main process; resolves undefined when it does not answer. */
-function runtimeRequest(method, route, timeout = 30_000) {
-  const token = runtimeToken();
-  const headers = token ? { authorization: `Bearer ${token}` } : {};
-  return new Promise((resolve) => {
-    const req = http.request({ host: HOST, port: PORT, path: route, method, timeout, headers }, (res) => {
-      let body = "";
-      res.on("data", (chunk) => (body += chunk));
-      res.on("end", () => {
-        try {
-          resolve(res.statusCode && res.statusCode < 400 ? JSON.parse(body || "null") : undefined);
-        } catch {
-          resolve(undefined);
-        }
-      });
-    });
-    req.on("error", () => resolve(undefined));
-    req.on("timeout", () => req.destroy());
-    req.end();
-  });
 }
 
 /**
@@ -242,75 +214,6 @@ async function createWindow(parent, options = {}) {
   await traced("desktop.load_window", parent, async () => {
     await window.loadURL(await rendererUrl());
   });
-}
-
-let settingsWindow = null;
-
-/**
- * Settings in a window of its own, without the Agent App: what Saturn IDE's "Saturn Settings" opens
- * (saturn://settings). A second request brings the same window forward.
- */
-async function openSettingsWindow(page) {
-  const hash = page ? `#settings/${page}` : "#settings";
-  if (settingsWindow) {
-    if (page) await settingsWindow.loadURL(`${await rendererUrl()}${hash}`);
-    settingsWindow.show();
-    settingsWindow.focus();
-    return;
-  }
-  const window = new BrowserWindow({
-    show: false,
-    width: 980,
-    height: 700,
-    minWidth: 760,
-    minHeight: 520,
-    title: "Saturn Settings",
-    backgroundColor: "#161618",
-    titleBarStyle: "hidden",
-    trafficLightPosition: { x: 16, y: 14 },
-    ...windowControls(38),
-    webPreferences: {
-      contextIsolation: true,
-      preload: path.join(__dirname, "preload.cjs"),
-    },
-  });
-  settingsWindow = window;
-  window.on("closed", () => {
-    if (settingsWindow === window) settingsWindow = null;
-  });
-  window.once("ready-to-show", () => {
-    window.show();
-    window.focus();
-  });
-  await window.loadURL(`${await rendererUrl()}${hash}`);
-}
-
-/** saturn://settings or saturn://settings/<page>; other links are ignored. */
-function settingsLink(url) {
-  try {
-    const link = new URL(url);
-    if (link.protocol !== "saturn:" || link.hostname !== "settings") return null;
-    const page = link.pathname.replace(/^\/+/, "").split("/")[0];
-    return { page: /^[a-z]+$/.test(page) ? page : undefined };
-  } catch {
-    return null;
-  }
-}
-
-// Saturn IDE opens saturn:// links. On macOS they arrive here, also when the link is what launched Saturn.
-let pendingLink = null;
-app.on("open-url", (event, url) => {
-  event.preventDefault();
-  const link = settingsLink(url);
-  if (!link) return;
-  if (app.isReady() && startedUp) void openSettingsWindow(link.page);
-  else pendingLink = link;
-});
-if (process.defaultApp) {
-  // Development: register this Electron with the script it runs, so the scheme reaches the dev app.
-  app.setAsDefaultProtocolClient("saturn", process.execPath, [path.resolve(process.argv[1])]);
-} else {
-  app.setAsDefaultProtocolClient("saturn");
 }
 
 // The preload exposes the renderer's span exporter only when telemetry is exported.
@@ -385,32 +288,6 @@ if (telemetry.enabled) {
   });
 }
 
-/** True while a Saturn IDE window uses the runtime (it reports in every 15 s, and counts while starting up). */
-async function ideOpen() {
-  const clients = await runtimeRequest("GET", "/runtime/clients", 5_000);
-  return Array.isArray(clients) && clients.some((client) => client.kind === "ide");
-}
-
-let ideWatch = null;
-
-/**
- * With no Saturn window on screen (the IDE opened at launch, or the user closed the Agent App while the IDE was
- * open), Saturn only keeps the runtime alive for Saturn IDE. Once no IDE is open any more, Saturn quits and the
- * runtime stops with it. A window on screen, or Saturn hidden by the user (⌘H), keeps it running.
- */
-function watchForIde() {
-  if (ideWatch || !ownsRuntime) return;
-  ideWatch = setInterval(async () => {
-    const onScreen = BrowserWindow.getAllWindows().some((window) => !window.isDestroyed() && window.isVisible());
-    const hiddenByUser = process.platform === "darwin" && app.isHidden();
-    if (onScreen || hiddenByUser) return;
-    if (await ideOpen()) return;
-    clearInterval(ideWatch);
-    ideWatch = null;
-    app.quit();
-  }, 10_000);
-}
-
 /**
  * Updates from GitHub Releases (electron-updater): downloaded in the background and installed when Saturn quits.
  * On macOS this needs a Developer ID signature (Squirrel.Mac refuses ad-hoc builds), so an unsigned build skips it
@@ -451,28 +328,11 @@ app.whenReady().then(() =>
     span.setAttribute("saturn.desktop.packaged", app.isPackaged);
     // 1. Start Runtime first
     await waitForRuntime(context);
-    // 2. Open the default app (Settings → General → Open at Launch). The runtime opens Saturn IDE and says whether
-    //    it did; the first run may also install the bundled IDE, hence the long timeout. A settings link came from
-    //    Saturn IDE, which is already open, so nothing is woken then.
-    const wakeup = pendingLink ? null : await runtimeRequest("POST", "/runtime/wakeup", 180_000);
-    // The Agent App hides only when the IDE really opened (or for a settings link); if waking failed, it shows,
-    // so a launch never ends with nothing on screen.
-    const launchIde = pendingLink !== null || (wakeup?.target === "ide" && wakeup?.opened === true);
-    span.setAttribute("saturn.desktop.launch_app", launchIde ? "ide" : "agent");
-    await createWindow(context, { show: !launchIde });
-    if (!launchIde) {
-      mainWindow?.show();
-      mainWindow?.focus();
-    } else {
-      watchForIde();
-    }
-    startedUp = true;
+    // 2. Open the window
+    await createWindow(context);
+    mainWindow?.show();
+    mainWindow?.focus();
     checkForUpdates();
-    if (pendingLink) {
-      const { page } = pendingLink;
-      pendingLink = null;
-      await openSettingsWindow(page);
-    }
   }),
 );
 
@@ -486,23 +346,13 @@ app.on("activate", () => {
   }
 });
 
-app.on("window-all-closed", async () => {
-  // Saturn IDE still uses the runtime: stay in the background (Dock) and quit once the IDE closes too.
-  if (ownsRuntime && (await ideOpen())) {
-    watchForIde();
-    return;
-  }
+app.on("window-all-closed", () => {
   if (ownsRuntime) runtime?.kill();
   app.quit();
 });
 
-// A second launch (Windows .exe, `open -n`): bring this Saturn forward, or open the settings link it carried.
-app.on("second-instance", (_event, argv) => {
-  const link = argv.map(settingsLink).find(Boolean);
-  if (link && startedUp) {
-    void openSettingsWindow(link.page);
-    return;
-  }
+// A second launch (Windows .exe, `open -n`): bring this Saturn forward.
+app.on("second-instance", () => {
   if (mainWindow) {
     mainWindow.show();
     mainWindow.focus();

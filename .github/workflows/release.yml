@@ -1,7 +1,7 @@
 name: Release
 
-# Builds Saturn for macOS (Apple Silicon) and Windows (x64), each with Saturn IDE inside, tests both, and publishes a
-# GitHub release with the downloads. Saturn IDE's native modules must be compiled on each platform, so each build
+# Builds Saturn for macOS (Apple Silicon) and Windows (x64), tests both, and publishes a
+# GitHub release with the downloads.
 # runs on its own runner.
 #
 #   Push a tag:   git tag v0.2.0 && git push origin v0.2.0
@@ -52,27 +52,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: Saturn-IDE/.nvmrc
-
-      - name: Install the IDE's dependencies
-        working-directory: Saturn-IDE
-        run: npm ci
-        env:
-          npm_config_foreground_scripts: "1"
-          # @vscode/ripgrep downloads its binary through the GitHub API; unauthenticated calls hit the runner's rate limit.
-          GITHUB_TOKEN: ${{ github.token }}
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-          # Native modules (@vscode/policy-watcher) use std::variant, which needs macOS 10.13 or later, but gyp
-          # compiles them with -mmacosx-version-min=10.7. These flags come after gyp's, and the last one wins.
-          MACOSX_DEPLOYMENT_TARGET: "11.0"
-          CFLAGS: "-mmacosx-version-min=11.0"
-          CXXFLAGS: "-mmacosx-version-min=11.0"
-          LDFLAGS: "-mmacosx-version-min=11.0"
-
-      - name: Build Saturn IDE (darwin-arm64)
-        working-directory: Saturn-IDE
-        run: npm run gulp vscode-darwin-arm64-min
+          node-version-file: .nvmrc
 
       - name: Runtime and desktop dependencies
         run: |
@@ -88,10 +68,6 @@ jobs:
         run: |
           npm test --prefix runtime
           npm run typecheck
-          npm run test:ide
-
-      - name: IDE smoke test
-        run: node Saturn-IDE/test/smoke/smoke.mjs "VSCode-darwin-arm64/Saturn IDE.app"
 
       - name: Package Saturn.app
         working-directory: desktop
@@ -150,23 +126,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: Saturn-IDE/.nvmrc
-
-      - name: Install the IDE's dependencies
-        working-directory: Saturn-IDE
-        shell: pwsh
-        run: npm ci
-        env:
-          npm_config_foreground_scripts: "1"
-          # @vscode/ripgrep downloads its binary through the GitHub API; unauthenticated calls hit the runner's rate limit.
-          GITHUB_TOKEN: ${{ github.token }}
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-
-      - name: Build Saturn IDE (win32-x64)
-        working-directory: Saturn-IDE
-        shell: pwsh
-        run: npm run gulp vscode-win32-x64-min
+          node-version-file: .nvmrc
 
       - name: Runtime and desktop dependencies
         shell: pwsh
@@ -188,11 +148,6 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
           npm test --prefix runtime
           npm run typecheck
-          npm run test:ide
-
-      - name: IDE smoke test
-        shell: pwsh
-        run: node Saturn-IDE/test/smoke/smoke.mjs VSCode-win32-x64
 
       - name: Code-signing certificate (self-signed)
         shell: pwsh
