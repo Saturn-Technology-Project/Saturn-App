@@ -4,7 +4,7 @@
 
 # Saturn
 
-**本機優先的 Agent Runtime、桌面應用程式與 IDE。**
+**本機優先的 Agent Runtime 與桌面應用程式。**
 
 自帶模型、以授權資料夾限縮每個 Agent 的權限，每一次工具呼叫、檔案修改與網路請求都可檢視、可審查、可回復。
 
@@ -48,7 +48,7 @@ Saturn 自己的 Agent 迴圈（API 模型與本機模型；使用 Claude Code �
 | 無介面 CLI | `saturn run` | `claude -p` | `codex exec` |
 | SDK | [`@saturn-app/sdk`](https://github.com/Saturn-Technology-Project/Saturn-SDK)（TypeScript，本機） | Agent SDK | Codex SDK |
 | Pull request 追蹤（修正失敗的檢查） | 是，最多兩輪 | 是，在網頁版 Claude Code | — |
-| 桌面應用程式與 IDE | Agent App、Saturn IDE（Code-OSS） | 桌面應用程式、IDE 擴充套件 | IDE 擴充套件、App |
+| 桌面應用程式與編輯器 | Agent App；目前沒有編輯器 | 桌面應用程式、IDE 擴充套件 | IDE 擴充套件、App |
 | 電腦操作、瀏覽器、多 Agent 群組、排程 | 是 | — | — |
 | 評測 | 任務評測（`scripts/eval`），設定金鑰後每夜執行 | Anthropic 自己的評測 | OpenAI 自己的評測 |
 
@@ -75,7 +75,6 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 | ⏰ **自動化** | 以 cron 排程執行 Agent，內建範本如每日審查 pull request。 |
 | 💸 **用量與成本** | 依模型與 Agent 統計任意期間的 token 數與牌價成本。 |
 | 📈 **可觀測性** | OpenTelemetry trace、metric 與 log，對外網路請求紀錄，並可選擇以 OTLP 匯出到自己的 collector。 |
-| 💻 **Saturn IDE** | 接上同一個 Runtime 的 Code-OSS 發行版：Tab 補全、下一步編輯建議、行內編輯、可審查 diff 的 Agent 面板，以及提供給 Agent 的 LSP 工具。 |
 
 ## 安裝
 
@@ -83,7 +82,7 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 
 macOS 版本尚未以 Apple Developer ID 簽章：首次開啟時請到 **系統設定 → 隱私權與安全性 → 強制打開**。Windows 版本以 Saturn 的自簽憑證進行 Authenticode 簽章（SHA-1 指紋 `D285DA425077C16A3D115D61F9748AFA574BC786`，公開憑證位於 [`desktop/build/saturn-code-signing.cer`](desktop/build/saturn-code-signing.cer)）。Windows 不信任自簽的發行者，所以 SmartScreen 仍會詢問：請選擇 **其他資訊 → 仍要執行**。不需另外安裝 Node.js：內建的 Runtime 直接使用 App 本身的 Electron 執行檔。
 
-**只有一個 App。** Saturn IDE 與 Runtime 都包在 Saturn 裡：macOS 位於 `Saturn.app/Contents/Resources/Saturn IDE.app`，Windows 位於 `resources\Saturn IDE\`。「應用程式」、Launchpad 與 Spotlight 都只會列出 Saturn。Saturn IDE 開啟時在 Dock 有自己的圖示；執行過一次後，macOS 可能會在程式碼檔案的 **打開檔案的應用程式** 選單中列出它，與其他編輯器相同。
+**只有一個 App。** Runtime 包在 Saturn 裡。「應用程式」、Launchpad 與 Spotlight 都只會列出 Saturn。
 
 首次啟動時，引導流程會帶你連接模型、建立 Agent 並授權專案資料夾。Claude Code 與 Codex 不在安裝程式裡：Saturn 會使用你已安裝的版本，或在你第一次需要時下載官方程式（見[模型](#模型)）。
 
@@ -117,31 +116,9 @@ npm run dist:mac   # 未簽章的 Saturn.app，輸出至 desktop/release/
 npm run dist:win   # Windows x64 NSIS 安裝程式，輸出至 desktop/release/
 ```
 
-macOS 套件會內嵌 Saturn IDE，請先建置 IDE（見下方），或設定 `SATURN_SKIP_IDE=1` 只打包 Agent App。
-
 `dist:win` 可在 macOS 或 Windows 上執行。它會把 Runtime 的 `win32-x64` 正式環境相依套件安裝到 `desktop/.staging/`，打包的是這份，而不是主機上的 `runtime/node_modules`。暫存時會移除 Claude Code 與 Codex 程式（約 530 MB），由 Saturn 按需下載。
 
-正式版本由 [release workflow](.github/workflows/release.yml) 產出：在 GitHub 託管的 runner 上建置並測試兩個平台、對 IDE 做 smoke test、為產出物簽發來源證明，並在推送 `v*` tag 時發佈 release。
-
-### 建置 Saturn IDE
-
-Saturn IDE 是位於 [`Saturn-IDE/`](Saturn-IDE) 的 Code-OSS fork。需要 [`Saturn-IDE/.nvmrc`](Saturn-IDE/.nvmrc) 指定的 Node 版本，以及數 GB 的相依套件：
-
-```bash
-cd Saturn-IDE
-npm install
-cd ..
-npm run build:ide --prefix desktop       # macOS：VSCode-darwin-arm64/Saturn IDE.app
-npm run build:ide:win --prefix desktop   # Windows：VSCode-win32-x64/（須在 Windows 上執行）
-```
-
-在開發用的 Mac 上，Spotlight 會把建置產出 `VSCode-darwin-arm64/Saturn IDE.app` 當成一個獨立的 App 列出（下載的版本不會包含它）。打包時會從這個資料夾複製 Saturn IDE，所以請保留它；若造成困擾，可在 **系統設定 → Spotlight → 搜尋隱私權** 中排除。
-
-原生模組依主機的工具鏈編譯，因此 Windows 版 IDE 必須在 Windows 上建置；[Windows workflow](.github/workflows/windows.yml) 會在每次推送到 `main` 時產出。Windows 上的 IDE 直接從 `resources\Saturn IDE\` 執行。
-
-`node Saturn-IDE/test/smoke/smoke.mjs [path]` 會以拋棄式設定檔啟動建置結果，檢查 workbench、終端機、檔案總管與原始檔控制。
-
-Saturn 的編輯器整合位於 [`Saturn-IDE/extensions/saturn/`](Saturn-IDE/extensions/saturn)；其餘部分追隨上游 [microsoft/vscode](https://github.com/microsoft/vscode)。
+正式版本由 [release workflow](.github/workflows/release.yml) 產出：在 GitHub 託管的 runner 上建置並測試兩個平台、為產出物簽發來源證明，並在推送 `v*` tag 時發佈 release。
 
 ### 平台說明
 
@@ -156,12 +133,10 @@ Saturn 的編輯器整合位於 [`Saturn-IDE/extensions/saturn/`](Saturn-IDE/ext
 flowchart LR
   subgraph Machine["你的電腦"]
     D["Saturn Desktop<br/><sub>Electron + React</sub>"]
-    I["Saturn IDE<br/><sub>Code-OSS fork</sub>"]
     R["Saturn Runtime<br/><sub>Node + Express · 127.0.0.1:4700</sub>"]
     S[("~/.saturn-app<br/><sub>狀態 · 金鑰 · 工作區</sub>")]
     P["專案資料夾"]
     D -- "HTTP + bearer token" --> R
-    I -- "HTTP + bearer token" --> R
     R --> S
     R -- "僅限授權路徑" --> P
   end
@@ -175,7 +150,6 @@ flowchart LR
 |---|---|
 | **Saturn Runtime**（`runtime/`） | 控制平面：模型轉接層、Agent 迴圈、工具執行、MCP client、核准策略、檢查點、worktree、用量計算、遙測與持久化。不依賴 Electron，可 headless 執行。 |
 | **Saturn Desktop**（`desktop/`） | Electron 用戶端：對話、Agents 總覽、專案、群組、自動化與設定。只透過 HTTP API 與 Runtime 溝通。 |
-| **Saturn IDE**（`Saturn-IDE/`） | 編輯器。以同一個 token 驗證身分，視窗開啟期間維持 Runtime 運作，並透過 server-sent events 橋接把語言伺服器工具提供給 Agent。 |
 
 Runtime 與桌面應用程式採用相同的分層架構，相依方向只朝內：
 
@@ -190,7 +164,7 @@ runtime/src/                    desktop/src/
 
 ### 生命週期
 
-啟動 Saturn 會先啟動 Runtime，再開啟預設介面：Agent App 或 IDE。關閉最後一個視窗會停止 Runtime，除非 IDE 仍開著。父程序 watchdog 會在桌面應用程式異常結束時終止 Runtime，確保它不會比宿主活得更久。
+啟動 Saturn 會先啟動 Runtime，再開啟 Agent App。關閉最後一個視窗會停止 Runtime。父程序 watchdog 會在桌面應用程式異常結束時終止 Runtime，確保它不會比宿主活得更久。
 
 **上下文。** 對話較早的回合會在依模型 context window 計算的預算內送出（視窗的一半；模型連線可自行指定 `contextTokens`）。超過預算時，最舊的回合會由同一個模型摘要成對話的累積摘要，之後的回合都以它為基礎；對話中會在發生處顯示「⤵ 已將 n 個較早回合併入摘要」。標頭的 **Context · n%** 標籤顯示對話的用量，點它或送出 `/compact` 可立即摘要。Claude Code 與 Codex 自行管理各自的上下文。
 
@@ -269,17 +243,17 @@ Saturn 如何遵循 OpenAI 的[使用條款](https://openai.com/policies/terms-o
 lms load qwen/qwen3.5-4b --context-length 32768
 ```
 
-**實測模型。** 每個模型透過 Saturn 自己的工具，把三項 Agent 任務各跑兩次（讀檔並依內容回答；寫程式、執行並回報輸出；修 bug 並用指令驗證），再測一次 Tab 補全。結果以磁碟上的實際狀態判定，不採信模型的自述。測試日期 2026-10-21，Apple M1 Pro 16 GB，LM Studio 0.4.26，4-bit 權重，32K context：
+**實測模型。** 每個模型透過 Saturn 自己的工具，把三項 Agent 任務各跑兩次（讀檔並依內容回答；寫程式、執行並回報輸出；修 bug 並用指令驗證）。結果以磁碟上的實際狀態判定，不採信模型的自述。測試日期 2026-10-21，Apple M1 Pro 16 GB，LM Studio 0.4.26，4-bit 權重，32K context：
 
-| 模型 | 大小 | Agent 任務 | 任務中位數 | Tab 補全 | 適合 |
-|---|---|---|---|---|---|
-| Qwen3.5 4B（`qwen/qwen3.5-4b`） | 3.1 GB | 6/6 | 29 秒 | 正確，10 秒 | 16 GB 機器的 Agent：最快也最小 |
-| Gemma 4 E4B（`google/gemma-4-e4b`） | 6.9 GB | 6/6 | 48 秒 | 正確，12 秒 | Agent |
-| Ministral 3 8B（`mistralai/ministral-3-8b`） | 6.1 GB | 6/6 | 65 秒 | 正確，1.5 秒 | Agent 與 Tab 補全 |
-| Qwen3.5 9B（`qwen/qwen3.5-9b`） | 6.0 GB | 6/6 | 71 秒 | 正確，8 秒 | Agent |
-| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | 不適用 | 正確，1 秒 | 只適合 Tab 補全：工具呼叫不穩定 |
+| 模型 | 大小 | Agent 任務 | 任務中位數 | 適合 |
+|---|---|---|---|---|
+| Qwen3.5 4B（`qwen/qwen3.5-4b`） | 3.1 GB | 6/6 | 29 秒 | 16 GB 機器的 Agent：最快也最小 |
+| Gemma 4 E4B（`google/gemma-4-e4b`） | 6.9 GB | 6/6 | 48 秒 | Agent |
+| Ministral 3 8B（`mistralai/ministral-3-8b`） | 6.1 GB | 6/6 | 65 秒 | Agent |
+| Qwen3.5 9B（`qwen/qwen3.5-9b`） | 6.0 GB | 6/6 | 71 秒 | Agent |
+| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | 不適用 | 不適合 Agent：工具呼叫不穩定 |
 
-推理模型（Qwen3.5、Gemma 4）每次補全前都會先思考，用在 Tab 太慢：建議 Agent 用其中一個，補全模型（**設定 → 一般 → Completion model**）另選 Ministral 3 8B 或 Qwen2.5-Coder 7B。這些是在單一機器上的小型任務；更大的模型（Qwen3.6 27B、Qwen3-Coder 30B 以上）需要 32 GB 以上記憶體，沒有實測。
+推理模型（Qwen3.5、Gemma 4）每次補全前都會先思考，任務會比較久。這些是在單一機器上的小型任務；更大的模型（Qwen3.6 27B、Qwen3-Coder 30B 以上）需要 32 GB 以上記憶體，沒有實測。
 
 ## 安全與信任
 
@@ -300,25 +274,22 @@ Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的�
 | 記憶、程式碼索引、檢查點、附件 | `memory/`、`index/`、`checkpoints/`、`run-images/` | 本機檔案。嵌入向量由內建模型在裝置端計算。 |
 | API session token | `runtime-token` | 權限 `0600`。 |
 | Claude Code 與 Codex 程式 | `tools/` | 只在你要求時下載，解壓前先以 Saturn 內固定的 sha512 驗證。可在設定中移除。 |
-| Saturn IDE 遙測 | 由 `127.0.0.1` 上的 Runtime 接收 | Code-OSS 原本送往 Microsoft 的遙測與當機回報端點已被取代，不會傳送任何資料給 Microsoft。 |
 
 ### 對外連線清單
 
 | 目的地 | 觸發時機 | 傳送內容 |
 |---|---|---|
-| 你的模型供應商（Anthropic、OpenAI、Google、DeepSeek） | Agent 回合、Tab 補全、行內編輯 | 對話內容、你或 Agent 附加的檔案、工具結果。金鑰只送往該供應商。 |
+| 你的模型供應商（Anthropic、OpenAI、Google、DeepSeek） | Agent 回合 | 對話內容、你或 Agent 附加的檔案、工具結果。金鑰只送往該供應商。 |
 | 經由 Claude Code 與 Codex 連至 Anthropic / OpenAI | 使用這兩個供應商的回合 | 官方 CLI 以你的訂閱方案連線至各自廠商。Saturn 從不讀取或轉送這些憑證。 |
 | 網站、API 與 MCP 伺服器 | Agent 擷取網址、操作瀏覽器、呼叫 GitHub，或使用你新增的 MCP 伺服器時 | 該次工具呼叫所需的內容。遠端 MCP 伺服器透過 HTTP(S) 連線；本機伺服器須在你核准確切指令後才會執行，其自身的網路流量由該程式負責。web 與瀏覽器工具會拒絕私有、link-local 與 loopback 位址（SSRF 防護）。 |
 | GitHub Releases | App 啟動時 | electron-updater 的更新檢查。macOS 上僅限 Developer ID 簽章的版本。設定 `SATURN_NO_UPDATES=1` 可停用。 |
-| Open VSX 與 `raw.githubusercontent.com` | Saturn IDE：擴充套件市集，以及啟動時一次 | 擴充套件中繼資料，以及 Open VSX 的封鎖清單。 |
-| GitHub（由 Saturn IDE） | 僅在你於 IDE 登入 GitHub 後 | Git 與 GitHub 擴充套件的流量。 |
 | Hugging Face | 僅在你選用未內建的嵌入模型時 | 下載該模型。 |
 | `registry.npmjs.org` | 僅在你按下 Claude Code 或 Codex 的 **下載** 時 | 官方程式的 npm 套件，即 Saturn 的 SDK 建置時所用的版本，並以固定的 sha512 驗證。 |
 | 你的 OpenTelemetry collector | 僅在設定 `OTEL_EXPORTER_OTLP_ENDPOINT` 時 | Saturn 的 trace、metric 與 log。 |
 
 除此之外沒有其他對外連線：沒有產品分析、沒有當機回報、沒有帳號，也沒有託管服務。
 
-實測基準：全新安裝且沒有進行中的回合時，Runtime 的對外連線數為**零**，Saturn IDE 只有一條（其網路工具程序從 `raw.githubusercontent.com` 取得 Open VSX 封鎖清單）。
+實測基準：全新安裝且沒有進行中的回合時，Runtime 的對外連線數為**零**。
 
 ### 自行驗證
 
@@ -353,7 +324,7 @@ jq -r .host ~/.saturn-app/network.log | sort | uniq -c | sort -rn   # 各主機�
 
 #### 3. 離線執行
 
-在 [LM Studio](https://lmstudio.ai) 連接本機模型（需支援工具呼叫，並以 32K context 載入；見[本機模型](#本機模型)），用防火牆封鎖 Saturn，照常使用：Agent、Tab 補全與程式碼索引都能離線運作。
+在 [LM Studio](https://lmstudio.ai) 連接本機模型（需支援工具呼叫，並以 32K context 載入；見[本機模型](#本機模型)），用防火牆封鎖 Saturn，照常使用：Agent 與程式碼索引都能離線運作。
 
 #### 4. 檢查靜態資料
 
@@ -414,34 +385,30 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<v
 - 優先使用 **Default** 核准策略（有風險才詢問）而非完全自主，並只授權任務所需的專案資料夾。
 - 絕不能離開本機的程式碼，請透過 LM Studio 使用本機模型。
 
-### 供應鏈與上游維護
+### 供應鏈
 
-Saturn 內含約一千個開源套件、Electron、一個 Code-OSS 分支與一個機器學習模型。每一項都經過固定、檢查且可替換，檢查都在公開的 CI 上執行。
+Saturn 內含不到三百個開源套件（Runtime 與桌面應用程式 lock 檔中的正式環境套件）、Electron 與一個機器學習模型。每一項都經過固定、檢查且可替換，檢查都在公開的 CI 上執行。
 
 **安裝的內容**
 
-- **固定的 lock 檔。** Runtime、桌面應用程式與 Saturn IDE 將每個套件固定為 `https://registry.npmjs.org/` 上的確切版本，並附 SHA-512 完整性雜湊。[`scripts/check-lockfiles.mjs`](scripts/check-lockfiles.mjs) 遇到任何 git、tarball URL、http 或 file 來源都會讓 CI 失敗。
+- **固定的 lock 檔。** Runtime 與桌面應用程式將每個套件固定為 `https://registry.npmjs.org/` 上的確切版本，並附 SHA-512 完整性雜湊。[`scripts/check-lockfiles.mjs`](scripts/check-lockfiles.mjs) 遇到任何 git、tarball URL、http 或 file 來源都會讓 CI 失敗。
 - **Registry 簽章。** `npm audit signatures` 驗證每個已安裝套件的 registry 簽章，發行者提供時也驗證其來源證明。
-- **不執行安裝腳本。** 相依套件的安裝腳本是遭入侵套件最常見的執行管道，在 Saturn 中從不執行：Runtime 與桌面應用程式在 `allowScripts` 中逐一拒絕，CI 以 `--ignore-scripts` 安裝。Saturn IDE 沿用 Code-OSS 自己的白名單，用於必須編譯的原生模組。
+- **不執行安裝腳本。** 相依套件的安裝腳本是遭入侵套件最常見的執行管道，在 Saturn 中從不執行：Runtime 與桌面應用程式在 `allowScripts` 中逐一拒絕，CI 以 `--ignore-scripts` 安裝。
 - **npm 以外的一切都以雜湊固定。** Claude Code 與 Codex 的下載固定為 lock 檔的 SHA-512（[`agent-programs-manifest.ts`](runtime/src/infrastructure/agent-programs-manifest.ts)，由測試保持一致）；內建嵌入模型固定為 SHA-256（[`fetch-embedding-model.mjs`](desktop/scripts/fetch-embedding-model.mjs)）；每個 GitHub Action 固定為完整的 commit SHA。
 
 **保持更新**
 
 - **Dependabot** 在安全公告發佈時立即開出安全更新，並每週開出分組的版本更新，且只針對已公開七天的版本，遭入侵或有問題的版本通常在這段期間被發現並下架。
 - **[Supply chain workflow](.github/workflows/supply-chain.yml)** 在每次變更與每週執行：檢查 lock 檔、registry 簽章，以及對所有出貨內容執行 high 等級的 `npm audit`。
-- **Electron** 在桌面應用程式與 Saturn IDE 使用同一版本（43.8.3），仍在 Electron 的安全修補支援範圍內，並隨上游 Code-OSS 更新。
+- **Electron** 固定在桌面應用程式的版本（43.8.3），仍在 Electron 的安全修補支援範圍內；Dependabot 會像其他相依套件一樣提出它的更新。
 
 **出貨的內容與發佈權限**
 
-- **每個版本都附 SBOM。** `Saturn-<version>-sbom.cdx.json`（CycloneDX 1.5）列出約一千個元件及其授權與雜湊，另含 Electron 與模型。SBOM、安裝程式與壓縮檔都附有建置來源證明。
+- **每個版本都附 SBOM。** `Saturn-<version>-sbom.cdx.json`（CycloneDX 1.5）列出各元件及其授權與雜湊，另含 Electron 與模型。SBOM、安裝程式與壓縮檔都附有建置來源證明。
 - **有意義的簽章。** Windows 版本只簽署 Saturn 自己的執行檔，第三方程式保留其發行者的簽章。
 - **發佈權限。** 發佈須在受保護的 environment 中經維護者核准。Release tag 只有管理員能建立，且永遠不能移動或刪除；`main` 不能 force-push；[CODEOWNERS](.github/CODEOWNERS) 會在每個 pull request 要求維護者審查。建議所有具寫入權限的成員啟用雙重驗證。
 
-**上游 Code-OSS**
-
-Saturn IDE 是 microsoft/vscode 加上一小組列明的修改。[`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) 記錄基準 commit 與版本、修改規則（Saturn 的功能放在自己的擴充套件；上游檔案只從建置中排除，絕不刪除），以及 Saturn 修改的全部 50 個檔案。每週的 [upstream sync](.github/workflows/upstream-sync.yml) 會以上游歷史為基準，將每個新的 VS Code 版本進行三方合併、建置並測試，再開出 pull request；需要人工處理時則以草稿列出衝突。每月版本在兩週內合併，上游安全修補在一週內合併。
-
-**已審視的例外。** 目前無法修補的公告（沒有修補版本，或修補需要上游變更），以及 Dependabot 在不會出貨的程式碼中回報的公告，連同原因與結案條件都列在 [`docs/known-advisories.md`](docs/known-advisories.md)。
+**已審視的例外。** 目前無法修補的公告（沒有修補版本，或修補需要上游變更），連同原因與結案條件都列在 [`docs/known-advisories.md`](docs/known-advisories.md)。
 
 **自行驗證**
 
@@ -501,8 +468,6 @@ Saturn 本身也可以被電腦操作 Agent 操控，例如 [agent-desktop](http
 | `OTEL_SDK_DISABLED` | 未設定 | `true` 完全停用遙測 |
 | `SATURN_NO_UPDATES` | 未設定 | `1` 停用更新檢查 |
 | `SATURN_SECRET_STORE` | 作業系統金鑰庫 | `keychain`、`dpapi`、`libsecret` 或 `file`：新的加密金鑰存放位置 |
-| `SATURN_SKIP_IDE` | 未設定 | `1` 打包時不含 Saturn IDE |
-| `SATURN_IDE_BUILD` | 本機建置 | 打包時內嵌的 IDE 建置 |
 
 ## 命令列
 
@@ -536,7 +501,7 @@ console.log(run.status, run.output);
 
 ## 本機 API
 
-桌面應用程式與 IDE 都是同一個 HTTP API 的用戶端，你的腳本也可以是：
+桌面應用程式是同一個 HTTP API 的用戶端，你的腳本也可以是：
 
 ```bash
 TOKEN=$(cat ~/.saturn-app/runtime-token)
@@ -561,7 +526,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 | `GET` | `/events` · `/runs/:id/events` | 以 server-sent events 即時更新：哪些 run 有變化，或單一 run 的每次變化 |
 | `GET` | `/network` | 對外請求紀錄：主機與最近的請求 |
 | `GET` | `/telemetry/traces` · `/telemetry/logs` · `/telemetry/metrics` | 本機 OpenTelemetry 資料 |
-| `POST` | `/complete` · `/complete/stream` | 單次模型呼叫（IDE 的 Tab 補全與行內編輯） |
+| `POST` | `/complete` · `/complete/stream` | 單次模型呼叫 |
 | `GET` `POST` `DELETE` | `/programs` · `/programs/:id` · `/programs/:id/install` | Claude Code 與 Codex：是否已安裝、來源、下載、移除 |
 
 ## 開發
@@ -570,10 +535,9 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 npm test            # Runtime 測試
 npm run typecheck   # Runtime 與桌面應用程式的嚴格型別檢查
 npm run lint        # 程式碼規範（oxlint）
-npm run test:ide    # Saturn IDE 擴充套件檢查
 ```
 
-測試會以暫存資料目錄與假的模型伺服器啟動 Runtime 的 HTTP API，不需要任何憑證，也不會動到你的資料。CI 在 Node 24（`Saturn-IDE/.nvmrc`）、macOS 與 Windows 上執行；Windows 上會略過少數以 POSIX shell 指令撰寫的測試。`node --test` 請傳 glob（`node --test 'test/*.test.js'`）而不是資料夾：Node 24 會把資料夾參數當成模組執行而失敗。
+測試會以暫存資料目錄與假的模型伺服器啟動 Runtime 的 HTTP API，不需要任何憑證，也不會動到你的資料。CI 在 Node 24（`.nvmrc`）、macOS 與 Windows 上執行；Windows 上會略過少數以 POSIX shell 指令撰寫的測試。`node --test` 請傳 glob（`node --test 'test/*.test.js'`）而不是資料夾：Node 24 會把資料夾參數當成模組執行而失敗。
 
 **任務評測。** `scripts/eval` 會用真的模型，透過 Saturn 的 Agent 迴圈完整執行程式任務，並以 Agent 看不到的測試評分：通過率、步數、token、花費與時間。共 14 題，從小修正到：症狀出現在別的模組的 bug、非同步並行上限、要相容舊檔案的跨層功能、從當機報告修好 CSV 解析、要處理 20 萬筆資料的平方複雜度函式、繞過誘餌的唯讀搜尋、在 callback 旁加上 promise API，以及時區 bug。`node --test scripts/eval/self-test.mjs` 用腳本化的假模型檢查評測工具本身，並確認每題的隱藏測試在原始 repo 上會失敗、套上參考解答（`solution/`，Agent 看不到）後會通過；不花錢。實際執行會花費 token：
 
@@ -589,24 +553,16 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 2. 為 Runtime 行為新增或更新測試（[測試政策](CONTRIBUTING.md#test-policy)為強制規定），並執行 `npm test`、`npm run typecheck` 與 `npm run lint`。
 3. 絕不記錄或回傳秘密。記錄使用了哪個憑證（供應商或模型），不要記錄它的值。
 
-[CONTRIBUTING.md](CONTRIBUTING.md) 列出程式碼規範與測試政策，並說明相依套件的變更：更新 Claude Agent SDK 或 Codex SDK、安裝腳本核准、Dependabot pull request，以及 Saturn IDE 的上游合併。
+[CONTRIBUTING.md](CONTRIBUTING.md) 列出程式碼規範與測試政策，並說明相依套件的變更：更新 Claude Agent SDK 或 Codex SDK、安裝腳本核准，以及 Dependabot pull request。
 
 ## 路線圖
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
+- 內建編輯器（檔案樹、CodeMirror 6、diff 審查、真實終端機）；已規劃，尚未實作
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。
 
 ## 授權
 
 [MIT](LICENSE) © 2026 Rick Weng
-
-### Saturn IDE 與 Microsoft 的條款
-
-Saturn IDE 建置自 [Code-OSS](https://github.com/microsoft/vscode)，也就是 Visual Studio Code 以 MIT 授權的原始碼，© Microsoft Corporation，並隨附 Code-OSS 的授權與第三方聲明。它不是 Visual Studio Code（那是 Microsoft 另行建置與授權的產品），也並非由 Microsoft 打造、背書或與其合作。
-
-- **名稱與圖示。** Saturn IDE 使用自己的名稱、圖示、bundle identifier 與連結，不使用 Microsoft 的商標。
-- **擴充套件來自 [Open VSX](https://open-vsx.org)。** Visual Studio Marketplace 的條款只允許其擴充套件用於 Microsoft 的產品，所以 Saturn IDE 不連線到它。
-- **不包含 Microsoft 的專有擴充套件。** 部分 Microsoft 擴充套件（例如 C/C++、Pylance、C# Dev Kit、Remote - SSH、Live Share）只授權用於 Microsoft 的 Visual Studio 產品。Saturn IDE 既不內建也不推薦它們；手動安裝不在其授權範圍內。Saturn IDE 內建的 Microsoft 擴充套件（JavaScript Debugger）採 MIT 授權。
-- **預設不使用 Microsoft 的服務。** 遙測送往 `127.0.0.1` 上的 Saturn Runtime；沒有 Microsoft 的更新服務、設定同步或實驗服務，GitHub 登入使用 Saturn IDE 自己的 OAuth App。與 Code-OSS 的每一項差異見 [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md)。

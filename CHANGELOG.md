@@ -6,13 +6,15 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Security
 
-- **Electron 43.8.3 in the app and Saturn IDE** (from 43.7.7), which stops trusting the compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9). Saturn IDE is now based on VS Code 1.144.0.
-- **Saturn IDE's Markdown preview and Mermaid diagrams use DOMPurify 3.4.17**, which closes sanitizer bypasses (one critical) that a crafted Markdown file could use to run script in the preview. The IDE's HTTP client (undici 7.30.1) and validation library (zod 4.6.7) are also patched.
-- **Saturn IDE's Emmet uses image-size 2.0.3**, so *Update Image Size* on a crafted ICNS image can no longer hang it (GHSA-w3rx-r6r6-pgpr). The IDE also takes follow-redirects 1.16.2, which no longer forwards custom credential headers across origins on a redirect (GHSA-mrwp-f3q8-3g9p), and gives its tunnel client uuid 11.1.1 (GHSA-w5hq-g745-h8pq).
+- **Electron 43.8.3 in the app** (from 43.7.7), which stops trusting the compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9).
 
 ### Added
 
 - **Other agents can operate Saturn.** Every button, chat, agent and dialog now has a role and a name in the accessibility tree, and the sidebar works from the keyboard, so a computer-use agent such as agent-desktop or Claude computer use can find and click them by name. See [Driving Saturn with another agent](README.md#driving-saturn-with-another-agent).
+
+### Removed
+
+- **Saturn IDE is removed.** Saturn no longer bundles an editor, so the download is smaller and Saturn is the agent app alone for now. Tab completion, next-edit suggestions, inline edits (Cmd+K), commit-message generation and the language-server tools for agents are gone with it, and so are the **Open at Launch** setting and the Settings-only window. A built-in editor is planned but not built yet. Its sources remain at the git tag `archive/code-oss`.
 
 ## 0.3.1 (2026-10-22)
 

@@ -6,7 +6,7 @@ What Saturn protects, from whom, how, and what it deliberately leaves to you. It
 
 ## The system
 
-Saturn is a desktop app (Electron, `desktop/`) and Saturn IDE (Code-OSS, `Saturn-IDE/`), both clients of one local **runtime** (`runtime/`): a Node.js HTTP server on `127.0.0.1:4700` that runs the agent loop, calls model providers, executes tools and keeps all state in `~/.saturn-app`. The `saturn` CLI and the [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) (its own repository) are clients of the same API. There is no Saturn server: nothing is sent to Saturn's developers.
+Saturn is a desktop app (Electron, `desktop/`), a client of one local **runtime** (`runtime/`): a Node.js HTTP server on `127.0.0.1:4700` that runs the agent loop, calls model providers, executes tools and keeps all state in `~/.saturn-app`. The `saturn` CLI and the [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) (its own repository) are clients of the same API. There is no Saturn server: nothing is sent to Saturn's developers.
 
 An agent turn: the runtime sends the conversation and tool definitions to a model; the model asks for tool calls (read or write files, run shell commands, fetch pages, drive a browser, control desktop apps, call GitHub or MCP servers); the runtime decides each call against permission rules and the approval policy, runs it (shell commands inside an OS sandbox), records file changes in a checkpoint, and sends the results back.
 
@@ -68,7 +68,6 @@ Out of scope: a process already running as the same user can read the token file
 - A malicious or compromised local user account, administrator or operating system.
 - Harm an agent does within permissions the user gave it: full autonomy, allow rules, `sandbox: "off"` approvals, computer use.
 - Model providers, Claude Code, Codex, MCP servers and other programs Saturn calls; they are trusted with what is sent to them.
-- Code-OSS itself, beyond the changes listed in [`Saturn-IDE/UPSTREAM.md`](../Saturn-IDE/UPSTREAM.md).
 
 ## Known gaps
 
@@ -116,7 +115,7 @@ Why Saturn's security requirements are met: each requirement, the argument, and 
 
 ## Review scope
 
-For an external audit, in priority order. Saturn IDE is upstream Code-OSS and out of scope except the listed changes.
+For an external audit, in priority order.
 
 | Priority | Area | Code |
 |---|---|---|
@@ -130,7 +129,6 @@ For an external audit, in priority order. Saturn IDE is upstream Code-OSS and ou
 | 2 | Desktop app: main/preload bridge, frames showing web content, permission requests | `desktop/electron.cjs`, `desktop/preload.cjs`, `desktop/src/presentation/Inspector.tsx` |
 | 3 | Agent browser and computer use: profile isolation, what reaches the model | `runtime/src/infrastructure/skills/browser-skill.ts`, `safari-browser.ts`, `computer-use-skill.ts`, `macos.ts`, `windows.ts` |
 | 3 | Checkpoints and revert: writes outside the folder, path traversal | `runtime/src/application/checkpoints.ts` |
-| 3 | Saturn IDE's Saturn extension and its bridge to the runtime | `Saturn-IDE/extensions/saturn/`, `runtime/src/application/ide-bridge.ts` |
 | 3 | Release and supply-chain workflows, downloads of Claude Code and Codex | `.github/workflows/`, `runtime/src/infrastructure/agent-programs-manifest.ts`, `application/agent-programs.ts` |
 
 Useful for reviewers: `npm test` runs the runtime against fake model servers with no credentials; [Verify it yourself](../README.md#verify-it-yourself) shows how to observe every outbound request.
@@ -145,7 +143,7 @@ Saturn 保護什麼、防範誰、如何防範，以及刻意交由你決定的�
 
 ## 系統概要
 
-Saturn 由桌面應用程式（Electron，`desktop/`）與 Saturn IDE（Code-OSS，`Saturn-IDE/`）組成，兩者都是同一個本機 **Runtime**（`runtime/`）的 client：一個在 `127.0.0.1:4700` 的 Node.js HTTP 伺服器，負責執行 Agent 迴圈、呼叫模型供應商、執行工具，所有狀態存在 `~/.saturn-app`。`saturn` CLI 與 [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)（獨立的 repository）也是同一套 API 的 client。Saturn 沒有伺服器，不會傳送任何資料給 Saturn 的開發者。
+Saturn 是一個桌面應用程式（Electron，`desktop/`），是本機 **Runtime**（`runtime/`）的 client：一個在 `127.0.0.1:4700` 的 Node.js HTTP 伺服器，負責執行 Agent 迴圈、呼叫模型供應商、執行工具，所有狀態存在 `~/.saturn-app`。`saturn` CLI 與 [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)（獨立的 repository）也是同一套 API 的 client。Saturn 沒有伺服器，不會傳送任何資料給 Saturn 的開發者。
 
 Agent 的一個回合：Runtime 把對話與工具定義送給模型；模型要求呼叫工具（讀寫檔案、執行 shell 指令、擷取網頁、操作瀏覽器、操作桌面 App、呼叫 GitHub 或 MCP 伺服器）；Runtime 依權限規則與核准策略決定每個呼叫，執行它（shell 指令在作業系統沙箱中），把檔案變更記錄在檢查點，再把結果送回模型。
 
@@ -207,7 +205,6 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 - 惡意或已遭入侵的本機使用者帳號、管理員或作業系統。
 - Agent 在使用者給予的權限內造成的損害：完全自主、允許規則、核准過的 `sandbox: "off"`、電腦操作。
 - 模型供應商、Claude Code、Codex、MCP 伺服器與 Saturn 呼叫的其他程式；它們被信任能處理送給它們的內容。
-- Code-OSS 本身，[`Saturn-IDE/UPSTREAM.md`](../Saturn-IDE/UPSTREAM.md) 列出的修改除外。
 
 ## 已知缺口
 
@@ -255,7 +252,7 @@ Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗�
 
 ## 審查範圍
 
-外部審計依優先順序涵蓋以下部分。Saturn IDE 是上游 Code-OSS，除列出的修改外不在範圍內。
+外部審計依優先順序涵蓋以下部分。
 
 | 優先 | 範圍 | 程式碼 |
 |---|---|---|
@@ -269,7 +266,6 @@ Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗�
 | 2 | 桌面應用程式：主程序與 preload 橋接、顯示網路內容的 frame、權限請求 | `desktop/electron.cjs`、`desktop/preload.cjs`、`desktop/src/presentation/Inspector.tsx` |
 | 3 | Agent 瀏覽器與電腦操作：設定檔隔離、哪些內容會送到模型 | `runtime/src/infrastructure/skills/browser-skill.ts`、`safari-browser.ts`、`computer-use-skill.ts`、`macos.ts`、`windows.ts` |
 | 3 | 檢查點與還原：寫到資料夾外、路徑穿越 | `runtime/src/application/checkpoints.ts` |
-| 3 | Saturn IDE 的 Saturn 擴充套件及其與 Runtime 的橋接 | `Saturn-IDE/extensions/saturn/`、`runtime/src/application/ide-bridge.ts` |
 | 3 | 發布與供應鏈 workflow、Claude Code 與 Codex 的下載 | `.github/workflows/`、`runtime/src/infrastructure/agent-programs-manifest.ts`、`application/agent-programs.ts` |
 
 給審查者：`npm test` 會以假的模型伺服器執行 Runtime，不需要任何憑證；[自行驗證](../README_ZH.md)說明如何觀察每一個對外請求。

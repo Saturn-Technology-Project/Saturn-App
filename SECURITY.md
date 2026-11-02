@@ -10,7 +10,7 @@ Email **[security@saturn-core.com](mailto:security@saturn-core.com)**, or use Gi
 
 Include what you can of:
 
-- the affected component (the desktop app, the runtime, Saturn IDE, the CLI or the SDK) and version (Settings → About, or the release tag);
+- the affected component (the desktop app, the runtime, the CLI or the SDK) and version (Settings → About, or the release tag);
 - the steps to reproduce, or a proof of concept;
 - the impact as you see it (for example: a web page or file makes an agent run a command without approval, another local program or a website calls the runtime's API, a sandboxed command writes outside the workspace, a key leaves the machine);
 - whether, and when, you plan to disclose it.
@@ -27,11 +27,10 @@ Saturn is a preview. Only the latest release receives security fixes; please che
 
 ## Scope
 
-In scope: this repository's own code, that is the runtime (`runtime/`), the desktop app (`desktop/`), the SDK ([Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK), its own repository), Saturn IDE's Saturn extension and build changes (`Saturn-IDE/extensions/saturn/` and the edits listed in [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md)), and the release and supply-chain workflows.
+In scope: this repository's own code, that is the runtime (`runtime/`), the desktop app (`desktop/`), the SDK ([Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK), its own repository), and the release and supply-chain workflows.
 
 Out of scope, reported to their owners instead:
 
-- Code-OSS itself (everything in Saturn IDE that `UPSTREAM.md` does not list): Microsoft's [security policy](https://github.com/microsoft/vscode/security/policy).
 - Claude Code, Codex, MCP servers, model providers and other third-party programs Saturn starts or calls.
 - Advisories in dependencies that do not ship, or that [`docs/known-advisories.md`](docs/known-advisories.md) already lists as reviewed.
 
@@ -53,7 +52,7 @@ Saturn 執行的 AI Agent 會在你的電腦上執行指令、修改檔案與操
 
 請盡量附上：
 
-- 受影響的元件（桌面應用程式、Runtime、Saturn IDE、CLI 或 SDK）與版本（設定 → About，或發布的 tag）；
+- 受影響的元件（桌面應用程式、Runtime、CLI 或 SDK）與版本（設定 → About，或發布的 tag）；
 - 重現步驟或概念驗證；
 - 你認為的影響（例如：網頁或檔案讓 Agent 未經核准就執行指令、其他本機程式或網站呼叫了 Runtime 的 API、沙箱中的指令寫到工作目錄之外、金鑰離開了這台電腦）；
 - 你是否、以及何時打算公開。
@@ -70,11 +69,10 @@ Saturn 目前為預覽版，只有最新版本會收到安全修補；回報前�
 
 ## 範圍
 
-範圍內：此 repository 自己的程式碼，即 Runtime（`runtime/`）、桌面應用程式（`desktop/`）、SDK（[Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)，獨立的 repository）、Saturn IDE 的 Saturn 擴充套件與建置修改（`Saturn-IDE/extensions/saturn/`，以及 [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) 列出的修改），以及發布與供應鏈的 workflow。
+範圍內：此 repository 自己的程式碼，即 Runtime（`runtime/`）、桌面應用程式（`desktop/`）、SDK（[Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)，獨立的 repository），以及發布與供應鏈的 workflow。
 
 範圍外，請回報給各自的維護者：
 
-- Code-OSS 本身（Saturn IDE 中 `UPSTREAM.md` 未列出的部分）：見 Microsoft 的[安全政策](https://github.com/microsoft/vscode/security/policy)。
 - Claude Code、Codex、MCP 伺服器、模型供應商，以及 Saturn 啟動或呼叫的其他第三方程式。
 - 不會出貨的相依套件中的公告，或 [`docs/known-advisories.md`](docs/known-advisories.md) 已列為審視過的公告。
 
