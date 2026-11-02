@@ -10,6 +10,8 @@ npm run typecheck   # runtime and desktop
 npm run lint        # the coding standard (oxlint)
 npm run test:ide    # Saturn IDE extension checks
 node scripts/check-lockfiles.mjs
+node scripts/contract-routes.mjs --check   # the route list in contract/
+cargo fmt --all --check && cargo clippy --all-targets && cargo test && cargo deny check   # the Rust rewrite
 ```
 
 - Domain code imports neither Express nor React.
