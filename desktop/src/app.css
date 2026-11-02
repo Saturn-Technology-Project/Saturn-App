@@ -152,7 +152,7 @@ pre {
   border-bottom: none;
   user-select: none;
   -webkit-user-select: none;
-  -webkit-app-region: drag;
+  --app-region: drag;
   position: relative;
   z-index: 100;
   padding: 0;
@@ -171,7 +171,7 @@ pre {
   padding: 0 8px 0 0;
   user-select: none;
   -webkit-user-select: none;
-  -webkit-app-region: drag;
+  --app-region: drag;
   box-sizing: border-box;
   flex-shrink: 0;
   background: var(--bg);
@@ -198,7 +198,7 @@ pre {
   background: var(--stage);
   user-select: none;
   -webkit-user-select: none;
-  -webkit-app-region: drag;
+  --app-region: drag;
   padding: 0 12px 0 14px;
   box-sizing: border-box;
   flex-shrink: 0;
@@ -226,7 +226,7 @@ pre {
   padding-right: 0;
   height: 100%;
   flex-shrink: 0;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .nav-top-left,
@@ -252,7 +252,7 @@ pre {
   flex-shrink: 0;
   padding-left: 14px;
   box-sizing: border-box;
-  -webkit-app-region: drag;
+  --app-region: drag;
 }
 
 .titlebar-traffic-space.compact {
@@ -282,7 +282,7 @@ pre {
   display: flex;
   align-items: center;
   gap: 8px;
-  -webkit-app-region: drag;
+  --app-region: drag;
 }
 
 .traffic-dot {
@@ -325,7 +325,7 @@ pre {
   color: var(--muted);
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
   flex-shrink: 0;
 }
 
@@ -350,7 +350,7 @@ pre {
   font-family: "SF Mono", Menlo, monospace;
   white-space: nowrap;
   cursor: pointer;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .titlebar-worktree:hover,
@@ -375,7 +375,7 @@ pre {
   font-weight: 550;
   white-space: nowrap;
   cursor: pointer;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
@@ -403,7 +403,7 @@ pre {
   align-items: center;
   flex-wrap: nowrap;
   gap: 1px;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
   flex-shrink: 0;
 }
 
@@ -433,7 +433,7 @@ pre {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
   cursor: default;
 }
 
@@ -466,7 +466,7 @@ pre {
   padding-right: 12px;
   height: 100%;
   flex-shrink: 0;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .titlebar-pill-btn {
@@ -483,7 +483,7 @@ pre {
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .titlebar-pill-btn:hover {
@@ -546,7 +546,7 @@ pre {
 
 .titlebar-menu-wrapper {
   position: relative;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .titlebar-dropdown {
@@ -777,7 +777,7 @@ pre {
   cursor: col-resize;
   user-select: none;
   -webkit-user-select: none;
-  -webkit-app-region: no-drag !important;
+  --app-region: no-drag !important;
 }
 
 .resizer-handle-nav {
@@ -2859,7 +2859,7 @@ body.is-resizing iframe {
   flex-shrink: 0;
   user-select: none;
   -webkit-user-select: none;
-  -webkit-app-region: drag;
+  --app-region: drag;
 }
 
 .inspector-tab-strip {
@@ -2870,7 +2870,7 @@ body.is-resizing iframe {
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-tab-strip::-webkit-scrollbar {
@@ -2895,7 +2895,7 @@ body.is-resizing iframe {
   user-select: none;
   outline: none;
   transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-tab-pill:hover {
@@ -2941,7 +2941,7 @@ body.is-resizing iframe {
   opacity: 0.55;
   outline: none;
   transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-tab-pill:hover .inspector-tab-close,
@@ -2969,7 +2969,7 @@ body.is-resizing iframe {
   cursor: pointer;
   outline: none;
   transition: background 0.14s ease, color 0.14s ease;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-tab-add:hover,
@@ -2983,7 +2983,7 @@ body.is-resizing iframe {
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-win-btn {
@@ -2999,7 +2999,7 @@ body.is-resizing iframe {
   cursor: pointer;
   outline: none;
   transition: background 0.14s ease, color 0.14s ease;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-win-btn:hover {
@@ -8540,16 +8540,16 @@ button.trace-row:hover {
 
 .settings-modal-overlay.standalone .settings-rail {
   padding-top: 40px;
-  -webkit-app-region: drag;
+  --app-region: drag;
 }
 
 .settings-modal-overlay.standalone .settings-rail button {
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .settings-modal-overlay.standalone .settings-pane-head {
   padding-top: 38px;
-  -webkit-app-region: drag;
+  --app-region: drag;
 }
 
 /* Groups */
@@ -9046,9 +9046,9 @@ button.trace-row:hover {
   gap: 18px;
   padding: 48px 20px 20px 24px;
   border-right: 1px solid var(--line);
-  -webkit-app-region: drag;
+  --app-region: drag;
 }
-.onboarding-steps button, .onboarding-steps li { -webkit-app-region: no-drag; }
+.onboarding-steps button, .onboarding-steps li { --app-region: no-drag; }
 .onboarding-brand { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }
 .onboarding-steps ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .onboarding-steps li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
@@ -9064,14 +9064,14 @@ button.trace-row:hover {
 .onboarding-steps li.current .onboarding-step-dot { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .onboarding-steps li.done .onboarding-step-dot { color: var(--fg); }
 .onboarding-skip { margin-top: auto; align-self: flex-start; }
-.onboarding-page { overflow: auto; padding: 56px 48px 40px; -webkit-app-region: drag; }
+.onboarding-page { overflow: auto; padding: 56px 48px 40px; --app-region: drag; }
 .onboarding-card {
   max-width: 560px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 .onboarding-card.wide { max-width: 720px; }
 .onboarding-card h1 { font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }

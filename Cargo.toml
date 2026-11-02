@@ -2,7 +2,9 @@
 # workspace and stays out of this one.
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "desktop/src-tauri"]
+# The desktop app needs a web view to build, so plain cargo commands leave it out; use -p saturn-desktop.
+default-members = ["crates/*"]
 exclude = ["Saturn-IDE"]
 
 [workspace.package]
