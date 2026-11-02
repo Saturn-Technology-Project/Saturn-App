@@ -6,7 +6,9 @@ name: Supply chain
 # - every installed package has a valid npm registry signature, and provenance where its publisher provides it;
 # - no known high or critical vulnerability in what the runtime and the desktop app ship;
 # - the Claude Code and Codex download manifest still pins exactly what the lock file says.
-# It also enforces the coding standard (oxlint with .oxlintrc.json) on the runtime and the desktop app.
+# It also enforces the coding standard (oxlint with .oxlintrc.json) on the runtime and the desktop app, and for the Rust
+# rewrite: formatting, clippy and tests, cargo deny (crates.io only, advisories, licenses), and the HTTP contract
+# (contract/) against both runtimes.
 
 on:
   push:
@@ -22,7 +24,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -56,3 +58,27 @@ jobs:
         run: |
           npm run lint --prefix runtime
           npm run lint --prefix desktop
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Rust formatting, lints and tests
+        run: |
+          cargo fmt --all --check
+          cargo clippy --locked --all-targets
+          cargo test --locked
+
+      - name: Crates resolve only to crates.io, with no known advisories
+        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        with:
+          tool: cargo-deny@0.20.2
+      - run: cargo deny --locked check
+
+      - name: The route checklist matches the TypeScript runtime
+        run: node scripts/contract-routes.mjs --check
+
+      - name: Both runtimes keep the HTTP contract
+        run: |
+          cargo build --locked -p saturn-server
+          SATURN_TEST_RUNTIME=ts node --test contract/*.test.mjs
+          SATURN_TEST_RUNTIME=rust node --test contract/*.test.mjs

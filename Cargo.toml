@@ -1,0 +1,22 @@
+# The Rust rewrite of Saturn's runtime (see contract/ for what it must keep doing). Saturn-IDE/cli is Code-OSS's own
+# workspace and stays out of this one.
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["Saturn-IDE"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+
+[profile.release]
+lto = "thin"
+strip = true

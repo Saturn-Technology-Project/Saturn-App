@@ -38,6 +38,19 @@ updates:
         update-types: [minor, patch]
     labels: [dependencies, desktop]
 
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      rust-minor-and-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, rust]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

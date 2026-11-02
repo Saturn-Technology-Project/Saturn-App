@@ -1,0 +1,17 @@
+# cargo deny check: the Rust counterpart of scripts/check-lockfiles.mjs and npm audit. Crates come from crates.io only,
+# advisories fail the build, and licenses must be ones Saturn can ship under MIT.
+[advisories]
+yanked = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+
+[licenses]
+confidence-threshold = 0.9
+allow = ["Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MIT", "MPL-2.0", "Unicode-3.0", "Zlib"]

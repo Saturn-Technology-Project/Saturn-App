@@ -23,3 +23,6 @@ desktop/.staging/
 
 # A personal MV project about building Saturn (kept out of the repository)
 saturn-mv/
+
+# Rust build output
+/target/

@@ -11,6 +11,8 @@ projects. Three parts, each with its own `package.json` and lock file:
 - `desktop/`: the Electron + React (Vite) app. It reaches the runtime only through
   `src/infrastructure/runtime-client.ts`.
 - `Saturn-IDE/`: a fork of Code-OSS. Saturn's own features live in `Saturn-IDE/extensions/saturn/`.
+- `crates/`: the Rust rewrite of the runtime, in progress; the TypeScript runtime is still what ships. `contract/` holds
+  what both must do over HTTP, and `contract/routes.json` lists every route.
 
 Also `scripts/` (lock-file check, SBOM, `eval/` task evals) and `docs/` (threat model, known advisories).
 
@@ -19,7 +21,10 @@ Also `scripts/` (lock-file check, SBOM, `eval/` task evals) and `docs/` (threat 
   (`Saturn-IDE/.nvmrc`), npm 11.19 or later.
 - Test: `npm test` (runtime). One file: `cd runtime && npx tsx --import ./test/setup.ts --test test/llm.test.ts`.
   Saturn IDE: `npm run test:ide`. Eval harness, free: `node --test scripts/eval/self-test.mjs`.
+  Rust: `cargo test`. Contract: `cargo build -p saturn-server`, then `SATURN_TEST_RUNTIME=rust node --test contract/*.test.mjs`
+  (or `ts`).
 - Type check / lint: `npm run typecheck`, `npm run lint` (oxlint, no warnings allowed), `node scripts/check-lockfiles.mjs`.
+  Rust: `cargo fmt --all --check`, `cargo clippy --all-targets`, `cargo deny check`.
 - Run: `npm run dev` (runtime), `npm run desktop` (app). Packaging: `npm run dist:mac`, `npm run dist:win`.
 
 ## Conventions
@@ -38,6 +43,7 @@ Also `scripts/` (lock-file check, SBOM, `eval/` task evals) and `docs/` (threat 
   yet goes into `docs/known-advisories.md`.
 - After changing the Claude Agent SDK or Codex SDK version, run `node runtime/scripts/agent-programs-manifest.mjs`; a
   test fails until you do. Electron follows `Saturn-IDE/.npmrc` (`target`), not Dependabot.
+- A new or changed route in `runtime/src/presentation/`: run `node scripts/contract-routes.mjs` and commit the list.
 - In `Saturn-IDE/` outside `extensions/saturn/`, read `Saturn-IDE/UPSTREAM.md` first: mark each upstream edit with a
   `Saturn` comment and list it there.
 

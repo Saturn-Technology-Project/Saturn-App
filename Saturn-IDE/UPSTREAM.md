@@ -31,6 +31,7 @@ Compared with the base, outside `extensions/saturn/`: 50 files, all edits or add
 - `build/npm/dirs.ts`: `extensions/copilot` is not installed (saves 1.4 GB per `npm ci`).
 - `build/saturn/undo-telemetry.mjs` (new): replaces Microsoft telemetry hostnames (`*.data.microsoft.com`) in the source before a build, as VSCodium does.
 - `build/saturn/rebrand.mjs` (new): names Saturn IDE where the interface text says "VS Code", in a finished build (the localized message tables, extension manifests, and the `l10n.t` messages of extension bundles), keeping the phrases that mean the real product (its marketplace, Insiders, team, newsletter, logo). The Saturn app runs it as it bundles the IDE (`desktop/scripts/bundle-ide.cjs`), so no source string is edited.
+- `rust-toolchain.toml` (new): keeps the Rust crates here (`cli`, `copilot_shim`, `build/win32`) on stable, out of reach of the version the Saturn repository pins for `crates/` at its root.
 - `package.json`, `package-lock.json`: no Copilot compile and watch scripts; the agent host's Anthropic packages, which only served the Claude harness Saturn IDE turns off, are removed.
 
 **Product and branding**
