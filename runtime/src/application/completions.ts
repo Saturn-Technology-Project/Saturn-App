@@ -6,7 +6,7 @@ import type { ChatMessage } from "../infrastructure/llm.js";
 import { logger } from "../infrastructure/logger.js";
 import type { RuntimeKernel } from "./kernel.js";
 
-/** Usage from Saturn IDE's editor features is filed under this pseudo-agent. */
+/** Usage from the editor features is filed under this pseudo-agent (the id and name earlier usage records carry). */
 export const IDE_AGENT_ID = "saturn-ide";
 const IDE_AGENT_NAME = "Saturn IDE";
 

@@ -1,10 +1,9 @@
 import { projectRules, type RuleSource } from "./rules.js";
-import { execFile, spawn } from "node:child_process";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
 import type { Project } from "../domain/model.js";
@@ -40,140 +39,8 @@ function launchApp(what: string, command: string, args: string[]): void {
   child.unref();
 }
 
-const exec = promisify(execFile);
-
 /**
- * How a Saturn IDE build is laid out on each platform: what to launch, and where product.json and the app's
- * files are. macOS ships an app bundle; Windows and Linux ship a folder with the executable at its root.
- */
-export function ideLayout(platform: NodeJS.Platform = process.platform): { bundle: string; binary: string[]; resources: string[]; buildDir: string } {
-  if (platform === "win32") return { bundle: "Saturn IDE", binary: ["Saturn IDE.exe"], resources: ["resources", "app"], buildDir: `VSCode-win32-${process.arch}` };
-  if (platform === "darwin") return { bundle: "Saturn IDE.app", binary: ["Contents", "MacOS", "Saturn IDE"], resources: ["Contents", "Resources", "app"], buildDir: `VSCode-darwin-${process.arch}` };
-  return { bundle: "Saturn IDE", binary: ["saturn-ide"], resources: ["resources", "app"], buildDir: `VSCode-linux-${process.arch}` };
-}
-
-/** Where an installed Saturn IDE may be, most likely first, after the copy bundled with Saturn. */
-export function ideCandidates(platform: NodeJS.Platform, home: string, repo: string, env: NodeJS.ProcessEnv = process.env): string[] {
-  const layout = ideLayout(platform);
-  if (platform === "win32") {
-    return [
-      path.join(env.LOCALAPPDATA || path.join(home, "AppData", "Local"), "Programs", layout.bundle),
-      path.join(env.ProgramFiles || "C:\\Program Files", layout.bundle),
-      path.join(repo, layout.buildDir),
-      path.join(repo, "..", layout.buildDir),
-    ];
-  }
-  if (platform === "darwin") {
-    return [
-      "/Applications/Saturn IDE.app",
-      path.join(home, "Applications", layout.bundle),
-      // Local builds: Saturn-IDE/ lives inside this checkout and builds to VSCode-darwin-<arch>/ beside it.
-      path.join(repo, layout.buildDir, layout.bundle),
-      path.join(repo, "..", layout.buildDir, layout.bundle),
-    ];
-  }
-  return [path.join(home, ".local", "share", "saturn-ide"), "/opt/saturn-ide", "/usr/share/saturn-ide", path.join(repo, layout.buildDir), path.join(repo, "..", layout.buildDir)];
-}
-
-/**
- * Identifies a Saturn IDE build: product.json's version, commit and date, plus the size and modification time
- * of its main bundle and the Saturn extension. The commit and date alone repeat across local rebuilds made
- * before a commit, which would leave an outdated copy installed.
- */
-async function ideBuild(app: string): Promise<string | null> {
-  const resources = path.join(app, ...ideLayout().resources);
-  try {
-    const product = JSON.parse(await readFile(path.join(resources, "product.json"), "utf8")) as { commit?: string; date?: string; version?: string };
-    const files = await Promise.all(
-      [path.join(resources, "out", "main.js"), path.join(resources, "extensions", "saturn", "extension.js")].map((file) =>
-        stat(file).then((info) => `${info.size}@${Math.floor(info.mtimeMs / 1000)}`, () => "-"),
-      ),
-    );
-    return [product.version ?? "", product.commit ?? "", product.date ?? "", ...files].join(":");
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Saturn.app carries Saturn IDE inside Contents/Resources, but Code-OSS loads no extensions when it runs from
- * inside another app bundle. So the bundled copy is installed to ~/Applications on first use, and again
- * whenever Saturn ships a different build, and that copy is the one launched.
- *
- * The new copy is staged beside the old one and swapped in with renames, so a slow or failing delete of the old
- * copy (macOS can answer ENOTEMPTY while Spotlight or Finder touch a big bundle) never blocks opening the IDE.
- * One install runs at a time; a second caller waits for it.
- */
-let installing: Promise<string> | null = null;
-
-function installBundledIde(bundled: string): Promise<string> {
-  installing ??= swapInBundledIde(bundled).finally(() => {
-    installing = null;
-  });
-  return installing;
-}
-
-/**
- * Deletes an app bundle with the system rm. The packaged runtime runs on Electron's Node, whose fs treats a
- * bundle's node_modules.asar as a folder, so fs.rm fails part-way (ENOTEMPTY) and leaves a broken app behind.
- */
-async function removeBundle(target: string): Promise<void> {
-  if (process.platform === "darwin") {
-    await exec("/bin/rm", ["-rf", target]);
-    return;
-  }
-  await rm(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-}
-
-async function swapInBundledIde(bundled: string): Promise<string> {
-  const target = path.join(os.homedir(), "Applications", "Saturn IDE.app");
-  const [want, have] = await Promise.all([ideBuild(bundled), ideBuild(target)]);
-  if (want && want === have) return target;
-  const staging = `${target}.installing`;
-  await removeBundle(staging);
-  await mkdir(path.dirname(target), { recursive: true });
-  const started = Date.now();
-  await exec("ditto", [bundled, staging]);
-  const old = `${target}.old-${Date.now()}`;
-  const hadOld = await stat(target).then(() => true, () => false);
-  if (hadOld) await rename(target, old);
-  await rename(staging, target);
-  if (hadOld) {
-    void removeBundle(old).catch((error) => logger.warn("projects", `Could not remove the previous Saturn IDE copy at ${old}: ${errorText(error)}`));
-  }
-  logger.info("projects", `Installed Saturn IDE to ${target} in ${Date.now() - started} ms`);
-  return target;
-}
-
-/**
- * Where Saturn IDE (the Code-OSS fork in ../Saturn-IDE) is: the copy bundled in Saturn.app (SATURN_IDE_APP,
- * installed to ~/Applications first), then the usual Applications folders, then a local build in this
- * checkout (`npm run build:ide` in desktop).
- */
-export async function findSaturnIde(): Promise<string | null> {
-  const layout = ideLayout();
-  const exists = (candidate: string) => stat(path.join(candidate, ...layout.binary)).then((info) => info.isFile()).catch(() => false);
-  const bundled = process.env.SATURN_IDE_APP;
-  if (bundled && (await exists(bundled))) {
-    // On macOS the bundled copy is installed to ~/Applications first (see installBundledIde); elsewhere the IDE
-    // runs from Saturn's own resources folder.
-    if (process.platform !== "darwin" || !bundled.includes(".app/Contents/")) return bundled;
-    try {
-      return await installBundledIde(bundled);
-    } catch (error) {
-      // An older installed copy (below) still opens; better than not opening the IDE at all.
-      logger.warn("projects", `Could not install the bundled Saturn IDE: ${errorText(error)}`);
-    }
-  }
-  const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-  for (const candidate of ideCandidates(process.platform, os.homedir(), repo)) {
-    if (await exists(candidate)) return candidate;
-  }
-  return null;
-}
-
-/**
- * Where Saturn Agent App (the desktop Electron app) is: /Applications, ~/Applications,
+ * Where Saturn Agent App (the desktop app) is: /Applications, ~/Applications,
  * or local release builds in desktop/release/mac(-arm64).
  */
 export async function findSaturnAgentApp(): Promise<string | null> {
@@ -223,7 +90,7 @@ export class ProjectService {
   /**
    * Where the default project points when there is none yet. In development that is this checkout (the
    * runtime's working directory, or its parent repository). In the packaged app the working directory is
-   * inside Saturn.app, which is no place for agents or the IDE, so it is the agents' own workspace folder.
+   * inside Saturn.app, which is no place for agents, so it is the agents' own workspace folder.
    */
   private async defaultFolder(): Promise<string> {
     const chosen = process.env.SATURN_PROJECT_PATH || process.cwd();
@@ -466,84 +333,8 @@ export class ProjectService {
     logger.info("projects", `Removed project ${id} and its ${chats} ${chats === 1 ? "chat" : "chats"} (files untouched)`);
   }
 
-  /**
-   * What Saturn IDE opens: the folder itself, or for a multi-folder workspace a generated .code-workspace
-   * (under the data directory) so every folder shows in one multi-root window.
-   */
-  private async ideTarget(project: Project): Promise<string> {
-    const folders = project.folders?.length ? project.folders : [project.path];
-    if (folders.length === 1) return folders[0]!;
-    // One directory per workspace, the file named after it, so the IDE's window title is the workspace name.
-    const dir = path.join(this.kernel.store.root, "workspaces", project.id);
-    await rm(dir, { recursive: true, force: true });
-    await mkdir(dir, { recursive: true });
-    const file = path.join(dir, `${project.name.replace(/[^\w .-]+/g, "-").trim() || "Workspace"}.code-workspace`);
-    await writeFile(file, `${JSON.stringify({ folders: folders.map((folder) => ({ path: folder })), settings: {} }, null, 2)}\n`);
-    return file;
-  }
-
-  /**
-   * `open` arguments that hand this runtime's address and data folder to the IDE it starts, so that IDE talks to
-   * this runtime (and finds its session token) even when it is not on the default port. An IDE that is already
-   * running keeps its own settings.
-   */
-  private ideEnv(): string[] {
-    return ["--env", `SATURN_RUNTIME_PORT=${process.env.SATURN_RUNTIME_PORT ?? 4700}`, "--env", `SATURN_DATA_DIR=${this.kernel.store.root}`];
-  }
-
-  /** Starts Saturn IDE on `target` (a folder or .code-workspace), handing it this runtime's port and data folder. */
-  private launchIde(ide: string, target?: string): void {
-    this.kernel.clients.expect("ide");
-    if (process.platform === "darwin") {
-      launchApp("Saturn IDE", "open", [...this.ideEnv(), "-a", ide, ...(target ? [target] : [])]);
-      return;
-    }
-    const binary = path.join(ide, ...ideLayout().binary);
-    const child = spawn(binary, target ? [target] : [], {
-      detached: true,
-      stdio: "ignore",
-      env: { ...launchEnv(), SATURN_RUNTIME_PORT: String(process.env.SATURN_RUNTIME_PORT ?? 4700), SATURN_DATA_DIR: this.kernel.store.root },
-      ...(process.platform === "win32" ? { windowsHide: false } : {}),
-    });
-    child.on("error", (error) => logger.warn("projects", `Could not launch Saturn IDE: ${errorText(error)}`));
-    child.unref();
-  }
-
-  /** Opens the workspace in Saturn IDE, the IDE bundled with Saturn; never another editor. */
-  async openEditor(id: string): Promise<{ opened: boolean; editor?: string }> {
-    const projects = await this.list();
-    const target = projects.find((p) => p.id === id);
-    if (!target) throw new HttpError(404, `Project ${id} not found`);
-    const ide = await findSaturnIde();
-    if (!ide) {
-      throw new HttpError(404, "Saturn IDE is not installed. Reinstall Saturn, or in development run npm run build:ide in desktop.");
-    }
-    this.launchIde(ide, await this.ideTarget(target));
-    logger.info("projects", `Opened ${target.name} in Saturn IDE`);
-    return { opened: true, editor: "Saturn IDE" };
-  }
-
-  /**
-   * Wakes up the default application (Saturn IDE or Saturn Agent App) based on settings.launchApp.
-   */
-  async wakeupDefaultApp(): Promise<{ target: "ide" | "agent"; opened: boolean }> {
-    const setting = this.kernel.store.state.settings.launchApp ?? "agent";
-    if (setting === "ide") {
-      const ide = await findSaturnIde();
-      if (ide) {
-        try {
-          const active = await this.getActive();
-          this.launchIde(ide, await this.ideTarget(active));
-          logger.info("projects", `Woke up Saturn IDE with project ${active.name}`);
-        } catch {
-          this.launchIde(ide);
-          logger.info("projects", `Woke up Saturn IDE`);
-        }
-        return { target: "ide", opened: true };
-      }
-      logger.warn("projects", `Saturn IDE not found on this system, falling back to Agent App`);
-    }
-
+  /** Brings up the Agent App when the runtime was started on its own. */
+  async wakeupDefaultApp(): Promise<{ target: "agent"; opened: boolean }> {
     if (process.env.SATURN_DESKTOP_ATTACHED === "1") {
       logger.info("projects", "Agent App attached; ready for wake");
       return { target: "agent", opened: true };
@@ -605,7 +396,7 @@ export class ProjectService {
     const projects = await this.list();
     const target = projects.find((p) => p.id === id);
     if (!target) throw new HttpError(404, `Project ${id} not found`);
-    // Every file the agents' prompt takes rules from (rules.ts), for the editor and the IDE.
+    // Every file the agents' prompt takes rules from (rules.ts), for the editor.
     const { sources } = await projectRules(target.path, target.rules ?? "");
     return { ...(await this.editableRules(target)), sources };
   }

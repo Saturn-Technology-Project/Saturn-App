@@ -17,10 +17,6 @@ export class AdminService {
     if (logging && !["debug", "info", "warning", "error"].includes(logging)) {
       throw new HttpError(400, "Unknown logging level");
     }
-    const launchApp = patch.launchApp;
-    if (launchApp && launchApp !== "agent" && launchApp !== "ide") {
-      throw new HttpError(400, "launchApp must be \"agent\" or \"ide\"");
-    }
     const completionModelId = patch.completionModelId === undefined ? undefined : patch.completionModelId || null;
     if (completionModelId && !this.kernel.store.state.models.some((item) => item.id === completionModelId)) {
       throw new HttpError(400, "Unknown completion model");
@@ -40,8 +36,6 @@ export class AdminService {
         name: patch.name?.trim() || state.settings.name,
         environment: patch.environment?.trim() || state.settings.environment,
         logging: logging ?? state.settings.logging,
-        launchApp: launchApp ?? state.settings.launchApp,
-        claudeCodeAuth: state.settings.claudeCodeAuth,
         completionModelId: completionModelId === undefined ? state.settings.completionModelId ?? null : completionModelId,
         memory: typeof patch.memory === "boolean" ? patch.memory : state.settings.memory,
         planApproval: typeof patch.planApproval === "boolean" ? patch.planApproval : state.settings.planApproval,
@@ -71,11 +65,10 @@ export class AdminService {
     }
     const renamed = next.name !== previous.name ? ` (name: ${next.name})` : "";
     const moved = next.environment !== previous.environment ? ` (environment: ${next.environment})` : "";
-    const launch = next.launchApp !== previous.launchApp ? ` (opens ${next.launchApp === "ide" ? "Saturn IDE" : "the Agent App"} at launch)` : "";
     const completion = next.completionModelId !== previous.completionModelId
       ? ` (completion model: ${this.kernel.store.state.models.find((item) => item.id === next.completionModelId)?.name ?? "none"})`
       : "";
-    this.kernel.log("runtime", "info", `Settings saved${renamed}${moved}${launch}${completion}`);
+    this.kernel.log("runtime", "info", `Settings saved${renamed}${moved}${completion}`);
     return next;
   }
 

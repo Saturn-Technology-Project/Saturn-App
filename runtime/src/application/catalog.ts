@@ -245,7 +245,7 @@ export class CatalogService {
     const removed = (this.kernel.store.state[kind] as { id: string; name: string }[]).find((item) => item.id === id);
     await this.kernel.store.update((state) => {
       state[kind] = state[kind].filter((item) => item.id !== id) as never;
-      // Saturn IDE's completions turn off rather than point at a model that is gone.
+      // The editor's completions turn off rather than point at a model that is gone.
       if (kind === "models" && state.settings.completionModelId === id) state.settings.completionModelId = null;
     });
     if (kind === "models") await this.kernel.store.deleteSecret(id);

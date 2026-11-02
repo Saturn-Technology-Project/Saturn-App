@@ -298,10 +298,6 @@ export class AppServices {
     return await this.kernel.projects.delete(id);
   }
 
-  async openProjectEditor(id: string) {
-    return await this.kernel.projects.openEditor(id);
-  }
-
   async openProjectTerminal(id: string) {
     return await this.kernel.projects.openTerminal(id);
   }
@@ -318,7 +314,7 @@ export class AppServices {
     return await this.kernel.projects.saveRules(id, content, targetFile);
   }
 
-  async wakeupDefaultApp(): Promise<{ target: "ide" | "agent"; opened: boolean }> {
+  async wakeupDefaultApp(): Promise<{ target: "agent"; opened: boolean }> {
     return await this.kernel.projects.wakeupDefaultApp();
   }
 }

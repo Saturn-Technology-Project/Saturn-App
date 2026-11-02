@@ -5,24 +5,10 @@ import { telemetryBuffer, telemetryFile, telemetryStatus } from "../infrastructu
 import { EXPORT_FORMATS, exportFormat, render } from "../infrastructure/telemetry-formats.js";
 import { telemetryDocument } from "../infrastructure/telemetry-file.js";
 import { HttpError } from "../domain/errors.js";
-import { logger } from "../infrastructure/logger.js";
 import { param, respond } from "./http.js";
 
 /** Read-only views of the runtime's recent OpenTelemetry data, for the desktop Telemetry page. */
 export function mountTelemetry(app: Express): void {
-  // Saturn IDE (the Code-OSS fork) sends its built-in telemetry here instead of to Microsoft; each event
-  // is recorded in the runtime log so it stays on this machine and shows on the Logs/Telemetry page.
-  app.post("/telemetry/vscode", (req, res, next) => {
-    respond(res, next, () => {
-      const events = Array.isArray(req.body?.events) ? (req.body.events as { name?: unknown; data?: unknown }[]) : [];
-      for (const event of events.slice(0, 200)) {
-        const name = typeof event?.name === "string" ? event.name : "event";
-        logger.log("ide-telemetry", "info", name, { "ide.event": name, "ide.data": safeJson(event?.data) });
-      }
-      return { received: events.length };
-    });
-  });
-
   // Every HTTP(S) request the runtime has sent since it started: by host, and the latest ones (no queries, no bodies).
   app.get("/network", (req, res) => {
     res.json(networkLog.view(Math.min(500, Number(req.query.limit) || 200)));
@@ -172,59 +158,6 @@ export function mountTelemetry(app: Express): void {
       res.status(400).json({ error: String(err) });
     }
   });
-
-  /* ─── Microsoft 1DS / AppInsights Ingestion ─── */
-
-  app.post("/OneCollector/1.0", (req, res) => {
-    try {
-      let payload = req.body;
-      if (typeof payload === "string") {
-        try {
-          payload = JSON.parse(payload);
-        } catch {
-          payload = payload.split("\n").filter(Boolean).map((line: string) => {
-            try { return JSON.parse(line); } catch { return null; }
-          }).filter(Boolean);
-        }
-      }
-      const events: any[] = Array.isArray(payload) ? payload : (Array.isArray(payload?.events) ? payload.events : [payload]);
-      let count = 0;
-      for (const ev of events) {
-        if (!ev) continue;
-        count++;
-        const name = ev.name ?? ev.eventName ?? "ide.event";
-        const timeMs = ev.time ? Date.parse(ev.time) : Date.now();
-        const baseData = ev.data?.baseData ?? {};
-        const attributes = {
-          "telemetry.source": "1ds",
-          "service.name": "saturn-ide",
-          "iKey": ev.iKey,
-          ...baseData,
-          ...(ev.data?.properties ?? {}),
-        };
-        telemetryBuffer.addSpanRecord({
-          traceId: randomUUID().replace(/-/g, ""),
-          spanId: randomUUID().replace(/-/g, "").slice(0, 16),
-          parentSpanId: null,
-          name,
-          kind: "internal",
-          scope: "saturn-ide",
-          startMs: isNaN(timeMs) ? Date.now() : timeMs,
-          durationMs: 0,
-          status: "ok",
-          attributes,
-          events: [],
-        });
-      }
-      res.json({ itemsReceived: count, itemsAccepted: count, errors: [] });
-    } catch (err) {
-      res.status(400).json({ error: String(err) });
-    }
-  });
-
-  app.all(["/ping", "/telemetry/ping"], (_req, res) => {
-    res.status(200).send("OK");
-  });
 }
 
 const KINDS: Record<number, "internal" | "server" | "client" | "producer" | "consumer"> = {
@@ -265,14 +198,4 @@ function parseOtlpAttributes(attrs: any[] | undefined): Record<string, any> {
     }
   }
   return result;
-}
-
-/** VS Code telemetry `data` is an arbitrary bag; keep it as one capped JSON string for the log attribute. */
-function safeJson(value: unknown): string {
-  try {
-    const text = JSON.stringify(value ?? {});
-    return text.length > 4000 ? `${text.slice(0, 4000)}…` : text;
-  } catch {
-    return "{}";
-  }
 }

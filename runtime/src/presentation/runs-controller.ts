@@ -19,7 +19,7 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.usageSummary({ from: end(req.query.from), to: end(req.query.to) }));
   });
 
-  // One plain model call for Saturn IDE's Tab completion and Cmd+K edit. Closing the request aborts it.
+  // One plain model call for the editor features. Closing the request aborts it.
   app.post("/complete", (req, res, next) => {
     const stop = new AbortController();
     res.on("close", () => {
@@ -152,7 +152,7 @@ export function mountRuns(app: Express, services: AppServices): void {
     });
   });
 
-  // Saturn IDE's Agents view: what is running now, and what finished lately, optionally in one project.
+  // What is running now, and what finished lately, optionally in one project.
   app.get("/runs", (req, res, next) => {
     respond(res, next, () => services.recentRuns(typeof req.query.projectId === "string" ? req.query.projectId : undefined, Number(req.query.limit) || 20));
   });

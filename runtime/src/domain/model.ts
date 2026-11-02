@@ -319,11 +319,7 @@ export type AppSettings = {
   name: string;
   environment: string;
   logging: "debug" | "info" | "warning" | "error";
-  /** What opens when Saturn starts: the Agent App window, or Saturn IDE (the app then stays in the Dock). */
-  launchApp: LaunchApp;
-  /** How Saturn IDE's Claude Code signs in: the user's own `claude` login (subscription), or the saved API key. */
-  claudeCodeAuth?: ClaudeCodeAuth;
-  /** The model connection Saturn IDE's Tab completion and Cmd+K inline edit use; unset turns them off. */
+  /** The model connection the editor features (POST /complete) use; unset turns them off. */
   completionModelId?: string | null;
   /** Keep notes about the user and each project across chats (default on). */
   memory?: boolean;
@@ -354,11 +350,9 @@ export type AppSettings = {
   onboardedAt?: string;
 };
 
-export type ClaudeCodeAuth = "subscription" | "api-key";
 
 export type EmbeddingSource = "builtin" | "lmstudio" | "openai";
 
-export type LaunchApp = "agent" | "ide";
 
 export type AutomationFrequency = "hourly" | "daily" | "weekdays" | "weekly";
 

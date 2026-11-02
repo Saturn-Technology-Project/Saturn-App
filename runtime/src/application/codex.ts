@@ -283,7 +283,7 @@ export class CodexService {
     // setting is Review, as it does for the same tools on every other provider.
     const group = run.groupId ? (this.kernel.store.state.groups ?? []).find((item) => item.id === run.groupId) : undefined;
     const mode = approvalMode(agent, group?.autonomy);
-    const skills = bridgedTools(this.kernel, agent, thread?.projectId ? workdir : undefined);
+    const skills = bridgedTools(this.kernel, agent);
     const bridged = { aliases: new Map<string, string>(), orphans: new Set<string>() };
     const skillsCall: BridgedCall = async (toolId, args) => {
       if ((run.mode === "ask" || run.mode === "plan") && !isReadOnlyCall(toolId, args, this.kernel.runs.toolCategory(agent, toolId))) {

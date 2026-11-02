@@ -242,7 +242,7 @@ export class ClaudeCodeService {
 
     // The agent's Saturn skills and MCP servers, in-process. Their calls pass canUseTool like any other tool,
     // so they follow the same approval setting, and run through Saturn's own tool path.
-    const skills = bridgedTools(this.kernel, agent, thread?.projectId ? workdir : undefined);
+    const skills = bridgedTools(this.kernel, agent);
     const skillsCall = (toolId: string, args: Record<string, unknown>) =>
       this.kernel.runs.executeTool({ agentId: agent.id, toolId, arguments: args, runId, actionId: newId("act"), signal });
 
