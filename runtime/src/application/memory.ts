@@ -41,7 +41,7 @@ export class MemoryService {
 
   async write(scope: "global" | string, content: string): Promise<void> {
     await mkdir(this.dir(), { recursive: true, mode: 0o700 });
-    await writeFile(this.file(scope), content.replace(/\s+$/, "") + (content.trim() ? "\n" : ""), "utf8");
+    await writeFile(this.file(scope), content.trimEnd() + (content.trim() ? "\n" : ""), "utf8");
   }
 
   /** The memory block for a system prompt: the project's notes, then the user's, within the budget. */

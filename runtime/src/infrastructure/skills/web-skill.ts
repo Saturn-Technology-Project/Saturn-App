@@ -26,23 +26,21 @@ export class WebSkill {
   }
 }
 
-function pageText(html: string): { title: string; text: string } {
+/** The readable title and text of an HTML page, for the model; nothing here is shown as HTML. */
+export function pageText(html: string): { title: string; text: string } {
   const title = decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "").replace(/\s+/g, " ").trim();
   const text = decode(
     html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script\b[\s\S]*?<\/script\b[^>]*>/gi, " ")
+      .replace(/<style\b[\s\S]*?<\/style\b[^>]*>/gi, " ")
       .replace(/<[^>]+>/g, " "),
   ).replace(/\s+/g, " ").trim();
   return { title, text };
 }
 
+const ENTITIES: Record<string, string> = { "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": "\"", "&#39;": "'" };
+
+/** One pass, so "&amp;lt;" becomes the text "&lt;" and is not decoded a second time. */
 function decode(value: string): string {
-  return value
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, "\"")
-    .replace(/&#39;/g, "'");
+  return value.replace(/&(?:nbsp|amp|lt|gt|quot|#39);/g, (entity) => ENTITIES[entity]!);
 }

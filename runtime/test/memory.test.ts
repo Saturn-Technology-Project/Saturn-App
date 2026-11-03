@@ -21,6 +21,18 @@ test("memory notes are parsed from the model's JSON and merged without duplicate
   assert.equal(merged, "- Prefers tabs over spaces\n- Writes commit messages in English");
 });
 
+test("memory files lose their trailing space, quickly even with long runs of spaces inside", async () => {
+  const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-memory-space-")));
+  await store.load();
+  const { services } = createApp(store);
+  const started = performance.now();
+  await services.kernel.memory.write("global", `a${" ".repeat(200_000)}b \n\t `);
+  assert.ok(performance.now() - started < 1000, "no quadratic scan");
+  assert.equal((await services.kernel.memory.read("global")).length, 200_003);
+  await services.kernel.memory.write("global", " \n");
+  assert.equal(await services.kernel.memory.read("global"), "");
+});
+
 test("memory goes at the top of the system prompt; the plan gate and the browser section appear when set", () => {
   const agent: Agent = { id: "a", name: "A", instructions: "Be brief.", description: "", status: "active", modelConnectionId: null, mcpConnectionIds: ["general-skills", "browser"], ragConnectionIds: [], responseStyle: "concise", autonomy: "default", temperature: 0.2, maxOutput: 4000 };
   const prompt = buildSystemPrompt({ agent, memory: "# Memory\n- Prefers tabs", planApproval: true });
