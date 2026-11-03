@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import dns from "node:dns/promises";
 import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import { syncBuiltinESMExports } from "node:module";
+import test, { mock } from "node:test";
 import { merge, parseNotes } from "../src/application/memory.js";
 import { BROWSER_TOOLS } from "../src/domain/browser-tools.js";
 import type { Agent } from "../src/domain/model.js";
@@ -81,9 +83,19 @@ test("a browser tool call without a browser fails with a clear reason, not a han
     const agent = await services.createAgent({ name: "Surfer" });
     const action = await services.kernel.runs.executeTool({ agentId: agent.id, toolId: "browser_navigate", arguments: { url: "https://example.com" }, runId: "run_x", actionId: "act_x" });
     assert.equal(action.status, "failed");
-    assert.match(action.reason ?? "", /could not start|did not start|No browser found/);
+    assert.match(action.reason ?? "", /could not start|did not start|No browser found|Could not resolve/);
     const local = await services.kernel.runs.executeTool({ agentId: agent.id, toolId: "browser_navigate", arguments: { url: "http://127.0.0.1:4700/" }, runId: "run_x", actionId: "act_y" });
     assert.match(local.reason ?? "", /not allowed/, "private addresses are refused before any browser starts");
+    // A public-looking name that resolves to a private address, likewise.
+    const resolving = mock.method(dns, "lookup", (async () => [{ address: "192.168.1.1", family: 4 }]) as never);
+    syncBuiltinESMExports();
+    try {
+      const named = await services.kernel.runs.executeTool({ agentId: agent.id, toolId: "browser_navigate", arguments: { url: "https://router.example/" }, runId: "run_x", actionId: "act_z" });
+      assert.match(named.reason ?? "", /not allowed/);
+    } finally {
+      resolving.mock.restore();
+      syncBuiltinESMExports();
+    }
   } finally {
     if (previous.browser === undefined) delete process.env.SATURN_BROWSER; else process.env.SATURN_BROWSER = previous.browser;
     if (previous.electron !== undefined) process.env.SATURN_ELECTRON = previous.electron;

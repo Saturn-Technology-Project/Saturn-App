@@ -10,7 +10,7 @@ import type { AppServices } from "../application/services.js";
 import { respond } from "./http.js";
 import { launchEnv } from "../infrastructure/launch-env.js";
 import { PublicAddress } from "../domain/skills/public-address.js";
-import { assertPublicHost } from "../infrastructure/public-host.js";
+import { fetchPublic } from "../infrastructure/public-host.js";
 import { shellInvocation, terminalEnv, terminalWindow } from "../infrastructure/shell.js";
 import { runComputerUseSkill } from "../infrastructure/skills.js";
 import { HttpError } from "../domain/errors.js";
@@ -240,9 +240,7 @@ export function mountWorkspace(app: Express, services: AppServices): void {
       let current = PublicAddress.parse(targetUrl).url;
       let response: Response | undefined;
       for (let hop = 0; hop < 5; hop += 1) {
-        await assertPublicHost(current);
-        response = await fetch(current, {
-          redirect: "manual",
+        response = await fetchPublic(current, {
           headers: {
             "user-agent":
               "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",

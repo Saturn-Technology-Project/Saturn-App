@@ -1,5 +1,5 @@
 import { PublicAddress } from "../../domain/skills/public-address.js";
-import { assertPublicHost } from "../public-host.js";
+import { fetchPublic } from "../public-host.js";
 import { clip, text } from "./text.js";
 
 export class WebSkill {
@@ -8,8 +8,7 @@ export class WebSkill {
     let status = 0;
     let body = "";
     for (let hop = 0; hop < 4; hop += 1) {
-      await assertPublicHost(current);
-      const response = await fetch(current, { redirect: "manual", signal: signal ?? AbortSignal.timeout(10_000) });
+      const response = await fetchPublic(current, { signal: signal ?? AbortSignal.timeout(10_000) });
       status = response.status;
       if (status >= 300 && status < 400) {
         const location = response.headers.get("location");

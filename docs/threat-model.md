@@ -30,7 +30,7 @@ Web pages, repository files, issue and review comments, MCP and tool results and
 - **Rules that come with a folder cannot loosen approvals on their own.** A project's `.saturn/settings.json` and `.claude/settings.json` arrive with the repository, so their deny and ask rules apply at once, but their allow rules apply only after the user has reviewed and allowed that exact set; any change asks again. Rules that allow every shell command are refused wherever they come from (`application/permissions.ts`).
 - **The OS sandbox** confines shell commands' writes to the workspace, temp folders and package caches (macOS seatbelt, Linux bubblewrap); leaving it is an approval in every mode but full autonomy (`infrastructure/sandbox.ts`).
 - **Checkpoints** record every change, including what shell commands change, so it can be reviewed and reverted (`application/checkpoints.ts`).
-- **Public addresses only** for the web and browser tools and the Browser tab's page loader: loopback, private and link-local addresses, including names that resolve to them, are refused (`domain/skills/public-address.ts`, `infrastructure/public-host.ts`).
+- **Public addresses only** for the web tool and the Browser tab's page loader: loopback, private and link-local addresses, including names that resolve to them, are refused at the moment of connecting, on every redirect (`domain/skills/public-address.ts`, `infrastructure/public-host.ts`). The agent browser's `browser_navigate` makes the same check before it opens a page, but the browser itself makes the connection, so see Known gaps.
 - **The agent browser** uses its own profile, never the user's browser profile or sign-ins (`infrastructure/skills/browser-skill.ts`).
 
 Residual risk: within what the user has allowed, injected instructions act with the agent's full permissions. With the network on (the default), a command or a fetch can send data the agent can read to any public address. Full autonomy, broad allow rules and computer use (which controls the whole desktop) widen this. See [Reducing exposure](../README.md#reducing-exposure).
@@ -74,6 +74,7 @@ Out of scope: a process already running as the same user can read the token file
 - **Windows has no command sandbox**; commands say so in their result.
 - **macOS builds are not Developer ID-signed or notarized**, and Windows builds use a self-signed certificate, so users cannot rely on the OS to confirm a download's origin; the SHA-256 files and build provenance are the check.
 - **Network access is on by default** inside the sandbox, so package installs work; switch it off per project for sensitive work.
+- **The agent browser's address check covers `browser_navigate` only.** A page it opens can still redirect to, link to or load from a private address, because the browser makes those requests itself.
 - **No third-party security audit yet.**
 
 ## Assurance case
@@ -87,7 +88,7 @@ Why Saturn's security requirements are met: each requirement, the argument, and 
 | **R1. No tool call runs beyond what the user allowed.** | Every call passes `runTools`: rules (deny before ask before allow, one shell command at a time), then the approval mode and the sensitive-operation check; rules that come with a folder cannot allow on their own; commands run in the OS sandbox; every change is checkpointed. | `permissions.test.ts` (rule order, Review mode, rules from project files held until allowed, allow-everything refused), `approvals.test.ts`, `run-modes.test.ts`, `sandbox.test.ts` (writes outside the workspace fail on macOS), `shell-changes.test.ts`, `checkpoints.test.ts` |
 | **R2. Only the user's own clients can use the runtime.** | Loopback only; `Host` and `Origin` checks; a 256-bit token in a `0600` file on every route but the health probe and the OAuth redirect; the Codex route takes a per-turn token. | `runtime.test.ts`: "the runtime rejects requests without the session token, and a non-loopback Host", "CORS allows Saturn's loopback windows and rejects web pages, including sandboxed (null-origin) ones"; `agent-skills.test.ts`, `codex.test.ts` |
 | **R3. Credentials stay encrypted at rest and go only to their provider.** | AES-256-GCM with a random key in the OS key store and a random IV per write; authenticated, so tampering is detected; a key is attached only to its own provider's requests; values are never logged. | `secrets.test.ts` (ciphertext only, tampering rejected, plaintext migrated, key store fallbacks), `llm.test.ts` |
-| **R4. The agent's fetching tools cannot reach this computer or the private network.** | Every web, browser and Browser-tab request is checked against loopback, private and link-local ranges, after DNS resolution and on every redirect. | `runtime.test.ts`: "the in-app browser proxy refuses local and private addresses…", "a public name that resolves to a private address is refused (DNS rebinding)"; `browser-safari.test.ts` |
+| **R4. The web tool and the Browser tab cannot reach this computer or the private network.** | Every such request is checked against loopback, private and link-local ranges in the connection's own DNS lookup and on every redirect. The agent browser checks only the address it is told to open (see Known gaps). | `runtime.test.ts`: "the in-app browser proxy refuses local and private addresses…", "a public name that resolves to a private address is refused (DNS rebinding)"; `browser-safari.test.ts` |
 | **R5. Things that come with a folder or plugin run only once allowed.** | Hooks, local MCP servers and project allow rules are approved by a fingerprint of exactly what the user saw; any change asks again. | `hooks.test.ts`, `mcp-stdio.test.ts`, `plugins.test.ts`, `permissions.test.ts` |
 | **R6. A download is what the public workflow built.** | Releases are built only by `release.yml` from a tagged commit; each file has a SHA-256 and signed build provenance; Claude Code and Codex downloads are checked against pinned SHA-512; no dependency install scripts run. | The attestations on every release (`gh attestation verify`), `agent-programs.test.ts` ("manifest pins"), `.github/workflows/supply-chain.yml` |
 
@@ -167,7 +168,7 @@ Agent 的一個回合：Runtime 把對話與工具定義送給模型；模型要
 - **隨資料夾而來的規則不能自行放寬核准。** 專案的 `.saturn/settings.json` 與 `.claude/settings.json` 隨 repository 而來，其中的拒絕與詢問規則立即生效，允許規則則要在使用者看過並允許那一組規則後才生效；任何變更都會再次詢問。允許所有 shell 指令的規則無論來自哪裡都會被拒絕（`application/permissions.ts`）。
 - **作業系統沙箱**把 shell 指令的寫入限制在工作目錄、暫存資料夾與套件快取（macOS seatbelt、Linux bubblewrap）；離開沙箱在完全自主以外的所有模式都需要核准（`infrastructure/sandbox.ts`）。
 - **檢查點**記錄每一次變更，包含 shell 指令造成的變更，可供檢視與還原（`application/checkpoints.ts`）。
-- **只允許公開位址**：web 與瀏覽器工具，以及 Browser 分頁的頁面載入器，會拒絕 loopback、私有與 link-local 位址，包括解析到這些位址的網域名稱（`domain/skills/public-address.ts`、`infrastructure/public-host.ts`）。
+- **只允許公開位址**：web 工具與 Browser 分頁的頁面載入器，會在建立連線時與每次重新導向時拒絕 loopback、私有與 link-local 位址，包括解析到這些位址的網域名稱（`domain/skills/public-address.ts`、`infrastructure/public-host.ts`）。Agent 瀏覽器的 `browser_navigate` 在開啟頁面前也做同樣檢查，但實際連線由瀏覽器自己建立，見已知缺口。
 - **Agent 瀏覽器**使用自己的設定檔，從不使用使用者瀏覽器的設定檔或登入（`infrastructure/skills/browser-skill.ts`）。
 
 剩餘風險：在使用者允許的範圍內，被注入的指示能以 Agent 的完整權限行動。網路開啟時（預設），指令或擷取可以把 Agent 讀得到的資料送到任何公開位址。完全自主、範圍廣的允許規則與電腦操作（可控制整個桌面）都會擴大這個風險。見[降低風險](../README_ZH.md)。
@@ -211,6 +212,7 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 - **Windows 沒有指令沙箱**；指令的結果會註明。
 - **macOS 版本未以 Developer ID 簽章或公證**，Windows 版本使用自簽憑證，使用者無法依賴作業系統確認下載來源；應以 SHA-256 檔與建置來源證明檢查。
 - **沙箱內預設可連網**，以便安裝套件；處理敏感工作時可針對專案關閉。
+- **Agent 瀏覽器的位址檢查只涵蓋 `browser_navigate`。** 它開啟的頁面仍可能重新導向、連結或載入私有位址，因為這些請求由瀏覽器自己發出。
 - **尚未經過第三方安全審計。**
 
 ## 保證論證
@@ -224,7 +226,7 @@ Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗�
 | **R1. 工具呼叫不會超出使用者允許的範圍。** | 每個呼叫都經過 `runTools`：先看規則（拒絕優先於詢問，詢問優先於允許，shell 指令逐一判斷），再看核准模式與敏感操作檢查；隨資料夾而來的規則無法自行允許；指令在作業系統沙箱中執行；每次變更都有檢查點。 | `permissions.test.ts`（規則順序、Review 模式、專案檔案的規則在允許前暫緩、允許一切的規則被拒絕）、`approvals.test.ts`、`run-modes.test.ts`、`sandbox.test.ts`（macOS 上寫到工作目錄外會失敗）、`shell-changes.test.ts`、`checkpoints.test.ts` |
 | **R2. 只有使用者自己的 client 能使用 Runtime。** | 只監聽 loopback；檢查 `Host` 與 `Origin`；除健康檢查與 OAuth 重新導向外，每個路由都需要存於 `0600` 檔案的 256 位元 token；Codex 的路由改用每回合的 token。 | `runtime.test.ts`：「the runtime rejects requests without the session token, and a non-loopback Host」、「CORS allows Saturn's loopback windows and rejects web pages…」；`agent-skills.test.ts`、`codex.test.ts` |
 | **R3. 憑證靜態加密，且只送到它自己的供應商。** | AES-256-GCM，隨機金鑰存於作業系統金鑰庫，每次寫入使用隨機 IV；具驗證性，竄改會被發現；金鑰只附加在其供應商的請求上；值從不記錄於 log。 | `secrets.test.ts`（只有密文、拒絕被竄改的內容、明文自動遷移、金鑰庫的備援）、`llm.test.ts` |
-| **R4. Agent 的擷取工具無法連到這台電腦或私有網路。** | 每個 web、瀏覽器與 Browser 分頁的請求，都在 DNS 解析後與每次重新導向時，檢查是否為 loopback、私有或 link-local 位址。 | `runtime.test.ts`：「the in-app browser proxy refuses local and private addresses…」、「a public name that resolves to a private address is refused (DNS rebinding)」；`browser-safari.test.ts` |
+| **R4. Web 工具與 Browser 分頁無法連到這台電腦或私有網路。** | 每個這類請求都在連線自己的 DNS 查詢中與每次重新導向時，檢查是否為 loopback、私有或 link-local 位址。Agent 瀏覽器只檢查它被要求開啟的位址（見已知缺口）。 | `runtime.test.ts`：「the in-app browser proxy refuses local and private addresses…」、「a public name that resolves to a private address is refused (DNS rebinding)」；`browser-safari.test.ts` |
 | **R5. 隨資料夾或外掛而來的東西，要經允許才會執行。** | Hooks、本機 MCP 伺服器與專案的允許規則，都以使用者實際看到內容的指紋核准；任何變更都會再次詢問。 | `hooks.test.ts`、`mcp-stdio.test.ts`、`plugins.test.ts`、`permissions.test.ts` |
 | **R6. 下載檔就是公開 workflow 建置的成果。** | 發布只由 `release.yml` 從打了 tag 的 commit 建置；每個檔案都有 SHA-256 與簽署的建置來源證明；Claude Code 與 Codex 的下載以固定的 SHA-512 驗證；不執行相依套件的安裝腳本。 | 每次發布附的證明（`gh attestation verify`）、`agent-programs.test.ts`（「manifest pins」）、`.github/workflows/supply-chain.yml` |
 

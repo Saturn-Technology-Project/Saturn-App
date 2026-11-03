@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { PublicAddress } from "../../domain/skills/public-address.js";
+import { assertPublicHost } from "../public-host.js";
 import { launchEnv } from "../launch-env.js";
 import { logger } from "../logger.js";
 import type { BrowserFrame } from "./browser-skill.js";
@@ -268,7 +269,9 @@ export class SafariBrowser {
     switch (toolId) {
       case "browser_navigate": {
         const raw = String(args.url ?? "");
-        const url = PublicAddress.parse(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).url.toString();
+        const address = PublicAddress.parse(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).url;
+        await assertPublicHost(address);
+        const url = address.toString();
         await this.call("POST", "/url", { url });
         const snapshot = await this.snapshotText();
         return { ...this.current, snapshot };

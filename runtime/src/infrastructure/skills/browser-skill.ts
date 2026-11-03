@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PublicAddress } from "../../domain/skills/public-address.js";
+import { assertPublicHost } from "../public-host.js";
 import { launchEnv } from "../launch-env.js";
 import { errorText, logger } from "../logger.js";
 import { SafariBrowser } from "./safari-browser.js";
@@ -361,7 +362,9 @@ export class BrowserSkill {
   }
 
   private async navigate(raw: string) {
-    const url = PublicAddress.parse(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).url.toString();
+    const address = PublicAddress.parse(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).url;
+    await assertPublicHost(address);
+    const url = address.toString();
     const { cdp, session } = await this.ensure();
     const loaded = new Promise<void>((resolve) => {
       const done = () => resolve();
