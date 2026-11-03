@@ -1,4 +1,4 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 
 /** Characters of project rules put in an agent's prompt. */
@@ -27,11 +27,11 @@ export async function projectRules(root: string, stored = "", skip: readonly str
         continue;
       }
       for (const name of names) {
-        const content = await read(path.join(full, name));
+        const content = await read(root, path.join(full, name));
         if (content) pieces.push({ path: `${entry}/${name}`, content });
       }
     } else {
-      const content = await read(full);
+      const content = await read(root, full);
       if (content) pieces.push({ path: entry, content });
     }
   }
@@ -52,8 +52,22 @@ export async function projectRules(root: string, stored = "", skip: readonly str
   };
 }
 
-async function read(file: string): Promise<string> {
+/**
+ * Whether a file is really inside a folder. A cloned repository can bring a link that leads elsewhere on the computer, and
+ * what these files hold goes into prompts and so to the model's provider.
+ */
+export async function reallyInside(root: string, file: string): Promise<boolean> {
   try {
+    const [folder, target] = await Promise.all([realpath(root), realpath(file)]);
+    return target.startsWith(folder + path.sep);
+  } catch {
+    return false;
+  }
+}
+
+async function read(root: string, file: string): Promise<string> {
+  try {
+    if (!(await reallyInside(root, file))) return "";
     const content = await readFile(file, "utf8");
     return content.includes("\u0000") ? "" : content.trim();
   } catch {

@@ -1,4 +1,4 @@
-import { projectRules, type RuleSource } from "./rules.js";
+import { projectRules, reallyInside, type RuleSource } from "./rules.js";
 import { spawn } from "node:child_process";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -11,6 +11,8 @@ import { errorText, logger } from "../infrastructure/logger.js";
 import { terminalWindow } from "../infrastructure/shell.js";
 import type { RuntimeKernel } from "./kernel.js";
 import { checkSandbox } from "./admin.js";
+import { Workspace } from "../domain/skills/workspace.js";
+import { insideWorkspace } from "../infrastructure/skills/inside-workspace.js";
 import type { SandboxSettings } from "../infrastructure/sandbox.js";
 import { launchEnv } from "../infrastructure/launch-env.js";
 function resolveHome(inputPath: string): string {
@@ -394,6 +396,7 @@ export class ProjectService {
     // 1. Check for .cursorrules
     const cursorRulesPath = path.join(target.path, ".cursorrules");
     try {
+      if (!(await reallyInside(target.path, cursorRulesPath))) throw new Error("A link leads out of the project");
       const content = await readFile(cursorRulesPath, "utf8");
       return { content, source: "cursorrules", path: cursorRulesPath };
     } catch {
@@ -403,6 +406,7 @@ export class ProjectService {
     // 2. Check for .agents/rules/project.md
     const agentsRulesPath = path.join(target.path, ".agents", "rules", "project.md");
     try {
+      if (!(await reallyInside(target.path, agentsRulesPath))) throw new Error("A link leads out of the project");
       const content = await readFile(agentsRulesPath, "utf8");
       return { content, source: "agents", path: agentsRulesPath };
     } catch {
@@ -423,14 +427,15 @@ export class ProjectService {
     if (!target) throw new HttpError(404, `Project ${id} not found`);
 
     await this.update(id, { rules: content });
+    const workspace = new Workspace(target.path);
 
     if (targetFile === "cursorrules") {
-      const filePath = path.join(target.path, ".cursorrules");
+      const filePath = await insideWorkspace(workspace, ".cursorrules");
       await writeFile(filePath, content, "utf8");
     } else if (targetFile === "agents") {
       const dirPath = path.join(target.path, ".agents", "rules");
       await mkdir(dirPath, { recursive: true });
-      const filePath = path.join(dirPath, "project.md");
+      const filePath = await insideWorkspace(workspace, path.join(".agents", "rules", "project.md"));
       await writeFile(filePath, content, "utf8");
     }
 

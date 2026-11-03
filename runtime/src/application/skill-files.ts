@@ -1,5 +1,6 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import { reallyInside } from "./rules.js";
 
 /**
  * Skills: folders with a SKILL.md (a name, a description, and instructions) an agent loads only when a task calls
@@ -61,6 +62,8 @@ async function scan(dir: string, source: SkillSource): Promise<SkillInfo[]> {
   for (const folderName of names) {
     const file = path.join(dir, folderName, "SKILL.md");
     if (!(await exists(file))) continue;
+    // The user's own folder is theirs; a project or a plugin could bring a link to a file elsewhere on the computer.
+    if (source !== "user" && !(await reallyInside(dir, file))) continue;
     try {
       const parsed = parseSkill(await readFile(file, "utf8"), folderName);
       skills.push({ name: parsed.name, description: parsed.description, path: file, source, folder: path.join(dir, folderName) });
@@ -139,6 +142,7 @@ async function scanCommands(dir: string, source: SkillSource): Promise<CommandIn
   }
   const commands: CommandInfo[] = [];
   for (const file of names) {
+    if (source !== "user" && !(await reallyInside(dir, path.join(dir, file)))) continue;
     try {
       const parsed = parseSkill(await readFile(path.join(dir, file), "utf8"), file.slice(0, -3));
       commands.push({ name: file.slice(0, -3), description: parsed.description.split("\n")[0]!.slice(0, 160), path: path.join(dir, file), source });

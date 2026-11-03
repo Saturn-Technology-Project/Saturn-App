@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
+import { cp, lstat, mkdir, readFile, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { HttpError } from "../domain/errors.js";
@@ -85,6 +85,15 @@ export async function pluginMcpServers(folder: string, manifest: Manifest): Prom
   return servers;
 }
 
+/** Takes every symbolic link out of a cloned plugin: one could lead to a file elsewhere on the computer. */
+async function removeLinks(folder: string): Promise<void> {
+  for (const entry of await readdir(folder, { withFileTypes: true })) {
+    const full = path.join(folder, entry.name);
+    if (entry.isSymbolicLink()) await rm(full, { force: true });
+    else if (entry.isDirectory()) await removeLinks(full);
+  }
+}
+
 async function listNames(dir: string, file: (name: string) => string | undefined): Promise<string[]> {
   try {
     const entries = await readdir(dir, { withFileTypes: true });
@@ -147,8 +156,9 @@ export class PluginService {
       if (/^(https:\/\/|git@|ssh:\/\/)/.test(from)) {
         await run("git", ["-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=never", "clone", "--depth", "1", "--no-recurse-submodules", from, staging], { timeout: 120_000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
         await rm(path.join(staging, ".git"), { recursive: true, force: true });
+        await removeLinks(staging);
       } else if (path.isAbsolute(from) && (await isDir(from))) {
-        await cp(from, staging, { recursive: true, filter: (file) => !file.split(path.sep).includes(".git") && !file.split(path.sep).includes("node_modules") });
+        await cp(from, staging, { recursive: true, filter: async (file) => !file.slice(from.length).split(path.sep).includes(".git") && !file.slice(from.length).split(path.sep).includes("node_modules") && !(await lstat(file)).isSymbolicLink() });
       } else {
         throw new HttpError(400, "A plugin comes from an absolute folder path or an https/ssh git URL");
       }

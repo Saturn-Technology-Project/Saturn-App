@@ -208,7 +208,7 @@ function contextFiles(input: CompletionRequest): ContextFile[] {
 }
 
 /** The raw FIM prompt: other files in the model's repository format when it has one, else as comments. */
-function fimPrompt(fim: FimFormat, input: CompletionRequest, suffix: string): string {
+export function fimPrompt(fim: FimFormat, input: CompletionRequest, suffix: string): string {
   const files = contextFiles(input);
   if (files.length && fim.repo) return fim.repo(files, String(input.path ?? "file")) + fim.prompt(fimPrefix(input), suffix);
   return fim.prompt(contextAsComments(files, input.language) + fimPrefix(input), suffix);
@@ -222,7 +222,7 @@ function fimPrefix(input: CompletionRequest): string {
   return header + prefix;
 }
 
-function inlinePrompt(input: CompletionRequest): ChatMessage[] {
+export function inlinePrompt(input: CompletionRequest): ChatMessage[] {
   const prefix = clip(input.prefix, LIMITS.prefix, "end");
   const suffix = clip(input.suffix, LIMITS.suffix, "start");
   const edits = recentEditsText(input);
@@ -242,7 +242,7 @@ function inlinePrompt(input: CompletionRequest): ChatMessage[] {
   ];
 }
 
-function editPrompt(input: CompletionRequest): ChatMessage[] {
+export function editPrompt(input: CompletionRequest): ChatMessage[] {
   const prefix = clip(input.prefix, LIMITS.prefix, "end");
   const suffix = clip(input.suffix, LIMITS.suffix, "start");
   const selection = clip(input.selection, LIMITS.selection, "start");
@@ -278,7 +278,7 @@ function editPrompt(input: CompletionRequest): ChatMessage[] {
   ];
 }
 
-function applyPrompt(input: CompletionRequest): ChatMessage[] {
+export function applyPrompt(input: CompletionRequest): ChatMessage[] {
   const file = clip(input.file, LIMITS.file, "start");
   const snippet = clip(input.selection, LIMITS.selection, "start");
   const instruction = clip(input.instruction, LIMITS.instruction, "start").trim();
@@ -301,7 +301,7 @@ function applyPrompt(input: CompletionRequest): ChatMessage[] {
   ];
 }
 
-function nextPrompt(input: CompletionRequest): ChatMessage[] {
+export function nextPrompt(input: CompletionRequest): ChatMessage[] {
   const window = clip(input.file, LIMITS.window, "start");
   const edit = input.edit ?? { before: "", after: "", line: 0 };
   return [
@@ -336,7 +336,7 @@ function nextPrompt(input: CompletionRequest): ChatMessage[] {
   ];
 }
 
-function commitPrompt(input: CompletionRequest): ChatMessage[] {
+export function commitPrompt(input: CompletionRequest): ChatMessage[] {
   const recent = (Array.isArray(input.recentCommits) ? input.recentCommits : [])
     .map((subject) => String(subject ?? "").split("\n")[0]!.trim())
     .filter(Boolean)
@@ -377,7 +377,7 @@ function commitPrompt(input: CompletionRequest): ChatMessage[] {
 /** The model's commit message without fences, wrapping quotes, a "Commit message:" label or trailing blank lines. */
 export function cleanCommitMessage(raw: string): string {
   let text = stripFences(raw).trim();
-  text = text.replace(/^(?:\*\*)?(?:suggested )?commit message(?:\*\*)?:?\s*\n?/i, "").trim();
+  text = text.replace(/^(?:\*\*)?(?:suggested )?commit message(?:\*\*)?:?(?:\*\*)?\s*\n?/i, "").trim();
   text = stripFences(text).trim();
   if (text.length > 1 && /^(["'`])[\s\S]*\1$/.test(text) && !text.slice(1, -1).includes(text[0]!)) text = text.slice(1, -1).trim();
   return text.replace(/[ \t]+$/gm, "").replace(/\n{3,}/g, "\n\n");
@@ -409,7 +409,7 @@ export function stripFences(text: string): string {
 }
 
 /** Drops a completion's tail when the model repeated the code that already follows the cursor. */
-function trimInline(text: string, suffix: string): string {
+export function trimInline(text: string, suffix: string): string {
   const next = suffix.split("\n").find((line) => line.trim())?.trim();
   if (!next) return text;
   const lines = text.split("\n");
