@@ -1689,5 +1689,786 @@
     ]
    }
   ]
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T09:59:00.000Z",
+  "zone": "UTC",
+  "expect": 29549399
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T09:59:00.000Z",
+  "zone": "Asia/Taipei",
+  "expect": 29549879
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T09:59:00.000Z",
+  "zone": "America/New_York",
+  "expect": 29549159
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T09:59:00.000Z",
+  "zone": "Asia/Kolkata",
+  "expect": 29549729
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T09:59:00.000Z",
+  "zone": "Pacific/Apia",
+  "expect": 29550179
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T10:00:00.000Z",
+  "zone": "UTC",
+  "expect": 29549400
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T10:00:00.000Z",
+  "zone": "Asia/Taipei",
+  "expect": 29549880
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T10:00:00.000Z",
+  "zone": "America/New_York",
+  "expect": 29549160
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T10:00:00.000Z",
+  "zone": "Asia/Kolkata",
+  "expect": 29549730
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-03-08T10:00:00.000Z",
+  "zone": "Pacific/Apia",
+  "expect": 29550180
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-11-01T08:59:00.000Z",
+  "zone": "UTC",
+  "expect": 29892059
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-11-01T08:59:00.000Z",
+  "zone": "Asia/Taipei",
+  "expect": 29892539
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-11-01T08:59:00.000Z",
+  "zone": "America/New_York",
+  "expect": 29891759
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-11-01T08:59:00.000Z",
+  "zone": "Asia/Kolkata",
+  "expect": 29892389
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-11-01T08:59:00.000Z",
+  "zone": "Pacific/Apia",
+  "expect": 29892839
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-01-15T23:30:00.000Z",
+  "zone": "UTC",
+  "expect": 29475330
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-01-15T23:30:00.000Z",
+  "zone": "Asia/Taipei",
+  "expect": 29475810
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-01-15T23:30:00.000Z",
+  "zone": "America/New_York",
+  "expect": 29475030
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-01-15T23:30:00.000Z",
+  "zone": "Asia/Kolkata",
+  "expect": 29475660
+ },
+ {
+  "check": "localMinute",
+  "at": "2026-01-15T23:30:00.000Z",
+  "zone": "Pacific/Apia",
+  "expect": 29476110
+ },
+ {
+  "check": "localMinute",
+  "at": "2024-02-29T12:00:00.000Z",
+  "zone": "UTC",
+  "expect": 28486800
+ },
+ {
+  "check": "localMinute",
+  "at": "2024-02-29T12:00:00.000Z",
+  "zone": "Asia/Taipei",
+  "expect": 28487280
+ },
+ {
+  "check": "localMinute",
+  "at": "2024-02-29T12:00:00.000Z",
+  "zone": "America/New_York",
+  "expect": 28486500
+ },
+ {
+  "check": "localMinute",
+  "at": "2024-02-29T12:00:00.000Z",
+  "zone": "Asia/Kolkata",
+  "expect": 28487130
+ },
+ {
+  "check": "localMinute",
+  "at": "2024-02-29T12:00:00.000Z",
+  "zone": "Pacific/Apia",
+  "expect": 28487580
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "hourly",
+   "time": "00:15",
+   "weekday": 1
+  },
+  "local": 29000000,
+  "expect": 28999995
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "hourly",
+   "time": "00:15",
+   "weekday": 1
+  },
+  "local": 29000000,
+  "expect": 29000055
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "hourly",
+   "time": "00:15",
+   "weekday": 1
+  },
+  "local": 29000077,
+  "expect": 29000055
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "hourly",
+   "time": "00:15",
+   "weekday": 1
+  },
+  "local": 29000077,
+  "expect": 29000115
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "hourly",
+   "time": "00:15",
+   "weekday": 1
+  },
+  "local": 29001440,
+  "expect": 29001435
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "hourly",
+   "time": "00:15",
+   "weekday": 1
+  },
+  "local": 29001440,
+  "expect": 29001495
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "hourly",
+   "time": "00:15",
+   "weekday": 1
+  },
+  "local": 29004321,
+  "expect": 29004315
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "hourly",
+   "time": "00:15",
+   "weekday": 1
+  },
+  "local": 29004321,
+  "expect": 29004375
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  },
+  "local": 29000000,
+  "expect": 28999260
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  },
+  "local": 29000000,
+  "expect": 29000700
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  },
+  "local": 29000077,
+  "expect": 28999260
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  },
+  "local": 29000077,
+  "expect": 29000700
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  },
+  "local": 29001440,
+  "expect": 29000700
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  },
+  "local": 29001440,
+  "expect": 29002140
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  },
+  "local": 29004321,
+  "expect": 29003580
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  },
+  "local": 29004321,
+  "expect": 29005020
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekdays",
+   "time": "23:59",
+   "weekday": 1
+  },
+  "local": 29000000,
+  "expect": 28998719
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekdays",
+   "time": "23:59",
+   "weekday": 1
+  },
+  "local": 29000000,
+  "expect": 29000159
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekdays",
+   "time": "23:59",
+   "weekday": 1
+  },
+  "local": 29000077,
+  "expect": 28998719
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekdays",
+   "time": "23:59",
+   "weekday": 1
+  },
+  "local": 29000077,
+  "expect": 29000159
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekdays",
+   "time": "23:59",
+   "weekday": 1
+  },
+  "local": 29001440,
+  "expect": 29000159
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekdays",
+   "time": "23:59",
+   "weekday": 1
+  },
+  "local": 29001440,
+  "expect": 29001599
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekdays",
+   "time": "23:59",
+   "weekday": 1
+  },
+  "local": 29004321,
+  "expect": 29003039
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekdays",
+   "time": "23:59",
+   "weekday": 1
+  },
+  "local": 29004321,
+  "expect": 29007359
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "00:00",
+   "weekday": 0
+  },
+  "local": 29000000,
+  "expect": 28994400
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "00:00",
+   "weekday": 0
+  },
+  "local": 29000000,
+  "expect": 29004480
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "00:00",
+   "weekday": 0
+  },
+  "local": 29000077,
+  "expect": 28994400
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "00:00",
+   "weekday": 0
+  },
+  "local": 29000077,
+  "expect": 29004480
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "00:00",
+   "weekday": 0
+  },
+  "local": 29001440,
+  "expect": 28994400
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "00:00",
+   "weekday": 0
+  },
+  "local": 29001440,
+  "expect": 29004480
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "00:00",
+   "weekday": 0
+  },
+  "local": 29004321,
+  "expect": 28994400
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "00:00",
+   "weekday": 0
+  },
+  "local": 29004321,
+  "expect": 29004480
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "12:30",
+   "weekday": 6
+  },
+  "local": 29000000,
+  "expect": 28993710
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "12:30",
+   "weekday": 6
+  },
+  "local": 29000000,
+  "expect": 29003790
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "12:30",
+   "weekday": 6
+  },
+  "local": 29000077,
+  "expect": 28993710
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "12:30",
+   "weekday": 6
+  },
+  "local": 29000077,
+  "expect": 29003790
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "12:30",
+   "weekday": 6
+  },
+  "local": 29001440,
+  "expect": 28993710
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "12:30",
+   "weekday": 6
+  },
+  "local": 29001440,
+  "expect": 29003790
+ },
+ {
+  "check": "previousSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "12:30",
+   "weekday": 6
+  },
+  "local": 29004321,
+  "expect": 29003790
+ },
+ {
+  "check": "nextSlot",
+  "trigger": {
+   "frequency": "weekly",
+   "time": "12:30",
+   "weekday": 6
+  },
+  "local": 29004321,
+  "expect": 29013870
+ },
+ {
+  "check": "slotLabel",
+  "minute": 29000000,
+  "expect": "2025-02-19 21:20"
+ },
+ {
+  "check": "slotLabel",
+  "minute": 0,
+  "expect": "1970-01-01 00:00"
+ },
+ {
+  "check": "slotLabel",
+  "minute": 30000001,
+  "expect": "2027-01-15 08:01"
+ },
+ {
+  "check": "triggerOf",
+  "value": {},
+  "fallback": null,
+  "expect": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  }
+ },
+ {
+  "check": "triggerOf",
+  "value": {
+   "frequency": "weekly",
+   "time": "07:05",
+   "weekday": 3
+  },
+  "fallback": null,
+  "expect": {
+   "frequency": "weekly",
+   "time": "07:05",
+   "weekday": 3
+  }
+ },
+ {
+  "check": "triggerOf",
+  "value": {
+   "frequency": "never",
+   "time": "25:00",
+   "weekday": 9
+  },
+  "fallback": null,
+  "expect": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  }
+ },
+ {
+  "check": "triggerOf",
+  "value": {
+   "time": "9:00",
+   "weekday": 2.5
+  },
+  "fallback": {
+   "frequency": "hourly",
+   "time": "10:10",
+   "weekday": 4
+  },
+  "expect": {
+   "frequency": "hourly",
+   "time": "10:10",
+   "weekday": 4
+  }
+ },
+ {
+  "check": "triggerOf",
+  "value": "nothing",
+  "fallback": null,
+  "expect": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  }
+ },
+ {
+  "check": "triggerOf",
+  "value": {
+   "weekday": "3"
+  },
+  "fallback": null,
+  "expect": {
+   "frequency": "daily",
+   "time": "09:00",
+   "weekday": 1
+  }
+ },
+ {
+  "check": "validTimeZone",
+  "value": "UTC",
+  "expect": "UTC"
+ },
+ {
+  "check": "validTimeZone",
+  "value": " Asia/Taipei ",
+  "expect": "Asia/Taipei"
+ },
+ {
+  "check": "validTimeZone",
+  "value": "",
+  "expect": "UTC"
+ },
+ {
+  "check": "validTimeZone",
+  "value": null,
+  "expect": "UTC"
+ },
+ {
+  "check": "validTimeZone",
+  "value": 5,
+  "expect": "UTC"
+ },
+ {
+  "check": "validTimeZone",
+  "value": "Mars/Olympus",
+  "expect": {
+   "error": "Unknown time zone: Mars/Olympus"
+  }
+ },
+ {
+  "check": "mentions",
+  "text": "hi @Lead now",
+  "name": "Lead",
+  "expect": true
+ },
+ {
+  "check": "mentions",
+  "text": "hi @lead.",
+  "name": "Lead",
+  "expect": true
+ },
+ {
+  "check": "mentions",
+  "text": "@Lead",
+  "name": "Lead",
+  "expect": true
+ },
+ {
+  "check": "mentions",
+  "text": "hi @Leader",
+  "name": "Lead",
+  "expect": false
+ },
+ {
+  "check": "mentions",
+  "text": "a@Lead",
+  "name": "Lead",
+  "expect": false
+ },
+ {
+  "check": "mentions",
+  "text": "@@Lead",
+  "name": "Lead",
+  "expect": false
+ },
+ {
+  "check": "mentions",
+  "text": "ask @Big Bot please",
+  "name": "Big Bot",
+  "expect": true
+ },
+ {
+  "check": "mentions",
+  "text": "ask @Big Bot2",
+  "name": "Big Bot",
+  "expect": false
+ },
+ {
+  "check": "mentions",
+  "text": "@日本語 ok",
+  "name": "日本語",
+  "expect": true
+ },
+ {
+  "check": "mentions",
+  "text": "x",
+  "name": " ",
+  "expect": false
+ },
+ {
+  "check": "mentions",
+  "text": "(@a.b)",
+  "name": "a.b",
+  "expect": true
+ },
+ {
+  "check": "mentions",
+  "text": "@axb",
+  "name": "a.b",
+  "expect": false
+ },
+ {
+  "check": "isPass",
+  "text": "PASS",
+  "expect": true
+ },
+ {
+  "check": "isPass",
+  "text": " pass. ",
+  "expect": true
+ },
+ {
+  "check": "isPass",
+  "text": "**Pass**",
+  "expect": true
+ },
+ {
+  "check": "isPass",
+  "text": "passing",
+  "expect": false
+ },
+ {
+  "check": "isPass",
+  "text": "I pass",
+  "expect": false
+ },
+ {
+  "check": "isPass",
+  "text": "pass\n",
+  "expect": true
+ },
+ {
+  "check": "isPass",
+  "text": "",
+  "expect": false
  }
 ]

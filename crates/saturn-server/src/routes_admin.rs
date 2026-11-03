@@ -702,6 +702,60 @@ async fn workspace_files(State(kernel): Shared, Query(query): QueryText) -> Answ
     ok(json!({ "kind": "file", "path": shown(&target), "content": js::prefix(&content, 100_000) }))
 }
 
+async fn automations(State(kernel): Shared) -> Answer {
+    ok(kernel.list_automations())
+}
+
+async fn create_automation(State(kernel): Shared, body: Body) -> Answer {
+    created(kernel.create_automation(&body_of(body)).await?)
+}
+
+async fn update_automation(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel.update_automation(&id, &body_of(body)).await?)
+}
+
+async fn delete_automation(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_automation(&id).await?;
+    no_content()
+}
+
+async fn run_automation(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.run_automation(&id).await?)
+}
+
+async fn draft_automation(State(kernel): Shared, body: Body) -> Answer {
+    ok(kernel.draft_automation(&body_of(body)).await?)
+}
+
+async fn groups(State(kernel): Shared) -> Answer {
+    ok(kernel.list_groups())
+}
+
+async fn create_group(State(kernel): Shared, body: Body) -> Answer {
+    created(kernel.create_group(&body_of(body)).await?)
+}
+
+async fn update_group(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel.update_group(&id, &body_of(body)).await?)
+}
+
+async fn delete_group(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_group(&id).await?;
+    no_content()
+}
+
+async fn group_messages(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.group_transcript(&id)?)
+}
+
+async fn post_group_message(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    created(
+        kernel
+            .post_group_message(&id, &js::text(body_of(body).get("text")))
+            .await?,
+    )
+}
+
 async fn marketplace(State(kernel): Shared) -> Answer {
     ok(kernel.marketplace_list())
 }
@@ -846,6 +900,19 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/workspace/browser/open", post(open_browser))
         .route("/workspace/browser/proxy", get(browser_proxy))
         .route("/computer/permissions/open", post(open_permission_pane))
+        .route("/automations", get(automations).post(create_automation))
+        .route("/automations/draft", post(draft_automation))
+        .route(
+            "/automations/{id}",
+            patch(update_automation).delete(delete_automation),
+        )
+        .route("/automations/{id}/run", post(run_automation))
+        .route("/groups", get(groups).post(create_group))
+        .route("/groups/{id}", patch(update_group).delete(delete_group))
+        .route(
+            "/groups/{id}/messages",
+            get(group_messages).post(post_group_message),
+        )
         .route("/marketplace", get(marketplace))
         .route("/marketplace/{id}", delete(uninstall))
         .route("/marketplace/{id}/install", post(install))

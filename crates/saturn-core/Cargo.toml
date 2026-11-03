@@ -11,6 +11,9 @@ workspace = true
 
 [dependencies]
 base64 = "0.22"
+# Time zones for schedules; its bundled database is what Windows, which has none, falls back on.
+jiff = "0.2"
+regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
 saturn-domain = { path = "../saturn-domain" }
 saturn-llm = { path = "../saturn-llm" }

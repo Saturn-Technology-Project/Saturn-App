@@ -218,6 +218,42 @@ impl Kernel {
         Ok(run)
     }
 
+    /// One agent's turn in a group chat. It belongs to no chat thread: the group transcript travels in `input`, so earlier
+    /// turns are not replayed as history.
+    pub(crate) async fn start_group_run(
+        self: &Arc<Self>,
+        agent_id: &str,
+        input: &str,
+        group_id: &str,
+        message_id: &str,
+    ) -> Result<Value, CoreError> {
+        let agent = self.get_agent(agent_id)?;
+        self.guard(agent_id)?;
+        let model = self.require_model(&agent)?;
+        self.broker
+            .require_key(&crate::catalog::connection_of(&model))?;
+        let id = new_id("run")?;
+        let run = json!({
+            "id": id,
+            "agentId": agent_id,
+            "groupId": group_id,
+            "groupMessageId": message_id,
+            "input": input,
+            "status": "running",
+            "output": "",
+            "thinking": "",
+            "thoughts": [],
+            "actions": [],
+            "generation": 0,
+        });
+        let saved = run.clone();
+        self.store
+            .update(|state| state.runs.insert(0, saved))
+            .await?;
+        self.advance(&id);
+        Ok(run)
+    }
+
     /// The chat a new run belongs to, created or touched as needed.
     async fn thread_for_run(
         &self,

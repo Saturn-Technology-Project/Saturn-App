@@ -9,6 +9,8 @@ import { allowsEverything, rulesFingerprint } from "../src/application/permissio
 import { toolTurns } from "../src/application/runs.js";
 import { parseSkill, skillsPrompt, type SkillInfo } from "../src/application/skill-files.js";
 import type { PermissionRule } from "../src/domain/permissions.js";
+import { localMinute, nextSlot, previousSlot, slotLabel, triggerOf, validTimeZone } from "../src/domain/schedule.js";
+import { isPass, mentions } from "../src/application/groups.js";
 
 /** A value as JSON writes it, so `undefined` fields read as missing on both sides. */
 const plain = (value: unknown): unknown => (value === undefined ? null : JSON.parse(JSON.stringify(value)));
@@ -48,6 +50,14 @@ export function answerCoreCase(item: Record<string, any>): unknown {
     case "parseNotes": return parseNotes(item.text);
     case "mergeNotes": return merge(item.existing, item.entries);
     case "toolTurns": return plain(toolTurns(item.rounds as ToolRound[], item.actions as RunAction[]));
+    case "localMinute": return localMinute(new Date(item.at), item.zone);
+    case "previousSlot": return previousSlot(item.trigger, item.local);
+    case "nextSlot": return nextSlot(item.trigger, item.local);
+    case "slotLabel": return slotLabel(item.minute);
+    case "triggerOf": return triggerOf(item.value, item.fallback ?? undefined);
+    case "validTimeZone": try { return validTimeZone(item.value); } catch (error) { return { error: (error as Error).message }; }
+    case "mentions": return mentions(item.text, item.name);
+    case "isPass": return isPass(item.text);
     default: throw new Error(`unknown check ${item.check}`);
   }
 }

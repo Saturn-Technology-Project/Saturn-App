@@ -223,7 +223,7 @@ export class GroupService {
       return;
     }
     const text = run.output.trim();
-    if (!text || PASS.test(text)) return;
+    if (!text || isPass(text)) return;
     const reply = await this.append({ groupId: group.id, agentId: run.agentId, runId: run.id, text, depth });
     if (depth < MAX_GROUP_DEPTH) await this.dispatch(group, reply);
   }
@@ -301,6 +301,11 @@ export class GroupService {
       message.text,
     ].join("\n");
   }
+}
+
+/** Whether a reply says the message was not for this agent. */
+export function isPass(text: string): boolean {
+  return PASS.test(text);
 }
 
 /** True when `text` @mentions `name` (case-insensitive; names may contain spaces). */

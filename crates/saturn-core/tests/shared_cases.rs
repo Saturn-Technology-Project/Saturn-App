@@ -14,6 +14,7 @@ use saturn_domain::prompt::{
     PromptInput, RunMode, build_system_prompt, clip, explain_run_error, join_thinking, number_of,
     read_only_refusal,
 };
+use saturn_domain::schedule::{next_slot, previous_slot, slot_label, trigger_of};
 use saturn_domain::skill_files::{parse_skill, skills_prompt};
 use saturn_domain::toolkits::{load_note, toolkit_server};
 use serde::de::DeserializeOwned;
@@ -169,6 +170,26 @@ fn answer(case: &Value) -> Value {
                 })
                 .collect()
         }
+        "localMinute" => json!(saturn_core::automations::local_minute(
+            saturn_domain::time::parse_iso(&words(case, "at")).expect("a time"),
+            &words(case, "zone")
+        )),
+        "previousSlot" => json!(previous_slot(&case["trigger"], field(case, "local"))),
+        "nextSlot" => json!(next_slot(&case["trigger"], field(case, "local"))),
+        "slotLabel" => json!(slot_label(field(case, "minute"))),
+        "triggerOf" => json!(trigger_of(
+            &case["value"],
+            Some(&case["fallback"]).filter(|item| !item.is_null())
+        )),
+        "validTimeZone" => match saturn_core::automations::valid_time_zone(Some(&case["value"])) {
+            Ok(zone) => json!(zone),
+            Err(error) => json!({ "error": error.message }),
+        },
+        "mentions" => json!(saturn_core::groups::mentions(
+            &words(case, "text"),
+            &words(case, "name")
+        )),
+        "isPass" => json!(saturn_core::groups::is_pass(&words(case, "text"))),
         other => panic!("unknown check {other}"),
     }
 }

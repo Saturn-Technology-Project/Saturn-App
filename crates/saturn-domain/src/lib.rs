@@ -8,6 +8,7 @@ pub mod llm;
 pub mod permissions;
 pub mod policies;
 pub mod prompt;
+pub mod schedule;
 pub mod skill_files;
 pub mod skills;
 pub mod time;

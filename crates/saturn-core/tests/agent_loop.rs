@@ -765,3 +765,57 @@ async fn reverting_does_not_follow_a_link_a_command_put_in_the_file_s_place() {
     );
     assert_eq!(read(&target).as_deref(), Some("the user's own file"));
 }
+
+#[tokio::test]
+async fn a_scheduled_automation_fires_once_for_its_slot_and_a_missed_one_only_the_latest() {
+    let setup = setup(Vec::new(), "bypass").await;
+    let made = setup.kernel.create_automation(&json!({ "name": "Daily", "agentId": setup.agent, "prompt": "report", "trigger": { "frequency": "daily", "time": "09:00" } })).await.expect("made");
+    let at = saturn_domain::time::parse_iso("2026-01-10T12:00:00.000Z").expect("a time");
+    setup
+        .kernel
+        .store
+        .update(|state| state.automations[0]["lastSlot"] = 0.into())
+        .await
+        .expect("saved");
+    setup.kernel.tick_automations(at).await;
+    setup.kernel.tick_automations(at + 60_000).await;
+    let saved = setup
+        .kernel
+        .store
+        .read(|state| state.automations[0].clone());
+    let slot = saturn_domain::schedule::previous_slot(
+        &saved["trigger"],
+        saturn_core::automations::local_minute(at, "UTC"),
+    );
+    assert_eq!(saved["lastSlot"], slot);
+    assert!(saved["lastRunId"].is_string(), "{saved}");
+    let runs = setup.kernel.store.read(|state| {
+        state
+            .runs
+            .iter()
+            .filter(|run| run["input"] == "report")
+            .count()
+    });
+    assert_eq!(
+        runs, 1,
+        "one run, however many days were missed and however often it is checked"
+    );
+    setup
+        .kernel
+        .update_automation(
+            made["id"].as_str().expect("an id"),
+            &json!({ "enabled": false }),
+        )
+        .await
+        .expect("paused");
+    setup.kernel.tick_automations(at + 3 * 86_400_000).await;
+    assert_eq!(
+        setup.kernel.store.read(|state| state
+            .runs
+            .iter()
+            .filter(|run| run["input"] == "report")
+            .count()),
+        1,
+        "a paused one does not run"
+    );
+}

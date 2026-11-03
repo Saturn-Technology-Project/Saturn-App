@@ -14,11 +14,13 @@ use tokio::sync::Mutex as AsyncMutex;
 use tokio::task::AbortHandle;
 
 pub mod admin;
+pub mod automations;
 pub mod builtins;
 pub mod catalog;
 pub mod checkpoints;
 pub mod context;
 pub mod events;
+pub mod groups;
 pub mod hooks;
 pub mod logger;
 pub mod marketplace;
@@ -139,6 +141,8 @@ pub struct Kernel {
     tracked_jobs: Mutex<HashMap<String, Arc<TrackedJob>>>,
     /// Chats whose memory is being extracted.
     extracting: Mutex<HashSet<String>>,
+    /// The newest message waiting for a member that is still on its turn, by "<group>:<agent>".
+    group_queue: Mutex<HashMap<String, serde_json::Value>>,
 }
 
 /// Locks a table; a panic elsewhere leaves it usable.
@@ -168,6 +172,7 @@ impl Kernel {
             too_big: Mutex::default(),
             tracked_jobs: Mutex::default(),
             extracting: Mutex::default(),
+            group_queue: Mutex::default(),
         }))
     }
 }
