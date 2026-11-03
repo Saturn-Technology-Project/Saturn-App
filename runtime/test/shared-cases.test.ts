@@ -6,6 +6,14 @@ import test from "node:test";
 import { priceCall } from "../src/domain/llm/pricing.js";
 import { commandSegments, fromClaudeRule, matchesRule, resolvePermission, suggestedPattern, type PermissionEffect, type PermissionLayer, type PermissionRule } from "../src/domain/permissions.js";
 import { autonomyOf, isReadOnlyCall, isSensitiveOperation } from "../src/domain/policies.js";
+import { PatchDocument } from "../src/domain/skills/patch.js";
+import { TaskPlan } from "../src/domain/skills/plan.js";
+import { isPrivateHost, PublicAddress } from "../src/domain/skills/public-address.js";
+import { Workspace } from "../src/domain/skills/workspace.js";
+import { sandboxHint, sandboxMode, seatbeltProfile, type SandboxMode } from "../src/infrastructure/sandbox.js";
+import { commandEnv, shellInvocation } from "../src/infrastructure/shell.js";
+import { clip, integer, text } from "../src/infrastructure/skills/text.js";
+import { pageText } from "../src/infrastructure/skills/web-skill.js";
 import { account, dpapiScript } from "../src/infrastructure/secret-key.js";
 import { decrypt, encrypt } from "../src/infrastructure/secrets-file.js";
 import { FileStore } from "../src/infrastructure/store.js";
@@ -87,5 +95,83 @@ test("what crates/saturn-llm also sends each provider, and makes of its replies"
     assert.deepEqual(result.sent, item.sent, item.name);
     assert.deepEqual(result.completion, item.completion, item.name);
     assert.deepEqual(result.error, item.error, item.name);
+  }
+});
+
+test("the cases crates/saturn-tools and saturn-domain answer too, so the tools behave alike", async () => {
+  // Each check's fields are its own, so a case is read loosely here.
+  const cases = JSON.parse(await readFile(new URL("../../contract/cases/tools.json", import.meta.url), "utf8")) as ({ check: string } & Record<string, any>)[];
+  assert.ok(cases.length > 200);
+  const attempt = (run: () => unknown) => {
+    try {
+      return { ok: run() };
+    } catch (error) {
+      return { error: (error as Error).message };
+    }
+  };
+  for (const item of cases) {
+    const label = JSON.stringify(item);
+    switch (item.check) {
+      case "isPrivateHost":
+        assert.equal(isPrivateHost(item.host), item.expect, label);
+        break;
+      case "publicAddress":
+        assert.deepEqual(attempt(() => PublicAddress.parse(item.url).url.toString()), item.expect, label);
+        break;
+      case "patch":
+        assert.deepEqual(attempt(() => {
+          const document = PatchDocument.parse(item.patch);
+          const update = document.changes.find((change) => change.kind === "update");
+          const applied = item.source !== undefined && update?.kind === "update" ? attempt(() => document.apply(item.source, update.hunks)) : null;
+          return { changes: JSON.parse(JSON.stringify(document.changes)), applied };
+        }), item.expect, label);
+        break;
+      case "plan":
+        assert.deepEqual(attempt(() => {
+          const plan = TaskPlan.fromArgs(item.arguments);
+          return { explanation: plan.explanation, steps: plan.steps };
+        }), item.expect, label);
+        break;
+      case "value":
+        assert.equal(text(item.value), item.text, label);
+        assert.equal(integer(item.value, -99), item.integer, label);
+        break;
+      case "pageText":
+        assert.deepEqual(pageText(item.html), item.expect, label);
+        break;
+      case "clip": {
+        const whole = (item.text as string).repeat(item.times);
+        const clipped = clip(whole);
+        assert.equal(clipped.slice(0, 32_000), whole.slice(0, 32_000), label);
+        assert.equal(clipped.slice(32_000), item.rest, label);
+        break;
+      }
+      case "workspace": {
+        if (process.platform === "win32") break;
+        const workspace = new Workspace(item.root);
+        assert.deepEqual(attempt(() => {
+          const target = workspace.resolve(item.requested);
+          return { target, relative: workspace.relative(target) };
+        }), item.expect, label);
+        break;
+      }
+      case "seatbelt":
+        assert.equal(seatbeltProfile(item.mode as Exclude<SandboxMode, "off">, item.writable, item.network), item.expect, label);
+        break;
+      case "sandboxHint":
+        assert.equal(sandboxHint(item.stderr, { mode: item.mode, network: item.network }) ?? null, item.expect, label);
+        break;
+      case "shell":
+        assert.deepEqual(shellInvocation(item.command, item.posix, item.platform, item.env), item.expect, label);
+        break;
+      case "commandEnv":
+        assert.deepEqual(commandEnv(item.platform, item.env), item.expect, label);
+        break;
+      case "sandboxMode":
+        assert.equal(sandboxMode(item.value) ?? null, item.expect, label);
+        break;
+      default:
+        assert.fail(`unknown check ${item.check}`);
+    }
   }
 });

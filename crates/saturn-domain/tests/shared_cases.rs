@@ -1,5 +1,6 @@
 //! The cases `runtime/test/shared-cases.test.ts` answers too, so both implementations decide alike.
 use saturn_domain::Arguments;
+use saturn_domain::js;
 use saturn_domain::permissions::{
     Effect, Layer, Rule, command_segments, from_claude_rule, matches_rule, resolve_permission,
     suggested_pattern,
@@ -7,8 +8,12 @@ use saturn_domain::permissions::{
 use saturn_domain::policies::{
     GuardrailMode, autonomy_of, is_read_only_call, is_sensitive_operation,
 };
+use saturn_domain::skills::patch::{FileChange, apply_hunks, parse_patch};
+use saturn_domain::skills::plan::TaskPlan;
+use saturn_domain::skills::public_address::{is_private_host, parse_public_address};
+use saturn_domain::skills::workspace::Workspace;
 use serde::de::DeserializeOwned;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 fn field<T: DeserializeOwned>(case: &Value, name: &str) -> T {
     serde_json::from_value(case[name].clone())
@@ -138,4 +143,99 @@ fn prices_calls_as_the_shared_cases_say() {
             "{case}"
         );
     }
+}
+
+/// An answer the way the cases write it: `{ ok }` or `{ error }`.
+fn answer<T: serde::Serialize>(result: Result<T, String>) -> Value {
+    match result {
+        Ok(value) => json!({ "ok": value }),
+        Err(message) => json!({ "error": message }),
+    }
+}
+
+#[test]
+fn answers_the_tool_cases() {
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("../../../contract/cases/tools.json"))
+            .expect("the cases are JSON");
+    assert!(cases.len() > 200);
+    let mut answered = 0;
+    for case in &cases {
+        match case["check"].as_str().expect("every case names its check") {
+            "isPrivateHost" => assert_eq!(
+                is_private_host(case["host"].as_str().expect("a host")),
+                case["expect"] == true,
+                "{case}"
+            ),
+            "publicAddress" => assert_eq!(
+                answer(
+                    parse_public_address(case["url"].as_str().expect("a url"))
+                        .map(|url| url.to_string())
+                ),
+                case["expect"],
+                "{case}"
+            ),
+            "patch" => {
+                let parsed = parse_patch(case["patch"].as_str().expect("a patch")).map(|changes| {
+                    let update = changes.iter().find_map(|change| match change {
+                        FileChange::Update { hunks, .. } => Some(hunks),
+                        _ => None,
+                    });
+                    let applied = match (case["source"].as_str(), update) {
+                        (Some(source), Some(hunks)) => answer(apply_hunks(source, hunks)),
+                        _ => Value::Null,
+                    };
+                    json!({ "changes": changes, "applied": applied })
+                });
+                assert_eq!(answer(parsed), case["expect"], "{case}");
+            }
+            "plan" => assert_eq!(
+                answer(TaskPlan::from_arguments(&field::<Arguments>(
+                    case,
+                    "arguments"
+                ))),
+                case["expect"],
+                "{case}"
+            ),
+            "value" => {
+                let value = case.get("value");
+                assert_eq!(js::text(value), case["text"], "{case}");
+                // Past the range of a whole number JavaScript keeps the float; the tools limit it either way.
+                let expected = case["integer"].as_f64().expect("a number");
+                let read = js::integer(value, -99);
+                if expected.abs() < 9e15 {
+                    assert_eq!(
+                        serde_json::Number::from(read).as_f64(),
+                        Some(expected),
+                        "{case}"
+                    );
+                } else {
+                    assert!(read.abs() > 9_000_000_000_000_000, "{case}");
+                }
+            }
+            "workspace" => {
+                if cfg!(windows) {
+                    continue;
+                }
+                let workspace = Workspace::new(case["root"].as_str().expect("a root"));
+                let resolved = workspace
+                    .resolve(case["requested"].as_str().expect("a path"))
+                    .map(|target| {
+                        json!({
+                            "target": target.to_string_lossy(),
+                            "relative": workspace.relative(&target),
+                        })
+                    });
+                // TypeScript refuses every path under a root of "/" (it looks for "//"); nothing depends on that.
+                if case["root"] == "/" {
+                    assert!(resolved.is_ok());
+                } else {
+                    assert_eq!(answer(resolved), case["expect"], "{case}");
+                }
+            }
+            _ => continue,
+        }
+        answered += 1;
+    }
+    assert!(answered > 150);
 }

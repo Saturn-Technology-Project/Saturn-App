@@ -1,0 +1,30 @@
+[package]
+name = "saturn-tools"
+description = "The tools an agent runs: files, commands in a sandbox, background commands and web pages"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+regex = "1"
+# Decompresses pages itself, since a page may be compressed however the server likes.
+reqwest = { version = "0.13", default-features = false, features = ["brotli", "deflate", "gzip", "native-tls"] }
+saturn-domain = { path = "../saturn-domain" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "process", "rt", "sync", "time"] }
+url = "2"
+
+[target.'cfg(unix)'.dependencies]
+# Signals a process group without unsafe code.
+rustix = { version = "1", default-features = false, features = ["fs", "process", "std"] }
+
+[dev-dependencies]
+axum = "0.8"
+flate2 = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }
