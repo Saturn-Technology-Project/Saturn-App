@@ -34,10 +34,11 @@ function command() {
 
 /**
  * Starts a runtime and waits until it answers. `stop()` ends it and deletes its data folder, as does a failed start.
- * `host` is what SATURN_RUNTIME_HOST is set to and what clients connect to.
+ * `host` is what SATURN_RUNTIME_HOST is set to and what clients connect to. `dataDir` and `keepData` restart a runtime
+ * on the data of an earlier one.
  */
-export async function startRuntime({ host = "127.0.0.1" } = {}) {
-  const dataDir = await mkdtemp(path.join(os.tmpdir(), "saturn-contract-"));
+export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keepData = false } = {}) {
+  const dataDir = existing ?? await mkdtemp(path.join(os.tmpdir(), "saturn-contract-"));
   const port = await freePort();
   const { file, args, cwd } = command();
   let output = "";
@@ -58,7 +59,7 @@ export async function startRuntime({ host = "127.0.0.1" } = {}) {
       child.kill("SIGTERM");
       await exited;
     }
-    await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    if (!keepData) await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   };
 
   try {
