@@ -724,7 +724,9 @@ export class RunService {
     const agent = this.kernel.getAgent(input.agentId);
     const serverId = this.toolServer(agent, input.toolId);
     if (!serverId) {
-      return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `Unknown tool: ${input.toolId}` };
+      // A saved chat can still hold a call to a tool of Saturn IDE, such as an approval waiting since before the upgrade.
+      const reason = input.toolId.startsWith("ide_") ? `${input.toolId} was part of Saturn IDE, which Saturn no longer includes` : `Unknown tool: ${input.toolId}`;
+      return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason };
     }
     // A toolkit's tool called before loading it (its name is in the instructions): it counts as loaded.
     if (ON_DEMAND_TOOLKITS[serverId] && !this.loadedToolkits(input.runId).has(serverId)) {
