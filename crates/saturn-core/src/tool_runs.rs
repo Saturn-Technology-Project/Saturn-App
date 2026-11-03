@@ -11,6 +11,7 @@ use saturn_domain::prompt::RunMode;
 use saturn_domain::skills::workspace::Workspace;
 use saturn_domain::toolkits::{toolkit_name, toolkit_server};
 use saturn_llm::{ToolDef, ToolFunction};
+use saturn_mcp::McpError;
 use saturn_store::AppState;
 use saturn_tools::code::{CodeOptions, ScopedJobs};
 use saturn_tools::file::FileCheckpoint;
@@ -294,8 +295,22 @@ impl Kernel {
             self.load_toolkits(run_id, std::slice::from_ref(&server))
                 .await?;
         }
-        if server != GENERAL_SKILLS_ID {
+        if matches!(
+            server.as_str(),
+            BROWSER_ID
+                | COMPUTER_USE_ID
+                | "cursor-computer-use"
+                | ORIGIN_ID
+                | "cursor-origin"
+                | AUTOMATIONS_ID
+                | "antigravity-skills"
+        ) {
             return Ok(failed(&not_ported(&server, tool)));
+        }
+        if server != GENERAL_SKILLS_ID {
+            return self
+                .call_mcp(&server, agent_id, tool, arguments, run_id, action_id)
+                .await;
         }
         let run = self.get_run(run_id)?;
         match tool {
@@ -390,6 +405,63 @@ impl Kernel {
                     Err(message) => failed(&message),
                 },
             ),
+        }
+    }
+
+    /// A tool of an MCP server. Its answers that steer the run are refusals, and any other failure is a failed step.
+    async fn call_mcp(
+        &self,
+        server_id: &str,
+        agent_id: &str,
+        tool: &str,
+        arguments: &Value,
+        run_id: &str,
+        action_id: &str,
+    ) -> Result<Value, CoreError> {
+        let step_of =
+            |status: &str, reason: &str| step(action_id, tool, arguments, status, Some(reason));
+        let Some(server) = self
+            .store
+            .read(|state| by_id(&state.mcp, server_id).cloned())
+        else {
+            return Ok(step_of("failed", "MCP server missing"));
+        };
+        let target = match self.mcp_target(&server) {
+            Ok(target) => target,
+            Err(error) => return Ok(step_of("failed", &error.message)),
+        };
+        let remote = server
+            .get("tools")
+            .and_then(Value::as_array)
+            .and_then(|tools| tools.iter().find(|item| text(item, "toolId") == tool))
+            .map(|item| text(item, "remoteName"))
+            .filter(|name| !name.is_empty())
+            .unwrap_or(tool);
+        let headers = [
+            ("X-Saturn-Agent-Id", agent_id),
+            ("X-Saturn-Run-Id", run_id),
+            ("X-Saturn-Action-Id", action_id),
+        ];
+        match self.mcp.call(&target, remote, arguments, &headers).await {
+            Ok(result) => {
+                let mut action = step(action_id, tool, arguments, "completed", None);
+                action["result"] = result;
+                Ok(action)
+            }
+            Err(McpError::SignIn(_)) => Ok(step_of(
+                "failed",
+                &format!(
+                    "{} needs you to sign in; finish it in the browser, then try again.",
+                    text(&server, "name")
+                ),
+            )),
+            Err(McpError::Failed(message)) => Ok(match message.as_str() {
+                "approval_required" => step(action_id, tool, arguments, "waiting_approval", None),
+                "policy_denied" => step_of("denied", "Policy denied"),
+                "approval_rejected" => step_of("denied", "Approval rejected"),
+                "Agent is not allowed to call this tool" => step_of("denied", &message),
+                _ => step_of("failed", &message),
+            }),
         }
     }
 

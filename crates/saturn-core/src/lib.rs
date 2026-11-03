@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use saturn_llm::{Broker, Http, LlmError};
+use saturn_mcp::{McpClient, McpError};
 use saturn_store::FileStore;
 use saturn_tools::jobs::JobTable;
 use tokio::sync::Mutex as AsyncMutex;
@@ -20,6 +21,7 @@ pub mod context;
 pub mod events;
 pub mod hooks;
 pub mod logger;
+pub mod marketplace;
 pub mod memory;
 pub mod permissions;
 pub mod projects;
@@ -77,6 +79,43 @@ impl From<LlmError> for CoreError {
 
 pub use logger::log;
 
+impl From<McpError> for CoreError {
+    fn from(error: McpError) -> Self {
+        Self::new(400, error.to_string())
+    }
+}
+
+/// Where providers send the browser back after an MCP sign-in.
+fn oauth_redirect() -> String {
+    let host = std::env::var("SATURN_RUNTIME_HOST").unwrap_or_else(|_| "127.0.0.1".to_owned());
+    let port = std::env::var("SATURN_RUNTIME_PORT").unwrap_or_else(|_| "4700".to_owned());
+    format!("http://{host}:{port}/oauth/callback")
+}
+
+/// Opens a web address in the user's browser. Only a web address: a server's metadata names this one.
+fn open_in_browser(address: &str) {
+    if !(address.starts_with("https://") || address.starts_with("http://")) {
+        log(
+            "mcp",
+            "warning",
+            "Refused to open a sign-in page that is not a web address",
+        );
+        return;
+    }
+    if cfg!(target_os = "macos") {
+        projects::launch_app("the browser", "open", &[address], None);
+    } else if cfg!(windows) {
+        projects::launch_app(
+            "the browser",
+            "rundll32",
+            &["url.dll,FileProtocolHandler", address],
+            None,
+        );
+    } else {
+        projects::launch_app("the browser", "xdg-open", &[address], None);
+    }
+}
+
 /// A run's background command whose file changes are recorded, against the snapshot taken when it started.
 pub(crate) struct TrackedJob {
     pub run_id: String,
@@ -88,6 +127,7 @@ pub(crate) struct TrackedJob {
 pub struct Kernel {
     pub store: Arc<FileStore>,
     pub broker: Broker<FileStore>,
+    pub mcp: McpClient,
     /// Background commands agents started.
     pub jobs: JobTable,
     /// The running pass of each run, by "<run>:<generation>", so stopping can abort it.
@@ -116,6 +156,11 @@ impl Kernel {
     pub fn with_http(store: Arc<FileStore>, http: Http) -> Result<Arc<Self>, CoreError> {
         Ok(Arc::new(Self {
             broker: Broker::new(Arc::clone(&store), http),
+            mcp: McpClient::new(
+                Arc::clone(&store),
+                oauth_redirect(),
+                Arc::new(open_in_browser),
+            )?,
             store,
             jobs: JobTable::new(),
             stops: Mutex::default(),

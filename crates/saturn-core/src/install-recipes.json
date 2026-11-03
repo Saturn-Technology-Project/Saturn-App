@@ -1,0 +1,241 @@
+[
+ {
+  "id": "saturn-mcp",
+  "url": "https://api.saturn-core.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "stripe",
+  "url": "https://mcp.stripe.com/",
+  "auth": "oauth"
+ },
+ {
+  "id": "shopify",
+  "url": "https://setup.shopify.com/mcp",
+  "auth": "none"
+ },
+ {
+  "id": "mercury",
+  "url": "https://mcp.mercury.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "brex",
+  "url": "https://api.brex.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "ramp",
+  "url": "https://ramp-mcp-remote.ramp.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "xero",
+  "url": "https://mcp.xero.com/mcp",
+  "auth": "oauth-client",
+  "setupUrl": "https://developer.xero.com/app/manage",
+  "setupHint": "Create a Xero app with redirect URI http://127.0.0.1:4700/oauth/callback."
+ },
+ {
+  "id": "carta",
+  "url": "https://mcp.app.carta.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "ibkr",
+  "url": "https://api.ibkr.com/v1/api/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "dukascopy",
+  "unavailable": "Dukascopy has no official MCP server."
+ },
+ {
+  "id": "etherscan",
+  "url": "https://mcp-keyless.etherscan.io/mcp",
+  "auth": "none"
+ },
+ {
+  "id": "plaid",
+  "url": "https://api.dashboard.plaid.com/mcp/sse",
+  "auth": "oauth"
+ },
+ {
+  "id": "northwest",
+  "unavailable": "Northwest Registered Agent has no official MCP server."
+ },
+ {
+  "id": "factset",
+  "url": "https://mcp.factset.com/content/v1",
+  "auth": "oauth"
+ },
+ {
+  "id": "financial-datasets",
+  "url": "https://mcp.financialdatasets.ai/",
+  "auth": "oauth"
+ },
+ {
+  "id": "twelve-data",
+  "url": "https://mcp.twelvedata.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "seeking-alpha",
+  "unavailable": "Seeking Alpha has no official MCP server."
+ },
+ {
+  "id": "sec-api",
+  "unavailable": "SEC-API.io has no official MCP server."
+ },
+ {
+  "id": "finance-foundation",
+  "unavailable": "No official MCP server was found for Finance Foundation."
+ },
+ {
+  "id": "google-calendar",
+  "url": "https://calendarmcp.googleapis.com/mcp/v1",
+  "auth": "oauth-client",
+  "setupUrl": "https://console.cloud.google.com/apis/credentials",
+  "setupHint": "Create an OAuth client ID (type: Web application) with redirect URI http://127.0.0.1:4700/oauth/callback, and enable the product's API."
+ },
+ {
+  "id": "notion",
+  "url": "https://mcp.notion.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "google-docs",
+  "url": "https://docsmcp.googleapis.com/mcp/v1",
+  "auth": "oauth-client",
+  "setupUrl": "https://console.cloud.google.com/apis/credentials",
+  "setupHint": "Create an OAuth client ID (type: Web application) with redirect URI http://127.0.0.1:4700/oauth/callback, and enable the product's API."
+ },
+ {
+  "id": "google-sheets",
+  "url": "https://sheetsmcp.googleapis.com/mcp/v1",
+  "auth": "oauth-client",
+  "setupUrl": "https://console.cloud.google.com/apis/credentials",
+  "setupHint": "Create an OAuth client ID (type: Web application) with redirect URI http://127.0.0.1:4700/oauth/callback, and enable the product's API."
+ },
+ {
+  "id": "google-slides",
+  "url": "https://slidesmcp.googleapis.com/mcp/v1",
+  "auth": "oauth-client",
+  "setupUrl": "https://console.cloud.google.com/apis/credentials",
+  "setupHint": "Create an OAuth client ID (type: Web application) with redirect URI http://127.0.0.1:4700/oauth/callback, and enable the product's API."
+ },
+ {
+  "id": "google-drive",
+  "url": "https://drivemcp.googleapis.com/mcp/v1",
+  "auth": "oauth-client",
+  "setupUrl": "https://console.cloud.google.com/apis/credentials",
+  "setupHint": "Create an OAuth client ID (type: Web application) with redirect URI http://127.0.0.1:4700/oauth/callback, and enable the product's API."
+ },
+ {
+  "id": "microsoft-365",
+  "unavailable": "Microsoft's hosted MCP server is only offered inside Claude."
+ },
+ {
+  "id": "figma",
+  "url": "https://mcp.figma.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "canva",
+  "url": "https://mcp.canva.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "adobe",
+  "url": "https://adobe-creativity.adobe.io/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "indeed",
+  "url": "https://mcp.indeed.com/claude/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "booking",
+  "unavailable": "Booking.com's MCP server is limited to approved partners."
+ },
+ {
+  "id": "spotify",
+  "url": "https://mcp-gateway-external-pilot.spotify.net/mcp",
+  "auth": "oauth-client",
+  "setupUrl": "https://developer.spotify.com/dashboard",
+  "setupHint": "Create a Spotify app with redirect URI http://127.0.0.1:4700/oauth/callback."
+ },
+ {
+  "id": "github",
+  "url": "https://api.githubcopilot.com/mcp/",
+  "auth": "token",
+  "tokenAlternative": true,
+  "setupUrl": "https://github.com/settings/personal-access-tokens/new",
+  "setupHint": "Paste a fine-grained personal access token. GitHub's hosted MCP server may require a Copilot seat."
+ },
+ {
+  "id": "linear",
+  "url": "https://mcp.linear.app/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "atlassian",
+  "url": "https://mcp.atlassian.com/v2/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "vercel",
+  "url": "https://mcp.vercel.com/",
+  "auth": "oauth"
+ },
+ {
+  "id": "context7",
+  "url": "https://mcp.context7.com/mcp",
+  "auth": "none"
+ },
+ {
+  "id": "deepwiki",
+  "url": "https://mcp.deepwiki.com/mcp",
+  "auth": "none"
+ },
+ {
+  "id": "supabase",
+  "url": "https://mcp.supabase.com/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "neon",
+  "url": "https://mcp.neon.tech/mcp",
+  "auth": "oauth"
+ },
+ {
+  "id": "huggingface",
+  "url": "https://huggingface.co/mcp",
+  "auth": "none"
+ },
+ {
+  "id": "gmail",
+  "url": "https://gmailmcp.googleapis.com/mcp/v1",
+  "auth": "oauth-client",
+  "setupUrl": "https://console.cloud.google.com/apis/credentials",
+  "setupHint": "Create an OAuth client ID (type: Web application) with redirect URI http://127.0.0.1:4700/oauth/callback, and enable the product's API."
+ },
+ {
+  "id": "slack",
+  "url": "https://mcp.slack.com/mcp",
+  "auth": "oauth-client",
+  "setupUrl": "https://api.slack.com/apps",
+  "setupHint": "Create a Slack app with redirect URL http://127.0.0.1:4700/oauth/callback."
+ },
+ {
+  "id": "sumsub",
+  "url": "https://api.sumsub.com/mcp/",
+  "auth": "oauth"
+ },
+ {
+  "id": "sentry",
+  "url": "https://mcp.sentry.dev/mcp",
+  "auth": "oauth"
+ }
+]

@@ -14,6 +14,7 @@ base64 = "0.22"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
 saturn-domain = { path = "../saturn-domain" }
 saturn-llm = { path = "../saturn-llm" }
+saturn-mcp = { path = "../saturn-mcp" }
 saturn-store = { path = "../saturn-store" }
 saturn-tools = { path = "../saturn-tools" }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }

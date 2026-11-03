@@ -22,6 +22,7 @@ import { runCase, type LlmCase } from "./llm-cases.js";
 import { generalSkills, cursorComputerUseSkills, cursorOriginSkills, antigravitySkills } from "../src/domain/builtin.js";
 import { browserSkills } from "../src/domain/browser-tools.js";
 import { LLM_PROVIDERS } from "../src/domain/llm/catalog.js";
+import { INSTALL_RECIPES } from "../src/domain/marketplace.js";
 
 type Case = { check: string; tool: string; arguments: Record<string, unknown>; expect: unknown; [key: string]: unknown };
 
@@ -194,4 +195,9 @@ test("crates/saturn-core keeps the same built-in tools", async () => {
 test("crates/saturn-core keeps the same list of providers and models", async () => {
   const providers = JSON.parse(await readFile(new URL("../../crates/saturn-core/src/llm-providers.json", import.meta.url), "utf8")) as unknown;
   assert.deepEqual(providers, LLM_PROVIDERS);
+});
+
+test("crates/saturn-core keeps the same integrations", async () => {
+  const recipes = JSON.parse(await readFile(new URL("../../crates/saturn-core/src/install-recipes.json", import.meta.url), "utf8")) as unknown;
+  assert.deepEqual(recipes, INSTALL_RECIPES);
 });

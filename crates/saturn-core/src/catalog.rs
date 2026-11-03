@@ -6,6 +6,7 @@ use saturn_domain::js;
 use saturn_domain::llm::{llm_provider, runs_on_plan};
 use saturn_domain::new_id;
 use saturn_llm::{Effort, ModelConnection};
+use saturn_mcp::{LocalCommand, Target};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use url::Url;
@@ -78,6 +79,21 @@ pub fn mcp_endpoint(url: &str) -> Result<String, CoreError> {
         ));
     }
     Ok(value.to_owned())
+}
+
+/// Remote tool names, prefixed per server so two servers' `search` tools never collide; safe for every LLM API.
+pub fn namespaced_tool(server: &str, name: &str) -> String {
+    let joined: String = format!("{server}__{name}")
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '_' || character == '-' {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    js::prefix(&joined, 64).to_owned()
 }
 
 /// A tool as saved, from what a request says about it.
@@ -516,6 +532,57 @@ impl Kernel {
             .unwrap_or_default()
     }
 
+    /// How to reach a server. A local one must have its current command approved.
+    pub(crate) fn mcp_target(&self, server: &Value) -> Result<Target, CoreError> {
+        let id = text(server, "id");
+        let Some(command) = server.get("command").filter(|command| !command.is_null()) else {
+            let auth = if text(server, "auth").is_empty() {
+                "none"
+            } else {
+                text(server, "auth")
+            };
+            return Ok(Target {
+                id: id.to_owned(),
+                url: text(server, "url").to_owned(),
+                auth: auth.to_owned(),
+                command: None,
+            });
+        };
+        let env = self.command_env(id);
+        if text(server, "approvedCommand") != command_fingerprint(command, &env) {
+            return Err(CoreError::new(
+                409,
+                format!(
+                    "The MCP server \"{}\" runs a program on this computer ({}). Allow it in Saturn Settings → MCP Servers before it can start.",
+                    text(server, "name"),
+                    command_line(command)
+                ),
+            ));
+        }
+        let mut variables = env;
+        // Saturn adds a PATH that finds npx and uvx when it was started from the Dock; the rest are what the user set.
+        if !cfg!(windows) && !variables.contains_key("PATH") {
+            let inherited = std::env::var("PATH").unwrap_or_default();
+            variables.insert(
+                "PATH".to_owned(),
+                format!(
+                    "{inherited}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+                ),
+            );
+        }
+        Ok(Target {
+            id: id.to_owned(),
+            url: text(server, "url").to_owned(),
+            auth: "none".to_owned(),
+            command: Some(LocalCommand {
+                program: text(command, "program").to_owned(),
+                args: strings(command, "args"),
+                env: variables,
+                cwd: Some(self.store.root().join("workspace")),
+            }),
+        })
+    }
+
     /// A server with what Settings shows about a local one: its command line, and whether it may run.
     pub(crate) fn mcp_view(&self, server: &Value) -> Value {
         let mut view = server.clone();
@@ -674,6 +741,7 @@ impl Kernel {
                     .put_secret(&env_secret_key(id), &json!(env).to_string())
                     .await?;
             }
+            self.mcp.close(id);
         }
         let updated = self
             .store
@@ -732,6 +800,8 @@ impl Kernel {
                 }
             })
             .await?;
+        // Its session (a local server's process) and any saved sign-in or environment go with it.
+        self.mcp.forget(id).await?;
         self.store.delete_secret(&env_secret_key(id)).await?;
         log(
             "catalog",
@@ -805,13 +875,32 @@ impl Kernel {
         let tools = if [COMPUTER_USE_ID, ORIGIN_ID, AUTOMATIONS_ID].contains(&id) {
             builtin_server(id)["tools"].clone()
         } else {
-            return Err(CoreError::new(
-                409,
-                format!(
-                    "Listing the tools of {} is not in the Rust runtime yet.",
-                    text(&server, "name")
-                ),
-            ));
+            let listed = self.mcp.list_tools(&self.mcp_target(&server)?).await?;
+            let market = text(&server, "marketplaceId");
+            let routed: Vec<Value> = listed
+                .into_iter()
+                .map(|mut tool| {
+                    tool["serverId"] = id.into();
+                    if !market.is_empty() {
+                        let remote = text(&tool, "toolId").to_owned();
+                        tool["toolId"] = namespaced_tool(market, &remote).into();
+                        tool["remoteName"] = remote.into();
+                    }
+                    tool
+                })
+                .collect();
+            if routed.is_empty() {
+                log(
+                    "catalog",
+                    "warning",
+                    &format!(
+                        "MCP server {} at {} returned no tools",
+                        text(&server, "name"),
+                        host_of(text(&server, "url"))
+                    ),
+                );
+            }
+            routed.into()
         };
         Ok(self
             .store
