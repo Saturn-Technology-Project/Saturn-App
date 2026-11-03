@@ -619,7 +619,8 @@ function formatBrowserUrl(input: string): string {
 function isLoopbackUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
+    // Http(s) only: an agent's call can supply this address, and javascript://localhost/ has that host name too.
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") && (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost");
   } catch {
     return false;
   }
