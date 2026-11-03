@@ -5,6 +5,7 @@ import type { Workspace } from "../../domain/skills/workspace.js";
 import { DEFAULT_SANDBOX, sandboxHint, sandboxMode, wrapCommand, type SandboxSettings } from "../sandbox.js";
 import { commandEnv, shellInvocation } from "../shell.js";
 import type { JobTable } from "../jobs.js";
+import { insideWorkspace } from "./inside-workspace.js";
 import { TEXT_LIMIT, clip, integer, text } from "./text.js";
 
 const runCommand = promisify(execFile);
@@ -27,7 +28,7 @@ export class CodeSkill {
     const command = text(args.command);
     if (!command.trim()) throw new Error("Command is empty");
     await mkdir(this.workspace.root, { recursive: true });
-    const cwd = text(args.cwd) ? this.workspace.resolve(text(args.cwd)) : this.workspace.root;
+    const cwd = text(args.cwd) ? await insideWorkspace(this.workspace, text(args.cwd)) : this.workspace.root;
     const info = await stat(cwd);
     if (!info.isDirectory()) throw new Error("cwd is not a directory");
     const timeout = Math.min(CODE_TIMEOUT_MAX, Math.max(1_000, integer(args.timeout, CODE_TIMEOUT)));

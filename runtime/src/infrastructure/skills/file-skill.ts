@@ -3,6 +3,7 @@ import path from "node:path";
 import type { FileCheckpoint } from "../../domain/skills/checkpoint.js";
 import { PatchDocument, splitLines } from "../../domain/skills/patch.js";
 import { Workspace } from "../../domain/skills/workspace.js";
+import { insideWorkspace } from "./inside-workspace.js";
 import { TEXT_LIMIT, clip, integer, text } from "./text.js";
 
 export class FileSkill {
@@ -26,7 +27,7 @@ export class FileSkill {
     await mkdir(this.workspace.root, { recursive: true });
     const action = text(args.action || "list");
     if (action === "patch") return this.applyPatch(text(args.patch || args.content));
-    const target = this.workspace.resolve(text(args.path || "."));
+    const target = await insideWorkspace(this.workspace, text(args.path || "."));
     if (action === "list") {
       const entries = await readdir(target, { withFileTypes: true });
       return {
@@ -58,7 +59,7 @@ export class FileSkill {
     const applied: { path: string; action: string }[] = [];
     for (const change of document.changes) {
       if (change.kind === "add") {
-        const target = this.workspace.resolve(change.path);
+        const target = await insideWorkspace(this.workspace, change.path);
         if (await exists(target)) throw new Error(`${change.path} already exists`);
         await mkdir(path.dirname(target), { recursive: true });
         const content = `${change.lines.join("\n")}${change.lines.length ? "\n" : ""}`;
@@ -68,16 +69,16 @@ export class FileSkill {
         continue;
       }
       if (change.kind === "delete") {
-        const target = this.workspace.resolve(change.path);
+        const target = await insideWorkspace(this.workspace, change.path);
         await this.tracked([target], () => rm(target));
         applied.push({ path: this.workspace.relative(target), action: "delete" });
         continue;
       }
-      const target = this.workspace.resolve(change.path);
+      const target = await insideWorkspace(this.workspace, change.path);
       const source = await readFile(target, "utf8");
       const next = document.apply(source, change.hunks);
       if (next.length > TEXT_LIMIT) throw new Error("File is too large");
-      const destination = change.moveTo ? this.workspace.resolve(change.moveTo) : target;
+      const destination = change.moveTo ? await insideWorkspace(this.workspace, change.moveTo) : target;
       if (destination !== target) await mkdir(path.dirname(destination), { recursive: true });
       await this.tracked(destination === target ? [target] : [target, destination], async () => {
         await writeFile(destination, next, "utf8");

@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { expandCommand, listCommands, listSkills, loadSkill, parseSkill, skillsPrompt } from "../src/application/skill-files.js";
 import type { Run } from "../src/domain/model.js";
+import { Workspace } from "../src/domain/skills/workspace.js";
+import { CodeSkill } from "../src/infrastructure/skills/code-skill.js";
+import { FileSkill } from "../src/infrastructure/skills/file-skill.js";
 import { FileStore } from "../src/infrastructure/store.js";
 import { createApp } from "../src/presentation/app.js";
 import { toolSteps } from "./tool-steps.js";
@@ -117,4 +120,42 @@ test("prompt commands: the project's .saturn and .claude commands, then the user
   assert.deepEqual(await expandCommand(project, user, "/explain", "util.ts"), { name: "explain", prompt: "Explain util.ts simply." });
   assert.deepEqual(await expandCommand(project, user, "standup", "for Friday"), { name: "standup", prompt: "Write my standup.\n\nfor Friday" });
   assert.equal(await expandCommand(project, user, "missing", ""), undefined);
+});
+
+test("the files tool does not follow a symbolic link out of the workspace, in any action", { skip: process.platform === "win32" && "creating links needs an elevated shell" }, async () => {
+  const base = await mkdtemp(path.join(os.tmpdir(), "saturn-links-"));
+  const root = path.join(base, "root");
+  const outside = path.join(base, "outside");
+  await mkdir(root);
+  await mkdir(outside);
+  await writeFile(path.join(outside, "secret.txt"), "outside");
+  await writeFile(path.join(root, "inside.txt"), "inside\n");
+  await symlink(outside, path.join(root, "out"));
+  await symlink(path.join(outside, "secret.txt"), path.join(root, "secret-link.txt"));
+  await symlink(path.join(outside, "not-yet.txt"), path.join(root, "dangling.txt"));
+  await symlink(path.join(root, "inside.txt"), path.join(root, "stays-in.txt"));
+  const skill = new FileSkill(new Workspace(root));
+  const patch = (body: string) => ({ action: "patch", patch: `*** Begin Patch\n${body}\n*** End Patch` });
+  const refused = [
+    { action: "list", path: "out" },
+    { action: "read", path: "out/secret.txt" },
+    { action: "read", path: "secret-link.txt" },
+    { action: "write", path: "out/new.txt", content: "x" },
+    { action: "write", path: "out/deep/new.txt", content: "x" },
+    { action: "write", path: "dangling.txt", content: "x" },
+    patch("*** Add File: out/added.txt\n+x"),
+    patch("*** Delete File: secret-link.txt"),
+    patch("*** Update File: out/secret.txt\n@@\n-outside\n+changed"),
+    patch("*** Update File: inside.txt\n*** Move to: out/moved.txt\n@@\n-inside\n+moved"),
+  ];
+  for (const args of refused) await assert.rejects(() => skill.run(args), /outside the workspace/, JSON.stringify(args));
+  assert.equal(await readFile(path.join(outside, "secret.txt"), "utf8"), "outside");
+  await assert.rejects(() => stat(path.join(outside, "new.txt")));
+  await assert.rejects(() => stat(path.join(outside, "not-yet.txt")));
+  await assert.rejects(() => new CodeSkill(new Workspace(root)).run({ command: "pwd", cwd: "out" }, undefined, { sandbox: { mode: "off", network: true } }), /outside the workspace/);
+
+  // Links that stay inside, and paths that do not exist yet, work as before.
+  assert.match(((await skill.run({ action: "read", path: "stays-in.txt" })) as { content: string }).content, /inside/);
+  await skill.run({ action: "write", path: "new/folder/file.txt", content: "x" });
+  assert.equal(await readFile(path.join(root, "new", "folder", "file.txt"), "utf8"), "x");
 });

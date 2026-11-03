@@ -20,3 +20,10 @@ test("a patch with nothing in it, or a bad line, is still refused", () => {
   assert.throws(() => PatchDocument.parse("*** Begin Patch\n*** Update File: x.js\n@@\n?? what\n*** End Patch"), /must start with a space, \+ or -/);
   assert.throws(() => PatchDocument.parse("--- a/x.js\n+++ b/x.js"), /must start with \*\*\* Begin Patch/);
 });
+
+test("a hunk closed with *** End of File applies, and what follows it is still read", () => {
+  const document = PatchDocument.parse("*** Begin Patch\n*** Update File: x.js\n@@\n function b() {\n-  return 2;\n+  return 20;\n }\n*** End of File\n*** Delete File: y.js\n*** End Patch");
+  assert.deepEqual(document.changes.map((change) => change.kind), ["update", "delete"]);
+  const update = document.changes[0]!;
+  assert.equal(document.apply(SOURCE, update.kind === "update" ? update.hunks : []), SOURCE.replace("return 2;", "return 20;"));
+});

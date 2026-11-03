@@ -5,6 +5,9 @@ export type FileChange =
   | { kind: "delete"; path: string }
   | { kind: "update"; path: string; moveTo?: string; hunks: Hunk[] };
 
+/** Closes a hunk that ends at the end of its file. */
+const END_OF_FILE = "*** End of File";
+
 /** The apply_patch document: Begin/End Patch, Add, Delete, Update, and Move. */
 export class PatchDocument {
   private constructor(readonly changes: FileChange[]) {}
@@ -46,9 +49,9 @@ export class PatchDocument {
           index += 1;
           const old: string[] = [];
           const next: string[] = [];
-          while (index < lines.length && !(lines[index] ?? "").startsWith("***") && !(lines[index] ?? "").startsWith("@@")) {
+          while (index < lines.length && (!(lines[index] ?? "").startsWith("***") || lines[index] === END_OF_FILE) && !(lines[index] ?? "").startsWith("@@")) {
             const row = lines[index] ?? "";
-            if (row === "*** End of File") {
+            if (row === END_OF_FILE) {
               index += 1;
               break;
             }

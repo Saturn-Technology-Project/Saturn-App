@@ -10,11 +10,13 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **The web tool, the agent browser and the Browser tab could reach this computer and the private network through an IPv6 spelling of a private address** (such as `[::ffff:127.0.0.1]`). These addresses are now refused, along with carrier-grade NAT (which Tailscale uses), multicast and other reserved ranges. The web tool and the Browser tab now check an address at the moment of connecting, so a name cannot pass the check and then resolve somewhere private, and `browser_navigate` refuses names that resolve to private addresses.
 - **Opening a terminal on Windows no longer puts the folder's path on a command line**, where a folder name containing `&` could run a command.
 - **The file view no longer follows a symbolic link out of the workspace**, which a cloned repository could use to show a file from elsewhere on the computer.
+- **An agent's `files` tool no longer follows a symbolic link out of the workspace.** A cloned repository could bring a link that let the agent read or change files elsewhere on the computer, and writing through a link also got around the command sandbox. Links that stay inside the workspace still work.
 
 ### Fixed
 
 - **Settings are no longer forgotten when Saturn restarts.** Your permission rules, sandbox, hooks, plugins, browser, embedding source, memory and plan-approval choices were saved but dropped at the next start, and the next save erased them from disk. The first-launch onboarding also came back. This also turned off the deny rules and the stricter sandbox you had set, and turned memory back on, until you set them again. Check **Settings → Permissions** and your sandbox after upgrading: what was lost before this fix cannot be recovered.
 - **A `secrets.json` that Saturn cannot read as encrypted is kept aside** instead of being taken for an old plaintext file and overwritten.
+- **Patches that close a hunk with `*** End of File` now apply**, instead of failing with an unknown patch line.
 
 ### Added
 
