@@ -7,6 +7,8 @@ use saturn_domain::js;
 use saturn_domain::skill_files::{SKILL_LIMIT, parse_skill, valid_name};
 use serde_json::{Value, json};
 
+use crate::rules::really_inside;
+
 /// Project folders searched for skills, in order.
 pub const PROJECT_SKILL_DIRS: [&str; 3] = [".agents/skills", ".saturn/skills", ".claude/skills"];
 
@@ -37,6 +39,10 @@ async fn scan(folder: &Path, source: &'static str) -> Vec<SkillInfo> {
     let mut skills = Vec::new();
     for name in names {
         let file = folder.join(&name).join("SKILL.md");
+        // The user's own folder is theirs; a project or a plugin could bring a link to a file elsewhere on the computer.
+        if source != "user" && !really_inside(folder, &file).await {
+            continue;
+        }
         // Missing or unreadable: skipped.
         let Ok(text) = tokio::fs::read_to_string(&file).await else {
             continue;
@@ -54,7 +60,11 @@ async fn scan(folder: &Path, source: &'static str) -> Vec<SkillInfo> {
 }
 
 /// Every skill available to a chat in `root` (a project folder, or none), the first of each name winning.
-pub async fn list_skills(root: Option<&Path>, user_dir: &Path) -> Vec<SkillInfo> {
+pub async fn list_skills(
+    root: Option<&Path>,
+    user_dir: &Path,
+    plugins: &[PathBuf],
+) -> Vec<SkillInfo> {
     let mut found = Vec::new();
     if let Some(root) = root {
         for folder in PROJECT_SKILL_DIRS {
@@ -62,6 +72,9 @@ pub async fn list_skills(root: Option<&Path>, user_dir: &Path) -> Vec<SkillInfo>
         }
     }
     found.extend(scan(user_dir, "user").await);
+    for plugin in plugins {
+        found.extend(scan(&plugin.join("skills"), "plugin").await);
+    }
     let mut seen = HashSet::new();
     found.retain(|skill| seen.insert(skill.name.to_lowercase()));
     found
@@ -95,10 +108,15 @@ async fn files_under(folder: &Path, limit: usize) -> Vec<String> {
 }
 
 /// One skill's whole file, with the other files in its folder listed.
-pub async fn load_skill(root: Option<&Path>, user_dir: &Path, name: &str) -> Option<Value> {
+pub async fn load_skill(
+    root: Option<&Path>,
+    user_dir: &Path,
+    plugins: &[PathBuf],
+    name: &str,
+) -> Option<Value> {
     let wanted = js::trim(name);
     let wanted = wanted.strip_prefix('/').unwrap_or(wanted).to_lowercase();
-    let skill = list_skills(root, user_dir)
+    let skill = list_skills(root, user_dir, plugins)
         .await
         .into_iter()
         .find(|item| item.name.to_lowercase() == wanted)?;
@@ -151,6 +169,9 @@ async fn scan_commands(folder: &Path, source: &'static str) -> Vec<Value> {
     let mut commands = Vec::new();
     for file in names {
         let stem = file.trim_end_matches(".md");
+        if source != "user" && !really_inside(folder, &folder.join(&file)).await {
+            continue;
+        }
         // Unreadable: skipped.
         let Ok(content) = tokio::fs::read_to_string(folder.join(&file)).await else {
             continue;
@@ -163,7 +184,11 @@ async fn scan_commands(folder: &Path, source: &'static str) -> Vec<Value> {
 }
 
 /// Prompt templates a user runs from the composer as `/name arguments`, the first of each name winning.
-pub async fn list_commands(root: Option<&Path>, user_dir: &Path) -> Vec<Value> {
+pub async fn list_commands(
+    root: Option<&Path>,
+    user_dir: &Path,
+    plugins: &[PathBuf],
+) -> Vec<Value> {
     let mut found = Vec::new();
     if let Some(root) = root {
         for folder in PROJECT_COMMAND_DIRS {
@@ -171,6 +196,9 @@ pub async fn list_commands(root: Option<&Path>, user_dir: &Path) -> Vec<Value> {
         }
     }
     found.extend(scan_commands(user_dir, "user").await);
+    for plugin in plugins {
+        found.extend(scan_commands(&plugin.join("commands"), "plugin").await);
+    }
     let mut seen = HashSet::new();
     found.retain(|command| seen.insert(command["name"].as_str().unwrap_or("").to_lowercase()));
     found
@@ -180,12 +208,13 @@ pub async fn list_commands(root: Option<&Path>, user_dir: &Path) -> Vec<Value> {
 pub async fn expand_command(
     root: Option<&Path>,
     user_dir: &Path,
+    plugins: &[PathBuf],
     name: &str,
     arguments: &str,
 ) -> Option<Value> {
     let wanted = js::trim(name);
     let wanted = wanted.strip_prefix('/').unwrap_or(wanted).to_lowercase();
-    let command = list_commands(root, user_dir)
+    let command = list_commands(root, user_dir, plugins)
         .await
         .into_iter()
         .find(|item| {

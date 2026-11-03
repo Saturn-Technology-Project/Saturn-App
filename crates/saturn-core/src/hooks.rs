@@ -144,6 +144,16 @@ impl Kernel {
             fingerprint: None,
             approved: true,
         }];
+        // The plugins that are on: their hooks run once the user allowed that exact set.
+        for (name, hooks, print, approved) in self.plugin_hook_sets().await {
+            sets.push(HookSet {
+                source: "plugin",
+                path: Some(name),
+                hooks,
+                fingerprint: Some(print),
+                approved,
+            });
+        }
         let Some(project) = project else {
             return sets;
         };

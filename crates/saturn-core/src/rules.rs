@@ -14,7 +14,22 @@ pub const RULE_FILES: [&str; 5] = [
     ".cursorrules",
 ];
 
-async fn read(file: &Path) -> String {
+/// Whether a file is really inside a folder. A cloned repository can bring a link that leads elsewhere on the computer, and what
+/// these files hold goes into prompts and so to the model's provider.
+pub async fn really_inside(root: &Path, file: &Path) -> bool {
+    let (Ok(folder), Ok(target)) = (
+        tokio::fs::canonicalize(root).await,
+        tokio::fs::canonicalize(file).await,
+    ) else {
+        return false;
+    };
+    target != folder && target.starts_with(folder)
+}
+
+async fn read(root: &Path, file: &Path) -> String {
+    if !really_inside(root, file).await {
+        return String::new();
+    }
     match tokio::fs::read(file).await {
         Ok(bytes) => match String::from_utf8(bytes) {
             Ok(content) if !content.contains('\0') => js::trim(&content).to_owned(),
@@ -79,13 +94,13 @@ async fn pieces_of(root: &Path, stored: &str) -> Vec<(String, String)> {
             }
             names.sort();
             for name in names {
-                let content = read(&full.join(&name)).await;
+                let content = read(root, &full.join(&name)).await;
                 if !content.is_empty() {
                     pieces.push((format!("{entry}/{name}"), content));
                 }
             }
         } else {
-            let content = read(&full).await;
+            let content = read(root, &full).await;
             if !content.is_empty() {
                 pieces.push((entry.to_owned(), content));
             }

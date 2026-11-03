@@ -2,6 +2,10 @@
 use saturn_core::history::tool_turns;
 use saturn_core::memory::{merge, parse_notes};
 use saturn_core::permissions::{allows_everything, rules_fingerprint};
+use saturn_domain::completions::{
+    clean_commit_message, completion_prompt, context_as_comments, cut_at_stop, fim_format,
+    fim_prompt, line_comment, parse_next_edit, strip_fences, trim_inline,
+};
 use saturn_domain::context::{
     budget_start, clip_middle, compact_actions, compaction_start, context_tokens_for,
     estimate_tokens, history_budget_chars,
@@ -190,6 +194,37 @@ fn answer(case: &Value) -> Value {
             &words(case, "name")
         )),
         "isPass" => json!(saturn_core::groups::is_pass(&words(case, "text"))),
+        "fim" => {
+            let model = words(case, "model");
+            match fim_format(&model) {
+                Some(format) => {
+                    json!({ "family": format.family(), "stops": format.stops(), "prompt": fim_prompt(format, &case["input"]) })
+                }
+                None => Value::Null,
+            }
+        }
+        "cutAtStop" => {
+            let stops: Vec<String> = field(case, "stops");
+            let list: Vec<&str> = stops.iter().map(String::as_str).collect();
+            json!(cut_at_stop(&words(case, "text"), &list))
+        }
+        "lineComment" => json!(line_comment(&words(case, "language"))),
+        "contextAsComments" => {
+            let files: Vec<Value> = field(case, "files");
+            let pairs: Vec<(String, String)> = files
+                .iter()
+                .map(|file| (words(file, "path"), words(file, "text")))
+                .collect();
+            json!(context_as_comments(&pairs, &words(case, "language")))
+        }
+        "completionPrompt" => {
+            let (system, user) = completion_prompt(&words(case, "kind"), &case["input"]);
+            json!([{ "role": "system", "content": system }, { "role": "user", "content": user }])
+        }
+        "cleanCommit" => json!(clean_commit_message(&words(case, "text"))),
+        "parseNextEdit" => parse_next_edit(&words(case, "text")),
+        "stripFences" => json!(strip_fences(&words(case, "text"))),
+        "trimInline" => json!(trim_inline(&words(case, "text"), &words(case, "suffix"))),
         other => panic!("unknown check {other}"),
     }
 }

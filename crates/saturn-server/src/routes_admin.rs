@@ -318,19 +318,35 @@ fn folder_of(
 
 async fn skills(State(kernel): Shared, Query(query): QueryText) -> Answer {
     let root = folder_of(&kernel, wanted(&query, "projectId"))?;
-    let listed = list_skills(root.as_deref(), &kernel.store.root().join("skills")).await;
+    let listed = list_skills(
+        root.as_deref(),
+        &kernel.store.root().join("skills"),
+        &kernel.enabled_plugin_folders(),
+    )
+    .await;
     ok(listed.iter().map(skill_json).collect::<Vec<_>>())
 }
 
 async fn skill(State(kernel): Shared, Path(name): Path<String>, Query(query): QueryText) -> Answer {
     let root = folder_of(&kernel, wanted(&query, "projectId"))?;
-    let loaded = load_skill(root.as_deref(), &kernel.store.root().join("skills"), &name).await;
+    let loaded = load_skill(
+        root.as_deref(),
+        &kernel.store.root().join("skills"),
+        &kernel.enabled_plugin_folders(),
+        &name,
+    )
+    .await;
     ok(loaded.ok_or_else(|| CoreError::new(404, "No such skill"))?)
 }
 
 async fn commands(State(kernel): Shared, Query(query): QueryText) -> Answer {
     let root = folder_of(&kernel, wanted(&query, "projectId"))?;
-    ok(list_commands(root.as_deref(), &kernel.store.root().join("commands")).await)
+    ok(list_commands(
+        root.as_deref(),
+        &kernel.store.root().join("commands"),
+        &kernel.enabled_plugin_folders(),
+    )
+    .await)
 }
 
 async fn expand(State(kernel): Shared, Path(name): Path<String>, body: Body) -> Answer {
@@ -339,6 +355,7 @@ async fn expand(State(kernel): Shared, Path(name): Path<String>, body: Body) -> 
     let expanded = expand_command(
         root.as_deref(),
         &kernel.store.root().join("commands"),
+        &kernel.enabled_plugin_folders(),
         &name,
         &js::text(body.get("arguments")),
     )
@@ -756,6 +773,95 @@ async fn post_group_message(State(kernel): Shared, Path(id): Path<String>, body:
     )
 }
 
+async fn plugins(State(kernel): Shared) -> Answer {
+    ok(kernel.list_plugins().await)
+}
+
+async fn install_plugin(State(kernel): Shared, body: Body) -> Answer {
+    created(
+        kernel
+            .install_plugin(&js::text(body_of(body).get("source")))
+            .await?,
+    )
+}
+
+async fn change_plugin(State(kernel): Shared, Path(name): Path<String>, body: Body) -> Answer {
+    let enabled = body_of(body).get("enabled") != Some(&Value::Bool(false));
+    ok(kernel.set_plugin_enabled(&name, enabled).await?)
+}
+
+async fn approve_plugin_hooks(
+    State(kernel): Shared,
+    Path(name): Path<String>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .approve_plugin_hooks(&name, &js::text(body_of(body).get("fingerprint")))
+        .await?)
+}
+
+async fn uninstall_plugin(State(kernel): Shared, Path(name): Path<String>) -> Answer {
+    kernel.uninstall_plugin(&name).await?;
+    no_content()
+}
+
+async fn complete(State(kernel): Shared, body: Body) -> Answer {
+    ok(kernel.complete_for_editor(&body_of(body)).await?)
+}
+
+/// Tab as a stream: one JSON line per piece of text, the last with done: true (or an error line). A client that leaves stops it.
+async fn complete_stream(State(kernel): Shared, body: Body) -> Response {
+    let mut input = body_of(body);
+    input["kind"] = "inline".into();
+    let (sender, receiver) =
+        tokio::sync::mpsc::channel::<Result<String, std::convert::Infallible>>(16);
+    tokio::spawn(async move {
+        let line = |value: Value| Ok(format!("{value}\n"));
+        let mut stream = match kernel.complete_inline_stream(&input).await {
+            Ok(stream) => stream,
+            Err(error) => {
+                let _ = sender
+                    .send(line(
+                        json!({ "error": error.message, "status": error.status }),
+                    ))
+                    .await;
+                return;
+            }
+        };
+        loop {
+            let piece = tokio::select! {
+                () = sender.closed() => return,
+                piece = stream.next() => piece,
+            };
+            match piece {
+                Ok(Some(piece)) => {
+                    if sender.send(line(piece)).await.is_err() {
+                        return;
+                    }
+                }
+                Ok(None) => return,
+                Err(error) => {
+                    let _ = sender
+                        .send(line(
+                            json!({ "error": error.message, "status": error.status }),
+                        ))
+                        .await;
+                    return;
+                }
+            }
+        }
+    });
+    let body = axum::body::Body::from_stream(tokio_stream::wrappers::ReceiverStream::new(receiver));
+    (
+        [
+            (CONTENT_TYPE, "application/x-ndjson"),
+            (axum::http::header::CACHE_CONTROL, "no-cache"),
+        ],
+        body,
+    )
+        .into_response()
+}
+
 async fn marketplace(State(kernel): Shared) -> Answer {
     ok(kernel.marketplace_list())
 }
@@ -913,6 +1019,14 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
             "/groups/{id}/messages",
             get(group_messages).post(post_group_message),
         )
+        .route("/plugins", get(plugins).post(install_plugin))
+        .route(
+            "/plugins/{name}",
+            patch(change_plugin).delete(uninstall_plugin),
+        )
+        .route("/plugins/{name}/hooks/approve", post(approve_plugin_hooks))
+        .route("/complete", post(complete))
+        .route("/complete/stream", post(complete_stream))
         .route("/marketplace", get(marketplace))
         .route("/marketplace/{id}", delete(uninstall))
         .route("/marketplace/{id}/install", post(install))

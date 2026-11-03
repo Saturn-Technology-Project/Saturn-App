@@ -629,7 +629,12 @@ impl Kernel {
         });
         // Only when the agent has the skill tool: names and descriptions, loaded on demand.
         let skills = if server_ids.iter().any(|id| id == GENERAL_SKILLS_ID) {
-            let listed = list_skills(workdir.as_deref(), &self.store.root().join("skills")).await;
+            let listed = list_skills(
+                workdir.as_deref(),
+                &self.store.root().join("skills"),
+                &self.enabled_plugin_folders(),
+            )
+            .await;
             skills_prompt(
                 &listed
                     .into_iter()

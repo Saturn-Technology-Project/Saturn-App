@@ -318,19 +318,21 @@ impl Kernel {
                 let name = text(arguments, "name");
                 let workdir = self.workdir_of(&run)?;
                 let user_dir = self.store.root().join("skills");
+                let plugins = self.enabled_plugin_folders();
                 let loaded = if name.is_empty() {
                     None
                 } else {
-                    load_skill(workdir.as_deref(), &user_dir, name).await
+                    load_skill(workdir.as_deref(), &user_dir, &plugins, name).await
                 };
                 Ok(match loaded {
                     Some(skill) => completed(skill),
                     None => {
-                        let known: Vec<String> = list_skills(workdir.as_deref(), &user_dir)
-                            .await
-                            .into_iter()
-                            .map(|item| item.name)
-                            .collect();
+                        let known: Vec<String> =
+                            list_skills(workdir.as_deref(), &user_dir, &plugins)
+                                .await
+                                .into_iter()
+                                .map(|item| item.name)
+                                .collect();
                         failed(&format!(
                             "No skill named \"{name}\". Available: {}",
                             if known.is_empty() {

@@ -11,6 +11,8 @@ import { parseSkill, skillsPrompt, type SkillInfo } from "../src/application/ski
 import type { PermissionRule } from "../src/domain/permissions.js";
 import { localMinute, nextSlot, previousSlot, slotLabel, triggerOf, validTimeZone } from "../src/domain/schedule.js";
 import { isPass, mentions } from "../src/application/groups.js";
+import { applyPrompt, cleanCommitMessage, commitPrompt, editPrompt, fimPrompt, inlinePrompt, nextPrompt, parseNextEdit, stripFences, trimInline, type CompletionRequest } from "../src/application/completions.js";
+import { contextAsComments, cutAtStop, fimFormat, lineComment } from "../src/domain/fim.js";
 
 /** A value as JSON writes it, so `undefined` fields read as missing on both sides. */
 const plain = (value: unknown): unknown => (value === undefined ? null : JSON.parse(JSON.stringify(value)));
@@ -58,6 +60,21 @@ export function answerCoreCase(item: Record<string, any>): unknown {
     case "validTimeZone": try { return validTimeZone(item.value); } catch (error) { return { error: (error as Error).message }; }
     case "mentions": return mentions(item.text, item.name);
     case "isPass": return isPass(item.text);
+    case "fim": {
+      const fim = fimFormat(item.model);
+      return fim ? { family: fim.family, stops: fim.stops, prompt: fimPrompt(fim, item.input as CompletionRequest, String((item.input as CompletionRequest).suffix ?? "").slice(0, 4000)) } : null;
+    }
+    case "cutAtStop": return cutAtStop(item.text, item.stops);
+    case "lineComment": return lineComment(item.language);
+    case "contextAsComments": return contextAsComments(item.files, item.language);
+    case "completionPrompt": {
+      const makers = { inline: inlinePrompt, edit: editPrompt, apply: applyPrompt, next: nextPrompt, commit: commitPrompt } as const;
+      return makers[item.kind as keyof typeof makers](item.input as CompletionRequest);
+    }
+    case "cleanCommit": return cleanCommitMessage(item.text);
+    case "parseNextEdit": return parseNextEdit(item.text);
+    case "stripFences": return stripFences(item.text);
+    case "trimInline": return trimInline(item.text, item.suffix);
     default: throw new Error(`unknown check ${item.check}`);
   }
 }

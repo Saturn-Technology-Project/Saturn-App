@@ -491,7 +491,9 @@ impl Kernel {
             ("cursorrules", root.join(".cursorrules")),
             ("agents", root.join(".agents/rules/project.md")),
         ] {
-            if let Ok(content) = tokio::fs::read_to_string(&file).await {
+            if crate::rules::really_inside(&root, &file).await
+                && let Ok(content) = tokio::fs::read_to_string(&file).await
+            {
                 view = Some(
                     json!({ "content": content, "source": source, "path": file.to_string_lossy() }),
                 );

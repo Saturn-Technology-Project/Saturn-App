@@ -1,5 +1,6 @@
 //! Saturn's rules: what an agent may do, with no I/O. Behaviour matches `runtime/src/domain`; `contract/cases` holds the
 //! cases both implementations must answer alike.
+pub mod completions;
 pub mod context;
 pub mod diff;
 pub mod hooks;
