@@ -11,9 +11,11 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **Opening a terminal on Windows no longer puts the folder's path on a command line**, where a folder name containing `&` could run a command.
 - **The file view no longer follows a symbolic link out of the workspace**, which a cloned repository could use to show a file from elsewhere on the computer.
 - **An agent's `files` tool no longer follows a symbolic link out of the workspace.** A cloned repository could bring a link that let the agent read or change files elsewhere on the computer, and writing through a link also got around the command sandbox. Links that stay inside the workspace still work.
+- **Reverting an agent's changes no longer writes through a symbolic link.** A command the agent ran could put a link in place of a file it had changed, so that reverting wrote the original contents to wherever the link led. The revert now stops and says so.
 
 ### Fixed
 
+- **Memory learned only from the start of a long chat.** Every six turns Saturn looks for things worth remembering; it read a chat's oldest six turns every time, and now reads the latest six.
 - **Settings are no longer forgotten when Saturn restarts.** Your permission rules, sandbox, hooks, plugins, browser, embedding source, memory and plan-approval choices were saved but dropped at the next start, and the next save erased them from disk. The first-launch onboarding also came back. This also turned off the deny rules and the stricter sandbox you had set, and turned memory back on, until you set them again. Check **Settings → Permissions** and your sandbox after upgrading: what was lost before this fix cannot be recovered.
 - **A `secrets.json` that Saturn cannot read as encrypted is kept aside** instead of being taken for an old plaintext file and overwritten.
 - **Patches that close a hunk with `*** End of File` now apply**, instead of failing with an unknown patch line.

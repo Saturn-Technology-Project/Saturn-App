@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -117,6 +117,18 @@ test("reverting one file restores its exact bytes and leaves the others", async 
   assert.equal(await readFile(path.join(folder, "b.txt"), "utf8"), "changed b\n");
   assert.deepEqual(after.files.map((item) => [item.path, item.review]), [["a.txt", "reverted"], ["b.txt", "pending"]]);
   await assert.rejects(() => services.revertRunChanges("run_1", "other.txt"), /did not change that file/);
+});
+
+test("reverting does not follow a link a command put in the file's place", { skip: process.platform === "win32" }, async () => {
+  const { directory, folder, services, files } = await setup();
+  const outside = path.join(directory, "victim.txt");
+  await writeFile(outside, "the user's own file");
+  await writeFile(path.join(folder, "a.txt"), "original");
+  await files("run_1").run({ action: "write", path: "a.txt", content: "from the agent" });
+  await rm(path.join(folder, "a.txt"));
+  await symlink(outside, path.join(folder, "a.txt"));
+  await assert.rejects(() => services.revertRunChanges("run_1"), /outside the workspace/);
+  assert.equal(await readFile(outside, "utf8"), "the user's own file");
 });
 
 test("revert all restores modified and deleted files and deletes the ones the run created", async () => {

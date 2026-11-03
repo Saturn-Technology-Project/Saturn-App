@@ -69,7 +69,8 @@ export class MemoryService {
     if (this.extracting.has(key)) return;
     this.extracting.add(key);
     try {
-      await this.extract(run, turns.slice(-EVERY_TURNS));
+      // Newest runs come first in the state; the transcript reads oldest first.
+      await this.extract(run, turns.slice(0, EVERY_TURNS).reverse());
     } catch (error) {
       logger.debug("memory", `Could not extract memory: ${errorText(error)}`);
     } finally {

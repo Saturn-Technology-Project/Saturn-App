@@ -23,6 +23,32 @@ test("memory notes are parsed from the model's JSON and merged without duplicate
   assert.equal(merged, "- Prefers tabs over spaces\n- Writes commit messages in English");
 });
 
+test("memory is extracted from the chat's latest turns, oldest first", async () => {
+  const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-memory-latest-")));
+  await store.load();
+  const { services } = createApp(store);
+  const model = { id: "mdl", name: "M", provider: "openai", model: "m", baseUrl: "http://127.0.0.1:1", hasSecret: false };
+  const agent = { id: "agent", name: "A", modelConnectionId: "mdl", mcpConnectionIds: [], ragConnectionIds: [] };
+  // Newest first, as the state keeps them.
+  const runs = Array.from({ length: 12 }, (_, index) => ({ id: `run${12 - index}`, agentId: "agent", threadId: "thread", input: `question ${12 - index}.`, output: "answer", status: "completed", actions: [] }));
+  await store.update((state) => {
+    state.models.push(model as never);
+    state.agents.push(agent as never);
+    state.runs.push(...(runs as never[]));
+  });
+  let sent = "";
+  services.kernel.llm.complete = (async (_model: unknown, input: { messages: { content: string }[] }) => {
+    sent = input.messages[1]!.content;
+    return { choices: [{ message: { content: "{}" } }] };
+  }) as never;
+  await services.kernel.memory.noteRun(runs[0] as never);
+  const conversation = sent.slice(sent.indexOf("Recent conversation:"));
+  assert.ok(conversation.includes("question 12."), "the newest turn");
+  assert.ok(conversation.includes("question 7."), "six turns back");
+  assert.ok(!conversation.includes("question 6."), "nothing older");
+  assert.ok(conversation.indexOf("question 7.") < conversation.indexOf("question 12."), "oldest first");
+});
+
 test("memory files lose their trailing space, quickly even with long runs of spaces inside", async () => {
   const store = new FileStore(await mkdtemp(path.join(os.tmpdir(), "saturn-memory-space-")));
   await store.load();

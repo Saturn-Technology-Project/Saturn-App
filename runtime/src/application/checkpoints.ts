@@ -7,6 +7,7 @@ import { unifiedDiff } from "../domain/diff.js";
 import type { FileChange, Run } from "../domain/model.js";
 import type { FileCheckpoint } from "../domain/skills/checkpoint.js";
 import { Workspace } from "../domain/skills/workspace.js";
+import { insideWorkspace } from "../infrastructure/skills/inside-workspace.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 /** Files already changed before a shell command, kept so the command's own changes can be undone. */
@@ -402,7 +403,8 @@ export class CheckpointService {
         for (const entry of checkpoint.files) {
           if (file !== undefined && entry.path !== file) continue;
           if (entry.review === "reverted") continue;
-          const target = workspace.resolve(entry.path);
+          // A symbolic link put there since (a command can make one) is not followed out of the folder.
+          const target = await insideWorkspace(workspace, entry.path);
           const original = await this.blob(runId, entry.before);
           if (original) {
             await mkdir(path.dirname(target), { recursive: true });
@@ -503,7 +505,7 @@ export class CheckpointService {
       await this.locked(runId, async () => {
         const workspace = new Workspace(checkpoint.root);
         for (const [file, hash] of restore) {
-          const target = workspace.resolve(file);
+          const target = await insideWorkspace(workspace, file);
           const bytes = await this.blob(runId, hash);
           if (bytes) {
             await mkdir(path.dirname(target), { recursive: true });
