@@ -1,0 +1,15 @@
+[package]
+name = "saturn-domain"
+description = "Saturn's rules: what an agent may do, with no I/O"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }

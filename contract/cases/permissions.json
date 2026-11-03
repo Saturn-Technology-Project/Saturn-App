@@ -1,0 +1,1173 @@
+[
+ {
+  "check": "commandSegments",
+  "command": "npm test && git push | tee log; echo 'a;b' || true",
+  "expect": [
+   "npm test",
+   "git push",
+   "tee log",
+   "echo 'a;b'",
+   "true"
+  ]
+ },
+ {
+  "check": "commandSegments",
+  "command": "a\nb",
+  "expect": [
+   "a",
+   "b"
+  ]
+ },
+ {
+  "check": "commandSegments",
+  "command": "echo \"a && b\" & c",
+  "expect": [
+   "echo \"a && b\"",
+   "c"
+  ]
+ },
+ {
+  "check": "commandSegments",
+  "command": "echo a\\;b; c",
+  "expect": [
+   "echo a\\;b",
+   "c"
+  ]
+ },
+ {
+  "check": "commandSegments",
+  "command": "  ",
+  "expect": []
+ },
+ {
+  "check": "commandSegments",
+  "command": "echo \"x\\\"; y\"; z",
+  "expect": [
+   "echo \"x\\\"; y\"",
+   "z"
+  ]
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "code",
+   "pattern": "npm test *",
+   "effect": "allow"
+  },
+  "tool": "code",
+  "arguments": {
+   "command": "npm test"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "code",
+   "pattern": "npm test *",
+   "effect": "allow"
+  },
+  "tool": "code",
+  "arguments": {
+   "command": "npm   test --watch"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "code",
+   "pattern": "npm test *",
+   "effect": "allow"
+  },
+  "tool": "code",
+  "arguments": {
+   "command": "npm testing"
+  },
+  "expect": false
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "code",
+   "pattern": "npm test *",
+   "effect": "allow"
+  },
+  "tool": "code",
+  "arguments": {
+   "command": "npm run test"
+  },
+  "expect": false
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "code",
+   "pattern": "git * --dry-run *",
+   "effect": "allow"
+  },
+  "tool": "code",
+  "arguments": {
+   "command": "git push --dry-run origin"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "code",
+   "pattern": "*",
+   "effect": "deny"
+  },
+  "tool": "code",
+  "arguments": {
+   "command": "anything"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "*",
+   "pattern": "rm *",
+   "effect": "deny"
+  },
+  "tool": "code",
+  "arguments": {
+   "command": "rm x"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "write src/**",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "src/a/b.ts"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "write src/**",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "src/top.ts"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "write src/**",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "append",
+   "path": "src/top.ts"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "write src/**",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "lib/a.ts"
+  },
+  "expect": false
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "write src/**",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "delete",
+   "path": "src/a.ts"
+  },
+  "expect": false
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "read",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "read",
+   "path": "anything/at/all"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "*.md",
+   "effect": "deny"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "README.md"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "*.md",
+   "effect": "deny"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "docs/README.md"
+  },
+  "expect": false
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "write src/**/x.ts",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "src/x.ts"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "write src/?.ts",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "./src/a.ts"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "* a b",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "read",
+   "path": "a b"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "unknown a",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "read",
+   "path": "unknown a"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "read a.ts",
+   "effect": "allow"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "read",
+   "path": "a\\..\\a.ts"
+  },
+  "expect": false
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "files",
+   "pattern": "move a/*",
+   "effect": "ask"
+  },
+  "tool": "files",
+  "arguments": {
+   "action": "move",
+   "from": "a/b"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "web",
+   "pattern": "*example.com*",
+   "effect": "deny"
+  },
+  "tool": "web",
+  "arguments": {
+   "url": "https://example.com/page"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "github_*",
+   "pattern": "*",
+   "effect": "ask"
+  },
+  "tool": "github_create_issue",
+  "arguments": {
+   "title": "x"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "github_*",
+   "pattern": "*",
+   "effect": "ask"
+  },
+  "tool": "linear_create_issue",
+  "arguments": {},
+  "expect": false
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "web",
+   "pattern": "",
+   "effect": "allow"
+  },
+  "tool": "web",
+  "arguments": {
+   "url": "x"
+  },
+  "expect": true
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "other",
+   "pattern": "a.c",
+   "effect": "allow"
+  },
+  "tool": "other",
+  "arguments": {
+   "zeta": 1,
+   "alpha": "abc"
+  },
+  "expect": false
+ },
+ {
+  "check": "matchesRule",
+  "rule": {
+   "tool": "other",
+   "pattern": "a?c",
+   "effect": "allow"
+  },
+  "tool": "other",
+  "arguments": {
+   "zeta": 1,
+   "alpha": "abc"
+  },
+  "expect": true
+ },
+ {
+  "check": "resolvePermission",
+  "layers": [
+   {
+    "scope": "user",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "npm test *",
+      "effect": "allow"
+     },
+     {
+      "tool": "code",
+      "pattern": "git *",
+      "effect": "allow"
+     }
+    ]
+   },
+   {
+    "scope": "project",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "git push *",
+      "effect": "ask"
+     },
+     {
+      "tool": "code",
+      "pattern": "rm *",
+      "effect": "deny"
+     }
+    ]
+   }
+  ],
+  "tool": "code",
+  "arguments": {
+   "command": "npm test"
+  },
+  "effect": "allow",
+  "scope": "user"
+ },
+ {
+  "check": "resolvePermission",
+  "layers": [
+   {
+    "scope": "user",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "npm test *",
+      "effect": "allow"
+     },
+     {
+      "tool": "code",
+      "pattern": "git *",
+      "effect": "allow"
+     }
+    ]
+   },
+   {
+    "scope": "project",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "git push *",
+      "effect": "ask"
+     },
+     {
+      "tool": "code",
+      "pattern": "rm *",
+      "effect": "deny"
+     }
+    ]
+   }
+  ],
+  "tool": "code",
+  "arguments": {
+   "command": "npm test && git status"
+  },
+  "effect": "allow",
+  "scope": "user"
+ },
+ {
+  "check": "resolvePermission",
+  "layers": [
+   {
+    "scope": "user",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "npm test *",
+      "effect": "allow"
+     },
+     {
+      "tool": "code",
+      "pattern": "git *",
+      "effect": "allow"
+     }
+    ]
+   },
+   {
+    "scope": "project",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "git push *",
+      "effect": "ask"
+     },
+     {
+      "tool": "code",
+      "pattern": "rm *",
+      "effect": "deny"
+     }
+    ]
+   }
+  ],
+  "tool": "code",
+  "arguments": {
+   "command": "npm test && ls"
+  },
+  "effect": null,
+  "scope": null
+ },
+ {
+  "check": "resolvePermission",
+  "layers": [
+   {
+    "scope": "user",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "npm test *",
+      "effect": "allow"
+     },
+     {
+      "tool": "code",
+      "pattern": "git *",
+      "effect": "allow"
+     }
+    ]
+   },
+   {
+    "scope": "project",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "git push *",
+      "effect": "ask"
+     },
+     {
+      "tool": "code",
+      "pattern": "rm *",
+      "effect": "deny"
+     }
+    ]
+   }
+  ],
+  "tool": "code",
+  "arguments": {
+   "command": "git push origin main"
+  },
+  "effect": "ask",
+  "scope": "project"
+ },
+ {
+  "check": "resolvePermission",
+  "layers": [
+   {
+    "scope": "user",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "npm test *",
+      "effect": "allow"
+     },
+     {
+      "tool": "code",
+      "pattern": "git *",
+      "effect": "allow"
+     }
+    ]
+   },
+   {
+    "scope": "project",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "git push *",
+      "effect": "ask"
+     },
+     {
+      "tool": "code",
+      "pattern": "rm *",
+      "effect": "deny"
+     }
+    ]
+   }
+  ],
+  "tool": "code",
+  "arguments": {
+   "command": "npm test; rm -rf dist"
+  },
+  "effect": "deny",
+  "scope": "project"
+ },
+ {
+  "check": "resolvePermission",
+  "layers": [
+   {
+    "scope": "user",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "npm test *",
+      "effect": "allow"
+     },
+     {
+      "tool": "code",
+      "pattern": "git *",
+      "effect": "allow"
+     }
+    ]
+   },
+   {
+    "scope": "project",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "git push *",
+      "effect": "ask"
+     },
+     {
+      "tool": "code",
+      "pattern": "rm *",
+      "effect": "deny"
+     }
+    ]
+   }
+  ],
+  "tool": "code",
+  "arguments": {
+   "command": "rm -rf dist"
+  },
+  "effect": "deny",
+  "scope": "project"
+ },
+ {
+  "check": "resolvePermission",
+  "layers": [
+   {
+    "scope": "user",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "npm test *",
+      "effect": "allow"
+     },
+     {
+      "tool": "code",
+      "pattern": "git *",
+      "effect": "allow"
+     }
+    ]
+   },
+   {
+    "scope": "project",
+    "rules": [
+     {
+      "tool": "code",
+      "pattern": "git push *",
+      "effect": "ask"
+     },
+     {
+      "tool": "code",
+      "pattern": "rm *",
+      "effect": "deny"
+     }
+    ]
+   }
+  ],
+  "tool": "code",
+  "arguments": {
+   "command": ""
+  },
+  "effect": null,
+  "scope": null
+ },
+ {
+  "check": "resolvePermission",
+  "layers": [
+   {
+    "scope": "user",
+    "rules": [
+     {
+      "tool": "web",
+      "pattern": "*",
+      "effect": "allow"
+     }
+    ]
+   },
+   {
+    "scope": "agent",
+    "rules": [
+     {
+      "tool": "web",
+      "pattern": "*",
+      "effect": "allow"
+     }
+    ]
+   }
+  ],
+  "tool": "web",
+  "arguments": {
+   "url": "x"
+  },
+  "effect": "allow",
+  "scope": "user"
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "Bash(npm test:*)",
+  "effect": "allow",
+  "expect": {
+   "tool": "code",
+   "pattern": "npm test *",
+   "effect": "allow"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "Bash(git status)",
+  "effect": "allow",
+  "expect": {
+   "tool": "code",
+   "pattern": "git status",
+   "effect": "allow"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "Bash",
+  "effect": "ask",
+  "expect": {
+   "tool": "code",
+   "pattern": "*",
+   "effect": "ask"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "Read(src/**)",
+  "effect": "allow",
+  "expect": {
+   "tool": "files",
+   "pattern": "read src/**",
+   "effect": "allow"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "Glob",
+  "effect": "allow",
+  "expect": {
+   "tool": "files",
+   "pattern": "read",
+   "effect": "allow"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "Edit",
+  "effect": "deny",
+  "expect": {
+   "tool": "files",
+   "pattern": "write",
+   "effect": "deny"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "WebFetch(domain:example.com)",
+  "effect": "allow",
+  "expect": {
+   "tool": "web",
+   "pattern": "*example.com*",
+   "effect": "allow"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "WebSearch",
+  "effect": "allow",
+  "expect": {
+   "tool": "web",
+   "pattern": "*",
+   "effect": "allow"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "mcp__github__create_issue",
+  "effect": "ask",
+  "expect": {
+   "tool": "*create_issue",
+   "pattern": "*",
+   "effect": "ask"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "mcp__github",
+  "effect": "ask",
+  "expect": {
+   "tool": "*",
+   "pattern": "*",
+   "effect": "ask"
+  }
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "Task",
+  "effect": "allow",
+  "expect": null
+ },
+ {
+  "check": "fromClaudeRule",
+  "text": "not a rule!",
+  "effect": "allow",
+  "expect": null
+ },
+ {
+  "check": "suggestedPattern",
+  "tool": "code",
+  "arguments": {
+   "command": "npm test --watch"
+  },
+  "expect": "npm test *"
+ },
+ {
+  "check": "suggestedPattern",
+  "tool": "code",
+  "arguments": {
+   "command": "ls -la"
+  },
+  "expect": "ls *"
+ },
+ {
+  "check": "suggestedPattern",
+  "tool": "code",
+  "arguments": {
+   "command": ""
+  },
+  "expect": "*"
+ },
+ {
+  "check": "suggestedPattern",
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "src/a/b.ts"
+  },
+  "expect": "write src/a/**"
+ },
+ {
+  "check": "suggestedPattern",
+  "tool": "files",
+  "arguments": {
+   "action": "append",
+   "path": "a.ts"
+  },
+  "expect": "write **"
+ },
+ {
+  "check": "suggestedPattern",
+  "tool": "files",
+  "arguments": {},
+  "expect": "* **"
+ },
+ {
+  "check": "suggestedPattern",
+  "tool": "web",
+  "arguments": {
+   "url": "x"
+  },
+  "expect": "*"
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "rm -rf x"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "RM -R x"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "sudo ls"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "pkill node"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "git push --force"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "git push origin"
+  },
+  "expect": false
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "echo x >> /etc/hosts"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "ls -la"
+  },
+  "expect": false
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "del /s x"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "Remove-Item -Recurse x"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "reg delete HKLM"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "shutdown /s"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "format c:"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "code",
+  "arguments": {
+   "command": "npm run formatter"
+  },
+  "expect": false
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "files",
+  "arguments": {
+   "action": "delete",
+   "path": "a"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "files",
+  "arguments": {
+   "action": "read",
+   "path": "/etc/passwd"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "files",
+  "arguments": {
+   "action": "read",
+   "path": "C:\\x"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "files",
+  "arguments": {
+   "action": "read",
+   "path": "../x"
+  },
+  "expect": true
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "files",
+  "arguments": {
+   "action": "write",
+   "path": "src/x"
+  },
+  "expect": false
+ },
+ {
+  "check": "isSensitiveOperation",
+  "tool": "web",
+  "arguments": {
+   "url": "x"
+  },
+  "expect": false
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "files",
+  "arguments": {
+   "action": "read"
+  },
+  "category": null,
+  "expect": true
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "files",
+  "arguments": {
+   "action": "write"
+  },
+  "category": null,
+  "expect": false
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "code",
+  "arguments": {},
+  "category": null,
+  "expect": false
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "web",
+  "arguments": {},
+  "category": null,
+  "expect": true
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "get_file",
+  "arguments": {},
+  "category": null,
+  "expect": true
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "pull_request_read",
+  "arguments": {},
+  "category": null,
+  "expect": true
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "create_issue",
+  "arguments": {},
+  "category": null,
+  "expect": false
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "create_issue",
+  "arguments": {},
+  "category": "read",
+  "expect": true
+ },
+ {
+  "check": "isReadOnlyCall",
+  "tool": "web",
+  "arguments": {},
+  "category": "write",
+  "expect": false
+ },
+ {
+  "check": "autonomyOf",
+  "value": "bypass",
+  "expect": "bypass"
+ },
+ {
+  "check": "autonomyOf",
+  "value": "turbo",
+  "expect": "bypass"
+ },
+ {
+  "check": "autonomyOf",
+  "value": "fully_autonomous",
+  "expect": "bypass"
+ },
+ {
+  "check": "autonomyOf",
+  "value": "review",
+  "expect": "review"
+ },
+ {
+  "check": "autonomyOf",
+  "value": "suggest_only",
+  "expect": "review"
+ },
+ {
+  "check": "autonomyOf",
+  "value": "default",
+  "expect": "default"
+ },
+ {
+  "check": "autonomyOf",
+  "value": "nonsense",
+  "expect": "default"
+ },
+ {
+  "check": "autonomyOf",
+  "value": null,
+  "expect": "default"
+ }
+]
