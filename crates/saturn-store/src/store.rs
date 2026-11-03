@@ -1,8 +1,10 @@
 //! The data folder as the rest of the runtime sees it: the state in memory, and every change written to disk in order.
 use std::borrow::Cow;
 use std::fs;
+use std::future::Future;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use serde_json::Value;
@@ -12,6 +14,9 @@ use tokio::task;
 use crate::secrets::{Secrets, SecretsFile, SecretsProtection};
 use crate::state::AppState;
 use crate::{json, set_aside, write_private};
+
+/// A change's save, and what the change returned.
+pub type Saving<'a, R> = Pin<Box<dyn Future<Output = io::Result<R>> + Send + 'a>>;
 
 /// What changes together, under one lock.
 struct Contents {
@@ -73,9 +78,13 @@ impl FileStore {
         reader(&self.locked().state)
     }
 
-    /// Changes the state and saves it. When saving fails the change stays in memory and the next save writes it too.
-    pub async fn update<R>(&self, change: impl FnOnce(&mut AppState) -> R + Send) -> io::Result<R> {
-        self.apply(|contents| change(&mut contents.state)).await
+    /// Changes the state at once and returns the save to wait for. When saving fails the change stays in memory and the next save
+    /// writes it too, as it does if the save is dropped before it starts.
+    pub fn update<'a, R: Send + 'a>(
+        &'a self,
+        change: impl FnOnce(&mut AppState) -> R,
+    ) -> Saving<'a, R> {
+        self.apply(|contents| change(&mut contents.state))
     }
 
     /// A secret's value. Never log it or return it to a client.
@@ -83,19 +92,17 @@ impl FileStore {
         self.locked().secrets.get(id).cloned()
     }
 
-    pub async fn put_secret(&self, id: &str, value: &str) -> io::Result<()> {
+    pub fn put_secret<'a>(&'a self, id: &str, value: &str) -> Saving<'a, ()> {
         self.apply(|contents| {
             contents.secrets.insert(id.to_owned(), value.to_owned());
             contents.secrets_changed = true;
         })
-        .await
     }
 
-    pub async fn delete_secret(&self, id: &str) -> io::Result<()> {
+    pub fn delete_secret<'a>(&'a self, id: &str) -> Saving<'a, ()> {
         self.apply(|contents| {
             contents.secrets_changed |= contents.secrets.remove(id).is_some();
         })
-        .await
     }
 
     /// How API keys and tokens are protected on disk.
@@ -108,17 +115,25 @@ impl FileStore {
         self.changes.subscribe()
     }
 
-    /// Applies a change and writes the result. The state is written on every change; the secrets, whose key may live behind a
-    /// system tool, only when they changed.
-    async fn apply<R>(&self, change: impl FnOnce(&mut Contents) -> R + Send) -> io::Result<R> {
+    /// Applies a change and returns its save.
+    fn apply<'a, R: Send + 'a>(&'a self, change: impl FnOnce(&mut Contents) -> R) -> Saving<'a, R> {
+        let result = change(&mut self.locked());
+        Box::pin(async move {
+            self.save().await?;
+            Ok(result)
+        })
+    }
+
+    /// Writes what is in memory now, so a later save always holds at least what an earlier one did. The state is written every
+    /// time; the secrets, whose key may live behind a system tool, only when they changed.
+    async fn save(&self) -> io::Result<()> {
         let mut secrets_file = Arc::clone(&self.writing).lock_owned().await;
-        let (result, state_text, changed_secrets) = {
+        let (state_text, changed_secrets) = {
             let mut contents = self.locked();
-            let result = change(&mut contents);
             let state_text = serde_json::to_string_pretty(&contents.state)?;
             let changed_secrets = contents.secrets_changed.then(|| contents.secrets.clone());
             contents.secrets_changed = false;
-            (result, state_text, changed_secrets)
+            (state_text, changed_secrets)
         };
         let directory = self.directory.clone();
         let failed_secrets = changed_secrets.is_some();
@@ -140,7 +155,7 @@ impl FileStore {
             return Err(error);
         }
         self.changes.send_modify(|count| *count += 1);
-        Ok(result)
+        Ok(())
     }
 }
 

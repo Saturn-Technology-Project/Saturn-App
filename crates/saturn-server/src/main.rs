@@ -2,14 +2,21 @@
 //! replacing; `contract/` holds what both must do and `contract/routes.json` the routes still to bring over.
 mod auth;
 mod guards;
+mod routes;
 
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use axum::extract::DefaultBodyLimit;
 use axum::routing::get;
-use axum::{Json, Router, middleware};
+use axum::{Json, middleware};
+use saturn_core::Kernel;
+use saturn_store::FileStore;
 use serde_json::{Value, json};
+
+/// The largest request body, which leaves room for a message's images.
+const BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 async fn health() -> Json<Value> {
     Json(json!({ "ok": true }))
@@ -41,6 +48,17 @@ async fn stop_requested() {
     let _ = tokio::signal::ctrl_c().await;
 }
 
+/// Resumes sleeping runs whose wake time has come, including runs that slept through a restart.
+fn start_wakeups(kernel: Arc<Kernel>) {
+    tokio::spawn(async move {
+        let mut timer = tokio::time::interval(std::time::Duration::from_secs(5));
+        loop {
+            timer.tick().await;
+            kernel.wake_due().await;
+        }
+    });
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // An address or a name, as the TypeScript runtime takes it.
@@ -53,8 +71,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let launcher_token = env::var("SATURN_RUNTIME_TOKEN").ok();
     let token: Arc<str> = auth::load_or_create_token(&directory, launcher_token.as_deref())?.into();
 
-    let app = Router::new()
+    let store = Arc::new(FileStore::load(&directory).await?);
+    let kernel = Kernel::new(store)?;
+    kernel.ensure_builtins().await?;
+    kernel.recover_interrupted().await?;
+    kernel.sweep_worktrees().await;
+    start_wakeups(Arc::clone(&kernel));
+
+    let app = routes::router(kernel)
         .route("/health", get(health))
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn_with_state(token, guards::authenticate))
         .layer(middleware::from_fn(guards::cors));
 

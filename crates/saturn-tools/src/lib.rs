@@ -15,6 +15,8 @@ pub mod sandbox;
 pub mod shell;
 pub mod web;
 
+pub use process::{Captured, run_captured};
+
 /// What a tool returns to the model, or the message saying why it could not.
 pub type ToolResult = Result<Value, String>;
 

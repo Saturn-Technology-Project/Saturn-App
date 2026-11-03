@@ -17,7 +17,10 @@ import { pageText } from "../src/infrastructure/skills/web-skill.js";
 import { account, dpapiScript } from "../src/infrastructure/secret-key.js";
 import { decrypt, encrypt } from "../src/infrastructure/secrets-file.js";
 import { FileStore } from "../src/infrastructure/store.js";
+import { answerCoreCase } from "./core-cases.js";
 import { runCase, type LlmCase } from "./llm-cases.js";
+import { generalSkills, cursorComputerUseSkills, cursorOriginSkills, antigravitySkills } from "../src/domain/builtin.js";
+import { browserSkills } from "../src/domain/browser-tools.js";
 
 type Case = { check: string; tool: string; arguments: Record<string, unknown>; expect: unknown; [key: string]: unknown };
 
@@ -174,4 +177,15 @@ test("the cases crates/saturn-tools and saturn-domain answer too, so the tools b
         assert.fail(`unknown check ${item.check}`);
     }
   }
+});
+
+test("the agent loop's cases crates/saturn-domain and crates/saturn-core answer too", async () => {
+  const cases = JSON.parse(await readFile(new URL("../../contract/cases/core.json", import.meta.url), "utf8")) as (Record<string, unknown> & { expect: unknown })[];
+  assert.ok(cases.length > 90);
+  for (const item of cases) assert.deepEqual(answerCoreCase(item), item.expect, JSON.stringify(item).slice(0, 300));
+});
+
+test("crates/saturn-core keeps the same built-in tools", async () => {
+  const servers = JSON.parse(await readFile(new URL("../../crates/saturn-core/src/builtin-servers.json", import.meta.url), "utf8")) as unknown;
+  assert.deepEqual(servers, JSON.parse(JSON.stringify([generalSkills(), cursorComputerUseSkills(), cursorOriginSkills(), antigravitySkills(), browserSkills()])));
 });

@@ -2,7 +2,7 @@
 //! every earlier assistant turn must carry its reasoning_content back or the API answers 400. Legacy reasoner models reject
 //! temperature; current models just ignore it while thinking. DeepSeek has no effort levels. Low thinking (editor completions)
 //! turns thinking mode off; a model or server that rejects that setting is asked again without it.
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::http::{Http, LlmError};
 use crate::openai::{chat_tools, tool_calls_of, tool_calls_param};
@@ -50,6 +50,8 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
     let url = format!("{base_url}/chat/completions");
     let authorization = format!("Bearer {api_key}");
     let headers = [("authorization", authorization.as_str())];
+    let headers = headers.as_slice();
+    let url = url.as_str();
     let reasoner = request.model.to_lowercase().contains("reasoner");
     let completion = with_optional_fields(
         vec![OptionalField {
@@ -57,7 +59,7 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
             value: request.low_thinking.then(|| json!({ "type": "disabled" })),
             rejected_when: "thinking",
         }],
-        async |active| {
+        |active: Map<String, Value>| async move {
             let mut body = json!({
                 "model": request.model,
                 "messages": messages_for(&request.messages, !request.tools.is_empty()),
@@ -74,7 +76,7 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
             if !request.tools.is_empty() {
                 body["tools"] = chat_tools(&request.tools);
             }
-            http.post_json(&url, &headers, &body).await
+            http.post_json(url, headers, &body).await
         },
     )
     .await?;

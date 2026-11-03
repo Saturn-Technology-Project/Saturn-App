@@ -57,6 +57,26 @@ pub fn weekday(days: i64) -> u32 {
     (days + 4).rem_euclid(7) as u32
 }
 
+/// The milliseconds of a time as `iso_time` writes it (`2026-11-03T05:37:09.916Z`, fraction optional).
+pub fn parse_iso(text: &str) -> Option<i64> {
+    let (date, time) = text.strip_suffix('Z')?.split_once('T')?;
+    let mut parts = date.split('-');
+    let year: i64 = parts.next()?.parse().ok()?;
+    let month: u32 = parts.next()?.parse().ok()?;
+    let day: u32 = parts.next()?.parse().ok()?;
+    let (clock, fraction) = time.split_once('.').unwrap_or((time, "0"));
+    let mut pieces = clock.split(':');
+    let hours: i64 = pieces.next()?.parse().ok()?;
+    let minutes: i64 = pieces.next()?.parse().ok()?;
+    let seconds: i64 = pieces.next()?.parse().ok()?;
+    let millis: i64 = format!("{fraction:0<3}").get(..3)?.parse().ok()?;
+    Some(
+        days_from_civil(year, month, day) * 86_400_000
+            + (hours * 3600 + minutes * 60 + seconds) * 1000
+            + millis,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -273,7 +273,7 @@ export class HookService {
   }
 }
 
-function parseAnswer(stdout: string): { decision?: "allow" | "ask" | "deny"; reason?: string } {
+export function parseAnswer(stdout: string): { decision?: "allow" | "ask" | "deny"; reason?: string } {
   const text = stdout.trim();
   if (!text.startsWith("{")) return {};
   try {

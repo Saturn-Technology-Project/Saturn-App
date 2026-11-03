@@ -2,7 +2,7 @@
 use std::sync::LazyLock;
 
 use regex::RegexBuilder;
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::http::{Http, LlmError};
 use crate::shared::{
@@ -163,6 +163,8 @@ pub async fn complete_chat(http: &Http, request: &ChatRequest) -> Result<Complet
     let url = format!("{}/chat/completions", trimmed(&request.base_url));
     let authorization = authorization(request);
     let headers = [("authorization", authorization.as_str())];
+    let headers = headers.as_slice();
+    let url = url.as_str();
     let completion = with_optional_fields(
         vec![
             // Compatible servers vary: reasoning_effort is sent only when asked for, and dropped if the server rejects it.
@@ -178,10 +180,10 @@ pub async fn complete_chat(http: &Http, request: &ChatRequest) -> Result<Complet
             },
             cache_key_field(request),
         ],
-        async |active| {
+        |active: Map<String, Value>| async move {
             let mut body =
                 json!({ "model": request.model, "messages": chat_messages(&request.messages) });
-            for (name, value) in active {
+            for (name, value) in &active {
                 body[name] = value.clone();
             }
             if let Some(max_output) = request.max_output {
@@ -190,7 +192,7 @@ pub async fn complete_chat(http: &Http, request: &ChatRequest) -> Result<Complet
             if !request.tools.is_empty() {
                 body["tools"] = chat_tools(&request.tools);
             }
-            http.post_json(&url, &headers, &body).await
+            http.post_json(url, headers, &body).await
         },
     )
     .await?;
@@ -266,8 +268,10 @@ pub async fn complete_responses(
     let url = format!("{}/responses", trimmed(&request.base_url));
     let authorization = authorization(request);
     let headers = [("authorization", authorization.as_str())];
-    let system = system_text(&request.messages);
-    let input = responses_input(&request.messages);
+    let headers = headers.as_slice();
+    let url = url.as_str();
+    let system = &system_text(&request.messages);
+    let input = &responses_input(&request.messages);
     // Reasoning models get a reasoning effort (and a summary of their reasoning) and no temperature; other models the reverse.
     // A model that rejects either is retried without it.
     let reasoning = reasons(&request.model);
@@ -291,12 +295,12 @@ pub async fn complete_responses(
             },
             cache_key_field(request),
         ],
-        async |active| {
+        |active: Map<String, Value>| async move {
             let mut body = json!({
                 "model": request.model,
                 "input": if input.is_empty() { json!("") } else { json!(input) },
             });
-            for (name, value) in active {
+            for (name, value) in &active {
                 body[name] = value.clone();
             }
             if !system.is_empty() {
@@ -326,7 +330,7 @@ pub async fn complete_responses(
                     .collect();
                 body["tools"] = json!(tools);
             }
-            http.post_json(&url, &headers, &body).await
+            http.post_json(url, headers, &body).await
         },
     )
     .await?;

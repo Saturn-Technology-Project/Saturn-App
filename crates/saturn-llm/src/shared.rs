@@ -1,5 +1,6 @@
 //! What the providers' modules have in common.
 use std::collections::BTreeSet;
+use std::future::Future;
 use std::sync::LazyLock;
 
 use regex::{Regex, RegexBuilder};
@@ -169,9 +170,9 @@ pub(crate) struct OptionalField {
 
 /// Sends a request with optional fields, dropping any one the provider rejects and trying again: a model that does not support
 /// an effort or reasoning setting still answers, without it. Only 400/422 answers naming the field count.
-pub(crate) async fn with_optional_fields<T>(
+pub(crate) async fn with_optional_fields<T, Sending: Future<Output = Result<T, LlmError>>>(
     fields: Vec<OptionalField>,
-    send: impl AsyncFn(&Map<String, Value>) -> Result<T, LlmError>,
+    send: impl Fn(Map<String, Value>) -> Sending,
 ) -> Result<T, LlmError> {
     let attempts = fields.len();
     let mut active: Vec<OptionalField> = fields
@@ -184,7 +185,7 @@ pub(crate) async fn with_optional_fields<T>(
             .iter()
             .filter_map(|field| Some((field.name.to_owned(), field.value.clone()?)))
             .collect();
-        let error = match send(&values).await {
+        let error = match send(values).await {
             Ok(answer) => return Ok(answer),
             Err(error) => error,
         };

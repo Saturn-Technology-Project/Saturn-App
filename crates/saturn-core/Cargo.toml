@@ -1,0 +1,27 @@
+[package]
+name = "saturn-core"
+description = "The agent loop: a model's turns, its tool calls and approvals, hooks, compaction, sub-agents and checkpoints"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.22"
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+saturn-domain = { path = "../saturn-domain" }
+saturn-llm = { path = "../saturn-llm" }
+saturn-store = { path = "../saturn-store" }
+saturn-tools = { path = "../saturn-tools" }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+sha2 = "0.10"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
+
+[dev-dependencies]
+axum = "0.8"
+serde = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }

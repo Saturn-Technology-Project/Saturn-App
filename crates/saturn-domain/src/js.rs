@@ -46,6 +46,18 @@ pub fn prefix(text: &str, units: usize) -> &str {
     text
 }
 
+/// The end of the text, at most `units` long. A character the limit would cut in half is left out.
+pub fn suffix(text: &str, units: usize) -> &str {
+    let mut used = 0;
+    for (index, character) in text.char_indices().rev() {
+        used += character.len_utf16();
+        if used > units {
+            return &text[index + character.len_utf8()..];
+        }
+    }
+    text
+}
+
 /// A number as JavaScript prints it.
 fn number_text(number: &serde_json::Number) -> String {
     if number.is_i64() || number.is_u64() {
@@ -124,16 +136,21 @@ fn number_of(raw: &str) -> f64 {
     text.parse().unwrap_or(f64::NAN)
 }
 
-/// A whole number from a value the way the tools read one, or `fallback` when it holds none.
-#[allow(clippy::cast_possible_truncation)]
-pub fn integer(value: Option<&Value>, fallback: i64) -> i64 {
-    let number = match value {
+/// `Number(value)`, with a missing value as NaN.
+pub fn number(value: Option<&Value>) -> f64 {
+    match value {
         None | Some(Value::Object(_)) => f64::NAN,
         Some(Value::Null) => 0.0,
         Some(Value::Bool(flag)) => f64::from(u8::from(*flag)),
         Some(Value::Number(number)) => number.as_f64().unwrap_or(f64::NAN),
         Some(other) => number_of(&string_of(other)),
-    };
+    }
+}
+
+/// A whole number from a value the way the tools read one, or `fallback` when it holds none.
+#[allow(clippy::cast_possible_truncation)]
+pub fn integer(value: Option<&Value>, fallback: i64) -> i64 {
+    let number = number(value);
     // A cast out of range stops at the largest whole number, which every caller then limits.
     if number.is_finite() {
         number.trunc() as i64

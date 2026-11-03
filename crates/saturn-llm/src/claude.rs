@@ -179,6 +179,9 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
     };
     let url = format!("{base_url}/v1/messages");
     let headers = [("x-api-key", api_key), ("anthropic-version", API_VERSION)];
+    let headers = headers.as_slice();
+    let url = url.as_str();
+    let (messages, system, tools) = (&messages, &system, &tools);
 
     let response = with_optional_fields(
         vec![
@@ -203,7 +206,7 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
                 rejected_when: "temperature|sampling",
             },
         ],
-        async |active| {
+        |active: Map<String, Value>| async move {
             let mut body = json!({
                 "model": request.model,
                 "max_tokens": request.max_output.unwrap_or(4096),
@@ -227,7 +230,7 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
             if !tools.is_empty() {
                 body["tools"] = json!(tools);
             }
-            http.post_json(&url, &headers, &body).await
+            http.post_json(url, headers, &body).await
         },
     )
     .await?;

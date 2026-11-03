@@ -4,6 +4,7 @@ use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
 use crate::shell::Invocation;
@@ -136,5 +137,97 @@ impl Drop for EndOnDrop {
             terminate(pid);
             force_after_grace(pid, || true);
         }
+    }
+}
+
+/// How a captured command ended.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Captured {
+    /// The exit code; `None` when it was ended by a signal, timed out or could not start.
+    pub code: Option<i32>,
+    pub stdout: String,
+    pub stderr: String,
+    pub timed_out: bool,
+}
+
+/// Keeps the last `limit` bytes a pipe gives, as text.
+async fn tail_of(mut pipe: impl AsyncRead + Unpin, limit: usize) -> String {
+    let mut kept = Vec::new();
+    let mut chunk = [0_u8; 8192];
+    while let Ok(read) = pipe.read(&mut chunk).await {
+        if read == 0 {
+            break;
+        }
+        kept.extend_from_slice(&chunk[..read]);
+        if kept.len() > limit {
+            kept.drain(..kept.len() - limit);
+        }
+    }
+    String::from_utf8_lossy(&kept).into_owned()
+}
+
+/// Runs a command that writes for someone to read afterwards (a hook, a project's check) in its own group, with `input` on its
+/// stdin and the last `limit` bytes of its output kept. Dropping the future or running out of time ends the whole group.
+pub async fn run_captured(
+    invocation: &Invocation,
+    cwd: &Path,
+    env: &[(std::ffi::OsString, std::ffi::OsString)],
+    input: &[u8],
+    timeout: Duration,
+    limit: usize,
+) -> Captured {
+    let mut prepared = command(invocation, cwd, env);
+    prepared.stdin(Stdio::piped());
+    let mut child = match prepared.spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            return Captured {
+                stderr: error.to_string(),
+                ..Captured::default()
+            };
+        }
+    };
+    let mut guard = EndOnDrop::new(child.id());
+    let stdin = child.stdin.take();
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let feeding = async {
+        if let Some(mut stdin) = stdin {
+            // A command that does not read its input is not a failure.
+            let _ = stdin.write_all(input).await;
+        }
+    };
+    let reading_out = async {
+        match stdout {
+            Some(pipe) => tail_of(pipe, limit).await,
+            None => String::new(),
+        }
+    };
+    let reading_error = async {
+        match stderr {
+            Some(pipe) => tail_of(pipe, limit).await,
+            None => String::new(),
+        }
+    };
+    let finishing = async {
+        let (_, stdout, stderr, status) =
+            tokio::join!(feeding, reading_out, reading_error, child.wait());
+        (stdout, stderr, status)
+    };
+    match tokio::time::timeout(timeout, finishing).await {
+        Ok((stdout, stderr, status)) => {
+            guard.finished();
+            Captured {
+                code: status.ok().and_then(|status| status.code()),
+                stdout,
+                stderr,
+                timed_out: false,
+            }
+        }
+        // The guard ends the group as it goes out of scope.
+        Err(_) => Captured {
+            timed_out: true,
+            ..Captured::default()
+        },
     }
 }

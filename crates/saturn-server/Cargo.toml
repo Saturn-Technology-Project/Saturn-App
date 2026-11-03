@@ -11,7 +11,13 @@ workspace = true
 
 [dependencies]
 axum = "0.8"
+futures-util = { version = "0.3", default-features = false }
 getrandom = { version = "0.3", features = ["std"] }
-serde_json = "1"
+saturn-core = { path = "../saturn-core" }
+saturn-domain = { path = "../saturn-domain" }
+saturn-store = { path = "../saturn-store" }
+serde = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 subtle = "2"
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-stream = "0.1"

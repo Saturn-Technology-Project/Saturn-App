@@ -1,11 +1,17 @@
 //! Saturn's rules: what an agent may do, with no I/O. Behaviour matches `runtime/src/domain`; `contract/cases` holds the
 //! cases both implementations must answer alike.
+pub mod context;
+pub mod diff;
+pub mod hooks;
 pub mod js;
 pub mod llm;
 pub mod permissions;
 pub mod policies;
+pub mod prompt;
+pub mod skill_files;
 pub mod skills;
 pub mod time;
+pub mod toolkits;
 
 /// A tool call's arguments, in the order the model sent them.
 pub type Arguments = serde_json::Map<String, serde_json::Value>;
