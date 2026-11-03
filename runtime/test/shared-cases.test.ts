@@ -3,11 +3,13 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { priceCall } from "../src/domain/llm/pricing.js";
 import { commandSegments, fromClaudeRule, matchesRule, resolvePermission, suggestedPattern, type PermissionEffect, type PermissionLayer, type PermissionRule } from "../src/domain/permissions.js";
 import { autonomyOf, isReadOnlyCall, isSensitiveOperation } from "../src/domain/policies.js";
 import { account, dpapiScript } from "../src/infrastructure/secret-key.js";
 import { decrypt, encrypt } from "../src/infrastructure/secrets-file.js";
 import { FileStore } from "../src/infrastructure/store.js";
+import { runCase, type LlmCase } from "./llm-cases.js";
 
 type Case = { check: string; tool: string; arguments: Record<string, unknown>; expect: unknown; [key: string]: unknown };
 
@@ -69,4 +71,21 @@ test("the state file crates/saturn-store also makes of the same saved file", asy
   await store.load();
   await store.update(() => undefined);
   assert.deepEqual(JSON.parse(await readFile(path.join(dir, "state.json"), "utf8")), cases.written);
+});
+
+test("the prices crates/saturn-domain also gives", async () => {
+  const cases = JSON.parse(await readFile(new URL("../../contract/cases/pricing.json", import.meta.url), "utf8"));
+  assert.ok(cases.length > 300);
+  for (const { expect, at, ...call } of cases) assert.deepEqual(priceCall({ ...call, at: new Date(at) }), expect, JSON.stringify(call));
+});
+
+test("what crates/saturn-llm also sends each provider, and makes of its replies", async () => {
+  const cases = JSON.parse(await readFile(new URL("../../contract/cases/llm.json", import.meta.url), "utf8")) as (LlmCase & { sent: unknown; completion?: unknown; error?: unknown })[];
+  assert.ok(cases.length >= 19);
+  for (const item of cases) {
+    const result = await runCase(item);
+    assert.deepEqual(result.sent, item.sent, item.name);
+    assert.deepEqual(result.completion, item.completion, item.name);
+    assert.deepEqual(result.error, item.error, item.name);
+  }
 });

@@ -86,3 +86,56 @@ fn answers_the_shared_cases() {
         }
     }
 }
+
+#[test]
+fn prices_calls_as_the_shared_cases_say() {
+    use saturn_domain::llm::{CallToPrice, price_call};
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("../../../contract/cases/pricing.json"))
+            .expect("the cases are JSON");
+    assert!(cases.len() > 300);
+    for case in &cases {
+        let text = |name: &str| case[name].as_str().expect("a string");
+        let tokens = |name: &str| case[name].as_u64().expect("a count");
+        let at = text("at");
+        let date = |range: std::ops::Range<usize>| at[range].parse::<i64>().expect("a number");
+        let days =
+            saturn_domain::time::days_from_civil(date(0..4), date(5..7) as u32, date(8..10) as u32);
+        let millis = days * 86_400_000
+            + date(11..13) * 3_600_000
+            + date(14..16) * 60_000
+            + date(17..19) * 1000
+            + date(20..23);
+        let priced = price_call(&CallToPrice {
+            provider: text("provider"),
+            model: text("model"),
+            hosted: case["hosted"].as_bool().expect("a flag"),
+            at: millis,
+            input_tokens: tokens("inputTokens"),
+            output_tokens: tokens("outputTokens"),
+            cached_tokens: tokens("cachedTokens"),
+            cache_write_tokens: tokens("cacheWriteTokens"),
+        });
+        let expect = &case["expect"];
+        let Some(priced) = priced else {
+            assert!(expect.is_null(), "{case}");
+            continue;
+        };
+        let close = |value: f64, name: &str| {
+            let wanted = expect[name]
+                .as_f64()
+                .unwrap_or_else(|| panic!("{name} in {case}"));
+            assert!((value - wanted).abs() < 1e-9, "{name}: {value} in {case}");
+        };
+        close(priced.input_rate, "inputRate");
+        close(priced.output_rate, "outputRate");
+        close(priced.cached_rate, "cachedRate");
+        close(priced.cache_write_rate, "cacheWriteRate");
+        close(priced.cost_usd, "costUsd");
+        assert_eq!(
+            priced.tier,
+            expect["tier"].as_str().expect("a tier"),
+            "{case}"
+        );
+    }
+}

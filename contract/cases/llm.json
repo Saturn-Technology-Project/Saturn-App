@@ -1,0 +1,3121 @@
+[
+  {
+    "name": "Claude: a new model thinks, sends its effort and caches; a turn it wrote goes back verbatim",
+    "adapter": "claude",
+    "request": {
+      "model": "claude-opus-5-5",
+      "effort": "xhigh",
+      "temperature": 0.7,
+      "maxOutput": 2048,
+      "tools": [
+        {
+          "function": {
+            "name": "files",
+            "description": "Read and write files",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          }
+        },
+        {
+          "function": {
+            "name": "pick",
+            "description": "Pick",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "oneOf": [
+                {
+                  "properties": {
+                    "a": {
+                      "type": "string",
+                      "const": "x"
+                    }
+                  },
+                  "required": [
+                    "a"
+                  ]
+                },
+                {
+                  "properties": {
+                    "b": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "b"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "system",
+          "content": "Be brief."
+        },
+        {
+          "role": "user",
+          "content": "look",
+          "images": [
+            {
+              "mimeType": "image/bmp",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "Reading.",
+          "reasoning": "need the file",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {
+                "path": "notes.txt"
+              },
+              "thoughtSignature": "sig-1"
+            },
+            {
+              "id": "c2",
+              "name": "pick",
+              "arguments": {
+                "a": "x"
+              }
+            }
+          ],
+          "replay": {
+            "provider": "claude",
+            "data": [
+              {
+                "type": "thinking",
+                "thinking": "t",
+                "signature": "s"
+              },
+              {
+                "type": "tool_use",
+                "id": "c1",
+                "name": "files",
+                "input": {
+                  "path": "notes.txt"
+                }
+              },
+              {
+                "type": "tool_use",
+                "id": "c2",
+                "name": "pick",
+                "input": {
+                  "a": "x"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c1",
+          "toolName": "files",
+          "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}",
+          "images": [
+            {
+              "mimeType": "image/jpeg",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c2",
+          "toolName": "pick",
+          "content": "not json",
+          "failed": true
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "id": "msg_1",
+          "type": "message",
+          "role": "assistant",
+          "model": "m",
+          "stop_reason": "end_turn",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "plan",
+              "signature": "sig"
+            },
+            {
+              "type": "redacted_thinking",
+              "data": "opaque"
+            },
+            {
+              "type": "text",
+              "text": "Doing "
+            },
+            {
+              "type": "text",
+              "text": "it."
+            },
+            {
+              "type": "tool_use",
+              "id": "c3",
+              "name": "files",
+              "input": {
+                "path": "a"
+              }
+            }
+          ],
+          "usage": {
+            "input_tokens": 5,
+            "output_tokens": 7,
+            "cache_creation_input_tokens": 100,
+            "cache_read_input_tokens": 1000
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1/messages",
+        "headers": {
+          "x-api-key": "fake-key",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-opus-5-5",
+          "max_tokens": 2048,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "xhigh"
+          },
+          "system": "Be brief.",
+          "cache_control": {
+            "type": "ephemeral"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "look"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": "iVBORw0KGgo="
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "t",
+                  "signature": "s"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "c1",
+                  "name": "files",
+                  "input": {
+                    "path": "notes.txt"
+                  }
+                },
+                {
+                  "type": "tool_use",
+                  "id": "c2",
+                  "name": "pick",
+                  "input": {
+                    "a": "x"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "c1",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}"
+                    },
+                    {
+                      "type": "image",
+                      "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": "iVBORw0KGgo="
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "c2",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "not json"
+                    }
+                  ],
+                  "is_error": true
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "files",
+              "description": "Read and write files",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            },
+            {
+              "name": "pick",
+              "description": "Pick Give exactly one of: a, b.",
+              "input_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "type": "object",
+                "properties": {
+                  "a": {
+                    "type": "string",
+                    "const": "x"
+                  },
+                  "b": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "Doing it.",
+      "thinking": "plan",
+      "toolCalls": [
+        {
+          "id": "c3",
+          "name": "files",
+          "arguments": {
+            "path": "a"
+          }
+        }
+      ],
+      "replay": {
+        "provider": "claude",
+        "data": [
+          {
+            "type": "thinking",
+            "thinking": "plan",
+            "signature": "sig"
+          },
+          {
+            "type": "redacted_thinking",
+            "data": "opaque"
+          },
+          {
+            "type": "text",
+            "text": "Doing "
+          },
+          {
+            "type": "text",
+            "text": "it."
+          },
+          {
+            "type": "tool_use",
+            "id": "c3",
+            "name": "files",
+            "input": {
+              "path": "a"
+            }
+          }
+        ]
+      },
+      "usage": {
+        "input_tokens": 1105,
+        "output_tokens": 7,
+        "cached_input_tokens": 1000,
+        "cache_write_input_tokens": 100
+      }
+    }
+  },
+  {
+    "name": "Claude: an older model on low thinking takes temperature, no effort, and tool turns natively",
+    "adapter": "claude",
+    "request": {
+      "model": "claude-haiku-4-5",
+      "thinking": "low",
+      "temperature": 0.2,
+      "tools": [],
+      "messages": [
+        {
+          "role": "user",
+          "content": "hi"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {}
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c1",
+          "toolName": "files",
+          "content": ""
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "id": "msg_1",
+          "type": "message",
+          "role": "assistant",
+          "model": "m",
+          "stop_reason": "end_turn",
+          "content": [
+            {
+              "type": "text",
+              "text": "<think>hidden</think>\n\n  shown  \n"
+            }
+          ],
+          "usage": {
+            "input_tokens": 5,
+            "output_tokens": 7
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1/messages",
+        "headers": {
+          "x-api-key": "fake-key",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-haiku-4-5",
+          "max_tokens": 4096,
+          "temperature": 0.2,
+          "cache_control": {
+            "type": "ephemeral"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "hi"
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "tool_use",
+                  "id": "c1",
+                  "name": "files",
+                  "input": {}
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "c1",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "(no output)"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "  shown",
+      "thinking": "hidden",
+      "toolCalls": [],
+      "usage": {
+        "input_tokens": 5,
+        "output_tokens": 7
+      }
+    }
+  },
+  {
+    "name": "Claude: a round another model wrote goes as text, and a conversation ending on the assistant gets a user turn",
+    "adapter": "claude",
+    "request": {
+      "model": "claude-sonnet-5-5",
+      "tools": [],
+      "messages": [
+        {
+          "role": "system",
+          "content": "Be brief."
+        },
+        {
+          "role": "system",
+          "content": "Second rule."
+        },
+        {
+          "role": "user",
+          "content": "read notes",
+          "images": [
+            {
+              "mimeType": "image/png",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "Reading.",
+          "reasoning": "need the file",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {
+                "path": "notes.txt"
+              },
+              "thoughtSignature": "sig-1"
+            },
+            {
+              "id": "c2",
+              "name": "pick",
+              "arguments": {
+                "a": "x"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c1",
+          "toolName": "files",
+          "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}",
+          "images": [
+            {
+              "mimeType": "image/jpeg",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c2",
+          "toolName": "pick",
+          "content": "not json",
+          "failed": true
+        },
+        {
+          "role": "assistant",
+          "content": "see data:image/png;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA there"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "id": "msg_1",
+          "type": "message",
+          "role": "assistant",
+          "model": "m",
+          "stop_reason": "end_turn",
+          "content": [
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ],
+          "usage": {
+            "input_tokens": 5,
+            "output_tokens": 7
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1/messages",
+        "headers": {
+          "x-api-key": "fake-key",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 4096,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "system": "Be brief.\nSecond rule.",
+          "cache_control": {
+            "type": "ephemeral"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "read notes"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "iVBORw0KGgo="
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "[{\"toolId\":\"files\",\"arguments\":{\"path\":\"notes.txt\"},\"thoughtSignature\":\"sig-1\",\"status\":\"completed\",\"result\":{\"text\":\"hello\"}},{\"toolId\":\"pick\",\"arguments\":{\"a\":\"x\"},\"result\":\"not json\"}]"
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Observation from computer_screenshot (attached as multimodal image input):"
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": "iVBORw0KGgo="
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "see [image attached as visual input] there"
+            },
+            {
+              "role": "user",
+              "content": "Continue."
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {
+        "input_tokens": 5,
+        "output_tokens": 7
+      }
+    }
+  },
+  {
+    "name": "Claude: a setting the model rejects is dropped and the request sent again",
+    "adapter": "claude",
+    "request": {
+      "model": "claude-opus-5-5",
+      "effort": "max",
+      "tools": [],
+      "messages": []
+    },
+    "replies": [
+      {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "effort is not supported on this model",
+            "type": "invalid_request_error"
+          }
+        }
+      },
+      {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "thinking is not supported on this model",
+            "type": "invalid_request_error"
+          }
+        }
+      },
+      {
+        "body": {
+          "id": "msg_1",
+          "type": "message",
+          "role": "assistant",
+          "model": "m",
+          "stop_reason": "end_turn",
+          "content": [
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ],
+          "usage": {
+            "input_tokens": 5,
+            "output_tokens": 7
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1/messages",
+        "headers": {
+          "x-api-key": "fake-key",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-opus-5-5",
+          "max_tokens": 4096,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "max"
+          },
+          "cache_control": {
+            "type": "ephemeral"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": ""
+            }
+          ]
+        }
+      },
+      {
+        "path": "/v1/messages",
+        "headers": {
+          "x-api-key": "fake-key",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-opus-5-5",
+          "max_tokens": 4096,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "cache_control": {
+            "type": "ephemeral"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": ""
+            }
+          ]
+        }
+      },
+      {
+        "path": "/v1/messages",
+        "headers": {
+          "x-api-key": "fake-key",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-opus-5-5",
+          "max_tokens": 4096,
+          "cache_control": {
+            "type": "ephemeral"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": ""
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {
+        "input_tokens": 5,
+        "output_tokens": 7
+      }
+    }
+  },
+  {
+    "name": "Claude: a refusal that names no setting is the caller's",
+    "adapter": "claude",
+    "request": {
+      "model": "claude-opus-5-5",
+      "tools": [],
+      "messages": [
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "messages: too long",
+            "type": "invalid_request_error"
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1/messages",
+        "headers": {
+          "x-api-key": "fake-key",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-opus-5-5",
+          "max_tokens": 4096,
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "cache_control": {
+            "type": "ephemeral"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "hi"
+            }
+          ]
+        }
+      }
+    ],
+    "error": {
+      "status": 400
+    }
+  },
+  {
+    "name": "DeepSeek: reasoning goes back when tools are sent, and hits are reported",
+    "adapter": "deepseek",
+    "request": {
+      "model": "deepseek-flash",
+      "temperature": 0.5,
+      "maxOutput": 100,
+      "tools": [
+        {
+          "function": {
+            "name": "files",
+            "description": "Read and write files",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "system",
+          "content": "Be brief."
+        },
+        {
+          "role": "system",
+          "content": "Second rule."
+        },
+        {
+          "role": "user",
+          "content": "read notes",
+          "images": [
+            {
+              "mimeType": "image/png",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "Reading.",
+          "reasoning": "need the file",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {
+                "path": "notes.txt"
+              },
+              "thoughtSignature": "sig-1"
+            },
+            {
+              "id": "c2",
+              "name": "pick",
+              "arguments": {
+                "a": "x"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c1",
+          "toolName": "files",
+          "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}",
+          "images": [
+            {
+              "mimeType": "image/jpeg",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c2",
+          "toolName": "pick",
+          "content": "not json",
+          "failed": true
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "choices": [
+            {
+              "index": 0,
+              "finish_reason": "stop",
+              "message": {
+                "role": "assistant",
+                "content": null,
+                "reasoning_content": " why ",
+                "tool_calls": [
+                  {
+                    "id": "c9",
+                    "type": "function",
+                    "function": {
+                      "name": "files",
+                      "arguments": "{\"path\":\"a\"}"
+                    }
+                  },
+                  {
+                    "id": "c10",
+                    "type": "function",
+                    "function": {
+                      "name": "files",
+                      "arguments": "{broken"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 20,
+            "completion_tokens": 3,
+            "prompt_cache_hit_tokens": 16
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/chat/completions",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "deepseek-flash",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "system",
+              "content": "Second rule."
+            },
+            {
+              "role": "user",
+              "content": "read notes"
+            },
+            {
+              "role": "assistant",
+              "content": "Reading.",
+              "reasoning_content": "need the file",
+              "tool_calls": [
+                {
+                  "id": "c1",
+                  "type": "function",
+                  "function": {
+                    "name": "files",
+                    "arguments": "{\"path\":\"notes.txt\"}"
+                  }
+                },
+                {
+                  "id": "c2",
+                  "type": "function",
+                  "function": {
+                    "name": "pick",
+                    "arguments": "{\"a\":\"x\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "c1",
+              "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}"
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "c2",
+              "content": "not json"
+            }
+          ],
+          "temperature": 0.5,
+          "max_tokens": 100,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "files",
+                "description": "Read and write files",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "",
+      "thinking": "why",
+      "toolCalls": [
+        {
+          "id": "c9",
+          "name": "files",
+          "arguments": {
+            "path": "a"
+          }
+        },
+        {
+          "id": "c10",
+          "name": "files",
+          "arguments": {}
+        }
+      ],
+      "usage": {
+        "input_tokens": 20,
+        "output_tokens": 3,
+        "cached_input_tokens": 16
+      }
+    }
+  },
+  {
+    "name": "DeepSeek: without tools an assistant turn carries no reasoning, and a reasoner takes no temperature",
+    "adapter": "deepseek",
+    "request": {
+      "model": "deepseek-reasoner",
+      "temperature": 0.5,
+      "tools": [],
+      "messages": [
+        {
+          "role": "assistant",
+          "content": "a",
+          "reasoning": "r"
+        },
+        {
+          "role": "user",
+          "content": "b"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "choices": [
+            {
+              "index": 0,
+              "finish_reason": "stop",
+              "message": {
+                "role": "assistant",
+                "content": "ok",
+                "thinking": "t"
+              }
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 2
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/chat/completions",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "deepseek-reasoner",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": "a"
+            },
+            {
+              "role": "user",
+              "content": "b"
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "t",
+      "toolCalls": [],
+      "usage": {
+        "input_tokens": 10,
+        "output_tokens": 2
+      }
+    }
+  },
+  {
+    "name": "DeepSeek: low thinking turns thinking off, unless the server rejects it",
+    "adapter": "deepseek",
+    "request": {
+      "model": "deepseek-flash",
+      "thinking": "low",
+      "tools": [],
+      "messages": [
+        {
+          "role": "user",
+          "content": "b"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "unknown field thinking",
+            "type": "invalid_request_error"
+          }
+        }
+      },
+      {
+        "body": {
+          "choices": [
+            {
+              "index": 0,
+              "finish_reason": "stop",
+              "message": {
+                "role": "assistant",
+                "content": "ok"
+              }
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 2
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/chat/completions",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "deepseek-flash",
+          "messages": [
+            {
+              "role": "user",
+              "content": "b"
+            }
+          ],
+          "thinking": {
+            "type": "disabled"
+          }
+        }
+      },
+      {
+        "path": "/chat/completions",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "deepseek-flash",
+          "messages": [
+            {
+              "role": "user",
+              "content": "b"
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {
+        "input_tokens": 10,
+        "output_tokens": 2
+      }
+    }
+  },
+  {
+    "name": "OpenAI-compatible: tool turns are native, and screenshots follow their results as a user turn",
+    "adapter": "openai-chat",
+    "request": {
+      "model": "local-model",
+      "temperature": 1.5,
+      "maxOutput": 300,
+      "effort": "xhigh",
+      "cacheKey": "saturn:agent_1",
+      "tools": [
+        {
+          "function": {
+            "name": "files",
+            "description": "Read and write files",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "system",
+          "content": "Be brief."
+        },
+        {
+          "role": "system",
+          "content": "Second rule."
+        },
+        {
+          "role": "user",
+          "content": "read notes",
+          "images": [
+            {
+              "mimeType": "image/png",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "Reading.",
+          "reasoning": "need the file",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {
+                "path": "notes.txt"
+              },
+              "thoughtSignature": "sig-1"
+            },
+            {
+              "id": "c2",
+              "name": "pick",
+              "arguments": {
+                "a": "x"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c1",
+          "toolName": "files",
+          "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}",
+          "images": [
+            {
+              "mimeType": "image/jpeg",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c2",
+          "toolName": "pick",
+          "content": "not json",
+          "failed": true
+        },
+        {
+          "role": "user",
+          "content": "next"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "choices": [
+            {
+              "index": 0,
+              "finish_reason": "stop",
+              "message": {
+                "role": "assistant",
+                "content": "done",
+                "thinking": "a",
+                "reasoning_content": "b",
+                "reasoning": {
+                  "content": [
+                    {
+                      "text": "c"
+                    }
+                  ],
+                  "summary": [
+                    {
+                      "text": "d"
+                    }
+                  ]
+                },
+                "tool_calls": [
+                  {
+                    "id": "c9",
+                    "type": "function",
+                    "function": {
+                      "name": "files",
+                      "arguments": ""
+                    }
+                  },
+                  {
+                    "id": "c10",
+                    "type": "custom",
+                    "custom": {
+                      "name": "x",
+                      "input": ""
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 1200,
+            "completion_tokens": 3,
+            "prompt_tokens_details": {
+              "cached_tokens": 1024
+            }
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/chat/completions",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "local-model",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "system",
+              "content": "Second rule."
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "read notes"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/png;base64,iVBORw0KGgo="
+                  }
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "Reading.",
+              "tool_calls": [
+                {
+                  "id": "c1",
+                  "type": "function",
+                  "function": {
+                    "name": "files",
+                    "arguments": "{\"path\":\"notes.txt\"}"
+                  }
+                },
+                {
+                  "id": "c2",
+                  "type": "function",
+                  "function": {
+                    "name": "pick",
+                    "arguments": "{\"a\":\"x\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "c1",
+              "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}"
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "c2",
+              "content": "not json"
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Screenshots from the tool results above:"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/jpeg;base64,iVBORw0KGgo="
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": "next"
+            }
+          ],
+          "temperature": 1.5,
+          "reasoning_effort": "high",
+          "max_completion_tokens": 300,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "files",
+                "description": "Read and write files",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "done",
+      "thinking": "a\n\nb\n\nc\n\nd",
+      "toolCalls": [
+        {
+          "id": "c9",
+          "name": "files",
+          "arguments": {}
+        }
+      ],
+      "usage": {
+        "input_tokens": 1200,
+        "output_tokens": 3,
+        "cached_input_tokens": 1024
+      }
+    }
+  },
+  {
+    "name": "OpenAI-compatible: fields the server rejects are dropped one at a time",
+    "adapter": "openai-chat",
+    "request": {
+      "model": "local-model",
+      "temperature": 0.3,
+      "thinking": "low",
+      "apiKey": "",
+      "tools": [],
+      "messages": [
+        {
+          "role": "assistant",
+          "content": "",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {}
+            }
+          ]
+        }
+      ]
+    },
+    "replies": [
+      {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "reasoning_effort: unrecognized",
+            "type": "invalid_request_error"
+          }
+        }
+      },
+      {
+        "status": 422,
+        "body": {
+          "error": {
+            "message": "temperature not allowed"
+          }
+        }
+      },
+      {
+        "body": {
+          "choices": [
+            {
+              "index": 0,
+              "finish_reason": "stop",
+              "message": {
+                "role": "assistant",
+                "content": "ok"
+              }
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 2
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/chat/completions",
+        "headers": {
+          "authorization": "Bearer local",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "local-model",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "c1",
+                  "type": "function",
+                  "function": {
+                    "name": "files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            }
+          ],
+          "temperature": 0.3,
+          "reasoning_effort": "low"
+        }
+      },
+      {
+        "path": "/chat/completions",
+        "headers": {
+          "authorization": "Bearer local",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "local-model",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "c1",
+                  "type": "function",
+                  "function": {
+                    "name": "files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            }
+          ],
+          "temperature": 0.3
+        }
+      },
+      {
+        "path": "/chat/completions",
+        "headers": {
+          "authorization": "Bearer local",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "local-model",
+          "messages": [
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "c1",
+                  "type": "function",
+                  "function": {
+                    "name": "files",
+                    "arguments": "{}"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {
+        "input_tokens": 10,
+        "output_tokens": 2
+      }
+    }
+  },
+  {
+    "name": "OpenAI Responses: a reasoning model gets effort and a summary, no temperature, and tool turns as items",
+    "adapter": "openai-responses",
+    "request": {
+      "model": "gpt-5.5",
+      "temperature": 0.7,
+      "maxOutput": 900,
+      "effort": "max",
+      "tools": [
+        {
+          "function": {
+            "name": "files",
+            "description": "Read and write files",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "system",
+          "content": "Be brief."
+        },
+        {
+          "role": "system",
+          "content": "Second rule."
+        },
+        {
+          "role": "user",
+          "content": "read notes",
+          "images": [
+            {
+              "mimeType": "image/png",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "Reading.",
+          "reasoning": "need the file",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {
+                "path": "notes.txt"
+              },
+              "thoughtSignature": "sig-1"
+            },
+            {
+              "id": "c2",
+              "name": "pick",
+              "arguments": {
+                "a": "x"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c1",
+          "toolName": "files",
+          "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}",
+          "images": [
+            {
+              "mimeType": "image/jpeg",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c2",
+          "toolName": "pick",
+          "content": "not json",
+          "failed": true
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "id": "r",
+          "object": "response",
+          "output": [
+            {
+              "type": "reasoning",
+              "id": "rs",
+              "summary": [
+                {
+                  "type": "summary_text",
+                  "text": "sum"
+                }
+              ],
+              "content": [
+                {
+                  "type": "reasoning_text",
+                  "text": "full"
+                }
+              ]
+            },
+            {
+              "type": "message",
+              "id": "m",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "hel"
+                },
+                {
+                  "type": "output_text",
+                  "text": "lo"
+                },
+                {
+                  "type": "refusal",
+                  "refusal": "no"
+                }
+              ]
+            },
+            {
+              "type": "message",
+              "id": "m2",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": " there"
+                }
+              ]
+            },
+            {
+              "type": "function_call",
+              "id": "f",
+              "call_id": "c9",
+              "name": "files",
+              "arguments": "{\"path\":\"a\"}"
+            }
+          ],
+          "usage": {
+            "input_tokens": 50,
+            "output_tokens": 9,
+            "input_tokens_details": {
+              "cached_tokens": 40
+            }
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/responses",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-5.5",
+          "instructions": "Be brief.\nSecond rule.",
+          "input": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "input_text",
+                  "text": "read notes"
+                },
+                {
+                  "type": "input_image",
+                  "image_url": "data:image/png;base64,iVBORw0KGgo="
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": "Reading."
+            },
+            {
+              "type": "function_call",
+              "call_id": "c1",
+              "name": "files",
+              "arguments": "{\"path\":\"notes.txt\"}"
+            },
+            {
+              "type": "function_call",
+              "call_id": "c2",
+              "name": "pick",
+              "arguments": "{\"a\":\"x\"}"
+            },
+            {
+              "type": "function_call_output",
+              "call_id": "c1",
+              "output": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}"
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "input_text",
+                  "text": "Screenshot from the tool result above:"
+                },
+                {
+                  "type": "input_image",
+                  "image_url": "data:image/jpeg;base64,iVBORw0KGgo="
+                }
+              ]
+            },
+            {
+              "type": "function_call_output",
+              "call_id": "c2",
+              "output": "not json"
+            }
+          ],
+          "max_output_tokens": 900,
+          "reasoning": {
+            "summary": "auto",
+            "effort": "high"
+          },
+          "tools": [
+            {
+              "type": "function",
+              "name": "files",
+              "description": "Read and write files",
+              "strict": null,
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "hello there",
+      "thinking": "full\n\nsum",
+      "toolCalls": [
+        {
+          "id": "c9",
+          "name": "files",
+          "arguments": {
+            "path": "a"
+          }
+        }
+      ],
+      "usage": {
+        "input_tokens": 50,
+        "output_tokens": 9,
+        "cached_input_tokens": 40
+      }
+    }
+  },
+  {
+    "name": "OpenAI Responses: another model gets temperature and no reasoning; no turns at all is an empty input",
+    "adapter": "openai-responses",
+    "request": {
+      "model": "acme/mini",
+      "temperature": 0.4,
+      "tools": [
+        {
+          "function": {
+            "name": "bare"
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "system",
+          "content": "s"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "temperature is not supported",
+            "type": "invalid_request_error"
+          }
+        }
+      },
+      {
+        "body": {
+          "id": "r",
+          "object": "response",
+          "output": []
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/responses",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "acme/mini",
+          "instructions": "s",
+          "input": "",
+          "temperature": 0.4,
+          "tools": [
+            {
+              "type": "function",
+              "name": "bare",
+              "strict": null,
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ]
+        }
+      },
+      {
+        "path": "/responses",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "acme/mini",
+          "instructions": "s",
+          "input": "",
+          "tools": [
+            {
+              "type": "function",
+              "name": "bare",
+              "strict": null,
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {}
+    }
+  },
+  {
+    "name": "Gemini: tool turns as functionCall and functionResponse, with signatures, screenshots and a cleaned schema",
+    "adapter": "gemini",
+    "request": {
+      "model": "gemini-4-argon",
+      "temperature": 0.1,
+      "maxOutput": 50,
+      "tools": [
+        {
+          "function": {
+            "name": "files",
+            "description": "Read and write files",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          }
+        },
+        {
+          "function": {
+            "name": "pick",
+            "description": "Pick",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "oneOf": [
+                {
+                  "properties": {
+                    "a": {
+                      "type": "string",
+                      "const": "x"
+                    }
+                  },
+                  "required": [
+                    "a"
+                  ]
+                },
+                {
+                  "properties": {
+                    "b": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "b"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "system",
+          "content": "Be brief."
+        },
+        {
+          "role": "system",
+          "content": "Second rule."
+        },
+        {
+          "role": "user",
+          "content": "read notes",
+          "images": [
+            {
+              "mimeType": "image/png",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "Reading.",
+          "reasoning": "need the file",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {
+                "path": "notes.txt"
+              },
+              "thoughtSignature": "sig-1"
+            },
+            {
+              "id": "c2",
+              "name": "pick",
+              "arguments": {
+                "a": "x"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c1",
+          "toolName": "files",
+          "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}",
+          "images": [
+            {
+              "mimeType": "image/jpeg",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c2",
+          "toolName": "pick",
+          "content": "not json",
+          "failed": true
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "thinking aloud",
+                    "thought": true
+                  },
+                  {
+                    "text": "Hi "
+                  },
+                  {
+                    "text": "there"
+                  },
+                  {
+                    "functionCall": {
+                      "name": "files",
+                      "args": {
+                        "path": "a"
+                      }
+                    },
+                    "thoughtSignature": "sig-9"
+                  },
+                  {
+                    "functionCall": {
+                      "name": "no_args"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 30,
+            "candidatesTokenCount": 4,
+            "thoughtsTokenCount": 6,
+            "cachedContentTokenCount": 12
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1beta/models/gemini-4-argon:generateContent",
+        "headers": {
+          "x-goog-api-key": "fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "read notes"
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "iVBORw0KGgo="
+                  }
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "text": "Reading."
+                },
+                {
+                  "functionCall": {
+                    "args": {
+                      "path": "notes.txt"
+                    },
+                    "name": "files"
+                  },
+                  "thoughtSignature": "sig-1"
+                },
+                {
+                  "functionCall": {
+                    "args": {
+                      "a": "x"
+                    },
+                    "name": "pick"
+                  }
+                }
+              ],
+              "role": "model"
+            },
+            {
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "files",
+                    "response": {
+                      "text": "hello"
+                    }
+                  }
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/jpeg",
+                    "data": "iVBORw0KGgo="
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "pick",
+                    "response": {
+                      "result": "not json"
+                    }
+                  }
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "Be brief.\nSecond rule."
+              }
+            ],
+            "role": "user"
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "files",
+                  "description": "Read and write files",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "path": {
+                        "type": "STRING"
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ]
+                  }
+                },
+                {
+                  "name": "pick",
+                  "description": "Pick",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "a": {
+                            "type": "string",
+                            "enum": [
+                              "x"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "a"
+                        ]
+                      },
+                      {
+                        "properties": {
+                          "b": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "b"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 50,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "MEDIUM"
+            }
+          }
+        }
+      }
+    ],
+    "completion": {
+      "content": "Hi there",
+      "thinking": "thinking aloud",
+      "toolCalls": [
+        {
+          "name": "files",
+          "arguments": {
+            "path": "a"
+          },
+          "thoughtSignature": "sig-9"
+        },
+        {
+          "name": "no_args",
+          "arguments": {}
+        }
+      ],
+      "usage": {
+        "input_tokens": 30,
+        "output_tokens": 10,
+        "cached_input_tokens": 12
+      }
+    }
+  },
+  {
+    "name": "Gemini: 2.5 takes a thinking budget for an effort, and turns of one role are merged",
+    "adapter": "gemini",
+    "request": {
+      "model": "gemini-2.5-pro",
+      "effort": "high",
+      "tools": [],
+      "messages": [
+        {
+          "role": "user",
+          "content": "a"
+        },
+        {
+          "role": "user",
+          "content": "  "
+        },
+        {
+          "role": "assistant",
+          "content": "b"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "ok"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1beta/models/gemini-2.5-pro:generateContent",
+        "headers": {
+          "x-goog-api-key": "fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "a"
+                },
+                {
+                  "text": " "
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "text": "b"
+                }
+              ],
+              "role": "model"
+            },
+            {
+              "parts": [
+                {
+                  "text": "Continue."
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingBudget": 16384
+            }
+          }
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {}
+    }
+  },
+  {
+    "name": "Gemini: 3 takes a level for an effort, and low thinking asks for little",
+    "adapter": "gemini",
+    "request": {
+      "model": "gemini-3.5-flash",
+      "effort": "xhigh",
+      "tools": [],
+      "messages": [
+        {
+          "role": "user",
+          "content": "a"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "ok"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1beta/models/gemini-3.5-flash:generateContent",
+        "headers": {
+          "x-goog-api-key": "fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "a"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "HIGH"
+            }
+          }
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {}
+    }
+  },
+  {
+    "name": "Gemini: low thinking on 2.5 Flash",
+    "adapter": "gemini",
+    "request": {
+      "model": "gemini-2.5-flash",
+      "thinking": "low",
+      "tools": [],
+      "messages": [
+        {
+          "role": "user",
+          "content": "a"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "ok"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1beta/models/gemini-2.5-flash:generateContent",
+        "headers": {
+          "x-goog-api-key": "fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "a"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "includeThoughts": false,
+              "thinkingBudget": 0
+            }
+          }
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {}
+    }
+  },
+  {
+    "name": "Gemini: low thinking on 4",
+    "adapter": "gemini",
+    "request": {
+      "model": "gemini-4-argon",
+      "thinking": "low",
+      "tools": [],
+      "messages": []
+    },
+    "replies": [
+      {
+        "body": {
+          "candidates": []
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1beta/models/gemini-4-argon:generateContent",
+        "headers": {
+          "x-goog-api-key": "fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": ""
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "includeThoughts": false,
+              "thinkingLevel": "MINIMAL"
+            }
+          }
+        }
+      }
+    ],
+    "completion": {
+      "content": "",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {}
+    }
+  },
+  {
+    "name": "Gemini: a model that refuses the thinking settings is asked without them; old rounds saved as text become calls",
+    "adapter": "gemini",
+    "request": {
+      "model": "gemini-3.7-flash",
+      "tools": [],
+      "messages": [
+        {
+          "role": "user",
+          "content": "go"
+        },
+        {
+          "role": "assistant",
+          "content": "[{\"toolId\":\"shot\",\"arguments\":{\"x\":1},\"status\":\"completed\",\"result\":{\"image\":\"data:image/png;base64,AAAA\",\"note\":\"long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"text\":\"y y\"},\"thoughtSignature\":\"sig-2\"},{\"toolId\":\"ask\",\"arguments\":[],\"status\":\"denied\",\"reason\":\"no\"},{\"toolId\":\"count\",\"status\":\"completed\",\"result\":3}]"
+        },
+        {
+          "role": "user",
+          "content": "next"
+        },
+        {
+          "role": "assistant",
+          "content": "plain end"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "thinking_config is not supported",
+            "type": "invalid_request_error"
+          }
+        }
+      },
+      {
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "ok"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1beta/models/gemini-3.7-flash:generateContent",
+        "headers": {
+          "x-goog-api-key": "fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "go"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "functionCall": {
+                    "args": {
+                      "x": 1
+                    },
+                    "name": "shot"
+                  },
+                  "thoughtSignature": "sig-2"
+                },
+                {
+                  "functionCall": {
+                    "args": {},
+                    "name": "ask"
+                  }
+                },
+                {
+                  "functionCall": {
+                    "args": {},
+                    "name": "count"
+                  }
+                }
+              ],
+              "role": "model"
+            },
+            {
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "shot",
+                    "response": {
+                      "image": "[image data attached as visual input]",
+                      "note": "[image data attached as visual input]",
+                      "text": "y y"
+                    }
+                  }
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "ask",
+                    "response": {
+                      "status": "denied",
+                      "reason": "no"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "count",
+                    "response": {
+                      "result": 3
+                    }
+                  }
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "text": "next"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "text": "plain end"
+                }
+              ],
+              "role": "model"
+            },
+            {
+              "parts": [
+                {
+                  "text": "Continue."
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "includeThoughts": true
+            }
+          }
+        }
+      },
+      {
+        "path": "/v1beta/models/gemini-3.7-flash:generateContent",
+        "headers": {
+          "x-goog-api-key": "fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "go"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "functionCall": {
+                    "args": {
+                      "x": 1
+                    },
+                    "name": "shot"
+                  },
+                  "thoughtSignature": "sig-2"
+                },
+                {
+                  "functionCall": {
+                    "args": {},
+                    "name": "ask"
+                  }
+                },
+                {
+                  "functionCall": {
+                    "args": {},
+                    "name": "count"
+                  }
+                }
+              ],
+              "role": "model"
+            },
+            {
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "shot",
+                    "response": {
+                      "image": "[image data attached as visual input]",
+                      "note": "[image data attached as visual input]",
+                      "text": "y y"
+                    }
+                  }
+                },
+                {
+                  "inlineData": {
+                    "mimeType": "image/png",
+                    "data": "AAAA"
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "ask",
+                    "response": {
+                      "status": "denied",
+                      "reason": "no"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "count",
+                    "response": {
+                      "result": 3
+                    }
+                  }
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "text": "next"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "text": "plain end"
+                }
+              ],
+              "role": "model"
+            },
+            {
+              "parts": [
+                {
+                  "text": "Continue."
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {}
+        }
+      }
+    ],
+    "completion": {
+      "content": "ok",
+      "thinking": "",
+      "toolCalls": [],
+      "usage": {}
+    }
+  },
+  {
+    "name": "LM Studio: its /v1 endpoint, alternating turns, tool turns as text, temperature up to 1, no effort",
+    "adapter": "lmstudio",
+    "request": {
+      "model": "qwen3-8b",
+      "temperature": 1.5,
+      "effort": "high",
+      "tools": [
+        {
+          "function": {
+            "name": "files",
+            "description": "Read and write files",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ]
+            }
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "system",
+          "content": "rules"
+        },
+        {
+          "role": "assistant",
+          "content": "earlier"
+        },
+        {
+          "role": "user",
+          "content": "one"
+        },
+        {
+          "role": "user",
+          "content": "two"
+        },
+        {
+          "role": "assistant",
+          "content": "Reading.",
+          "reasoning": "need the file",
+          "toolCalls": [
+            {
+              "id": "c1",
+              "name": "files",
+              "arguments": {
+                "path": "notes.txt"
+              },
+              "thoughtSignature": "sig-1"
+            },
+            {
+              "id": "c2",
+              "name": "pick",
+              "arguments": {
+                "a": "x"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c1",
+          "toolName": "files",
+          "content": "{\"status\":\"completed\",\"result\":{\"text\":\"hello\"}}",
+          "images": [
+            {
+              "mimeType": "image/jpeg",
+              "base64": "iVBORw0KGgo="
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "toolCallId": "c2",
+          "toolName": "pick",
+          "content": "not json",
+          "failed": true
+        }
+      ]
+    },
+    "replies": [
+      {
+        "body": {
+          "choices": [
+            {
+              "index": 0,
+              "finish_reason": "stop",
+              "message": {
+                "role": "assistant",
+                "content": "<THINK> a </think>A cat.",
+                "reasoning_content": "Looking."
+              }
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 40,
+            "completion_tokens": 3
+          }
+        }
+      }
+    ],
+    "sent": [
+      {
+        "path": "/v1/chat/completions",
+        "headers": {
+          "authorization": "Bearer fake-key",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "qwen3-8b",
+          "messages": [
+            {
+              "role": "system",
+              "content": "rules"
+            },
+            {
+              "role": "user",
+              "content": "(continuing the conversation)"
+            },
+            {
+              "role": "assistant",
+              "content": "earlier"
+            },
+            {
+              "role": "user",
+              "content": "one\n\ntwo"
+            },
+            {
+              "role": "assistant",
+              "content": "[{\"toolId\":\"files\",\"arguments\":{\"path\":\"notes.txt\"},\"thoughtSignature\":\"sig-1\",\"status\":\"completed\",\"result\":{\"text\":\"hello\"}},{\"toolId\":\"pick\",\"arguments\":{\"a\":\"x\"},\"result\":\"not json\"}]"
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Observation from computer_screenshot (attached as multimodal image input):"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "data:image/jpeg;base64,iVBORw0KGgo="
+                  }
+                }
+              ]
+            }
+          ],
+          "temperature": 1,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "files",
+                "description": "Read and write files",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "completion": {
+      "content": "A cat.",
+      "thinking": "Looking.\n\na",
+      "toolCalls": [],
+      "usage": {
+        "input_tokens": 40,
+        "output_tokens": 3
+      }
+    }
+  }
+]
