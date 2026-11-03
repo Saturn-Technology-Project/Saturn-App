@@ -1,6 +1,6 @@
 /**
  * Fill-in-the-middle (FIM): code models trained to complete the gap between a prefix and a suffix. Given one of
- * these, Tab completion sends the model's own FIM tokens as a raw prompt instead of a chat conversation, which
+ * these, the editor's Tab feature sends the model's own FIM tokens as a raw prompt instead of a chat conversation, which
  * is what the model was trained on (no "reply with only the insertion" instructions to follow or ignore).
  */
 export type FimFormat = {

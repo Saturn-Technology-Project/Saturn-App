@@ -114,7 +114,7 @@ export class MemoryService {
     if (parsed.global.length || parsed.project.length) logger.info("memory", `Remembered ${parsed.global.length + parsed.project.length} ${parsed.global.length + parsed.project.length === 1 ? "note" : "notes"} from ${agent.name}'s chat`);
   }
 
-  /** A cheap model for extraction: the completion model when set, else the agent's own. */
+  /** A cheap model for extraction: the background model when set, else the agent's own. */
   private model(agent: Agent): ModelConnection | undefined {
     const models = this.kernel.store.state.models;
     const completion = models.find((item) => item.id === this.kernel.store.state.settings.completionModelId);

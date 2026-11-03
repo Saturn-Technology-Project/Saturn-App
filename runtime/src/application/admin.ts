@@ -19,7 +19,7 @@ export class AdminService {
     }
     const completionModelId = patch.completionModelId === undefined ? undefined : patch.completionModelId || null;
     if (completionModelId && !this.kernel.store.state.models.some((item) => item.id === completionModelId)) {
-      throw new HttpError(400, "Unknown completion model");
+      throw new HttpError(400, "Unknown background model");
     }
     const embeddingSource = patch.embeddingSource;
     if (embeddingSource !== undefined && !["builtin", "lmstudio", "openai"].includes(embeddingSource)) {
@@ -66,7 +66,7 @@ export class AdminService {
     const renamed = next.name !== previous.name ? ` (name: ${next.name})` : "";
     const moved = next.environment !== previous.environment ? ` (environment: ${next.environment})` : "";
     const completion = next.completionModelId !== previous.completionModelId
-      ? ` (completion model: ${this.kernel.store.state.models.find((item) => item.id === next.completionModelId)?.name ?? "none"})`
+      ? ` (background model: ${this.kernel.store.state.models.find((item) => item.id === next.completionModelId)?.name ?? "none"})`
       : "";
     this.kernel.log("runtime", "info", `Settings saved${renamed}${moved}${completion}`);
     return next;

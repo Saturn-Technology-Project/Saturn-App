@@ -71,7 +71,7 @@ export const claude: ProviderAdapter = {
     // Thinking and effort (see the Claude API's thinking/effort rules):
     // - Adaptive thinking runs on Claude 4.6 and later; older models take no adaptive setting.
     // - Effort goes in output_config (low … max); Haiku 4.5, Sonnet 4.5 and Claude 3 reject it.
-    // - Low thinking (Tab completion, next edit) omits `thinking` and asks for low effort: the newest models
+    // - Low thinking (the editor features in completions.ts) omits `thinking` and asks for low effort: the newest models
     //   cannot turn thinking off (`disabled` is a 400), and on older ones omitting it means no thinking.
     // - Sampling settings are rejected from Opus 4.7 / Sonnet 5 on, so temperature goes only to older models.
     const noEffort = /claude-3|(?:haiku|sonnet)-4-5(?:$|-)/.test(id);

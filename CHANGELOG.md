@@ -12,6 +12,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - **Other agents can operate Saturn.** Every button, chat, agent and dialog now has a role and a name in the accessibility tree, and the sidebar works from the keyboard, so a computer-use agent such as agent-desktop or Claude computer use can find and click them by name. See [Driving Saturn with another agent](README.md#driving-saturn-with-another-agent).
 
+### Changed
+
+- **The Completion Model setting is now Background Model** in Settings → General. It writes memory notes from your chats and drafts automations when an agent's own model has no API, so check where it points: chat content goes to that model.
+
 ### Removed
 
 - **Saturn IDE is removed.** Saturn no longer bundles an editor, so the download is smaller and Saturn is the agent app alone for now. Tab completion, next-edit suggestions, inline edits (Cmd+K), commit-message generation and the language-server tools for agents are gone with it, and so are the **Open at Launch** setting and the Settings-only window. A built-in editor is planned but not built yet. Its sources remain at the git tag `archive/code-oss`.

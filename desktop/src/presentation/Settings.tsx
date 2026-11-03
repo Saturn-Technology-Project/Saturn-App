@@ -924,7 +924,7 @@ export function LlmPage(props: {
   );
 }
 
-/** What the effort setting does on each provider. Tab completion and next edit always run at low effort. */
+/** What the effort setting does on each provider. */
 const EFFORT_HINTS: Record<string, string> = {
   claude: "Claude's effort setting (output_config.effort). Models without effort support ignore it.",
   "claude-code": "Claude Code's effort level.",
@@ -1069,6 +1069,21 @@ function General(props: {
     }
   }
   const [saved, setSaved] = useState(false);
+  const [backgroundModelId, setBackgroundModelId] = useState(props.profile.completionModelId ?? "");
+  // Claude Code and Codex models run an agent loop on the user's plan; background work needs a plain API call.
+  const backgroundChoices = props.models.filter((item) => item.provider !== "claude-code" && item.provider !== "codex");
+
+  async function chooseBackgroundModel(next: string) {
+    const previous = backgroundModelId;
+    setBackgroundModelId(next);
+    try {
+      await props.onSaved(await desktop.admin.updateSettings({ completionModelId: next || null }));
+      props.onError("");
+    } catch (reason) {
+      setBackgroundModelId(previous);
+      props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
 
   async function save() {
     try {
@@ -1180,6 +1195,30 @@ function General(props: {
           <ProgramGate id="codex">
             <CodexLogin />
           </ProgramGate>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Models</div>
+        <div className="settings-card">
+          <div className="settings-card-row">
+            <div className="settings-row-text">
+              <span className="settings-row-label">Background Model</span>
+              <span className="settings-row-desc">
+                Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.
+              </span>
+            </div>
+            <select
+              className="input tiny settings-select"
+              aria-label="Background model"
+              value={backgroundModelId}
+              disabled={!backgroundChoices.length && !backgroundModelId}
+              onChange={(event) => void chooseBackgroundModel(event.target.value)}
+            >
+              <option value="">Automatic</option>
+              {backgroundChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 

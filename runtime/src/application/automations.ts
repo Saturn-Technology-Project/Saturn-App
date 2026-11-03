@@ -154,7 +154,7 @@ export class AutomationService {
     const agents = this.kernel.store.state.agents;
     const models = this.kernel.store.state.models;
     const agent = agents.find((item) => item.id === input.agentId) ?? agents.find((item) => item.modelConnectionId);
-    // Drafting is a plain API call: it uses the agent's model only if that model has an API, else the completion
+    // Drafting is a plain API call: it uses the agent's model only if that model has an API, else the background
     // model or any API model. Subscription models (Claude Code, Codex) never receive API requests.
     const own = models.find((item) => item.id === agent?.modelConnectionId);
     const model = [own, models.find((item) => item.id === this.kernel.store.state.settings.completionModelId), ...models].find((item) => item && !runsOnPlan(item.provider));

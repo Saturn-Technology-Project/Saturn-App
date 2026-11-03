@@ -28,7 +28,7 @@ export function mountRuns(app: Express, services: AppServices): void {
     respond(res, next, () => services.kernel.completions.complete(req.body ?? {}, stop.signal));
   });
 
-  // Tab completion as a stream: one JSON line per piece of text, the last with done: true (or an error line).
+  // The editor's Tab feature as a stream: one JSON line per piece of text, the last with done: true (or an error line).
   app.post("/complete/stream", async (req, res) => {
     const stop = new AbortController();
     res.on("close", () => {

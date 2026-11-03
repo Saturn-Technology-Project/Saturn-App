@@ -15,7 +15,7 @@ async function listen(server: Server): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
-test("POST /complete serves Tab and Cmd+K from the completion model and records the usage", async () => {
+test("POST /complete serves Tab and Cmd+K from the background model and records the usage", async () => {
   const bodies: { model: string; max_tokens?: number; tools?: unknown; messages: { role: string; content: string }[] }[] = [];
   const replies = ["```ts\nreturn a + b;\n```", "  return a - b;\n}\n", "const x = 1;"];
   const provider = createServer((req, res) => {
@@ -42,7 +42,7 @@ test("POST /complete serves Tab and Cmd+K from the completion model and records 
   try {
     const none = await post({ kind: "inline", prefix: "a", suffix: "" });
     assert.equal(none.status, 409);
-    assert.match((await none.json()).error, /Choose a completion model/);
+    assert.match((await none.json()).error, /Choose a background model/);
 
     const fast = await services.createModel({ name: "Fast", provider: "openai", model: "fast-local", baseUrl: providerUrl });
     const settings = await (await fetch(`${url}/settings`, {
@@ -79,6 +79,7 @@ test("POST /complete serves Tab and Cmd+K from the completion model and records 
     const usage = store.state.usage.filter((record) => record.purpose === "completion");
     assert.equal(usage.length, 2);
     assert.equal(usage[0]!.agentId, "saturn-ide");
+    assert.equal(usage[0]!.agentName, "Editor features");
     assert.equal(usage[0]!.inputTokens, 40);
 
     await services.deleteConnection("models", fast.id);
