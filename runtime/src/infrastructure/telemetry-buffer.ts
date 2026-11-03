@@ -142,18 +142,6 @@ export class TelemetryBuffer {
     if (kept && !isRoutine(kept)) this.onChange?.();
   }
 
-  addSpanRecord(record: SpanRecord): void {
-    let spans = this.traces.get(record.traceId);
-    if (!spans) {
-      spans = [];
-      this.traces.set(record.traceId, spans);
-    }
-    if (spans.length < this.limits.spansPerTrace) spans.push(record);
-    this.evict();
-    const kept = this.traces.get(record.traceId);
-    if (kept && !isRoutine(kept)) this.onChange?.();
-  }
-
   addLog(record: ReadWriteLogRecord): void {
     this.logLines.push({
       timeMs: ms(record.hrTime),
@@ -163,12 +151,6 @@ export class TelemetryBuffer {
       attributes: { ...record.attributes } as Attributes,
       ...(record.spanContext ? { traceId: record.spanContext.traceId, spanId: record.spanContext.spanId } : {}),
     });
-    if (this.logLines.length > this.limits.logs) this.logLines.splice(0, this.logLines.length - this.limits.logs);
-    this.onChange?.();
-  }
-
-  addLogRecord(log: LogRecordView): void {
-    this.logLines.push(log);
     if (this.logLines.length > this.limits.logs) this.logLines.splice(0, this.logLines.length - this.limits.logs);
     this.onChange?.();
   }

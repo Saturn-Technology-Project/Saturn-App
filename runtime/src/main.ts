@@ -57,7 +57,7 @@ app.listen(port, host, () => {
     "runtime",
     `Listening on http://${host}:${port} · data ${directory} · ${state.agents.length} agents, ${state.models.length} models, ${state.automations.length} automations, ${state.runs.length} runs · ${telemetry}`,
   );
-  // Started by the desktop app, which asks for the wakeup itself (POST /runtime/wakeup) and acts on the answer.
+  // Started on its own, the runtime brings up the app; started by the desktop app, the app is already there.
   if (process.env.SATURN_NO_WAKEUP !== "1" && process.env.SATURN_DESKTOP_ATTACHED !== "1") {
     void services.wakeupDefaultApp().catch((error) => {
       logger.warn("runtime", `Could not wake up default app: ${errorText(error)}`);

@@ -4,7 +4,7 @@
 
 # Saturn
 
-**A local-first agent runtime, desktop app and IDE.**
+**A local-first agent runtime and desktop app.**
 
 Bring your own models, scope every agent to the folders you grant, and keep each tool call, file edit and network request inspectable, reviewable and reversible.
 
@@ -48,7 +48,7 @@ What Saturn's own agent loop does (for API and local models; agents on Claude Co
 | Headless CLI | `saturn run` | `claude -p` | `codex exec` |
 | SDK | [`@saturn-app/sdk`](https://github.com/Saturn-Technology-Project/Saturn-SDK) (TypeScript, local) | Agent SDK | Codex SDK |
 | Pull request follow-up (fix failing checks) | Yes, at most two rounds | Yes, in Claude Code on the web | — |
-| Desktop app and IDE | Agent app, Saturn IDE (Code-OSS) | Desktop app, IDE extensions | IDE extension, app |
+| Desktop app and editor | Agent app; no editor yet | Desktop app, IDE extensions | IDE extension, app |
 | Computer use, browser, multi-agent groups, schedules | Yes | — | — |
 | Measured | Task evals (`scripts/eval`), nightly when a key is set | Anthropic's evaluations | OpenAI's evaluations |
 
@@ -75,7 +75,6 @@ Saturn is younger than both and has had far less real-world use; the evals are h
 | ⏰ **Automations** | Cron-scheduled agent runs, with templates such as a daily pull request review. |
 | 💸 **Usage and cost** | Token counts and cost at list price, per model and per agent, over any time range. |
 | 📈 **Observability** | OpenTelemetry traces, metrics and logs, an outbound network log, and optional OTLP export to your own collector. |
-| 💻 **Saturn IDE** | A Code-OSS distribution wired to the same runtime: Tab completion, next-edit suggestions, inline edits, an agent panel with diff review, and LSP-backed tools for the agent. |
 
 ## Install
 
@@ -83,7 +82,7 @@ Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) 
 
 The macOS app is not signed with an Apple Developer ID yet: approve the first launch in **System Settings → Privacy & Security → Open Anyway**. Windows builds are Authenticode-signed with Saturn's self-signed certificate (SHA-1 thumbprint `D285DA425077C16A3D115D61F9748AFA574BC786`, public half in [`desktop/build/saturn-code-signing.cer`](desktop/build/saturn-code-signing.cer)). Windows does not trust a self-signed publisher, so SmartScreen still asks: choose **More info → Run anyway**. No separate Node.js install is needed: the bundled runtime runs on the app's own Electron binary.
 
-**One app.** Saturn IDE and the runtime ship inside Saturn: on macOS in `Saturn.app/Contents/Resources/Saturn IDE.app`, on Windows in `resources\Saturn IDE\`. Applications, Launchpad and Spotlight list Saturn alone. While Saturn IDE is open it has its own Dock icon, and once it has run, macOS may offer it under **Open With** for code files, as it does for any editor.
+**One app.** The runtime ships inside Saturn. Applications, Launchpad and Spotlight list Saturn alone.
 
 On first launch, onboarding walks through connecting a model, creating an agent and granting a project folder. Claude Code and Codex are not in the installer: Saturn uses your own installation if it finds one, or downloads the official program when you first need it (see [Models](#models)).
 
@@ -117,31 +116,9 @@ npm run dist:mac   # unsigned Saturn.app in desktop/release/
 npm run dist:win   # Windows x64 NSIS installer in desktop/release/
 ```
 
-The macOS package embeds Saturn IDE, so build the IDE first (below), or set `SATURN_SKIP_IDE=1` to package the agent app alone.
-
 `dist:win` runs on macOS or Windows. It installs the runtime's production dependencies for `win32-x64` into `desktop/.staging/` and packages those rather than the host's `runtime/node_modules`. Staging drops the Claude Code and Codex programs (about 530 MB), which Saturn downloads on demand.
 
-Release builds come from the [release workflow](.github/workflows/release.yml): it builds and tests both platforms on GitHub-hosted runners, smoke-tests the IDE, attests the artifacts and publishes the release when a `v*` tag is pushed.
-
-### Build Saturn IDE
-
-Saturn IDE is a Code-OSS fork in [`Saturn-IDE/`](Saturn-IDE). It requires the Node version pinned in [`Saturn-IDE/.nvmrc`](Saturn-IDE/.nvmrc) and several gigabytes of dependencies:
-
-```bash
-cd Saturn-IDE
-npm install
-cd ..
-npm run build:ide --prefix desktop       # macOS: VSCode-darwin-arm64/Saturn IDE.app
-npm run build:ide:win --prefix desktop   # Windows: VSCode-win32-x64/ (run on Windows)
-```
-
-On a development Mac, Spotlight lists the build output `VSCode-darwin-arm64/Saturn IDE.app` as an app of its own (downloads never contain it). Packaging copies Saturn IDE from that folder, so keep it, and exclude it under **System Settings → Spotlight → Search Privacy** if it gets in the way.
-
-Native modules are compiled against the host toolchain, so the Windows IDE is built on Windows; the [Windows workflow](.github/workflows/windows.yml) produces it on every push to `main`. On Windows the IDE runs in place from `resources\Saturn IDE\`.
-
-`node Saturn-IDE/test/smoke/smoke.mjs [path]` launches a build with a throwaway profile and checks the workbench, terminal, Explorer and Source Control.
-
-Saturn's editor integration lives in [`Saturn-IDE/extensions/saturn/`](Saturn-IDE/extensions/saturn); everything else tracks upstream [microsoft/vscode](https://github.com/microsoft/vscode).
+Release builds come from the [release workflow](.github/workflows/release.yml): it builds and tests both platforms on GitHub-hosted runners, attests the artifacts and publishes the release when a `v*` tag is pushed.
 
 ### Platform notes
 
@@ -156,12 +133,10 @@ Saturn's editor integration lives in [`Saturn-IDE/extensions/saturn/`](Saturn-ID
 flowchart LR
   subgraph Machine["Your computer"]
     D["Saturn Desktop<br/><sub>Electron + React</sub>"]
-    I["Saturn IDE<br/><sub>Code-OSS fork</sub>"]
     R["Saturn Runtime<br/><sub>Node + Express · 127.0.0.1:4700</sub>"]
     S[("~/.saturn-app<br/><sub>state · keys · workspace</sub>")]
     P["Project folders"]
     D -- "HTTP + bearer token" --> R
-    I -- "HTTP + bearer token" --> R
     R --> S
     R -- "granted paths only" --> P
   end
@@ -175,7 +150,6 @@ flowchart LR
 |---|---|
 | **Saturn Runtime** (`runtime/`) | The control plane: model adapters, the agent loop, tool execution, MCP clients, the approval policy, checkpoints, worktrees, usage accounting, telemetry and persistence. It has no Electron dependency and runs headless. |
 | **Saturn Desktop** (`desktop/`) | The Electron client: chats, the Agents board, projects, groups, automations and settings. It reaches the runtime only through its HTTP API. |
-| **Saturn IDE** (`Saturn-IDE/`) | The editor. It authenticates with the same token, keeps the runtime alive while a window is open, and exposes language-server tools to agents over a server-sent events bridge. |
 
 Runtime and desktop follow the same layered architecture; dependencies point inward only:
 
@@ -191,7 +165,7 @@ runtime/src/                    desktop/src/
 
 ### Lifecycle
 
-Launching Saturn starts the runtime, then opens the default surface: the agent app or the IDE. Closing the last window stops the runtime unless the IDE is still open. A parent-process watchdog terminates the runtime if the desktop app exits abnormally, so it never outlives its host.
+Launching Saturn starts the runtime, then opens the agent app. Closing the last window stops the runtime. A parent-process watchdog terminates the runtime if the desktop app exits abnormally, so it never outlives its host.
 
 **Context.** A chat's earlier turns are sent within a budget sized to the model's context window (half of it; a connection can state its own `contextTokens`). When they outgrow it, the oldest turns are summarized by the same model into the chat's running summary, which later turns ride on; the chat shows `⤵ n earlier turns folded` where it happened. The header's **Context · n%** chip shows how full the chat is, and clicking it, or sending `/compact`, folds the turns now. Claude Code and Codex manage their own context.
 
@@ -270,17 +244,17 @@ You can also use an embedding model served by LM Studio (default `text-embedding
 lms load qwen/qwen3.5-4b --context-length 32768
 ```
 
-**Tested models.** Each model ran three agent tasks twice through Saturn's own tools (read a file and answer from it; write a script, run it and report its output; fix a bug and verify the fix with a command), and one Tab completion. Results are checked on disk, not taken from the model's reply. Tested on 2026-10-21 on an Apple M1 Pro with 16 GB, LM Studio 0.4.26, 4-bit weights, 32K context:
+**Tested models.** Each model ran three agent tasks twice through Saturn's own tools (read a file and answer from it; write a script, run it and report its output; fix a bug and verify the fix with a command), Results are checked on disk, not taken from the model's reply. Tested on 2026-10-21 on an Apple M1 Pro with 16 GB, LM Studio 0.4.26, 4-bit weights, 32K context:
 
-| Model | Size | Agent tasks | Median task | Tab completion | Use it for |
-|---|---|---|---|---|---|
-| Qwen3.5 4B (`qwen/qwen3.5-4b`) | 3.1 GB | 6/6 | 29 s | correct, 10 s | Agents on 16 GB machines: fastest and smallest |
-| Gemma 4 E4B (`google/gemma-4-e4b`) | 6.9 GB | 6/6 | 48 s | correct, 12 s | Agents |
-| Ministral 3 8B (`mistralai/ministral-3-8b`) | 6.1 GB | 6/6 | 65 s | correct, 1.5 s | Agents, and Tab completion |
-| Qwen3.5 9B (`qwen/qwen3.5-9b`) | 6.0 GB | 6/6 | 71 s | correct, 8 s | Agents |
-| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | n/a | correct, 1 s | Tab completion only: unreliable tool use |
+| Model | Size | Agent tasks | Median task | Use it for |
+|---|---|---|---|---|
+| Qwen3.5 4B (`qwen/qwen3.5-4b`) | 3.1 GB | 6/6 | 29 s | Agents on 16 GB machines: fastest and smallest |
+| Gemma 4 E4B (`google/gemma-4-e4b`) | 6.9 GB | 6/6 | 48 s | Agents |
+| Ministral 3 8B (`mistralai/ministral-3-8b`) | 6.1 GB | 6/6 | 65 s | Agents |
+| Qwen3.5 9B (`qwen/qwen3.5-9b`) | 6.0 GB | 6/6 | 71 s | Agents |
+| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | n/a | Not for agents: unreliable tool use |
 
-Reasoning models (Qwen3.5, Gemma 4) think before every completion, which is too slow for Tab: pair one of them for agents with Ministral 3 8B or Qwen2.5-Coder 7B as the completion model (**Settings → General → Completion model**). These are small tasks on one machine; larger models (Qwen3.6 27B, Qwen3-Coder 30B and up) need 32 GB or more and were not tested.
+Reasoning models (Qwen3.5, Gemma 4) think before every completion, so expect longer tasks. These are small tasks on one machine; larger models (Qwen3.6 27B, Qwen3-Coder 30B and up) need 32 GB or more and were not tested.
 
 ## Security and trust
 
@@ -301,25 +275,22 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 | Memory, code index, checkpoints, attachments | `memory/`, `index/`, `checkpoints/`, `run-images/` | Local files. Embeddings are computed on-device by the bundled model. |
 | API session token | `runtime-token` | Mode `0600`. |
 | Claude Code and Codex programs | `tools/` | Downloaded only when you ask, checked against a sha512 pinned in Saturn before they are unpacked. Removable from Settings. |
-| Saturn IDE telemetry | Ingested by the runtime on `127.0.0.1` | Code-OSS's Microsoft telemetry and crash-reporting endpoints are replaced; nothing is sent to Microsoft. |
 
 ### Egress inventory
 
 | Destination | Trigger | Payload |
 |---|---|---|
-| Your model provider (Anthropic, OpenAI, Google, DeepSeek) | Agent turns, Tab completion, inline edits | The conversation, files you or the agent attach, tool results. The key goes only to that provider. |
+| Your model provider (Anthropic, OpenAI, Google, DeepSeek) | Agent turns | The conversation, files you or the agent attach, tool results. The key goes only to that provider. |
 | Anthropic / OpenAI via Claude Code and Codex | Turns on those providers | Their official CLIs talk to their own vendor under your subscription. Saturn never reads or forwards those credentials. |
 | Sites, APIs and MCP servers | When an agent fetches a URL, drives the browser, calls GitHub, or uses an MCP server you added | Whatever that tool call needs. Remote MCP servers are reached over HTTP(S); a local one runs only after you approve its exact command, and its own traffic is its business. The web and browser tools refuse private, link-local and loopback addresses (SSRF protection). |
 | GitHub Releases | App startup | Update check via electron-updater. On macOS, only for Developer ID-signed builds. Disable with `SATURN_NO_UPDATES=1`. |
-| Open VSX and `raw.githubusercontent.com` | Saturn IDE: the extension gallery, plus once at startup | Extension metadata, and Open VSX's extension blocklist. |
-| GitHub (from Saturn IDE) | Only after you sign in to GitHub in the IDE | Git and GitHub extension traffic. |
 | Hugging Face | Only if you select an embedding model that is not bundled | The model download. |
 | `registry.npmjs.org` | Only when you press **Download** for Claude Code or Codex | The official program's npm package, the exact version Saturn's SDKs were built against, verified against a pinned sha512. |
 | Your OpenTelemetry collector | Only if `OTEL_EXPORTER_OTLP_ENDPOINT` is set | Saturn's traces, metrics and logs. |
 
 There is no other egress: no product analytics, no crash reporting, no account and no hosted service.
 
-Measured baseline: on a fresh install with no active turn, the runtime opens **zero** outbound connections, and Saturn IDE opens one (its network utility process fetching the Open VSX blocklist from `raw.githubusercontent.com`).
+Measured baseline: on a fresh install with no active turn, the runtime opens **zero** outbound connections.
 
 ### Verify it yourself
 
@@ -354,7 +325,7 @@ It is captured from Node's `diagnostics_channel` hooks for `undici` and `http`/`
 
 #### 3. Run air-gapped
 
-Connect a local model in [LM Studio](https://lmstudio.ai) (one that supports tool calling, loaded with a 32K context; see [Local models](#local-models)), block Saturn in your firewall, and keep working: agents, Tab completion and the code index all run offline.
+Connect a local model in [LM Studio](https://lmstudio.ai) (one that supports tool calling, loaded with a 32K context; see [Local models](#local-models)), block Saturn in your firewall, and keep working: agents and the code index run offline.
 
 #### 4. Inspect data at rest
 
@@ -415,34 +386,30 @@ Build logs are public on the [Actions](../../actions/workflows/release.yml) page
 - Prefer the **Default** approval policy (prompt on risky actions) over full autonomy, and grant only the project folders a task needs.
 - For code that must never leave the machine, use a local model through LM Studio.
 
-### Supply chain and upstream maintenance
+### Supply chain
 
-Saturn ships about a thousand open-source packages, Electron, a Code-OSS fork and a machine-learning model. Each one is pinned, checked and replaceable, and the checks run in public CI.
+Saturn ships fewer than three hundred open-source packages (the production entries of the runtime's and the desktop app's lock files), Electron and a machine-learning model. Each one is pinned, checked and replaceable, and the checks run in public CI.
 
 **What gets installed**
 
-- **Pinned lock files.** The runtime, the desktop app and Saturn IDE pin every package to an exact version from `https://registry.npmjs.org/` with a SHA-512 integrity hash. [`scripts/check-lockfiles.mjs`](scripts/check-lockfiles.mjs) fails CI on any git, tarball-URL, http or file source.
+- **Pinned lock files.** The runtime and the desktop app pin every package to an exact version from `https://registry.npmjs.org/` with a SHA-512 integrity hash. [`scripts/check-lockfiles.mjs`](scripts/check-lockfiles.mjs) fails CI on any git, tarball-URL, http or file source.
 - **Registry signatures.** `npm audit signatures` verifies every installed package's registry signature, and its provenance attestation where the publisher provides one.
-- **No install scripts.** Dependency install scripts, the usual way a compromised package runs code, never run: the runtime and the desktop app deny each one in `allowScripts`, and CI installs them with `--ignore-scripts`. Saturn IDE keeps Code-OSS's own allowlist for the native modules it must compile.
+- **No install scripts.** Dependency install scripts, the usual way a compromised package runs code, never run: the runtime and the desktop app deny each one in `allowScripts`, and CI installs them with `--ignore-scripts`.
 - **Hashes for everything outside npm.** The Claude Code and Codex downloads are pinned to the lock file's SHA-512 ([`agent-programs-manifest.ts`](runtime/src/infrastructure/agent-programs-manifest.ts), kept in step by a test); the bundled embedding model to SHA-256 ([`fetch-embedding-model.mjs`](desktop/scripts/fetch-embedding-model.mjs)); every GitHub Action to a full commit SHA.
 
 **Staying current**
 
 - **Dependabot** opens a security update as soon as an advisory is published, and grouped version updates weekly, only for releases that have been public for seven days, which is when compromised or broken versions are usually caught and pulled.
 - **The [Supply chain workflow](.github/workflows/supply-chain.yml)** runs on every change and weekly: lock files, registry signatures, and `npm audit` at high severity for everything that ships.
-- **Electron** is the same version in the desktop app and Saturn IDE (43.8.3), one that still receives Electron security fixes, and moves with upstream Code-OSS.
+- **Electron** is pinned in the desktop app (43.8.3), a version that still receives Electron security fixes; Dependabot proposes its updates like any other dependency.
 
 **What ships, and who can ship it**
 
-- **An SBOM with every release.** `Saturn-<version>-sbom.cdx.json` (CycloneDX 1.5) lists about a thousand components with their licenses and hashes, plus Electron and the model. The SBOM, installers and archives all carry build provenance attestations.
+- **An SBOM with every release.** `Saturn-<version>-sbom.cdx.json` (CycloneDX 1.5) lists the components with their licenses and hashes, plus Electron and the model. The SBOM, installers and archives all carry build provenance attestations.
 - **Signatures that mean something.** Windows builds sign only Saturn's own executables; third-party programs keep their publisher's signature.
 - **Release permissions.** Publishing waits for a maintainer's approval in a protected environment. Release tags can be created only by admins and can never be moved or deleted, `main` cannot be force-pushed, and [CODEOWNERS](.github/CODEOWNERS) requests the maintainer's review on every pull request. Two-factor authentication is recommended for every member with write access.
 
-**Upstream Code-OSS**
-
-Saturn IDE is microsoft/vscode with a small, listed set of changes. [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) records the base commit and version, the rules (Saturn's features live in their own extension; upstream files are excluded from the build, never deleted) and each of the 50 files Saturn edits. A weekly [upstream sync](.github/workflows/upstream-sync.yml) three-way merges every new VS Code release against upstream's history, builds and tests it, and opens a pull request, as a draft listing the conflicts when it needs a person. Monthly releases are merged within two weeks, upstream security fixes within a week.
-
-**Reviewed exceptions.** Advisories that cannot be fixed yet (no patch, or the patch needs an upstream change), and those Dependabot reports in code that never ships, are listed with their reason and closing condition in [`docs/known-advisories.md`](docs/known-advisories.md).
+**Reviewed exceptions.** Advisories that cannot be fixed yet (no patch, or the patch needs an upstream change) are listed with their reason and closing condition in [`docs/known-advisories.md`](docs/known-advisories.md).
 
 **Check it yourself**
 
@@ -502,8 +469,6 @@ Saturn can itself be operated by a computer-use agent such as [agent-desktop](ht
 | `OTEL_SDK_DISABLED` | unset | `true` disables telemetry entirely |
 | `SATURN_NO_UPDATES` | unset | `1` disables the update check |
 | `SATURN_SECRET_STORE` | the OS key store | `keychain`, `dpapi`, `libsecret` or `file`: where a new secrets key is kept |
-| `SATURN_SKIP_IDE` | unset | `1` packages without Saturn IDE |
-| `SATURN_IDE_BUILD` | the local build | IDE build to embed when packaging |
 
 ## Command line
 
@@ -537,7 +502,7 @@ The same rule applies: an agent on Claude (via Claude Code) is refused, since th
 
 ## Local API
 
-The desktop app and the IDE are clients of the same HTTP API, and so can your scripts be:
+The desktop app is a client of the same HTTP API, and so can your scripts be:
 
 ```bash
 TOKEN=$(cat ~/.saturn-app/runtime-token)
@@ -562,7 +527,7 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 | `GET` | `/events` · `/runs/:id/events` | Live updates as server-sent events: which runs changed, or one run as it changes |
 | `GET` | `/network` | Outbound request log: hosts and recent requests |
 | `GET` | `/telemetry/traces` · `/telemetry/logs` · `/telemetry/metrics` | Local OpenTelemetry data |
-| `POST` | `/complete` · `/complete/stream` | Single model call (IDE Tab completion and inline edits) |
+| `POST` | `/complete` · `/complete/stream` | Single model call |
 | `GET` `POST` `DELETE` | `/programs` · `/programs/:id` · `/programs/:id/install` | Claude Code and Codex: installed or not, where from, download, remove |
 
 ## Development
@@ -571,10 +536,9 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 npm test            # runtime test suite
 npm run typecheck   # strict type-check of runtime and desktop
 npm run lint        # the coding standard (oxlint)
-npm run test:ide    # Saturn IDE extension checks
 ```
 
-Tests boot the runtime's HTTP API against a temporary data directory and fake model servers, so they need no credentials and never touch your data. CI runs them on Node 24 (`Saturn-IDE/.nvmrc`), macOS and Windows; on Windows the few tests that script POSIX shell commands are skipped. Give `node --test` a glob (`node --test 'test/*.test.js'`), not a folder: Node 24 runs a folder argument as a module and fails.
+Tests boot the runtime's HTTP API against a temporary data directory and fake model servers, so they need no credentials and never touch your data. CI runs them on Node 24 (`.nvmrc`), macOS and Windows; on Windows the few tests that script POSIX shell commands are skipped. Give `node --test` a glob (`node --test 'test/*.test.js'`), not a folder: Node 24 runs a folder argument as a module and fails.
 
 **Task evals.** `scripts/eval` runs coding tasks end to end through Saturn's agent loop with a real model and grades them with tests the agent never sees: pass rate, steps, tokens, cost and time. Fourteen tasks range from small fixes to a bug whose symptom is in another module, an async concurrency limit, a feature across layers that must read old files, a CSV parser from a crash report, a quadratic function that must handle 200,000 rows, a read-only search past a decoy, a promise API beside callbacks, and a time-zone bug. `node --test scripts/eval/self-test.mjs` checks the harness with a scripted model, and that every task's hidden checks fail as given and pass with its reference fix (`solution/`, never shown to the agent); it costs nothing. A real run spends tokens:
 
@@ -590,24 +554,16 @@ Before opening a pull request:
 2. Add or update tests for runtime behavior (the [test policy](CONTRIBUTING.md#test-policy) is mandatory), and run `npm test`, `npm run typecheck` and `npm run lint`.
 3. Never log or return a secret. Log which credential was used (provider or model), never its value.
 
-[CONTRIBUTING.md](CONTRIBUTING.md) has the coding standard and the test policy, and covers dependency changes: updating the Claude Agent SDK or Codex SDK, install-script approvals, Dependabot pull requests and Saturn IDE's upstream merges.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the coding standard and the test policy, and covers dependency changes: updating the Claude Agent SDK or Codex SDK, install-script approvals, and Dependabot pull requests.
 
 ## Roadmap
 
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
+- A built-in editor (file tree, CodeMirror 6, diff review, a real terminal); it is planned and not built yet
 
 How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
 [MIT](LICENSE) © 2026 Rick Weng
-
-### Saturn IDE and Microsoft's terms
-
-Saturn IDE is built from [Code-OSS](https://github.com/microsoft/vscode), the MIT-licensed source of Visual Studio Code, © Microsoft Corporation. It ships Code-OSS's license and third-party notices. It is not Visual Studio Code, which Microsoft builds and licenses separately, and it is not built, endorsed or partnered by Microsoft.
-
-- **Name and icons.** Saturn IDE uses its own name, icons, bundle identifiers and links, not Microsoft's trademarks.
-- **Extensions come from [Open VSX](https://open-vsx.org).** The Visual Studio Marketplace's terms allow its extensions only in Microsoft's products, so Saturn IDE does not connect to it.
-- **Microsoft's proprietary extensions are not included.** Some Microsoft extensions (for example C/C++, Pylance, C# Dev Kit, Remote - SSH and Live Share) are licensed for Microsoft's Visual Studio products only. Saturn IDE neither bundles nor recommends them; installing one by hand is outside its license. The Microsoft extensions Saturn IDE does include (JavaScript Debugger) are MIT-licensed.
-- **No Microsoft services by default.** Telemetry goes to the Saturn runtime on `127.0.0.1`; there is no Microsoft update service, settings sync or experiment service, and GitHub sign-in uses Saturn IDE's own OAuth app. See [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) for every change from Code-OSS.

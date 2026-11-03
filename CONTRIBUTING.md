@@ -8,7 +8,6 @@ Thank you for helping. This file covers the parts of a change that keep Saturn's
 npm test            # runtime tests
 npm run typecheck   # runtime and desktop
 npm run lint        # the coding standard (oxlint)
-npm run test:ide    # Saturn IDE extension checks
 node scripts/check-lockfiles.mjs
 node scripts/contract-routes.mjs --check   # the route list in contract/
 cargo fmt --all --check && cargo clippy --all-targets && cargo test && cargo deny check   # the Rust rewrite
@@ -32,8 +31,6 @@ Saturn's TypeScript follows one standard, enforced automatically:
 - **Write like the code around it**: the same naming, comment density and idiom; names in whole words; a short comment above a function or type that says what it is for.
 - **Layering**: domain code imports neither Express nor React; infrastructure is reached through the application layer.
 
-Saturn IDE's own changes follow Code-OSS's coding guidelines and [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md).
-
 ## Test policy
 
 This policy is mandatory for every change to Saturn's own code (the runtime, the desktop app, the scripts; the [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) follows it in its own repository):
@@ -56,7 +53,7 @@ This policy is mandatory for every change to Saturn's own code (the runtime, the
   npm install-scripts approve <package>   # only after reading the script, pinned to that version
   ```
 
-  Approve a script only when the package cannot work without it, and say why in the pull request. CI installs the runtime and the desktop app with `--ignore-scripts`, so an approval must also be reflected in the workflows. Saturn IDE follows Code-OSS's own `allowScripts` list.
+  Approve a script only when the package cannot work without it, and say why in the pull request. CI installs the runtime and the desktop app with `--ignore-scripts`, so an approval must also be reflected in the workflows.
 - **Check what ships.** `npm audit --omit=dev --audit-level=high` must pass in `runtime/` and `desktop/`, and `npm audit signatures` must report no invalid signatures.
 
 ## Updating the Claude Agent SDK or the Codex SDK
@@ -78,15 +75,9 @@ Dependabot opens security updates at once and grouped version updates every Mond
 1. Read the changelog of anything that ships (runtime and desktop dependencies, not dev tools), and look for new install scripts (`npm install-scripts ls`).
 2. Let CI finish: the supply-chain workflow, the runtime tests and the Windows build.
 3. An SDK bump fails the manifest test until you regenerate it as above.
-4. Electron is not updated by Dependabot: it follows Saturn IDE's version (`Saturn-IDE/.npmrc`, `target`), which moves with upstream Code-OSS.
+4. Electron is chosen in `desktop/package.json` and Dependabot proposes its updates like any other; check that the desktop app still starts and its tests pass before merging one.
 5. An advisory that cannot be fixed now (no patch yet, or the fix needs an upstream change) goes into [`docs/known-advisories.md`](docs/known-advisories.md) with the reason and what closes it, and its Dependabot alert is dismissed with a link to that file. Remove the entry in the change that ships the fix. The README links to that file, so it never needs editing for this.
-6. Advisories in code Saturn does not ship (development dependencies, test and build tooling, GitHub Copilot's sources, the IDE's Rust CLI) are waived for OSV and OpenSSF Scorecard in `osv-scanner.toml` files, each with its reason and an expiry. They are generated: after a dependency change run `node scripts/osv-waivers.mjs` and commit what it writes (`--check` reports when they are out of date). It never waives a production dependency of the runtime, the desktop app or Saturn IDE, nor Electron.
-
-## Saturn IDE and upstream Code-OSS
-
-Read [`Saturn-IDE/UPSTREAM.md`](Saturn-IDE/UPSTREAM.md) before changing anything in `Saturn-IDE/` outside `extensions/saturn/`. In short: put features in the Saturn extension, never delete an upstream file (exclude it from the build instead), mark each upstream edit with a `Saturn` comment, and add it to the list in `UPSTREAM.md`.
-
-New VS Code releases arrive as pull requests from the [upstream sync](.github/workflows/upstream-sync.yml). For a draft with conflicts: resolve each file in favour of upstream's change plus Saturn's listed edit, update `UPSTREAM.md`, build the IDE (`npm run build:ide --prefix desktop`), run the smoke test (`node Saturn-IDE/test/smoke/smoke.mjs "VSCode-darwin-arm64/Saturn IDE.app"`) and `npm run test:ide`.
+6. Advisories in code Saturn does not ship (development dependencies of the runtime and the desktop app) are waived for OSV and OpenSSF Scorecard in `osv-scanner.toml` files, each with its reason and an expiry. They are generated: after a dependency change run `node scripts/osv-waivers.mjs` and commit what it writes (`--check` reports when they are out of date). It never waives a production dependency of the runtime or the desktop app, nor Electron.
 
 ## Releases
 

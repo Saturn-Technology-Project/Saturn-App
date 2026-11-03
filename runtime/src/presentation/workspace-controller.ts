@@ -156,28 +156,6 @@ export function mountWorkspace(app: Express, services: AppServices): void {
     });
   });
 
-  app.post("/workspace/editor/open", (_req, res, next) => {
-    respond(res, next, async () => {
-      // Open IDE always means Saturn IDE; its errors (not installed, no project) reach the user as they are.
-      const active = await services.getActiveProject();
-      return await services.openProjectEditor(active.id);
-    });
-  });
-
-  app.post("/runtime/wakeup", (_req, res, next) => {
-    respond(res, next, async () => {
-      return await services.wakeupDefaultApp();
-    });
-  });
-
-  // Saturn IDE windows report in every 15 s; the desktop app quits (and stops this runtime) only once none is open.
-  app.post("/runtime/clients", (req, res, next) => {
-    respond(res, next, () => {
-      services.kernel.clients.beat(String(req.body?.id ?? ""), String(req.body?.kind ?? "ide"));
-      return { ok: true };
-    });
-  });
-
   // Onboarding and Settings: whether this Mac lets Saturn control the computer, and the System Settings pane to grant it.
   app.get("/computer/permissions", (_req, res, next) => {
     respond(res, next, async () => {
@@ -202,43 +180,6 @@ export function mountWorkspace(app: Express, services: AppServices): void {
       if (process.platform !== "darwin") throw new HttpError(409, "Only macOS asks for these permissions");
       launch("System Settings", "open", [pane]);
       return { ok: true };
-    });
-  });
-
-  // An IDE window's request stream for editor tools (diagnostics, definitions, renames; see ide-bridge.ts).
-  app.get("/runtime/clients/:id/requests", (req, res) => {
-    const raw = req.query.folder;
-    const folders = (Array.isArray(raw) ? raw : raw === undefined ? [] : [raw]).map(String).filter((item) => path.isAbsolute(item));
-    services.kernel.ide.connect(String(req.params.id), folders, res);
-  });
-
-  app.post("/runtime/clients/:id/folders", (req, res, next) => {
-    respond(res, next, () => {
-      const folders = Array.isArray(req.body?.folders) ? req.body.folders.map(String).filter((item: string) => path.isAbsolute(item)) : [];
-      services.kernel.ide.setFolders(String(req.params.id), folders);
-      return { ok: true };
-    });
-  });
-
-  app.post("/runtime/clients/:id/responses/:requestId", (req, res, next) => {
-    respond(res, next, () => {
-      services.kernel.ide.respond(String(req.params.id), String(req.params.requestId), { result: req.body?.result, error: req.body?.error });
-      return { ok: true };
-    });
-  });
-
-  app.delete("/runtime/clients/:id", (req, res, next) => {
-    respond(res, next, () => services.kernel.clients.leave(String(req.params.id)), 204);
-  });
-
-  app.get("/runtime/clients", (_req, res, next) => {
-    respond(res, next, () => services.kernel.clients.list());
-  });
-
-  app.get("/runtime/wakeup", (_req, res, next) => {
-    respond(res, next, async () => {
-      const target = services.settings().launchApp ?? "agent";
-      return { target };
     });
   });
 

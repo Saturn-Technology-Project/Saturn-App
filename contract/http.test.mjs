@@ -1,5 +1,5 @@
-// What every Saturn runtime must do over HTTP, whichever language it is written in: the desktop app and Saturn IDE
-// depend on it. Run with SATURN_TEST_RUNTIME=ts or rust (see runtime.mjs).
+// What every Saturn runtime must do over HTTP, whichever language it is written in: the desktop app depends on it.
+// Run with SATURN_TEST_RUNTIME=ts or rust (see runtime.mjs).
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import http from "node:http";

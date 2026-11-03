@@ -5,7 +5,7 @@ import { desktop } from "../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
-import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LaunchApp, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../domain/model";
+import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../domain/model";
 import type { CodexStatus, ProgramStatus } from "../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -67,8 +67,6 @@ export function Settings(props: {
   theme?: "light" | "dark";
   onSetTheme?: (theme: "light" | "dark") => void;
   onToggleTheme?: () => void;
-  /** Shown as its own window (opened from Saturn IDE) instead of a dialog over the Agent App. */
-  standalone?: boolean;
 }) {
   const [page, setPage] = useState<SettingsPage>(props.initialPage ?? "settings");
   const paneRef = useRef<HTMLDivElement | null>(null);
@@ -120,7 +118,7 @@ export function Settings(props: {
       : GROUPS.flatMap((group) => group.items).find(([id]) => id === page);
 
   return (
-    <div className={props.standalone ? "settings-modal-overlay standalone" : "settings-modal-overlay"} onMouseDown={props.standalone ? undefined : props.onClose}>
+    <div className="settings-modal-overlay" onMouseDown={props.onClose}>
       <div
         className="settings-modal-dialog"
         role="dialog"
@@ -128,17 +126,15 @@ export function Settings(props: {
         aria-labelledby="settings-dialog-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {props.standalone ? null : (
-          <button
-            className="settings-modal-close"
-            type="button"
-            onClick={props.onClose}
-            title="Close (Esc)"
-            aria-label="Close settings"
-          >
-            <CloseIcon />
-          </button>
-        )}
+        <button
+          className="settings-modal-close"
+          type="button"
+          onClick={props.onClose}
+          title="Close (Esc)"
+          aria-label="Close settings"
+        >
+          <CloseIcon />
+        </button>
 
         <aside className="settings-rail">
           <div className="settings-rail-scroll">
@@ -928,7 +924,7 @@ export function LlmPage(props: {
   );
 }
 
-/** What the effort setting does on each provider. Tab completion and next edit always run at low effort. */
+/** What the effort setting does on each provider. */
 const EFFORT_HINTS: Record<string, string> = {
   claude: "Claude's effort setting (output_config.effort). Models without effort support ignore it.",
   "claude-code": "Claude Code's effort level.",
@@ -997,7 +993,6 @@ function General(props: {
 }) {
   const [name, setName] = useState(props.profile.name);
   const [logging, setLogging] = useState(props.profile.logging);
-  const [launchApp, setLaunchApp] = useState<LaunchApp>(props.profile.launchApp ?? "agent");
   const [memory, setMemory] = useState(props.profile.memory !== false);
   const [notify, setNotify] = useState(localStorage.getItem("saturn-notify") !== "off");
   const [planApproval, setPlanApproval] = useState(props.profile.planApproval === true);
@@ -1073,33 +1068,19 @@ function General(props: {
       props.onError(reason instanceof Error ? reason.message : "Could not save");
     }
   }
-  const [completionModelId, setCompletionModelId] = useState(props.profile.completionModelId ?? "");
   const [saved, setSaved] = useState(false);
-  // Claude Code and Codex models run an agent loop on the user's plan; completions need a plain API call.
-  const completionChoices = props.models.filter((item) => item.provider !== "claude-code" && item.provider !== "codex");
+  const [backgroundModelId, setBackgroundModelId] = useState(props.profile.completionModelId ?? "");
+  // Claude Code and Codex models run an agent loop on the user's plan; background work needs a plain API call.
+  const backgroundChoices = props.models.filter((item) => item.provider !== "claude-code" && item.provider !== "codex");
 
-  async function chooseCompletionModel(next: string) {
-    const previous = completionModelId;
-    setCompletionModelId(next);
+  async function chooseBackgroundModel(next: string) {
+    const previous = backgroundModelId;
+    setBackgroundModelId(next);
     try {
       await props.onSaved(await desktop.admin.updateSettings({ completionModelId: next || null }));
       props.onError("");
     } catch (reason) {
-      setCompletionModelId(previous);
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
-    }
-  }
-
-  // Saved on click, like the theme: it only matters at the next launch, so there is nothing to confirm.
-  async function chooseLaunchApp(next: LaunchApp) {
-    if (next === launchApp) return;
-    const previous = launchApp;
-    setLaunchApp(next);
-    try {
-      await props.onSaved(await desktop.admin.updateSettings({ launchApp: next }));
-      props.onError("");
-    } catch (reason) {
-      setLaunchApp(previous);
+      setBackgroundModelId(previous);
       props.onError(reason instanceof Error ? reason.message : "Could not save");
     }
   }
@@ -1142,30 +1123,6 @@ function General(props: {
       <div className="settings-section">
         <div className="settings-section-title">General</div>
         <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Open at Launch</span>
-              <span className="settings-row-desc">
-                {launchApp === "ide"
-                  ? "Saturn opens Saturn IDE when it starts and stays in the Dock; click the Dock icon for the Agent App."
-                  : "Saturn opens the Agent App when it starts. Open IDE is always one click away."}
-              </span>
-            </div>
-            <div className="segmented-pill" role="radiogroup" aria-label="Open at launch">
-              {([["agent", "Agent App"], ["ide", "Saturn IDE"]] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={launchApp === value}
-                  className={launchApp === value ? "active" : ""}
-                  onClick={() => void chooseLaunchApp(value)}
-                >
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
           <div className="settings-card-row">
             <div className="settings-row-text">
               <span className="settings-row-label">Agent browser</span>
@@ -1242,28 +1199,24 @@ function General(props: {
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-title">Saturn IDE</div>
+        <div className="settings-section-title">Models</div>
         <div className="settings-card">
           <div className="settings-card-row">
             <div className="settings-row-text">
-              <span className="settings-row-label">Completion Model</span>
+              <span className="settings-row-label">Background Model</span>
               <span className="settings-row-desc">
-                {completionModelId
-                  ? "Serves Tab completion and Cmd+K inline edit in Saturn IDE. A small, fast model works best."
-                  : completionChoices.length
-                    ? "Choose a model to turn on Tab completion and Cmd+K inline edit in Saturn IDE."
-                    : "Connect an API or LM Studio model in Models to use Tab completion and Cmd+K in Saturn IDE."}
+                Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.
               </span>
             </div>
             <select
               className="input tiny settings-select"
-              aria-label="Completion model"
-              value={completionModelId}
-              disabled={!completionChoices.length && !completionModelId}
-              onChange={(event) => void chooseCompletionModel(event.target.value)}
+              aria-label="Background model"
+              value={backgroundModelId}
+              disabled={!backgroundChoices.length && !backgroundModelId}
+              onChange={(event) => void chooseBackgroundModel(event.target.value)}
             >
-              <option value="">Off</option>
-              {completionChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              <option value="">Automatic</option>
+              {backgroundChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </div>
         </div>
@@ -1602,9 +1555,6 @@ function ProjectSettingsTab(props: {
       <div className="settings-section">
         <div className="settings-section-title">Actions</div>
         <div className="settings-card" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button type="button" className="btn ghost tiny" onClick={() => void desktop.projects.openInEditor(props.project.id)}>
-            Open in Saturn IDE
-          </button>
           <button type="button" className="btn ghost tiny" onClick={() => void desktop.projects.openInTerminal(props.project.id)}>
             Open in Terminal
           </button>

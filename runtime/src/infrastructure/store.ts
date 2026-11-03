@@ -22,7 +22,6 @@ const empty = (): AppState => ({
     name: "Saturn",
     environment: "production",
     logging: "info",
-    launchApp: "agent",
   },
 });
 
@@ -65,8 +64,6 @@ export class FileStore {
         name: saved.settings?.name ?? base.settings.name,
         environment: saved.settings?.environment ?? base.settings.environment,
         logging: saved.settings?.logging ?? base.settings.logging,
-        launchApp: saved.settings?.launchApp === "ide" ? "ide" : base.settings.launchApp,
-        claudeCodeAuth: saved.settings?.claudeCodeAuth === "api-key" ? "api-key" : "subscription",
         completionModelId: saved.settings?.completionModelId ?? null,
       },
     };

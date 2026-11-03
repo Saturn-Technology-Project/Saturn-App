@@ -359,34 +359,6 @@ pre {
   color: var(--fg);
 }
 
-.titlebar-open-ide {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px 0 8px;
-  margin: 0 2px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--fg);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 550;
-  white-space: nowrap;
-  cursor: pointer;
-  -webkit-app-region: no-drag;
-  transition: background 0.12s ease, border-color 0.12s ease;
-}
-
-.titlebar-open-ide:hover {
-  background: var(--hover);
-}
-
-.titlebar-open-ide svg {
-  color: var(--muted);
-}
-
 .titlebar-btn.active {
   background: var(--hover);
   color: var(--fg);
@@ -8518,38 +8490,6 @@ button.trace-row:hover {
 .btn.ghost.danger:hover {
   background: var(--off-bg);
   color: var(--off);
-}
-
-/* Settings as its own window (opened from Saturn IDE): fills the window, no dimmed backdrop. */
-.settings-modal-overlay.standalone {
-  padding: 0;
-  background: var(--panel);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  animation: none;
-}
-
-.settings-modal-overlay.standalone .settings-modal-dialog {
-  width: 100vw;
-  height: 100vh;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  animation: none;
-}
-
-.settings-modal-overlay.standalone .settings-rail {
-  padding-top: 40px;
-  -webkit-app-region: drag;
-}
-
-.settings-modal-overlay.standalone .settings-rail button {
-  -webkit-app-region: no-drag;
-}
-
-.settings-modal-overlay.standalone .settings-pane-head {
-  padding-top: 38px;
-  -webkit-app-region: drag;
 }
 
 /* Groups */

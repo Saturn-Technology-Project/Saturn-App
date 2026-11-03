@@ -12,11 +12,6 @@ const PARTS: { name: string; role: string; body: string }[] = [
     role: "The local core",
     body: "Runs on this Mac at 127.0.0.1. It calls the models, runs the built-in skills and MCP tools, and keeps your agents, chats and keys.",
   },
-  {
-    name: "Saturn IDE",
-    role: "The editor",
-    body: "A Code-OSS editor with the same agents built in: Tab completion, next-edit, Cmd+I inline edits, and agent changes you review as diffs.",
-  },
 ];
 
 const FEATURES: { title: string; body: string }[] = [

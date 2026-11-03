@@ -374,15 +374,6 @@ export function App() {
     await syncProjects();
   }
 
-  async function handleOpenProjectEditor(id: string) {
-    try {
-      await desktop.projects.openInEditor(id);
-      setIdeNotice("Opening in Saturn IDE…");
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not open Saturn IDE");
-    }
-  }
-
   async function handleOpenProjectTerminal(id: string) {
     try {
       await desktop.projects.openInTerminal(id);
@@ -1252,21 +1243,6 @@ ${skill.instructions}`);
     setTheme((current) => (current === "dark" ? "light" : "dark"));
   }
 
-  const [ideNotice, setIdeNotice] = useState<string | null>(null);
-
-  /** Opens the active project in Saturn IDE (falling back to Cursor or VS Code when it is not installed). */
-  function handleOpenIde() {
-    void desktop.workspace.openNativeEditor()
-      .then((res) => setIdeNotice(res.editor ? `Opening in ${res.editor}…` : "Opening IDE…"))
-      .catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Could not open the IDE"));
-  }
-
-  useEffect(() => {
-    if (!ideNotice) return;
-    const timer = setTimeout(() => setIdeNotice(null), 2500);
-    return () => clearTimeout(timer);
-  }, [ideNotice]);
-
   function handleToggleInspector() {
     setInspectorOpen((prev) => !prev);
   }
@@ -1481,12 +1457,6 @@ ${skill.instructions}`);
     },
     {
       group: "Actions",
-      id: "act-open-ide",
-      label: "Open Workspace in Saturn IDE",
-      action: () => handleOpenIde(),
-    },
-    {
-      group: "Actions",
       id: "act-toggle-sidebar",
       label: sidebarOpen ? "Hide Left Sidebar" : "Show Left Sidebar",
       action: () => setSidebarOpen((v) => !v),
@@ -1530,9 +1500,6 @@ ${skill.instructions}`);
           await syncProjects();
           setOpenProjects((prev) => ({ ...prev, [project.id]: true }));
           return project;
-        }}
-        onOpenIde={async (project) => {
-          await desktop.projects.openInEditor(project.id);
         }}
         onFinish={async (first) => {
           const next = await desktop.admin.updateSettings({ onboardedAt: new Date().toISOString() });
@@ -2269,16 +2236,6 @@ ${skill.instructions}`);
                     className="titlebar-dropdown-item"
                     onClick={() => {
                       setMenuOpen(false);
-                      handleOpenIde();
-                    }}
-                  >
-                    <span>Open IDE</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="titlebar-dropdown-item"
-                    onClick={() => {
-                      setMenuOpen(false);
                       void reload();
                     }}
                   >
@@ -2287,16 +2244,6 @@ ${skill.instructions}`);
                 </div>
               )}
             </div>
-
-            <button
-              type="button"
-              className="titlebar-open-ide"
-              onClick={() => handleOpenIde()}
-              title="Open this workspace in Saturn IDE"
-            >
-              <IdeWindowIcon />
-              <span>Open IDE</span>
-            </button>
 
             {!inspectorOpen ? (
               <button
@@ -2893,13 +2840,6 @@ ${skill.instructions}`);
         </div>
       ) : null}
 
-      {ideNotice && (
-        <div className="coming-soon-toast" role="status" aria-live="polite">
-          <span className="coming-soon-dot">●</span>
-          <span>{ideNotice}</span>
-        </div>
-      )}
-
       {prDraft ? (
         <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && !prDraft.busy && setPrDraft(null)}>
           <form
@@ -2943,7 +2883,7 @@ ${skill.instructions}`);
               <ul className="conflict-list">{conflict.files.map((file) => <li key={file}><code>{file}</code></li>)}</ul>
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn ghost" onClick={() => { void desktop.projects.openInEditor(conflict.projectId); setConflict(null); }}>Open in Saturn IDE</button>
+              <button type="button" className="btn ghost" onClick={() => { void desktop.projects.openInTerminal(conflict.projectId); setConflict(null); }}>Open in Terminal</button>
               <button
                 type="button"
                 className="btn primary-btn"
@@ -2976,7 +2916,6 @@ ${skill.instructions}`);
           items={[
             { label: "New Chat", icon: <PlusIcon />, action: () => withAccess(projectMenu.project, (granted) => void newProjectChat(granted)) },
             "divider",
-            { label: "Open in Saturn IDE", icon: <CodeIconSmall />, action: () => void handleOpenProjectEditor(projectMenu.project.id) },
             { label: "Open in Terminal", icon: <TerminalIconSmall />, action: () => void handleOpenProjectTerminal(projectMenu.project.id) },
             { label: "Reveal in Finder", icon: <WorkspaceFolderIcon />, action: () => void handleOpenProjectFolder(projectMenu.project.id) },
             "divider",
@@ -3203,20 +3142,6 @@ function BranchIcon() {
   );
 }
 
-function IdeWindowIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="1.5" y="1.5" width="13" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.2" />
-      <line x1="5.8" y1="1.5" x2="5.8" y2="14.5" stroke="currentColor" strokeWidth="1.2" />
-      <line x1="7.4" y1="4.3" x2="11.4" y2="4.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="8.6" y1="6.4" x2="12.6" y2="6.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="8.6" y1="8.5" x2="12.6" y2="8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="8.6" y1="10.6" x2="12.6" y2="10.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="7.4" y1="12.7" x2="11.4" y2="12.7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function EmployeeIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -3238,14 +3163,6 @@ function ChevronRightIcon() {
   return (
     <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M6 3.5L10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CodeIconSmall() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

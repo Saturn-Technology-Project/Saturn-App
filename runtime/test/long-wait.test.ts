@@ -185,17 +185,3 @@ test("old tool results are cleared and long ones clipped, so every round stays s
   assert.equal(kept.at(-1), turns.at(-1));
   assert.ok(kept.reduce((sum, turn) => sum + turn.content.length, 0) <= CONTEXT_LIMITS.historyChars);
 });
-
-test("the launch app setting defaults to the Agent App, accepts the IDE, and survives a reload", async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "saturn-launch-"));
-  const store = new FileStore(directory);
-  await store.load();
-  const { services } = createApp(store);
-  assert.equal(services.settings().launchApp, "agent");
-  assert.equal((await services.updateSettings({ launchApp: "ide" })).launchApp, "ide");
-  assert.equal((await services.updateSettings({ name: "Renamed" })).launchApp, "ide", "other saves keep it");
-  await assert.rejects(() => services.updateSettings({ launchApp: "browser" as never }), /launchApp/);
-  const reopened = new FileStore(directory);
-  await reopened.load();
-  assert.equal(reopened.state.settings.launchApp, "ide");
-});

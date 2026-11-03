@@ -7,7 +7,6 @@
 /scripts/                                              @rickwengdev
 /runtime/package-lock.json                             @rickwengdev
 /desktop/package-lock.json                             @rickwengdev
-/Saturn-IDE/package-lock.json                          @rickwengdev
 /desktop/build/saturn-code-signing.cer                 @rickwengdev
 /desktop/scripts/                                      @rickwengdev
 /runtime/src/infrastructure/agent-programs-manifest.ts @rickwengdev

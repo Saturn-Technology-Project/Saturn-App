@@ -1,4 +1,3 @@
-import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
@@ -7,7 +6,6 @@ import { GENERAL_SKILLS_ID, CURSOR_COMPUTER_USE_ID, CURSOR_ORIGIN_ID, ANTIGRAVIT
 import { BROWSER_ID } from "../domain/browser-tools.js";
 import { ON_DEMAND_TOOLKITS, toolkitServer } from "../domain/toolkits.js";
 import type { CommandSnapshot } from "./checkpoints.js";
-import { IDE_ID } from "../domain/ide-tools.js";
 import type { Agent, Conversation, ModelConnection, Run, RunAction, RunMode, ToolRound } from "../domain/model.js";
 import { autonomyOf, behaviorOf, buildSystemPrompt, clip, explainRunError, isReadOnlyCall, isSensitiveOperation, mayReadOnly, readOnlyRefusal, joinThinking, textOf, thinkingOf, toolCalls } from "../domain/policies.js";
 import type { ToolCall } from "./runtime-state.js";
@@ -714,36 +712,6 @@ export class RunService {
     return this.kernel.projects.workdirFor(thread);
   }
 
-  /**
-   * One editor tool, answered by the Saturn IDE window that has the chat's project open. Paths stay inside the
-   * project; a rename comes back as each file's new content and is written here, through the run's checkpoint,
-   * so it shows in the review and can be reverted like any other edit.
-   */
-  private async runIdeTool(input: { toolId: string; arguments: Record<string, unknown>; runId: string; actionId: string; signal?: AbortSignal }): Promise<unknown> {
-    const workdir = this.workdirOf(input.runId);
-    if (!workdir) throw new Error("Editor tools work in a project chat: this chat has no project folder.");
-    const inside = (file: string) => {
-      const full = path.resolve(workdir, file);
-      if (full !== workdir && !full.startsWith(workdir + path.sep)) throw new Error(`${file} is outside the project folder`);
-      return full;
-    };
-    const args = { ...input.arguments };
-    if (typeof args.path === "string") args.path = inside(args.path);
-    const result = await this.kernel.ide.call(workdir, input.toolId, args, input.signal);
-    if (input.toolId !== "ide_rename") return relativize(result, workdir);
-    const edits = (result as { files?: { path: string; content: string }[] } | undefined)?.files ?? [];
-    const checkpoint = withStep(this.kernel.checkpoints.forRun(this.rootRunId(input.runId), workdir), input.actionId);
-    const changed: string[] = [];
-    for (const edit of edits) {
-      const target = inside(edit.path);
-      await checkpoint.before(target);
-      await writeFile(target, edit.content, "utf8");
-      await checkpoint.after(target);
-      changed.push(path.relative(workdir, target).split(path.sep).join("/"));
-    }
-    return { renamed: input.arguments.symbol, to: input.arguments.newName, files: changed };
-  }
-
   private async runTool(input: {
     agentId: string;
     toolId: string;
@@ -756,7 +724,9 @@ export class RunService {
     const agent = this.kernel.getAgent(input.agentId);
     const serverId = this.toolServer(agent, input.toolId);
     if (!serverId) {
-      return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: `Unknown tool: ${input.toolId}` };
+      // A saved chat can still hold a call to a tool of Saturn IDE, such as an approval waiting since before the upgrade.
+      const reason = input.toolId.startsWith("ide_") ? `${input.toolId} was part of Saturn IDE, which Saturn no longer includes` : `Unknown tool: ${input.toolId}`;
+      return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason };
     }
     // A toolkit's tool called before loading it (its name is in the instructions): it counts as loaded.
     if (ON_DEMAND_TOOLKITS[serverId] && !this.loadedToolkits(input.runId).has(serverId)) {
@@ -830,14 +800,6 @@ export class RunService {
           status: "failed",
           reason: error instanceof Error ? error.message : "Skill failed",
         };
-      }
-    }
-    if (serverId === IDE_ID) {
-      try {
-        const result = await this.runIdeTool(input);
-        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "completed", result };
-      } catch (error) {
-        return { id: input.actionId, toolId: input.toolId, arguments: input.arguments, status: "failed", reason: error instanceof Error ? error.message : "Editor tool failed" };
       }
     }
     if (serverId === BROWSER_ID) {
@@ -1286,12 +1248,9 @@ export class RunService {
 
   toolList(agent: Agent, mode?: RunMode, runId?: string) {
     const readOnly = mode === "ask" || mode === "plan";
-    // The editor tools only when Saturn IDE has this chat's project open.
-    const ide = this.kernel.ide.available(runId ? this.workdirOf(runId) : undefined);
     const deferred = this.deferredToolkits(agent, runId);
     return this.kernel.store.state.mcp
       .filter((item) => agent.mcpConnectionIds.includes(item.id))
-      .filter((item) => item.id !== IDE_ID || ide)
       .filter((item) => !deferred.includes(item.id))
       .flatMap((server) =>
         server.tools
@@ -1677,12 +1636,4 @@ function sanitizeActionsForText(actions: RunAction[]): unknown[] {
 /** A run's checkpoint hooks, tagging each write with the tool step that makes it. */
 function withStep(checkpoint: FileCheckpoint, actionId: string): FileCheckpoint {
   return { before: (target) => checkpoint.before(target, actionId), after: (target) => checkpoint.after(target) };
-}
-
-/** An editor answer with the project folder taken off its paths, as the agent's other tools report them. */
-function relativize(value: unknown, root: string): unknown {
-  if (typeof value === "string") return value.startsWith(root + path.sep) ? value.slice(root.length + 1).split(path.sep).join("/") : value;
-  if (Array.isArray(value)) return value.map((item) => relativize(item, root));
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, relativize(item, root)]));
-  return value;
 }

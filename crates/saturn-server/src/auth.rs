@@ -7,7 +7,7 @@ use subtle::ConstantTimeEq;
 const MINIMUM_TOKEN_LENGTH: usize = 32;
 
 /// The shared secret every local client must present, kept in the data folder where only this user can read it. A
-/// token from the launcher wins; otherwise the saved one is reused, so a running Saturn IDE keeps working over restarts.
+/// token from the launcher wins; otherwise the saved one is reused, so a running client keeps working over restarts.
 pub fn load_or_create_token(data_dir: &Path, from_launcher: Option<&str>) -> io::Result<String> {
     let file = data_dir.join("runtime-token");
     if let Some(token) = from_launcher

@@ -8,7 +8,7 @@ export function tokenFile(dataDir: string): string {
 }
 
 /**
- * The shared secret every local client (the desktop UI, the Electron main process, Saturn IDE) must present
+ * The shared secret every local client (the desktop UI, the desktop app's main process) must present
  * to the runtime. It is generated once and kept at 0600 in the data dir, so only this user's processes can
  * read it; a web page or another user cannot. It is reused across restarts so a running IDE keeps working.
  */

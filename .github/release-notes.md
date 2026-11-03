@@ -1,4 +1,4 @@
-**Saturn** runs AI agents on your own computer: the agent app, its local runtime and Saturn IDE in one download.
+**Saturn** runs AI agents on your own computer: the agent app and its local runtime in one download.
 
 > **Preview build.** The macOS app is not signed with an Apple Developer ID (Apple Silicon only), and the Windows installer is signed with Saturn's self-signed certificate, which Windows does not trust, so both systems warn the first time you open them.
 

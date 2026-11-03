@@ -292,13 +292,11 @@ export type AgentBrowser = "saturn" | "system" | "safari";
 export type AgentBrowserState = { open: boolean; mode: AgentBrowser; url: string; title: string };
 export type AgentBrowserFrame = { data: string; format?: "jpeg" | "png"; width: number; height: number; url: string; title: string };
 
-export type LaunchApp = "agent" | "ide";
 export type Profile = {
   name: string;
   environment: string;
   logging: string;
-  launchApp?: LaunchApp;
-  /** The model Saturn IDE's Tab completion and Cmd+K edit use; null turns them off. */
+  /** The model the editor features use; null turns them off. */
   completionModelId?: string | null;
   /** Keep notes about the user and each project across chats. */
   memory?: boolean;

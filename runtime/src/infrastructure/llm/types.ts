@@ -49,7 +49,7 @@ export type ChatRequest = {
   temperature?: number;
   maxOutput?: number;
   /**
-   * "low" for latency-sensitive editor calls (Tab completion, next edit): providers that think by default are
+   * "low" for latency-sensitive editor calls (see completions.ts): providers that think by default are
    * asked to think little, so the output budget goes to the answer instead of to reasoning.
    */
   thinking?: "low";

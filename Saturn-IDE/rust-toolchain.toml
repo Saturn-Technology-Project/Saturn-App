@@ -1,4 +1,0 @@
-# Saturn: the repository root pins a Rust version for crates/, and rustup looks upward for this file. Code-OSS's own
-# crates stay on stable, as they would upstream. (build/ripple has its own file.)
-[toolchain]
-channel = "stable"

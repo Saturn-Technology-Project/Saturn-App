@@ -6,14 +6,14 @@ import type { ChatMessage } from "../infrastructure/llm.js";
 import { logger } from "../infrastructure/logger.js";
 import type { RuntimeKernel } from "./kernel.js";
 
-/** Usage from Saturn IDE's editor features is filed under this pseudo-agent. */
-export const IDE_AGENT_ID = "saturn-ide";
-const IDE_AGENT_NAME = "Saturn IDE";
+/** Usage from the editor features is filed under this pseudo-agent (earlier usage records carry the same id). */
+export const EDITOR_AGENT_ID = "saturn-ide";
+const EDITOR_AGENT_NAME = "Editor features";
 
 /**
- * The editor features: Tab (fill in at the cursor), Cmd+K (rewrite the selection), Apply (merge a chat code block
- * into a file), next edit (after an edit, predict the next one nearby) and commit (write a commit message for the
- * changes in the Source Control view).
+ * What the built-in editor will call, once it exists: Tab (fill in at the cursor), Cmd+K (rewrite the selection), Apply
+ * (merge a chat code block into a file), next edit (after an edit, predict the next one nearby) and commit (write a
+ * commit message for the changes). Nothing in the app calls these yet.
  */
 export type CompletionRequest = {
   kind: "inline" | "edit" | "apply" | "next" | "commit";
@@ -50,7 +50,7 @@ export type CompletionRequest = {
   recentEdits?: { line: number; before: string; after: string }[];
   /** Inline only: pieces of other files the code at the cursor uses (the editor finds their definitions). */
   context?: ContextFile[];
-  /** Overrides Settings → General → Completion model. */
+  /** Overrides Settings → General → Background Model. */
   modelId?: string;
   maxTokens?: number;
 };
@@ -62,15 +62,15 @@ const KINDS = ["inline", "edit", "apply", "next", "commit"] as const;
 /** Output budget per kind; Apply returns a whole file. */
 const MAX_OUTPUT = { inline: 1024, block: 2048, edit: 4096, apply: 16000, next: 1024, commit: 2048 };
 
-/** One plain model call, no tools and no agent loop, for the editor's Tab completion and Cmd+K edit. */
+/** One plain model call, no tools and no agent loop, for the editor features above. */
 export class CompletionService {
   constructor(private readonly kernel: RuntimeKernel) {}
 
   model(modelId?: string): ModelConnection {
     const id = modelId || this.kernel.store.state.settings.completionModelId;
-    if (!id) throw new HttpError(409, "Choose a completion model in Saturn Settings → General.");
+    if (!id) throw new HttpError(409, "Choose a background model in Saturn Settings → General.");
     const model = this.kernel.store.state.models.find((item) => item.id === id);
-    if (!model) throw new HttpError(409, "The completion model was removed. Choose another in Saturn Settings → General.");
+    if (!model) throw new HttpError(409, "The background model was removed. Choose another in Saturn Settings → General.");
     if (model.provider === "claude-code" || model.provider === "codex") {
       const through = model.provider === "codex" ? "Codex" : "Claude Code";
       throw new HttpError(409, `${model.name} runs through ${through} and cannot serve completions. Choose an API model.`);
@@ -79,7 +79,7 @@ export class CompletionService {
   }
 
   /**
-   * Tab completion, streamed line by line so the editor can show the first line while the rest is generated. A
+   * Tab, streamed line by line so the editor can show the first line while the rest is generated. A
    * fill-in-the-middle model (Qwen-Coder, Codestral, DeepSeek-Coder…) gets its native FIM prompt through the
    * provider's raw completion endpoint; any other model gets the chat prompt. Either way the stream ends at the
    * first line that repeats what already follows the cursor.
@@ -126,7 +126,7 @@ export class CompletionService {
   /** A chat model's answer as a stream of text (whole at once when the adapter cannot stream). */
   private async *chatStream(model: ModelConnection, messages: ChatMessage[], maxOutput: number, signal?: AbortSignal): AsyncGenerator<string> {
     const body = await this.kernel.llm.complete(model, {
-      context: { agentId: IDE_AGENT_ID, agentName: IDE_AGENT_NAME, purpose: "completion" },
+      context: { agentId: EDITOR_AGENT_ID, agentName: EDITOR_AGENT_NAME, purpose: "completion" },
       temperature: 0,
       maxOutput,
       thinking: "low",
@@ -149,7 +149,7 @@ export class CompletionService {
     const messages =
       kind === "edit" ? editPrompt(input) : kind === "apply" ? applyPrompt(input) : kind === "next" ? nextPrompt(input) : kind === "commit" ? commitPrompt(input) : inlinePrompt(input);
     const body = await this.kernel.llm.complete(model, {
-      context: { agentId: IDE_AGENT_ID, agentName: IDE_AGENT_NAME, purpose: "completion" },
+      context: { agentId: EDITOR_AGENT_ID, agentName: EDITOR_AGENT_NAME, purpose: "completion" },
       temperature: kind === "inline" || kind === "next" ? 0 : 0.2,
       // The prompts ask for short answers; the budget is generous because thinking models spend part of it
       // reasoning, and a cut-off completion (half an expression) is worse than none.

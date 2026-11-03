@@ -1,15 +1,12 @@
 name: Windows build
 
-# Builds Saturn IDE for Windows (the Code-OSS fork's native modules must be compiled on Windows; they cannot be
-# cross-built from a Mac), runs the IDE smoke test on it, then packages the Saturn installer with the IDE inside.
-# Artifacts: the NSIS installer and a zip of the IDE build.
+# Runs the tests on Windows and packages the Saturn installer. Artifact: the NSIS installer.
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - "Saturn-IDE/**"
       - "desktop/**"
       - "runtime/**"
       - ".github/workflows/windows.yml"
@@ -33,26 +30,10 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Node for Saturn IDE (its .nvmrc)
+      - name: Node (.nvmrc)
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version-file: Saturn-IDE/.nvmrc
-
-      - name: Install the IDE's dependencies
-        working-directory: Saturn-IDE
-        shell: pwsh
-        run: npm ci
-        env:
-          npm_config_foreground_scripts: "1"
-          # @vscode/ripgrep downloads its binary through the GitHub API; unauthenticated calls hit the runner's rate limit.
-          GITHUB_TOKEN: ${{ github.token }}
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-
-      - name: Build Saturn IDE (win32-x64)
-        working-directory: Saturn-IDE
-        shell: pwsh
-        run: npm run gulp vscode-win32-x64-min
+          node-version-file: .nvmrc
 
       - name: Runtime and desktop dependencies
         shell: pwsh
@@ -69,11 +50,6 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
           npm test --prefix runtime
           npm run typecheck
-          npm run test:ide
-
-      - name: IDE smoke test on the Windows build
-        shell: pwsh
-        run: node Saturn-IDE/test/smoke/smoke.mjs VSCode-win32-x64
 
       - name: Code-signing certificate (self-signed)
         shell: pwsh
@@ -82,7 +58,7 @@ jobs:
           PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
         run: .github/scripts/windows-signing-cert.ps1
 
-      - name: Package the Saturn installer (with the IDE inside)
+      - name: Package the Saturn installer
         working-directory: desktop
         shell: pwsh
         run: npm run dist:win
@@ -93,10 +69,6 @@ jobs:
           EXPECTED: ${{ secrets.WINDOWS_SIGNING_PFX && 'D285DA425077C16A3D115D61F9748AFA574BC786' || '' }}
         run: .github/scripts/check-windows-signatures.ps1 -Release desktop/release -Expected "$env:EXPECTED"
 
-      - name: Zip the IDE build
-        shell: pwsh
-        run: Compress-Archive -Path VSCode-win32-x64 -DestinationPath "Saturn-IDE-win32-x64.zip"
-
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: saturn-windows
@@ -104,5 +76,4 @@ jobs:
             desktop/release/*.exe
             desktop/release/*.exe.blockmap
             desktop/release/latest*.yml
-            Saturn-IDE-win32-x64.zip
           if-no-files-found: error

@@ -1,9 +1,7 @@
-# The Rust rewrite of Saturn's runtime (see contract/ for what it must keep doing). Saturn-IDE/cli is Code-OSS's own
-# workspace and stays out of this one.
+# The Rust rewrite of Saturn's runtime (see contract/ for what it must keep doing).
 [workspace]
 resolver = "3"
 members = ["crates/*"]
-exclude = ["Saturn-IDE"]
 
 [workspace.package]
 version = "0.1.0"

@@ -31,10 +31,6 @@ export function mountProjects(app: Express, services: AppServices): void {
     respond(res, next, () => services.setProjectAccess(param(req.params.id), req.body?.granted !== false));
   });
 
-  app.post("/projects/:id/editor", (req, res, next) => {
-    respond(res, next, () => services.openProjectEditor(param(req.params.id)));
-  });
-
   app.post("/projects/:id/terminal", (req, res, next) => {
     respond(res, next, () => services.openProjectTerminal(param(req.params.id)));
   });

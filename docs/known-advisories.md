@@ -6,20 +6,7 @@ Security advisories that affect a dependency Saturn carries, have been reviewed,
 
 ## Accepted in code that ships
 
-| Package | Where | Advisory | Severity | Why it stays open | Closed when |
-|---|---|---|---|---|---|
-| `braces` | Saturn IDE: built-in npm and Mermaid extensions | [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) | High | No patched release exists. | A fixed release is published; Dependabot proposes it. |
-| `@azure/msal-node` | Saturn IDE: built-in Microsoft Authentication extension | [GHSA-xcx6-jx8p-x3h5](https://github.com/advisories/GHSA-xcx6-jx8p-x3h5) | High | The fix is in 7.1.0, two major versions past the 5.4 that Code-OSS uses; the extension does not call `acquireTokenByCode`, the flow the advisory names, and runs only when you sign in with a Microsoft account. | Code-OSS moves to `@azure/msal-node` 7.1 or later; the upstream sync brings it in. |
-| `zod` 3.x | Saturn IDE: `@vscode/sandbox-runtime`, inside the IDE and its remote server | [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) | High | Only zod 4.6.6 is patched and the package is built on the zod 3 API. It validates the terminal sandbox's own settings, not input from a network or a workspace file. | `@vscode/sandbox-runtime` moves to zod 4, or a zod 3 fix is published. |
-
-## Reported but not shipped
-
-Dependabot scans every lock file in the repository, including code that never reaches a Saturn download. Advisories there are not fixed in Saturn's tree; they follow upstream Code-OSS:
-
-- **Saturn IDE tests and test fixtures** (`Saturn-IDE/test/**`, test extensions such as `vscode-api-tests`).
-- **Build tooling** (`Saturn-IDE/build/**`, development dependencies).
-- **The Rust CLI** (`Saturn-IDE/cli/Cargo.lock`): Saturn does not build or ship Code-OSS's `code` CLI.
-- **The Copilot extension source** (`Saturn-IDE/extensions/copilot/**`): kept only so upstream merges stay clean, excluded from every build. See [`Saturn-IDE/UPSTREAM.md`](../Saturn-IDE/UPSTREAM.md).
+There are none: no known advisory is left open in the runtime or the desktop app.
 
 ## Adding an entry
 
@@ -35,20 +22,7 @@ An advisory goes here only after a review shows it cannot be fixed now (no patch
 
 ## 出貨程式中已接受的公告
 
-| 套件 | 位置 | 公告 | 等級 | 暫不處理的原因 | 結案條件 |
-|---|---|---|---|---|---|
-| `braces` | Saturn IDE：內建的 npm 與 Mermaid 擴充套件 | [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) | High | 尚無修補版本。 | 修補版本發布；Dependabot 會提出更新。 |
-| `@azure/msal-node` | Saturn IDE：內建的 Microsoft Authentication 擴充套件 | [GHSA-xcx6-jx8p-x3h5](https://github.com/advisories/GHSA-xcx6-jx8p-x3h5) | High | 修正在 7.1.0，比 Code-OSS 使用的 5.4 高兩個主版本；此擴充套件不呼叫公告所指的 `acquireTokenByCode`，且只在以 Microsoft 帳號登入時執行。 | Code-OSS 改用 `@azure/msal-node` 7.1 以上；upstream sync 會帶入。 |
-| `zod` 3.x | Saturn IDE：`@vscode/sandbox-runtime`，在 IDE 與其遠端伺服器中 | [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) | High | 只有 zod 4.6.6 有修補，而此套件以 zod 3 的 API 撰寫。它只驗證終端機沙箱自己的設定，不處理來自網路或工作區檔案的輸入。 | `@vscode/sandbox-runtime` 改用 zod 4，或 zod 3 發布修補。 |
-
-## 有回報但不會出貨
-
-Dependabot 會掃描 repository 中的每個 lock 檔，包括從不會進入 Saturn 下載檔的程式碼。這些位置的公告不在 Saturn 的程式樹中修補，而是跟隨上游 Code-OSS：
-
-- **Saturn IDE 的測試與測試資料**（`Saturn-IDE/test/**`，以及 `vscode-api-tests` 等測試用擴充套件）。
-- **建置工具**（`Saturn-IDE/build/**` 與開發用相依套件）。
-- **Rust CLI**（`Saturn-IDE/cli/Cargo.lock`）：Saturn 不建置也不出貨 Code-OSS 的 `code` CLI。
-- **Copilot 擴充套件原始碼**（`Saturn-IDE/extensions/copilot/**`）：只為了讓上游合併保持乾淨而保留，所有建置都會排除。見 [`Saturn-IDE/UPSTREAM.md`](../Saturn-IDE/UPSTREAM.md)。
+沒有：Runtime 與桌面應用程式中沒有任何已知而未修補的公告。
 
 ## 新增一筆
 
