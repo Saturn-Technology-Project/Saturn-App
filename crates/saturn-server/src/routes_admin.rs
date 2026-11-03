@@ -1,0 +1,795 @@
+//! Settings, connections, projects, usage and the workspace views, answering as `runtime/` does.
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+
+use axum::Router;
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
+use axum::http::header::{CONTENT_TYPE, HeaderName};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{delete, get, patch, post};
+use saturn_core::catalog::llm_providers;
+use saturn_core::projects::{launch_app, launch_terminal};
+use saturn_core::skill_files::{
+    expand_command, list_commands, list_skills, load_skill, skill_json,
+};
+use saturn_core::{CoreError, Kernel};
+use saturn_domain::js;
+use saturn_domain::skills::public_address::parse_public_address;
+use saturn_tools::public_host::{SystemLookup, fetch_public};
+use saturn_tools::run_captured;
+use saturn_tools::sandbox::Platform;
+use saturn_tools::shell::{process_env, shell_invocation};
+use serde_json::{Value, json};
+
+use crate::routes::{Answer, Body, Failure, Shared, body_of, created, given, layers_json, ok};
+
+type QueryText = Query<HashMap<String, String>>;
+
+const CWD_MARKER: &str = "__SATURN_CWD__:";
+/// Sent into every page the in-app browser shows: link clicks and GET forms ask the app to load the next page through the proxy,
+/// since the sandboxed frame cannot load most sites itself.
+const BROWSER_NAVIGATION_SCRIPT: &str = include_str!("browser-navigation.html");
+
+fn no_content() -> Answer {
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+fn wanted<'a>(query: &'a HashMap<String, String>, key: &str) -> Option<&'a str> {
+    query
+        .get(key)
+        .map(String::as_str)
+        .filter(|text| !text.is_empty())
+}
+
+async fn settings(State(kernel): Shared) -> Answer {
+    ok(kernel.settings())
+}
+
+async fn update_settings(State(kernel): Shared, body: Body) -> Answer {
+    ok(kernel.update_settings(&body_of(body)).await?)
+}
+
+async fn information(State(kernel): Shared) -> Answer {
+    ok(kernel.information().await)
+}
+
+async fn logs(Query(query): QueryText) -> Answer {
+    let text = |key: &str| wanted(&query, key).unwrap_or("");
+    ok(Kernel::list_logs(text("service"), text("level"), text("q")))
+}
+
+async fn snapshots(State(kernel): Shared) -> Answer {
+    ok(kernel.snapshot_folders().await)
+}
+
+async fn delete_snapshots(State(kernel): Shared) -> Answer {
+    kernel.delete_snapshot_folders(None).await?;
+    ok(json!({ "deleted": true }))
+}
+
+async fn delete_snapshot(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_snapshot_folders(Some(&id)).await?;
+    ok(json!({ "deleted": true }))
+}
+
+async fn read_memory(State(kernel): Shared, Path(scope): Path<String>) -> Answer {
+    ok(json!({ "scope": scope, "content": kernel.read_memory(&scope).await }))
+}
+
+async fn write_memory(State(kernel): Shared, Path(scope): Path<String>, body: Body) -> Answer {
+    let content = js::text(body_of(body).get("content"));
+    kernel
+        .write_memory(&scope, &content)
+        .await
+        .map_err(CoreError::from)?;
+    ok(json!({ "scope": scope, "content": kernel.read_memory(&scope).await }))
+}
+
+async fn usage(State(kernel): Shared) -> Answer {
+    ok(kernel.usage_records())
+}
+
+async fn usage_summary(State(kernel): Shared, Query(query): QueryText) -> Answer {
+    ok(kernel.usage_summary(wanted(&query, "from"), wanted(&query, "to"))?)
+}
+
+async fn providers() -> Answer {
+    ok(llm_providers())
+}
+
+async fn lm_studio(State(kernel): Shared, Query(query): QueryText) -> Answer {
+    ok(kernel
+        .lm_studio_models(wanted(&query, "baseUrl").unwrap_or(""))
+        .await)
+}
+
+async fn list_connections(State(kernel): Shared, Path(kind): Path<String>) -> Answer {
+    ok(kernel.list_connections(&kind).await?)
+}
+
+async fn delete_connection(
+    State(kernel): Shared,
+    Path((kind, id)): Path<(String, String)>,
+) -> Answer {
+    kernel.delete_connection(&kind, &id).await?;
+    no_content()
+}
+
+async fn list_mcp(State(kernel): Shared) -> Answer {
+    ok(kernel.list_connections("mcp").await?)
+}
+
+async fn list_rag(State(kernel): Shared) -> Answer {
+    ok(kernel.list_connections("rag").await?)
+}
+
+async fn delete_model(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_connection("models", &id).await?;
+    no_content()
+}
+
+async fn delete_mcp_connection(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_connection("mcp", &id).await?;
+    no_content()
+}
+
+async fn delete_rag(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_connection("rag", &id).await?;
+    no_content()
+}
+
+async fn update_model(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel.update_model(&id, &body_of(body)).await?)
+}
+
+async fn create_mcp(State(kernel): Shared, body: Body) -> Answer {
+    created(kernel.create_mcp(&body_of(body)).await?)
+}
+
+async fn update_mcp(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel.update_mcp(&id, &body_of(body)).await?)
+}
+
+async fn approve_mcp(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let fingerprint = js::text(body_of(body).get("fingerprint"));
+    ok(kernel.approve_mcp(&id, &fingerprint).await?)
+}
+
+async fn discover_mcp(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.discover_mcp(&id).await?)
+}
+
+async fn delete_mcp(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_mcp_server(&id).await?;
+    no_content()
+}
+
+async fn create_rag(State(kernel): Shared, body: Body) -> Answer {
+    created(kernel.create_rag(&body_of(body)).await?)
+}
+
+async fn update_rag(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel.update_rag(&id, &body_of(body)).await?)
+}
+
+async fn hook_sets(State(kernel): Shared, Query(query): QueryText) -> Answer {
+    let sets = kernel.hook_sets(wanted(&query, "projectId")).await;
+    ok(sets
+        .iter()
+        .map(saturn_core::hooks::HookSet::to_json)
+        .collect::<Vec<_>>())
+}
+
+async fn set_hooks(State(kernel): Shared, body: Body) -> Answer {
+    let body = body_of(body);
+    let sets = kernel
+        .set_user_hooks(body.get("hooks").unwrap_or(&Value::Null))
+        .await?;
+    ok(sets
+        .iter()
+        .map(saturn_core::hooks::HookSet::to_json)
+        .collect::<Vec<_>>())
+}
+
+async fn approve_hooks(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    let sets = kernel
+        .approve_hooks(
+            &id,
+            &js::text(body.get("file")),
+            &js::text(body.get("fingerprint")),
+        )
+        .await?;
+    ok(sets
+        .iter()
+        .map(saturn_core::hooks::HookSet::to_json)
+        .collect::<Vec<_>>())
+}
+
+async fn revoke_hooks(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let sets = kernel
+        .revoke_hooks(&id, &js::text(body_of(body).get("file")))
+        .await?;
+    ok(sets
+        .iter()
+        .map(saturn_core::hooks::HookSet::to_json)
+        .collect::<Vec<_>>())
+}
+
+async fn approve_rules(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    ok(layers_json(
+        &kernel
+            .approve_rules_file(
+                &id,
+                &js::text(body.get("file")),
+                &js::text(body.get("fingerprint")),
+            )
+            .await?,
+    ))
+}
+
+async fn revoke_rules(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(layers_json(
+        &kernel
+            .revoke_rules_file(&id, &js::text(body_of(body).get("file")))
+            .await?,
+    ))
+}
+
+async fn active_project(State(kernel): Shared) -> Answer {
+    ok(kernel.active_project().await?)
+}
+
+async fn set_active(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.set_active_project(&id).await?)
+}
+
+async fn update_project(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel.update_project(&id, &body_of(body)).await?)
+}
+
+async fn delete_project(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_project(&id).await?;
+    no_content()
+}
+
+async fn project_access(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let granted = body_of(body).get("granted") != Some(&Value::Bool(false));
+    ok(kernel.set_project_access(&id, granted).await?)
+}
+
+async fn project_terminal(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.open_project_terminal(&id).await?)
+}
+
+async fn project_folder(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.open_project_folder(&id).await?)
+}
+
+async fn project_rules(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.project_rules_view(&id).await?)
+}
+
+async fn save_rules(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    ok(kernel
+        .save_project_rules(
+            &id,
+            &js::text(body.get("content")),
+            given(&body, "targetFile"),
+        )
+        .await?)
+}
+
+async fn project_context(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    let items = body
+        .get("items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    ok(kernel.expand_context(&id, &items).await?)
+}
+
+async fn project_files(
+    State(kernel): Shared,
+    Path(id): Path<String>,
+    Query(query): QueryText,
+) -> Answer {
+    let limit = wanted(&query, "limit")
+        .and_then(|limit| limit.parse().ok())
+        .filter(|limit| *limit != 0)
+        .unwrap_or(200);
+    ok(kernel
+        .project_files(&id, wanted(&query, "q").unwrap_or(""), limit)
+        .await?)
+}
+
+/// The project folder a request's `projectId` names, which must be one the user has allowed.
+fn folder_of(
+    kernel: &Kernel,
+    project: Option<&str>,
+) -> Result<Option<std::path::PathBuf>, Failure> {
+    Ok(project.map(|id| kernel.workdir(id)).transpose()?)
+}
+
+async fn skills(State(kernel): Shared, Query(query): QueryText) -> Answer {
+    let root = folder_of(&kernel, wanted(&query, "projectId"))?;
+    let listed = list_skills(root.as_deref(), &kernel.store.root().join("skills")).await;
+    ok(listed.iter().map(skill_json).collect::<Vec<_>>())
+}
+
+async fn skill(State(kernel): Shared, Path(name): Path<String>, Query(query): QueryText) -> Answer {
+    let root = folder_of(&kernel, wanted(&query, "projectId"))?;
+    let loaded = load_skill(root.as_deref(), &kernel.store.root().join("skills"), &name).await;
+    ok(loaded.ok_or_else(|| CoreError::new(404, "No such skill"))?)
+}
+
+async fn commands(State(kernel): Shared, Query(query): QueryText) -> Answer {
+    let root = folder_of(&kernel, wanted(&query, "projectId"))?;
+    ok(list_commands(root.as_deref(), &kernel.store.root().join("commands")).await)
+}
+
+async fn expand(State(kernel): Shared, Path(name): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    let root = folder_of(&kernel, given(&body, "projectId"))?;
+    let expanded = expand_command(
+        root.as_deref(),
+        &kernel.store.root().join("commands"),
+        &name,
+        &js::text(body.get("arguments")),
+    )
+    .await;
+    ok(expanded.ok_or_else(|| CoreError::new(404, "No such command"))?)
+}
+
+/// The active project's folder, or the agents' own workspace.
+async fn active_root(kernel: &Kernel) -> Result<std::path::PathBuf, Failure> {
+    let root = match kernel.active_project().await {
+        Ok(project)
+            if project
+                .get("path")
+                .and_then(Value::as_str)
+                .is_some_and(|path| !path.is_empty()) =>
+        {
+            std::path::PathBuf::from(project["path"].as_str().unwrap_or(""))
+        }
+        _ => kernel.store.root().join("workspace"),
+    };
+    tokio::fs::create_dir_all(&root)
+        .await
+        .map_err(CoreError::from)?;
+    Ok(root)
+}
+
+async fn workspace_info(State(kernel): Shared) -> Answer {
+    let root = active_root(&kernel).await?;
+    let shell = std::env::var("SHELL")
+        .unwrap_or_else(|_| if cfg!(windows) { "cmd.exe" } else { "/bin/zsh" }.to_owned());
+    let user = std::env::var("USER")
+        .or_else(|_| std::env::var("USERNAME"))
+        .unwrap_or_else(|_| "user".to_owned());
+    let host = std::env::var("HOSTNAME")
+        .ok()
+        .filter(|name| !name.is_empty())
+        .or_else(|| {
+            let output = std::process::Command::new("hostname").output().ok()?;
+            Some(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        });
+    let host = host.unwrap_or_default();
+    ok(
+        json!({ "cwd": root.to_string_lossy(), "shell": shell, "user": user, "hostname": host.strip_suffix(".local").unwrap_or(&host) }),
+    )
+}
+
+/// Splits the working folder the wrapped command printed from its output.
+fn extract_cwd(output: &str, fallback: &str) -> (String, String) {
+    let Some(index) = output.rfind(CWD_MARKER) else {
+        return (output.to_owned(), fallback.to_owned());
+    };
+    let before = &output[..index];
+    let before = before
+        .strip_suffix('\n')
+        .map_or(before, |text| text.strip_suffix('\r').unwrap_or(text));
+    let after = output[index + CWD_MARKER.len()..]
+        .lines()
+        .next()
+        .map_or("", js::trim);
+    (
+        before.to_owned(),
+        if after.is_empty() { fallback } else { after }.to_owned(),
+    )
+}
+
+/// A command from the app's own terminal panel, which the user typed.
+async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
+    let root = active_root(&kernel).await?;
+    let body = body_of(body);
+    let command = js::trim(given(&body, "command").unwrap_or(""));
+    let asked = js::trim(given(&body, "cwd").unwrap_or(""));
+    let cwd = if !asked.is_empty()
+        && tokio::fs::metadata(asked)
+            .await
+            .is_ok_and(|info| info.is_dir())
+    {
+        std::path::PathBuf::from(asked)
+    } else {
+        root
+    };
+    let shown = cwd.to_string_lossy().into_owned();
+    if command.is_empty() {
+        return ok(json!({ "stdout": "", "stderr": "", "exitCode": 0, "cwd": shown }));
+    }
+    let wrapped = if cfg!(windows) {
+        format!("{command} & echo {CWD_MARKER}%CD%")
+    } else {
+        format!(
+            "{command}\n__saturn_ec=$?\nprintf \"\\n{CWD_MARKER}%s\\n\" \"$(pwd)\"\nexit $__saturn_ec"
+        )
+    };
+    let env = process_env();
+    let shell = env.get(std::ffi::OsStr::new("SHELL")).map_or_else(
+        || "/bin/zsh".to_owned(),
+        |shell| shell.to_string_lossy().into_owned(),
+    );
+    let invocation = shell_invocation(&wrapped, &shell, Platform::current(), &env);
+    let mut variables: Vec<_> = env.into_iter().collect();
+    variables.push(("TERM".into(), "xterm-256color".into()));
+    if !cfg!(windows) {
+        for item in &mut variables {
+            if item.0 == "PATH" {
+                item.1 = format!(
+                    "{}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+                    item.1.to_string_lossy()
+                )
+                .into();
+            }
+        }
+    }
+    let result = run_captured(
+        &invocation,
+        &cwd,
+        &variables,
+        b"",
+        Duration::from_secs(30),
+        512 * 1024,
+    )
+    .await;
+    let (stdout, final_cwd) = extract_cwd(&result.stdout, &shown);
+    let code = result.code.unwrap_or(1);
+    let stderr = if code != 0 && result.stderr.is_empty() {
+        "Command failed".to_owned()
+    } else {
+        result.stderr
+    };
+    ok(json!({ "stdout": stdout, "stderr": stderr, "exitCode": code, "cwd": final_cwd }))
+}
+
+async fn open_terminal(State(kernel): Shared, body: Body) -> Answer {
+    let root = active_root(&kernel).await?;
+    let body = body_of(body);
+    let asked = js::trim(given(&body, "cwd").unwrap_or(""));
+    // Absolute, so a folder cannot be read as one of the program's options.
+    let cwd = if asked.is_empty() {
+        root
+    } else {
+        std::path::absolute(asked).map_err(CoreError::from)?
+    };
+    launch_terminal(&cwd);
+    ok(json!({ "opened": true, "cwd": cwd.to_string_lossy() }))
+}
+
+/// What the user typed in the address bar as a URL: a link as it is, a bare name with a scheme, anything else a search.
+fn normalize_url(input: &str) -> String {
+    let trimmed = js::trim(input);
+    if trimmed.is_empty() {
+        return "https://example.com".to_owned();
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") {
+        return trimmed.to_owned();
+    }
+    let host = trimmed.split('/').next().unwrap_or("");
+    let bare = host.split(':').next().unwrap_or("");
+    if matches!(
+        bare.to_ascii_lowercase().as_str(),
+        "localhost" | "127.0.0.1"
+    ) && host
+        .split(':')
+        .nth(1)
+        .is_none_or(|port| !port.is_empty() && port.bytes().all(|byte| byte.is_ascii_digit()))
+    {
+        return format!("http://{trimmed}");
+    }
+    let label = |part: &str| {
+        !part.is_empty()
+            && part
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+    };
+    if host.contains('.') && host.split('.').all(label) {
+        return format!("https://{trimmed}");
+    }
+    let mut search = url::Url::parse("https://duckduckgo.com/").expect("this address is valid");
+    search.query_pairs_mut().append_pair("q", trimmed);
+    search.to_string()
+}
+
+fn escape_attribute(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+async fn open_browser(body: Body) -> Answer {
+    let body = body_of(body);
+    let url = normalize_url(given(&body, "url").unwrap_or("https://www.google.com"));
+    if cfg!(target_os = "macos") {
+        launch_app("the browser", "open", &[&url], None);
+    } else if cfg!(windows) {
+        launch_app("the browser", "cmd.exe", &["/c", "start", "", &url], None);
+    } else {
+        launch_app("the browser", "xdg-open", &[&url], None);
+    }
+    ok(json!({ "opened": true, "url": url }))
+}
+
+/// One page for the in-app browser. Redirects are followed by hand, so every hop gets the public-address check (at most four).
+async fn proxied_page(target: &str) -> Result<(String, String), String> {
+    let mut current = parse_public_address(target)?;
+    let headers = [
+        (
+            "user-agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        ),
+        (
+            "accept",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        ),
+    ];
+    let mut hop = 0;
+    let response = loop {
+        let response = fetch_public(&current, &headers, Arc::new(SystemLookup)).await?;
+        let location = response
+            .status()
+            .is_redirection()
+            .then(|| {
+                response
+                    .headers()
+                    .get("location")
+                    .and_then(|value| value.to_str().ok())
+                    .map(str::to_owned)
+            })
+            .flatten();
+        let Some(location) = location else {
+            break response;
+        };
+        if hop == 4 {
+            return Err("Too many redirects".to_owned());
+        }
+        hop += 1;
+        let next = current.join(&location).map_err(|error| error.to_string())?;
+        current = parse_public_address(next.as_str())?;
+    };
+    let final_url = current.to_string();
+    let kind = response
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("text/html; charset=utf-8")
+        .to_owned();
+    let base = format!(
+        "<base href=\"{}\">{BROWSER_NAVIGATION_SCRIPT}",
+        escape_attribute(&final_url)
+    );
+    let page = if kind.contains("html") {
+        let body = response
+            .text()
+            .await
+            .map_err(|error| error.without_url().to_string())?;
+        let head = regex::Regex::new("(?i)<head[^>]*>").expect("this pattern is valid");
+        match head.find(&body) {
+            Some(found) => format!("{}{base}{}", &body[..found.end()], &body[found.end()..]),
+            None => format!("{base}{body}"),
+        }
+    } else if kind.starts_with("image/") {
+        format!(
+            "<!doctype html><html><head>{base}</head><body style=\"margin:0;display:grid;place-items:center;min-height:100vh;background:#111\"><img src=\"{}\" style=\"max-width:100%\"></body></html>",
+            escape_attribute(&final_url)
+        )
+    } else {
+        let body = response
+            .text()
+            .await
+            .map_err(|error| error.without_url().to_string())?;
+        format!(
+            "<!doctype html><html><head><meta charset=\"utf-8\">{base}</head><body style=\"margin:0\"><pre style=\"white-space:pre-wrap;word-break:break-word;padding:16px;font:13px ui-monospace,monospace\">{}</pre></body></html>",
+            escape_attribute(js::prefix(&body, 2_000_000))
+        )
+    };
+    Ok((final_url, page))
+}
+
+/// The in-app browser's page loader. Public addresses only, like the agents' web tool: this runs as the user, and a page shown
+/// here could otherwise read anything on localhost or the private network, the runtime included.
+async fn browser_proxy(Query(query): QueryText) -> Response {
+    let target = normalize_url(wanted(&query, "url").unwrap_or("https://example.com"));
+    let html: HeaderName = CONTENT_TYPE;
+    let loading = tokio::time::timeout(Duration::from_secs(12), proxied_page(&target));
+    match loading
+        .await
+        .unwrap_or_else(|_| Err("The page took too long to load".to_owned()))
+    {
+        Ok((url, page)) => (
+            [
+                (html, "text/html; charset=utf-8".to_owned()),
+                (HeaderName::from_static("x-saturn-url"), url),
+            ],
+            page,
+        )
+            .into_response(),
+        Err(message) => {
+            saturn_core::log(
+                "workspace",
+                "warning",
+                &format!("Browser preview could not load a page: {message}"),
+            );
+            let page = format!(
+                "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{{font-family:-apple-system,sans-serif;background:#111318;color:#e5e7eb;padding:32px;line-height:1.5}}code{{background:#1f2430;padding:2px 6px;border-radius:4px;color:#93c5fd}}</style></head><body><h3>Could not load page</h3><p><code>{}</code></p><p>{}</p></body></html>",
+                escape_attribute(&target),
+                escape_attribute(&message)
+            );
+            ([(html, "text/html; charset=utf-8")], page).into_response()
+        }
+    }
+}
+
+/// A file or folder in the active project for the file view. A symbolic link counts as where it points: a cloned repository can
+/// bring one that leads out of the folder.
+async fn workspace_files(State(kernel): Shared, Query(query): QueryText) -> Answer {
+    let root = active_root(&kernel).await?;
+    let asked = js::trim(wanted(&query, "path").unwrap_or(""));
+    let workspace = saturn_domain::skills::workspace::Workspace::new(&root);
+    let target = match saturn_tools::file::inside_workspace(
+        &workspace,
+        if asked.is_empty() { "." } else { asked },
+    )
+    .await
+    {
+        Ok(target) => target,
+        Err(_) => {
+            saturn_core::log(
+                "workspace",
+                "warning",
+                "Refused a file path outside the workspace",
+            );
+            workspace.root().to_path_buf()
+        }
+    };
+    let base = workspace.root().to_path_buf();
+    let shown = |path: &std::path::Path| {
+        path.strip_prefix(&base)
+            .map_or(String::new(), |item| item.to_string_lossy().into_owned())
+    };
+    let info = tokio::fs::metadata(&target)
+        .await
+        .map_err(CoreError::from)?;
+    if info.is_dir() {
+        let mut entries = tokio::fs::read_dir(&target)
+            .await
+            .map_err(CoreError::from)?;
+        let mut items = Vec::new();
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') {
+                continue;
+            }
+            let folder = entry.file_type().await.is_ok_and(|kind| kind.is_dir());
+            items.push(json!({ "name": name, "path": shown(&target.join(&name)), "kind": if folder { "directory" } else { "file" } }));
+        }
+        let place = shown(&target);
+        return ok(
+            json!({ "kind": "directory", "path": if place.is_empty() { ".".to_owned() } else { place }, "entries": items }),
+        );
+    }
+    let content = tokio::fs::read(&target).await.map_err(CoreError::from)?;
+    let content = String::from_utf8_lossy(&content);
+    ok(json!({ "kind": "file", "path": shown(&target), "content": js::prefix(&content, 100_000) }))
+}
+
+async fn open_permission_pane(body: Body) -> Answer {
+    let body = body_of(body);
+    let pane = match given(&body, "which") {
+        Some("accessibility") => {
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        }
+        Some("screenRecording") => {
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+        }
+        _ => {
+            return Err(
+                CoreError::new(400, "which must be accessibility or screenRecording").into(),
+            );
+        }
+    };
+    if !cfg!(target_os = "macos") {
+        return Err(CoreError::new(409, "Only macOS asks for these permissions").into());
+    }
+    launch_app("System Settings", "open", &[pane], None);
+    ok(json!({ "ok": true }))
+}
+
+/// Settings, connections, projects, usage and the workspace views.
+pub fn router(kernel: Arc<Kernel>) -> Router {
+    Router::new()
+        .route("/settings", get(settings).patch(update_settings))
+        .route("/information", get(information))
+        .route("/logs", get(logs))
+        .route(
+            "/storage/snapshots",
+            get(snapshots).delete(delete_snapshots),
+        )
+        .route("/storage/snapshots/{id}", delete(delete_snapshot))
+        .route("/memory/{scope}", get(read_memory).put(write_memory))
+        .route("/usage", get(usage))
+        .route("/usage/summary", get(usage_summary))
+        .route("/llm/providers", get(providers))
+        .route("/llm/lmstudio/models", get(lm_studio))
+        .route("/connections/{kind}", get(list_connections))
+        .route("/connections/{kind}/{id}", delete(delete_connection))
+        .route(
+            "/connections/models/{id}",
+            patch(update_model).delete(delete_model),
+        )
+        .route("/connections/mcp", get(list_mcp).post(create_mcp))
+        .route(
+            "/connections/mcp/{id}",
+            patch(update_mcp).delete(delete_mcp_connection),
+        )
+        .route("/connections/mcp/{id}/approve", post(approve_mcp))
+        .route("/connections/mcp/{id}/discover", post(discover_mcp))
+        .route("/mcp/{id}", delete(delete_mcp))
+        .route("/connections/rag", get(list_rag).post(create_rag))
+        .route(
+            "/connections/rag/{id}",
+            patch(update_rag).delete(delete_rag),
+        )
+        .route("/hooks", get(hook_sets).put(set_hooks))
+        .route("/projects/active", get(active_project))
+        .route(
+            "/projects/{id}",
+            patch(update_project).delete(delete_project),
+        )
+        .route("/projects/{id}/active", post(set_active))
+        .route("/projects/{id}/access", post(project_access))
+        .route("/projects/{id}/terminal", post(project_terminal))
+        .route("/projects/{id}/folder", post(project_folder))
+        .route("/projects/{id}/rules", get(project_rules).put(save_rules))
+        .route("/projects/{id}/context", post(project_context))
+        .route("/projects/{id}/files", get(project_files))
+        .route(
+            "/projects/{id}/hooks/approve",
+            post(approve_hooks).delete(revoke_hooks),
+        )
+        .route(
+            "/projects/{id}/permissions/approve",
+            post(approve_rules).delete(revoke_rules),
+        )
+        .route("/skills", get(skills))
+        .route("/skills/{name}", get(skill))
+        .route("/commands", get(commands))
+        .route("/commands/{name}/expand", post(expand))
+        .route("/workspace/info", get(workspace_info))
+        .route("/workspace/terminal", post(workspace_terminal))
+        .route("/workspace/terminal/open", post(open_terminal))
+        .route("/workspace/files", get(workspace_files))
+        .route("/workspace/browser/open", post(open_browser))
+        .route("/workspace/browser/proxy", get(browser_proxy))
+        .route("/computer/permissions/open", post(open_permission_pane))
+        .with_state(kernel)
+}

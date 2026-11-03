@@ -264,6 +264,63 @@ impl Kernel {
         resolve_permission(&layers, tool, arguments)
     }
 
+    /// The user allows a project file's allow rules: only the exact set they saw, named by its fingerprint.
+    pub async fn approve_rules_file(
+        &self,
+        project_id: &str,
+        file: &str,
+        fingerprint: &str,
+    ) -> Result<Vec<LayerView>, CoreError> {
+        let layers = self.permission_layers(None, Some(project_id)).await;
+        let layer = layers
+            .iter()
+            .find(|item| item.layer.path.as_deref() == Some(file));
+        let print = layer
+            .and_then(|item| item.fingerprint.as_deref())
+            .ok_or_else(|| CoreError::new(404, format!("{file} has no allow rules to allow")))?;
+        if print != fingerprint {
+            return Err(CoreError::new(
+                409,
+                format!("The rules in {file} changed since you looked; review them again."),
+            ));
+        }
+        self.store
+            .update(|state| {
+                let project = by_id_mut(&mut state.projects, project_id)
+                    .ok_or_else(|| CoreError::new(404, "Project not found"))?;
+                if !project.get("approvedRules").is_some_and(Value::is_object) {
+                    project["approvedRules"] = json!({});
+                }
+                project["approvedRules"][file] = fingerprint.into();
+                Ok::<(), CoreError>(())
+            })
+            .await??;
+        log(
+            "runtime",
+            "info",
+            &format!("Allow rules in {file} allowed for this project"),
+        );
+        Ok(self.permission_layers(None, Some(project_id)).await)
+    }
+
+    /// Holds a project file's allow rules again.
+    pub async fn revoke_rules_file(
+        &self,
+        project_id: &str,
+        file: &str,
+    ) -> Result<Vec<LayerView>, CoreError> {
+        self.store
+            .update(|state| {
+                if let Some(approved) = by_id_mut(&mut state.projects, project_id)
+                    .and_then(|project| project.get_mut("approvedRules"))
+                {
+                    crate::records::remove(approved, file);
+                }
+            })
+            .await?;
+        Ok(self.permission_layers(None, Some(project_id)).await)
+    }
+
     /// Adds a rule to an editable layer, or changes the effect of the same rule.
     pub async fn add_permission_rule(
         &self,

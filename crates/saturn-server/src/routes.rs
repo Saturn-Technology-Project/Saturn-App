@@ -15,7 +15,7 @@ use saturn_core::events::{EventWatch, run_fingerprint};
 use saturn_core::run_images::parse_images;
 use saturn_core::runs::StartOptions;
 use saturn_core::{CoreError, Kernel};
-use saturn_domain::permissions::Scope;
+use saturn_domain::permissions::{Scope, suggested_pattern};
 use saturn_domain::prompt::RunMode;
 use saturn_domain::time::{iso_time, now_millis};
 use serde_json::{Value, json};
@@ -25,14 +25,14 @@ use tokio_stream::wrappers::ReceiverStream;
 /// Live updates are worked out at most this often.
 const THROTTLE: Duration = Duration::from_millis(120);
 
-type Shared = State<Arc<Kernel>>;
+pub(crate) type Shared = State<Arc<Kernel>>;
 /// A route's answer, or the status and message of why not.
-type Answer = Result<Response, Failure>;
-type Body = Option<Json<Value>>;
+pub(crate) type Answer = Result<Response, Failure>;
+pub(crate) type Body = Option<Json<Value>>;
 type QueryText = Query<std::collections::HashMap<String, String>>;
 
 /// A failure as the API answers it.
-struct Failure(CoreError);
+pub(crate) struct Failure(CoreError);
 
 impl From<CoreError> for Failure {
     fn from(error: CoreError) -> Self {
@@ -47,27 +47,27 @@ impl IntoResponse for Failure {
     }
 }
 
-fn ok(body: impl serde::Serialize) -> Answer {
+pub(crate) fn ok(body: impl serde::Serialize) -> Answer {
     Ok(Json(json!(body)).into_response())
 }
 
-fn created(body: impl serde::Serialize) -> Answer {
+pub(crate) fn created(body: impl serde::Serialize) -> Answer {
     Ok((StatusCode::CREATED, Json(json!(body))).into_response())
 }
 
 /// A request's JSON body, or an empty object.
-fn body_of(body: Body) -> Value {
+pub(crate) fn body_of(body: Body) -> Value {
     body.map_or_else(|| json!({}), |Json(value)| value)
 }
 
 /// A text field that holds something.
-fn given<'a>(body: &'a Value, key: &str) -> Option<&'a str> {
+pub(crate) fn given<'a>(body: &'a Value, key: &str) -> Option<&'a str> {
     body.get(key)
         .and_then(Value::as_str)
         .filter(|text| !text.is_empty())
 }
 
-fn layers_json(layers: &[saturn_core::permissions::LayerView]) -> Vec<Value> {
+pub(crate) fn layers_json(layers: &[saturn_core::permissions::LayerView]) -> Vec<Value> {
     layers
         .iter()
         .map(saturn_core::permissions::LayerView::to_json)
@@ -109,8 +109,84 @@ async fn create_model(State(kernel): Shared, body: Body) -> Answer {
 }
 
 async fn create_project(State(kernel): Shared, body: Body) -> Answer {
-    // The TypeScript route answers a project it created or found alike.
-    ok(kernel.create_project(&body_of(body)).await?)
+    created(kernel.create_project(&body_of(body)).await?)
+}
+
+async fn list_projects(State(kernel): Shared) -> Answer {
+    ok(kernel.list_projects().await?)
+}
+
+async fn update_agent(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel.update_agent(&id, &body_of(body)).await?)
+}
+
+async fn delete_agent(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.delete_agent(&id).await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// "Always allow" on a waiting card: saves an allow rule for that tool where the user chose, then approves the call.
+async fn allow_always(
+    State(kernel): Shared,
+    Path((id, action_id)): Path<(String, String)>,
+    body: Body,
+) -> Answer {
+    let run = kernel.get_run(&id)?;
+    let action = run
+        .get("actions")
+        .and_then(Value::as_array)
+        .and_then(|actions| {
+            actions.iter().find(|item| {
+                item.get("id").and_then(Value::as_str) == Some(&action_id)
+                    && item.get("status").and_then(Value::as_str) == Some("waiting_approval")
+            })
+        })
+        .ok_or_else(|| CoreError::new(409, "This approval is no longer waiting"))?;
+    let body = body_of(body);
+    let default_scope = json!("project");
+    let chosen = body.get("scope").unwrap_or(&default_scope);
+    let scope = scope_of(Some(chosen))?;
+    let tool = action.get("toolId").and_then(Value::as_str).unwrap_or("");
+    let given_pattern = saturn_domain::js::trim(given(&body, "pattern").unwrap_or(""));
+    let arguments = action
+        .get("arguments")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let pattern = if given_pattern.is_empty() {
+        suggested_pattern(tool, &arguments)
+    } else {
+        given_pattern.to_owned()
+    };
+    let project = kernel.thread_project(&run);
+    if scope == Scope::Project && project.is_none() {
+        return Err(CoreError::new(
+            400,
+            "This chat is not in a project; choose Everywhere or This agent.",
+        )
+        .into());
+    }
+    let agent = run.get("agentId").and_then(Value::as_str);
+    let rule = json!({ "tool": tool, "pattern": pattern, "effect": "allow" });
+    kernel
+        .add_permission_rule(scope, &rule, project.as_deref(), agent)
+        .await?;
+    kernel.decide(&id, &action_id, true).await?;
+    ok(json!({ "ok": true, "rule": rule, "scope": chosen }))
+}
+
+/// An image the user attached to a message, for the chat to show.
+async fn run_image(State(kernel): Shared, Path((id, index)): Path<(String, usize)>) -> Answer {
+    let run = kernel.get_run(&id)?;
+    let relative = run
+        .get("inputImages")
+        .and_then(|images| images.get(index))
+        .and_then(Value::as_str)
+        .ok_or_else(|| CoreError::new(404, "This message has no such image"))?;
+    let (kind, bytes) = saturn_core::run_images::read_image(kernel.store.root(), relative)
+        .await
+        .ok_or_else(|| CoreError::new(404, "The image file is gone"))?;
+    Ok(([(axum::http::header::CONTENT_TYPE, kind)], bytes).into_response())
 }
 
 async fn list_threads(State(kernel): Shared, Path(id): Path<String>) -> Answer {
@@ -435,7 +511,10 @@ async fn run_events(State(kernel): Shared, Path(id): Path<String>) -> Answer {
 pub fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
         .route("/agents", get(list_agents).post(create_agent))
-        .route("/agents/{id}", get(get_agent))
+        .route(
+            "/agents/{id}",
+            get(get_agent).patch(update_agent).delete(delete_agent),
+        )
         .route("/agents/{id}/messages", get(agent_messages))
         .route(
             "/agents/{id}/threads",
@@ -443,7 +522,7 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         )
         .route("/agents/{id}/runs", post(start_run))
         .route("/connections/models", get(list_models).post(create_model))
-        .route("/projects", post(create_project))
+        .route("/projects", get(list_projects).post(create_project))
         .route(
             "/threads/{id}",
             axum::routing::patch(rename_thread).delete(delete_thread),
@@ -460,6 +539,11 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/tasks", get(pending_tasks))
         .route("/runs", get(recent_runs))
         .route("/runs/{id}", get(get_run).patch(revise_run))
+        .route(
+            "/runs/{id}/actions/{action}/allow-always",
+            post(allow_always),
+        )
+        .route("/runs/{id}/images/{index}", get(run_image))
         .route("/runs/{id}/stop", post(stop_run))
         .route("/runs/{id}/wake", post(wake_run))
         .route("/runs/{id}/events", get(run_events))

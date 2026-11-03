@@ -22,6 +22,11 @@ static SERVERS: LazyLock<Vec<Value>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("builtin-servers.json")).expect("this file is valid JSON")
 });
 
+/// One of Saturn's own servers as it ships.
+pub(crate) fn builtin_server(id: &str) -> Value {
+    server(id)
+}
+
 fn server(id: &str) -> Value {
     by_id(&SERVERS, id)
         .cloned()

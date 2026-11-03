@@ -16,8 +16,11 @@ getrandom = { version = "0.3", features = ["std"] }
 saturn-core = { path = "../saturn-core" }
 saturn-domain = { path = "../saturn-domain" }
 saturn-store = { path = "../saturn-store" }
+saturn-tools = { path = "../saturn-tools" }
+regex = "1"
 serde = "1"
 serde_json = { version = "1", features = ["preserve_order"] }
 subtle = "2"
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1", features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = "0.1"
+url = "2"

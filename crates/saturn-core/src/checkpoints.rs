@@ -535,6 +535,47 @@ impl Kernel {
         Ok(())
     }
 
+    /// The private snapshots of folders outside git: which folder, how much disk each takes.
+    pub async fn snapshot_folders(&self) -> Value {
+        let mut folders = Vec::new();
+        if let Ok(mut entries) = tokio::fs::read_dir(self.folders_dir()).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if !valid_snapshot_id(&name) {
+                    continue;
+                }
+                let folder = read_bytes(&entry.path().join("saturn-folder"))
+                    .await
+                    .map(|bytes| String::from_utf8_lossy(&bytes).into_owned());
+                folders.push(
+                    json!({ "id": name, "folder": folder, "bytes": size_of(&entry.path()).await }),
+                );
+            }
+        }
+        let bytes = |item: &Value| item["bytes"].as_u64().unwrap_or(0);
+        folders.sort_by_key(|item| std::cmp::Reverse(bytes(item)));
+        let total: u64 = folders.iter().map(bytes).sum();
+        json!({ "folders": folders, "bytes": total })
+    }
+
+    /// Deletes one folder's private snapshots (or all). Earlier runs keep their own copies, so their changes can still be
+    /// reverted; the folder's next command takes a fresh snapshot.
+    pub async fn delete_snapshot_folders(&self, id: Option<&str>) -> Result<(), CoreError> {
+        let target = match id {
+            Some(id) if !valid_snapshot_id(id) => {
+                return Err(CoreError::new(404, "No such snapshot folder"));
+            }
+            Some(id) => self.folders_dir().join(id),
+            None => self.folders_dir(),
+        };
+        match tokio::fs::remove_dir_all(&target).await {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error.into()),
+            _ => {}
+        }
+        locked(&self.too_big).clear();
+        Ok(())
+    }
+
     /// A private git repository for a folder outside git, in Saturn's data; its index makes repeat snapshots fast.
     async fn shadow_snapshot(&self, root: &Path) -> Option<CommandSnapshot> {
         if locked(&self.too_big)
@@ -1123,6 +1164,36 @@ async fn shadow_tree(root: &Path, git_dir: &Path) -> Result<String, GitFailure> 
     }
     let tree = git(root, &["write-tree"], &env, Some(SHADOW_TIMEOUT)).await?;
     Ok(js::trim(&String::from_utf8_lossy(&tree)).to_owned())
+}
+
+/// A snapshot folder's name: 16 hex digits, so a request cannot name anything else.
+fn valid_snapshot_id(id: &str) -> bool {
+    id.len() == 16
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+/// Bytes a folder takes on disk, its files counted recursively.
+async fn size_of(folder: &Path) -> u64 {
+    let mut total = 0;
+    let mut pending = vec![folder.to_path_buf()];
+    while let Some(current) = pending.pop() {
+        let Ok(mut entries) = tokio::fs::read_dir(&current).await else {
+            continue;
+        };
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let Ok(kind) = entry.file_type().await else {
+                continue;
+            };
+            if kind.is_dir() {
+                pending.push(entry.path());
+            } else if kind.is_file() {
+                total += entry.metadata().await.map_or(0, |info| info.len());
+            }
+        }
+    }
+    total
 }
 
 fn assert_idle(run: &Value) -> Result<(), CoreError> {

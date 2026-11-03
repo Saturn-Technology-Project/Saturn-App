@@ -1,12 +1,203 @@
 //! Local agents and the model connections they use.
+use std::collections::BTreeMap;
+use std::sync::LazyLock;
+
+use saturn_domain::js;
 use saturn_domain::llm::{llm_provider, runs_on_plan};
 use saturn_domain::new_id;
 use saturn_llm::{Effort, ModelConnection};
 use serde_json::{Map, Value, json};
+use sha2::{Digest, Sha256};
+use url::Url;
 
-use crate::builtins::{GENERAL_SKILLS_ID, with_general_skills};
-use crate::records::{by_id, strings, text};
+use crate::builtins::{
+    AUTOMATIONS_ID, COMPUTER_USE_ID, GENERAL_SKILLS_ID, ORIGIN_ID, builtin_server,
+    with_general_skills,
+};
+use crate::records::{by_id, by_id_mut, remove, strings, text};
 use crate::{CoreError, Kernel, log};
+
+/// The providers with the models the settings page offers. A test in `runtime/test` keeps this like `domain/llm/catalog.ts`.
+static PROVIDERS: LazyLock<Value> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("llm-providers.json")).expect("this file is valid JSON")
+});
+
+/// The providers, for the settings page.
+pub fn llm_providers() -> &'static Value {
+    &PROVIDERS
+}
+
+/// The name the provider's list gives a model.
+pub(crate) fn known_label(provider: &str, model: &str) -> Option<&'static str> {
+    let listed = PROVIDERS
+        .as_array()?
+        .iter()
+        .find(|item| text(item, "id") == provider)?;
+    let found = listed
+        .get("models")?
+        .as_array()?
+        .iter()
+        .find(|item| text(item, "id") == model)?;
+    Some(text(found, "label"))
+}
+
+/// Where a local MCP server's environment variables are kept: the encrypted secrets file, never state.json.
+pub fn env_secret_key(id: &str) -> String {
+    format!("mcp:{id}:env")
+}
+
+/// Host only: MCP and knowledge source URLs can carry tokens in their path or query.
+fn host_of(url: &str) -> String {
+    Url::parse(url)
+        .ok()
+        .and_then(|parsed| {
+            let host = parsed.host_str()?.to_owned();
+            Some(
+                parsed
+                    .port()
+                    .map_or(host.clone(), |port| format!("{host}:{port}")),
+            )
+        })
+        .unwrap_or_else(|| "(invalid url)".to_owned())
+}
+
+/// An MCP server is reached by URL, so adding one by address never makes Saturn start a program. Anything else (a command line,
+/// a file: or stdio: address) is refused.
+pub fn mcp_endpoint(url: &str) -> Result<String, CoreError> {
+    let value = js::trim(url);
+    let parsed = Url::parse(value).map_err(|_| {
+        CoreError::new(400, "An MCP server is added by its URL (https://…). Saturn does not start local programs as MCP servers.")
+    })?;
+    if !matches!(parsed.scheme(), "https" | "http") {
+        return Err(CoreError::new(
+            400,
+            format!(
+                "MCP servers are reached over HTTP(S), not {}. Saturn does not start local programs as MCP servers.",
+                parsed.scheme()
+            ),
+        ));
+    }
+    Ok(value.to_owned())
+}
+
+/// A tool as saved, from what a request says about it.
+fn route(server: &str, tool: &Value) -> Value {
+    json!({
+        "toolId": text(tool, "toolId"),
+        "serverId": server,
+        "description": text(tool, "description"),
+        "inputSchema": { "type": "object", "properties": {} },
+        "environments": ["production"],
+    })
+}
+
+fn routes(server: &str, input: &Value) -> Vec<Value> {
+    input
+        .get("tools")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|tool| route(server, tool))
+        .collect()
+}
+
+/// What a program, its arguments and its variables are, checked: a local MCP server's command.
+pub fn parse_command(input: &Value) -> Result<(Value, BTreeMap<String, String>), CoreError> {
+    let program = js::trim(text(input, "program"));
+    if program.is_empty() {
+        return Err(CoreError::new(
+            400,
+            "A local MCP server needs the program to run, for example npx or uvx.",
+        ));
+    }
+    if program.contains(['\r', '\n', '\0']) {
+        return Err(CoreError::new(
+            400,
+            "The program name contains a line break.",
+        ));
+    }
+    let args: Vec<&Value> = input
+        .get("args")
+        .and_then(Value::as_array)
+        .map_or(Vec::new(), |items| items.iter().collect());
+    let mut texts = Vec::new();
+    for arg in args {
+        let arg = arg
+            .as_str()
+            .ok_or_else(|| CoreError::new(400, "Arguments must be text."))?;
+        if arg.contains('\0') {
+            return Err(CoreError::new(400, "An argument contains a NUL character."));
+        }
+        texts.push(arg);
+    }
+    let mut env = BTreeMap::new();
+    for (name, value) in input
+        .get("env")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flatten()
+    {
+        let valid = name.chars().enumerate().all(|(index, character)| {
+            character == '_'
+                || character.is_ascii_alphabetic()
+                || (index > 0 && character.is_ascii_digit())
+        });
+        if name.is_empty() || !valid {
+            return Err(CoreError::new(
+                400,
+                format!("\"{name}\" is not a valid environment variable name."),
+            ));
+        }
+        let value = value
+            .as_str()
+            .ok_or_else(|| CoreError::new(400, format!("The value of {name} must be text.")))?;
+        env.insert(name.clone(), value.to_owned());
+    }
+    let names: Vec<&String> = env.keys().collect();
+    Ok((
+        json!({ "program": program, "args": texts, "env": names }),
+        env,
+    ))
+}
+
+/// The fingerprint the user approves: program, arguments, and every environment variable with its value.
+pub fn command_fingerprint(command: &Value, env: &BTreeMap<String, String>) -> String {
+    let entries: Vec<Value> = env
+        .iter()
+        .map(|(name, value)| json!([name, value]))
+        .collect();
+    let digest = Sha256::digest(
+        json!([command.get("program"), command.get("args"), entries])
+            .to_string()
+            .as_bytes(),
+    );
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// How the command reads in a terminal, for the approval card. Arguments with spaces or quotes are quoted.
+pub fn command_line(command: &Value) -> String {
+    let quote = |part: &str| {
+        let plain = !part.is_empty()
+            && part.chars().all(|character| {
+                character.is_ascii_alphanumeric() || "_@%+=:,./-".contains(character)
+            });
+        if plain {
+            part.to_owned()
+        } else {
+            format!("'{}'", part.replace('\'', "'\\''"))
+        }
+    };
+    let mut parts = vec![quote(text(command, "program"))];
+    parts.extend(strings(command, "args").iter().map(|arg| quote(arg)));
+    parts.join(" ")
+}
+
+/// A readable placeholder for the url every MCP connection has.
+fn command_address(command: &Value) -> String {
+    let program = text(command, "program");
+    let name = program.rsplit(['/', '\\']).next().unwrap_or(program);
+    format!("stdio:{name}")
+}
 
 /// A saved model as the broker reads it. An effort it does not know counts as none.
 pub fn connection_of(model: &Value) -> ModelConnection {
@@ -134,13 +325,16 @@ impl Kernel {
         };
         let mut fields = Map::new();
         fields.insert("id".to_owned(), new_id("mdl")?.into());
-        let name = named("name");
-        fields.insert(
-            "name".to_owned(),
-            if name.is_empty() { &model_id } else { &name }
-                .as_str()
-                .into(),
-        );
+        let given = named("name");
+        let known = known_label(provider.id, &model_id);
+        // A subscription model is named apart from the API model of the same name, so the two are never confused.
+        let name = match known {
+            _ if !given.is_empty() => given,
+            Some(label) if provider.id == "claude-code" => format!("{label} (via Claude Code)"),
+            Some(label) if !label.is_empty() => label.to_owned(),
+            _ => model_id.clone(),
+        };
+        fields.insert("name".to_owned(), name.into());
         fields.insert("provider".to_owned(), provider.id.into());
         fields.insert("model".to_owned(), model_id.as_str().into());
         fields.insert(
@@ -189,5 +383,523 @@ impl Kernel {
         self.store
             .read(|state| by_id(&state.models, text(agent, "modelConnectionId")).cloned())
             .ok_or_else(|| CoreError::new(409, "Agent has no model connection"))
+    }
+
+    /// Changes an agent. Its permission rules are edited through /permissions, never through this.
+    pub async fn update_agent(&self, id: &str, patch: &Value) -> Result<Value, CoreError> {
+        self.get_agent(id)?;
+        let changed = self
+            .store
+            .update(|state| {
+                let agent = by_id_mut(&mut state.agents, id)?;
+                let fields = [
+                    "name",
+                    "description",
+                    "instructions",
+                    "responseStyle",
+                    "autonomy",
+                    "temperature",
+                    "maxOutput",
+                    "status",
+                    "ragConnectionIds",
+                ];
+                for key in fields {
+                    if let Some(value) = patch.get(key).filter(|value| !value.is_null()) {
+                        agent[key] = value.clone();
+                    }
+                }
+                agent["canEdit"] = true.into();
+                // Null clears the model; only a missing field keeps it.
+                if let Some(model) = patch.get("modelConnectionId") {
+                    agent["modelConnectionId"] = model.clone();
+                }
+                if patch.get("mcpConnectionIds").is_some_and(Value::is_array) {
+                    agent["mcpConnectionIds"] =
+                        with_general_skills(strings(patch, "mcpConnectionIds")).into();
+                }
+                Some(agent.clone())
+            })
+            .await?;
+        let agent = changed.ok_or_else(|| CoreError::new(404, "Agent not found"))?;
+        // Field names only: instructions and descriptions can be long or private.
+        let names: Vec<&str> = patch
+            .as_object()
+            .into_iter()
+            .flatten()
+            .map(|(key, _)| key.as_str())
+            .collect();
+        log(
+            "catalog",
+            "info",
+            &format!(
+                "Agent \"{}\" updated: {}",
+                text(&agent, "name"),
+                names.join(", ")
+            ),
+        );
+        Ok(agent)
+    }
+
+    /// Deletes an agent with its runs, chats and automations.
+    pub async fn delete_agent(&self, id: &str) -> Result<(), CoreError> {
+        let agent = self.get_agent(id)?;
+        self.store
+            .update(|state| {
+                state.agents.retain(|item| text(item, "id") != id);
+                state.runs.retain(|item| text(item, "agentId") != id);
+                state.threads.retain(|item| text(item, "agentId") != id);
+                state.automations.retain(|item| text(item, "agentId") != id);
+            })
+            .await?;
+        log(
+            "catalog",
+            "info",
+            &format!("Agent \"{}\" deleted", text(&agent, "name")),
+        );
+        Ok(())
+    }
+
+    /// Changes a model connection. A new key also becomes the provider's saved key.
+    pub async fn update_model(&self, id: &str, patch: &Value) -> Result<Value, CoreError> {
+        let secret = text(patch, "secret");
+        let updated = self
+            .store
+            .update(|state| {
+                let model = by_id_mut(&mut state.models, id)?;
+                for key in ["name", "provider", "baseUrl"] {
+                    if let Some(value) = patch.get(key).filter(|value| value.is_string()) {
+                        model[key] = value.clone();
+                    }
+                }
+                let chosen = js::trim(text(patch, "model"));
+                if !chosen.is_empty() {
+                    model["model"] = chosen.into();
+                }
+                if !secret.is_empty() {
+                    model["hasSecret"] = true.into();
+                }
+                match patch.get("effort") {
+                    Some(Value::Null) => remove(model, "effort"),
+                    Some(effort) if serde_json::from_value::<Effort>(effort.clone()).is_ok() => {
+                        model["effort"] = effort.clone()
+                    }
+                    _ => {}
+                }
+                Some(model.clone())
+            })
+            .await?;
+        let updated = updated.ok_or_else(|| CoreError::new(404, "Model connection not found"))?;
+        if !secret.is_empty() && runs_on_plan(text(&updated, "provider")) {
+            return Err(CoreError::new(
+                400,
+                "This model runs on your own plan through its official program and takes no API key.",
+            ));
+        }
+        if !secret.is_empty() {
+            self.broker
+                .save_key(&connection_of(&updated), secret)
+                .await?;
+        }
+        log(
+            "catalog",
+            "info",
+            &format!("Model {} updated", text(&updated, "name")),
+        );
+        Ok(self.with_key(&updated))
+    }
+
+    /// A local server's environment variables, from the secrets file.
+    pub(crate) fn command_env(&self, id: &str) -> BTreeMap<String, String> {
+        self.store
+            .secret(&env_secret_key(id))
+            .and_then(|saved| serde_json::from_str(&saved).ok())
+            .unwrap_or_default()
+    }
+
+    /// A server with what Settings shows about a local one: its command line, and whether it may run.
+    pub(crate) fn mcp_view(&self, server: &Value) -> Value {
+        let mut view = server.clone();
+        if let Some(command) = server.get("command").filter(|command| !command.is_null()) {
+            let print = command_fingerprint(command, &self.command_env(text(server, "id")));
+            view["commandLine"] = command_line(command).into();
+            view["approval"] = if text(server, "approvedCommand") == print {
+                "approved"
+            } else {
+                "needed"
+            }
+            .into();
+            view["commandFingerprint"] = print.into();
+        }
+        view
+    }
+
+    /// The connections of one kind. Models say whether they have a key, never which.
+    pub async fn list_connections(&self, kind: &str) -> Result<Vec<Value>, CoreError> {
+        match kind {
+            "models" => Ok(self.list_models()),
+            "mcp" => {
+                self.ensure_builtins().await?;
+                let servers = self.store.read(|state| state.mcp.clone());
+                Ok(servers.iter().map(|server| self.mcp_view(server)).collect())
+            }
+            "rag" => Ok(self.store.read(|state| state.rag.clone())),
+            _ => Err(CoreError::new(404, "Unknown connection kind")),
+        }
+    }
+
+    /// Adds an MCP server by URL, or a local one, which waits until the user has allowed its exact command.
+    pub async fn create_mcp(&self, input: &Value) -> Result<Value, CoreError> {
+        let id = new_id("mcp")?;
+        let tools = routes(&id, input);
+        if let Some(command) = input.get("command").filter(|command| !command.is_null()) {
+            let (command, env) = parse_command(command)?;
+            if !env.is_empty() {
+                self.store
+                    .put_secret(&env_secret_key(&id), &json!(env).to_string())
+                    .await?;
+            }
+            let given = js::trim(text(input, "name"));
+            let program = text(&command, "program");
+            let name = if given.is_empty() {
+                program.rsplit(['/', '\\']).next().unwrap_or(program)
+            } else {
+                given
+            };
+            let connection = json!({ "id": id, "name": name, "url": command_address(&command), "command": command, "tools": tools, "origin": "local" });
+            let saved = connection.clone();
+            self.store.update(|state| state.mcp.push(saved)).await?;
+            log(
+                "catalog",
+                "info",
+                &format!(
+                    "Local MCP server {name} added ({}); it waits for approval before it starts",
+                    command_line(&command)
+                ),
+            );
+            return Ok(self.mcp_view(&connection));
+        }
+        let url = mcp_endpoint(text(input, "url"))?;
+        let connection = json!({ "id": id, "name": text(input, "name"), "url": url, "tools": tools, "origin": "local" });
+        let saved = connection.clone();
+        self.store.update(|state| state.mcp.push(saved)).await?;
+        log(
+            "catalog",
+            "info",
+            &format!(
+                "MCP server {} added at {} with {} tools",
+                text(&connection, "name"),
+                host_of(&url),
+                connection["tools"].as_array().map_or(0, Vec::len)
+            ),
+        );
+        Ok(connection)
+    }
+
+    /// Allows a local server's command to run. `fingerprint` is the one Settings showed the user; if the command changed since,
+    /// nothing is allowed and the user is asked to look again.
+    pub async fn approve_mcp(&self, id: &str, fingerprint: &str) -> Result<Value, CoreError> {
+        let server = self
+            .store
+            .read(|state| by_id(&state.mcp, id).cloned())
+            .ok_or_else(|| CoreError::new(404, "MCP connection not found"))?;
+        let command = server
+            .get("command")
+            .filter(|command| !command.is_null())
+            .ok_or_else(|| CoreError::new(400, "Only local MCP servers need approval"))?;
+        let current = command_fingerprint(command, &self.command_env(id));
+        if fingerprint != current {
+            return Err(CoreError::new(
+                409,
+                "The command changed since you looked at it. Review it again before allowing it.",
+            ));
+        }
+        let updated = self
+            .store
+            .update(|state| {
+                let item = by_id_mut(&mut state.mcp, id)?;
+                item["approvedCommand"] = current.as_str().into();
+                Some(item.clone())
+            })
+            .await?
+            .unwrap_or(server.clone());
+        log(
+            "catalog",
+            "info",
+            &format!(
+                "Allowed the local MCP server {} to run: {}",
+                text(&server, "name"),
+                command_line(command)
+            ),
+        );
+        Ok(self.mcp_view(&updated))
+    }
+
+    /// Changes an MCP server. A new command (or new variables) starts over: the old approval no longer applies.
+    pub async fn update_mcp(&self, id: &str, patch: &Value) -> Result<Value, CoreError> {
+        if id == GENERAL_SKILLS_ID
+            && ["name", "url", "tools"]
+                .iter()
+                .any(|key| patch.get(*key).is_some_and(|value| !value.is_null()))
+        {
+            return Err(CoreError::new(403, "General Skills is built in"));
+        }
+        let url = patch
+            .get("url")
+            .filter(|url| !url.is_null())
+            .map(|url| mcp_endpoint(url.as_str().unwrap_or("")))
+            .transpose()?;
+        let changed = patch
+            .get("command")
+            .filter(|command| !command.is_null())
+            .map(parse_command)
+            .transpose()?;
+        if let Some((_, env)) = &changed {
+            let local = self.store.read(|state| {
+                by_id(&state.mcp, id).is_some_and(|server| {
+                    server
+                        .get("command")
+                        .is_some_and(|command| !command.is_null())
+                })
+            });
+            if !local {
+                return Err(CoreError::new(
+                    400,
+                    "This MCP server is reached by its URL; add a local server separately.",
+                ));
+            }
+            if env.is_empty() {
+                self.store.delete_secret(&env_secret_key(id)).await?;
+            } else {
+                self.store
+                    .put_secret(&env_secret_key(id), &json!(env).to_string())
+                    .await?;
+            }
+        }
+        let updated = self
+            .store
+            .update(|state| {
+                let current = by_id_mut(&mut state.mcp, id)?;
+                if let Some(name) = patch.get("name").filter(|name| name.is_string()) {
+                    current["name"] = name.clone();
+                }
+                if let Some(url) = url {
+                    current["url"] = url.into();
+                }
+                if let Some((command, _)) = changed {
+                    current["url"] = command_address(&command).into();
+                    current["command"] = command;
+                    remove(current, "approvedCommand");
+                }
+                if let Some(disabled) = patch
+                    .get("disabledTools")
+                    .filter(|disabled| disabled.is_array())
+                {
+                    current["disabledTools"] = disabled.clone();
+                }
+                if patch.get("tools").is_some_and(Value::is_array) {
+                    current["tools"] = routes(id, patch).into();
+                }
+                Some(current.clone())
+            })
+            .await?
+            .ok_or_else(|| CoreError::new(404, "MCP connection not found"))?;
+        log(
+            "catalog",
+            "info",
+            &format!("MCP server {} updated", text(&updated, "name")),
+        );
+        Ok(self.mcp_view(&updated))
+    }
+
+    /// Removes an MCP server from every agent, with its saved environment.
+    pub async fn delete_mcp_server(&self, id: &str) -> Result<(), CoreError> {
+        if [GENERAL_SKILLS_ID, COMPUTER_USE_ID, ORIGIN_ID].contains(&id) {
+            return Err(CoreError::new(403, "Built-in server cannot be removed"));
+        }
+        let server = self
+            .store
+            .read(|state| by_id(&state.mcp, id).cloned())
+            .ok_or_else(|| CoreError::new(404, "MCP server not found"))?;
+        self.store
+            .update(|state| {
+                state.mcp.retain(|item| text(item, "id") != id);
+                for agent in &mut state.agents {
+                    let kept: Vec<String> = strings(agent, "mcpConnectionIds")
+                        .into_iter()
+                        .filter(|item| item != id)
+                        .collect();
+                    agent["mcpConnectionIds"] = kept.into();
+                }
+            })
+            .await?;
+        self.store.delete_secret(&env_secret_key(id)).await?;
+        log(
+            "catalog",
+            "info",
+            &format!(
+                "MCP server {} ({}) removed and detached from all agents",
+                text(&server, "name"),
+                host_of(text(&server, "url"))
+            ),
+        );
+        Ok(())
+    }
+
+    /// Removes a connection no agent uses.
+    pub async fn delete_connection(&self, kind: &str, id: &str) -> Result<(), CoreError> {
+        if !matches!(kind, "models" | "mcp" | "rag") {
+            return Err(CoreError::new(404, "Unknown connection kind"));
+        }
+        let used = self.store.read(|state| {
+            state.agents.iter().any(|agent| match kind {
+                "models" => text(agent, "modelConnectionId") == id,
+                "mcp" => strings(agent, "mcpConnectionIds")
+                    .iter()
+                    .any(|item| item == id),
+                _ => strings(agent, "ragConnectionIds")
+                    .iter()
+                    .any(|item| item == id),
+            })
+        });
+        if used {
+            return Err(CoreError::new(409, "Connection is still used by an agent"));
+        }
+        self.store
+            .update(|state| {
+                let list = match kind {
+                    "models" => &mut state.models,
+                    "mcp" => &mut state.mcp,
+                    _ => &mut state.rag,
+                };
+                list.retain(|item| text(item, "id") != id);
+                // The editor's completions turn off rather than point at a model that is gone.
+                if kind == "models"
+                    && state
+                        .settings
+                        .get("completionModelId")
+                        .and_then(Value::as_str)
+                        == Some(id)
+                {
+                    state
+                        .settings
+                        .insert("completionModelId".to_owned(), Value::Null);
+                }
+            })
+            .await?;
+        // The provider's shared key stays, so other models of that provider keep working.
+        if kind == "models" {
+            self.store.delete_secret(id).await?;
+        }
+        Ok(())
+    }
+
+    /// Asks a server what tools it has now. The built-in ones are their own list.
+    pub async fn discover_mcp(&self, id: &str) -> Result<Value, CoreError> {
+        if id == GENERAL_SKILLS_ID {
+            return Err(CoreError::new(403, "General Skills is built in"));
+        }
+        let server = self
+            .store
+            .read(|state| by_id(&state.mcp, id).cloned())
+            .ok_or_else(|| CoreError::new(404, "MCP connection not found"))?;
+        let tools = if [COMPUTER_USE_ID, ORIGIN_ID, AUTOMATIONS_ID].contains(&id) {
+            builtin_server(id)["tools"].clone()
+        } else {
+            return Err(CoreError::new(
+                409,
+                format!(
+                    "Listing the tools of {} is not in the Rust runtime yet.",
+                    text(&server, "name")
+                ),
+            ));
+        };
+        Ok(self
+            .store
+            .update(|state| {
+                let current = by_id_mut(&mut state.mcp, id)?;
+                current["tools"] = tools;
+                Some(current.clone())
+            })
+            .await?
+            .unwrap_or(Value::Null))
+    }
+
+    pub async fn create_rag(&self, input: &Value) -> Result<Value, CoreError> {
+        let connection =
+            json!({ "id": new_id("rag")?, "name": text(input, "name"), "url": text(input, "url") });
+        let saved = connection.clone();
+        self.store.update(|state| state.rag.push(saved)).await?;
+        log(
+            "catalog",
+            "info",
+            &format!(
+                "Knowledge source {} added at {}",
+                text(&connection, "name"),
+                host_of(text(&connection, "url"))
+            ),
+        );
+        Ok(connection)
+    }
+
+    pub async fn update_rag(&self, id: &str, patch: &Value) -> Result<Value, CoreError> {
+        self.store
+            .update(|state| {
+                let current = by_id_mut(&mut state.rag, id)?;
+                for key in ["name", "url"] {
+                    if let Some(value) = patch.get(key).filter(|value| value.is_string()) {
+                        current[key] = value.clone();
+                    }
+                }
+                Some(current.clone())
+            })
+            .await?
+            .ok_or_else(|| CoreError::new(404, "RAG connection not found"))
+    }
+
+    /// The models LM Studio has loaded; an empty list while it is not running, since the settings form polls this.
+    pub async fn lm_studio_models(&self, base_url: &str) -> Vec<Value> {
+        let url = if base_url.is_empty() {
+            "http://127.0.0.1:1234"
+        } else {
+            base_url
+        };
+        let Ok(root) = saturn_llm::lmstudio::openai_compatible_url(url) else {
+            return Vec::new();
+        };
+        let root = root.strip_suffix("/v1").unwrap_or(&root);
+        let timeout = std::time::Duration::from_secs(4);
+        let http = self.broker.http();
+        let data = |reply: Option<Value>| {
+            reply.and_then(|body| body.get("data").and_then(Value::as_array).cloned())
+        };
+        let native = data(
+            http.get_json(&format!("{root}/api/v0/models"), timeout)
+                .await
+                .ok()
+                .flatten(),
+        )
+        .map(|items| {
+            items
+                .into_iter()
+                .filter(|item| matches!(text(item, "type"), "llm" | "vlm"))
+                .collect::<Vec<_>>()
+        });
+        let models = match native {
+            Some(models) => models,
+            None => data(
+                http.get_json(&format!("{root}/v1/models"), timeout)
+                    .await
+                    .ok()
+                    .flatten(),
+            )
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|item| !text(item, "id").to_lowercase().contains("embed"))
+            .collect(),
+        };
+        models
+            .iter()
+            .map(|item| json!({ "id": text(item, "id"), "label": text(item, "id") }))
+            .collect()
     }
 }

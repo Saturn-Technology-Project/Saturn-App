@@ -271,3 +271,67 @@ pub fn price_call(call: &CallToPrice) -> Option<PricedCall> {
             / 1_000_000.0,
     })
 }
+
+/// A model's price in words, for the usage page; `None` when it has no list price.
+pub fn describe_price(provider: &str, model: &str, at: i64) -> Option<String> {
+    if provider == "lmstudio" {
+        return Some("Local · free".to_owned());
+    }
+    let price = pricing(provider, model)?;
+    let money = |value: f64| {
+        if value < 0.1 {
+            format!("${value:.3}")
+        } else {
+            format!("${value:.2}")
+        }
+    };
+    let pair = |rate: &Rate| {
+        let cached = rate.cached.map_or(String::new(), |cached| {
+            format!(" ({} cached)", money(cached))
+        });
+        format!(
+            "{} in{cached} / {} out",
+            money(rate.input),
+            money(rate.output)
+        )
+    };
+    let dated = price.until.as_ref().map(|((year, month, day), after)| {
+        (
+            days_from_civil(*year, *month, *day) * 86_400_000,
+            (*year, *month, *day),
+            after,
+        )
+    });
+    let changed = dated.as_ref().is_some_and(|(from, _, _)| at >= *from);
+    let current = match &dated {
+        Some((_, _, after)) if changed => after,
+        _ => &price.rate,
+    };
+    let mut notes = Vec::new();
+    if let Some((_, (year, month, day), after)) = dated.as_ref().filter(|_| !changed) {
+        notes.push(format!(
+            "{} from {year:04}-{month:02}-{day:02}",
+            pair(after)
+        ));
+    }
+    if let Some((above, higher)) = &price.long_context {
+        notes.push(format!(
+            "{} above {}K input",
+            pair(higher),
+            (*above as f64 / 1000.0).round()
+        ));
+    }
+    if let Some(peak) = &price.peak {
+        return Some(format!(
+            "{} off-peak · {} peak (UTC 01-04, 06-10 weekdays) · per 1M tokens",
+            pair(&price.rate),
+            pair(peak)
+        ));
+    }
+    let extra = if notes.is_empty() {
+        String::new()
+    } else {
+        format!(" · {}", notes.join(" · "))
+    };
+    Some(format!("{} per 1M tokens{extra}", pair(current)))
+}

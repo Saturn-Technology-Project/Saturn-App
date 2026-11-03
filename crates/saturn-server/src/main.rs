@@ -3,6 +3,7 @@
 mod auth;
 mod guards;
 mod routes;
+mod routes_admin;
 
 use std::env;
 use std::path::PathBuf;
@@ -74,11 +75,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let store = Arc::new(FileStore::load(&directory).await?);
     let kernel = Kernel::new(store)?;
     kernel.ensure_builtins().await?;
+    if let Some(level) = kernel.settings().get("logging").and_then(Value::as_str) {
+        saturn_core::logger::set_level(level);
+    }
     kernel.recover_interrupted().await?;
     kernel.sweep_worktrees().await;
     start_wakeups(Arc::clone(&kernel));
 
-    let app = routes::router(kernel)
+    let app = routes::router(Arc::clone(&kernel))
+        .merge(routes_admin::router(Arc::clone(&kernel)))
         .route("/health", get(health))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn_with_state(token, guards::authenticate))

@@ -24,9 +24,44 @@ async fn read(file: &Path) -> String {
     }
 }
 
+/// Every file the agents' prompt takes rules from, for the editor.
+pub async fn rule_sources(root: &Path, stored: &str) -> Vec<serde_json::Value> {
+    pieces_of(root, stored)
+        .await
+        .iter()
+        .map(|(path, content)| serde_json::json!({ "path": path, "chars": js::length(content) }))
+        .collect()
+}
+
 /// The rules as prompt text: AGENTS.md, CLAUDE.md, `.saturn/rules/*.md`, `.agents/rules/*.md`, `.cursorrules`, then the rules
 /// saved in Saturn's project settings.
 pub async fn project_rules(root: &Path, stored: &str) -> String {
+    let pieces = pieces_of(root, stored).await;
+    if pieces.is_empty() {
+        return String::new();
+    }
+    let mut room = RULES_BUDGET;
+    let mut parts = Vec::new();
+    for (path, content) in &pieces {
+        if room <= 200 {
+            break;
+        }
+        let body = if js::length(content) > room {
+            format!("{}\n…(truncated)", js::prefix(content, room))
+        } else {
+            content.clone()
+        };
+        room = room.saturating_sub(js::length(&body));
+        parts.push(format!("## {path}\n{body}"));
+    }
+    format!(
+        "# Project rules (the project's instructions for agents; follow them)\n{}",
+        parts.join("\n\n")
+    )
+}
+
+/// Each source of rules and what it holds.
+async fn pieces_of(root: &Path, stored: &str) -> Vec<(String, String)> {
     let mut pieces: Vec<(String, String)> = Vec::new();
     for entry in RULE_FILES {
         let full = root.join(entry);
@@ -60,25 +95,5 @@ pub async fn project_rules(root: &Path, stored: &str) -> String {
     if !stored.is_empty() {
         pieces.push(("Saturn project settings".to_owned(), stored.to_owned()));
     }
-    if pieces.is_empty() {
-        return String::new();
-    }
-    let mut room = RULES_BUDGET;
-    let mut parts = Vec::new();
-    for (path, content) in &pieces {
-        if room <= 200 {
-            break;
-        }
-        let body = if js::length(content) > room {
-            format!("{}\n…(truncated)", js::prefix(content, room))
-        } else {
-            content.clone()
-        };
-        room = room.saturating_sub(js::length(&body));
-        parts.push(format!("## {path}\n{body}"));
-    }
-    format!(
-        "# Project rules (the project's instructions for agents; follow them)\n{}",
-        parts.join("\n\n")
-    )
+    pieces
 }

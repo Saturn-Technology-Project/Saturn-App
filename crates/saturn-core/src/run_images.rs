@@ -168,6 +168,23 @@ pub async fn load_images(root: &Path, paths: &[String]) -> Vec<ImagePart> {
     images
 }
 
+/// A saved image's type and bytes; nothing for a missing file or a path outside the images folder.
+pub async fn read_image(root: &Path, relative: &str) -> Option<(&'static str, Vec<u8>)> {
+    let path = Path::new(relative);
+    let inside = path.starts_with(FOLDER)
+        && path
+            .components()
+            .all(|part| matches!(part, Component::Normal(_)));
+    if !inside {
+        return None;
+    }
+    let kind = path
+        .extension()
+        .and_then(|name| name.to_str())
+        .and_then(mime_type)?;
+    Some((kind, tokio::fs::read(root.join(path)).await.ok()?))
+}
+
 /// Deletes the images of runs that no longer exist.
 pub async fn forget_images(root: &Path, run_ids: &[String]) {
     for id in run_ids {

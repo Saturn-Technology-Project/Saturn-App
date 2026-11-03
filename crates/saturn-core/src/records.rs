@@ -74,6 +74,13 @@ impl Kernel {
         })
     }
 
+    /// The project a run's chat is in.
+    pub fn thread_project(&self, run: &Value) -> Option<String> {
+        self.find_thread(text(run, "threadId"))
+            .map(|thread| text(&thread, "projectId").to_owned())
+            .filter(|id| !id.is_empty())
+    }
+
     pub(crate) fn find_run(&self, id: &str) -> Option<Value> {
         self.store.read(|state| by_id(&state.runs, id).cloned())
     }

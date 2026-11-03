@@ -22,7 +22,7 @@ const OUTPUT_LIMIT: usize = 4000;
 
 impl Kernel {
     /// The command to run for a project, or nothing when verification is off.
-    async fn verify_command(&self, project_id: &str, root: &Path) -> Option<String> {
+    pub(crate) async fn verify_command(&self, project_id: &str, root: &Path) -> Option<String> {
         let setting = self.store.read(|state| {
             by_id(&state.projects, project_id)
                 .map(|project| js::trim(text(project, "verifyCommand")).to_owned())
@@ -44,7 +44,7 @@ impl Kernel {
     }
 
     /// Runs a project's check.
-    async fn run_verification(command: &str, cwd: &Path) -> Value {
+    pub(crate) async fn run_verification(command: &str, cwd: &Path) -> Value {
         let env = process_env();
         let shell = shell_invocation(command, "/bin/sh", Platform::current(), &env);
         let mut variables: Vec<_> = env.into_iter().collect();

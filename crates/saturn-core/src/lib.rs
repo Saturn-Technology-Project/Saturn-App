@@ -12,11 +12,14 @@ use saturn_tools::jobs::JobTable;
 use tokio::sync::Mutex as AsyncMutex;
 use tokio::task::AbortHandle;
 
+pub mod admin;
 pub mod builtins;
 pub mod catalog;
 pub mod checkpoints;
+pub mod context;
 pub mod events;
 pub mod hooks;
+pub mod logger;
 pub mod memory;
 pub mod permissions;
 pub mod projects;
@@ -25,6 +28,7 @@ pub mod rules;
 pub mod run_images;
 pub mod runs;
 pub mod skill_files;
+pub mod usage;
 pub mod verify;
 pub mod worktrees;
 
@@ -71,10 +75,7 @@ impl From<LlmError> for CoreError {
     }
 }
 
-/// Writes one line to the runtime's log. Say which credential was used, never its value.
-pub fn log(service: &str, level: &str, message: &str) {
-    eprintln!("[{service}] {level}: {message}");
-}
+pub use logger::log;
 
 /// A run's background command whose file changes are recorded, against the snapshot taken when it started.
 pub(crate) struct TrackedJob {

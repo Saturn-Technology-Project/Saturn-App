@@ -21,6 +21,7 @@ import { answerCoreCase } from "./core-cases.js";
 import { runCase, type LlmCase } from "./llm-cases.js";
 import { generalSkills, cursorComputerUseSkills, cursorOriginSkills, antigravitySkills } from "../src/domain/builtin.js";
 import { browserSkills } from "../src/domain/browser-tools.js";
+import { LLM_PROVIDERS } from "../src/domain/llm/catalog.js";
 
 type Case = { check: string; tool: string; arguments: Record<string, unknown>; expect: unknown; [key: string]: unknown };
 
@@ -188,4 +189,9 @@ test("the agent loop's cases crates/saturn-domain and crates/saturn-core answer 
 test("crates/saturn-core keeps the same built-in tools", async () => {
   const servers = JSON.parse(await readFile(new URL("../../crates/saturn-core/src/builtin-servers.json", import.meta.url), "utf8")) as unknown;
   assert.deepEqual(servers, JSON.parse(JSON.stringify([generalSkills(), cursorComputerUseSkills(), cursorOriginSkills(), antigravitySkills(), browserSkills()])));
+});
+
+test("crates/saturn-core keeps the same list of providers and models", async () => {
+  const providers = JSON.parse(await readFile(new URL("../../crates/saturn-core/src/llm-providers.json", import.meta.url), "utf8")) as unknown;
+  assert.deepEqual(providers, LLM_PROVIDERS);
 });

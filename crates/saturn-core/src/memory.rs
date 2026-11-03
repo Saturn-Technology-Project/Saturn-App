@@ -118,13 +118,13 @@ impl Kernel {
         self.store.root().join("memory").join(format!("{name}.md"))
     }
 
-    async fn read_memory(&self, scope: &str) -> String {
+    pub async fn read_memory(&self, scope: &str) -> String {
         tokio::fs::read_to_string(self.memory_file(scope))
             .await
             .unwrap_or_default()
     }
 
-    async fn write_memory(&self, scope: &str, content: &str) -> std::io::Result<()> {
+    pub async fn write_memory(&self, scope: &str, content: &str) -> std::io::Result<()> {
         tokio::fs::create_dir_all(self.store.root().join("memory")).await?;
         let body = js::trim_end(content);
         let ending = if js::trim(content).is_empty() {

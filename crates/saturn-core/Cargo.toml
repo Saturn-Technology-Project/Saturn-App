@@ -19,6 +19,7 @@ saturn-tools = { path = "../saturn-tools" }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 sha2 = "0.10"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
+url = "2"
 
 [dev-dependencies]
 axum = "0.8"
