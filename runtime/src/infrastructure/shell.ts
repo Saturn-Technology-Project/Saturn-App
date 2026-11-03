@@ -48,3 +48,13 @@ export function terminalEnv(base: NodeJS.ProcessEnv, platform: NodeJS.Platform =
   const folders = [base.PATH || "", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"];
   return { ...base, PATH: folders.join(path.posix.delimiter), TERM: "xterm-256color" };
 }
+
+/**
+ * How to open a terminal window in a folder. On Windows the folder is the program's working directory and never part of
+ * a command line, where cmd would read an `&` in the folder's name as a second command.
+ */
+export function terminalWindow(folder: string, platform: NodeJS.Platform = process.platform): { command: string; args: string[]; cwd?: string } {
+  if (platform === "darwin") return { command: "open", args: ["-a", "Terminal", folder] };
+  if (platform === "win32") return { command: "cmd.exe", args: ["/c", "start", "cmd.exe"], cwd: folder };
+  return { command: "x-terminal-emulator", args: ["--working-directory", folder] };
+}

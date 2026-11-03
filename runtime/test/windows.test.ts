@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isSensitiveOperation } from "../src/domain/policies.js";
-import { commandEnv, shellInvocation, terminalEnv } from "../src/infrastructure/shell.js";
+import { commandEnv, shellInvocation, terminalEnv, terminalWindow } from "../src/infrastructure/shell.js";
 
 test("Windows destructive commands need approval", () => {
   for (const command of [
@@ -109,4 +109,13 @@ test("the Terminal panel adds Homebrew folders on macOS only", () => {
   assert.equal(windows.Path, "C:\\Windows;C:\\Git\\cmd");
   assert.equal(windows.PATH, undefined);
   assert.equal(windows.TERM, "xterm-256color");
+});
+
+test("a terminal window opens in a folder without its name on a Windows command line", () => {
+  const folder = "C:\\work\\a&calc&";
+  const windows = terminalWindow(folder, "win32");
+  assert.equal(windows.cwd, folder);
+  assert.ok(windows.args.every((argument) => !argument.includes("calc")));
+  assert.deepEqual(terminalWindow("/work/a", "darwin"), { command: "open", args: ["-a", "Terminal", "/work/a"] });
+  assert.deepEqual(terminalWindow("/work/a", "linux"), { command: "x-terminal-emulator", args: ["--working-directory", "/work/a"] });
 });

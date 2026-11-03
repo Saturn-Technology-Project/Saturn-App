@@ -7,6 +7,9 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 ### Security
 
 - **Electron 43.8.3 in the app** (from 43.7.7), which stops trusting the compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9).
+- **The web tool, the agent browser and the Browser tab could reach this computer and the private network through an IPv6 spelling of a private address** (such as `[::ffff:127.0.0.1]`). These addresses are now refused, along with carrier-grade NAT (which Tailscale uses), multicast and other reserved ranges.
+- **Opening a terminal on Windows no longer puts the folder's path on a command line**, where a folder name containing `&` could run a command.
+- **The file view no longer follows a symbolic link out of the workspace**, which a cloned repository could use to show a file from elsewhere on the computer.
 
 ### Added
 

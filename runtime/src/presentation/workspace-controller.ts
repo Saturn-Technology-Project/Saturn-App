@@ -1,7 +1,7 @@
 import { execFile, spawn } from "node:child_process";
 import { errorText, logger } from "../infrastructure/logger.js";
 import { instruments, traced } from "../infrastructure/telemetry.js";
-import { mkdir, readFile, readdir, stat } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -11,7 +11,7 @@ import { respond } from "./http.js";
 import { launchEnv } from "../infrastructure/launch-env.js";
 import { PublicAddress } from "../domain/skills/public-address.js";
 import { assertPublicHost } from "../infrastructure/public-host.js";
-import { shellInvocation, terminalEnv } from "../infrastructure/shell.js";
+import { shellInvocation, terminalEnv, terminalWindow } from "../infrastructure/shell.js";
 import { runComputerUseSkill } from "../infrastructure/skills.js";
 import { HttpError } from "../domain/errors.js";
 
@@ -22,8 +22,8 @@ const CWD_MARKER = "__SATURN_CWD__:";
  * Starts a desktop app detached from the runtime. A missing program (no xdg-open, no Terminal) arrives
  * as an "error" event on the child; without a listener it would crash the runtime, so it is logged instead.
  */
-function launch(what: string, command: string, args: string[]): void {
-  const child = spawn(command, args, { detached: true, stdio: "ignore", env: launchEnv() });
+function launch(what: string, command: string, args: string[], cwd?: string): void {
+  const child = spawn(command, args, { detached: true, stdio: "ignore", env: launchEnv(), ...(cwd ? { cwd } : {}) });
   child.on("error", (error) => logger.warn("workspace", `Could not open ${what} with ${command}: ${errorText(error)}`));
   child.unref();
 }
@@ -142,15 +142,10 @@ export function mountWorkspace(app: Express, services: AppServices): void {
     respond(res, next, async () => {
       const root = await getActiveRoot();
       await mkdir(root, { recursive: true });
-      const cwd = typeof req.body?.cwd === "string" && req.body.cwd.trim() ? req.body.cwd.trim() : root;
-
-      if (process.platform === "darwin") {
-        launch("a terminal", "open", ["-a", "Terminal", cwd]);
-      } else if (process.platform === "win32") {
-        launch("a terminal", "cmd.exe", ["/c", "start", "cmd.exe", "/K", `cd /d "${cwd}"`]);
-      } else {
-        launch("a terminal", "x-terminal-emulator", ["--working-directory", cwd]);
-      }
+      // Absolute, so a folder cannot be read as one of the program's options.
+      const cwd = path.resolve(typeof req.body?.cwd === "string" && req.body.cwd.trim() ? req.body.cwd.trim() : root);
+      const window = terminalWindow(cwd);
+      launch("a terminal", window.command, window.args, window.cwd);
       logger.info("workspace", `Opened a terminal in ${cwd}`);
       return { opened: true, cwd };
     });
@@ -302,7 +297,9 @@ export function mountWorkspace(app: Express, services: AppServices): void {
       const relPath = typeof req.query.path === "string" ? req.query.path.trim() : "";
       const safeTarget = path.resolve(root, relPath || ".");
       // "/proj-other" starts with "/proj"; only a child of the root (or the root itself) is inside it.
-      const inside = safeTarget === root || safeTarget.startsWith(`${root}${path.sep}`);
+      const within = (parent: string, item: string) => item === parent || item.startsWith(`${parent}${path.sep}`);
+      // A symbolic link counts as where it points: a cloned repository can bring one that leads out of the folder.
+      const inside = within(root, safeTarget) && within(await realpath(root), await realpath(safeTarget));
       const target = inside ? safeTarget : root;
       if (!inside) logger.warn("workspace", `Refused a file path outside the workspace: ${relPath}`);
 

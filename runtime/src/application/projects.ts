@@ -8,6 +8,7 @@ import { HttpError } from "../domain/errors.js";
 import { newId } from "../domain/ids.js";
 import type { Project } from "../domain/model.js";
 import { errorText, logger } from "../infrastructure/logger.js";
+import { terminalWindow } from "../infrastructure/shell.js";
 import type { RuntimeKernel } from "./kernel.js";
 import { checkSandbox } from "./admin.js";
 import type { SandboxSettings } from "../infrastructure/sandbox.js";
@@ -33,8 +34,8 @@ async function detectGitBranch(dir: string): Promise<string | null> {
   }
 }
 
-function launchApp(what: string, command: string, args: string[]): void {
-  const child = spawn(command, args, { detached: true, stdio: "ignore", env: launchEnv() });
+function launchApp(what: string, command: string, args: string[], cwd?: string): void {
+  const child = spawn(command, args, { detached: true, stdio: "ignore", env: launchEnv(), ...(cwd ? { cwd } : {}) });
   child.on("error", (error) => logger.warn("projects", `Could not launch ${what}: ${errorText(error)}`));
   child.unref();
 }
@@ -359,13 +360,8 @@ export class ProjectService {
     const target = projects.find((p) => p.id === id);
     if (!target) throw new HttpError(404, `Project ${id} not found`);
 
-    if (process.platform === "darwin") {
-      launchApp("Terminal", "open", ["-a", "Terminal", target.path]);
-    } else if (process.platform === "win32") {
-      launchApp("cmd", "cmd.exe", ["/c", "start", "cmd.exe", "/K", `cd /d "${target.path}"`]);
-    } else {
-      launchApp("terminal", "x-terminal-emulator", ["--working-directory", target.path]);
-    }
+    const window = terminalWindow(target.path);
+    launchApp("a terminal", window.command, window.args, window.cwd);
     return { opened: true, cwd: target.path };
   }
 

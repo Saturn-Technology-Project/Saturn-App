@@ -3,7 +3,7 @@ import { createServer, request as httpRequest } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { deepseek } from "../src/infrastructure/llm/deepseek.js";
 import { geminiContents } from "../src/infrastructure/llm.js";
 import { McpClient } from "../src/infrastructure/mcp.js";
@@ -739,7 +739,7 @@ test("the in-app browser proxy refuses local and private addresses, and the file
     const base = `http://127.0.0.1:${address.port}`;
     useRuntimeAuth(base);
     // The runtime's own API through its own proxy: refused instead of relayed.
-    for (const target of [`${base}/agents`, "http://localhost:4700/settings", "http://192.168.1.1/", "http://169.254.169.254/latest/meta-data/"]) {
+    for (const target of [`${base}/agents`, "http://localhost:4700/settings", "http://192.168.1.1/", "http://169.254.169.254/latest/meta-data/", `http://[::ffff:127.0.0.1]:${address.port}/agents`, "http://[::ffff:a9fe:a9fe]/"]) {
       const response = await fetch(`${base}/workspace/browser/proxy?url=${encodeURIComponent(target)}`);
       const page = await response.text();
       assert.match(page, /Could not load page/, target);
@@ -750,6 +750,37 @@ test("the in-app browser proxy refuses local and private addresses, and the file
     const root = path.join(store.root, "workspace");
     const listed = (await (await fetch(`${base}/workspace/files?path=${encodeURIComponent(`${root}-other`)}`)).json()) as { path: string };
     assert.equal(listed.path, ".", "falls back to the workspace root");
+  } finally {
+    await new Promise((resolve) => server.close(() => resolve(undefined)));
+  }
+});
+
+test("the file view does not follow a symbolic link out of the project", { skip: process.platform === "win32" }, async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "saturn-file-links-"));
+  const folder = path.join(directory, "project");
+  await mkdir(folder);
+  const store = new FileStore(path.join(directory, "data"));
+  await store.load();
+  const { app, services } = createApp(store);
+  const project = await services.createProject({ path: folder });
+  await store.update((state) => { state.activeProjectId = project.id; });
+  await writeFile(path.join(directory, "outside.txt"), "not for the file view");
+  await writeFile(path.join(folder, "inside.txt"), "for the file view");
+  await symlink(path.join(directory, "outside.txt"), path.join(folder, "leads-out.txt"));
+  await symlink(path.join(folder, "inside.txt"), path.join(folder, "stays-in.txt"));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("no port");
+    const base = `http://127.0.0.1:${address.port}`;
+    useRuntimeAuth(base);
+    const read = async (file: string) => await (await fetch(`${base}/workspace/files?path=${file}`)).json() as { kind: string; content?: string };
+    const refused = await read("leads-out.txt");
+    assert.equal(refused.kind, "directory", "falls back to the project's root");
+    assert.equal(refused.content, undefined);
+    assert.equal((await read("inside.txt")).content, "for the file view");
+    assert.equal((await read("stays-in.txt")).content, "for the file view");
   } finally {
     await new Promise((resolve) => server.close(() => resolve(undefined)));
   }
@@ -768,4 +799,13 @@ test("a public name that resolves to a private address is refused (DNS rebinding
     ["::ffff:127.0.0.1", "fe80::1", "fc00::1", "::1", "169.254.169.254", "8.8.8.8", "2001:4860:4860::8888"].map(isPrivateHost),
     [true, true, true, true, true, false, false],
   );
+  // However an address is spelled, and whatever carries it. URL rewrites [::ffff:127.0.0.1] as [::ffff:7f00:1].
+  const refused = [
+    "[::ffff:7f00:1]", "::ffff:a9fe:a9fe", "::ffff:c0a8:1", "0:0:0:0:0:ffff:7f00:1", "::", "0:0:0:0:0:0:0:1", "::127.0.0.1",
+    "::ffff:0:7f00:1", "64:ff9b::7f00:1", "2002:7f00:1::", "2001:0:1::1", "fec0::1", "ff02::1", "not:an:address", "1:2:3:4:5:6:7:8:9",
+    "localhost.", "100.64.0.1", "100.127.255.255", "192.0.0.1", "198.18.0.1", "198.51.100.1", "203.0.113.1", "224.0.0.1", "255.255.255.255",
+  ];
+  assert.deepEqual(refused.filter((host) => !isPrivateHost(host)), []);
+  const allowed = ["::ffff:808:808", "64:ff9b::808:808", "2002:808:808::", "2606:2800:220:1::1", "100.63.0.1", "100.128.0.1", "198.20.0.1", "223.255.255.255"];
+  assert.deepEqual(allowed.filter((host) => isPrivateHost(host)), []);
 });
