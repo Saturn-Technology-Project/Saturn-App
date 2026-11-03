@@ -190,9 +190,8 @@ function windowControls(height) {
   return process.platform === "win32" ? { titleBarOverlay: { color: "#1c1c1f", symbolColor: "#f4f4f5", height } } : {};
 }
 
-async function createWindow(parent, options = {}) {
+async function createWindow(parent) {
   const window = new BrowserWindow({
-    show: options.show !== false,
     width: 1320,
     height: 840,
     minWidth: 940,
@@ -330,7 +329,6 @@ app.whenReady().then(() =>
     await waitForRuntime(context);
     // 2. Open the window
     await createWindow(context);
-    mainWindow?.show();
     mainWindow?.focus();
     checkForUpdates();
   }),
