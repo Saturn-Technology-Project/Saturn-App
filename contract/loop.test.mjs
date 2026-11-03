@@ -1,16 +1,11 @@
-// What the agent loop must do, whichever language runs it, driven only over HTTP with a scripted model. The Rust runtime
-// joins as each part of the loop is ported: SATURN_LOOP_READY lists the groups it passes.
+// What the agent loop must do, whichever language runs it, driven only over HTTP with a scripted model.
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { runtimeKind, startRuntime } from "./runtime.mjs";
-
-const ready = new Set((process.env.SATURN_LOOP_READY ?? "").split(",").filter(Boolean));
-/** Skips a group the runtime under test has not reached yet. */
-const group = (name) => ({ skip: runtimeKind === "rust" && !ready.has(name) });
+import { startRuntime } from "./runtime.mjs";
 
 /** One tool call in a scripted model turn. */
 const call = (name, args, id = `call_${name}`) => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) } });
@@ -107,7 +102,7 @@ const waiting = (run) => run.status === "waiting_approval";
 /** Everything the model was sent in one request, as text. */
 const sent = (request) => JSON.stringify(request.messages);
 
-test("a turn with no tool call completes with the model's answer", group("turns"), async () => {
+test("a turn with no tool call completes with the model's answer", async () => {
   const setup = await agentOn(["the answer"]);
   const run = await until((await start(setup, "a question")).id, settled);
   assert.equal(run.status, "completed", run.error);
@@ -116,7 +111,7 @@ test("a turn with no tool call completes with the model's answer", group("turns"
   assert.match(sent(setup.model.requests[0]), /a question/);
 });
 
-test("the next turn in a chat sees the earlier one", group("turns"), async () => {
+test("the next turn in a chat sees the earlier one", async () => {
   const setup = await agentOn(["first answer", "second answer"]);
   await until((await start(setup, "first question")).id, settled);
   const run = await until((await start(setup, "second question")).id, settled);
@@ -127,14 +122,14 @@ test("the next turn in a chat sees the earlier one", group("turns"), async () =>
   assert.match(context, /second question/);
 });
 
-test("a model error fails the run and says why", group("turns"), async () => {
+test("a model error fails the run and says why", async () => {
   const setup = await agentOn([{ status: 400, body: { error: { message: "scripted refusal" } } }]);
   const run = await until((await start(setup)).id, settled);
   assert.equal(run.status, "failed");
   assert.match(run.error ?? "", /scripted refusal/);
 });
 
-test("in Review mode a command waits for approval; allowed, it runs and the model gets its output", group("tools"), async () => {
+test("in Review mode a command waits for approval; allowed, it runs and the model gets its output", async () => {
   const setup = await agentOn([[call("code", { command: "echo contract-output" })], "done"]);
   const running = await until((await start(setup)).id, waiting);
   const card = running.actions.find((action) => action.status === "waiting_approval");
@@ -150,7 +145,7 @@ test("in Review mode a command waits for approval; allowed, it runs and the mode
   assert.match(sent(setup.model.requests[1]), /contract-output/);
 });
 
-test("a refused command does not run, and the model is told", group("tools"), async () => {
+test("a refused command does not run, and the model is told", async () => {
   const marker = path.join(folder, "must-not-exist");
   const setup = await agentOn([[call("code", { command: `echo no > ${JSON.stringify(marker)}` })], "understood"]);
   const running = await until((await start(setup)).id, waiting);
@@ -162,7 +157,7 @@ test("a refused command does not run, and the model is told", group("tools"), as
   assert.equal(setup.model.requests.length, 2);
 });
 
-test("a deny rule refuses a call with no approval card, and the run goes on", group("tools"), async () => {
+test("a deny rule refuses a call with no approval card, and the run goes on", async () => {
   const setup = await agentOn([[call("code", { command: "rm -rf build" })], "moved on"]);
   await api(runtime, "POST", "/permissions/rules", { scope: "agent", agentId: setup.agent.id, rule: { tool: "code", pattern: "rm *", effect: "deny" } });
   const run = await until((await start(setup)).id, settled);
@@ -171,7 +166,7 @@ test("a deny rule refuses a call with no approval card, and the run goes on", gr
   assert.match(run.actions[0].reason ?? "", /Denied by a permission rule/);
 });
 
-test("an allow rule skips the card even in Review mode", group("tools"), async () => {
+test("an allow rule skips the card even in Review mode", async () => {
   const setup = await agentOn([[call("code", { command: "echo allowed-by-rule" })], "done"]);
   await api(runtime, "POST", "/permissions/rules", { scope: "agent", agentId: setup.agent.id, rule: { tool: "code", pattern: "echo *", effect: "allow" } });
   const run = await until((await start(setup)).id, settled);
@@ -180,7 +175,7 @@ test("an allow rule skips the card even in Review mode", group("tools"), async (
   assert.match(sent(setup.model.requests[1]), /allowed-by-rule/);
 });
 
-test("a call to a tool the agent does not have fails, and the model is told", group("tools"), async () => {
+test("a call to a tool the agent does not have fails, and the model is told", async () => {
   const setup = await agentOn([[call("no_such_tool", {})], "recovered"]);
   const start_ = await start(setup);
   let run = await until(start_.id, (item) => settled(item) || waiting(item));
@@ -194,7 +189,7 @@ test("a call to a tool the agent does not have fails, and the model is told", gr
   assert.match(sent(setup.model.requests[1]), /Unknown tool/);
 });
 
-test("Ask mode offers no tool that changes things", group("tools"), async () => {
+test("Ask mode offers no tool that changes things", async () => {
   const setup = await agentOn(["only answering"]);
   const created = await api(runtime, "POST", `/agents/${setup.agent.id}/runs`, { input: "explain", threadId: setup.thread.id, mode: "ask" });
   const run = await until(created.id, settled);
@@ -203,7 +198,7 @@ test("Ask mode offers no tool that changes things", group("tools"), async () => 
   assert.ok(!offered.includes("code"), offered.join(","));
 });
 
-test("stopping a run ends it at once, while the model is still thinking", group("stop"), async () => {
+test("stopping a run ends it at once, while the model is still thinking", async () => {
   let release;
   const setup = await agentOn([() => new Promise((resolve) => { release = resolve; })]);
   const created = await start(setup);
@@ -216,7 +211,7 @@ test("stopping a run ends it at once, while the model is still thinking", group(
   assert.equal((await api(runtime, "GET", `/runs/${created.id}`)).status, "cancelled", "a late answer changes nothing");
 });
 
-test("stopping a run that waits for approval runs nothing", group("stop"), async () => {
+test("stopping a run that waits for approval runs nothing", async () => {
   const marker = path.join(folder, "stopped-must-not-exist");
   const setup = await agentOn([[call("code", { command: `echo no > ${JSON.stringify(marker)}` })], "never asked"]);
   const running = await until((await start(setup)).id, waiting);
@@ -226,7 +221,7 @@ test("stopping a run that waits for approval runs nothing", group("stop"), async
   assert.equal(setup.model.requests.length, 1);
 });
 
-test("the event stream sends the run as it changes, up to its end", group("events"), async () => {
+test("the event stream sends the run as it changes, up to its end", async () => {
   const setup = await agentOn([[call("code", { command: "echo streamed" })], "done"]);
   const running = await until((await start(setup)).id, waiting);
   const token = (await readFile(path.join(runtime.dataDir, "runtime-token"), "utf8")).trim();
@@ -251,7 +246,7 @@ test("the event stream sends the run as it changes, up to its end", group("event
   assert.equal(seen.at(-1), "completed");
 });
 
-test("an approval still waits after the runtime restarts, and a run cut off mid-turn is marked interrupted", group("restart"), async () => {
+test("an approval still waits after the runtime restarts, and a run cut off mid-turn is marked interrupted", async () => {
   const first = await startRuntime({ keepData: true });
   let second;
   try {
@@ -276,7 +271,7 @@ test("an approval still waits after the runtime restarts, and a run cut off mid-
   }
 });
 
-test("compacting folds a chat's earlier turns into a summary the next turn sees", group("compaction"), async () => {
+test("compacting folds a chat's earlier turns into a summary the next turn sees", async () => {
   const setup = await agentOn(["first answer", "the scripted summary", "after compaction"]);
   await until((await start(setup, "first question")).id, settled);
   await api(runtime, "POST", `/threads/${setup.thread.id}/compact`);
@@ -285,7 +280,7 @@ test("compacting folds a chat's earlier turns into a summary the next turn sees"
   assert.match(sent(setup.model.requests.at(-1)), /the scripted summary/);
 });
 
-test("delegate runs a sub-agent with its own context and gives the parent its answer", group("delegate"), async () => {
+test("delegate runs a sub-agent with its own context and gives the parent its answer", async () => {
   const setup = await agentOn([[call("delegate", { task: "look into it", tools: "read-only" })], "the sub-agent's findings", "parent done"], "bypass");
   const run = await until((await start(setup)).id, settled);
   assert.equal(run.status, "completed", run.error);
