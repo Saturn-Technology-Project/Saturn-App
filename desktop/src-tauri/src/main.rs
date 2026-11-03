@@ -1,0 +1,215 @@
+//! The Saturn desktop app: starts the runtime and shows the interface in the system's web view.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod notify;
+mod permissions;
+mod runtime;
+mod ui;
+
+use std::sync::OnceLock;
+
+use runtime::{Layout, Runtime};
+use serde::Deserialize;
+use tauri::utils::config::BackgroundThrottlingPolicy;
+use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri_plugin_dialog::DialogExt;
+
+pub(crate) const MAIN_WINDOW: &str = "main";
+const BACKGROUND: tauri::window::Color = tauri::window::Color(0x16, 0x16, 0x18, 0xff);
+
+/// Where the interface is served, known once it is up.
+static INTERFACE: OnceLock<u16> = OnceLock::new();
+
+#[derive(Deserialize)]
+struct FolderOptions {
+    title: Option<String>,
+    multiple: Option<bool>,
+}
+
+/// Workspace folders: the native picker, attached to the window that asked.
+#[tauri::command]
+async fn pick_folders(window: WebviewWindow, options: FolderOptions) -> Vec<String> {
+    let dialog = window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title(options.title.unwrap_or_else(|| "Add Folder".to_owned()))
+        .set_can_create_directories(true);
+    let chosen = if options.multiple == Some(false) {
+        dialog.blocking_pick_folder().map(|folder| vec![folder])
+    } else {
+        dialog.blocking_pick_folders()
+    };
+    chosen
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|folder| folder.as_path().map(|path| path.display().to_string()))
+        .collect()
+}
+
+#[tauri::command]
+fn start_dragging(window: WebviewWindow) -> tauri::Result<()> {
+    window.start_dragging()
+}
+
+#[tauri::command]
+fn toggle_maximize(window: WebviewWindow) -> tauri::Result<()> {
+    if window.is_maximized()? {
+        window.unmaximize()
+    } else {
+        window.maximize()
+    }
+}
+
+#[tauri::command]
+fn minimize_window(window: WebviewWindow) -> tauri::Result<()> {
+    window.minimize()
+}
+
+#[tauri::command]
+fn close_window(window: WebviewWindow) -> tauri::Result<()> {
+    window.close()
+}
+
+/// A system notification; clicking it brings Saturn forward and opens the chat it names.
+#[tauri::command]
+fn notify(app: AppHandle, options: notify::Options) {
+    notify::show(app, options);
+}
+
+/// Asks macOS for Accessibility or Screen Recording; elsewhere there is nothing to grant.
+#[tauri::command]
+fn request_permission(which: String) -> permissions::Answer {
+    permissions::request(&which)
+}
+
+/// The bridge script with this runtime's token and address filled in.
+fn bridge_script(runtime: &Runtime) -> String {
+    let quoted = |text: &str| serde_json::Value::from(text).to_string();
+    include_str!("bridge.js")
+        .replace("__SATURN_TOKEN__", &quoted(&runtime.token()))
+        .replace("__SATURN_ORIGIN__", &quoted(&runtime.origin()))
+        .replace(
+            "__SATURN_WINDOW_BUTTONS__",
+            if cfg!(windows) { "true" } else { "false" },
+        )
+}
+
+fn interface_url() -> Url {
+    let port = INTERFACE
+        .get()
+        .copied()
+        .expect("the interface is up before any window opens");
+    Url::parse(&format!("http://127.0.0.1:{port}/")).expect("a loopback address is a valid URL")
+}
+
+/// Brings the window forward, opening it if it was closed.
+pub(crate) fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        return;
+    }
+    let script = bridge_script(&app.state::<Runtime>());
+    let builder =
+        WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::External(interface_url()))
+            .title("Saturn")
+            .background_color(BACKGROUND)
+            .disable_drag_drop_handler()
+            // A hidden window keeps running: chats update and notifications arrive with Saturn in the background.
+            .background_throttling(BackgroundThrottlingPolicy::Disabled)
+            .initialization_script(script)
+            .inner_size(1320.0, 840.0)
+            .min_inner_size(940.0, 620.0);
+    // On macOS the traffic lights sit over the page's own title bar; on Windows the bridge draws the buttons.
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true);
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.decorations(false);
+    if let Err(error) = builder.build() {
+        eprintln!("Could not open the Saturn window: {error}");
+    }
+}
+
+/// Allows the commands to Saturn's own pages, at the exact port the interface got.
+fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
+    let capability = serde_json::json!({
+        "identifier": "interface",
+        "windows": [MAIN_WINDOW],
+        "remote": { "urls": [format!("http://127.0.0.1:{port}/*")] },
+        "permissions": [
+            "allow-pick-folders", "allow-start-dragging", "allow-toggle-maximize", "allow-minimize-window",
+            "allow-close-window", "allow-notify", "allow-request-permission",
+        ],
+    });
+    app.add_capability(capability.to_string())
+}
+
+/// Starts everything in order: the runtime, the interface, then the window.
+async fn start_up(app: AppHandle, layout: Layout) {
+    app.state::<Runtime>().ensure_started(&layout).await;
+    let port = if cfg!(debug_assertions) {
+        Ok(5174)
+    } else {
+        ui::serve(app.clone()).await
+    };
+    let port = match port {
+        Ok(port) => port,
+        Err(error) => {
+            eprintln!("Could not serve the interface: {error}");
+            app.exit(1);
+            return;
+        }
+    };
+    let _ = INTERFACE.set(port);
+    if let Err(error) = allow_interface_commands(&app, port) {
+        eprintln!("Could not allow the interface's commands: {error}");
+    }
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || show_main_window(&handle));
+}
+
+fn main() {
+    let app = tauri::Builder::default()
+        // First, so a second launch stops here and brings this one forward.
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if INTERFACE.get().is_some() {
+                show_main_window(app);
+            }
+        }))
+        .plugin(tauri_plugin_dialog::init())
+        .manage(Runtime::new())
+        .invoke_handler(tauri::generate_handler![
+            pick_folders,
+            start_dragging,
+            toggle_maximize,
+            minimize_window,
+            close_window,
+            notify,
+            request_permission
+        ])
+        .setup(|app| {
+            let layout = if cfg!(debug_assertions) {
+                Layout::Development {
+                    repository: concat!(env!("CARGO_MANIFEST_DIR"), "/../..").into(),
+                }
+            } else {
+                Layout::Packaged {
+                    resources: app.path().resource_dir()?,
+                }
+            };
+            tauri::async_runtime::spawn(start_up(app.handle().clone(), layout));
+            Ok(())
+        })
+        .build(tauri::generate_context!())
+        .expect("the Saturn app builds");
+
+    app.run(|app, event| match event {
+        RunEvent::Exit => app.state::<Runtime>().stop(),
+        #[cfg(target_os = "macos")]
+        RunEvent::Reopen { .. } if INTERFACE.get().is_some() => show_main_window(app),
+        _ => {}
+    });
+}

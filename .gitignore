@@ -21,3 +21,6 @@ saturn-mv/
 
 # Rust build output
 /target/
+
+# Tauri build output and generated schemas
+desktop/src-tauri/gen/

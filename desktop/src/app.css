@@ -153,6 +153,7 @@ pre {
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: drag;
+  --app-region: drag;
   position: relative;
   z-index: 100;
   padding: 0;
@@ -172,6 +173,7 @@ pre {
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: drag;
+  --app-region: drag;
   box-sizing: border-box;
   flex-shrink: 0;
   background: var(--bg);
@@ -199,6 +201,7 @@ pre {
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: drag;
+  --app-region: drag;
   padding: 0 12px 0 14px;
   box-sizing: border-box;
   flex-shrink: 0;
@@ -227,6 +230,7 @@ pre {
   height: 100%;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .nav-top-left,
@@ -253,6 +257,7 @@ pre {
   padding-left: 14px;
   box-sizing: border-box;
   -webkit-app-region: drag;
+  --app-region: drag;
 }
 
 .titlebar-traffic-space.compact {
@@ -283,6 +288,7 @@ pre {
   align-items: center;
   gap: 8px;
   -webkit-app-region: drag;
+  --app-region: drag;
 }
 
 .traffic-dot {
@@ -326,6 +332,7 @@ pre {
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
   flex-shrink: 0;
 }
 
@@ -351,6 +358,7 @@ pre {
   white-space: nowrap;
   cursor: pointer;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .titlebar-worktree:hover,
@@ -376,6 +384,7 @@ pre {
   flex-wrap: nowrap;
   gap: 1px;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
   flex-shrink: 0;
 }
 
@@ -406,6 +415,7 @@ pre {
   text-overflow: ellipsis;
   white-space: nowrap;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
   cursor: default;
 }
 
@@ -439,6 +449,7 @@ pre {
   height: 100%;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .titlebar-pill-btn {
@@ -456,6 +467,7 @@ pre {
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .titlebar-pill-btn:hover {
@@ -519,6 +531,7 @@ pre {
 .titlebar-menu-wrapper {
   position: relative;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .titlebar-dropdown {
@@ -2832,6 +2845,7 @@ body.is-resizing iframe {
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: drag;
+  --app-region: drag;
 }
 
 .inspector-tab-strip {
@@ -2843,6 +2857,7 @@ body.is-resizing iframe {
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-tab-strip::-webkit-scrollbar {
@@ -2868,6 +2883,7 @@ body.is-resizing iframe {
   outline: none;
   transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-tab-pill:hover {
@@ -2914,6 +2930,7 @@ body.is-resizing iframe {
   outline: none;
   transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-tab-pill:hover .inspector-tab-close,
@@ -2942,6 +2959,7 @@ body.is-resizing iframe {
   outline: none;
   transition: background 0.14s ease, color 0.14s ease;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-tab-add:hover,
@@ -2956,6 +2974,7 @@ body.is-resizing iframe {
   gap: 2px;
   flex-shrink: 0;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-win-btn {
@@ -2972,6 +2991,7 @@ body.is-resizing iframe {
   outline: none;
   transition: background 0.14s ease, color 0.14s ease;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 
 .inspector-win-btn:hover {
@@ -8987,6 +9007,7 @@ button.trace-row:hover {
   padding: 48px 20px 20px 24px;
   border-right: 1px solid var(--line);
   -webkit-app-region: drag;
+  --app-region: drag;
 }
 .onboarding-steps button, .onboarding-steps li { -webkit-app-region: no-drag; }
 .onboarding-brand { font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }
@@ -9012,6 +9033,7 @@ button.trace-row:hover {
   flex-direction: column;
   gap: 16px;
   -webkit-app-region: no-drag;
+  --app-region: no-drag;
 }
 .onboarding-card.wide { max-width: 720px; }
 .onboarding-card h1 { font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
