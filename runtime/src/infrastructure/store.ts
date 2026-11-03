@@ -1,6 +1,6 @@
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { AppState } from "../domain/model.js";
+import type { AppSettings, AppState } from "../domain/model.js";
 import { errorText, logger } from "./logger.js";
 import { SecretsFile, type SecretsProtection } from "./secrets-file.js";
 import { instruments, seconds, traced } from "./telemetry.js";
@@ -24,6 +24,18 @@ const empty = (): AppState => ({
     logging: "info",
   },
 });
+
+/** Saved settings over the defaults. Everything saved is kept, except the settings of features Saturn no longer has. */
+function settingsFrom(saved: (Partial<AppSettings> & { launchApp?: unknown; claudeCodeAuth?: unknown }) | undefined, base: AppSettings): AppSettings {
+  const { launchApp: _launchApp, claudeCodeAuth: _claudeCodeAuth, ...kept } = saved ?? {};
+  return {
+    ...kept,
+    name: kept.name ?? base.name,
+    environment: kept.environment ?? base.environment,
+    logging: kept.logging ?? base.logging,
+    completionModelId: kept.completionModelId ?? null,
+  };
+}
 
 export class FileStore {
   private queue: Promise<void> = Promise.resolve();
@@ -60,12 +72,7 @@ export class FileStore {
       groups: saved.groups ?? [],
       groupMessages: saved.groupMessages ?? [],
       usage: saved.usage ?? base.usage,
-      settings: {
-        name: saved.settings?.name ?? base.settings.name,
-        environment: saved.settings?.environment ?? base.settings.environment,
-        logging: saved.settings?.logging ?? base.settings.logging,
-        completionModelId: saved.settings?.completionModelId ?? null,
-      },
+      settings: settingsFrom(saved.settings, base.settings),
     };
     this.secrets = await this.secretsFile.load();
   }

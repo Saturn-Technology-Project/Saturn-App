@@ -87,6 +87,20 @@ test("tampered ciphertext is rejected rather than half-read", async () => {
   assert.ok((await readdir(dir)).some((name) => name.startsWith("secrets.json.locked-")));
 });
 
+test("a secrets file in a format this version cannot read is kept aside, not taken for plaintext", async () => {
+  const dir = await dataDir();
+  const file = path.join(dir, "secrets.json");
+  const later = JSON.stringify({ format: "saturn-secrets", version: 2, cipher: "another-cipher", keyStore: "file", iv: "aa", tag: "bb", data: "cc" });
+  await writeFile(file, later);
+
+  const store = new FileStore(dir);
+  await store.load();
+  assert.equal(store.secret("format"), undefined, "its fields are not secrets");
+  assert.equal(await readFile(file, "utf8"), later);
+  const kept = (await readdir(dir)).find((name) => name.startsWith("secrets.json.unreadable-"));
+  assert.ok(kept, "a copy was kept");
+});
+
 test("when the OS key store refuses, the key goes to a key file and secrets are still encrypted", async () => {
   const dir = await dataDir();
   const refusing: KeyStore = {
@@ -150,4 +164,30 @@ test("the macOS Keychain round-trips a key", { skip: (process.platform !== "darw
     await store.remove();
   }
   assert.equal(await store.get(), null);
+});
+
+test("every saved setting survives a restart, except those of features Saturn no longer has", async () => {
+  const dir = await dataDir();
+  const settings = {
+    memory: false,
+    planApproval: true,
+    permissions: [{ tool: "code", pattern: "git push*", effect: "deny" }],
+    sandbox: { mode: "read-only" },
+    hooks: [{ event: "PreToolUse", command: "true" }],
+    browser: "system",
+    onboardedAt: "2026-11-03T00:00:00.000Z",
+  };
+  const first = new FileStore(dir);
+  await first.load();
+  await first.update((state) => void Object.assign(state.settings, settings, { launchApp: "ide" }));
+
+  const second = new FileStore(dir);
+  await second.load();
+  assert.deepEqual(second.state.settings, { name: "Saturn", environment: "production", logging: "info", completionModelId: null, ...settings });
+
+  // The next save writes them back, so a second restart keeps them too.
+  await second.update(() => undefined);
+  const third = new FileStore(dir);
+  await third.load();
+  assert.deepEqual(third.state.settings, second.state.settings);
 });

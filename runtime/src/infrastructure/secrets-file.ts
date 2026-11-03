@@ -81,6 +81,12 @@ export class SecretsFile {
       return new Map();
     }
 
+    // One of Saturn's own files that this version cannot read (damaged, or from a later version) is not plaintext secrets.
+    if ((parsed as Partial<Envelope> | null)?.format === "saturn-secrets" && !isEnvelope(parsed)) {
+      await this.setAside("unreadable", "is not in a format this version can read");
+      return new Map();
+    }
+
     if (isEnvelope(parsed)) {
       this.store = keyStore(parsed.keyStore, this.directory);
       try {
