@@ -1,0 +1,82 @@
+{
+  "note": "What both runtimes must make of a saved state.json: load `saved`, save, and the file must equal `written`. Record fields neither reads stay as they were.",
+  "saved": {
+    "laterVersionField": { "dropped": true },
+    "projects": [
+      { "id": "p1", "name": "App", "path": "/nonexistent/app", "access": null, "gitBranch": null, "fieldFromALaterVersion": { "kept": [1, 2.5, null] } }
+    ],
+    "activeProjectId": "p1",
+    "agents": [
+      { "id": "a1", "name": "Saturn", "temperature": 0.7, "maxOutput": 4096, "modelConnectionId": null, "mcpConnectionIds": [], "permissions": [{ "tool": "code", "pattern": "git push*", "effect": "deny" }] }
+    ],
+    "automations": [{ "id": "t1", "lastSlot": 29000000, "trigger": { "frequency": "weekly", "time": "09:30", "weekday": 0 } }],
+    "models": [{ "id": "m1", "provider": "openai", "model": "x", "baseUrl": "http://127.0.0.1:1/v1", "hasSecret": true, "contextTokens": 200000 }],
+    "mcp": [{ "id": "c1", "tools": [{ "toolId": "t", "inputSchema": { "type": "object", "properties": {} } }] }],
+    "rag": [],
+    "runs": [
+      {
+        "id": "r1",
+        "status": "completed",
+        "input": "é 😀 \" \\ \n  ",
+        "output": "",
+        "generation": 0,
+        "actions": [{ "id": "s1", "toolId": "code", "arguments": { "z": 1, "a": { "y": 2, "b": 3 } }, "status": "completed", "result": { "exit": 0, "empty": {}, "none": [] } }],
+        "rounds": [{ "calls": [], "replay": { "provider": "x", "data": { "nested": [[[1e-7, 1.5e+21, 0.1, 123456789012]]] } } }]
+      }
+    ],
+    "threads": [{ "id": "h1", "summary": { "text": "s", "throughRunId": "r1", "turns": 2, "createdAt": "2026-11-03T00:00:00.000Z" } }],
+    "groups": [{ "id": "g1", "sessions": { "a1": {} } }],
+    "groupMessages": [{ "id": "n1", "depth": 0 }],
+    "usage": [{ "id": "u1", "inputRate": null, "costUsd": 0.0012345678901234567 }],
+    "settings": {
+      "launchApp": "ide",
+      "claudeCodeAuth": "api-key",
+      "name": "Mine",
+      "logging": null,
+      "memory": false,
+      "planApproval": true,
+      "permissions": [{ "tool": "code", "pattern": "*", "effect": "ask" }],
+      "sandbox": { "mode": "read-only" },
+      "settingFromALaterVersion": 1
+    }
+  },
+  "written": {
+    "projects": [
+      { "id": "p1", "name": "App", "path": "/nonexistent/app", "access": null, "gitBranch": null, "fieldFromALaterVersion": { "kept": [1, 2.5, null] } }
+    ],
+    "activeProjectId": "p1",
+    "agents": [
+      { "id": "a1", "name": "Saturn", "temperature": 0.7, "maxOutput": 4096, "modelConnectionId": null, "mcpConnectionIds": [], "permissions": [{ "tool": "code", "pattern": "git push*", "effect": "deny" }] }
+    ],
+    "automations": [{ "id": "t1", "lastSlot": 29000000, "trigger": { "frequency": "weekly", "time": "09:30", "weekday": 0 } }],
+    "models": [{ "id": "m1", "provider": "openai", "model": "x", "baseUrl": "http://127.0.0.1:1/v1", "hasSecret": true, "contextTokens": 200000 }],
+    "mcp": [{ "id": "c1", "tools": [{ "toolId": "t", "inputSchema": { "type": "object", "properties": {} } }] }],
+    "rag": [],
+    "runs": [
+      {
+        "id": "r1",
+        "status": "completed",
+        "input": "é 😀 \" \\ \n  ",
+        "output": "",
+        "generation": 0,
+        "actions": [{ "id": "s1", "toolId": "code", "arguments": { "z": 1, "a": { "y": 2, "b": 3 } }, "status": "completed", "result": { "exit": 0, "empty": {}, "none": [] } }],
+        "rounds": [{ "calls": [], "replay": { "provider": "x", "data": { "nested": [[[1e-7, 1.5e+21, 0.1, 123456789012]]] } } }]
+      }
+    ],
+    "threads": [{ "id": "h1", "summary": { "text": "s", "throughRunId": "r1", "turns": 2, "createdAt": "2026-11-03T00:00:00.000Z" } }],
+    "groups": [{ "id": "g1", "sessions": { "a1": {} } }],
+    "groupMessages": [{ "id": "n1", "depth": 0 }],
+    "usage": [{ "id": "u1", "inputRate": null, "costUsd": 0.0012345678901234567 }],
+    "settings": {
+      "name": "Mine",
+      "environment": "production",
+      "logging": "info",
+      "completionModelId": null,
+      "memory": false,
+      "planApproval": true,
+      "permissions": [{ "tool": "code", "pattern": "*", "effect": "ask" }],
+      "sandbox": { "mode": "read-only" },
+      "settingFromALaterVersion": 1
+    }
+  }
+}

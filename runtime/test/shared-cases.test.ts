@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { commandSegments, fromClaudeRule, matchesRule, resolvePermission, suggestedPattern, type PermissionEffect, type PermissionLayer, type PermissionRule } from "../src/domain/permissions.js";
 import { autonomyOf, isReadOnlyCall, isSensitiveOperation } from "../src/domain/policies.js";
+import { account, dpapiScript } from "../src/infrastructure/secret-key.js";
+import { decrypt, encrypt } from "../src/infrastructure/secrets-file.js";
+import { FileStore } from "../src/infrastructure/store.js";
 
 type Case = { check: string; tool: string; arguments: Record<string, unknown>; expect: unknown; [key: string]: unknown };
 
@@ -43,4 +48,25 @@ test("the cases crates/saturn-domain answers too, so both implementations decide
         assert.fail(`unknown check ${item.check}`);
     }
   }
+});
+
+test("the secrets file crates/saturn-store encrypts byte for byte, and its names for keys", async () => {
+  const cases = JSON.parse(await readFile(new URL("../../contract/cases/secrets.json", import.meta.url), "utf8"));
+  const key = Buffer.from(cases.key, "hex");
+  assert.deepEqual(Object.fromEntries(decrypt(cases.envelope, key)), cases.secrets);
+  const again = encrypt(new Map(Object.entries<string>(cases.secrets)), key, "file");
+  assert.deepEqual(Object.fromEntries(decrypt(again, key)), cases.secrets);
+  for (const item of cases.accounts) assert.equal(account(item.dir), item.account);
+  assert.equal(dpapiScript("Protect"), cases.dpapi.Protect);
+  assert.equal(dpapiScript("Unprotect"), cases.dpapi.Unprotect);
+});
+
+test("the state file crates/saturn-store also makes of the same saved file", async () => {
+  const cases = JSON.parse(await readFile(new URL("../../contract/cases/state.json", import.meta.url), "utf8"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "saturn-shared-state-"));
+  await writeFile(path.join(dir, "state.json"), JSON.stringify(cases.saved));
+  const store = new FileStore(dir);
+  await store.load();
+  await store.update(() => undefined);
+  assert.deepEqual(JSON.parse(await readFile(path.join(dir, "state.json"), "utf8")), cases.written);
 });

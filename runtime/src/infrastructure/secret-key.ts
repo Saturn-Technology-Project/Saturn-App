@@ -24,7 +24,7 @@ const SERVICE = "Saturn";
  * One key per data folder, so isolated data folders (tests, a second profile) never share or overwrite a key.
  * The account name is derived from the folder's real path.
  */
-function account(dataDir: string): string {
+export function account(dataDir: string): string {
   let real = dataDir;
   try {
     real = realpathSync(dataDir);
@@ -81,7 +81,7 @@ export function keychainStore(dataDir: string): KeyStore {
 }
 
 /** PowerShell that reads one base64 line from stdin, applies DPAPI (current user) and prints base64. */
-function dpapiScript(operation: "Protect" | "Unprotect"): string {
+export function dpapiScript(operation: "Protect" | "Unprotect"): string {
   const script = [
     "$ErrorActionPreference = 'Stop'",
     "Add-Type -AssemblyName System.Security",
