@@ -314,7 +314,7 @@ export class AppServices {
     return await this.kernel.projects.saveRules(id, content, targetFile);
   }
 
-  async wakeupDefaultApp(): Promise<{ target: "agent"; opened: boolean }> {
-    return await this.kernel.projects.wakeupDefaultApp();
+  async wakeupDefaultApp(): Promise<void> {
+    await this.kernel.projects.wakeupDefaultApp();
   }
 }

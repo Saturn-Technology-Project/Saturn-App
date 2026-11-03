@@ -334,32 +334,24 @@ export class ProjectService {
   }
 
   /** Brings up the Agent App when the runtime was started on its own. */
-  async wakeupDefaultApp(): Promise<{ target: "agent"; opened: boolean }> {
-    if (process.env.SATURN_DESKTOP_ATTACHED === "1") {
-      logger.info("projects", "Agent App attached; ready for wake");
-      return { target: "agent", opened: true };
-    }
-
+  async wakeupDefaultApp(): Promise<void> {
     if (process.platform === "darwin") {
       const app = await findSaturnAgentApp();
       if (app) {
         launchApp("Saturn Agent App", "open", ["-a", app]);
         logger.info("projects", `Woke up Saturn Agent App (${app})`);
-        return { target: "agent", opened: true };
+        return;
       }
       launchApp("Saturn Agent App", "open", ["-b", "inc.saturntechnology.desktop"]);
       logger.info("projects", `Woke up Saturn Agent App via bundle id`);
-      return { target: "agent", opened: true };
+      return;
     }
     // Packaged on Windows or Linux, the runtime runs on Saturn's own executable (ELECTRON_RUN_AS_NODE): starting
     // that executable without the Node flag (launchEnv strips ELECTRON_*) opens the Agent App.
     if (process.versions.electron) {
       launchApp("Saturn Agent App", process.execPath, []);
       logger.info("projects", `Woke up Saturn Agent App (${process.execPath})`);
-      return { target: "agent", opened: true };
     }
-
-    return { target: "agent", opened: false };
   }
 
   async openTerminal(id: string): Promise<{ opened: boolean; cwd: string }> {

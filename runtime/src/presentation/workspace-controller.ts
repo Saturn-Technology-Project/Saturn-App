@@ -156,12 +156,6 @@ export function mountWorkspace(app: Express, services: AppServices): void {
     });
   });
 
-  app.post("/runtime/wakeup", (_req, res, next) => {
-    respond(res, next, async () => {
-      return await services.wakeupDefaultApp();
-    });
-  });
-
   // Onboarding and Settings: whether this Mac lets Saturn control the computer, and the System Settings pane to grant it.
   app.get("/computer/permissions", (_req, res, next) => {
     respond(res, next, async () => {
