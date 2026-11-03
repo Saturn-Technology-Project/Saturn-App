@@ -12,6 +12,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **The file view no longer follows a symbolic link out of the workspace**, which a cloned repository could use to show a file from elsewhere on the computer.
 - **An agent's `files` tool no longer follows a symbolic link out of the workspace.** A cloned repository could bring a link that let the agent read or change files elsewhere on the computer, and writing through a link also got around the command sandbox. Links that stay inside the workspace still work.
 - **Reverting an agent's changes no longer writes through a symbolic link.** A command the agent ran could put a link in place of a file it had changed, so that reverting wrote the original contents to wherever the link led. The revert now stops and says so.
+- **Attaching a file or folder with `@` no longer follows a symbolic link out of the project**, which a cloned repository could use to put a file from elsewhere on the computer into a message.
 
 ### Fixed
 

@@ -3,6 +3,8 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { HttpError } from "../domain/errors.js";
+import { Workspace } from "../domain/skills/workspace.js";
+import { insideWorkspace } from "../infrastructure/skills/inside-workspace.js";
 import { WebSkill } from "../infrastructure/skills/web-skill.js";
 import type { RuntimeKernel } from "./kernel.js";
 
@@ -49,13 +51,13 @@ export class ContextService {
     for (const item of items.slice(0, 20)) {
       try {
         if (item.kind === "file") {
-          const file = this.inside(root, item.path);
+          const file = await this.inside(root, item.path);
           const content = await readFile(file, "utf8");
           if (content.includes("\u0000")) throw new HttpError(415, `${item.path} is not a text file`);
           push(`<file path="${relative(root, file)}">\n${content.slice(0, FILE_LIMIT)}\n</file>`);
           sources.push(relative(root, file));
         } else if (item.kind === "folder") {
-          const folder = this.inside(root, item.path);
+          const folder = await this.inside(root, item.path);
           const listing = await this.listing(folder);
           push(`<folder path="${relative(root, folder) || "."}">\n${listing.join("\n")}\n</folder>`);
           sources.push(`${relative(root, folder) || "."}/`);
@@ -92,11 +94,15 @@ export class ContextService {
     return matches.sort((a, b) => a.length - b.length || a.localeCompare(b)).slice(0, limit);
   }
 
-  /** `relative` resolved inside the project folder, or a 400. */
-  private inside(root: string, relativePath: string): string {
+  /** `relative` resolved inside the project folder, or a 400. A symbolic link counts as where it points. */
+  private async inside(root: string, relativePath: string): Promise<string> {
     const full = path.resolve(root, String(relativePath ?? ""));
     if (full !== root && !full.startsWith(root + path.sep)) throw new HttpError(400, `${relativePath} is outside the project folder`);
-    return full;
+    try {
+      return await insideWorkspace(new Workspace(root), relativePath);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : `${relativePath} is outside the project folder`);
+    }
   }
 
   /** The folder's files, from git when it is a repository (so ignored files are left out), else a walk. */
