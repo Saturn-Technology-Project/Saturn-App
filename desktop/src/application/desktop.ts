@@ -4,6 +4,7 @@ import { CatalogService } from "./catalog.js";
 import { GroupService } from "./groups.js";
 import { MarketplaceService } from "./marketplace.js";
 import { ProjectService } from "./projects.js";
+import { ResearchService } from "./research.js";
 import { RunService } from "./runs.js";
 import { TelemetryService } from "./telemetry.js";
 import { WorkspaceService } from "./workspace.js";
@@ -20,6 +21,7 @@ export class DesktopApp {
   readonly telemetry: TelemetryService;
   readonly marketplace: MarketplaceService;
   readonly projects: ProjectService;
+  readonly research: ResearchService;
   readonly groups: GroupService;
   readonly live: LiveService;
 
@@ -32,6 +34,7 @@ export class DesktopApp {
     this.telemetry = new TelemetryService(runtime);
     this.marketplace = new MarketplaceService(runtime);
     this.projects = new ProjectService(runtime);
+    this.research = new ResearchService(runtime);
     this.groups = new GroupService(runtime);
     this.live = new LiveService(runtime);
   }

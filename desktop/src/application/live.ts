@@ -11,6 +11,7 @@ export type LiveChange = { runs: { id: string; threadId?: string; agentId: strin
 export class LiveService {
   private readonly listeners = new Set<(change: LiveChange) => void>();
   private readonly statusListeners = new Set<(connected: boolean) => void>();
+  private readonly researchListeners = new Set<() => void>();
   private controller: AbortController | null = null;
   connected = false;
 
@@ -38,6 +39,8 @@ export class LiveService {
               for (const listener of this.listeners) listener({ runs: [], other: true });
             } else if (event === "change") {
               for (const listener of this.listeners) listener(data as LiveChange);
+            } else if (event === "research") {
+              for (const listener of this.researchListeners) listener();
             }
           }, controller.signal);
         } catch {
@@ -58,6 +61,15 @@ export class LiveService {
     this.start();
     return () => {
       this.listeners.delete(listener);
+    };
+  }
+
+  /** Calls `listener` when a research record changed, which it then reads back; returns the unsubscribe. */
+  onResearchChange(listener: () => void): () => void {
+    this.researchListeners.add(listener);
+    this.start();
+    return () => {
+      this.researchListeners.delete(listener);
     };
   }
 

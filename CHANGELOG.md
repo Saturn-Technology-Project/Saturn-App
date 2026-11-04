@@ -4,6 +4,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+### Added
+
+- **A research workbench.** Under Research, open a project's file, write it yourself, run an experiment and read its samples next to the code, then write down what you understood. Everything is kept as plain files in the project's `.saturn/research` folder, and reopening picks up where you stopped. A run records exactly what it computed, including uncommitted code, and a crash leaves its samples readable. Experiment runs work on macOS and Linux; on Windows they say they are not supported yet.
+
 ### Security
 
 - **An agent's GitHub tools could read any git repository on this computer.** A repository owner or name such as `../..` was used as a folder path, so a prompt-injected agent could read a repository outside its project. Owners and names must now be plain names. A remote on a host that merely ends in `github.com` also no longer counts as GitHub.

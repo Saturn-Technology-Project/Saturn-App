@@ -1,0 +1,59 @@
+import { useEffect, useRef } from "react";
+import { python } from "@codemirror/lang-python";
+import { basicSetup, EditorView } from "codemirror";
+import { keymap } from "@codemirror/view";
+
+const editorTheme = EditorView.theme({
+  "&": { height: "100%", backgroundColor: "var(--stage)", color: "var(--fg)", fontSize: "13px" },
+  ".cm-content": { fontFamily: "var(--font-mono, ui-monospace, Menlo, monospace)", caretColor: "var(--fg)" },
+  ".cm-cursor": { borderLeftColor: "var(--fg)" },
+  ".cm-gutters": { backgroundColor: "var(--panel)", color: "var(--muted)", borderRight: "1px solid var(--line)" },
+  ".cm-activeLine": { backgroundColor: "var(--hover)" },
+  ".cm-activeLineGutter": { backgroundColor: "var(--hover)" },
+  ".cm-scroller": { overflow: "auto" },
+});
+
+/** A code editor. The undo history and selection live here; a new `documentKey` starts a new document. */
+export function SourceEditor(props: {
+  documentKey: string;
+  initialContent: string;
+  language: "python" | "plain";
+  onChange: (content: string) => void;
+  onSave: () => void;
+}) {
+  const host = useRef<HTMLDivElement>(null);
+  const handlers = useRef({ onChange: props.onChange, onSave: props.onSave });
+  handlers.current = { onChange: props.onChange, onSave: props.onSave };
+
+  useEffect(() => {
+    if (!host.current) return undefined;
+    const view = new EditorView({
+      doc: props.initialContent,
+      parent: host.current,
+      extensions: [
+        keymap.of([
+          {
+            key: "Mod-s",
+            preventDefault: true,
+            run: () => {
+              handlers.current.onSave();
+              return true;
+            },
+          },
+        ]),
+        basicSetup,
+        editorTheme,
+        ...(props.language === "python" ? [python()] : []),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) handlers.current.onChange(update.state.doc.toString());
+        }),
+        EditorView.contentAttributes.of({ "aria-label": "Source file" }),
+      ],
+    });
+    return () => view.destroy();
+    // Only a new document replaces the editor: its content then lives in the editor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.documentKey]);
+
+  return <div ref={host} className="research-editor-host" />;
+}

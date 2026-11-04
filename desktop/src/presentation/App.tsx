@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
 import { Automations, ClockIcon } from "./Automations";
+import { FlaskIcon, ResearchWorkbench } from "./research/Workbench";
 import { Customizations, PuzzleIcon } from "./Customizations";
 import { Inspector } from "./Inspector";
 import { RunSteps } from "./RunSteps";
@@ -165,7 +166,7 @@ export function App() {
   const [projectMenu, setProjectMenu] = useState<{ project: Project; x: number; y: number } | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [projectView, patchProjectView, resetProjectView] = useProjectView();
-  const [view, setView] = useState<"workspace" | "agents" | "settings" | "automations" | "customizations" | "project" | "group">("workspace");
+  const [view, setView] = useState<"workspace" | "agents" | "settings" | "automations" | "customizations" | "research" | "project" | "group">("workspace");
   const [settingsPage, setSettingsPage] = useState<SettingsPage>("settings");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(true);
@@ -177,7 +178,7 @@ export function App() {
   const [theme, setTheme] = useState<"light" | "dark">(storedTheme);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [navHistory, setNavHistory] = useState<
-    Array<{ view: "workspace" | "agents" | "settings" | "automations" | "customizations" | "project" | "group"; agentId: string | null; settingsPage?: SettingsPage }>
+    Array<{ view: "workspace" | "agents" | "settings" | "automations" | "customizations" | "research" | "project" | "group"; agentId: string | null; settingsPage?: SettingsPage }>
   >([{ view: "workspace", agentId: null }]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1168,7 +1169,7 @@ ${skill.instructions}`);
   }
 
   function pushNav(next: {
-    view: "workspace" | "agents" | "settings" | "automations" | "customizations" | "project" | "group";
+    view: "workspace" | "agents" | "settings" | "automations" | "customizations" | "research" | "project" | "group";
     agentId: string | null;
     settingsPage?: SettingsPage;
   }) {
@@ -1350,6 +1351,7 @@ ${skill.instructions}`);
     if (view === "settings") return "Settings";
     if (view === "agents") return "Agents";
     if (view === "automations") return "Automations";
+    if (view === "research") return "Research";
     if (view === "customizations") return "Customizations";
     if (view === "project") return selectedProject?.name || "Project";
     if (view === "group") return "Groups";
@@ -1366,7 +1368,7 @@ ${skill.instructions}`);
           ? "Models & Providers"
           : "General";
     }
-    if (view === "automations" || view === "customizations") {
+    if (view === "automations" || view === "customizations" || view === "research") {
       return null;
     }
     if (view === "group") return groups.find((item) => item.id === selectedGroupId)?.name ?? null;
@@ -1648,6 +1650,17 @@ ${skill.instructions}`);
               >
                 <ClockIcon />
                 <span>Automations</span>
+              </button>
+              <button
+                type="button"
+                className={view === "research" ? "side-link active" : "side-link"}
+                onClick={() => {
+                  setView("research");
+                  pushNav({ view: "research", agentId: selected });
+                }}
+              >
+                <FlaskIcon />
+                <span>Research</span>
               </button>
               <button
                 type="button"
@@ -2280,6 +2293,8 @@ ${skill.instructions}`);
             onOpen={(run) => void openThread(run.agentId, run.threadId)}
             onDispatch={dispatchInBackground}
           />
+        ) : view === "research" ? (
+          <ResearchWorkbench project={activeProject ?? null} />
         ) : view === "automations" ? (
           <Automations
             agents={agents}
