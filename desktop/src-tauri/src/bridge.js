@@ -1,5 +1,7 @@
 // The renderer's only bridge to the app, in the main frame only: it holds the runtime token, which no iframe may see.
 (() => {
+  // This script runs on whatever the main frame navigates to; only Saturn's own interface gets anything from it.
+  if (window.location.origin !== __SATURN_INTERFACE__) return;
   const invoke = (command, args) => window.__TAURI_INTERNALS__.invoke(command, args);
   const threadListeners = new Set();
   let windowButtons = null;

@@ -125,10 +125,14 @@ fn request_permission(which: String) -> permissions::Answer {
     permissions::request(&which)
 }
 
-/// The bridge script with this runtime's token and address filled in.
-fn bridge_script(runtime: &Runtime) -> String {
+/// The bridge script with this runtime's token and address filled in, for the interface at `interface` only.
+fn bridge_script(runtime: &Runtime, interface: &Url) -> String {
     let quoted = |text: &str| serde_json::Value::from(text).to_string();
     include_str!("bridge.js")
+        .replace(
+            "__SATURN_INTERFACE__",
+            &quoted(&interface.origin().ascii_serialization()),
+        )
         .replace("__SATURN_TOKEN__", &quoted(&runtime.token()))
         .replace("__SATURN_ORIGIN__", &quoted(&runtime.origin()))
         .replace(
@@ -153,21 +157,21 @@ pub(crate) fn show_main_window(app: &AppHandle) {
         let _ = window.set_focus();
         return;
     }
-    let script = bridge_script(&app.state::<Runtime>());
-    let builder =
-        WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::External(interface_url()))
-            .title("Saturn")
-            .background_color(BACKGROUND)
-            .disable_drag_drop_handler()
-            // A hidden window keeps running: chats update and notifications arrive with Saturn in the background.
-            .background_throttling(BackgroundThrottlingPolicy::Disabled)
-            .initialization_script(script)
-            .on_new_window(|address, _| {
-                open_in_browser(&address);
-                NewWindowResponse::Deny
-            })
-            .inner_size(1320.0, 840.0)
-            .min_inner_size(940.0, 620.0);
+    let interface = interface_url();
+    let script = bridge_script(&app.state::<Runtime>(), &interface);
+    let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::External(interface))
+        .title("Saturn")
+        .background_color(BACKGROUND)
+        .disable_drag_drop_handler()
+        // A hidden window keeps running: chats update and notifications arrive with Saturn in the background.
+        .background_throttling(BackgroundThrottlingPolicy::Disabled)
+        .initialization_script(script)
+        .on_new_window(|address, _| {
+            open_in_browser(&address);
+            NewWindowResponse::Deny
+        })
+        .inner_size(1320.0, 840.0)
+        .min_inner_size(940.0, 620.0);
     // On macOS the traffic lights sit over the page's own title bar; on Windows the bridge draws the buttons.
     #[cfg(target_os = "macos")]
     let builder = builder
