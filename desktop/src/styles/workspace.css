@@ -1,0 +1,215 @@
+/* Files, the editor, and what a run produced. */
+.lab-workspace {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lab-files {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 8px;
+  overflow: auto;
+  background: var(--panel);
+}
+
+.lab-pane-title {
+  margin-bottom: 6px;
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.lab-file {
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.lab-file:hover,
+.lab-file.active {
+  background: var(--hover);
+}
+
+.lab-toolbar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lab-toolbar-file {
+  max-width: 260px;
+  overflow: hidden;
+  font-size: var(--text-small);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lab-toolbar-command {
+  flex: 1 1 200px;
+  width: auto;
+  min-width: 140px;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+}
+
+.lab-segments {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.lab-segment {
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.lab-segment.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.research-editor-host {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.research-editor-host .cm-editor {
+  height: 100%;
+}
+
+.lab-placeholder {
+  margin: auto;
+  padding: 24px;
+  color: var(--muted);
+}
+
+.lab-lower {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+}
+
+.lab-lower-body {
+  flex: 1;
+  min-height: 0;
+  padding: 10px 12px;
+  overflow: auto;
+}
+
+.lab-run {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lab-run-status {
+  font-weight: 600;
+}
+
+.lab-sample-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.lab-sample-list {
+  display: flex;
+  flex: 1 1 170px;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 260px;
+}
+
+.lab-sample-detail {
+  display: flex;
+  flex: 999 1 280px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.lab-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lab-terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--term-bg);
+  color: var(--term-fg);
+}
+
+.lab-terminal-log {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 10px;
+  overflow: auto;
+}
+
+.lab-terminal-command {
+  color: var(--term-prompt);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+}
+
+.lab-terminal-error {
+  color: var(--term-stderr);
+}
+
+.lab-terminal-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--line);
+}
+
+.lab-terminal-input input {
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+}

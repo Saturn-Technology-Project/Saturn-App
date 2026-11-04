@@ -16,7 +16,7 @@ import {
   modeOf,
 } from "../../domain/research.js";
 import { ExperimentScreen, LineageScreen, ProjectHome, ProtectionScreen, SampleScreen } from "./Screens.js";
-import { SourceEditor } from "./SourceEditor.js";
+import { SourceEditor } from "../workspace/SourceEditor.js";
 
 const FINDING_LABELS: Record<FindingKind, string> = {
   observation: "Observation",

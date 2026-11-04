@@ -20,10 +20,12 @@ export function SourceEditor(props: {
   language: "python" | "plain";
   onChange: (content: string) => void;
   onSave: () => void;
+  /** The selected text and the line it starts on, or nothing. */
+  onSelection?: (selection: { text: string; line: number } | null) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const handlers = useRef({ onChange: props.onChange, onSave: props.onSave });
-  handlers.current = { onChange: props.onChange, onSave: props.onSave };
+  const handlers = useRef({ onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection });
+  handlers.current = { onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection };
 
   useEffect(() => {
     if (!host.current) return undefined;
@@ -46,6 +48,12 @@ export function SourceEditor(props: {
         ...(props.language === "python" ? [python()] : []),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) handlers.current.onChange(update.state.doc.toString());
+          if (update.selectionSet) {
+            const range = update.state.selection.main;
+            handlers.current.onSelection?.(
+              range.empty ? null : { text: update.state.sliceDoc(range.from, range.to), line: update.state.doc.lineAt(range.from).number },
+            );
+          }
         }),
         EditorView.contentAttributes.of({ "aria-label": "Source file" }),
       ],
