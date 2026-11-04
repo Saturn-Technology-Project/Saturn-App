@@ -11,6 +11,8 @@ const COMMANDS: &[&str] = &[
     "close_window",
     "notify",
     "request_permission",
+    "runtime_status",
+    "restart_runtime",
 ];
 
 fn main() {
