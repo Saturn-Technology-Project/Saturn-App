@@ -16,6 +16,7 @@ versions/<id>.json         a frozen experiment, which never changes
 models/<id>.json
 findings/<id>.json
 labels/<run id>.json       the user's labels, kept apart from scores
+counterexamples/<id>.json  a run's sample kept for later
 objects/<sha256>           saved copies of source files
 runs/<id>/run.json
 runs/<id>/samples.jsonl    the only output that counts as samples
@@ -119,6 +120,8 @@ One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`.
 - `scores` is an object of numbers, strings or booleans, by scorer name.
 - `error` is null, or `{"kind":"infrastructure"|"model"|"scorer","message":"..."}`. Infrastructure errors are counted
   apart and are not model failures.
+- `scorerLabel`, optional, is the scorer's verdict in the words a person would label it with. Agreement with a person's
+  labels counts only samples that have it, in the same run, so with the same version of the scorer.
 - Standard output and standard error are only logs.
 
 While the process runs, a final line without a newline is treated as not written yet. Once it has ended:

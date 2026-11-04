@@ -146,8 +146,46 @@ async fn log(
     ok(kernel.research_run_log(&project, &id, stream).await?)
 }
 
+async fn labels(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
+    ok(kernel.research_labels(&project, &run).await?)
+}
+
+async fn set_label(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_set_label(&project, &run, &body_of(body))
+        .await?)
+}
+
+async fn sample_across(
+    State(kernel): Shared,
+    Path((project, sample)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let runs: Vec<&str> = query
+        .get("runs")
+        .map_or("", String::as_str)
+        .split(',')
+        .filter(|run| !run.is_empty())
+        .collect();
+    ok(kernel
+        .research_sample_across(&project, &sample, &runs)
+        .await?)
+}
+
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route(
+            "/projects/{id}/research/runs/{run}/labels",
+            get(labels).post(set_label),
+        )
+        .route(
+            "/projects/{id}/research/samples/{sample}",
+            get(sample_across),
+        )
         .route(
             "/projects/{id}/research/source",
             get(read_source).put(write_source),

@@ -29,6 +29,7 @@ pub fn id_prefix(collection: &str) -> Option<&'static str> {
         "experiments" => Some("experiment"),
         "findings" => Some("finding"),
         "models" => Some("model"),
+        "counterexamples" => Some("counterexample"),
         "versions" => Some("version"),
         _ => None,
     }
@@ -143,6 +144,10 @@ fn check(collection: &str, fields: &Map<String, Value>) -> Result<(), String> {
             one_of("kind", &FINDING_KINDS)
         }
         "models" => needs("source"),
+        "counterexamples" => {
+            needs("runId")?;
+            needs("sampleId")
+        }
         _ => Ok(()),
     }
 }
