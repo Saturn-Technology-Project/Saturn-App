@@ -155,7 +155,7 @@ export function ResearchApp() {
       </Empty>
     );
   } else {
-    body = <ScreenSwitch key={project.id} project={project} screen={screen} assistant={assistant} go={go} notify={setNotice} />;
+    body = <ScreenSwitch key={project.id} project={project} screen={screen} assistant={assistant} go={go} notify={setNotice} onOpenSettings={() => setSettings(true)} />;
   }
 
   return (

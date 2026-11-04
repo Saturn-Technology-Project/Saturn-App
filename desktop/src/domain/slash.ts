@@ -19,3 +19,14 @@ export function parseSlash(text: string): { name: string; rest: string } | undef
 export function hiddenContext(source: string, text: string): string {
   return `\n\n<saturn_context sources="${source.replace(/"/g, "'")}">\n<attached_context>\n${text}\n</attached_context>\n</saturn_context>`;
 }
+
+/** The user's own words: what they typed, without the attached-context block sent along. */
+export function shownInput(input: string): string {
+  const at = input.indexOf("\n\n<saturn_context");
+  return at >= 0 ? input.slice(0, at) : input;
+}
+
+/** The "sources" a message's attached-context block names, for a small line under it. */
+export function contextSources(input: string): string {
+  return /<saturn_context sources="([^"]*)">/.exec(input)?.[1] ?? "";
+}

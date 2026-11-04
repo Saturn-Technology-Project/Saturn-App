@@ -7,6 +7,7 @@ import {
   type AcrossRow,
   type ExperimentRun,
   type RunLabels,
+  type SampleItem,
 } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { messageOf } from "../ui/Parts.js";
@@ -16,7 +17,7 @@ const service = desktop.research;
 const LABELS = ["Correct", "Wrong", "Invalid", "Unsure"];
 
 /** One sample across runs, and a person's label on it, which never overwrites a score. */
-export function Samples(props: ScreenProps) {
+export function Samples(props: ScreenProps & { onReview: (item: SampleItem | null) => void }) {
   const projectId = props.project.id;
   const { value } = useRecords(async () => (await service.runs(projectId)).items as ExperimentRun[], props.notify);
   const runs = value ?? [];
@@ -47,7 +48,10 @@ export function Samples(props: ScreenProps) {
     try {
       setSampleId(sample);
       setSaved(null);
-      setRows((await service.sampleAcross(projectId, sample.trim(), chosen)).rows);
+      const across = (await service.sampleAcross(projectId, sample.trim(), chosen)).rows;
+      setRows(across);
+      const shown = across.flatMap((row) => row.samples)[0];
+      props.onReview(shown ? { offset: 0, sample: shown } : null);
       const loaded: Record<string, RunLabels> = {};
       for (const run of chosen) loaded[run] = await service.labels(projectId, run);
       setLabels(loaded);

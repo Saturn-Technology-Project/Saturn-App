@@ -1,4 +1,5 @@
 import { AdminService } from "./admin.js";
+import { AssistantService } from "./assistant.js";
 import { AutomationService } from "./automations.js";
 import { CatalogService } from "./catalog.js";
 import { GroupService } from "./groups.js";
@@ -22,6 +23,7 @@ export class DesktopApp {
   readonly marketplace: MarketplaceService;
   readonly projects: ProjectService;
   readonly research: ResearchService;
+  readonly assistant: AssistantService;
   readonly groups: GroupService;
   readonly live: LiveService;
 
@@ -35,6 +37,7 @@ export class DesktopApp {
     this.marketplace = new MarketplaceService(runtime);
     this.projects = new ProjectService(runtime);
     this.research = new ResearchService(runtime);
+    this.assistant = new AssistantService(this.catalog, this.runs);
     this.groups = new GroupService(runtime);
     this.live = new LiveService(runtime);
   }
