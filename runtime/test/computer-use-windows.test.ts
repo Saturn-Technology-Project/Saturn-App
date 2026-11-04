@@ -3,7 +3,7 @@ import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { ComputerUseSkill } from "../src/infrastructure/skills/computer-use-skill.js";
+import { assertLaunchable, ComputerUseSkill } from "../src/infrastructure/skills/computer-use-skill.js";
 import { parseChord } from "../src/infrastructure/skills/windows.js";
 
 test("Windows chords: cmd means Ctrl, named keys get virtual-key codes, letters keep their case only alone", () => {
@@ -80,5 +80,26 @@ test("Windows computer use drives Notepad end to end", { skip: process.platform 
     } catch {
       // Already gone.
     }
+  }
+});
+
+test("only an app can be started, on either system", () => {
+  assert.doesNotThrow(() => assertLaunchable({ appPath: "/Applications/Notes.app/" }, false));
+  assert.doesNotThrow(() => assertLaunchable({ appName: "Notes" }, false));
+  assert.doesNotThrow(() => assertLaunchable({ bundleId: "com.apple.Notes" }, false));
+  assert.doesNotThrow(() => assertLaunchable({ appPath: "C:\\Tools\\App.EXE" }, true));
+  assert.doesNotThrow(() => assertLaunchable({ bundleId: "C:\\Tools\\App.exe" }, true));
+  assert.doesNotThrow(() => assertLaunchable({ appName: "notepad" }, true));
+  for (const [selector, windows] of [
+    [{ appPath: "/tmp/run.command" }, false],
+    [{ appName: "/tmp/run.command" }, false],
+    [{ appName: "-h" }, false],
+    [{ bundleId: "--args" }, false],
+    [{ bundleId: "C:\\Tools\\App.exe" }, false],
+    [{ appPath: "C:\\Tools\\run.bat" }, true],
+    [{ appName: "https://example.com/" }, true],
+    [{ bundleId: "C:\\Tools\\run.ps1" }, true],
+  ] as const) {
+    assert.throws(() => assertLaunchable(selector, windows), /is not an app/, JSON.stringify(selector));
   }
 });

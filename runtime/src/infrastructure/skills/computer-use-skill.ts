@@ -52,6 +52,24 @@ export function decodeToken(token: string, pid: number): Region {
   return { x: parsed.x!, y: parsed.y!, width: parsed.width!, height: parsed.height! };
 }
 
+/**
+ * What may be started: an app, nothing else. `open` and the Windows shell run whatever they are handed, so a script, a
+ * document or a web address given as an "app" would run outside the sandbox.
+ */
+export function assertLaunchable(selector: { bundleId?: string; appPath?: string; appName?: string }, windows = process.platform === "win32"): void {
+  const extension = windows ? ".exe" : ".app";
+  const isPath = (value: string) => /[/\\:]/.test(value);
+  const refuse = (value: string) => new Error(`${value} is not an app. Give an app's name, bundle id or path (${extension}).`);
+  for (const value of [selector.bundleId, selector.appPath, selector.appName]) {
+    if (value?.startsWith("-")) throw refuse(value);
+  }
+  const { bundleId, appPath, appName } = selector;
+  if (appPath && !appPath.replace(/[/\\]+$/, "").toLowerCase().endsWith(extension)) throw refuse(appPath);
+  if (appName && isPath(appName)) throw refuse(appName);
+  // On Windows a bundle id is the executable's path that computer_apps reports.
+  if (bundleId && isPath(bundleId) && !(windows && bundleId.toLowerCase().endsWith(".exe"))) throw refuse(bundleId);
+}
+
 /** Accessibility tree lines in the format the tool definition promises: "[id] ROLE name=… value=… settable actions=…". */
 export function formatTree(nodes: (AxNode & { id: number })[], snapshotId: string): string {
   const lines = nodes.map((node) => {
@@ -199,6 +217,7 @@ export class ComputerUseSkill {
       (appPath && (same(app.bundle_id, appPath) || same(app.name, stem(appPath)) || same(app.process, stem(appPath))));
     let found = (await desktop.runningApps()).find(match);
     if (!found && !pid) {
+      assertLaunchable({ bundleId, appPath, appName });
       await desktop.launchApp({ bundleId, appPath, appName });
       for (let attempt = 0; attempt < 20 && !found; attempt += 1) {
         await sleep(250);

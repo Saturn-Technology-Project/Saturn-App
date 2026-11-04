@@ -7,6 +7,7 @@ import { AntigravitySkill, type AntigravityContext } from "./skills/antigravity-
 import { BrowserSkill, type BrowserMode } from "./skills/browser-skill.js";
 
 const browsers = new Map<string, BrowserSkill>();
+const computers = new Map<string, ComputerUseSkill>();
 
 /** The agent's browser (one per runtime data dir; it closes itself when idle). */
 /** The agent browser of a data folder (one per runtime), created on first use. */
@@ -44,7 +45,13 @@ export async function runComputerUseSkill(
   args: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  return new ComputerUseSkill(dataDir).run(toolId, args, signal);
+  // One per data folder: a snapshot's element ids must still mean something on the next call.
+  let computer = computers.get(dataDir);
+  if (!computer) {
+    computer = new ComputerUseSkill(dataDir);
+    computers.set(dataDir, computer);
+  }
+  return computer.run(toolId, args, signal);
 }
 
 export async function runOriginSkill(

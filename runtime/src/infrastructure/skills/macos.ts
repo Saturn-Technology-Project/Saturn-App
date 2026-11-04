@@ -7,6 +7,11 @@ import { launchEnv } from "../launch-env.js";
 
 const execFileAsync = promisify(execFile);
 
+/** A macOS program, by its full path; SATURN_DESKTOP_BIN puts stand-ins in their place, so tests never touch the real screen. */
+function program(name: string, folder: string): string {
+  return path.join(process.env.SATURN_DESKTOP_BIN || folder, name);
+}
+
 /** What the user has to do when macOS refuses input or the accessibility tree. */
 export const ACCESSIBILITY_HELP =
   "Saturn needs the Accessibility permission to control apps. Open System Settings → Privacy & Security → Accessibility and turn on Saturn. " +
@@ -25,7 +30,7 @@ export class PermissionError extends Error {}
  */
 export async function jxa<T>(script: string, params: unknown = {}, timeout = 15_000): Promise<T> {
   try {
-    const { stdout } = await execFileAsync("osascript", ["-l", "JavaScript", "-e", script, JSON.stringify(params)], {
+    const { stdout } = await execFileAsync(program("osascript", "/usr/bin"), ["-l", "JavaScript", "-e", script, JSON.stringify(params)], {
       timeout,
       maxBuffer: 8 * 1024 * 1024,
       env: launchEnv(),
@@ -357,8 +362,8 @@ export async function capture(region: { x: number; y: number; width: number; hei
   const jpeg = raw.replace(/\.png$/, ".jpg");
   try {
     const where = region ? ["-R", `${Math.round(region.x)},${Math.round(region.y)},${Math.round(region.width)},${Math.round(region.height)}`] : ["-m"];
-    await execFileAsync("/usr/sbin/screencapture", ["-x", "-C", "-t", "png", ...where, raw], { env: launchEnv(), timeout: 15_000 });
-    await execFileAsync("/usr/bin/sips", ["-z", String(canvas.height), String(canvas.width), "-s", "format", "jpeg", "-s", "formatOptions", "70", raw, "--out", jpeg], { env: launchEnv(), timeout: 15_000 });
+    await execFileAsync(program("screencapture", "/usr/sbin"), ["-x", "-C", "-t", "png", ...where, raw], { env: launchEnv(), timeout: 15_000 });
+    await execFileAsync(program("sips", "/usr/bin"), ["-z", String(canvas.height), String(canvas.width), "-s", "format", "jpeg", "-s", "formatOptions", "70", raw, "--out", jpeg], { env: launchEnv(), timeout: 15_000 });
     const buffer = await fs.readFile(jpeg);
     if (buffer.length < 1000) throw new Error("macOS returned an empty screenshot");
     return `data:image/jpeg;base64,${buffer.toString("base64")}`;
@@ -375,7 +380,7 @@ export async function capture(region: { x: number; y: number; width: number; hei
 export async function launchApp(selector: { bundleId?: string; appPath?: string; appName?: string }): Promise<void> {
   const how = selector.bundleId ? ["-g", "-b", selector.bundleId] : selector.appPath ? ["-g", selector.appPath] : ["-g", "-a", selector.appName ?? ""];
   try {
-    await execFileAsync("open", how, { env: launchEnv(), timeout: 15_000 });
+    await execFileAsync(program("open", "/usr/bin"), how, { env: launchEnv(), timeout: 15_000 });
   } catch (error) {
     throw new Error(`Could not open ${selector.bundleId || selector.appPath || selector.appName}: ${explain(error).message}`);
   }
