@@ -60,6 +60,7 @@
   "GET /projects/:id/index/search",
   "GET /projects/:id/research/:collection",
   "GET /projects/:id/research/:collection/:item",
+  "GET /projects/:id/research/compare",
   "GET /projects/:id/rules",
   "GET /projects/active",
   "GET /runs",

@@ -1,8 +1,9 @@
 //! Research records, in the project's own folder. `docs/research-contract.md` is the contract.
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::Router;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use saturn_core::Kernel;
 
@@ -56,8 +57,20 @@ async fn freeze(
     if new { created(version) } else { ok(version) }
 }
 
+async fn compare(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let side = |key: &str| query.get(key).map_or("", String::as_str);
+    ok(kernel
+        .research_compare(&project, side("left"), side("right"))
+        .await?)
+}
+
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route("/projects/{id}/research/compare", get(compare))
         .route(
             "/projects/{id}/research/{collection}",
             get(list).post(create),

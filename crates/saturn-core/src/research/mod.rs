@@ -7,12 +7,15 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use saturn_domain::research::{changed_record, id_prefix, is_id, new_record, unusable, writable};
+use saturn_domain::research::{
+    changed_record, compare_versions, id_prefix, is_id, makes_cycle, new_record, unusable, writable,
+};
 use saturn_domain::time::{iso_time, now_millis};
 use saturn_domain::{new_id, random_hex};
 use serde_json::{Value, json};
 use tokio::sync::{Mutex as AsyncMutex, watch};
 
+use crate::records::{by_id, text};
 use crate::{CoreError, Kernel, locked};
 
 /// What the runtime keeps about research records while it runs.
@@ -229,6 +232,9 @@ impl Kernel {
                 "These records cannot be written directly",
             ));
         }
+        if collection == "models" {
+            self.check_parent(project, input, None).await?;
+        }
         let id = new_id(prefix)?;
         let record = new_record(collection, input, &id, &iso_time(now_millis()))
             .map_err(|message| CoreError::new(400, message))?;
@@ -268,6 +274,9 @@ impl Kernel {
             .await
             .map_err(|reason| cannot_use(id, &reason))?
             .ok_or_else(not_found)?;
+        if collection == "models" {
+            self.check_parent(project, changes, Some(id)).await?;
+        }
         let revision = record.get("revision").and_then(Value::as_u64).unwrap_or(0);
         if revision != expected {
             return Err(CoreError::new(
@@ -282,6 +291,49 @@ impl Kernel {
         write_whole(&path, &pretty(&next)?).await?;
         self.research_changed();
         Ok(next)
+    }
+}
+
+impl Kernel {
+    /// Refuses a model's parent that does not exist, or that would make it its own ancestor.
+    async fn check_parent(
+        &self,
+        project: &str,
+        fields: &Value,
+        child: Option<&str>,
+    ) -> Result<(), CoreError> {
+        let Some(parent) = fields.get("parentId").and_then(Value::as_str) else {
+            return Ok(());
+        };
+        let records = self.records_folder(project).await?;
+        let (models, _) = read_folder(&Self::collection_folder(&records, "models").await?).await?;
+        if !models.iter().any(|model| text(model, "id") == parent) {
+            return Err(CoreError::new(
+                400,
+                format!("The parent model {parent} does not exist."),
+            ));
+        }
+        let parent_of = |id: &str| {
+            by_id(&models, id)
+                .map(|model| text(model, "parentId").to_owned())
+                .filter(|parent| !parent.is_empty())
+        };
+        if child.is_some_and(|child| makes_cycle(child, parent, parent_of)) {
+            return Err(CoreError::new(400, "A model cannot be its own ancestor."));
+        }
+        Ok(())
+    }
+
+    /// Whether two versions measured the same way.
+    pub async fn research_compare(
+        &self,
+        project: &str,
+        left: &str,
+        right: &str,
+    ) -> Result<Value, CoreError> {
+        let left = self.research_record(project, "versions", left).await?;
+        let right = self.research_record(project, "versions", right).await?;
+        Ok(compare_versions(&left, &right))
     }
 }
 

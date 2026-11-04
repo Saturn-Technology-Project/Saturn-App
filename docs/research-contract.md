@@ -82,7 +82,8 @@ A version whose input is missing cannot be created, and says which input.
 
 Two runs compare only through their `EvaluationSpec`. The answer is `comparable`, `not_comparable` with the fields that
 differ, or `unknown` with the fields that are missing. Training data is not part of it: pretraining, SFT and DPO are
-meant to differ.
+meant to differ. A version's `data` and `scorer` inputs are the evaluation's files, and files that changed under the same
+name make two versions `not_comparable`. Declare training data elsewhere, on the model that came from it.
 
 ## A run's life
 

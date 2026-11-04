@@ -179,9 +179,138 @@ pub fn fingerprint(content: &Value) -> String {
     sha256_hex(canonical(content).to_string().as_bytes())
 }
 
+/// What an evaluation must state before two runs can be compared. A chat template may be stated as none.
+const EVALUATION_FIELDS: [&str; 7] = [
+    "dataset",
+    "split",
+    "sampleSet",
+    "scorer",
+    "promptFormat",
+    "chatTemplate",
+    "generation",
+];
+
+/// The hashes of a version's inputs of one role, by path.
+fn input_hashes(version: &Value, role: &str) -> Vec<(String, String)> {
+    let mut hashes: Vec<(String, String)> = version
+        .get("inputs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|input| input.get("role").and_then(Value::as_str) == Some(role))
+        .map(|input| {
+            let field = |key: &str| {
+                input
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_owned()
+            };
+            (field("path"), field("sha256"))
+        })
+        .collect();
+    hashes.sort();
+    hashes
+}
+
+/// Whether two versions measured the same way: `comparable`, `not_comparable` with what differs, or `unknown` with
+/// what is missing. Training data is not part of it, since pretraining, SFT and DPO are meant to differ.
+pub fn compare_versions(left: &Value, right: &Value) -> Value {
+    let evaluation = |version: &Value| version.get("evaluation").cloned().unwrap_or(Value::Null);
+    let (left_spec, right_spec) = (evaluation(left), evaluation(right));
+    let mut missing = Vec::new();
+    let mut differs = Vec::new();
+    for field in EVALUATION_FIELDS {
+        let stated = |spec: &Value| match spec.get(field) {
+            Some(Value::Null) => field == "chatTemplate",
+            Some(_) => true,
+            None => false,
+        };
+        if !stated(&left_spec) || !stated(&right_spec) {
+            missing.push(field.to_owned());
+        } else if canonical(&left_spec[field]) != canonical(&right_spec[field]) {
+            differs.push(field.to_owned());
+        }
+    }
+    // The same names on changed files is not the same evaluation.
+    for role in ["data", "scorer"] {
+        if input_hashes(left, role) != input_hashes(right, role) {
+            differs.push(format!("{role} files"));
+        }
+    }
+    let result = if !differs.is_empty() {
+        "not_comparable"
+    } else if !missing.is_empty() {
+        "unknown"
+    } else {
+        "comparable"
+    };
+    json!({ "result": result, "differs": differs, "missing": missing })
+}
+
+/// Whether making `parent` the parent of `child` would make a model its own ancestor, given each model's parent.
+pub fn makes_cycle(child: &str, parent: &str, parent_of: impl Fn(&str) -> Option<String>) -> bool {
+    let mut current = Some(parent.to_owned());
+    let mut steps = 0;
+    while let Some(id) = current {
+        if id == child || steps > 10_000 {
+            return true;
+        }
+        current = parent_of(&id);
+        steps += 1;
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn evaluation() -> Value {
+        json!({"dataset": "ioi", "split": "test", "sampleSet": "all", "scorer": "logit", "promptFormat": "continuation", "chatTemplate": null, "generation": {"top_k": 1}})
+    }
+
+    #[test]
+    fn versions_compare_only_through_how_they_were_evaluated() {
+        let base = json!({"evaluation": evaluation(), "trainingData": "pile"});
+        let tuned = json!({"evaluation": evaluation(), "trainingData": "qa"});
+        assert_eq!(compare_versions(&base, &tuned)["result"], "comparable");
+
+        let mut templated = evaluation();
+        templated["chatTemplate"] = json!("chatml");
+        let answer = compare_versions(&base, &json!({"evaluation": templated}));
+        assert_eq!(answer["result"], "not_comparable");
+        assert_eq!(answer["differs"], json!(["chatTemplate"]));
+
+        let mut partial = evaluation();
+        partial.as_object_mut().unwrap().remove("split");
+        let answer = compare_versions(&base, &json!({"evaluation": partial}));
+        assert_eq!(answer["result"], "unknown");
+        assert_eq!(answer["missing"], json!(["split"]));
+    }
+
+    #[test]
+    fn a_stated_name_on_changed_files_is_not_the_same_evaluation() {
+        let with_data = |hash: &str| json!({"evaluation": evaluation(), "inputs": [{"role": "data", "path": "set", "sha256": hash}]});
+        assert_eq!(
+            compare_versions(&with_data("a"), &with_data("a"))["result"],
+            "comparable"
+        );
+        let answer = compare_versions(&with_data("a"), &with_data("b"));
+        assert_eq!(answer["differs"], json!(["data files"]));
+    }
+
+    #[test]
+    fn a_model_cannot_become_its_own_ancestor() {
+        let parent_of = |id: &str| match id {
+            "b" => Some("a".to_owned()),
+            "c" => Some("b".to_owned()),
+            _ => None,
+        };
+        assert!(makes_cycle("a", "c", parent_of));
+        assert!(makes_cycle("a", "a", parent_of));
+        assert!(!makes_cycle("d", "c", parent_of));
+    }
 
     #[test]
     fn the_same_content_has_the_same_fingerprint_in_any_key_order() {
