@@ -9,6 +9,20 @@ use tokio::process::Command;
 
 use crate::shell::Invocation;
 
+/// The environment for a program started for the user: the runtime's own, minus what only makes sense for this process.
+pub fn launch_env(command: &mut Command) {
+    for (key, _) in std::env::vars_os() {
+        let name = key.to_string_lossy();
+        if name.starts_with("ELECTRON_")
+            || name == "SATURN_DESKTOP_ATTACHED"
+            || name == "SATURN_DESKTOP_PID"
+            || name == "SATURN_RUNTIME_TOKEN"
+        {
+            command.env_remove(&key);
+        }
+    }
+}
+
 /// How long a stopped command gets to end by itself.
 const GRACE: Duration = Duration::from_secs(2);
 

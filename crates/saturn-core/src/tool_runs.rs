@@ -297,11 +297,14 @@ impl Kernel {
             self.load_toolkits(run_id, std::slice::from_ref(&server))
                 .await?;
         }
-        if matches!(
-            server.as_str(),
-            COMPUTER_USE_ID | "cursor-computer-use" | AUTOMATIONS_ID | "antigravity-skills"
-        ) {
+        if matches!(server.as_str(), AUTOMATIONS_ID | "antigravity-skills") {
             return Ok(failed(&not_ported(&server, tool)));
+        }
+        if matches!(server.as_str(), COMPUTER_USE_ID | "cursor-computer-use") {
+            return Ok(match self.computer.run(tool, arguments).await {
+                Ok(result) => completed(result),
+                Err(reason) => failed(&reason),
+            });
         }
         if server == BROWSER_ID {
             self.browser.set_mode(self.browser_mode()).await;
@@ -752,7 +755,6 @@ impl Kernel {
 /// Why a tool of a server the Rust runtime does not run yet failed.
 fn not_ported(server: &str, tool: &str) -> String {
     let named = match server {
-        COMPUTER_USE_ID | "cursor-computer-use" => "The computer-use tools",
         AUTOMATIONS_ID | "antigravity-skills" => "The automation tools",
         _ => "Other MCP servers' tools",
     };

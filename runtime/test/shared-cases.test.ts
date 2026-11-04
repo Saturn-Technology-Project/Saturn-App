@@ -3,6 +3,7 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { WINDOWS_HELPER_SCRIPT, WINDOWS_HELPER_SOURCE } from "../src/infrastructure/skills/windows-helper.js";
 import { priceCall } from "../src/domain/llm/pricing.js";
 import { commandSegments, fromClaudeRule, matchesRule, resolvePermission, suggestedPattern, type PermissionEffect, type PermissionLayer, type PermissionRule } from "../src/domain/permissions.js";
 import { autonomyOf, isReadOnlyCall, isSensitiveOperation } from "../src/domain/policies.js";
@@ -210,4 +211,10 @@ test("crates/saturn-core keeps the same list of providers and models", async () 
 test("crates/saturn-core keeps the same integrations", async () => {
   const recipes = JSON.parse(await readFile(new URL("../../crates/saturn-core/src/install-recipes.json", import.meta.url), "utf8")) as unknown;
   assert.deepEqual(recipes, INSTALL_RECIPES);
+});
+
+test("the Windows desktop helper in Rust is the one written here", async () => {
+  const folder = "../../crates/saturn-computer/src/windows/";
+  assert.equal(await readFile(new URL(`${folder}helper.ps1`, import.meta.url), "utf8"), WINDOWS_HELPER_SCRIPT);
+  assert.equal(await readFile(new URL(`${folder}helper.cs`, import.meta.url), "utf8"), WINDOWS_HELPER_SOURCE);
 });

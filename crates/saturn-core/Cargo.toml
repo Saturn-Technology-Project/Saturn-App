@@ -18,6 +18,7 @@ reqwest = { version = "0.13", default-features = false, features = ["native-tls"
 # The code index's file, the same SQLite file the TypeScript runtime wrote.
 rusqlite = { version = "0.41", features = ["bundled"] }
 saturn-browser = { path = "../saturn-browser" }
+saturn-computer = { path = "../saturn-computer" }
 saturn-domain = { path = "../saturn-domain" }
 saturn-embed = { path = "../saturn-embed" }
 saturn-llm = { path = "../saturn-llm" }

@@ -84,7 +84,8 @@ async function toolRunner(runtime) {
     let raw = "";
     request.on("data", (chunk) => { raw += chunk; });
     request.on("end", () => {
-      const next = queue.shift();
+      // Background work (a chat's title, memory) asks without tools and must not take a step meant for the run.
+      const next = JSON.parse(raw || "{}").tools?.length ? queue.shift() : undefined;
       const message = next ? { role: "assistant", content: "", tool_calls: [{ id: "c0", type: "function", function: { name: next[0], arguments: JSON.stringify(next[1]) } }] } : { role: "assistant", content: "done" };
       response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ id: "r", object: "chat.completion", model: "s", choices: [{ index: 0, finish_reason: next ? "tool_calls" : "stop", message }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
     });

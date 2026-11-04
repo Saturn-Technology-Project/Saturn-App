@@ -3916,6 +3916,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "saturn-computer"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "regex",
+ "saturn-domain",
+ "saturn-tools",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "saturn-core"
 version = "0.1.0"
 dependencies = [
@@ -3926,6 +3940,7 @@ dependencies = [
  "reqwest",
  "rusqlite",
  "saturn-browser",
+ "saturn-computer",
  "saturn-domain",
  "saturn-embed",
  "saturn-llm",

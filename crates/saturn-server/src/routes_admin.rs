@@ -953,6 +953,11 @@ async fn oauth_callback(State(kernel): Shared, Query(query): QueryText) -> Respo
     }
 }
 
+/// Whether this computer lets Saturn control it, and so whether Settings asks for anything.
+async fn computer_permissions(State(kernel): Shared) -> Answer {
+    ok(kernel.computer.permission_status().await)
+}
+
 async fn open_permission_pane(body: Body) -> Answer {
     let body = body_of(body);
     let pane = match given(&body, "which") {
@@ -1041,6 +1046,7 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/workspace/files", get(workspace_files))
         .route("/workspace/browser/open", post(open_browser))
         .route("/workspace/browser/proxy", get(browser_proxy))
+        .route("/computer/permissions", get(computer_permissions))
         .route("/computer/permissions/open", post(open_permission_pane))
         .route("/automations", get(automations).post(create_automation))
         .route("/automations/draft", post(draft_automation))

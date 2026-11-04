@@ -535,7 +535,7 @@ async fn load_tools_and_skill_work_and_a_tool_not_ported_yet_says_so() {
         vec![
             json!([call("load_tools", json!({ "toolkits": ["github"] }))]),
             json!([call("skill", json!({ "name": "deploy" }))]),
-            json!([call("computer_screenshot", json!({}))]),
+            json!([call("automation_list", json!({}))]),
             json!("done"),
         ],
         "bypass",

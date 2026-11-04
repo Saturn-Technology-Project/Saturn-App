@@ -13,16 +13,14 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use saturn_domain::js;
 use saturn_domain::skills::public_address::parse_public_address;
+use saturn_tools::launch_env;
 use saturn_tools::public_host::{SystemLookup, assert_public_host};
 use serde_json::{Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use tokio::task::JoinHandle;
 
 use crate::chrome::CURSOR_SCRIPT;
-use crate::{
-    Page, Recording, Supervised, Viewers, files, launch_env, locked, plain_number, scroll_by,
-    settle,
-};
+use crate::{Page, Recording, Supervised, Viewers, files, locked, plain_number, scroll_by, settle};
 
 const SAFARIDRIVER: &str = "/usr/bin/safaridriver";
 const SNAPSHOT_LIMIT: u64 = 400;

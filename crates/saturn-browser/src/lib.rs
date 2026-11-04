@@ -186,20 +186,6 @@ pub(crate) fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// The environment for a program the browser starts: the runtime's own, minus what only makes sense for this process.
-pub(crate) fn launch_env(command: &mut tokio::process::Command) {
-    for (key, _) in std::env::vars_os() {
-        let name = key.to_string_lossy();
-        if name.starts_with("ELECTRON_")
-            || name == "SATURN_DESKTOP_ATTACHED"
-            || name == "SATURN_DESKTOP_PID"
-            || name == "SATURN_RUNTIME_TOKEN"
-        {
-            command.env_remove(&key);
-        }
-    }
-}
-
 struct Inner {
     mode: Mutex<Mode>,
     /// One tool at a time: snapshot ids are only good for the next action, and one call starts the browser.
