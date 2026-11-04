@@ -1,0 +1,3433 @@
+{
+  "repository tools": [
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "path": "src/app.ts",
+        "ref": "main",
+        "startLine": 2,
+        "endLine": 3
+      },
+      "status": "completed",
+      "result": {
+        "type": "file",
+        "ref": "main",
+        "path": "src/app.ts",
+        "sha": "8d64198e9130e3caf7b74b98901bd8fe4f893b05",
+        "content": "export const Other = 'answer';\nconst third = 3;",
+        "startLine": 2,
+        "endLine": 3,
+        "totalLines": 4
+      }
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "path": "README.md"
+      },
+      "status": "completed",
+      "result": {
+        "type": "file",
+        "ref": "main",
+        "path": "README.md",
+        "sha": "a9ac86ba32036f3890a65c999530cbbdc741489c",
+        "content": "# Site\nThe answer is here.\n",
+        "startLine": 1,
+        "endLine": 3,
+        "totalLines": 3
+      }
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "path": "src",
+        "ref": "feature"
+      },
+      "status": "completed",
+      "result": {
+        "type": "dir",
+        "ref": "feature",
+        "path": "src",
+        "entries": [
+          {
+            "path": "src/app.ts",
+            "name": "app.ts",
+            "type": "file",
+            "sha": "45cbd5c32066205ce0783f41d1eb9dca624ae088",
+            "size": 74
+          },
+          {
+            "path": "src/new.ts",
+            "name": "new.ts",
+            "type": "file",
+            "sha": "3201e9b743185384ffeecadfbba557a66c485c31",
+            "size": 27
+          }
+        ]
+      }
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "path": ""
+      },
+      "status": "completed",
+      "result": {
+        "type": "dir",
+        "ref": "main",
+        "path": "",
+        "entries": [
+          {
+            "path": "README.md",
+            "name": "README.md",
+            "type": "file",
+            "sha": "a9ac86ba32036f3890a65c999530cbbdc741489c",
+            "size": 27
+          },
+          {
+            "path": "bin.dat",
+            "name": "bin.dat",
+            "type": "file",
+            "sha": "7989678ab4a6aa63e80faf3ec63f094f48d780f7",
+            "size": 8
+          },
+          {
+            "path": "src",
+            "name": "src",
+            "type": "dir",
+            "sha": "9b82a046a74b7a9f33cf26641758020d20126f31"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "path": "bin.dat"
+      },
+      "status": "completed",
+      "result": {
+        "type": "file",
+        "ref": "main",
+        "path": "bin.dat",
+        "sha": "7989678ab4a6aa63e80faf3ec63f094f48d780f7",
+        "binary": true,
+        "size": 8
+      }
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "path": "missing.txt",
+        "ref": "main"
+      },
+      "status": "failed",
+      "reason": "missing.txt does not exist at main"
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "path": "../../etc/passwd"
+      },
+      "status": "failed",
+      "reason": "Path must be inside the repository: ../../etc/passwd"
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "path": "/etc/passwd"
+      },
+      "status": "failed",
+      "reason": "Path must be inside the repository: /etc/passwd"
+    },
+    {
+      "tool": "get_git_tree",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "sha": "feature"
+      },
+      "status": "completed",
+      "result": {
+        "sha": "feature",
+        "tree": [
+          {
+            "path": "README.md",
+            "mode": "100644",
+            "type": "blob",
+            "sha": "a9ac86ba32036f3890a65c999530cbbdc741489c",
+            "size": 27
+          },
+          {
+            "path": "bin.dat",
+            "mode": "100644",
+            "type": "blob",
+            "sha": "7989678ab4a6aa63e80faf3ec63f094f48d780f7",
+            "size": 8
+          },
+          {
+            "path": "src/app.ts",
+            "mode": "100644",
+            "type": "blob",
+            "sha": "45cbd5c32066205ce0783f41d1eb9dca624ae088",
+            "size": 74
+          },
+          {
+            "path": "src/new.ts",
+            "mode": "100644",
+            "type": "blob",
+            "sha": "3201e9b743185384ffeecadfbba557a66c485c31",
+            "size": 27
+          }
+        ],
+        "count": 4,
+        "truncated": false
+      }
+    },
+    {
+      "tool": "get_git_tree",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "recursive": false
+      },
+      "status": "completed",
+      "result": {
+        "sha": "main",
+        "tree": [
+          {
+            "path": "README.md",
+            "mode": "100644",
+            "type": "blob",
+            "sha": "a9ac86ba32036f3890a65c999530cbbdc741489c",
+            "size": 27
+          },
+          {
+            "path": "bin.dat",
+            "mode": "100644",
+            "type": "blob",
+            "sha": "7989678ab4a6aa63e80faf3ec63f094f48d780f7",
+            "size": 8
+          },
+          {
+            "path": "src",
+            "mode": "040000",
+            "type": "tree",
+            "sha": "9b82a046a74b7a9f33cf26641758020d20126f31"
+          }
+        ],
+        "count": 3,
+        "truncated": false
+      }
+    },
+    {
+      "tool": "grep_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "query": "answer",
+        "ref": "main",
+        "literal": true
+      },
+      "status": "completed",
+      "result": {
+        "ref": "main",
+        "query": "answer",
+        "matches": [
+          {
+            "path": "README.md",
+            "line": 2,
+            "text": "The answer is here.",
+            "context": false
+          },
+          {
+            "path": "src/app.ts",
+            "line": 1,
+            "text": "export const answer = 42;",
+            "context": false
+          },
+          {
+            "path": "src/app.ts",
+            "line": 2,
+            "text": "export const Other = 'answer';",
+            "context": false
+          }
+        ],
+        "totalMatches": 3,
+        "truncated": false
+      }
+    },
+    {
+      "tool": "grep_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "query": "OTHER",
+        "caseInsensitive": true,
+        "contextBefore": 1,
+        "contextAfter": 1
+      },
+      "status": "completed",
+      "result": {
+        "ref": "main",
+        "query": "OTHER",
+        "matches": [
+          {
+            "path": "src/app.ts",
+            "line": 1,
+            "text": "export const answer = 42;",
+            "context": true
+          },
+          {
+            "path": "src/app.ts",
+            "line": 2,
+            "text": "export const Other = 'answer';",
+            "context": false
+          },
+          {
+            "path": "src/app.ts",
+            "line": 3,
+            "text": "const third = 3;",
+            "context": true
+          }
+        ],
+        "totalMatches": 1,
+        "truncated": false
+      }
+    },
+    {
+      "tool": "grep_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "query": "the",
+        "wholeWord": true,
+        "filterPath": "README.md"
+      },
+      "status": "completed",
+      "result": {
+        "ref": "main",
+        "query": "the",
+        "matches": [],
+        "totalMatches": 0,
+        "truncated": false
+      }
+    },
+    {
+      "tool": "grep_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "query": "answer",
+        "includes": [
+          "*.md"
+        ]
+      },
+      "status": "completed",
+      "result": {
+        "ref": "main",
+        "query": "answer",
+        "matches": [
+          {
+            "path": "README.md",
+            "line": 2,
+            "text": "The answer is here.",
+            "context": false
+          }
+        ],
+        "totalMatches": 1,
+        "truncated": false
+      }
+    },
+    {
+      "tool": "grep_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "query": "answer",
+        "excludes": [
+          "*.md"
+        ],
+        "maxResults": 1
+      },
+      "status": "completed",
+      "result": {
+        "ref": "main",
+        "query": "answer",
+        "matches": [
+          {
+            "path": "src/app.ts",
+            "line": 1,
+            "text": "export const answer = 42;",
+            "context": false
+          }
+        ],
+        "totalMatches": 2,
+        "truncated": true
+      }
+    },
+    {
+      "tool": "grep_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "query": "nowhere to be found"
+      },
+      "status": "completed",
+      "result": {
+        "ref": "main",
+        "query": "nowhere to be found",
+        "matches": [],
+        "totalMatches": 0,
+        "truncated": false
+      }
+    },
+    {
+      "tool": "grep_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "site"
+      },
+      "status": "failed",
+      "reason": "query is required"
+    },
+    {
+      "tool": "list_branches",
+      "arguments": {
+        "owner": "acme",
+        "name": "site"
+      },
+      "status": "completed",
+      "result": {
+        "branches": [
+          {
+            "name": "feature",
+            "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+            "updatedAt": "2026-01-02T03:04:05Z"
+          },
+          {
+            "name": "main",
+            "sha": "e65fe55fc1230dee74071f63c020da34c27f5447",
+            "updatedAt": "2026-01-02T03:04:05Z"
+          }
+        ],
+        "totalCount": 2,
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_branches",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "prefix": "fea"
+      },
+      "status": "completed",
+      "result": {
+        "branches": [
+          {
+            "name": "feature",
+            "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+            "updatedAt": "2026-01-02T03:04:05Z"
+          }
+        ],
+        "totalCount": 1,
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_branches",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "pageSize": 1
+      },
+      "status": "completed",
+      "result": {
+        "branches": [
+          {
+            "name": "feature",
+            "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+            "updatedAt": "2026-01-02T03:04:05Z"
+          }
+        ],
+        "totalCount": 2,
+        "nextPageToken": "2"
+      }
+    },
+    {
+      "tool": "list_branches",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "pageSize": 1,
+        "pageToken": "2"
+      },
+      "status": "completed",
+      "result": {
+        "branches": [
+          {
+            "name": "main",
+            "sha": "e65fe55fc1230dee74071f63c020da34c27f5447",
+            "updatedAt": "2026-01-02T03:04:05Z"
+          }
+        ],
+        "totalCount": 2,
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_commits",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "ref": "feature"
+      },
+      "status": "completed",
+      "result": {
+        "ref": "feature",
+        "commits": [
+          {
+            "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+            "message": "Second commit",
+            "author": {
+              "name": "Dev",
+              "email": "dev@example.test"
+            },
+            "date": "2026-01-02T03:04:05Z",
+            "parents": [
+              "e65fe55fc1230dee74071f63c020da34c27f5447"
+            ]
+          },
+          {
+            "sha": "e65fe55fc1230dee74071f63c020da34c27f5447",
+            "message": "First commit",
+            "author": {
+              "name": "Dev",
+              "email": "dev@example.test"
+            },
+            "date": "2026-01-02T03:04:05Z",
+            "parents": []
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_commits",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "ref": "feature",
+        "pageSize": 1
+      },
+      "status": "completed",
+      "result": {
+        "ref": "feature",
+        "commits": [
+          {
+            "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+            "message": "Second commit",
+            "author": {
+              "name": "Dev",
+              "email": "dev@example.test"
+            },
+            "date": "2026-01-02T03:04:05Z",
+            "parents": [
+              "e65fe55fc1230dee74071f63c020da34c27f5447"
+            ]
+          }
+        ],
+        "nextPageToken": "2"
+      }
+    },
+    {
+      "tool": "list_commits",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "ref": "feature",
+        "pageSize": 1,
+        "pageToken": "2"
+      },
+      "status": "completed",
+      "result": {
+        "ref": "feature",
+        "commits": [
+          {
+            "sha": "e65fe55fc1230dee74071f63c020da34c27f5447",
+            "message": "First commit",
+            "author": {
+              "name": "Dev",
+              "email": "dev@example.test"
+            },
+            "date": "2026-01-02T03:04:05Z",
+            "parents": []
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_commits",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "ref": "feature",
+        "authorEmails": [
+          "nobody@example.test"
+        ]
+      },
+      "status": "completed",
+      "result": {
+        "ref": "feature",
+        "commits": [],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_commits",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "ref": "feature",
+        "since": "2027-01-01"
+      },
+      "status": "completed",
+      "result": {
+        "ref": "feature",
+        "commits": [],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "commit_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "sha": "e65fe55fc1230dee74071f63c020da34c27f5447"
+      },
+      "status": "completed",
+      "result": {
+        "sha": "e65fe55fc1230dee74071f63c020da34c27f5447",
+        "author": {
+          "name": "Dev",
+          "email": "dev@example.test"
+        },
+        "date": "2026-01-02T03:04:05Z",
+        "committer": {
+          "name": "Dev",
+          "date": "2026-01-02T03:04:05Z"
+        },
+        "parents": [],
+        "message": "First commit\n\nWith a body."
+      }
+    },
+    {
+      "tool": "commit_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+        "view": "files"
+      },
+      "status": "completed",
+      "result": {
+        "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+        "author": {
+          "name": "Dev",
+          "email": "dev@example.test"
+        },
+        "date": "2026-01-02T03:04:05Z",
+        "committer": {
+          "name": "Dev",
+          "date": "2026-01-02T03:04:05Z"
+        },
+        "parents": [
+          "e65fe55fc1230dee74071f63c020da34c27f5447"
+        ],
+        "message": "Second commit",
+        "files": [
+          {
+            "path": "src/app.ts",
+            "additions": 1,
+            "deletions": 1
+          },
+          {
+            "path": "src/new.ts",
+            "additions": 1,
+            "deletions": 0
+          }
+        ]
+      }
+    },
+    {
+      "tool": "commit_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+        "view": "patch",
+        "startLine": 1,
+        "endLine": 4
+      },
+      "status": "completed",
+      "result": {
+        "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+        "author": {
+          "name": "Dev",
+          "email": "dev@example.test"
+        },
+        "date": "2026-01-02T03:04:05Z",
+        "committer": {
+          "name": "Dev",
+          "date": "2026-01-02T03:04:05Z"
+        },
+        "parents": [
+          "e65fe55fc1230dee74071f63c020da34c27f5447"
+        ],
+        "message": "Second commit",
+        "patch": "diff --git a/src/app.ts b/src/app.ts\nindex 8d64198..45cbd5c 100644\n--- a/src/app.ts\n+++ b/src/app.ts",
+        "startLine": 1,
+        "endLine": 4,
+        "totalLines": 17
+      }
+    },
+    {
+      "tool": "commit_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "sha": "--output=/tmp/saturn-contract-x"
+      },
+      "status": "failed",
+      "reason": "Invalid sha: --output=/tmp/saturn-contract-x"
+    },
+    {
+      "tool": "commit_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "sha": "main:README.md"
+      },
+      "status": "failed",
+      "reason": "Invalid sha: main:README.md"
+    },
+    {
+      "tool": "compare_commits",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "base": "main",
+        "head": "feature"
+      },
+      "status": "completed",
+      "result": {
+        "base": "main",
+        "head": "feature",
+        "mergeBase": "e65fe55fc1230dee74071f63c020da34c27f5447",
+        "behindBy": 0,
+        "aheadBy": 1,
+        "commits": [
+          {
+            "sha": "4c99204659e999081a9ce25b262be5eb218c0409",
+            "message": "Second commit",
+            "author": "Dev",
+            "date": "2026-01-02T03:04:05Z"
+          }
+        ],
+        "files": [
+          {
+            "path": "src/app.ts",
+            "additions": 1,
+            "deletions": 1
+          },
+          {
+            "path": "src/new.ts",
+            "additions": 1,
+            "deletions": 0
+          }
+        ]
+      }
+    },
+    {
+      "tool": "compare_commits",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "base": "feature",
+        "head": "main"
+      },
+      "status": "completed",
+      "result": {
+        "base": "feature",
+        "head": "main",
+        "mergeBase": "e65fe55fc1230dee74071f63c020da34c27f5447",
+        "behindBy": 1,
+        "aheadBy": 0,
+        "commits": [],
+        "files": []
+      }
+    },
+    {
+      "tool": "compare_commits",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "base": "--all",
+        "head": "main"
+      },
+      "status": "failed",
+      "reason": "Invalid base: --all"
+    },
+    {
+      "tool": "list_commits",
+      "arguments": {
+        "owner": "acme"
+      },
+      "status": "failed",
+      "reason": "owner and name are required"
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "local",
+        "name": "reading",
+        "path": "README.md"
+      },
+      "status": "completed",
+      "result": {
+        "type": "file",
+        "ref": "main",
+        "path": "README.md",
+        "sha": "a9ac86ba32036f3890a65c999530cbbdc741489c",
+        "content": "# Site\nThe answer is here.\n",
+        "startLine": 1,
+        "endLine": 3,
+        "totalLines": 3
+      }
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "local",
+        "name": "somewhere-else",
+        "path": "README.md"
+      },
+      "status": "failed",
+      "reason": "No local repository named somewhere-else"
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "../..",
+        "name": "not-a-project",
+        "path": "private.txt"
+      },
+      "status": "failed",
+      "reason": "Not a repository owner or name: ../.."
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "../../../../not-a-project",
+        "path": "private.txt"
+      },
+      "status": "failed",
+      "reason": "Not a repository owner or name: ../../../../not-a-project"
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "--upload-pack=x",
+        "path": "private.txt"
+      },
+      "status": "failed",
+      "reason": "Not a repository owner or name: --upload-pack=x"
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "..",
+        "name": "..",
+        "path": "private.txt"
+      },
+      "status": "failed",
+      "reason": "Not a repository owner or name: .."
+    },
+    {
+      "tool": "get_repository",
+      "arguments": {
+        "owner": "..",
+        "name": "x"
+      },
+      "status": "failed",
+      "reason": "Not a repository owner or name: .."
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "mirrored",
+        "path": "hello.txt"
+      },
+      "status": "completed",
+      "result": {
+        "type": "file",
+        "ref": "origin/main",
+        "path": "hello.txt",
+        "sha": "24f2d287570ff2d359eefe2e7afc6de939faa022",
+        "content": "from the mirror\n",
+        "startLine": 1,
+        "endLine": 2,
+        "totalLines": 2
+      }
+    },
+    {
+      "tool": "get_file_contents",
+      "arguments": {
+        "owner": "acme",
+        "name": "mirrored",
+        "path": "hello.txt"
+      },
+      "status": "completed",
+      "result": {
+        "type": "file",
+        "ref": "origin/main",
+        "path": "hello.txt",
+        "sha": "24f2d287570ff2d359eefe2e7afc6de939faa022",
+        "content": "from the mirror\n",
+        "startLine": 1,
+        "endLine": 2,
+        "totalLines": 2
+      }
+    },
+    {
+      "tool": "sync_mirror",
+      "arguments": {
+        "owner": "acme",
+        "name": "mirrored",
+        "ref": "main"
+      },
+      "status": "completed",
+      "result": {
+        "synced": true,
+        "ref": "main",
+        "sha": "34b2c2f5c4fef428c294cc6cec97f39a430274c6",
+        "checkout": "<data>/origin/acme/mirrored"
+      }
+    },
+    {
+      "tool": "sync_mirror",
+      "arguments": {
+        "owner": "acme",
+        "name": "mirrored",
+        "ref": "main",
+        "sha": "0000000"
+      },
+      "status": "failed",
+      "reason": "main is at 34b2c2f5c4fef428c294cc6cec97f39a430274c6, not 0000000"
+    },
+    {
+      "tool": "sync_mirror",
+      "arguments": {
+        "owner": "acme",
+        "name": "mirrored",
+        "ref": "-x"
+      },
+      "status": "failed",
+      "reason": "Invalid ref: -x"
+    }
+  ],
+  "hosted tools": [
+    {
+      "tool": "get_repository",
+      "arguments": {
+        "owner": "acme",
+        "name": "site"
+      },
+      "status": "completed",
+      "result": {
+        "owner": "acme",
+        "name": "site",
+        "description": "A site",
+        "defaultBranch": "main",
+        "visibility": "private",
+        "archived": false,
+        "cloneUrl": "https://github.com/acme/site.git",
+        "url": "https://github.com/acme/site",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-03T00:00:00Z"
+      }
+    },
+    {
+      "tool": "list_repositories",
+      "arguments": {
+        "owner": "dev",
+        "filter": "OTHER"
+      },
+      "status": "completed",
+      "result": {
+        "repositories": [
+          {
+            "owner": "acme",
+            "name": "other-thing",
+            "visibility": "private",
+            "defaultBranch": "main",
+            "updatedAt": "2026-01-03T00:00:00Z",
+            "url": "https://github.com/acme/site"
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_repositories",
+      "arguments": {
+        "owner": "someone",
+        "pageSize": 1,
+        "pageToken": "3"
+      },
+      "status": "completed",
+      "result": {
+        "repositories": [
+          {
+            "owner": "acme",
+            "name": "theirs",
+            "visibility": "private",
+            "defaultBranch": "main",
+            "updatedAt": "2026-01-03T00:00:00Z",
+            "url": "https://github.com/acme/site"
+          }
+        ],
+        "nextPageToken": "4"
+      }
+    },
+    {
+      "tool": "list_repositories",
+      "arguments": {},
+      "status": "failed",
+      "reason": "owner is required"
+    },
+    {
+      "tool": "list_namespaces",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "namespaces": [
+          {
+            "slug": "dev",
+            "name": "Dev",
+            "type": "user"
+          },
+          {
+            "slug": "acme",
+            "name": "acme",
+            "type": "organization"
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_namespaces",
+      "arguments": {
+        "pageSize": 1,
+        "pageToken": "2"
+      },
+      "status": "completed",
+      "result": {
+        "namespaces": [
+          {
+            "slug": "acme",
+            "name": "acme",
+            "type": "organization"
+          }
+        ],
+        "nextPageToken": "3"
+      }
+    },
+    {
+      "tool": "create_repository",
+      "arguments": {
+        "name": "fresh"
+      },
+      "status": "completed",
+      "result": {
+        "owner": "dev",
+        "name": "fresh",
+        "visibility": "private",
+        "defaultBranch": "main",
+        "cloneUrl": "https://github.com/acme/site.git",
+        "url": "https://github.com/acme/site"
+      }
+    },
+    {
+      "tool": "create_repository",
+      "arguments": {
+        "name": "team",
+        "owner": "acme",
+        "defaultBranch": "trunk"
+      },
+      "status": "completed",
+      "result": {
+        "owner": "acme",
+        "name": "team",
+        "visibility": "private",
+        "defaultBranch": "trunk",
+        "cloneUrl": "https://github.com/acme/site.git",
+        "url": "https://github.com/acme/site"
+      }
+    },
+    {
+      "tool": "create_repository",
+      "arguments": {},
+      "status": "failed",
+      "reason": "name is required"
+    },
+    {
+      "tool": "create_repository",
+      "arguments": {
+        "name": "x/../../user/keys"
+      },
+      "status": "failed",
+      "reason": "Not a repository owner or name: x/../../user/keys"
+    },
+    {
+      "tool": "create_repository",
+      "arguments": {
+        "name": "fine",
+        "owner": "../orgs"
+      },
+      "status": "failed",
+      "reason": "Not a repository owner or name: ../orgs"
+    },
+    {
+      "tool": "list_pull_requests",
+      "arguments": {
+        "owner": "acme",
+        "name": "site"
+      },
+      "status": "completed",
+      "result": {
+        "pullRequests": [
+          {
+            "number": 7,
+            "title": "Add it",
+            "state": "open",
+            "draft": false,
+            "author": "dev",
+            "head": "feature",
+            "headSha": "sha-one",
+            "base": "main",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-02T00:00:00Z",
+            "closedAt": null,
+            "mergedAt": null,
+            "url": "https://github.com/acme/site/pull/7",
+            "labels": [
+              "bug"
+            ],
+            "requestedReviewers": [
+              "rev"
+            ],
+            "requestedTeams": [
+              "core"
+            ],
+            "mergeable": true,
+            "mergeableState": "clean"
+          },
+          {
+            "number": 8,
+            "title": "Add it",
+            "state": "open",
+            "draft": false,
+            "author": "other",
+            "head": "feature",
+            "headSha": "sha-one",
+            "base": "main",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-02T00:00:00Z",
+            "closedAt": null,
+            "mergedAt": null,
+            "url": "https://github.com/acme/site/pull/7"
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "list_pull_requests",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "state": "all",
+        "sortBy": "updated",
+        "direction": "asc",
+        "base": "main",
+        "head": "feature",
+        "author": "OTHER",
+        "pageSize": 2
+      },
+      "status": "completed",
+      "result": {
+        "pullRequests": [
+          {
+            "number": 8,
+            "title": "Add it",
+            "state": "open",
+            "draft": false,
+            "author": "other",
+            "head": "feature",
+            "headSha": "sha-one",
+            "base": "main",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-02T00:00:00Z",
+            "closedAt": null,
+            "mergedAt": null,
+            "url": "https://github.com/acme/site/pull/7"
+          }
+        ],
+        "nextPageToken": "2"
+      }
+    },
+    {
+      "tool": "list_pull_requests",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "state": "strange",
+        "head": "someone:branch"
+      },
+      "status": "completed",
+      "result": {
+        "pullRequests": [
+          {
+            "number": 7,
+            "title": "Add it",
+            "state": "open",
+            "draft": false,
+            "author": "dev",
+            "head": "feature",
+            "headSha": "sha-one",
+            "base": "main",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-02T00:00:00Z",
+            "closedAt": null,
+            "mergedAt": null,
+            "url": "https://github.com/acme/site/pull/7",
+            "labels": [
+              "bug"
+            ],
+            "requestedReviewers": [
+              "rev"
+            ],
+            "requestedTeams": [
+              "core"
+            ],
+            "mergeable": true,
+            "mergeableState": "clean"
+          },
+          {
+            "number": 8,
+            "title": "Add it",
+            "state": "open",
+            "draft": false,
+            "author": "other",
+            "head": "feature",
+            "headSha": "sha-one",
+            "base": "main",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-02T00:00:00Z",
+            "closedAt": null,
+            "mergedAt": null,
+            "url": "https://github.com/acme/site/pull/7"
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "main",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "view": "files"
+      },
+      "status": "completed",
+      "result": {
+        "files": [
+          {
+            "path": "a.ts",
+            "status": "modified",
+            "additions": 1,
+            "deletions": 2,
+            "patch": "@@"
+          },
+          {
+            "path": "b.ts",
+            "status": "renamed",
+            "additions": 0,
+            "deletions": 0,
+            "previousPath": "old.ts"
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "view": "commits",
+        "pageSize": 1
+      },
+      "status": "completed",
+      "result": {
+        "commits": [
+          {
+            "sha": "c1",
+            "message": "One",
+            "author": "Dev",
+            "date": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "nextPageToken": "2"
+      }
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "view": "reviews"
+      },
+      "status": "completed",
+      "result": {
+        "reviews": [
+          {
+            "id": "3",
+            "author": "rev",
+            "state": "APPROVED",
+            "body": "ok",
+            "submittedAt": "2026-01-01T00:00:00Z",
+            "commitId": "c1"
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "view": "comments"
+      },
+      "status": "completed",
+      "result": {
+        "comments": [
+          {
+            "id": "501",
+            "author": "rev",
+            "body": "Please add a changelog entry.",
+            "createdAt": "2026-01-01T01:00:00Z",
+            "updatedAt": "2026-01-01T01:00:00Z"
+          },
+          {
+            "id": "502",
+            "author": "rev",
+            "body": "   ",
+            "createdAt": "2026-01-01T01:01:00Z"
+          }
+        ],
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "view": "threads"
+      },
+      "status": "completed",
+      "result": {
+        "threads": [
+          {
+            "id": "T1",
+            "resolved": false,
+            "outdated": false,
+            "path": "src/a.ts",
+            "line": 3,
+            "startLine": null,
+            "side": "RIGHT",
+            "comments": [
+              {
+                "id": "9",
+                "author": "rev",
+                "body": "Off by one here.",
+                "createdAt": "2026-01-01T01:05:00Z"
+              }
+            ]
+          },
+          {
+            "id": "T2",
+            "resolved": true,
+            "outdated": true,
+            "path": "README.md",
+            "line": 1,
+            "startLine": null,
+            "side": "RIGHT",
+            "comments": [
+              {
+                "id": "10",
+                "body": "Resolved already.",
+                "createdAt": "2026-01-01T01:06:00Z"
+              }
+            ]
+          }
+        ],
+        "nextPageToken": "CURSOR"
+      }
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "view": "threads",
+        "threadIds": [
+          "T2"
+        ],
+        "pageToken": "CURSOR"
+      },
+      "status": "completed",
+      "result": {
+        "threads": [
+          {
+            "id": "T2",
+            "resolved": true,
+            "outdated": true,
+            "path": "README.md",
+            "line": 1,
+            "startLine": null,
+            "side": "RIGHT",
+            "comments": [
+              {
+                "id": "10",
+                "body": "Resolved already.",
+                "createdAt": "2026-01-01T01:06:00Z"
+              }
+            ]
+          }
+        ],
+        "nextPageToken": "CURSOR"
+      }
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 99
+      },
+      "status": "failed",
+      "reason": "GitHub 404: Not Found"
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": -1
+      },
+      "status": "failed",
+      "reason": "number must be a pull request number"
+    },
+    {
+      "tool": "pull_request_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 1.5
+      },
+      "status": "failed",
+      "reason": "number must be a pull request number"
+    },
+    {
+      "tool": "checks_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7
+      },
+      "status": "completed",
+      "result": {
+        "sha": "sha-one",
+        "checkRuns": [
+          {
+            "id": "11",
+            "name": "test",
+            "status": "completed",
+            "conclusion": "failure",
+            "url": "https://github.com/acme/site/runs/11"
+          },
+          {
+            "id": "12",
+            "name": "lint",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ],
+        "totalCount": 2,
+        "rollup": "failure",
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "checks_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "target": {
+          "number": 7
+        }
+      },
+      "status": "completed",
+      "result": {
+        "sha": "sha-one",
+        "checkRuns": [
+          {
+            "id": "11",
+            "name": "test",
+            "status": "completed",
+            "conclusion": "failure",
+            "url": "https://github.com/acme/site/runs/11"
+          },
+          {
+            "id": "12",
+            "name": "lint",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ],
+        "totalCount": 2,
+        "rollup": "failure",
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "checks_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "target": {
+          "sha": "passing"
+        }
+      },
+      "status": "completed",
+      "result": {
+        "sha": "passing",
+        "checkRuns": [
+          {
+            "id": "14",
+            "name": "ok",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ],
+        "totalCount": 1,
+        "rollup": "success",
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "checks_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "sha": "nothing"
+      },
+      "status": "completed",
+      "result": {
+        "sha": "nothing",
+        "checkRuns": [],
+        "totalCount": 0,
+        "rollup": "none",
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "checks_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "ref": "many",
+        "pageSize": 1
+      },
+      "status": "completed",
+      "result": {
+        "sha": "many",
+        "checkRuns": [
+          {
+            "id": "15",
+            "name": "one",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ],
+        "totalCount": 5,
+        "nextPageToken": "2"
+      }
+    },
+    {
+      "tool": "checks_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "target": {
+          "checkRunId": "11"
+        }
+      },
+      "status": "completed",
+      "result": {
+        "checkRun": {
+          "id": "11",
+          "name": "test",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/acme/site/runs/11",
+          "output": "1 failed"
+        }
+      }
+    },
+    {
+      "tool": "checks_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "target": {
+          "checkSuiteId": "5"
+        }
+      },
+      "status": "completed",
+      "result": {
+        "sha": null,
+        "checkRuns": [
+          {
+            "id": "13",
+            "name": "suite",
+            "status": "in_progress",
+            "conclusion": null,
+            "startedAt": "2026-01-01T00:00:00Z",
+            "completedAt": null,
+            "url": "https://github.com/s"
+          }
+        ],
+        "totalCount": 1,
+        "rollup": "pending",
+        "nextPageToken": null
+      }
+    },
+    {
+      "tool": "checks_read",
+      "arguments": {
+        "owner": "acme",
+        "name": "site"
+      },
+      "status": "failed",
+      "reason": "Give a pull request number, a sha, a check suite id or a check run id"
+    },
+    {
+      "tool": "create_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "title": "T",
+        "head": "feature",
+        "base": "main",
+        "body": "B",
+        "draft": true
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "main",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "title": "T",
+        "head": "feature"
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "main",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "title": "T",
+        "head": "feature",
+        "parentPullNumber": 3
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "main",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "title": "T",
+        "head": "refused",
+        "base": "main"
+      },
+      "status": "failed",
+      "reason": "GitHub 422: Validation Failed: No commits between"
+    },
+    {
+      "tool": "update_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "title": "New",
+        "body": "Text",
+        "state": "closed"
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "New",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "main",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "main",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "draft": true
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "main",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "draft": false
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "main",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request_base",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "base": "develop"
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "develop",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request_base",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "parentPullNumber": 3
+      },
+      "status": "completed",
+      "result": {
+        "pullRequest": {
+          "number": 7,
+          "title": "Add it",
+          "state": "open",
+          "draft": false,
+          "author": "dev",
+          "head": "feature",
+          "headSha": "sha-one",
+          "base": "parent-branch",
+          "createdAt": "2026-01-01T00:00:00Z",
+          "updatedAt": "2026-01-02T00:00:00Z",
+          "closedAt": null,
+          "mergedAt": null,
+          "url": "https://github.com/acme/site/pull/7",
+          "body": "The body",
+          "labels": [
+            "bug"
+          ],
+          "requestedReviewers": [
+            "rev"
+          ],
+          "requestedTeams": [
+            "core"
+          ],
+          "mergeable": true,
+          "mergeableState": "clean"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request_base",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7
+      },
+      "status": "failed",
+      "reason": "Give base or parentPullNumber"
+    },
+    {
+      "tool": "merge_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7
+      },
+      "status": "failed",
+      "reason": "expectedHeadSha is required, so a branch that moved is never merged by mistake"
+    },
+    {
+      "tool": "merge_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "expectedHeadSha": "abc",
+        "mergeMethod": "squash"
+      },
+      "status": "completed",
+      "result": {
+        "merged": true,
+        "sha": "merged-sha",
+        "message": "Merged"
+      }
+    },
+    {
+      "tool": "merge_pull_request",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "expectedHeadSha": "abc",
+        "mergeMethod": "rebase"
+      },
+      "status": "completed",
+      "result": {
+        "merged": true,
+        "sha": "merged-sha",
+        "message": "Merged"
+      }
+    },
+    {
+      "tool": "create_pull_request_review",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "event": "approve",
+        "body": "Nice"
+      },
+      "status": "completed",
+      "result": {
+        "review": {
+          "id": "3",
+          "state": "APPROVE",
+          "body": "Nice",
+          "url": "https://github.com/r"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request_review",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "event": "request_changes"
+      },
+      "status": "completed",
+      "result": {
+        "review": {
+          "id": "3",
+          "state": "REQUEST_CHANGES",
+          "url": "https://github.com/r"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request_review",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "event": "whatever"
+      },
+      "status": "completed",
+      "result": {
+        "review": {
+          "id": "3",
+          "state": "COMMENT",
+          "url": "https://github.com/r"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request_review",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "reviewId": "3",
+        "body": "Edited"
+      },
+      "status": "completed",
+      "result": {
+        "review": {
+          "id": "3",
+          "state": "COMMENTED",
+          "body": "Edited"
+        }
+      }
+    },
+    {
+      "tool": "dismiss_pull_request_review",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "reviewId": "3",
+        "message": "Stale"
+      },
+      "status": "completed",
+      "result": {
+        "review": {
+          "id": "3",
+          "state": "DISMISSED"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request_comment",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "body": "Hello"
+      },
+      "status": "completed",
+      "result": {
+        "comment": {
+          "id": "44",
+          "body": "Hello",
+          "url": "https://github.com/c"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request_inline_comment",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "body": "Here",
+        "anchor": {
+          "path": "src/a.ts",
+          "startLine": 3
+        }
+      },
+      "status": "completed",
+      "result": {
+        "inlineComment": {
+          "id": "45",
+          "path": "src/a.ts",
+          "line": 3,
+          "side": "RIGHT",
+          "url": "https://github.com/i"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request_inline_comment",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "body": "Range",
+        "anchor": {
+          "kind": "range",
+          "path": "./src/a.ts",
+          "startLine": 3,
+          "endLine": 5,
+          "side": "left"
+        }
+      },
+      "status": "completed",
+      "result": {
+        "inlineComment": {
+          "id": "45",
+          "path": "src/a.ts",
+          "line": 5,
+          "side": "LEFT",
+          "url": "https://github.com/i"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request_inline_comment",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "body": "File",
+        "anchor": {
+          "kind": "file",
+          "path": "src/a.ts"
+        }
+      },
+      "status": "completed",
+      "result": {
+        "inlineComment": {
+          "id": "45",
+          "path": "src/a.ts",
+          "line": null,
+          "side": null,
+          "url": "https://github.com/i"
+        }
+      }
+    },
+    {
+      "tool": "create_pull_request_inline_comment",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "body": "Out",
+        "anchor": {
+          "path": "../x"
+        }
+      },
+      "status": "failed",
+      "reason": "Path must be inside the repository: ../x"
+    },
+    {
+      "tool": "reply_pull_request_review_thread",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "threadId": "9",
+        "body": "Reply"
+      },
+      "status": "completed",
+      "result": {
+        "reply": {
+          "id": "46",
+          "body": "Reply",
+          "url": "https://github.com/re"
+        }
+      }
+    },
+    {
+      "tool": "reply_pull_request_review_thread",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "threadId": "T1",
+        "body": "Reply by node"
+      },
+      "status": "completed",
+      "result": {
+        "reply": {
+          "id": "46",
+          "body": "Reply by node",
+          "url": "https://github.com/re"
+        }
+      }
+    },
+    {
+      "tool": "reply_pull_request_review_thread",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "threadId": "T9",
+        "body": "None"
+      },
+      "status": "failed",
+      "reason": "Review thread T9 not found"
+    },
+    {
+      "tool": "update_pull_request_review_thread",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "threadId": "T1",
+        "resolved": true
+      },
+      "status": "completed",
+      "result": {
+        "threadId": "T1",
+        "resolved": true
+      }
+    },
+    {
+      "tool": "update_pull_request_review_thread",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "threadId": "T1",
+        "resolved": false
+      },
+      "status": "completed",
+      "result": {
+        "threadId": "T1",
+        "resolved": false
+      }
+    },
+    {
+      "tool": "update_pull_request_comment",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "commentId": "44",
+        "body": "Edit"
+      },
+      "status": "completed",
+      "result": {
+        "comment": {
+          "id": "44",
+          "body": "Edit"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request_comment",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "commentId": "45",
+        "body": "Edit inline"
+      },
+      "status": "completed",
+      "result": {
+        "comment": {
+          "id": "45",
+          "body": "Edit inline"
+        }
+      }
+    },
+    {
+      "tool": "update_pull_request_comment",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "commentId": "46",
+        "body": "Gone"
+      },
+      "status": "failed",
+      "reason": "GitHub 404: Not Found"
+    },
+    {
+      "tool": "update_pull_request_labels",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "labels": [
+          "a",
+          "b"
+        ]
+      },
+      "status": "completed",
+      "result": {
+        "labels": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "tool": "create_label",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "label": "new",
+        "color": "#ff0000",
+        "description": "A label"
+      },
+      "status": "completed",
+      "result": {
+        "label": {
+          "name": "new",
+          "color": "ff0000",
+          "description": "A label"
+        },
+        "created": true
+      }
+    },
+    {
+      "tool": "create_label",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "label": "plain"
+      },
+      "status": "completed",
+      "result": {
+        "label": {
+          "name": "plain",
+          "color": "ededed",
+          "description": null
+        },
+        "created": true
+      }
+    },
+    {
+      "tool": "request_pull_request_reviewers",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "users": [
+          "rev"
+        ],
+        "groups": [
+          "core"
+        ]
+      },
+      "status": "completed",
+      "result": {
+        "requestedReviewers": [
+          "rev"
+        ],
+        "requestedTeams": [
+          "core"
+        ]
+      }
+    },
+    {
+      "tool": "remove_pull_request_reviewers",
+      "arguments": {
+        "owner": "acme",
+        "name": "site",
+        "number": 7,
+        "users": [
+          "rev"
+        ]
+      },
+      "status": "completed",
+      "result": {
+        "requestedReviewers": [
+          "rev"
+        ],
+        "requestedTeams": [
+          "core"
+        ]
+      }
+    }
+  ],
+  "requests GitHub got": [
+    {
+      "method": "GET",
+      "url": "/repos/acme/site",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/user",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/user/repos?affiliation=owner&sort=updated&per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/user",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/users/someone/repos?sort=updated&per_page=1&page=3",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/user",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/user/orgs?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/user",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/user/orgs?per_page=1&page=2",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/user",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/user/repos",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "name": "fresh",
+        "private": true,
+        "auto_init": true
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/user",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/orgs/acme/repos",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "name": "team",
+        "private": true,
+        "auto_init": true
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/team/branches/main/rename",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "new_name": "trunk"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/user",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls?state=open&sort=created&direction=desc&per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls?state=all&sort=updated&direction=asc&per_page=2&page=1&base=main&head=acme%3Afeature",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls?state=open&sort=created&direction=desc&per_page=30&page=1&head=someone%3Abranch",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7/files?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7/commits?per_page=1&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7/reviews?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/issues/7/comments?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/graphql",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "query": "query($owner:String!,$name:String!,$number:Int!,$after:String){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:50,after:$after){nodes{id isResolved isOutdated path line startLine diffSide comments(first:50){nodes{databaseId author{login} body createdAt}}} pageInfo{hasNextPage endCursor}}}}}",
+        "variables": {
+          "owner": "acme",
+          "name": "site",
+          "number": 7,
+          "after": null
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/graphql",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "query": "query($owner:String!,$name:String!,$number:Int!,$after:String){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:50,after:$after){nodes{id isResolved isOutdated path line startLine diffSide comments(first:50){nodes{databaseId author{login} body createdAt}}} pageInfo{hasNextPage endCursor}}}}}",
+        "variables": {
+          "owner": "acme",
+          "name": "site",
+          "number": 7,
+          "after": "CURSOR"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/99",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/commits/sha-one/check-runs?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/commits/sha-one/check-runs?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/commits/passing/check-runs?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/commits/nothing/check-runs?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/commits/many/check-runs?per_page=1&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/check-runs/11",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/check-suites/5/check-runs?per_page=30&page=1",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "title": "T",
+        "head": "feature",
+        "base": "main",
+        "body": "B",
+        "draft": true
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "title": "T",
+        "head": "feature",
+        "base": "main",
+        "draft": false
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/3",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "title": "T",
+        "head": "feature",
+        "base": "parent-branch",
+        "draft": false
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "title": "T",
+        "head": "refused",
+        "base": "main",
+        "draft": false
+      }
+    },
+    {
+      "method": "PATCH",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "title": "New",
+        "body": "Text",
+        "state": "closed"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/graphql",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "query": "mutation($id:ID!){convertPullRequestToDraft(input:{pullRequestId:$id}){pullRequest{isDraft}}}",
+        "variables": {
+          "id": "PR_node"
+        }
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "PATCH",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "base": "develop"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/3",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "PATCH",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "base": "parent-branch"
+      }
+    },
+    {
+      "method": "PUT",
+      "url": "/repos/acme/site/pulls/7/merge",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "sha": "abc",
+        "merge_method": "squash"
+      }
+    },
+    {
+      "method": "PUT",
+      "url": "/repos/acme/site/pulls/7/merge",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "sha": "abc",
+        "merge_method": "merge"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/reviews",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "event": "APPROVE",
+        "body": "Nice"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/reviews",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "event": "REQUEST_CHANGES"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/reviews",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "event": "COMMENT"
+      }
+    },
+    {
+      "method": "PUT",
+      "url": "/repos/acme/site/pulls/7/reviews/3",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Edited"
+      }
+    },
+    {
+      "method": "PUT",
+      "url": "/repos/acme/site/pulls/7/reviews/3/dismissals",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "message": "Stale",
+        "event": "DISMISS"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/issues/7/comments",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Hello"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/comments",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Here",
+        "commit_id": "sha-one",
+        "path": "src/a.ts",
+        "line": 3,
+        "side": "RIGHT"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/comments",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Range",
+        "commit_id": "sha-one",
+        "path": "src/a.ts",
+        "start_line": 3,
+        "start_side": "LEFT",
+        "line": 5,
+        "side": "LEFT"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/comments",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "File",
+        "commit_id": "sha-one",
+        "path": "src/a.ts",
+        "subject_type": "file"
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/comments/9/replies",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Reply"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/graphql",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "query": "query($id:ID!){node(id:$id){... on PullRequestReviewThread{comments(first:1){nodes{databaseId}}}}}",
+        "variables": {
+          "id": "T1"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/comments/9/replies",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Reply by node"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/graphql",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "query": "query($id:ID!){node(id:$id){... on PullRequestReviewThread{comments(first:1){nodes{databaseId}}}}}",
+        "variables": {
+          "id": "T9"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/graphql",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "query": "mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{id isResolved}}}",
+        "variables": {
+          "id": "T1"
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/graphql",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "query": "mutation($id:ID!){unresolveReviewThread(input:{threadId:$id}){thread{id isResolved}}}",
+        "variables": {
+          "id": "T1"
+        }
+      }
+    },
+    {
+      "method": "PATCH",
+      "url": "/repos/acme/site/issues/comments/44",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Edit"
+      }
+    },
+    {
+      "method": "PATCH",
+      "url": "/repos/acme/site/issues/comments/45",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Edit inline"
+      }
+    },
+    {
+      "method": "PATCH",
+      "url": "/repos/acme/site/pulls/comments/45",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Edit inline"
+      }
+    },
+    {
+      "method": "PATCH",
+      "url": "/repos/acme/site/issues/comments/46",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Gone"
+      }
+    },
+    {
+      "method": "PATCH",
+      "url": "/repos/acme/site/pulls/comments/46",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "body": "Gone"
+      }
+    },
+    {
+      "method": "PUT",
+      "url": "/repos/acme/site/issues/7/labels",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "labels": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/labels",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "name": "new",
+        "color": "ff0000",
+        "description": "A label"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/labels",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "name": "plain"
+      }
+    },
+    {
+      "method": "POST",
+      "url": "/repos/acme/site/pulls/7/requested_reviewers",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "reviewers": [
+          "rev"
+        ],
+        "team_reviewers": [
+          "core"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "url": "/repos/acme/site/pulls/7/requested_reviewers",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin",
+      "contentType": "application/json",
+      "body": {
+        "reviewers": [
+          "rev"
+        ],
+        "team_reviewers": []
+      }
+    },
+    {
+      "method": "GET",
+      "url": "/repos/acme/site/pulls/7",
+      "authorization": "Bearer <token>",
+      "accept": "application/vnd.github+json",
+      "version": "2022-11-28",
+      "agent": "Saturn-Origin"
+    }
+  ]
+}

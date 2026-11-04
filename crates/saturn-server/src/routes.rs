@@ -508,6 +508,50 @@ async fn run_events(State(kernel): Shared, Path(id): Path<String>) -> Answer {
 }
 
 /// The routes the agent loop needs.
+/// The ids a request names, if it names any.
+fn ids_in(input: &Value) -> Option<Vec<String>> {
+    input.get("ids").and_then(Value::as_array).map(|ids| {
+        ids.iter()
+            .map(|id| saturn_domain::js::text(Some(id)))
+            .collect()
+    })
+}
+
+/// A pull request from a chat's worktree branch (pushes it first; needs the user's GitHub token).
+async fn open_pull_request(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    created(kernel.open_pull_request(&id, &body_of(body)).await?)
+}
+
+/// Following the chat's pull request: look now, stop or resume following, send or dismiss review comments.
+async fn check_pull_request(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.check_pull_request(&id).await?)
+}
+
+async fn watch_pull_request(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let watching = body_of(body).get("watching") != Some(&Value::Bool(false));
+    ok(kernel.set_watching_pull_request(&id, watching).await?)
+}
+
+async fn send_pull_request_feedback(
+    State(kernel): Shared,
+    Path(id): Path<String>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .send_pull_request_feedback(&id, ids_in(&body_of(body)))
+        .await?)
+}
+
+async fn dismiss_pull_request_feedback(
+    State(kernel): Shared,
+    Path(id): Path<String>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .dismiss_pull_request_feedback(&id, ids_in(&body_of(body)))
+        .await?)
+}
+
 pub fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
         .route("/agents", get(list_agents).post(create_agent))
@@ -534,6 +578,17 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
             get(worktree_status).post(create_worktree),
         )
         .route("/threads/{id}/worktree/finish", post(finish_worktree))
+        .route("/threads/{id}/pull-request", post(open_pull_request))
+        .route("/threads/{id}/pull-request/check", post(check_pull_request))
+        .route("/threads/{id}/pull-request/watch", post(watch_pull_request))
+        .route(
+            "/threads/{id}/pull-request/feedback/send",
+            post(send_pull_request_feedback),
+        )
+        .route(
+            "/threads/{id}/pull-request/feedback/dismiss",
+            post(dismiss_pull_request_feedback),
+        )
         .route("/threads/{id}/jobs", get(thread_jobs))
         .route("/threads/{id}/jobs/{job}/stop", post(stop_thread_job))
         .route("/tasks", get(pending_tasks))

@@ -83,6 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     start_wakeups(Arc::clone(&kernel));
     kernel.resume_group_turns();
     kernel.start_automations();
+    kernel.start_pull_requests();
 
     let app = routes::router(Arc::clone(&kernel))
         .merge(routes_admin::router(Arc::clone(&kernel)))

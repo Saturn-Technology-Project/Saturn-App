@@ -22,6 +22,7 @@ async fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
     command
         .args(args)
         .current_dir(cwd)
+        .env("GIT_TERMINAL_PROMPT", "0")
         .stdin(Stdio::null())
         .kill_on_drop(true);
     let output = tokio::time::timeout(GIT_TIMEOUT, command.output())
@@ -36,7 +37,7 @@ async fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
 }
 
 /// The output, or nothing when git failed.
-async fn git_or_empty(cwd: &Path, args: &[&str]) -> String {
+pub(crate) async fn git_or_empty(cwd: &Path, args: &[&str]) -> String {
     run_git(cwd, args).await.unwrap_or_default()
 }
 
@@ -160,6 +161,46 @@ impl Kernel {
     }
 
     /// Where a chat's worktree stands against its base.
+    /// Commits whatever the chat's worktree has pending (as Saturn) and pushes its branch to origin. Gives whether anything was
+    /// committed, and the head. The pull request flow and the CI follow-up both push through here.
+    pub(crate) async fn push_worktree(
+        &self,
+        thread_id: &str,
+        message: &str,
+    ) -> Result<(bool, String), CoreError> {
+        let thread = self.thread_or_missing(thread_id)?;
+        let worktree = thread
+            .get("worktree")
+            .filter(|worktree| worktree.is_object());
+        let (Some(worktree), Some(folder)) = (worktree, self.worktree_path(&thread)) else {
+            return Err(CoreError::new(
+                404,
+                "This chat has no worktree branch to push",
+            ));
+        };
+        let dirty = git_or_empty(&folder, &["status", "--porcelain"]).await;
+        if !dirty.is_empty() {
+            git_checked(&folder, &["add", "-A"]).await?;
+            git_checked(
+                &folder,
+                &[
+                    "-c",
+                    "user.name=Saturn",
+                    "-c",
+                    "user.email=saturn@localhost",
+                    "commit",
+                    "-q",
+                    "-m",
+                    message,
+                ],
+            )
+            .await?;
+        }
+        git_checked(&folder, &["push", "-u", "origin", text(worktree, "branch")]).await?;
+        let head = git_checked(&folder, &["rev-parse", "HEAD"]).await?;
+        Ok((!dirty.is_empty(), head))
+    }
+
     pub async fn worktree_status(&self, thread_id: &str) -> Result<Value, CoreError> {
         let thread = self.thread_or_missing(thread_id)?;
         let folder = self

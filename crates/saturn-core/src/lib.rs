@@ -27,9 +27,11 @@ pub mod index;
 pub mod logger;
 pub mod marketplace;
 pub mod memory;
+mod origin;
 pub mod permissions;
 pub mod plugins;
 pub mod projects;
+pub mod pull_requests;
 pub mod records;
 pub mod rules;
 pub mod run_images;
@@ -148,6 +150,8 @@ pub struct Kernel {
     group_queue: Mutex<HashMap<String, serde_json::Value>>,
     /// The projects' code indexes.
     index: index::IndexState,
+    /// Chats whose pull request is being looked at.
+    checking_pull_requests: Mutex<HashSet<String>>,
 }
 
 /// Locks a table; a panic elsewhere leaves it usable.
@@ -179,6 +183,7 @@ impl Kernel {
             extracting: Mutex::default(),
             group_queue: Mutex::default(),
             index: index::IndexState::default(),
+            checking_pull_requests: Mutex::default(),
         }))
     }
 }

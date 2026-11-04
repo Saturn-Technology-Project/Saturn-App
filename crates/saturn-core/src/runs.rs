@@ -1471,6 +1471,17 @@ impl Kernel {
         let noted = run.clone();
         tokio::spawn(async move { kernel.note_run(&noted).await });
         let kernel = Arc::clone(self);
+        let finished = run.clone();
+        tokio::spawn(async move {
+            if let Err(error) = kernel.pull_request_after_run(&finished).await {
+                log(
+                    "worktrees",
+                    "warning",
+                    &format!("The pull request follow-up failed: {error}"),
+                );
+            }
+        });
+        let kernel = Arc::clone(self);
         let checked = run.clone();
         tokio::spawn(async move {
             if let Err(error) = kernel.verify_after_run(&checked).await {

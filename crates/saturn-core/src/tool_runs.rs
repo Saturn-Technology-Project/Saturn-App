@@ -21,6 +21,7 @@ use serde_json::{Value, json};
 
 use crate::builtins::{AUTOMATIONS_ID, BROWSER_ID, COMPUTER_USE_ID, GENERAL_SKILLS_ID, ORIGIN_ID};
 use crate::checkpoints::{CommandSnapshot, StepCheckpoint};
+use crate::origin::Origin;
 use crate::records::{by_id, by_id_mut, strings, text};
 use crate::runs::{MAX_DELEGATION_DEPTH, MAX_PARALLEL_DELEGATIONS, ParentRun, StartOptions, step};
 use crate::skill_files::{list_skills, load_skill};
@@ -300,12 +301,20 @@ impl Kernel {
             BROWSER_ID
                 | COMPUTER_USE_ID
                 | "cursor-computer-use"
-                | ORIGIN_ID
-                | "cursor-origin"
                 | AUTOMATIONS_ID
                 | "antigravity-skills"
         ) {
             return Ok(failed(&not_ported(&server, tool)));
+        }
+        if matches!(server.as_str(), ORIGIN_ID | "cursor-origin") {
+            let run = self.get_run(run_id)?;
+            let workdir = self.workdir_of(&run)?;
+            return Ok(
+                match Origin::new(self, workdir).run(tool, arguments).await {
+                    Ok(result) => completed(result),
+                    Err(reason) => failed(&reason),
+                },
+            );
         }
         if server != GENERAL_SKILLS_ID {
             return self
@@ -733,7 +742,6 @@ fn not_ported(server: &str, tool: &str) -> String {
     let named = match server {
         BROWSER_ID => "The browser tools",
         COMPUTER_USE_ID | "cursor-computer-use" => "The computer-use tools",
-        ORIGIN_ID | "cursor-origin" => "The GitHub tools",
         AUTOMATIONS_ID | "antigravity-skills" => "The automation tools",
         _ => "Other MCP servers' tools",
     };
