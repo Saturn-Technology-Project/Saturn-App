@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir, stat, mkdir } from "node:fs/promises";
+import { lstat, readFile, readdir, realpath, stat, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { chunkFile } from "../domain/chunks.js";
@@ -159,7 +159,7 @@ export class IndexService {
             paths = undefined;
           }
         }
-        const files = paths ? paths.map((item) => path.resolve(root, item)).filter((item) => item.startsWith(root)) : await this.walk(root);
+        const files = paths ? await this.named(root, paths) : await this.walk(root);
         const known = new Map((db.prepare("SELECT path, hash FROM files").all() as { path: string; hash: string }[]).map((row) => [row.path, row.hash]));
         const todo: { relative: string; hash: string; content: string }[] = [];
         const seen = new Set<string>();
@@ -210,8 +210,11 @@ export class IndexService {
         db.prepare("DELETE FROM meta WHERE key = 'model'").run();
         if (todo.length) logger.info("index", `Indexed ${todo.length} changed ${todo.length === 1 ? "file" : "files"} of ${path.basename(root)}`);
       } catch (error) {
-        this.errors.set(projectId, errorText(error));
-        logger.warn("index", `Indexing ${path.basename(root)} failed: ${errorText(error)}`);
+        // Stopping an embedding request mid-way is the user's cancel, not a failure.
+        if (!abort.signal.aborted) {
+          this.errors.set(projectId, errorText(error));
+          logger.warn("index", `Indexing ${path.basename(root)} failed: ${errorText(error)}`);
+        }
       } finally {
         if (this.building.get(projectId) === job) this.building.delete(projectId);
       }
@@ -246,6 +249,27 @@ export class IndexService {
     db.prepare("DELETE FROM files WHERE path = ?").run(relative);
   }
 
+  /**
+   * The named files a whole pass would index too: a name that climbs out of the project, goes through a link, sits in
+   * a hidden or skipped folder or is not a kind of text indexed stays out, because its text goes to the embedding model.
+   */
+  private async named(root: string, paths: string[]): Promise<string[]> {
+    const real = await realpath(root);
+    const found: string[] = [];
+    for (const item of paths) {
+      const full = path.resolve(root, item);
+      const parts = path.relative(root, full).split(path.sep);
+      if (parts[0] === ".." || path.isAbsolute(path.relative(root, full)) || !indexable(parts)) continue;
+      try {
+        if ((await lstat(full)).isSymbolicLink() || (await realpath(full)) !== path.join(real, ...parts)) continue;
+      } catch {
+        continue;
+      }
+      found.push(full);
+    }
+    return found;
+  }
+
   private async walk(root: string): Promise<string[]> {
     const found: string[] = [];
     const visit = async (dir: string, depth: number) => {
@@ -269,6 +293,13 @@ export class IndexService {
     await visit(root, 0);
     return found;
   }
+}
+
+/** Whether a path inside the project (its parts) is one a whole pass would index. */
+function indexable(parts: string[]): boolean {
+  const file = parts.at(-1) ?? "";
+  const folderSkipped = parts.slice(0, -1).some((part) => SKIP_DIRS.has(part) || (part.startsWith(".") && part !== ".github"));
+  return !folderSkipped && !file.startsWith(".") && EXTENSIONS.has(file.slice(file.lastIndexOf(".") + 1).toLowerCase());
 }
 
 export function cosine(a: Float32Array, b: Float32Array): number {
