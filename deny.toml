@@ -2,6 +2,15 @@
 # advisories fail the build, and licenses must be ones Saturn can ship under MIT.
 [advisories]
 yanked = "deny"
+# Unmaintained, with no known vulnerability and no version to move to yet; each is pulled in by a dependency, not chosen by Saturn.
+# Looked at again with every dependency update, and listed in docs/known-advisories.md.
+ignore = [
+  { id = "RUSTSEC-2024-0436", reason = "paste, a build-time macro, through tokenizers" },
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error, a build-time macro, through Tauri's toolkit on Linux" },
+  { id = "RUSTSEC-2026-0370", reason = "zvariant, Linux only, through tauri-plugin-single-instance's zbus" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names, Linux only, through tauri-plugin-single-instance's zbus" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive, Linux only, through tauri-plugin-single-instance's zbus" },
+]
 
 [sources]
 unknown-registry = "deny"
@@ -11,7 +20,9 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 [bans]
 multiple-versions = "allow"
 wildcards = "deny"
+# The workspace's own crates depend on each other by path, and none is published.
+allow-wildcard-paths = true
 
 [licenses]
 confidence-threshold = 0.9
-allow = ["Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MIT", "MPL-2.0", "Unicode-3.0", "Zlib"]
+allow = ["Apache-2.0", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause", "CDLA-Permissive-2.0", "BSD-3-Clause", "ISC", "MIT", "MPL-2.0", "Unicode-3.0", "Zlib"]
