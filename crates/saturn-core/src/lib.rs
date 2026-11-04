@@ -42,6 +42,7 @@ pub mod projects;
 pub mod pull_requests;
 pub mod recordings;
 pub mod records;
+pub mod research;
 pub mod rules;
 pub mod run_images;
 pub mod runs;
@@ -167,6 +168,8 @@ pub struct Kernel {
     index: index::IndexState,
     /// Chats whose pull request is being looked at.
     checking_pull_requests: Mutex<HashSet<String>>,
+    /// The projects' research records.
+    research: research::ResearchState,
 }
 
 /// Locks a table; a panic elsewhere leaves it usable.
@@ -202,6 +205,7 @@ impl Kernel {
             group_queue: Mutex::default(),
             index: index::IndexState::default(),
             checking_pull_requests: Mutex::default(),
+            research: research::ResearchState::default(),
         }))
     }
 }

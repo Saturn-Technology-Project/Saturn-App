@@ -56,7 +56,7 @@ Question ← Hypothesis ← Experiment (draft) ← ExperimentVersion ← Run →
 - A hypothesis has a `verdict`: `undecided`, `supported`, `refuted` or `inconclusive`. A run's `status` says whether it
   executed. Neither one changes the other.
 - A finding's `kind` is `observation`, `ai_suggestion` or `conclusion`. It may name the runs it came from.
-- A model has a `source` (a name or a local path) and a `revision`. One with no `revision` is `floating`, and a run on it
+- A model has a `source` (a name or a local path) and a `weightsRevision`. One with no `weightsRevision` is `floating`, and a run on it
   says so. Roles (`base`, `reference`, `policy`) belong to an experiment's use of a model, since one set of weights can
   play different roles in different experiments.
 

@@ -4,6 +4,7 @@ mod auth;
 mod guards;
 mod routes;
 mod routes_admin;
+mod routes_research;
 
 use std::env;
 use std::path::PathBuf;
@@ -134,6 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = routes::router(Arc::clone(&kernel))
         .merge(routes_admin::router(Arc::clone(&kernel)))
+        .merge(routes_research::router(Arc::clone(&kernel)))
         .route("/health", get(health))
         .layer(middleware::from_fn(guards::trace_requests))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))

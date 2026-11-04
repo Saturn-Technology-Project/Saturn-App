@@ -9,6 +9,7 @@ pub mod llm;
 pub mod permissions;
 pub mod policies;
 pub mod prompt;
+pub mod research;
 pub mod schedule;
 pub mod skill_files;
 pub mod skills;

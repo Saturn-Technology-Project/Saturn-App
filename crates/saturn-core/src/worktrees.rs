@@ -17,7 +17,7 @@ const MAX_WORKTREES: usize = 6;
 const GIT_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Runs git, giving its trimmed output or the last line of what it complained about.
-async fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
+pub(crate) async fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
     let mut command = Command::new("git");
     command
         .args(args)
