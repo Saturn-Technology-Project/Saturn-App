@@ -25,6 +25,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - Cancelling a code index build no longer reports it as failed.
 - **Computer use can act on the elements it reads.** Each tool call forgot the last one, so an element id from `computer_app_state` was always called stale in `computer_set_value`, `computer_app_action` and `computer_type`.
 - **Migrating workflows says when it fails**, instead of reporting success with fewer migrated.
+- **`saturn` keeps a flag's whole value.** In `--agent=A=B`, everything after the second `=` was dropped.
 - **The agent browser now submits forms.** Pressing Enter, and typing with `submit`, did nothing to a form in Chrome. A key chord such as `ctrl+b` no longer also types its letter, and typing with `clear: false` adds to a field's text instead of replacing it.
 - **Safari recordings play in the app.** They were listed with no frames, since only Chrome's JPEG frames were counted.
 - **Quitting Saturn closes the agent browser**, which used to keep running in the background.

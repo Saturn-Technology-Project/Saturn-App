@@ -61,8 +61,9 @@ export function parseArgs(argv: string[], booleans: string[] = ["json", "deny", 
       break;
     }
     if (arg.startsWith("--")) {
-      const [name, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
-      if (inline !== undefined) flags[name] = inline;
+      const equals = arg.indexOf("=");
+      const name = equals < 0 ? arg.slice(2) : arg.slice(2, equals);
+      if (equals >= 0) flags[name] = arg.slice(equals + 1);
       else if (booleans.includes(name) || i + 1 >= argv.length || argv[i + 1]!.startsWith("--")) flags[name] = true;
       else flags[name] = argv[++i]!;
     } else if (arg === "-h") {
