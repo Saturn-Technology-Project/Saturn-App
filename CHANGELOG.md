@@ -10,6 +10,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **The code index could send a linked or hidden file to the embedding model.** When the index was asked to refresh named files, a link to a file outside the project, a hidden file such as `.env`, or a file in a folder next to the project with a similar name was indexed. With an OpenAI-compatible embedding connection, that text left the computer. Named files now follow the same rules as a whole pass.
 - **The agent browser's screenshot tool could write outside the workspace.** A file path such as `../../secrets.json` or an absolute path was accepted, and the tool counts as a read, so it did not ask first. A screenshot now stays in the workspace, also through links, and a recording's name stays one folder under `recordings`.
 - **Computer use only starts apps.** Finding an app by path or name handed it to the system's opener, so a script, a document or a web address given as an "app" would run outside the sandbox.
+- **An agent's customization tools stay in the project.** A rule named `../../somewhere` was written outside it, and a link in a cloned repository could lead a new rule, skill or plugin out of it, or bring a file from elsewhere into a migrated workflow or a bundled plugin.
 - **Electron 43.8.3 in the app** (from 43.7.7), which stops trusting the compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9).
 - **The web tool, the agent browser and the Browser tab could reach this computer and the private network through an IPv6 spelling of a private address** (such as `[::ffff:127.0.0.1]`). These addresses are now refused, along with carrier-grade NAT (which Tailscale uses), multicast and other reserved ranges. The web tool and the Browser tab now check an address at the moment of connecting, so a name cannot pass the check and then resolve somewhere private, and `browser_navigate` refuses names that resolve to private addresses.
 - **Opening a terminal on Windows no longer puts the folder's path on a command line**, where a folder name containing `&` could run a command.
@@ -23,6 +24,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - Cancelling a code index build no longer reports it as failed.
 - **Computer use can act on the elements it reads.** Each tool call forgot the last one, so an element id from `computer_app_state` was always called stale in `computer_set_value`, `computer_app_action` and `computer_type`.
+- **Migrating workflows says when it fails**, instead of reporting success with fewer migrated.
 - **The agent browser now submits forms.** Pressing Enter, and typing with `submit`, did nothing to a form in Chrome. A key chord such as `ctrl+b` no longer also types its letter, and typing with `clear: false` adds to a field's text instead of replacing it.
 - **Safari recordings play in the app.** They were listed with no frames, since only Chrome's JPEG frames were counted.
 - **Quitting Saturn closes the agent browser**, which used to keep running in the background.

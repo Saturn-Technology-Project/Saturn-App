@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Automation, AutomationTrigger } from "../../domain/model.js";
 import { cronToTrigger, triggerToCron } from "../../domain/schedule.js";
+import { Workspace } from "../../domain/skills/workspace.js";
+import { insideWorkspace } from "./inside-workspace.js";
 
 type AutomationRecord = Automation & { agentName: string; nextRun: string | null };
 type AutomationPatch = Partial<Pick<Automation, "name" | "agentId" | "prompt" | "trigger" | "timeZone" | "enabled">>;
@@ -86,6 +88,12 @@ export class AntigravitySkill {
       default:
         throw new Error(`Unknown Antigravity skill tool: ${toolId}`);
     }
+  }
+
+  /** A path under the workspace to write to, which no symbolic link in a cloned repository can lead out of it. */
+  private async writable(...parts: string[]): Promise<string> {
+    await fs.mkdir(this.workspaceDir, { recursive: true });
+    return insideWorkspace(new Workspace(this.workspaceDir), path.join(...parts));
   }
 
   // --------------------------------------------------------------------------
@@ -284,12 +292,12 @@ export class AntigravitySkill {
 
   private async customizationsCreateSkill(args: Record<string, unknown>) {
     const name = String(args.name || "custom-skill").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
-    const description = String(args.description || "");
+    // One line: anything further would end the description and be read as more of the skill's header.
+    const description = String(args.description || "").replace(/\s*\n\s*/g, " ");
     const instructions = String(args.instructions || "");
 
-    const skillDir = path.join(this.workspaceDir, ".agents", "skills", name);
-    await fs.mkdir(skillDir, { recursive: true });
-    const targetFile = path.join(skillDir, "SKILL.md");
+    const targetFile = await this.writable(".agents", "skills", name, "SKILL.md");
+    await fs.mkdir(path.dirname(targetFile), { recursive: true });
 
     const content = `---
 name: ${name}
@@ -313,12 +321,12 @@ ${instructions}
 
   private async customizationsCreateRule(args: Record<string, unknown>) {
     const rawName = String(args.name || "rule");
+    if (/[/\\]/.test(rawName) || rawName.startsWith(".")) throw new Error(`A rule's name is a plain file name, not ${rawName}`);
     const ruleName = rawName.endsWith(".md") ? rawName : `${rawName}.md`;
     const content = String(args.content || "");
 
-    const rulesDir = path.join(this.workspaceDir, ".agents", "rules");
-    await fs.mkdir(rulesDir, { recursive: true });
-    const targetFile = path.join(rulesDir, ruleName);
+    const targetFile = await this.writable(".agents", "rules", ruleName);
+    await fs.mkdir(path.dirname(targetFile), { recursive: true });
 
     await fs.writeFile(targetFile, content, "utf8");
     return {
@@ -366,40 +374,43 @@ ${instructions}
     const workflowsDir = path.join(this.workspaceDir, ".agents", "workflows");
     const migrated: string[] = [];
 
-    try {
-      const files = await fs.readdir(workflowsDir);
-      for (const file of files) {
-        if (!file.endsWith(".md")) continue;
-        const name = path.basename(file, ".md");
-        if (targetName !== "*" && targetName !== name) continue;
+    // No folder means nothing to migrate; anything going wrong after that is said, not reported as success.
+    const entries = await fs.readdir(workflowsDir, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return [];
+      throw error;
+    });
+    for (const entry of entries) {
+      const file = entry.name;
+      // A link is not a workflow of this project: it could bring in a file from elsewhere on the computer.
+      if (!entry.isFile() || !file.endsWith(".md")) continue;
+      const name = path.basename(file, ".md");
+      if (targetName !== "*" && targetName !== name) continue;
 
-        const srcPath = path.join(workflowsDir, file);
-        const content = await fs.readFile(srcPath, "utf8");
+      const srcPath = path.join(workflowsDir, file);
+      const content = await fs.readFile(srcPath, "utf8");
 
-        // Create target skill
-        const skillDir = path.join(this.workspaceDir, ".agents", "skills", name);
-        await fs.mkdir(skillDir, { recursive: true });
-        const skillFile = path.join(skillDir, "SKILL.md");
+      // Create target skill
+      const skillFile = await this.writable(".agents", "skills", name, "SKILL.md");
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
 
-        const convertedContent = content.startsWith("---")
-          ? content
-          : `---
+      const convertedContent = content.startsWith("---")
+        ? content
+        : `---
 name: ${name}
 description: Migrated from legacy workflow ${name}
 ---
 
 ${content}
 `;
-        await fs.writeFile(skillFile, convertedContent, "utf8");
-        migrated.push(name);
+      await fs.writeFile(skillFile, convertedContent, "utf8");
+      migrated.push(name);
 
-        if (archiveOld) {
-          const archiveDir = path.join(workflowsDir, "archive");
-          await fs.mkdir(archiveDir, { recursive: true });
-          await fs.rename(srcPath, path.join(archiveDir, file));
-        }
+      if (archiveOld) {
+        const archived = await this.writable(".agents", "workflows", "archive", file);
+        await fs.mkdir(path.dirname(archived), { recursive: true });
+        await fs.rename(srcPath, archived);
       }
-    } catch {}
+    }
 
     return {
       success: true,
@@ -427,16 +438,19 @@ ${content}
   private async pluginsBundle(args: Record<string, unknown>) {
     const name = String(args.name || "custom-plugin").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
     const manifest = { name, description: String(args.description || args.displayName || ""), version: "0.1.0" };
-    const pluginDir = path.join(this.workspaceDir, "plugins", name);
+    const targetFile = await this.writable("plugins", name, "plugin.json");
+    const pluginDir = path.dirname(targetFile);
     await fs.mkdir(pluginDir, { recursive: true });
-    const targetFile = path.join(pluginDir, "plugin.json");
     await fs.writeFile(targetFile, JSON.stringify(manifest, null, 2), "utf8");
     const copied: string[] = [];
     for (const skill of Array.isArray(args.skills) ? args.skills.map(String) : []) {
       if (!/^[a-z0-9][a-z0-9_-]*$/i.test(skill)) continue;
       const from = path.join(this.workspaceDir, ".agents", "skills", skill);
       try {
-        await fs.cp(from, path.join(pluginDir, "skills", skill), { recursive: true });
+        // Links stay behind: a plugin carries its own files, not ones from elsewhere on the computer.
+        if ((await fs.lstat(from)).isSymbolicLink()) continue;
+        const to = await this.writable("plugins", name, "skills", skill);
+        await fs.cp(from, to, { recursive: true, filter: async (item) => !(await fs.lstat(item)).isSymbolicLink() });
         copied.push(skill);
       } catch {
         // Not a skill of this workspace: skipped.
