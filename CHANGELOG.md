@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Security
 
+- **An agent's GitHub tools could read any git repository on this computer.** A repository owner or name such as `../..` was used as a folder path, so a prompt-injected agent could read a repository outside its project. Owners and names must now be plain names. A remote on a host that merely ends in `github.com` also no longer counts as GitHub.
 - **The code index could send a linked or hidden file to the embedding model.** When the index was asked to refresh named files, a link to a file outside the project, a hidden file such as `.env`, or a file in a folder next to the project with a similar name was indexed. With an OpenAI-compatible embedding connection, that text left the computer. Named files now follow the same rules as a whole pass.
 - **Electron 43.8.3 in the app** (from 43.7.7), which stops trusting the compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9).
 - **The web tool, the agent browser and the Browser tab could reach this computer and the private network through an IPv6 spelling of a private address** (such as `[::ffff:127.0.0.1]`). These addresses are now refused, along with carrier-grade NAT (which Tailscale uses), multicast and other reserved ranges. The web tool and the Browser tab now check an address at the moment of connecting, so a name cannot pass the check and then resolve somewhere private, and `browser_navigate` refuses names that resolve to private addresses.

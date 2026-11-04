@@ -229,7 +229,7 @@ export class WorktreeService {
 
 /** "owner/name" from a GitHub remote URL (https, ssh, or git protocol), or undefined for anything else. */
 export function githubRepository(remote: string): string | undefined {
-  const match = /github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i.exec(remote.trim());
+  const match = /(?:^|[/@])github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i.exec(remote.trim());
   return match ? `${match[1]}/${match[2]}` : undefined;
 }
 

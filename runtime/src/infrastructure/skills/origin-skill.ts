@@ -22,7 +22,7 @@ export type OriginContext = {
   repoDir?: string;
   /** Reads secrets the runtime stores, for the GitHub token saved by Customizations. */
   secret?: (id: string) => string | undefined;
-  /** For tests: where the GitHub API lives. */
+  /** For tests: where the GitHub API lives (the contract tests set SATURN_GITHUB_API instead). */
   apiBase?: string;
   token?: string;
 };
@@ -58,6 +58,12 @@ function safePath(value: string): string {
   return normalized === "." ? "" : normalized;
 }
 
+/** These become a folder under the data directory, an argument to git and part of an API route, so a name must be only a name. */
+function plainName(value: string): string {
+  if (!/^[A-Za-z0-9_.][A-Za-z0-9_.-]*$/.test(value) || /^\.+$/.test(value)) throw new Error(`Not a repository owner or name: ${value}`);
+  return value;
+}
+
 function sliceLines(text: string, args: Args) {
   const lines = text.split("\n");
   const start = Math.max(1, num(args.startLine, 1));
@@ -66,7 +72,7 @@ function sliceLines(text: string, args: Args) {
 }
 
 function parseGitHubRemote(url: string): Repo | null {
-  const match = /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/i.exec(url.trim());
+  const match = /(?:^|[/@])github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/i.exec(url.trim());
   return match ? { owner: match[1], name: match[2] } : null;
 }
 
@@ -177,7 +183,7 @@ export class OriginSkill {
     const owner = str(args.owner);
     const name = str(args.name);
     if (!owner || !name) throw new Error("owner and name are required");
-    return { owner, name };
+    return { owner: plainName(owner), name: plainName(name) };
   }
 
   /** The local checkout for owner/name: the workspace repo if it is that repo, else a mirror clone made on demand. */
@@ -405,7 +411,7 @@ export class OriginSkill {
     if (!token) {
       throw new Error("GitHub access is needed for this. Set GH_TOKEN, run `gh auth login`, or install GitHub in Customizations with a token.");
     }
-    const response = await fetch(`${this.context.apiBase ?? "https://api.github.com"}${route}`, {
+    const response = await fetch(`${this.context.apiBase ?? (process.env.SATURN_GITHUB_API || "https://api.github.com")}${route}`, {
       method,
       headers: {
         Accept: accept,
@@ -524,8 +530,9 @@ export class OriginSkill {
   private async createRepository(args: Args, signal?: AbortSignal) {
     const name = str(args.name);
     if (!name) throw new Error("name is required");
+    plainName(name);
     const me = await this.api<{ login: string }>("GET", "/user", undefined, signal);
-    const owner = str(args.owner, me.login);
+    const owner = plainName(str(args.owner, me.login));
     const route = owner.toLowerCase() === me.login.toLowerCase() ? "/user/repos" : `/orgs/${encodeURIComponent(owner)}/repos`;
     // Private by default: an agent should not publish a repository on its own.
     const repo = await this.api<Record<string, any>>("POST", route, { name, private: true, auto_init: true }, signal);

@@ -15,6 +15,7 @@ test("a GitHub repository is read from https, ssh and git remotes", () => {
   assert.equal(githubRepository("ssh://git@github.com/acme/widgets"), "acme/widgets");
   assert.equal(githubRepository("https://gitlab.com/acme/widgets.git"), undefined);
   assert.equal(githubRepository(""), undefined);
+  assert.equal(githubRepository("https://notgithub.com/acme/widgets.git"), undefined, "another host whose name ends the same");
 });
 
 test("a pull request from a chat's branch: pending work is committed, the branch pushed, and GitHub asked with the user's token", async () => {
