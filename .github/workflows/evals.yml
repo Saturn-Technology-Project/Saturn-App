@@ -19,7 +19,8 @@ on:
     branches: [main]
     paths:
       - "scripts/eval/**"
-      - "runtime/**"
+      - "crates/**"
+      - "Cargo.lock"
       - ".github/workflows/evals.yml"
 
 permissions:
@@ -34,8 +35,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-      - name: Install the runtime without install scripts
-        run: npm ci --ignore-scripts --no-audit --no-fund --prefix runtime
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Build the runtime
+        run: cargo build --locked -p saturn-server
       - name: Git identity for the task repositories
         run: git config --global user.name "Saturn CI" && git config --global user.email "ci@saturn.invalid"
       - name: Harness self-test (scripted model)
@@ -51,8 +54,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-      - name: Install the runtime without install scripts
-        run: npm ci --ignore-scripts --no-audit --no-fund --prefix runtime
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Build the runtime
+        run: cargo build --locked -p saturn-server
       - name: Git identity for the task repositories
         run: git config --global user.name "Saturn CI" && git config --global user.email "ci@saturn.invalid"
       - name: Run the evals

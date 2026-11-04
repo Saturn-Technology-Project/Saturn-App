@@ -5,8 +5,7 @@
 # default line above changes.
 /.github/                                              @rickwengdev
 /scripts/                                              @rickwengdev
-/runtime/package-lock.json                             @rickwengdev
 /desktop/package-lock.json                             @rickwengdev
 /desktop/build/saturn-code-signing.cer                 @rickwengdev
 /desktop/scripts/                                      @rickwengdev
-/runtime/src/infrastructure/agent-programs-manifest.ts @rickwengdev
+/crates/saturn-core/src/agent-programs.json            @rickwengdev

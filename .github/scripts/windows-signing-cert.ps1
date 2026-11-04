@@ -1,4 +1,5 @@
-# Makes the Windows code-signing certificate available to electron-builder (WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD).
+# Makes the Windows code-signing certificate available to signing (WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD), which
+# .github/scripts/sign-windows-file.ps1 reads for every file the Tauri bundler signs.
 #
 # With the repository's secrets: Saturn's self-signed certificate (desktop/build/saturn-code-signing.cer is its public
 # half), so every build is signed by the same publisher and anyone can check the thumbprint. Without them (forks,

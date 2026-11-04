@@ -8,7 +8,8 @@ on:
     branches: [main]
     paths:
       - "desktop/**"
-      - "runtime/**"
+      - "crates/**"
+      - "Cargo.lock"
       - ".github/workflows/windows.yml"
 
 concurrency:
@@ -35,20 +36,18 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Runtime and desktop dependencies
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
-          npm ci --ignore-scripts --prefix runtime
-          npm ci --ignore-scripts --prefix desktop
+      - name: Desktop dependencies
+        run: npm ci --ignore-scripts --prefix desktop
 
-      - name: Runtime tests and type checks
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Tests and type checks
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
-          npm test --prefix runtime
+          cargo test --locked
           npm run typecheck
 
       - name: Code-signing certificate (self-signed)
@@ -61,7 +60,11 @@ jobs:
       - name: Package the Saturn installer
         working-directory: desktop
         shell: pwsh
-        run: npm run dist:win
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
+          npm run package -- --bundles nsis --config src-tauri/tauri.signing.json
+          npm run archive
 
       - name: Check the signatures
         shell: pwsh
@@ -74,6 +77,5 @@ jobs:
           name: saturn-windows
           path: |
             desktop/release/*.exe
-            desktop/release/*.exe.blockmap
-            desktop/release/latest*.yml
+            desktop/release/*.exe.sha256
           if-no-files-found: error
