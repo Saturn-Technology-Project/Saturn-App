@@ -57,6 +57,8 @@ pub enum CommandSnapshot {
     Git {
         root: PathBuf,
         prefix: String,
+        /// The commit the command started from; none in a repository with no commits yet.
+        head: Option<String>,
         dirty: BTreeMap<String, Option<String>>,
     },
     Shadow {
@@ -438,6 +440,10 @@ impl Kernel {
             return self.shadow_snapshot(root).await;
         };
         let prefix = js::trim(&String::from_utf8_lossy(&prefix)).to_owned();
+        let head = git(root, &["rev-parse", "--verify", "-q", "HEAD"], &[], None)
+            .await
+            .ok()
+            .map(|head| js::trim(&String::from_utf8_lossy(&head)).to_owned());
         let dirty = changed_paths(root).await.ok()?;
         if dirty.len() > COMMAND_SNAPSHOT_LIMIT {
             log(
@@ -466,6 +472,7 @@ impl Kernel {
         Some(CommandSnapshot::Git {
             root: root.to_path_buf(),
             prefix,
+            head,
             dirty: kept,
         })
     }
@@ -478,7 +485,7 @@ impl Kernel {
         snapshot: &CommandSnapshot,
         action_id: &str,
     ) -> Result<(), CoreError> {
-        let (root, prefix, dirty) = match snapshot {
+        let (root, prefix, head, dirty) = match snapshot {
             CommandSnapshot::Shadow {
                 root,
                 git_dir,
@@ -491,8 +498,9 @@ impl Kernel {
             CommandSnapshot::Git {
                 root,
                 prefix,
+                head,
                 dirty,
-            } => (root, prefix, dirty),
+            } => (root, prefix, head, dirty),
         };
         let Ok(now) = changed_paths(root).await else {
             return Ok(());
@@ -514,10 +522,13 @@ impl Kernel {
             let before = match dirty.get(&file) {
                 Some(hash) => hash.clone(),
                 None => {
-                    // Clean before the command: the working copy matched git's index.
-                    let original = git(root, &["show", &format!(":{file}")], &[], None)
-                        .await
-                        .ok();
+                    // Clean before the command: the working copy matched the commit it started from. Not the index, which the
+                    // command may have changed itself (`git mv`, `git add`). With no commit yet, the index is all there is.
+                    let source = match head {
+                        Some(head) => format!("{head}:{file}"),
+                        None => format!(":{file}"),
+                    };
+                    let original = git(root, &["show", &source], &[], None).await.ok();
                     self.save_blob(run_id, original.as_deref()).await?
                 }
             };

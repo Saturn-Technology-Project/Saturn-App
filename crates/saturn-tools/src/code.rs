@@ -42,6 +42,14 @@ pub struct ScopedJobs {
     pub scope: String,
 }
 
+/// A chat's jobs are its own: one holding another chat's job id gets the answer for a job that does not exist.
+fn own_job(jobs: &ScopedJobs, id: &str) -> Result<(), String> {
+    match jobs.table.get(id) {
+        Some(job) if job.scope != jobs.scope => Err(format!("No background command {id}")),
+        _ => Ok(()),
+    }
+}
+
 /// Why reading a command's output stopped early.
 #[derive(Debug)]
 enum Stop {
@@ -261,6 +269,7 @@ fn job_id(arguments: &Arguments) -> Result<String, String> {
 pub async fn code_output(arguments: &Arguments, options: &CodeOptions) -> ToolResult {
     let jobs = options.jobs.as_ref().ok_or(NO_JOBS)?;
     let id = job_id(arguments)?;
+    own_job(jobs, &id)?;
     let wait = js::integer(arguments.get("wait"), 0).clamp(0, LONGEST_WAIT);
     let (job, output) = jobs
         .table
@@ -284,6 +293,8 @@ pub async fn code_output(arguments: &Arguments, options: &CodeOptions) -> ToolRe
 /// `code_stop`: ends a background command.
 pub fn code_stop(arguments: &Arguments, options: &CodeOptions) -> ToolResult {
     let jobs = options.jobs.as_ref().ok_or(NO_JOBS)?;
-    let job = jobs.table.stop(&job_id(arguments)?)?;
+    let id = job_id(arguments)?;
+    own_job(jobs, &id)?;
+    let job = jobs.table.stop(&id)?;
     Ok(json!({ "jobId": job.id, "command": job.command, "stopped": true }))
 }

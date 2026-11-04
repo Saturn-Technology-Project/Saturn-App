@@ -178,7 +178,7 @@ impl Kernel {
         match text(item, "kind") {
             "file" => {
                 let path = text(item, "path");
-                let file = inside_workspace(workspace, path).await?;
+                let file = inside_project(workspace, path).await?;
                 let content = tokio::fs::read_to_string(&file)
                     .await
                     .map_err(|error| error.to_string())?;
@@ -193,7 +193,7 @@ impl Kernel {
                 sources.push(shown);
             }
             "folder" => {
-                let folder = inside_workspace(workspace, text(item, "path")).await?;
+                let folder = inside_project(workspace, text(item, "path")).await?;
                 let files = listing(&folder, LISTING_LIMIT).await;
                 let shown = relative(root, &folder);
                 let shown = if shown.is_empty() {
@@ -353,4 +353,11 @@ impl Kernel {
             )
         }
     }
+}
+
+/// A path a chat attached, or a refusal that names it, for the model and the user to see which one.
+async fn inside_project(workspace: &Workspace, path: &str) -> Result<std::path::PathBuf, String> {
+    inside_workspace(workspace, path)
+        .await
+        .map_err(|_| format!("{path} is outside the project folder"))
 }

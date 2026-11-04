@@ -57,29 +57,66 @@ pub fn weekday(days: i64) -> u32 {
     (days + 4).rem_euclid(7) as u32
 }
 
-/// The milliseconds of a time as `iso_time` writes it (`2026-11-03T05:37:09.916Z`, fraction optional).
+/// The milliseconds of a date or time as JavaScript reads one: `2026-11-03T05:37:09.916Z`, the fraction and seconds optional, with `Z`
+/// or an offset such as `+08:00`, or a date alone, which means its start in UTC. A time with no zone is refused: which day it means
+/// would depend on this computer.
 pub fn parse_iso(text: &str) -> Option<i64> {
-    let (date, time) = text.strip_suffix('Z')?.split_once('T')?;
+    let (date, time) = match text.split_once('T') {
+        Some((date, time)) => (date, Some(time)),
+        None => (text, None),
+    };
     let mut parts = date.split('-');
     let year: i64 = parts.next()?.parse().ok()?;
     let month: u32 = parts.next()?.parse().ok()?;
     let day: u32 = parts.next()?.parse().ok()?;
+    if parts.next().is_some() || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+    let midnight = days_from_civil(year, month, day) * 86_400_000;
+    let Some(time) = time else {
+        return Some(midnight);
+    };
+    let (time, offset_minutes) = if let Some(time) = time.strip_suffix('Z') {
+        (time, 0)
+    } else {
+        let at = time.rfind(['+', '-'])?;
+        let (time, zone) = time.split_at(at);
+        let (hours, minutes) = zone[1..].split_once(':')?;
+        let size = hours.parse::<i64>().ok()? * 60 + minutes.parse::<i64>().ok()?;
+        (time, if zone.starts_with('-') { -size } else { size })
+    };
     let (clock, fraction) = time.split_once('.').unwrap_or((time, "0"));
     let mut pieces = clock.split(':');
     let hours: i64 = pieces.next()?.parse().ok()?;
     let minutes: i64 = pieces.next()?.parse().ok()?;
-    let seconds: i64 = pieces.next()?.parse().ok()?;
+    let seconds: i64 = pieces
+        .next()
+        .map_or(Some(0), |seconds| seconds.parse().ok())?;
     let millis: i64 = format!("{fraction:0<3}").get(..3)?.parse().ok()?;
-    Some(
-        days_from_civil(year, month, day) * 86_400_000
-            + (hours * 3600 + minutes * 60 + seconds) * 1000
-            + millis,
-    )
+    Some(midnight + (hours * 3600 + minutes * 60 + seconds - offset_minutes * 60) * 1000 + millis)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dates_and_offsets_read_as_javascript_reads_them() {
+        let utc = parse_iso("2026-10-20T00:00:00.000Z");
+        assert!(utc.is_some());
+        assert_eq!(parse_iso("2026-10-20"), utc);
+        assert_eq!(parse_iso("2026-10-20T08:00:00+08:00"), utc);
+        assert_eq!(parse_iso("2026-10-19T16:30-07:30"), utc);
+        for refused in [
+            "2026-10-20T08:00:00",
+            "2026-13-01",
+            "2026-10-20-01",
+            "soon",
+            "",
+        ] {
+            assert_eq!(parse_iso(refused), None, "{refused}");
+        }
+    }
 
     #[test]
     fn times_read_as_javascript_writes_them() {
