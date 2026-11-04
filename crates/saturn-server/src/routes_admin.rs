@@ -9,6 +9,7 @@ use axum::http::StatusCode;
 use axum::http::header::{CONTENT_TYPE, HeaderName};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, patch, post};
+use saturn_core::agent_programs::program_id;
 use saturn_core::catalog::llm_providers;
 use saturn_core::projects::{launch_app, launch_terminal};
 use saturn_core::skill_files::{
@@ -1090,8 +1091,105 @@ async fn open_permission_pane(body: Body) -> Answer {
 }
 
 /// Settings, connections, projects, usage and the workspace views.
+/// Claude Code and Codex: whether each is installed (and where from), and downloading Saturn's tested copy.
+async fn programs(State(kernel): Shared) -> Answer {
+    ok(kernel.program_statuses().await)
+}
+
+async fn program(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.program_status(program_id(&id)?).await)
+}
+
+async fn install_program(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    let status = kernel.install_program(program_id(&id)?).await?;
+    Ok((StatusCode::ACCEPTED, axum::Json(status)).into_response())
+}
+
+async fn remove_program(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.remove_program(program_id(&id)?).await?)
+}
+
+async fn claude_status(State(kernel): Shared) -> Answer {
+    ok(kernel.claude_status().await?)
+}
+
+async fn claude_logout(State(kernel): Shared) -> Answer {
+    ok(kernel.claude_logout().await?)
+}
+
+async fn codex_status(State(kernel): Shared) -> Answer {
+    ok(kernel.codex_status().await?)
+}
+
+/// Starts the official `codex login`: mode "device" (a one-time code, no local redirect) or "browser".
+async fn codex_sign_in(State(kernel): Shared, body: Body) -> Answer {
+    let browser = body_of(body).get("mode").and_then(Value::as_str) == Some("browser");
+    ok(kernel.start_codex_sign_in(browser).await?)
+}
+
+/// Opens the page Codex printed for this sign-in in the default browser (never a URL from the request).
+async fn codex_sign_in_open(State(kernel): Shared) -> Answer {
+    ok(kernel.open_codex_sign_in()?)
+}
+
+async fn codex_sign_in_cancel(State(kernel): Shared) -> Answer {
+    kernel.cancel_codex_sign_in();
+    ok(kernel.codex_status().await?)
+}
+
+async fn codex_logout(State(kernel): Shared) -> Answer {
+    ok(kernel.codex_logout().await?)
+}
+
+/// Saturn's skills as a stateless MCP server for Codex, which only reaches MCP servers out of process. The bearer token picks the
+/// turn; it stops working when the turn ends.
+async fn agent_mcp(
+    State(kernel): Shared,
+    headers: axum::http::HeaderMap,
+    body: axum::body::Bytes,
+) -> Response {
+    let token = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "));
+    let message: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+    match kernel.answer_agent_mcp(token, &message).await {
+        None => (
+            StatusCode::UNAUTHORIZED,
+            axum::Json(json!({ "error": "Unauthorized" })),
+        )
+            .into_response(),
+        Some(Some(answer)) => axum::Json(answer).into_response(),
+        // A notification has nothing to answer.
+        Some(None) => StatusCode::ACCEPTED.into_response(),
+    }
+}
+
+/// Stateless: no session stream to open or close.
+async fn agent_mcp_other() -> Response {
+    (
+        StatusCode::METHOD_NOT_ALLOWED,
+        [(axum::http::header::ALLOW, "POST")],
+        axum::Json(json!({ "error": "Method not allowed" })),
+    )
+        .into_response()
+}
+
 pub fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route("/programs", get(programs))
+        .route("/programs/{id}", get(program).delete(remove_program))
+        .route("/programs/{id}/install", post(install_program))
+        .route("/claude-code/status", get(claude_status))
+        .route("/claude-code/logout", post(claude_logout))
+        .route("/codex/status", get(codex_status))
+        .route(
+            "/codex/sign-in",
+            post(codex_sign_in).delete(codex_sign_in_cancel),
+        )
+        .route("/codex/sign-in/open", post(codex_sign_in_open))
+        .route("/codex/logout", post(codex_logout))
+        .route("/agent-mcp", post(agent_mcp).fallback(agent_mcp_other))
         .route("/settings", get(settings).patch(update_settings))
         .route("/information", get(information))
         .route("/logs", get(logs))

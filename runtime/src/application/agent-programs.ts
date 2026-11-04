@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createReadStream, createWriteStream, existsSync, readdirSync, statSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { chmod, mkdir, rename, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -53,7 +53,10 @@ export class AgentProgramsService {
   }
 
   package(id: ProgramId): ProgramPackage | null {
-    return AGENT_PROGRAM_PACKAGES[id][`${process.platform}-${process.arch}`] ?? null;
+    // SATURN_PROGRAM_PACKAGES points tests at their own pins, and so at a registry of their own.
+    const override = process.env.SATURN_PROGRAM_PACKAGES;
+    const packages = override ? (JSON.parse(readFileSync(override, "utf8")) as typeof AGENT_PROGRAM_PACKAGES) : AGENT_PROGRAM_PACKAGES;
+    return packages[id][`${process.platform}-${process.arch}`] ?? null;
   }
 
   private executable(id: ProgramId): string {
@@ -82,6 +85,7 @@ export class AgentProgramsService {
   }
 
   private bundledPath(id: ProgramId): string | null {
+    if (process.env.SATURN_NO_BUNDLED_PROGRAMS) return null;
     const name = id === "claude-code" ? `@anthropic-ai/claude-agent-sdk-${process.platform}-${process.arch}` : `@openai/codex-${process.platform}-${process.arch}`;
     try {
       const manifest = createRequire(import.meta.url).resolve(`${name}/package.json`);

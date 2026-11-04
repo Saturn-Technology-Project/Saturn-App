@@ -63,20 +63,30 @@ fn add_arguments(command: &mut Command, invocation: &Invocation) {
 }
 
 #[cfg(unix)]
-fn in_own_group(command: &mut Command) {
+pub fn in_own_group(command: &mut Command) {
     command.process_group(0);
+}
+
+/// Keeps a short-lived program from opening a console window on Windows.
+#[cfg(unix)]
+pub fn no_window(_command: &mut Command) {}
+
+#[cfg(windows)]
+pub fn no_window(command: &mut Command) {
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    command.creation_flags(CREATE_NO_WINDOW);
 }
 
 /// Windows has no process groups; a command also must not open a console window of its own.
 #[cfg(windows)]
-fn in_own_group(command: &mut Command) {
+pub fn in_own_group(command: &mut Command) {
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
 /// Asks the group to end. Sends nothing when the group is gone.
 #[cfg(unix)]
-pub(crate) fn terminate(pid: u32) {
+pub fn terminate(pid: u32) {
     signal_group(pid, rustix::process::Signal::TERM);
 }
 
@@ -99,7 +109,7 @@ fn signal_group(pid: u32, signal: rustix::process::Signal) {
 
 /// `taskkill /T` ends the shell and everything it started.
 #[cfg(windows)]
-pub(crate) fn terminate(pid: u32) {
+pub fn terminate(pid: u32) {
     use std::process::Command as Plain;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     use std::os::windows::process::CommandExt;
@@ -130,17 +140,17 @@ pub(crate) fn force_after_grace(pid: u32, still_running: impl FnOnce() -> bool +
 }
 
 /// Ends a command's group when dropped, unless it finished: this is what stopping a run or a timeout does to it.
-pub(crate) struct EndOnDrop {
+pub struct EndOnDrop {
     pid: Option<u32>,
 }
 
 impl EndOnDrop {
-    pub(crate) fn new(pid: Option<u32>) -> Self {
+    pub fn new(pid: Option<u32>) -> Self {
         Self { pid }
     }
 
     /// The command finished by itself; what it left running on purpose stays.
-    pub(crate) fn finished(&mut self) {
+    pub fn finished(&mut self) {
         self.pid = None;
     }
 }

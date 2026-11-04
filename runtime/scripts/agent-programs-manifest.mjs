@@ -43,3 +43,5 @@ writeFileSync(path.join(runtime, "src", "infrastructure", "agent-programs-manife
 for (const [program, platforms] of Object.entries(manifest)) {
   console.log(`${program}: ${Object.entries(platforms).map(([platform, item]) => `${platform} ${(item.size / 1048576).toFixed(0)} MB`).join(", ")}`);
 }
+// The Rust runtime reads the same pins.
+writeFileSync(path.join(runtime, "..", "crates", "saturn-core", "src", "agent-programs.json"), `${JSON.stringify(manifest, null, 2)}\n`);

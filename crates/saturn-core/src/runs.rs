@@ -1102,14 +1102,19 @@ impl Kernel {
         let agent = self.get_agent(text(&run, "agentId"))?;
         let model = self.require_model(&agent)?;
         self.guard(text(&agent, "id"))?;
-        if saturn_domain::llm::runs_on_plan(text(&model, "provider")) {
-            return Err(CoreError::new(
-                409,
-                format!(
-                    "{} runs in its own program, which the Rust runtime does not start yet.",
-                    text(&model, "name")
-                ),
-            ));
+        match text(&model, "provider") {
+            // The official programs run the whole agent loop (tools, approvals, session) themselves.
+            "claude-code" => {
+                Box::pin(self.claude_turn(run_id, at, &agent, &model)).await?;
+                self.note_program_finished(run_id, at);
+                return Ok(());
+            }
+            "codex" => {
+                Box::pin(self.codex_turn(run_id, at, &agent, &model)).await?;
+                self.note_program_finished(run_id, at);
+                return Ok(());
+            }
+            _ => {}
         }
         let input = text(&run, "input");
         let context = self.rag_context(&agent, input).await?;
@@ -1573,7 +1578,31 @@ impl Kernel {
     }
 
     /// What follows a finished turn, none of which it waits for.
+    /// A Claude Code or Codex turn that completed feeds memory, as a local run's does when it finishes.
+    fn note_program_finished(self: &Arc<Self>, run_id: &str, at: u64) {
+        let Some(run) = self.find_run(run_id) else {
+            return;
+        };
+        if generation(&run) == at && text(&run, "status") == "completed" {
+            self.after_finished_without_hooks(run);
+        }
+    }
+
     fn after_finished(self: &Arc<Self>, run: Value) {
+        self.after_finished_without_hooks(run.clone());
+        let kernel = Arc::clone(self);
+        tokio::spawn(async move {
+            if let Err(error) = kernel.stop_hooks(&run).await {
+                log(
+                    "agent",
+                    "warning",
+                    &format!("Stop hooks failed to run: {error}"),
+                );
+            }
+        });
+    }
+
+    fn after_finished_without_hooks(self: &Arc<Self>, run: Value) {
         let kernel = Arc::clone(self);
         let noted = run.clone();
         tokio::spawn(async move { kernel.note_run(&noted).await });
@@ -1589,23 +1618,12 @@ impl Kernel {
             }
         });
         let kernel = Arc::clone(self);
-        let checked = run.clone();
         tokio::spawn(async move {
-            if let Err(error) = kernel.verify_after_run(&checked).await {
+            if let Err(error) = kernel.verify_after_run(&run).await {
                 log(
                     "agent",
                     "warning",
                     &format!("Verification failed to run: {error}"),
-                );
-            }
-        });
-        let kernel = Arc::clone(self);
-        tokio::spawn(async move {
-            if let Err(error) = kernel.stop_hooks(&run).await {
-                log(
-                    "agent",
-                    "warning",
-                    &format!("Stop hooks failed to run: {error}"),
                 );
             }
         });

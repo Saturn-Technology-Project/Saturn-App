@@ -41,7 +41,7 @@ async fn read(root: &Path, file: &Path) -> String {
 
 /// Every file the agents' prompt takes rules from, for the editor.
 pub async fn rule_sources(root: &Path, stored: &str) -> Vec<serde_json::Value> {
-    pieces_of(root, stored)
+    pieces_of(root, stored, &[])
         .await
         .iter()
         .map(|(path, content)| serde_json::json!({ "path": path, "chars": js::length(content) }))
@@ -51,7 +51,12 @@ pub async fn rule_sources(root: &Path, stored: &str) -> Vec<serde_json::Value> {
 /// The rules as prompt text: AGENTS.md, CLAUDE.md, `.saturn/rules/*.md`, `.agents/rules/*.md`, `.cursorrules`, then the rules
 /// saved in Saturn's project settings.
 pub async fn project_rules(root: &Path, stored: &str) -> String {
-    let pieces = pieces_of(root, stored).await;
+    project_rules_without(root, stored, &[]).await
+}
+
+/// The rules without the files in `skip`, which the agent's own program reads by itself (Codex reads AGENTS.md).
+pub async fn project_rules_without(root: &Path, stored: &str, skip: &[&str]) -> String {
+    let pieces = pieces_of(root, stored, skip).await;
     if pieces.is_empty() {
         return String::new();
     }
@@ -76,9 +81,12 @@ pub async fn project_rules(root: &Path, stored: &str) -> String {
 }
 
 /// Each source of rules and what it holds.
-async fn pieces_of(root: &Path, stored: &str) -> Vec<(String, String)> {
+async fn pieces_of(root: &Path, stored: &str, skip: &[&str]) -> Vec<(String, String)> {
     let mut pieces: Vec<(String, String)> = Vec::new();
     for entry in RULE_FILES {
+        if skip.contains(&entry) {
+            continue;
+        }
         let full = root.join(entry);
         if entry.ends_with("/rules") {
             let Ok(mut folder) = tokio::fs::read_dir(&full).await else {

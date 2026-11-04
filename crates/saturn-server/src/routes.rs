@@ -174,7 +174,9 @@ async fn allow_always(
     kernel
         .add_permission_rule(scope, &rule, project.as_deref(), agent)
         .await?;
-    kernel.decide(&id, &action_id, true).await?;
+    if !kernel.answer_program_card(&id, &action_id, true) {
+        kernel.decide(&id, &action_id, true).await?;
+    }
     ok(json!({ "ok": true, "rule": rule, "scope": chosen }))
 }
 
@@ -404,7 +406,10 @@ async fn decide(
     body: Body,
 ) -> Answer {
     let allow = body_of(body).get("allow") == Some(&Value::Bool(true));
-    kernel.decide(&id, &action, allow).await?;
+    // A Claude Code or Codex run waits on the card while the program holds the tool call; a local run paused at it continues from it.
+    if !kernel.answer_program_card(&id, &action, allow) {
+        kernel.decide(&id, &action, allow).await?;
+    }
     ok(json!({ "ok": true }))
 }
 

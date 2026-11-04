@@ -24,10 +24,14 @@ pub(crate) fn argument_text(arguments: &Arguments, key: &str) -> String {
     js::text(arguments.get(key))
 }
 
+/// Random bytes as lowercase hex.
+pub fn random_hex(bytes: usize) -> std::io::Result<String> {
+    let mut random = vec![0u8; bytes];
+    getrandom::fill(&mut random).map_err(std::io::Error::other)?;
+    Ok(random.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
 /// A new id for a record, like `run_0123456789abcdef`.
 pub fn new_id(prefix: &str) -> std::io::Result<String> {
-    let mut bytes = [0u8; 8];
-    getrandom::fill(&mut bytes).map_err(std::io::Error::other)?;
-    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-    Ok(format!("{prefix}_{hex}"))
+    Ok(format!("{prefix}_{}", random_hex(8)?))
 }

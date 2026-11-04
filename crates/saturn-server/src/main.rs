@@ -125,6 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             stop_requested().await;
             // What runs on the runtime's behalf ends with it. A client still listening must not hold it open.
             stopping.jobs.stop_all(None);
+            stopping.stop_programs();
             stopping.browser.close().await;
             saturn_telemetry::stop().await;
             tokio::spawn(async {

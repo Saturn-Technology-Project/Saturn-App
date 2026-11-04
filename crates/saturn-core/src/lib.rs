@@ -16,12 +16,16 @@ use tokio::sync::Mutex as AsyncMutex;
 use tokio::task::AbortHandle;
 
 pub mod admin;
+pub mod agent_programs;
+mod agent_sessions;
 pub mod agent_tools;
 pub mod automations;
 pub mod builtins;
 pub mod catalog;
 pub mod checkpoints;
+mod claude_code;
 pub mod cli_install;
+mod codex;
 pub mod completions;
 pub mod context;
 pub mod events;
@@ -146,6 +150,8 @@ pub struct Kernel {
     pub browser: Browser,
     /// The computer-use tools, which remember the element ids they handed out.
     pub computer: Computer,
+    /// Claude Code and Codex: downloads, waiting cards, and what runs for them.
+    pub programs: agent_programs::ProgramState,
     /// The running pass of each run, by "<run>:<generation>", so stopping can abort it.
     stops: Mutex<HashMap<String, AbortHandle>>,
     /// One capture at a time per run, so parallel tool calls on one file keep the first original.
@@ -187,6 +193,7 @@ impl Kernel {
             browser: Browser::new(store.root(), std::env::var("SATURN_SAFARI_ENDPOINT").ok()),
             store,
             jobs: JobTable::new(),
+            programs: agent_programs::ProgramState::default(),
             stops: Mutex::default(),
             checkpoint_locks: Mutex::default(),
             too_big: Mutex::default(),
