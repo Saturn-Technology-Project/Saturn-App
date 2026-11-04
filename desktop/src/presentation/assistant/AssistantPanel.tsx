@@ -36,7 +36,9 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
   }, [notify, project.id]);
 
   useEffect(() => void load(), [load]);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [conversation.runs]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [conversation.runs]);
 
   const mode = focus?.file ? focus.mode : null;
   const available: { id: Attachment; label: string }[] = [

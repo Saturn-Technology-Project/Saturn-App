@@ -133,6 +133,34 @@ test("pages read while a run writes never show half a line, and reach every samp
   assert.deepEqual(seen, Array.from({ length: 40 }, (_, index) => `s${index}`));
 });
 
+test("a summary adds up each model's samples, without letting infrastructure errors count as scores", posixOnly, async () => {
+  const { route, folder, run } = await project();
+  const done = await run([
+    line("a", { modelId: "m1", scores: { logit: 1, correct: true, note: "x" } }),
+    line("b", { modelId: "m1", scores: { logit: 3, correct: false } }),
+    line("c", { modelId: "m1", scores: { logit: 100 }, error: { kind: "infrastructure", message: "GPU gone" } }),
+    line("d", { modelId: "m1", scores: { logit: 2 }, error: { kind: "scorer", message: "unsure" } }),
+    line("a", { modelId: "m2", scores: { logit: 5 } }),
+    line("z", { scores: null }),
+  ]);
+  const summary = await saturn.api("GET", `${route}/runs/${done.id}/summary`);
+  assert.equal(summary.versionId, done.versionId);
+  const byModel = Object.fromEntries(summary.models.map((item) => [item.modelId, item]));
+  assert.equal(byModel.m1.samples, 4);
+  assert.deepEqual(byModel.m1.errors, { infrastructure: 1, scorer: 1 });
+  assert.deepEqual(byModel.m1.scores.logit, { mean: 2, count: 3, notNumbers: 0 });
+  assert.deepEqual(byModel.m1.scores.correct, { mean: 0.5, count: 2, notNumbers: 0 });
+  assert.deepEqual(byModel.m1.scores.note, { mean: null, count: 0, notNumbers: 1 });
+  assert.equal(byModel.m2.scores.logit.mean, 5);
+  assert.equal(byModel.null.samples, 1);
+  // Sealed: what is written later does not change it.
+  const file = path.join(folder, ".saturn/research/runs", done.id, "samples.jsonl");
+  await writeFile(file, await readFile(file, "utf8") + line("late", { modelId: "m2", scores: { logit: 500 } }));
+  const again = await saturn.api("GET", `${route}/runs/${done.id}/summary`);
+  assert.equal(again.models.find((item) => item.modelId === "m2").scores.logit.mean, 5);
+  assert.equal((await saturn.call("GET", `${route}/runs/run_nothere/summary`)).status, 404);
+});
+
 test("a counterexample is a record that names its run and sample", async () => {
   const { route } = await project();
   assert.equal((await saturn.call("POST", `${route}/counterexamples`, { note: "no sample" })).status, 400);

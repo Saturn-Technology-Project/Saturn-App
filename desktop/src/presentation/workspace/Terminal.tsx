@@ -20,7 +20,9 @@ export function Terminal(props: { folder: string }) {
   const counter = useRef(0);
   const end = useRef<HTMLDivElement>(null);
 
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [entries]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [entries]);
 
   async function run() {
     const typed = command.trim();

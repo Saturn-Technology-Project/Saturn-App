@@ -180,6 +180,62 @@ export function lineageOrder(models: ModelNode[]): { model: ModelNode; depth: nu
   return ordered;
 }
 
+/** One model's samples in a run, added up. */
+export interface ModelSummary {
+  modelId: string | null;
+  samples: number;
+  errors: Record<string, number>;
+  scores: Record<string, { mean: number | null; count: number; notNumbers: number }>;
+}
+
+export interface RunSummary {
+  runId: string;
+  versionId: string;
+  status: RunStatus;
+  models: ModelSummary[];
+}
+
+/** A line of models: each continues its parent's line, and any other child starts a new one. */
+export interface LineageTrack {
+  from: ModelNode | null;
+  nodes: ModelNode[];
+}
+
+/** Lays models out as lines, so checkpoints read as a line and a branch as a line of its own. */
+export function lineageTracks(models: ModelNode[]): LineageTrack[] {
+  const known = new Map(models.map((model) => [model.id, model]));
+  const children = new Map<string, ModelNode[]>();
+  for (const model of models) {
+    if (model.parentId && known.has(model.parentId)) children.set(model.parentId, [...(children.get(model.parentId) ?? []), model]);
+  }
+  const tracks: LineageTrack[] = [];
+  const follow = (start: ModelNode, from: ModelNode | null) => {
+    const track: LineageTrack = { from, nodes: [] };
+    tracks.push(track);
+    let current: ModelNode | undefined = start;
+    const branches: [ModelNode, ModelNode][] = [];
+    while (current) {
+      track.nodes.push(current);
+      const [next, ...others]: ModelNode[] = children.get(current.id) ?? [];
+      for (const other of others) branches.push([other, current]);
+      current = next;
+    }
+    for (const [branch, parent] of branches) follow(branch, parent);
+  };
+  for (const model of models) if (!model.parentId || !known.has(model.parentId)) follow(model, null);
+  return tracks;
+}
+
+/** Whether a run has samples worth adding up. */
+export function runHasResults(status: RunStatus): boolean {
+  return status === "completed" || status === "stopped" || status === "interrupted" || status === "protocol_error";
+}
+
+/** A score for showing: enough digits to tell runs apart. */
+export function scoreText(value: number | null | undefined): string {
+  return value === null || value === undefined ? "No score" : Number(value.toFixed(3)).toString();
+}
+
 /** Whether a run can still change. */
 export function isRunActive(status: RunStatus): boolean {
   return status === "starting" || status === "running" || status === "stopping";

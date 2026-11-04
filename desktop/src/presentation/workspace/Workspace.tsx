@@ -180,6 +180,20 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     };
   }, [activeRunId, refreshRun]);
 
+  // A turn of the assistant may have changed the open file: follow it, unless there is unsaved text to protect.
+  useEffect(() => {
+    if (!open || dirty) return undefined;
+    const { path, revision } = open;
+    return desktop.live.onChange(() => {
+      service
+        .readSource(projectId, path)
+        .then((view) => {
+          if (view.kind === "file" && view.revision !== revision) void openFile(path);
+        })
+        .catch(() => {});
+    });
+  }, [dirty, open, openFile, projectId]);
+
   const save = useCallback(
     async (force = false) => {
       if (!open) return true;

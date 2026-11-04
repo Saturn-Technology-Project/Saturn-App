@@ -146,6 +146,10 @@ async fn log(
     ok(kernel.research_run_log(&project, &id, stream).await?)
 }
 
+async fn summary(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
+    ok(kernel.research_summary(&project, &run).await?)
+}
+
 async fn labels(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
     ok(kernel.research_labels(&project, &run).await?)
 }
@@ -190,6 +194,7 @@ async fn events(State(kernel): Shared, Path(project): Path<String>) -> Answer {
 
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route("/projects/{id}/research/runs/{run}/summary", get(summary))
         .route(
             "/projects/{id}/research/policy",
             get(policy).put(set_policy),

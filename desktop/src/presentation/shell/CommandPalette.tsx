@@ -17,7 +17,9 @@ export function CommandPalette(props: { commands: PaletteCommand[]; onClose: () 
     return props.commands.filter((command) => words.every((word) => command.label.toLowerCase().includes(word)));
   }, [props.commands, query]);
 
-  useEffect(() => input.current?.focus(), []);
+  useEffect(() => {
+    input.current?.focus();
+  }, []);
   useEffect(() => setIndex(0), [query]);
 
   function choose(command?: PaletteCommand) {

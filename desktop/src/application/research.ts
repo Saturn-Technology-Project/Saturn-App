@@ -13,6 +13,7 @@ import type {
   ResearchEvent,
   ResearchPolicy,
   RunLabels,
+  RunSummary,
   ResearchSession,
   SampleItem,
   SourceView,
@@ -132,6 +133,10 @@ export class ResearchService {
 
   sampleAcross(project: string, sample: string, runs: string[]): Promise<{ rows: AcrossRow[] }> {
     return this.runtime.request(`${this.route(project)}/samples/${encodeURIComponent(sample)}?runs=${runs.join(",")}`);
+  }
+
+  summary(project: string, run: string): Promise<RunSummary> {
+    return this.runtime.request(`${this.route(project)}/runs/${run}/summary`);
   }
 
   labels(project: string, run: string): Promise<RunLabels> {

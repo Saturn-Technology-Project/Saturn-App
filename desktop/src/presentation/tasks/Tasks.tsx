@@ -145,7 +145,7 @@ function TaskDetail(props: { task: Conversation; agent: Agent; notify: (message:
           </>
         ) : null}
       </header>
-      {status?.changedFiles.length ? <div className="lab-muted lab-task-status">{status.changedFiles.length} files changed: {status.changedFiles.join(", ")}</div> : null}
+      {status?.changedFiles.length ? <div className="lab-muted lab-task-status">Changed: {status.changedFiles.join(", ")}</div> : null}
       <div className="lab-conversation">
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(text) => void conversation.send(text, "agent")} />

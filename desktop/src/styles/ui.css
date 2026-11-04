@@ -346,3 +346,133 @@
 .lab-splitter:focus-visible {
   background-color: var(--blue-bg);
 }
+
+.lab-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.lab-chart-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lab-chart-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 200px) minmax(60px, 1fr) 56px minmax(60px, 110px);
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  font-size: var(--text-small);
+}
+
+.lab-chart-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lab-chart-track {
+  display: block;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--hover);
+}
+
+.lab-chart-bar {
+  display: block;
+  height: 14px;
+  border-radius: 0 4px 4px 0;
+  background: var(--blue-hover);
+}
+
+.lab-chart-value {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.lab-chart-apart {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lab-track {
+  margin-top: 16px;
+}
+
+.lab-track-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.lab-node {
+  display: flex;
+  flex: 0 1 150px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 72px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--fg);
+  text-align: left;
+}
+
+.lab-node:hover {
+  border-color: var(--line-strong);
+}
+
+.lab-node.active {
+  border-color: var(--fg);
+  background: var(--hover);
+}
+
+.lab-node-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+
+.lab-node-score {
+  font-size: var(--text-title);
+  font-weight: 600;
+}
+
+.lab-lineage-detail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  overflow: auto;
+  background: var(--panel);
+}
+
+.lab-lineage-detail h2 {
+  margin: 8px 0 2px;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.lab-detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  overflow-wrap: anywhere;
+}
+
+.lab-lineage-detail .lab-button {
+  margin-top: 6px;
+}

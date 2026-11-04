@@ -2,6 +2,7 @@ import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import {
   comparisonText,
+  runHasResults,
   runStatusLabel,
   type Comparison,
   type ExperimentDraft,
@@ -13,6 +14,8 @@ import {
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { messageOf } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
+
+import { ScoreChart } from "./ScoreChart.js";
 
 const service = desktop.research;
 const EVALUATION_FIELDS = ["dataset", "split", "sampleSet", "scorer", "promptFormat", "chatTemplate"] as const;
@@ -134,6 +137,8 @@ export function Experiments(props: ScreenProps) {
               Add
             </button>
           </div>
+
+          <ScoreChart projectId={projectId} runs={runs.filter((run) => runHasResults(run.status))} versions={versions} models={value?.models ?? []} notify={props.notify} />
 
           <h2>Frozen versions</h2>
           <div className="lab-table-wrap">

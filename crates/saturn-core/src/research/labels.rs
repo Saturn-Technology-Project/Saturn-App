@@ -1,5 +1,5 @@
 //! A person's labels on a run's samples, kept apart from its scores, and one sample across runs.
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
@@ -111,6 +111,33 @@ impl Kernel {
         Ok(saved["labels"][&identity].clone())
     }
 
+    /// What a run's samples add up to for each model: how many, how many errors of each kind, and each score's mean.
+    /// Only number and true-or-false scores have a mean; text scores are counted.
+    pub async fn research_summary(&self, project: &str, run: &str) -> Result<Value, CoreError> {
+        let found = self.research_run(project, run).await?;
+        let records = self.records_folder(project).await?;
+        let path = records.join("runs").join(run).join("samples.jsonl");
+        let end = found.get("samplesSize").and_then(Value::as_u64);
+        let models = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<Value>> {
+            let mut models: BTreeMap<String, ModelTally> = BTreeMap::new();
+            each_sample(&path, end, |value, _| {
+                models
+                    .entry(text(value, "modelId").to_owned())
+                    .or_default()
+                    .add(value);
+            })?;
+            Ok(models
+                .into_iter()
+                .map(|(model, tally)| tally.into_json(&model))
+                .collect())
+        })
+        .await
+        .map_err(|error| CoreError::new(500, error.to_string()))??;
+        Ok(
+            json!({ "runId": run, "versionId": text(&found, "versionId"), "status": text(&found, "status"), "models": models }),
+        )
+    }
+
     /// One sample in several runs, each with whether its evaluation compares to the first run's.
     pub async fn research_sample_across(
         &self,
@@ -157,6 +184,66 @@ impl Kernel {
             }));
         }
         Ok(json!({ "sampleId": sample, "rows": rows }))
+    }
+}
+
+/// What one model's samples in a run add up to.
+#[derive(Default)]
+struct ModelTally {
+    samples: u64,
+    errors: BTreeMap<String, u64>,
+    scores: BTreeMap<String, (f64, u64, u64)>,
+}
+
+impl ModelTally {
+    /// Counts one sample. A sample with an infrastructure error has no score worth averaging, even if it wrote one.
+    fn add(&mut self, sample: &Value) {
+        self.samples += 1;
+        let error = sample.pointer("/error/kind").and_then(Value::as_str);
+        if let Some(kind) = error {
+            *self.errors.entry(kind.to_owned()).or_default() += 1;
+        }
+        if error == Some("infrastructure") {
+            return;
+        }
+        for (name, score) in sample
+            .get("scores")
+            .and_then(Value::as_object)
+            .into_iter()
+            .flatten()
+        {
+            let entry = self.scores.entry(name.clone()).or_default();
+            let number = score
+                .as_f64()
+                .or_else(|| score.as_bool().map(|yes| f64::from(u8::from(yes))));
+            match number {
+                Some(number) if number.is_finite() => {
+                    entry.0 += number;
+                    entry.1 += 1;
+                }
+                _ => entry.2 += 1,
+            }
+        }
+    }
+
+    fn into_json(self, model: &str) -> Value {
+        let scores: serde_json::Map<String, Value> = self
+            .scores
+            .into_iter()
+            .map(|(name, (sum, count, other))| {
+                let mean = (count > 0).then(|| sum / count as f64);
+                (
+                    name,
+                    json!({ "mean": mean, "count": count, "notNumbers": other }),
+                )
+            })
+            .collect();
+        json!({
+            "modelId": (!model.is_empty()).then_some(model),
+            "samples": self.samples,
+            "errors": self.errors,
+            "scores": scores,
+        })
     }
 }
 

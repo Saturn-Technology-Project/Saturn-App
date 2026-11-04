@@ -68,6 +68,7 @@
   "GET /projects/:id/research/runs/:run/labels",
   "GET /projects/:id/research/runs/:run/log",
   "GET /projects/:id/research/runs/:run/samples",
+  "GET /projects/:id/research/runs/:run/summary",
   "GET /projects/:id/research/samples/:sample",
   "GET /projects/:id/research/source",
   "GET /projects/:id/rules",
