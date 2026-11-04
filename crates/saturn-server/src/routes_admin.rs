@@ -43,6 +43,42 @@ fn wanted<'a>(query: &'a HashMap<String, String>, key: &str) -> Option<&'a str> 
         .filter(|text| !text.is_empty())
 }
 
+/// The project's semantic code index: build (incrementally), status, cancel, and search.
+async fn index_status(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.index_status(&id).await?)
+}
+
+async fn index_build(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    let input = body_of(body);
+    let paths = input.get("paths").and_then(Value::as_array).map(|paths| {
+        paths
+            .iter()
+            .map(|path| js::text(Some(path)))
+            .collect::<Vec<_>>()
+    });
+    ok(kernel.build_index(&id, paths).await?)
+}
+
+async fn index_cancel(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    kernel.cancel_index(&id);
+    ok(kernel.index_status(&id).await?)
+}
+
+async fn index_search(
+    State(kernel): Shared,
+    Path(id): Path<String>,
+    Query(query): QueryText,
+) -> Answer {
+    let limit = query
+        .get("limit")
+        .and_then(|limit| limit.parse::<f64>().ok())
+        .filter(|limit| *limit != 0.0 && limit.is_finite())
+        .unwrap_or(12.0)
+        .clamp(1.0, 50.0) as usize;
+    let question = query.get("q").map_or("", String::as_str);
+    ok(kernel.search_index(&id, question, limit).await?)
+}
+
 async fn settings(State(kernel): Shared) -> Answer {
     ok(kernel.settings())
 }
@@ -1025,6 +1061,11 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
             patch(change_plugin).delete(uninstall_plugin),
         )
         .route("/plugins/{name}/hooks/approve", post(approve_plugin_hooks))
+        .route(
+            "/projects/{id}/index",
+            get(index_status).post(index_build).delete(index_cancel),
+        )
+        .route("/projects/{id}/index/search", get(index_search))
         .route("/complete", post(complete))
         .route("/complete/stream", post(complete_stream))
         .route("/marketplace", get(marketplace))

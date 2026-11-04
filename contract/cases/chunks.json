@@ -1,0 +1,556 @@
+[
+  {
+    "file": "a.ts",
+    "content": "// head\n\n/** doc */\n@Decorator()\nexport default async function one() {}\n\nexport class Two<T> {}\nexport const three$ = 1;\ninterface Four {}\nnamespace five {}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 2,
+        "text": "// head\n"
+      },
+      {
+        "start": 3,
+        "end": 6,
+        "text": "/** doc */\n@Decorator()\nexport default async function one() {}\n",
+        "name": "one"
+      },
+      {
+        "start": 7,
+        "end": 7,
+        "text": "export class Two<T> {}",
+        "name": "Two"
+      },
+      {
+        "start": 8,
+        "end": 8,
+        "text": "export const three$ = 1;",
+        "name": "three$"
+      },
+      {
+        "start": 9,
+        "end": 9,
+        "text": "interface Four {}",
+        "name": "Four"
+      },
+      {
+        "start": 10,
+        "end": 11,
+        "text": "namespace five {}\n",
+        "name": "five"
+      }
+    ]
+  },
+  {
+    "file": "a.tsx",
+    "content": "const A = () => null;\nconst B = () => null;\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "const A = () => null;",
+        "name": "A"
+      },
+      {
+        "start": 2,
+        "end": 3,
+        "text": "const B = () => null;\n",
+        "name": "B"
+      }
+    ]
+  },
+  {
+    "file": "a.js",
+    "content": "function* gen() {}\nexport async function b() {}\nvar c = 1;\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "function* gen() {}",
+        "name": "gen"
+      },
+      {
+        "start": 2,
+        "end": 2,
+        "text": "export async function b() {}",
+        "name": "b"
+      },
+      {
+        "start": 3,
+        "end": 4,
+        "text": "var c = 1;\n",
+        "name": "c"
+      }
+    ]
+  },
+  {
+    "file": "a.py",
+    "content": "# top\nimport os\n\n@cached\ndef one():\n    pass\n\nasync def two():\n    pass\n\nclass Three:\n    def inner(self):\n        pass\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 3,
+        "text": "# top\nimport os\n"
+      },
+      {
+        "start": 4,
+        "end": 7,
+        "text": "@cached\ndef one():\n    pass\n",
+        "name": "one"
+      },
+      {
+        "start": 8,
+        "end": 10,
+        "text": "async def two():\n    pass\n",
+        "name": "two"
+      },
+      {
+        "start": 11,
+        "end": 14,
+        "text": "class Three:\n    def inner(self):\n        pass\n",
+        "name": "Three"
+      }
+    ]
+  },
+  {
+    "file": "a.go",
+    "content": "package x\n\nfunc One() {}\n\nfunc (r *Recv) Two() {}\n\ntype Three struct{}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 2,
+        "text": "package x\n"
+      },
+      {
+        "start": 3,
+        "end": 4,
+        "text": "func One() {}\n",
+        "name": "One"
+      },
+      {
+        "start": 5,
+        "end": 6,
+        "text": "func (r *Recv) Two() {}\n",
+        "name": "Two"
+      },
+      {
+        "start": 7,
+        "end": 8,
+        "text": "type Three struct{}\n",
+        "name": "Three"
+      }
+    ]
+  },
+  {
+    "file": "a.rs",
+    "content": "//! crate\nuse x;\n\n/// Doc\npub fn one() {}\n\npub(crate) async fn two() {}\n\nimpl Three {\n    fn inner() {}\n}\nmod four;\nstatic FIVE: u8 = 1;\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 3,
+        "text": "//! crate\nuse x;\n"
+      },
+      {
+        "start": 4,
+        "end": 6,
+        "text": "/// Doc\npub fn one() {}\n",
+        "name": "one"
+      },
+      {
+        "start": 7,
+        "end": 8,
+        "text": "pub(crate) async fn two() {}\n",
+        "name": "two"
+      },
+      {
+        "start": 9,
+        "end": 11,
+        "text": "impl Three {\n    fn inner() {}\n}",
+        "name": "Three"
+      },
+      {
+        "start": 12,
+        "end": 12,
+        "text": "mod four;",
+        "name": "four"
+      },
+      {
+        "start": 13,
+        "end": 14,
+        "text": "static FIVE: u8 = 1;\n",
+        "name": "FIVE"
+      }
+    ]
+  },
+  {
+    "file": "A.java",
+    "content": "package x;\npublic class One {\n    private int two(int a) {\n    }\n    List<String> three() {}\n}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "package x;"
+      },
+      {
+        "start": 2,
+        "end": 2,
+        "text": "public class One {",
+        "name": "One"
+      },
+      {
+        "start": 3,
+        "end": 4,
+        "text": "    private int two(int a) {\n    }",
+        "name": "two"
+      },
+      {
+        "start": 5,
+        "end": 7,
+        "text": "    List<String> three() {}\n}\n",
+        "name": "three"
+      }
+    ]
+  },
+  {
+    "file": "a.rb",
+    "content": "module One\n  class Two\n    def three?\n    end\n    def self.four!\n    end\n  end\nend\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "module One",
+        "name": "One"
+      },
+      {
+        "start": 2,
+        "end": 2,
+        "text": "  class Two",
+        "name": "Two"
+      },
+      {
+        "start": 3,
+        "end": 4,
+        "text": "    def three?\n    end",
+        "name": "three?"
+      },
+      {
+        "start": 5,
+        "end": 9,
+        "text": "    def self.four!\n    end\n  end\nend\n",
+        "name": "self.four!"
+      }
+    ]
+  },
+  {
+    "file": "a.php",
+    "content": "<?php\nabstract class One {\n  public static function two() {}\n}\ninterface Three {}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "<?php"
+      },
+      {
+        "start": 2,
+        "end": 2,
+        "text": "abstract class One {",
+        "name": "One"
+      },
+      {
+        "start": 3,
+        "end": 4,
+        "text": "  public static function two() {}\n}",
+        "name": "two"
+      },
+      {
+        "start": 5,
+        "end": 6,
+        "text": "interface Three {}\n",
+        "name": "Three"
+      }
+    ]
+  },
+  {
+    "file": "a.swift",
+    "content": "public struct One {\n  private func two() {}\n}\nextension Three {}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "public struct One {",
+        "name": "One"
+      },
+      {
+        "start": 2,
+        "end": 3,
+        "text": "  private func two() {}\n}",
+        "name": "two"
+      },
+      {
+        "start": 4,
+        "end": 5,
+        "text": "extension Three {}\n",
+        "name": "Three"
+      }
+    ]
+  },
+  {
+    "file": "a.kt",
+    "content": "data class One(val a: Int)\nsuspend fun two() {}\nobject Three\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "data class One(val a: Int)",
+        "name": "One"
+      },
+      {
+        "start": 2,
+        "end": 2,
+        "text": "suspend fun two() {}",
+        "name": "two"
+      },
+      {
+        "start": 3,
+        "end": 4,
+        "text": "object Three\n",
+        "name": "Three"
+      }
+    ]
+  },
+  {
+    "file": "A.cs",
+    "content": "public class One {\n    public async Task<int> Two(int a) {\n    }\n}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "public class One {",
+        "name": "One"
+      },
+      {
+        "start": 2,
+        "end": 5,
+        "text": "    public async Task<int> Two(int a) {\n    }\n}\n",
+        "name": "Two"
+      }
+    ]
+  },
+  {
+    "file": "a.c",
+    "content": "static int one(int a) {\n  return 1;\n}\nint two(void)\n{\n}\nint decl(void);\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 3,
+        "text": "static int one(int a) {\n  return 1;\n}",
+        "name": "one"
+      },
+      {
+        "start": 4,
+        "end": 8,
+        "text": "int two(void)\n{\n}\nint decl(void);\n",
+        "name": "two"
+      }
+    ]
+  },
+  {
+    "file": "a.H",
+    "content": "void one(void) {\n}\nvoid two(void) {\n}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 2,
+        "text": "void one(void) {\n}",
+        "name": "one"
+      },
+      {
+        "start": 3,
+        "end": 5,
+        "text": "void two(void) {\n}\n",
+        "name": "two"
+      }
+    ]
+  },
+  {
+    "file": "long.ts",
+    "content": "export function huge() {\n  line 0;\n  line 1;\n  line 2;\n  line 3;\n  line 4;\n  line 5;\n  line 6;\n  line 7;\n  line 8;\n  line 9;\n  line 10;\n  line 11;\n  line 12;\n  line 13;\n  line 14;\n  line 15;\n  line 16;\n  line 17;\n  line 18;\n  line 19;\n  line 20;\n  line 21;\n  line 22;\n  line 23;\n  line 24;\n  line 25;\n  line 26;\n  line 27;\n  line 28;\n  line 29;\n  line 30;\n  line 31;\n  line 32;\n  line 33;\n  line 34;\n  line 35;\n  line 36;\n  line 37;\n  line 38;\n  line 39;\n  line 40;\n  line 41;\n  line 42;\n  line 43;\n  line 44;\n  line 45;\n  line 46;\n  line 47;\n  line 48;\n  line 49;\n  line 50;\n  line 51;\n  line 52;\n  line 53;\n  line 54;\n  line 55;\n  line 56;\n  line 57;\n  line 58;\n  line 59;\n  line 60;\n  line 61;\n  line 62;\n  line 63;\n  line 64;\n  line 65;\n  line 66;\n  line 67;\n  line 68;\n  line 69;\n  line 70;\n  line 71;\n  line 72;\n  line 73;\n  line 74;\n  line 75;\n  line 76;\n  line 77;\n  line 78;\n  line 79;\n  line 80;\n  line 81;\n  line 82;\n  line 83;\n  line 84;\n  line 85;\n  line 86;\n  line 87;\n  line 88;\n  line 89;\n  line 90;\n  line 91;\n  line 92;\n  line 93;\n  line 94;\n  line 95;\n  line 96;\n  line 97;\n  line 98;\n  line 99;\n  line 100;\n  line 101;\n  line 102;\n  line 103;\n  line 104;\n  line 105;\n  line 106;\n  line 107;\n  line 108;\n  line 109;\n  line 110;\n  line 111;\n  line 112;\n  line 113;\n  line 114;\n  line 115;\n  line 116;\n  line 117;\n  line 118;\n  line 119;\n  line 120;\n  line 121;\n  line 122;\n  line 123;\n  line 124;\n  line 125;\n  line 126;\n  line 127;\n  line 128;\n  line 129;\n  line 130;\n  line 131;\n  line 132;\n  line 133;\n  line 134;\n  line 135;\n  line 136;\n  line 137;\n  line 138;\n  line 139;\n  line 140;\n  line 141;\n  line 142;\n  line 143;\n  line 144;\n  line 145;\n  line 146;\n  line 147;\n  line 148;\n  line 149;\n  line 150;\n  line 151;\n  line 152;\n  line 153;\n  line 154;\n  line 155;\n  line 156;\n  line 157;\n  line 158;\n  line 159;\n  line 160;\n  line 161;\n  line 162;\n  line 163;\n  line 164;\n  line 165;\n  line 166;\n  line 167;\n  line 168;\n  line 169;\n  line 170;\n  line 171;\n  line 172;\n  line 173;\n  line 174;\n  line 175;\n  line 176;\n  line 177;\n  line 178;\n  line 179;\n  line 180;\n  line 181;\n  line 182;\n  line 183;\n  line 184;\n  line 185;\n  line 186;\n  line 187;\n  line 188;\n  line 189;\n  line 190;\n  line 191;\n  line 192;\n  line 193;\n  line 194;\n  line 195;\n  line 196;\n  line 197;\n  line 198;\n  line 199;\n}\nexport function small() {}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 60,
+        "text": "export function huge() {\n  line 0;\n  line 1;\n  line 2;\n  line 3;\n  line 4;\n  line 5;\n  line 6;\n  line 7;\n  line 8;\n  line 9;\n  line 10;\n  line 11;\n  line 12;\n  line 13;\n  line 14;\n  line 15;\n  line 16;\n  line 17;\n  line 18;\n  line 19;\n  line 20;\n  line 21;\n  line 22;\n  line 23;\n  line 24;\n  line 25;\n  line 26;\n  line 27;\n  line 28;\n  line 29;\n  line 30;\n  line 31;\n  line 32;\n  line 33;\n  line 34;\n  line 35;\n  line 36;\n  line 37;\n  line 38;\n  line 39;\n  line 40;\n  line 41;\n  line 42;\n  line 43;\n  line 44;\n  line 45;\n  line 46;\n  line 47;\n  line 48;\n  line 49;\n  line 50;\n  line 51;\n  line 52;\n  line 53;\n  line 54;\n  line 55;\n  line 56;\n  line 57;\n  line 58;",
+        "name": "huge"
+      },
+      {
+        "start": 51,
+        "end": 110,
+        "text": "  line 49;\n  line 50;\n  line 51;\n  line 52;\n  line 53;\n  line 54;\n  line 55;\n  line 56;\n  line 57;\n  line 58;\n  line 59;\n  line 60;\n  line 61;\n  line 62;\n  line 63;\n  line 64;\n  line 65;\n  line 66;\n  line 67;\n  line 68;\n  line 69;\n  line 70;\n  line 71;\n  line 72;\n  line 73;\n  line 74;\n  line 75;\n  line 76;\n  line 77;\n  line 78;\n  line 79;\n  line 80;\n  line 81;\n  line 82;\n  line 83;\n  line 84;\n  line 85;\n  line 86;\n  line 87;\n  line 88;\n  line 89;\n  line 90;\n  line 91;\n  line 92;\n  line 93;\n  line 94;\n  line 95;\n  line 96;\n  line 97;\n  line 98;\n  line 99;\n  line 100;\n  line 101;\n  line 102;\n  line 103;\n  line 104;\n  line 105;\n  line 106;\n  line 107;\n  line 108;",
+        "name": "huge"
+      },
+      {
+        "start": 101,
+        "end": 160,
+        "text": "  line 99;\n  line 100;\n  line 101;\n  line 102;\n  line 103;\n  line 104;\n  line 105;\n  line 106;\n  line 107;\n  line 108;\n  line 109;\n  line 110;\n  line 111;\n  line 112;\n  line 113;\n  line 114;\n  line 115;\n  line 116;\n  line 117;\n  line 118;\n  line 119;\n  line 120;\n  line 121;\n  line 122;\n  line 123;\n  line 124;\n  line 125;\n  line 126;\n  line 127;\n  line 128;\n  line 129;\n  line 130;\n  line 131;\n  line 132;\n  line 133;\n  line 134;\n  line 135;\n  line 136;\n  line 137;\n  line 138;\n  line 139;\n  line 140;\n  line 141;\n  line 142;\n  line 143;\n  line 144;\n  line 145;\n  line 146;\n  line 147;\n  line 148;\n  line 149;\n  line 150;\n  line 151;\n  line 152;\n  line 153;\n  line 154;\n  line 155;\n  line 156;\n  line 157;\n  line 158;",
+        "name": "huge"
+      },
+      {
+        "start": 151,
+        "end": 202,
+        "text": "  line 149;\n  line 150;\n  line 151;\n  line 152;\n  line 153;\n  line 154;\n  line 155;\n  line 156;\n  line 157;\n  line 158;\n  line 159;\n  line 160;\n  line 161;\n  line 162;\n  line 163;\n  line 164;\n  line 165;\n  line 166;\n  line 167;\n  line 168;\n  line 169;\n  line 170;\n  line 171;\n  line 172;\n  line 173;\n  line 174;\n  line 175;\n  line 176;\n  line 177;\n  line 178;\n  line 179;\n  line 180;\n  line 181;\n  line 182;\n  line 183;\n  line 184;\n  line 185;\n  line 186;\n  line 187;\n  line 188;\n  line 189;\n  line 190;\n  line 191;\n  line 192;\n  line 193;\n  line 194;\n  line 195;\n  line 196;\n  line 197;\n  line 198;\n  line 199;\n}",
+        "name": "huge"
+      },
+      {
+        "start": 203,
+        "end": 204,
+        "text": "export function small() {}\n",
+        "name": "small"
+      }
+    ]
+  },
+  {
+    "file": "crlf.ts",
+    "content": "export function one() {}\r\n\r\nexport function two() {}\r\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 2,
+        "text": "export function one() {}\r\n\r",
+        "name": "one"
+      },
+      {
+        "start": 3,
+        "end": 4,
+        "text": "export function two() {}\r\n",
+        "name": "two"
+      }
+    ]
+  },
+  {
+    "file": "unicode.ts",
+    "content": "export function 名前() {}\nexport const ok = 1;\nexport const 值 = 2;\nfunction after() {}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 1,
+        "text": "export function 名前() {}"
+      },
+      {
+        "start": 2,
+        "end": 3,
+        "text": "export const ok = 1;\nexport const 值 = 2;",
+        "name": "ok"
+      },
+      {
+        "start": 4,
+        "end": 5,
+        "text": "function after() {}\n",
+        "name": "after"
+      }
+    ]
+  },
+  {
+    "file": "single.ts",
+    "content": "export function only() {}\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 2,
+        "text": "export function only() {}\n"
+      }
+    ]
+  },
+  {
+    "file": "none.ts",
+    "content": "just text\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 2,
+        "text": "just text\n"
+      }
+    ]
+  },
+  {
+    "file": "notes.md",
+    "content": "# Title\n\ntext 0\ntext 1\ntext 2\ntext 3\ntext 4\ntext 5\ntext 6\ntext 7\ntext 8\ntext 9\ntext 10\ntext 11\ntext 12\ntext 13\ntext 14\ntext 15\ntext 16\ntext 17\ntext 18\ntext 19\ntext 20\ntext 21\ntext 22\ntext 23\ntext 24\ntext 25\ntext 26\ntext 27\ntext 28\ntext 29\ntext 30\ntext 31\ntext 32\ntext 33\ntext 34\ntext 35\ntext 36\ntext 37\ntext 38\ntext 39\ntext 40\ntext 41\ntext 42\ntext 43\ntext 44\ntext 45\ntext 46\ntext 47\ntext 48\ntext 49\ntext 50\ntext 51\ntext 52\ntext 53\ntext 54\ntext 55\ntext 56\ntext 57\ntext 58\ntext 59\ntext 60\ntext 61\ntext 62\ntext 63\ntext 64\ntext 65\ntext 66\ntext 67\ntext 68\ntext 69\ntext 70\ntext 71\ntext 72\ntext 73\ntext 74\ntext 75\ntext 76\ntext 77\ntext 78\ntext 79\ntext 80\ntext 81\ntext 82\ntext 83\ntext 84\ntext 85\ntext 86\ntext 87\ntext 88\ntext 89\ntext 90\ntext 91\ntext 92\ntext 93\ntext 94\ntext 95\ntext 96\ntext 97\ntext 98\ntext 99\ntext 100\ntext 101\ntext 102\ntext 103\ntext 104\ntext 105\ntext 106\ntext 107\ntext 108\ntext 109\ntext 110\ntext 111\ntext 112\ntext 113\ntext 114\ntext 115\ntext 116\ntext 117\ntext 118\ntext 119\ntext 120\ntext 121\ntext 122\ntext 123\ntext 124\ntext 125\ntext 126\ntext 127\ntext 128\ntext 129\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 60,
+        "text": "# Title\n\ntext 0\ntext 1\ntext 2\ntext 3\ntext 4\ntext 5\ntext 6\ntext 7\ntext 8\ntext 9\ntext 10\ntext 11\ntext 12\ntext 13\ntext 14\ntext 15\ntext 16\ntext 17\ntext 18\ntext 19\ntext 20\ntext 21\ntext 22\ntext 23\ntext 24\ntext 25\ntext 26\ntext 27\ntext 28\ntext 29\ntext 30\ntext 31\ntext 32\ntext 33\ntext 34\ntext 35\ntext 36\ntext 37\ntext 38\ntext 39\ntext 40\ntext 41\ntext 42\ntext 43\ntext 44\ntext 45\ntext 46\ntext 47\ntext 48\ntext 49\ntext 50\ntext 51\ntext 52\ntext 53\ntext 54\ntext 55\ntext 56\ntext 57"
+      },
+      {
+        "start": 51,
+        "end": 110,
+        "text": "text 48\ntext 49\ntext 50\ntext 51\ntext 52\ntext 53\ntext 54\ntext 55\ntext 56\ntext 57\ntext 58\ntext 59\ntext 60\ntext 61\ntext 62\ntext 63\ntext 64\ntext 65\ntext 66\ntext 67\ntext 68\ntext 69\ntext 70\ntext 71\ntext 72\ntext 73\ntext 74\ntext 75\ntext 76\ntext 77\ntext 78\ntext 79\ntext 80\ntext 81\ntext 82\ntext 83\ntext 84\ntext 85\ntext 86\ntext 87\ntext 88\ntext 89\ntext 90\ntext 91\ntext 92\ntext 93\ntext 94\ntext 95\ntext 96\ntext 97\ntext 98\ntext 99\ntext 100\ntext 101\ntext 102\ntext 103\ntext 104\ntext 105\ntext 106\ntext 107"
+      },
+      {
+        "start": 101,
+        "end": 133,
+        "text": "text 98\ntext 99\ntext 100\ntext 101\ntext 102\ntext 103\ntext 104\ntext 105\ntext 106\ntext 107\ntext 108\ntext 109\ntext 110\ntext 111\ntext 112\ntext 113\ntext 114\ntext 115\ntext 116\ntext 117\ntext 118\ntext 119\ntext 120\ntext 121\ntext 122\ntext 123\ntext 124\ntext 125\ntext 126\ntext 127\ntext 128\ntext 129\n"
+      }
+    ]
+  },
+  {
+    "file": "data",
+    "content": "no extension here\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 2,
+        "text": "no extension here\n"
+      }
+    ]
+  },
+  {
+    "file": "empty.ts",
+    "content": "",
+    "chunks": []
+  },
+  {
+    "file": "blank.md",
+    "content": "\n\n   \n",
+    "chunks": []
+  },
+  {
+    "file": "spaces.ts",
+    "content": "function a() {}\n\n\n\nfunction b() {}\n   \n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 4,
+        "text": "function a() {}\n\n\n",
+        "name": "a"
+      },
+      {
+        "start": 5,
+        "end": 7,
+        "text": "function b() {}\n   \n",
+        "name": "b"
+      }
+    ]
+  },
+  {
+    "file": "comment-only-above.py",
+    "content": "# one\n# two\ndef a():\n    pass\n# three\ndef b():\n    pass\n",
+    "chunks": [
+      {
+        "start": 1,
+        "end": 4,
+        "text": "# one\n# two\ndef a():\n    pass",
+        "name": "a"
+      },
+      {
+        "start": 5,
+        "end": 8,
+        "text": "# three\ndef b():\n    pass\n",
+        "name": "b"
+      }
+    ]
+  },
+  {
+    "file": "toolong.md",
+    "repeat": 20001,
+    "chunks": []
+  }
+]

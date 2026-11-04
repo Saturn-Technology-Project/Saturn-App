@@ -1,0 +1,25 @@
+[package]
+name = "saturn-embed"
+description = "Embedding models for the code index: built in, in LM Studio, or behind an OpenAI-compatible endpoint"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.22"
+reqwest = { version = "0.13", default-features = false, features = ["json", "native-tls"] }
+saturn-llm = { path = "../saturn-llm" }
+serde_json = "1"
+tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"] }
+tokio = { version = "1", features = ["fs", "rt"] }
+# Pure Rust, so the built-in model needs no native library shipped beside the app.
+tract-onnx = "0.23"
+
+[dev-dependencies]
+axum = "0.8"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }

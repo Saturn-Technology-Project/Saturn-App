@@ -35,9 +35,9 @@ function command() {
 /**
  * Starts a runtime and waits until it answers. `stop()` ends it and deletes its data folder, as does a failed start.
  * `host` is what SATURN_RUNTIME_HOST is set to and what clients connect to. `dataDir` and `keepData` restart a runtime
- * on the data of an earlier one.
+ * on the data of an earlier one. `env` adds to or replaces the runtime's environment.
  */
-export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keepData = false } = {}) {
+export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keepData = false, env = {} } = {}) {
   const dataDir = existing ?? await mkdtemp(path.join(os.tmpdir(), "saturn-contract-"));
   const port = await freePort();
   const { file, args, cwd } = command();
@@ -45,7 +45,7 @@ export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keep
   const child = spawn(file, args, {
     cwd,
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_NO_WAKEUP: "1", SATURN_RUNTIME_TOKEN: "" },
+    env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_NO_WAKEUP: "1", SATURN_RUNTIME_TOKEN: "", ...env },
   });
   child.stdout.on("data", (chunk) => { output += chunk; });
   child.stderr.on("data", (chunk) => { output += chunk; });

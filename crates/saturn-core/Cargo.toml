@@ -15,12 +15,16 @@ base64 = "0.22"
 jiff = "0.2"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+# The code index's file, the same SQLite file the TypeScript runtime wrote.
+rusqlite = { version = "0.41", features = ["bundled"] }
 saturn-domain = { path = "../saturn-domain" }
+saturn-embed = { path = "../saturn-embed" }
 saturn-llm = { path = "../saturn-llm" }
 saturn-mcp = { path = "../saturn-mcp" }
 saturn-store = { path = "../saturn-store" }
 saturn-tools = { path = "../saturn-tools" }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+sha1 = "0.10"
 sha2 = "0.10"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
 url = "2"

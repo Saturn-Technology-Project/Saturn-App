@@ -17,6 +17,7 @@ import { pageText } from "../src/infrastructure/skills/web-skill.js";
 import { account, dpapiScript } from "../src/infrastructure/secret-key.js";
 import { decrypt, encrypt } from "../src/infrastructure/secrets-file.js";
 import { FileStore } from "../src/infrastructure/store.js";
+import { chunkFile } from "../src/domain/chunks.js";
 import { answerCoreCase } from "./core-cases.js";
 import { runCase, type LlmCase } from "./llm-cases.js";
 import { generalSkills, cursorComputerUseSkills, cursorOriginSkills, antigravitySkills } from "../src/domain/builtin.js";
@@ -25,6 +26,15 @@ import { LLM_PROVIDERS } from "../src/domain/llm/catalog.js";
 import { INSTALL_RECIPES } from "../src/domain/marketplace.js";
 
 type Case = { check: string; tool: string; arguments: Record<string, unknown>; expect: unknown; [key: string]: unknown };
+
+test("the chunking crates/saturn-domain answers too, so both index a file alike", async () => {
+  const cases = JSON.parse(await readFile(new URL("../../contract/cases/chunks.json", import.meta.url), "utf8")) as { file: string; content?: string; repeat?: number; chunks: unknown[] }[];
+  assert.ok(cases.length > 20);
+  for (const item of cases) {
+    const content = item.content ?? Array.from({ length: item.repeat! }, () => "x").join("\n");
+    assert.deepEqual(chunkFile(item.file, content), item.chunks, item.file);
+  }
+});
 
 test("the cases crates/saturn-domain answers too, so both implementations decide alike", async () => {
   const cases = JSON.parse(await readFile(new URL("../../contract/cases/permissions.json", import.meta.url), "utf8")) as Case[];
