@@ -21,6 +21,7 @@ pub mod automations;
 pub mod builtins;
 pub mod catalog;
 pub mod checkpoints;
+pub mod cli_install;
 pub mod completions;
 pub mod context;
 pub mod events;

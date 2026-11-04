@@ -76,7 +76,8 @@ async function agentCalling(serverId, tool, autonomy = "bypass") {
   const turns = [{ tool_calls: [{ id: "c1", type: "function", function: { name: tool, arguments: JSON.stringify({ q: "it" }) } }] }, { content: "done" }];
   const modelUrl = await serve((_request, raw, response) => {
     requests.push(JSON.parse(raw));
-    const turn = turns.shift() ?? { content: "extra" };
+    // Background work (a chat's title, memory) asks without tools and must not take a step meant for the run.
+    const turn = (JSON.parse(raw).tools?.length ? turns.shift() : undefined) ?? { content: "extra" };
     response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ id: "r", object: "chat.completion", model: "s", choices: [{ index: 0, finish_reason: turn.tool_calls ? "tool_calls" : "stop", message: { role: "assistant", content: turn.content ?? "", ...turn } }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } }));
   });
   const model = await api("POST", "/connections/models", { name: "Scripted", provider: "openai", model: "s", baseUrl: modelUrl });

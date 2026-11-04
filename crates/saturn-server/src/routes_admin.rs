@@ -979,6 +979,16 @@ async fn computer_permissions(State(kernel): Shared) -> Answer {
     ok(kernel.computer.permission_status().await)
 }
 
+/// The `saturn` command: whether its launcher is installed (and current).
+async fn cli_status() -> Answer {
+    ok(saturn_core::cli_install::cli_status().await?)
+}
+
+/// Installs it in ~/.local/bin.
+async fn install_cli() -> Answer {
+    ok(saturn_core::cli_install::install_cli().await?)
+}
+
 /// Every HTTP(S) request the runtime has sent since it started: by host, and the latest ones (no queries, no bodies).
 async fn network_view(Query(query): QueryText) -> Answer {
     let asked = query
@@ -1145,6 +1155,8 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/workspace/files", get(workspace_files))
         .route("/workspace/browser/open", post(open_browser))
         .route("/workspace/browser/proxy", get(browser_proxy))
+        .route("/cli", get(cli_status))
+        .route("/cli/install", post(install_cli))
         .route("/network", get(network_view))
         .route("/telemetry", delete(telemetry_clear))
         .route("/telemetry/status", get(telemetry_status))

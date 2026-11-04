@@ -3917,6 +3917,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "saturn-cli"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "saturn-computer"
 version = "0.1.0"
 dependencies = [
