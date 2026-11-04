@@ -100,3 +100,83 @@ pub fn slot_label(minute: i64) -> String {
     let text = iso_time(minute * 60_000);
     text[..16].replace('T', " ")
 }
+
+/// Reads the cron shapes the scheduler can run: hourly ("M * * * *"), daily ("M H * * *"), weekdays ("M H * * 1-5") and weekly
+/// ("M H * * D"), optionally prefixed with CRON_TZ=<zone>, which `check_zone` looks at. Anything else is refused with the
+/// supported shapes, instead of being stored and never firing.
+pub fn cron_to_trigger(
+    cron: &str,
+    check_zone: impl Fn(&str) -> Result<String, String>,
+) -> Result<(Value, Option<String>), String> {
+    let mut text = cron.trim();
+    let mut zone = None;
+    if let Some(rest) = text.strip_prefix("CRON_TZ=")
+        && let Some((name, schedule)) = rest.split_once(char::is_whitespace)
+    {
+        zone = Some(check_zone(name)?);
+        text = schedule.trim();
+    }
+    let unsupported = || {
+        format!(
+            "Unsupported schedule \"{cron}\". Saturn runs hourly (\"M * * * *\"), daily (\"M H * * *\"), weekdays (\"M H * * 1-5\") or weekly (\"M H * * D\", 0 = Sunday) schedules."
+        )
+    };
+    let fields: Vec<&str> = text.split_whitespace().collect();
+    let &[minute, hour, day, month, weekday] = fields.as_slice() else {
+        return Err(unsupported());
+    };
+    let number = |value: &str, largest: u32| {
+        (!value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit()))
+            .then(|| value.parse::<u32>().ok())
+            .flatten()
+            .filter(|parsed| *parsed <= largest)
+    };
+    let Some(m) = number(minute, 59).filter(|_| day == "*" && month == "*") else {
+        return Err(unsupported());
+    };
+    let trigger = |frequency: &str, time: String, on: u32| {
+        (
+            json!({ "frequency": frequency, "time": time, "weekday": on }),
+            zone.clone(),
+        )
+    };
+    if hour == "*" && weekday == "*" {
+        return Ok(trigger("hourly", format!("00:{m:02}"), 1));
+    }
+    let Some(h) = number(hour, 23) else {
+        return Err(unsupported());
+    };
+    let time = format!("{h:02}:{m:02}");
+    if weekday == "*" {
+        return Ok(trigger("daily", time, 1));
+    }
+    if weekday == "1-5" {
+        return Ok(trigger("weekdays", time, 1));
+    }
+    let Some(d) = number(if weekday == "7" { "0" } else { weekday }, 6) else {
+        return Err(unsupported());
+    };
+    Ok(trigger("weekly", time, d))
+}
+
+/// The cron equivalent of a trigger, for tools that speak cron.
+pub fn trigger_to_cron(trigger: &Value) -> String {
+    let time = trigger
+        .get("time")
+        .and_then(Value::as_str)
+        .unwrap_or("09:00");
+    let (hour, minute) = time.split_once(':').unwrap_or(("9", "0"));
+    let (hour, minute) = (
+        hour.parse::<u32>().unwrap_or(0),
+        minute.parse::<u32>().unwrap_or(0),
+    );
+    match frequency_of(trigger) {
+        "hourly" => format!("{minute} * * * *"),
+        "weekdays" => format!("{minute} {hour} * * 1-5"),
+        "weekly" => format!(
+            "{minute} {hour} * * {}",
+            trigger.get("weekday").and_then(Value::as_i64).unwrap_or(1)
+        ),
+        _ => format!("{minute} {hour} * * *"),
+    }
+}

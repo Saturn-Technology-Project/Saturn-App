@@ -16,6 +16,7 @@ use tokio::sync::Mutex as AsyncMutex;
 use tokio::task::AbortHandle;
 
 pub mod admin;
+pub mod agent_tools;
 pub mod automations;
 pub mod builtins;
 pub mod catalog;

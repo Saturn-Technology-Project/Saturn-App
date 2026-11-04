@@ -530,12 +530,11 @@ async fn stopping_a_run_ends_its_command_and_keeps_what_the_command_changed() {
 }
 
 #[tokio::test]
-async fn load_tools_and_skill_work_and_a_tool_not_ported_yet_says_so() {
+async fn load_tools_and_skill_work() {
     let setup = setup(
         vec![
             json!([call("load_tools", json!({ "toolkits": ["github"] }))]),
             json!([call("skill", json!({ "name": "deploy" }))]),
-            json!([call("automation_list", json!({}))]),
             json!("done"),
         ],
         "bypass",
@@ -564,13 +563,6 @@ async fn load_tools_and_skill_work_and_a_tool_not_ported_yet_says_so() {
     assert_eq!(
         run["actions"][1]["result"]["instructions"],
         "Run the script."
-    );
-    assert_eq!(run["actions"][2]["status"], "failed");
-    assert!(
-        run["actions"][2]["reason"]
-            .as_str()
-            .expect("a reason")
-            .contains("not in the Rust runtime yet")
     );
     assert_eq!(run["status"], "completed");
 }

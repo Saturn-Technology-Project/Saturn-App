@@ -1,0 +1,546 @@
+{
+  "automations": [
+    {
+      "tool": "automation_create",
+      "arguments": {
+        "name": "Each week",
+        "prompt": "x",
+        "cron": "CRON_TZ=UTC 5 7 * * 7"
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "automation": {
+          "id": "<auto>",
+          "name": "Each week",
+          "prompt": "x",
+          "cron": "CRON_TZ=UTC 5 7 * * 0",
+          "timeZone": "UTC",
+          "enabled": true,
+          "agentId": "<agent>",
+          "agentName": "Tools",
+          "nextRun": "<time>",
+          "lastRunAt": null,
+          "lastError": null
+        },
+        "message": "Automation \"Each week\" created; next run <time> (UTC)."
+      }
+    },
+    {
+      "tool": "automation_create",
+      "arguments": {
+        "name": "Each day",
+        "prompt": "x",
+        "cron": "CRON_TZ=UTC 5 7 * * *"
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "automation": {
+          "id": "<auto>",
+          "name": "Each day",
+          "prompt": "x",
+          "cron": "CRON_TZ=UTC 5 7 * * *",
+          "timeZone": "UTC",
+          "enabled": true,
+          "agentId": "<agent>",
+          "agentName": "Tools",
+          "nextRun": "<time>",
+          "lastRunAt": null,
+          "lastError": null
+        },
+        "message": "Automation \"Each day\" created; next run <time> (UTC)."
+      }
+    },
+    {
+      "tool": "automation_create",
+      "arguments": {
+        "name": "Often",
+        "prompt": "x",
+        "cron": "*/5 * * * *"
+      },
+      "status": "failed",
+      "reason": "Unsupported schedule \"*/5 * * * *\". Saturn runs hourly (\"M * * * *\"), daily (\"M H * * *\"), weekdays (\"M H * * 1-5\") or weekly (\"M H * * D\", 0 = Sunday) schedules."
+    },
+    {
+      "tool": "automation_create",
+      "arguments": {
+        "name": "Elsewhere",
+        "prompt": "x",
+        "cron": "CRON_TZ=No/Such 0 9 * * *"
+      },
+      "status": "failed",
+      "reason": "Unknown time zone: No/Such"
+    },
+    {
+      "tool": "automation_create",
+      "arguments": {
+        "name": "Too few",
+        "prompt": "x",
+        "cron": "0 9 *"
+      },
+      "status": "failed",
+      "reason": "Unsupported schedule \"0 9 *\". Saturn runs hourly (\"M * * * *\"), daily (\"M H * * *\"), weekdays (\"M H * * 1-5\") or weekly (\"M H * * D\", 0 = Sunday) schedules."
+    },
+    {
+      "tool": "automation_create",
+      "arguments": {
+        "name": "",
+        "prompt": "",
+        "cron": "0 9 * * *"
+      },
+      "status": "failed",
+      "reason": "Automation name is required"
+    },
+    {
+      "tool": "automation_create",
+      "arguments": {
+        "name": "Nobody",
+        "prompt": "x",
+        "cron": "0 9 * * *",
+        "agentId": "agt_none"
+      },
+      "status": "failed",
+      "reason": "Agent not found"
+    },
+    {
+      "tool": "automation_list",
+      "arguments": {
+        "filter": "disabled"
+      },
+      "status": "completed",
+      "result": {
+        "total": 4,
+        "filter": "disabled",
+        "automations": [
+          {
+            "id": "<auto>",
+            "name": "Here",
+            "prompt": "x",
+            "cron": "CRON_TZ=Asia/Taipei 30 * * * *",
+            "timeZone": "Asia/Taipei",
+            "enabled": false,
+            "agentId": "<agent>",
+            "agentName": "Tools",
+            "nextRun": null,
+            "lastRunAt": null,
+            "lastError": null
+          }
+        ]
+      }
+    },
+    {
+      "tool": "automation_list",
+      "arguments": {
+        "filter": "enabled"
+      },
+      "status": "completed",
+      "result": {
+        "total": 4,
+        "filter": "enabled",
+        "automations": [
+          {
+            "id": "<auto>",
+            "name": "Nightly",
+            "prompt": "Sum it up",
+            "cron": "CRON_TZ=Asia/Taipei 0 9 * * 1-5",
+            "timeZone": "Asia/Taipei",
+            "enabled": true,
+            "agentId": "<agent>",
+            "agentName": "Tools",
+            "nextRun": "<time>",
+            "lastRunAt": null,
+            "lastError": null
+          },
+          {
+            "id": "<auto>",
+            "name": "Each week",
+            "prompt": "x",
+            "cron": "CRON_TZ=UTC 5 7 * * 0",
+            "timeZone": "UTC",
+            "enabled": true,
+            "agentId": "<agent>",
+            "agentName": "Tools",
+            "nextRun": "<time>",
+            "lastRunAt": null,
+            "lastError": null
+          },
+          {
+            "id": "<auto>",
+            "name": "Each day",
+            "prompt": "x",
+            "cron": "CRON_TZ=UTC 5 7 * * *",
+            "timeZone": "UTC",
+            "enabled": true,
+            "agentId": "<agent>",
+            "agentName": "Tools",
+            "nextRun": "<time>",
+            "lastRunAt": null,
+            "lastError": null
+          }
+        ]
+      }
+    },
+    {
+      "tool": "automation_toggle",
+      "arguments": {
+        "automationId": "<auto>",
+        "enabled": false
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "automationId": "<auto>",
+        "enabled": false,
+        "nextRun": null,
+        "message": "Automation \"Nightly\" is now disabled."
+      }
+    },
+    {
+      "tool": "automation_toggle",
+      "arguments": {
+        "automationId": "aut_none",
+        "enabled": true
+      },
+      "status": "failed",
+      "reason": "Automation not found"
+    },
+    {
+      "tool": "automation_delete",
+      "arguments": {
+        "automationId": "aut_none"
+      },
+      "status": "failed",
+      "reason": "Automation not found"
+    },
+    {
+      "tool": "automation_trigger",
+      "arguments": {
+        "automationId": "aut_none"
+      },
+      "status": "failed",
+      "reason": "Automation not found"
+    }
+  ],
+  "templates": [
+    {
+      "tool": "generative_ui_template",
+      "arguments": {
+        "type": "metrics_dashboard"
+      },
+      "status": "completed",
+      "result": {
+        "type": "metrics_dashboard",
+        "template": "\n<div class=\"grid grid-cols-1 md:grid-cols-3 gap-4\">\n  <div class=\"p-4 rounded-xl border border-[var(--border)] bg-[var(--card)]\">\n    <span class=\"text-xs text-[var(--muted-foreground)]\">System Uptime</span>\n    <div class=\"text-2xl font-bold text-[var(--foreground)] mt-1\">99.98%</div>\n    <span class=\"text-xs text-[var(--accent)] font-medium\">↑ Healthy</span>\n  </div>\n  <div class=\"p-4 rounded-xl border border-[var(--border)] bg-[var(--card)]\">\n    <span class=\"text-xs text-[var(--muted-foreground)]\">Active Runs</span>\n    <div class=\"text-2xl font-bold text-[var(--foreground)] mt-1\">14</div>\n    <span class=\"text-xs text-[var(--primary)] font-medium\">4 in queue</span>\n  </div>\n  <div class=\"p-4 rounded-xl border border-[var(--border)] bg-[var(--card)]\">\n    <span class=\"text-xs text-[var(--muted-foreground)]\">Average Latency</span>\n    <div class=\"text-2xl font-bold text-[var(--foreground)] mt-1\">142ms</div>\n    <span class=\"text-xs text-[var(--muted-foreground)] font-medium\">p95: 280ms</span>\n  </div>\n</div>"
+      }
+    },
+    {
+      "tool": "generative_ui_template",
+      "arguments": {
+        "type": "interactive_filter"
+      },
+      "status": "completed",
+      "result": {
+        "type": "interactive_filter",
+        "template": "\n<div class=\"p-4 rounded-xl border border-[var(--border)] bg-[var(--card)] space-y-3\">\n  <div class=\"flex items-center justify-between\">\n    <h3 class=\"font-semibold text-sm\">Status Filter</h3>\n    <button class=\"text-xs text-[var(--primary)] hover:underline\" onclick=\"resetFilters()\">Reset</button>\n  </div>\n  <div class=\"flex gap-2\">\n    <button class=\"px-3 py-1 text-xs rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]\">All</button>\n    <button class=\"px-3 py-1 text-xs rounded-full border border-[var(--border)] hover:bg-white/5\">Passed</button>\n    <button class=\"px-3 py-1 text-xs rounded-full border border-[var(--border)] hover:bg-white/5\">Failed</button>\n  </div>\n</div>"
+      }
+    },
+    {
+      "tool": "generative_ui_template",
+      "arguments": {
+        "type": "flow_diagram"
+      },
+      "status": "completed",
+      "result": {
+        "type": "flow_diagram",
+        "template": "\n<div class=\"p-5 rounded-xl border border-[var(--border)] bg-[var(--card)] flex items-center justify-between text-xs\">\n  <div class=\"p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 font-mono\">1. Ingest Query</div>\n  <span class=\"text-[var(--muted-foreground)]\">→</span>\n  <div class=\"p-3 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 font-mono\">2. Context RAG</div>\n  <span class=\"text-[var(--muted-foreground)]\">→</span>\n  <div class=\"p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono\">3. Execute Tools</div>\n</div>"
+      }
+    },
+    {
+      "tool": "generative_ui_template",
+      "arguments": {
+        "type": "form_wizard"
+      },
+      "status": "completed",
+      "result": {
+        "type": "empty_boilerplate",
+        "template": "\n<div class=\"p-6 rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]\">\n  <h2 class=\"text-base font-semibold mb-2\">Custom Widget Title</h2>\n  <p class=\"text-sm text-[var(--muted-foreground)]\">Interactive widget content goes here.</p>\n</div>"
+      }
+    },
+    {
+      "tool": "generative_ui_template",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "type": "empty_boilerplate",
+        "template": "\n<div class=\"p-6 rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]\">\n  <h2 class=\"text-base font-semibold mb-2\">Custom Widget Title</h2>\n  <p class=\"text-sm text-[var(--muted-foreground)]\">Interactive widget content goes here.</p>\n</div>"
+      }
+    }
+  ],
+  "customizations": [
+    {
+      "tool": "customizations_list",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "scope": "all",
+        "workspace": "<scratch>/customizing",
+        "discovered": {
+          "skillsCount": 0,
+          "skills": [],
+          "rulesCount": 0,
+          "rules": []
+        }
+      }
+    },
+    {
+      "tool": "customizations_create_skill",
+      "arguments": {
+        "name": "My Skill!",
+        "description": "One\nname: injected\nline",
+        "instructions": "Do it."
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "name": "my-skill-",
+        "path": "<scratch>/customizing/.agents/skills/my-skill-/SKILL.md",
+        "message": "Created on-demand skill \"my-skill-\" under .agents/skills/my-skill-/SKILL.md"
+      }
+    },
+    {
+      "tool": "customizations_create_skill",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "success": true,
+        "name": "custom-skill",
+        "path": "<scratch>/customizing/.agents/skills/custom-skill/SKILL.md",
+        "message": "Created on-demand skill \"custom-skill\" under .agents/skills/custom-skill/SKILL.md"
+      }
+    },
+    {
+      "tool": "customizations_create_rule",
+      "arguments": {
+        "name": "style",
+        "content": "# Style"
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "name": "style.md",
+        "path": "<scratch>/customizing/.agents/rules/style.md",
+        "message": "Created rule \"style.md\" under .agents/rules/style.md"
+      }
+    },
+    {
+      "tool": "customizations_create_rule",
+      "arguments": {
+        "name": "kept.md",
+        "content": "kept"
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "name": "kept.md",
+        "path": "<scratch>/customizing/.agents/rules/kept.md",
+        "message": "Created rule \"kept.md\" under .agents/rules/kept.md"
+      }
+    },
+    {
+      "tool": "customizations_create_rule",
+      "arguments": {
+        "content": "named by default"
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "name": "rule.md",
+        "path": "<scratch>/customizing/.agents/rules/rule.md",
+        "message": "Created rule \"rule.md\" under .agents/rules/rule.md"
+      }
+    },
+    {
+      "tool": "customizations_list",
+      "arguments": {
+        "scope": "workspace"
+      },
+      "status": "completed",
+      "result": {
+        "scope": "workspace",
+        "workspace": "<scratch>/customizing",
+        "discovered": {
+          "skillsCount": 2,
+          "skills": [
+            {
+              "name": "custom-skill",
+              "path": "<scratch>/customizing/.agents/skills/custom-skill/SKILL.md"
+            },
+            {
+              "name": "my-skill-",
+              "path": "<scratch>/customizing/.agents/skills/my-skill-/SKILL.md"
+            }
+          ],
+          "rulesCount": 3,
+          "rules": [
+            {
+              "name": "kept.md",
+              "path": "<scratch>/customizing/.agents/rules/kept.md"
+            },
+            {
+              "name": "rule.md",
+              "path": "<scratch>/customizing/.agents/rules/rule.md"
+            },
+            {
+              "name": "style.md",
+              "path": "<scratch>/customizing/.agents/rules/style.md"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "workflow scan": [
+    {
+      "tool": "workflows_scan",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "total": 5,
+        "workflows": [
+          {
+            "name": "deploy",
+            "path": "<scratch>/workflows/.agents/workflows/deploy.md"
+          },
+          {
+            "name": "headed",
+            "path": "<scratch>/workflows/.agents/workflows/headed.md"
+          },
+          {
+            "name": "kept",
+            "path": "<scratch>/workflows/.agents/workflows/kept.md"
+          },
+          {
+            "name": "linked",
+            "path": "<scratch>/workflows/.agents/workflows/linked.md"
+          },
+          {
+            "name": "other",
+            "path": "<scratch>/workflows/_agents/workflows/other.md"
+          }
+        ],
+        "recommendation": "Legacy workflows found. Use workflows_migrate to convert them into modern .agents/skills/<name>/SKILL.md format."
+      }
+    }
+  ],
+  "workflow migration": [
+    {
+      "tool": "workflows_migrate",
+      "arguments": {
+        "workflowName": "kept",
+        "archiveOld": false
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "migratedCount": 1,
+        "migrated": [
+          "kept"
+        ]
+      }
+    },
+    {
+      "tool": "workflows_migrate",
+      "arguments": {
+        "workflowName": "nothing"
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "migratedCount": 0,
+        "migrated": [],
+        "archiveLocation": ".agents/workflows/archive/"
+      }
+    },
+    {
+      "tool": "workflows_migrate",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "success": true,
+        "migratedCount": 3,
+        "migrated": [
+          "deploy",
+          "headed",
+          "kept"
+        ],
+        "archiveLocation": ".agents/workflows/archive/"
+      }
+    }
+  ],
+  "plugins": [
+    {
+      "tool": "plugins_bundle",
+      "arguments": {
+        "name": "My Pack",
+        "displayName": "Shown",
+        "skills": [
+          "helper",
+          "missing",
+          "../..",
+          "linked-skill"
+        ]
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "plugin": {
+          "name": "my-pack",
+          "description": "Shown",
+          "version": "0.1.0"
+        },
+        "path": "<scratch>/bundling/plugins/my-pack",
+        "skills": [
+          "helper"
+        ],
+        "message": "Packaged the plugin \"my-pack\" in plugins/my-pack with 1 skill. Install it from Settings → Plugins with that folder."
+      }
+    },
+    {
+      "tool": "plugins_bundle",
+      "arguments": {
+        "description": "Described"
+      },
+      "status": "completed",
+      "result": {
+        "success": true,
+        "plugin": {
+          "name": "custom-plugin",
+          "description": "Described",
+          "version": "0.1.0"
+        },
+        "path": "<scratch>/bundling/plugins/custom-plugin",
+        "skills": [],
+        "message": "Packaged the plugin \"custom-plugin\" in plugins/custom-plugin. Install it from Settings → Plugins with that folder."
+      }
+    },
+    {
+      "tool": "plugins_list",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "total": 0,
+        "plugins": []
+      }
+    },
+    {
+      "tool": "plugins_toggle",
+      "arguments": {
+        "pluginName": "not-installed",
+        "enabled": true
+      },
+      "status": "failed",
+      "reason": "No plugin named not-installed"
+    }
+  ]
+}

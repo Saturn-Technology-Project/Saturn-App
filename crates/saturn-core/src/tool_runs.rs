@@ -298,7 +298,20 @@ impl Kernel {
                 .await?;
         }
         if matches!(server.as_str(), AUTOMATIONS_ID | "antigravity-skills") {
-            return Ok(failed(&not_ported(&server, tool)));
+            // Rules and skills are written in the chat's project (or the agent's workspace), not the runtime's own folder.
+            let run = self.get_run(run_id)?;
+            let workspace = self
+                .workdir_of(&run)?
+                .unwrap_or_else(|| self.store.root().join("workspace"));
+            return Ok(
+                match self
+                    .run_agent_tool(tool, arguments, agent_id, &workspace)
+                    .await
+                {
+                    Ok(result) => completed(result),
+                    Err(reason) => failed(&reason),
+                },
+            );
         }
         if matches!(server.as_str(), COMPUTER_USE_ID | "cursor-computer-use") {
             return Ok(match self.computer.run(tool, arguments).await {
@@ -750,13 +763,4 @@ impl Kernel {
         self.store
             .read(|state| Mode::parse(state.settings.get("browser").and_then(Value::as_str)))
     }
-}
-
-/// Why a tool of a server the Rust runtime does not run yet failed.
-fn not_ported(server: &str, tool: &str) -> String {
-    let named = match server {
-        AUTOMATIONS_ID | "antigravity-skills" => "The automation tools",
-        _ => "Other MCP servers' tools",
-    };
-    format!("{named} are not in the Rust runtime yet, so {tool} did not run.")
 }
