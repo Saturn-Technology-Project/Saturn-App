@@ -299,12 +299,14 @@ pub fn check_policy(policy: &Value) -> Result<(), String> {
             return Err("A mode must be manual, pair or delegate.".to_owned());
         }
     }
-    if let Some(locked) = policy.get("locked")
-        && !locked
-            .as_array()
-            .is_some_and(|paths| paths.iter().all(Value::is_string))
-    {
-        return Err("\"locked\" must list paths.".to_owned());
+    for key in ["locked", "released"] {
+        if let Some(paths) = policy.get(key)
+            && !paths
+                .as_array()
+                .is_some_and(|paths| paths.iter().all(Value::is_string))
+        {
+            return Err(format!("\"{key}\" must list paths."));
+        }
     }
     Ok(())
 }

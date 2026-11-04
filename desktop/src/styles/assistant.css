@@ -171,3 +171,17 @@
 .lab-task-status {
   padding: 4px 12px;
 }
+
+.lab-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lab-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 160px;
+  overflow: auto;
+}

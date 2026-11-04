@@ -19,8 +19,12 @@ const LABELS = ["Correct", "Wrong", "Invalid", "Unsure"];
 /** One sample across runs, and a person's label on it, which never overwrites a score. */
 export function Samples(props: ScreenProps & { onReview: (item: SampleItem | null) => void }) {
   const projectId = props.project.id;
-  const { value } = useRecords(async () => (await service.runs(projectId)).items as ExperimentRun[], props.notify);
-  const runs = value ?? [];
+  const { value } = useRecords(async () => ({ runs: (await service.runs(projectId)).items as ExperimentRun[], models: (await service.models(projectId)).items }), props.notify);
+  const runs = value?.runs ?? [];
+  const modelName = (id: string | null | undefined) => {
+    const model = value?.models.find((item) => item.id === id);
+    return model ? model.name || model.source : (id ?? "None named");
+  };
   const [chosen, setChosen] = useState<string[]>([]);
   const [sampleId, setSampleId] = useState("");
   const [known, setKnown] = useState<string[]>([]);
@@ -119,7 +123,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                     row.samples.map((line) => (
                       <tr key={`${row.runId}-${line.trial ?? 0}-${line.modelId ?? ""}`}>
                         <td><code>{row.runId}</code></td>
-                        <td>{row.models?.find((model) => model.modelId === line.modelId)?.source ?? line.modelId ?? "None named"}</td>
+                        <td>{modelName(line.modelId)}</td>
                         <td className={row.comparison.result === "comparable" ? "lab-muted" : "lab-warning"}>{comparisonText(row.comparison)}</td>
                         <td><pre className="lab-text">{sampleText(line.output)}</pre></td>
                         <td><pre className="lab-text">{sampleText(line.scores)}</pre>{line.error ? <div className="lab-warning">{line.error.kind} error</div> : null}</td>

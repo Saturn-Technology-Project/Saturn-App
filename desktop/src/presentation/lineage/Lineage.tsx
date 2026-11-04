@@ -46,7 +46,9 @@ export function Lineage(props: ScreenProps) {
       for (const model of models) {
         const own = latest[model.id];
         const parent = model.parentId ? latest[model.parentId] : undefined;
-        if (own && parent) compared[model.id] = await service.compare(projectId, parent.versionId, own.versionId);
+        if (own && parent) {
+          compared[model.id] = own.versionId === parent.versionId ? { result: "comparable", differs: [], missing: [] } : await service.compare(projectId, parent.versionId, own.versionId);
+        }
       }
       return { models, latest, compared };
     },
@@ -143,7 +145,7 @@ export function Lineage(props: ScreenProps) {
                     <button type="button" key={model.id} aria-pressed={model.id === current?.id} className={model.id === current?.id ? "lab-node active" : "lab-node"} onClick={() => setSelected(model.id)}>
                       <span className="lab-node-name">{nameOf(model)}</span>
                       <span className="lab-node-score">{score ? scoreText(score.mean) : "Not measured"}</span>
-                      {compared && compared.result !== "comparable" ? <span className="lab-tag warn">Not comparable</span> : model.floating ? <span className="lab-tag warn">Revision not fixed</span> : null}
+                      {compared && compared.result === "not_comparable" ? <span className="lab-tag warn">Not comparable</span> : compared && compared.result === "unknown" ? <span className="lab-tag">Cannot tell</span> : model.floating ? <span className="lab-tag warn">Revision not fixed</span> : null}
                     </button>
                   );
                 })}

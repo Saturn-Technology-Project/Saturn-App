@@ -131,6 +131,13 @@ export interface ResearchPolicy {
   revision: number;
   modes: Record<string, ParticipationMode>;
   locked: string[];
+  /** Locks the user lifted until the next frozen version. */
+  released?: string[];
+}
+
+/** The file a refusal was about, when it was a lock. */
+export function lockedPathOf(event: ResearchEvent): string | null {
+  return event.kind === "refused" && /is locked for this experiment/.test(event.reason) ? event.path : null;
 }
 
 export type ResearchEvent =

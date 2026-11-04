@@ -88,6 +88,26 @@ test("the data and scorer of a frozen version are locked for agents, and the cod
   assert.equal(await text(folder, "set.jsonl"), "{}\n");
 });
 
+test("a lock can be released for the next version, and freezing it locks the file again", async () => {
+  const { folder, route, turn, events } = await bed({ "probe.py": "c\n", "set.jsonl": "{}\n", "score.py": "s\n" });
+  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "x", inputs: { code: ["probe.py"], scorer: ["score.py"] } });
+  await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const refused = await turn([write("score.py", "v4\n")]);
+  assert.equal(refused.actions[0].status, "failed");
+  const policy = await saturn.api("GET", `${route}/policy`);
+  assert.equal((await saturn.call("PUT", `${route}/policy`, { expectedRevision: policy.revision, modes: {}, locked: [], released: "score.py" })).status, 400);
+  await saturn.api("PUT", `${route}/policy`, { expectedRevision: policy.revision, modes: {}, locked: [], released: ["score.py"] });
+  const allowed = await turn([write("score.py", "v4\n")]);
+  assert.equal(allowed.actions[0].status, "completed");
+  assert.equal(await text(folder, "score.py"), "v4\n");
+  const next = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  assert.equal(next.number, 2, "the changed scorer is a new version; the old one keeps its results");
+  assert.deepEqual((await saturn.api("GET", `${route}/policy`)).released, []);
+  const again = await turn([write("score.py", "v5\n")]);
+  assert.equal(again.actions[0].status, "failed", "the new version locks the scorer again");
+  assert.deepEqual((await events()).map((event) => event.kind), ["refused", "refused"]);
+});
+
 test("records cannot be written by an agent's file tool, so neither a verdict nor a policy can", async () => {
   const { folder, route, turn } = await bed();
   const hypothesis = await saturn.api("POST", `${route}/hypotheses`, { title: "H" });

@@ -22,6 +22,11 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
   // A sample or error output goes along only when asked: what is sent to a model should be a choice. In review, the sample
   // under review is the point.
   const [off, setOff] = useState<Set<Attachment>>(new Set(["error", "sample"]));
+  // Other project files the person picked, by path.
+  const [extraFiles, setExtraFiles] = useState<string[]>([]);
+  const [picking, setPicking] = useState(false);
+  const [fileQuery, setFileQuery] = useState("");
+  const [found, setFound] = useState<string[]>([]);
   const reviewing = Boolean(focus?.sample && !focus.file);
   const end = useRef<HTMLDivElement>(null);
   const conversation = useConversation(agent?.id ?? null, threadId, notify);
@@ -41,6 +46,19 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
 
   useEffect(() => void load(), [load]);
   useEffect(() => {
+    if (!picking) return undefined;
+    let stale = false;
+    desktop.projects
+      .files(project.id, fileQuery)
+      .then((list) => {
+        if (!stale) setFound(list.slice(0, 12));
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [fileQuery, picking, project.id]);
+  useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [conversation.runs]);
 
@@ -56,8 +74,9 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
   /** The message with what is attached, in a block the conversation keeps out of sight. */
   async function withContext(typed: string): Promise<string> {
     let input = typed;
-    if (attached("file") && focus?.file) {
-      const items: ContextItem[] = [{ kind: "file", path: focus.file, label: focus.file }];
+    const files = [...(attached("file") && focus?.file ? [focus.file] : []), ...extraFiles];
+    if (files.length) {
+      const items: ContextItem[] = files.map((path) => ({ kind: "file", path, label: path }));
       const expanded = await desktop.projects.expandContext(project.id, items);
       if (expanded.text) input += `\n\n<saturn_context sources="${expanded.sources.join("; ").replace(/"/g, "'")}">\n<attached_context>\n${expanded.text}\n</attached_context>\n</saturn_context>`;
     }
@@ -155,8 +174,13 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
             ))}
           </div>
         ) : null}
-        {available.length ? (
+        {available.length || extraFiles.length || picking ? (
           <div className="lab-attachments" role="group" aria-label="What goes with your message">
+            {extraFiles.map((path) => (
+              <button type="button" key={`extra-${path}`} aria-pressed="true" className="lab-attachment on" title="Goes with your message. Select to leave it out." onClick={() => setExtraFiles((current) => current.filter((item) => item !== path))}>
+                {path}
+              </button>
+            ))}
             {available.map((item) => (
               <button
                 type="button"
@@ -179,6 +203,18 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
             ))}
           </div>
         ) : null}
+        {picking ? (
+          <div className="lab-picker">
+            <input aria-label="Find a file to attach" className="lab-input" autoFocus value={fileQuery} placeholder="Type part of a path" onChange={(event) => setFileQuery(event.target.value)} onKeyDown={(event) => event.key === "Escape" && setPicking(false)} />
+            <div className="lab-picker-list">
+              {found.filter((path) => !extraFiles.includes(path) && path !== focus?.file).map((path) => (
+                <button type="button" key={path} className="lab-file" onClick={() => { setExtraFiles((current) => [...current, path]); setPicking(false); setFileQuery(""); }}>
+                  {path}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <textarea
           aria-label="Message to the assistant"
           rows={3}
@@ -193,6 +229,9 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
           }}
         />
         <div className="lab-composer-actions">
+          <button type="button" className="lab-button quiet" aria-pressed={picking} onClick={() => setPicking((open) => !open)}>
+            @ File
+          </button>
           {mode === "delegate" ? (
             <button type="button" className="lab-button" disabled={!text.trim()} onClick={() => void handToTask()}>
               Hand to a task

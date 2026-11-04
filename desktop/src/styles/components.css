@@ -3700,3 +3700,51 @@ button.trace-row:hover {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+
+/* The workbench's look on what was carried over. */
+.btn {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.btn.primary-btn {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn.ghost {
+  border-color: transparent;
+}
+
+.btn.tiny {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: var(--text-small);
+}
+
+.run-steps,
+.changes-card,
+.approval-card,
+.settings-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: none;
+}
+
+.settings-modal-dialog {
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+}

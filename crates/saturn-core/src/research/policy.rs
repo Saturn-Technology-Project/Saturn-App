@@ -22,7 +22,7 @@ const BASELINES_KEPT: usize = 256;
 
 /// A policy that has never been saved.
 fn no_policy() -> Value {
-    json!({ "schemaVersion": SCHEMA_VERSION, "revision": 0, "modes": {}, "locked": [] })
+    json!({ "schemaVersion": SCHEMA_VERSION, "revision": 0, "modes": {}, "locked": [], "released": [] })
 }
 
 /// What a tool call writes, from the folder it works in. Unknown tools and failed parses write nothing here.
@@ -117,6 +117,7 @@ impl Kernel {
             "revision": revision + 1,
             "modes": request.get("modes").cloned().unwrap_or_else(|| json!({})),
             "locked": request.get("locked").cloned().unwrap_or_else(|| json!([])),
+            "released": request.get("released").cloned().unwrap_or_else(|| json!([])),
             "updatedAt": iso_time(now_millis()),
         });
         write_whole(&path, &pretty(&next)?).await?;
@@ -149,6 +150,7 @@ impl Kernel {
 
     /// Paths locked for agents: those the policy names, and the data and scorers of each experiment's newest version.
     async fn locked_paths(&self, records: &Path, policy: &Value) -> Vec<String> {
+        let released = crate::records::strings(policy, "released");
         let mut paths = crate::records::strings(policy, "locked");
         let Ok((versions, _)) = read_folder(&records.join("versions")).await else {
             return paths;
@@ -176,7 +178,30 @@ impl Kernel {
                 }
             }
         }
+        // A released lock stays lifted until the next version, which locks what it uses again.
+        paths.retain(|path| !released.iter().any(|lifted| lifted == path));
         paths
+    }
+
+    /// Locks the user lifted are over once a new version is frozen: it locks what it uses.
+    pub(super) async fn research_clear_released(&self, records: &Path) -> Result<(), CoreError> {
+        let path = records.join("policy.json");
+        let Some(mut policy) = read_record(&path).await.ok().flatten() else {
+            return Ok(());
+        };
+        if policy
+            .get("released")
+            .and_then(Value::as_array)
+            .is_none_or(Vec::is_empty)
+        {
+            return Ok(());
+        }
+        policy["released"] = json!([]);
+        policy["revision"] = json!(policy.get("revision").and_then(Value::as_u64).unwrap_or(0) + 1);
+        policy["updatedAt"] = json!(iso_time(now_millis()));
+        write_whole(&path, &pretty(&policy)?).await?;
+        self.research_changed();
+        Ok(())
     }
 
     /// What the policy says about an agent writing these paths: the first refusal, or whether any needs the user.

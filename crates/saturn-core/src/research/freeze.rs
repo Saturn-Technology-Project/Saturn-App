@@ -405,6 +405,7 @@ impl Kernel {
         }
         tokio::fs::create_dir_all(&folder).await?;
         write_whole(&folder.join(format!("{id}.json")), &pretty(&version)?).await?;
+        self.research_clear_released(&records).await?;
         self.research_changed();
         Ok((version, true))
     }

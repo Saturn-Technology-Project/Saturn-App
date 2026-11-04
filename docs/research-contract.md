@@ -156,7 +156,9 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
 - A file's mode is `manual`, `pair` or `delegate`, by file or folder, and the most specific one wins. A file with none is
   the agent's to change. `pair` makes a file tool wait for the user even with approvals off, and an accepted change is
   recorded with its content and the policy's revision. A mode that changes while a call waits applies to that call.
-- Locked for agents: what the policy names, and the `data` and `scorer` inputs of each experiment's newest version.
+- Locked for agents: what the policy names, and the `data` and `scorer` inputs of each experiment's newest version. The
+  user can release a lock (`released` in the policy) when an agent asks to change such a file: it may then change it,
+  and the next frozen version locks what it uses again and ends every release, so older versions keep their results.
 - Changes are noticed by a file's size and time, so an edit that keeps both is not.
 - No agent tool sets a verdict, a mode, an approval or a frozen version, and file tools refuse `.saturn/research/`.
 - A refused tool call is recorded as a confirmed violation. A hash that changed is recorded as `integrity_changed` with

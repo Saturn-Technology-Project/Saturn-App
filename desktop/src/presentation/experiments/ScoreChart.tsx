@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { comparisonText, scoreText, type Comparison, type ExperimentRun, type FrozenVersion, type ModelNode, type RunSummary } from "../../domain/research.js";
+import { comparisonText, lineageOrder, scoreText, type Comparison, type ExperimentRun, type FrozenVersion, type ModelNode, type RunSummary } from "../../domain/research.js";
 import { messageOf } from "../ui/Parts.js";
 
 const service = desktop.research;
@@ -55,8 +55,9 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
   const chosen = scorer && scorers.includes(scorer) ? scorer : scorers[0];
   if (!chosen) return null;
 
+  const order = new Map(lineageOrder(models).map((item, position) => [item.model.id, position]));
   const bars: Bar[] = summaries.flatMap((summary) =>
-    summary.models.map((model) => {
+    [...summary.models].sort((left, right) => (order.get(left.modelId ?? "") ?? Infinity) - (order.get(right.modelId ?? "") ?? Infinity)).map((model) => {
       const node = models.find((item) => item.id === model.modelId);
       return {
         key: `${summary.runId}:${model.modelId ?? ""}`,

@@ -160,6 +160,17 @@ export class ResearchService {
       expectedRevision: policy.revision,
       modes: { ...policy.modes, [path]: mode },
       locked: policy.locked,
+      released: policy.released ?? [],
+    });
+  }
+
+  /** Lets an agent change a locked file until the next version is frozen, which locks it again. */
+  releaseLock(project: string, policy: ResearchPolicy, path: string): Promise<ResearchPolicy> {
+    return this.send(`${this.route(project)}/policy`, "PUT", {
+      expectedRevision: policy.revision,
+      modes: policy.modes,
+      locked: policy.locked,
+      released: [...new Set([...(policy.released ?? []), path])],
     });
   }
 
