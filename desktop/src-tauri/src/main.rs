@@ -4,14 +4,17 @@ mod notify;
 mod permissions;
 mod runtime;
 mod ui;
+mod update;
 
+use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
 use runtime::{Layout, Runtime};
 use serde::Deserialize;
 use tauri::utils::config::BackgroundThrottlingPolicy;
+use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 pub(crate) const MAIN_WINDOW: &str = "main";
 const BACKGROUND: tauri::window::Color = tauri::window::Color(0x16, 0x16, 0x18, 0xff);
@@ -44,6 +47,46 @@ async fn pick_folders(window: WebviewWindow, options: FolderOptions) -> Vec<Stri
         .iter()
         .filter_map(|folder| folder.as_path().map(|path| path.display().to_string()))
         .collect()
+}
+
+/// A yes or no question, in the system's own dialog attached to the window that asked.
+#[tauri::command]
+async fn confirm_action(window: WebviewWindow, message: String) -> bool {
+    window
+        .dialog()
+        .message(message)
+        .parent(&window)
+        .title("Saturn")
+        .buttons(MessageDialogButtons::OkCancel)
+        .blocking_show()
+}
+
+/// Opens a web address in the user's browser. Links that open a new window end up here: the app has only its one window.
+fn open_in_browser(address: &Url) {
+    if !matches!(address.scheme(), "http" | "https") {
+        return;
+    }
+    let (program, before): (&str, &[&str]) = if cfg!(target_os = "macos") {
+        ("open", &[])
+    } else if cfg!(windows) {
+        ("rundll32", &["url.dll,FileProtocolHandler"])
+    } else {
+        ("xdg-open", &[])
+    };
+    let opened = Command::new(program)
+        .args(before)
+        .arg(address.as_str())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+    match opened {
+        // Reaped in the background, since nothing waits for a browser to close.
+        Ok(mut child) => {
+            std::thread::spawn(move || child.wait());
+        }
+        Err(error) => eprintln!("Could not open the browser: {error}"),
+    }
 }
 
 #[tauri::command]
@@ -119,12 +162,17 @@ pub(crate) fn show_main_window(app: &AppHandle) {
             // A hidden window keeps running: chats update and notifications arrive with Saturn in the background.
             .background_throttling(BackgroundThrottlingPolicy::Disabled)
             .initialization_script(script)
+            .on_new_window(|address, _| {
+                open_in_browser(&address);
+                NewWindowResponse::Deny
+            })
             .inner_size(1320.0, 840.0)
             .min_inner_size(940.0, 620.0);
     // On macOS the traffic lights sit over the page's own title bar; on Windows the bridge draws the buttons.
     #[cfg(target_os = "macos")]
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .traffic_light_position(tauri::LogicalPosition::new(16.0, 18.0))
         .hidden_title(true);
     #[cfg(not(target_os = "macos"))]
     let builder = builder.decorations(false);
@@ -140,7 +188,7 @@ fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
         "windows": [MAIN_WINDOW],
         "remote": { "urls": [format!("http://127.0.0.1:{port}/*")] },
         "permissions": [
-            "allow-pick-folders", "allow-start-dragging", "allow-toggle-maximize", "allow-minimize-window",
+            "allow-pick-folders", "allow-confirm-action", "allow-start-dragging", "allow-toggle-maximize", "allow-minimize-window",
             "allow-close-window", "allow-notify", "allow-request-permission",
         ],
     });
@@ -172,7 +220,16 @@ async fn start_up(app: AppHandle, layout: Layout) {
 }
 
 fn main() {
-    let app = tauri::Builder::default()
+    let context = tauri::generate_context!();
+    // Only a build made with Saturn's updater key has this setting, and only such a build looks for updates.
+    let updates = context.config().plugins.0.contains_key("updater");
+    let mut builder = tauri::Builder::default();
+    if updates {
+        builder = builder
+            .plugin(tauri_plugin_updater::Builder::new().build())
+            .manage(update::Waiting::default());
+    }
+    let app = builder
         // First, so a second launch stops here and brings this one forward.
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if INTERFACE.get().is_some() {
@@ -183,6 +240,7 @@ fn main() {
         .manage(Runtime::new())
         .invoke_handler(tauri::generate_handler![
             pick_folders,
+            confirm_action,
             start_dragging,
             toggle_maximize,
             minimize_window,
@@ -190,7 +248,7 @@ fn main() {
             notify,
             request_permission
         ])
-        .setup(|app| {
+        .setup(move |app| {
             let layout = if cfg!(debug_assertions) {
                 Layout::Development {
                     repository: concat!(env!("CARGO_MANIFEST_DIR"), "/../..").into(),
@@ -201,13 +259,19 @@ fn main() {
                 }
             };
             tauri::async_runtime::spawn(start_up(app.handle().clone(), layout));
+            if updates {
+                tauri::async_runtime::spawn(update::check(app.handle().clone()));
+            }
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("the Saturn app builds");
 
     app.run(|app, event| match event {
-        RunEvent::Exit => app.state::<Runtime>().stop(),
+        RunEvent::Exit => {
+            app.state::<Runtime>().stop();
+            update::install_waiting(app);
+        }
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } if INTERFACE.get().is_some() => show_main_window(app),
         _ => {}

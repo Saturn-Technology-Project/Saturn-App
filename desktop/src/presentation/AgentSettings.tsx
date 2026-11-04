@@ -3,6 +3,7 @@ import { GUARDRAIL_MODES, normalizeGuardrailMode, actionSummary, actionTitle } f
 import type { Agent, Autonomy, Model, ResponseStyle, Run } from "../domain/model";
 import type { SettingsPage } from "./Settings";
 import { ModelSelector } from "./ModelSelector";
+import { askToConfirm } from "../infrastructure/confirm";
 
 export type AgentModalTab = "agent" | "model" | "tools" | "activity";
 
@@ -460,8 +461,8 @@ export function AgentSettings(props: {
               className="btn ghost danger tiny"
               type="button"
               style={{ marginRight: "auto" }}
-              onClick={() => {
-                if (window.confirm(`Are you sure you want to delete ${props.agent.name}?`)) {
+              onClick={async () => {
+                if (await askToConfirm(`Are you sure you want to delete ${props.agent.name}?`)) {
                   void props.onDelete?.();
                 }
               }}

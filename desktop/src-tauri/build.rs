@@ -4,6 +4,7 @@ use tauri_build::{AppManifest, Attributes};
 /// the app shows in an iframe could.
 const COMMANDS: &[&str] = &[
     "pick_folders",
+    "confirm_action",
     "start_dragging",
     "toggle_maximize",
     "minimize_window",

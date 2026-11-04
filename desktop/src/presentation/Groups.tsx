@@ -3,6 +3,7 @@ import { desktop } from "../application/desktop";
 import type { Agent, Group, GroupMessage, GroupTranscript, Run, GroupAutonomy } from "../domain/model";
 import { FormattedOutput } from "./FormattedOutput";
 import { RunSteps } from "./RunSteps";
+import { askToConfirm } from "../infrastructure/confirm";
 
 /** dataTransfer type for an agent dragged from the sidebar onto a group. */
 export const AGENT_DRAG_TYPE = "application/x-saturn-agent";
@@ -171,7 +172,7 @@ export function GroupChat(props: { groupId: string; agents: Agent[]; onChanged: 
   }
 
   async function remove() {
-    if (!group || !window.confirm(`Delete the group "${group.name}" and its messages? The agents themselves stay.`)) return;
+    if (!group || !await askToConfirm(`Delete the group "${group.name}" and its messages? The agents themselves stay.`)) return;
     await desktop.groups.remove(props.groupId);
     props.onDeleted();
   }

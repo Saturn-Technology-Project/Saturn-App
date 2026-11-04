@@ -4,115 +4,16 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "main": "electron.cjs",
   "scripts": {
-    "lint": "oxlint -c ../.oxlintrc.json --deny-warnings src electron.cjs preload.cjs scripts",
-    "dev": "concurrently -k \"vite --port 5174\" \"wait-on http://127.0.0.1:5174 && electron electron.cjs\"",
+    "lint": "oxlint -c ../.oxlintrc.json --deny-warnings src scripts",
+    "dev": "tauri dev",
     "build": "vite build",
-    "build:runtime": "tsc -p ../runtime/tsconfig.build.json --pretty false",
-    "dist:mac": "npm run build && npm run build:runtime && npm run stage:runtime && npm run fetch:model && electron-builder --mac --publish never",
-    "dist:win": "npm run build && npm run build:runtime && npm run stage:runtime:win && npm run fetch:model && electron-builder --win --publish never",
-    "stage:runtime": "node scripts/stage-runtime-modules.mjs",
-    "stage:runtime:win": "node scripts/stage-runtime-modules.mjs --os win32 --cpu x64",
     "fetch:model": "node scripts/fetch-embedding-model.mjs",
-    "archive:mac": "node scripts/mac-archives.mjs",
     "stage:binaries": "node scripts/stage-rust-binaries.mjs",
-    "package": "npm run build && npm run fetch:model && npm run stage:binaries && tauri build --config src-tauri/tauri.package.json"
-  },
-  "build": {
-    "appId": "inc.saturntechnology.desktop",
-    "productName": "Saturn",
-    "npmRebuild": false,
-    "icon": "build/icon.png",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "electron.cjs",
-      "telemetry.cjs",
-      "preload.cjs",
-      "dist/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "../runtime/dist",
-        "to": "runtime/dist"
-      },
-      {
-        "from": "../runtime/package.json",
-        "to": "runtime/package.json"
-      },
-      {
-        "from": ".staging/models",
-        "to": "models"
-      }
-    ],
-    "mac": {
-      "identity": null,
-      "target": [
-        "dir"
-      ],
-      "category": "public.app-category.developer-tools",
-      "extraResources": [
-        {
-          "from": ".staging/runtime-darwin-${arch}/node_modules",
-          "to": "runtime/node_modules"
-        }
-      ]
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "signtoolOptions": {
-        "sign": "scripts/sign-windows.cjs"
-      },
-      "extraResources": [
-        {
-          "from": ".staging/runtime-win32-x64/node_modules",
-          "to": "runtime/node_modules"
-        }
-      ]
-    },
-    "protocols": [
-      {
-        "name": "Saturn",
-        "schemes": [
-          "saturn"
-        ]
-      }
-    ],
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "Saturn-Technology-Project",
-        "repo": "Saturn-App",
-        "releaseType": "prerelease"
-      }
-    ],
-    "nsis": {
-      "artifactName": "Saturn-${version}-win-x64-setup.${ext}",
-      "oneClick": true,
-      "perMachine": false
-    }
+    "package": "npm run build && npm run fetch:model && npm run stage:binaries && tauri build --config src-tauri/tauri.package.json",
+    "archive": "node scripts/release-files.mjs"
   },
   "dependencies": {
-    "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/core": "^2.12.0",
-    "@opentelemetry/exporter-trace-otlp-proto": "^0.223.0",
-    "@opentelemetry/instrumentation": "^0.223.0",
-    "@opentelemetry/instrumentation-fetch": "^0.223.0",
-    "@opentelemetry/resources": "^2.12.0",
-    "@opentelemetry/sdk-trace-base": "^2.12.0",
-    "@opentelemetry/sdk-trace-web": "^2.12.0",
-    "@opentelemetry/semantic-conventions": "^1.43.0",
-    "electron-updater": "6.8.10",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
@@ -124,16 +25,11 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^6.1.2",
-    "concurrently": "^10.0.6",
-    "electron": "43.8.3",
-    "electron-builder": "^26.15.3",
     "oxlint": "^1.89.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4",
-    "wait-on": "^9.5.1"
+    "vite": "^8.3.4"
   },
   "allowScripts": {
-    "electron-winstaller": false,
     "esbuild": false,
     "fsevents": false
   }

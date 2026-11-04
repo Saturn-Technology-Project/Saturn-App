@@ -18,6 +18,7 @@
       windowButtons.append(button);
     }
     document.documentElement.append(windowButtons);
+    document.documentElement.style.setProperty("--saturn-window-buttons", "138px");
   }
 
   function paintWindowButtons(colors) {
@@ -41,6 +42,8 @@
     runtimeOrigin: () => __SATURN_ORIGIN__,
     /** Whether this window is the one the user is looking at (notifications are skipped then). */
     isFocused: () => document.hasFocus() && document.visibilityState === "visible",
+    /** Asks the user to confirm, in the system's own dialog: this web view has no window.confirm. */
+    confirm: (message) => invoke("confirm_action", { message: String(message) }),
     /** A system notification; clicking it brings Saturn forward and opens the chat named by `threadId`. */
     notify: (options) => void invoke("notify", { options: options ?? {} }),
     /** Asks macOS for Accessibility or Screen Recording (its own prompt, and Saturn listed in System Settings). */

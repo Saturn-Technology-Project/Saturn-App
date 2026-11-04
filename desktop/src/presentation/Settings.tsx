@@ -11,6 +11,7 @@ import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
 import { ConfigureMcpModal } from "./ConfigureMcpModal";
 import { About } from "./About";
+import { askToConfirm } from "../infrastructure/confirm";
 
 export type SettingsPage =
   | "settings"
@@ -809,7 +810,7 @@ export function LlmPage(props: {
                     title="Remove model"
                     onClick={async (e) => {
                       e.stopPropagation();
-                      if (!window.confirm(`Remove ${item.name}? Agents using it will need another model.`)) return;
+                      if (!await askToConfirm(`Remove ${item.name}? Agents using it will need another model.`)) return;
                       try {
                         await desktop.admin.deleteModel(item.id);
                         await props.onChanged();
@@ -1672,7 +1673,7 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
   }
 
   async function remove() {
-    if (!window.confirm(`Remove Saturn's copy of ${status?.label}? ${status?.label} models stop working until it is downloaded again or found on your system.`)) return;
+    if (!await askToConfirm(`Remove Saturn's copy of ${status?.label}? ${status?.label} models stop working until it is downloaded again or found on your system.`)) return;
     try {
       setStatus(await desktop.admin.removeProgram(props.id));
     } catch (reason) {
@@ -1787,7 +1788,7 @@ export function CodexLogin() {
   }, [waiting]);
 
   async function signOut() {
-    if (!window.confirm("Sign Saturn out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in.")) return;
+    if (!await askToConfirm("Sign Saturn out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in.")) return;
     await run("signing_out", () => desktop.admin.codexLogout(), "Could not sign out");
   }
 
@@ -1913,7 +1914,7 @@ export function ClaudeCodeLogin() {
   }, [signedOut]);
 
   async function signOut() {
-    if (!window.confirm("Sign Saturn out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in.")) return;
+    if (!await askToConfirm("Sign Saturn out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in.")) return;
     setBusy("signing_out");
     setError("");
     try {

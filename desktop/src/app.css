@@ -268,11 +268,11 @@ pre {
 }
 
 /*
- * Windows draws its minimize, maximize and close buttons over the top right (Electron's titleBarOverlay); keep the bar
- * under them clear. The width is 0 wherever there is no such overlay.
+ * On Windows the desktop bridge draws the minimize, maximize and close buttons over the top right, and sets their width;
+ * keep the bar under them clear. The width is 0 everywhere else.
  */
 .app {
-  --window-controls-width: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+  --window-controls-width: var(--saturn-window-buttons, 0px);
 }
 
 .app:not(.with-inspector) .stage-topbar {

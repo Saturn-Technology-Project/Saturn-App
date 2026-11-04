@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../application/desktop";
+import { askToConfirm } from "../infrastructure/confirm";
 
 type Storage = { folders: { id: string; folder: string | null; bytes: number }[]; bytes: number };
 
@@ -30,7 +31,7 @@ export function SnapshotStorage(props: { onError: (message: string) => void }) {
 
   async function remove(id?: string, folder?: string | null) {
     const what = id ? `the snapshots of ${folder ?? "this folder"}` : "all folder snapshots";
-    if (!window.confirm(`Delete ${what}? Changes made in earlier chats can still be reverted; the next command in a folder takes a fresh snapshot.`)) return;
+    if (!await askToConfirm(`Delete ${what}? Changes made in earlier chats can still be reverted; the next command in a folder takes a fresh snapshot.`)) return;
     setBusy(true);
     try {
       await desktop.admin.deleteSnapshots(id);

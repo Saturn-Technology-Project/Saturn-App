@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../application/desktop";
 import type { Plugin } from "../domain/model";
+import { askToConfirm } from "../infrastructure/confirm";
 
 /** Settings → Plugins: install from a folder or a git URL, turn on or off, allow a plugin's hooks, remove it. */
 export function PluginsPage(props: { onError: (message: string) => void; onChanged?: () => void }) {
@@ -73,8 +74,8 @@ export function PluginsPage(props: { onError: (message: string) => void; onChang
                   type="button"
                   className="btn ghost tiny danger"
                   disabled={busy !== null}
-                  onClick={() => {
-                    if (window.confirm(`Remove ${plugin.name}? Its files and its MCP servers are removed.`)) void act(`remove:${plugin.name}`, () => desktop.admin.removePlugin(plugin.name));
+                  onClick={async () => {
+                    if (await askToConfirm(`Remove ${plugin.name}? Its files and its MCP servers are removed.`)) void act(`remove:${plugin.name}`, () => desktop.admin.removePlugin(plugin.name));
                   }}
                 >
                   Remove

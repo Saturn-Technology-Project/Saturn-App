@@ -32,13 +32,13 @@ import {
 } from "../domain/conversation";
 import type { Agent, ContextItem, Conversation, Group, Mcp, Model, PendingTask, Profile, Project, Rag, Run, RunMode, RunSummary, ContextUsage } from "../domain/model";
 import { syncWindowControls } from "../infrastructure/window-controls";
+import { askToConfirm } from "../infrastructure/confirm";
 
-const isElectron =
-  typeof window !== "undefined" &&
-  Boolean((window as unknown as { process?: { type?: string } }).process?.type || window.navigator.userAgent.includes("Electron"));
+/** The desktop app, which draws the window's own controls; a plain browser shows a preview of them instead. */
+const isDesktop = typeof window !== "undefined" && Boolean(window.saturnDesktop);
 const isMac = typeof window !== "undefined" && navigator.userAgent.toLowerCase().includes("mac");
-const isElectronMac = isElectron && isMac;
-const isElectronWindows = isElectron && typeof window !== "undefined" && navigator.userAgent.includes("Windows");
+const isDesktopMac = isDesktop && isMac;
+const isDesktopWindows = isDesktop && typeof window !== "undefined" && navigator.userAgent.includes("Windows");
 
 const STARTER_PROMPTS: { title: string; badge: string; prompt: string }[] = [
   {
@@ -350,7 +350,7 @@ export function App() {
   async function removeProject(project: Project) {
     const chats = projectChats(project.id).length;
     const what = chats ? ` and its ${chats} ${chats === 1 ? "chat" : "chats"}` : "";
-    if (!window.confirm(`Remove “${project.name}”${what} from Saturn? The folder and its files stay on disk.`)) return;
+    if (!await askToConfirm(`Remove “${project.name}”${what} from Saturn? The folder and its files stay on disk.`)) return;
     try {
       await handleDeleteProject(project.id);
       setAgentThreads((prev) =>
@@ -1065,7 +1065,7 @@ ${skill.instructions}`);
       : how === "keep"
         ? "Keep this chat's branch (for a pull request) and close its worktree?"
         : "Discard this chat's branch and everything the agent changed on it?";
-    if (!window.confirm(question)) return;
+    if (!await askToConfirm(question)) return;
     setWorktreeBusy(true);
     try {
       const result = await desktop.catalog.finishWorktree(threadId, how);
@@ -1536,8 +1536,8 @@ ${skill.instructions}`);
   const renderNavControls = () => (
     <>
       {/* macOS draws its own traffic lights here, and Windows its own buttons at the top right. */}
-      <div className={isElectronWindows ? "titlebar-traffic-space compact" : "titlebar-traffic-space"}>
-        {!isElectronMac && !isElectronWindows && (
+      <div className={isDesktopWindows ? "titlebar-traffic-space compact" : "titlebar-traffic-space"}>
+        {!isDesktopMac && !isDesktopWindows && (
           <div className="traffic-lights-preview">
             <span className="traffic-dot close" />
             <span className="traffic-dot minimize" />
