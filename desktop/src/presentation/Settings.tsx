@@ -1,4 +1,5 @@
 import { SnapshotStorage } from "./SnapshotStorage";
+import { OlderFeatures } from "./settings/OlderFeatures";
 import { ComputerPermissions } from "./ComputerPermissions";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../application/desktop";
@@ -25,7 +26,8 @@ export type SettingsPage =
   | "permissions"
   | "hooks"
   | "plugins"
-  | "shortcuts";
+  | "shortcuts"
+  | "older";
 
 const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
   {
@@ -116,6 +118,8 @@ export function Settings(props: {
     ? ["project", selectedProject.name, `Project configuration & custom rules (${selectedProject.path})`]
     : page === "shortcuts"
       ? ["shortcuts", "Shortcuts", "Quick keyboard shortcuts for Saturn"]
+      : page === "older"
+        ? ["older", "Still running", "What the earlier interface set going"]
       : GROUPS.flatMap((group) => group.items).find(([id]) => id === page);
 
   return (
@@ -182,6 +186,13 @@ export function Settings(props: {
             >
               <span>Shortcuts</span>
             </button>
+            <button
+              type="button"
+              className={page === "older" && !selectedProjectId ? "settings-link active" : "settings-link"}
+              onClick={() => { setPage("older"); setSelectedProjectId(null); setError(""); }}
+            >
+              <span>Still running</span>
+            </button>
           </div>
         </aside>
 
@@ -235,6 +246,7 @@ export function Settings(props: {
                 ) : null}
                 {page === "logs" ? <Logs lines={logs} onReload={() => void load()} /> : null}
                 {page === "telemetry" ? <Telemetry /> : null}
+                {page === "older" ? <OlderFeatures onError={setError} /> : null}
                 {page === "settings" && profile ? (
                   <General
                     profile={profile}
@@ -1570,14 +1582,14 @@ function ProjectSettingsTab(props: {
 
 function ShortcutsTab() {
   const shortcuts = [
+    ["⌘ K", "Commands"],
+    ["⌘ 1 to 7", "Go to a screen"],
+    ["⌘ J", "Show or hide the research assistant"],
+    ["⌘ S", "Save the open file"],
     ["⌘ ,", "Open Settings"],
-    ["⌘ K", "Open Command Palette"],
-    ["⌘ N", "New Conversation"],
-    ["⌘ B", "Toggle Left Sidebar"],
-    ["⌘ L", "Focus Chat Prompt Input"],
-    ["Enter", "Send Message"],
-    ["Shift + Enter", "New Line in Chat Prompt"],
-    ["Esc", "Close Popups & Modals"],
+    ["Enter", "Send a message"],
+    ["Shift + Enter", "New line in a message"],
+    ["Esc", "Close popups"],
   ];
   return (
     <div className="settings-section-list">

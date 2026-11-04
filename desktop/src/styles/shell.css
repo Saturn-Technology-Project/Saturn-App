@@ -173,3 +173,52 @@
 .lab-palette-item.active {
   background: var(--hover);
 }
+
+.lab-onboarding {
+  height: 100vh;
+  overflow: auto;
+  background: var(--stage);
+}
+
+.lab-onboarding-drag {
+  position: sticky;
+  top: 0;
+  height: 28px;
+  --app-region: drag;
+}
+
+.lab-onboarding-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.lab-onboarding h1 {
+  margin-bottom: 8px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.lab-onboarding-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 28px;
+  padding: 0;
+  color: var(--subtle);
+  font-size: var(--text-small);
+  list-style: none;
+}
+
+.lab-onboarding-steps .reached {
+  color: var(--muted);
+}
+
+.lab-onboarding-steps [aria-current="step"] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.lab-older .lab-row {
+  margin-top: 4px;
+}

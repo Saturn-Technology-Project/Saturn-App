@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
-import type { Project } from "../../domain/model.js";
+import type { Model, Profile, Project } from "../../domain/model.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
 import { AccessDialog, chooseFolder } from "../ProjectAccess.js";
 import { AssistantIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette.js";
 import { rememberScreen, rememberedScreen, SCREENS, type Screen } from "./navigation.js";
+import { Onboarding } from "./Onboarding.js";
 import { ScreenSwitch } from "./ScreenSwitch.js";
+import { SettingsHost } from "./SettingsHost.js";
+import { useNotifications } from "./useNotifications.js";
 
 const SCREEN_ICONS: Record<Screen, ReactNode> = {
   Home: <HomeIcon />,
@@ -42,6 +45,10 @@ export function ResearchApp() {
   const [loaded, setLoaded] = useState(false);
   const [accessRequest, setAccessRequest] = useState<{ path: string; name?: string; projectId?: string } | null>(null);
 
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [models, setModels] = useState<Model[]>([]);
+  useNotifications();
+
   const project = projects.find((item) => item.id === projectId) ?? null;
 
   const syncProjects = useCallback(async () => {
@@ -49,6 +56,8 @@ export function ResearchApp() {
     setProjects(list);
     const active = await desktop.projects.getActive().catch(() => null);
     setProjectId((current) => current ?? active?.id ?? list[0]?.id ?? null);
+    setProfile(await desktop.catalog.settings());
+    setModels(await desktop.catalog.listModels());
   }, []);
 
   useEffect(() => {
@@ -158,6 +167,23 @@ export function ResearchApp() {
     body = <ScreenSwitch key={project.id} project={project} screen={screen} assistant={assistant} go={go} notify={setNotice} onOpenSettings={() => setSettings(true)} />;
   }
 
+  if (profile && !profile.onboardedAt) {
+    return (
+      <Onboarding
+        models={models}
+        projects={projects}
+        theme={theme}
+        onSetTheme={setTheme}
+        onChanged={syncProjects}
+        onChooseProject={(chosen) => chooseProject(chosen.id)}
+        onFinish={async () => {
+          setProfile(await desktop.admin.updateSettings({ onboardedAt: new Date().toISOString() }));
+          go("Workspace");
+        }}
+      />
+    );
+  }
+
   return (
     <div className="lab-app">
       <nav className="lab-rail" aria-label="Screens">
@@ -205,13 +231,7 @@ export function ResearchApp() {
       </div>
       {palette ? <CommandPalette commands={commands} onClose={() => setPalette(false)} /> : null}
       {accessRequest ? <AccessDialog path={accessRequest.path} name={accessRequest.name} onClose={() => setAccessRequest(null)} onAllow={() => allowAccess(accessRequest)} /> : null}
-      {settings ? (
-        <div className="lab-palette-overlay" onMouseDown={() => setSettings(false)}>
-          <div className="lab-palette" role="dialog" aria-label="Settings" onMouseDown={(event) => event.stopPropagation()}>
-            <p className="lab-muted" style={{ padding: 16 }}>Settings are rebuilt in a later step.</p>
-          </div>
-        </div>
-      ) : null}
+      {settings ? <SettingsHost projects={projects} theme={theme} onSetTheme={setTheme} onClose={() => setSettings(false)} onProfile={setProfile} notify={setNotice} /> : null}
     </div>
   );
 }

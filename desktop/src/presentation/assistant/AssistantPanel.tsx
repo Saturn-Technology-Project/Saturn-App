@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { assistantRole, assistantRunMode, errorContext, MANUAL_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
+import { GUARDRAIL_MODES, normalizeGuardrailMode, type GuardrailModeId } from "../../domain/conversation.js";
 import type { Agent, ContextItem, Model } from "../../domain/model.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf } from "../ui/Parts.js";
@@ -93,6 +94,16 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
     }
   }
 
+  async function chooseApprovals(approvals: GuardrailModeId) {
+    if (!agent) return;
+    try {
+      await desktop.catalog.updateAgent(agent.id, { autonomy: approvals });
+      await load();
+    } catch (error) {
+      notify(messageOf(error));
+    }
+  }
+
   if (ready && !agent) {
     return (
       <div className="lab-assistant">
@@ -111,6 +122,13 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
           {models.map((model) => (
             <option key={model.id} value={model.id}>
               {model.name}
+            </option>
+          ))}
+        </select>
+        <select className="lab-assistant-model" aria-label="When the assistant asks first" value={normalizeGuardrailMode(agent?.autonomy)} onChange={(event) => void chooseApprovals(event.target.value as GuardrailModeId)}>
+          {GUARDRAIL_MODES.map((item) => (
+            <option key={item.id} value={item.id} title={item.description}>
+              {item.title}
             </option>
           ))}
         </select>
