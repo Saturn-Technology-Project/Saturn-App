@@ -17,7 +17,7 @@ interface Bar {
 }
 
 /**
- * Each model's mean score, in the order the runs happened. Only what measured the same way shares the axis: anything else
+ * Each model's mean score, in the order the runs happened. Only what measured like the newest run shares the axis: anything else
  * is listed under it with what differs, so a difference in method never reads as a difference in the model.
  */
 export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; versions: FrozenVersion[]; models: ModelNode[]; notify: (message: string) => void }) {
@@ -32,9 +32,10 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
     void (async () => {
       try {
         const loaded = await Promise.all(runs.map((run) => service.summary(projectId, run.id)));
-        const first = loaded[0]?.versionId;
+        const newest = loaded.at(-1)?.versionId;
+        if (!newest) return;
         const distinct = [...new Set(loaded.map((item) => item.versionId))];
-        const compared = await Promise.all(distinct.map(async (version) => [version, await service.compare(projectId, first, version)] as const));
+        const compared = await Promise.all(distinct.map(async (version) => [version, await service.compare(projectId, newest, version)] as const));
         if (live) {
           setSummaries(loaded);
           setComparisons(Object.fromEntries(compared));
@@ -64,7 +65,8 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
         mean: model.scores[chosen]?.mean ?? null,
         count: model.scores[chosen]?.count ?? 0,
         errors: Object.values(model.errors).reduce((sum, count) => sum + count, 0),
-        comparison: comparisons[summary.versionId] ?? null,
+        // The newest run's version is what the rest are compared with, whatever it states.
+        comparison: summary.versionId === summaries.at(-1)?.versionId ? { result: "comparable", differs: [], missing: [] } : (comparisons[summary.versionId] ?? null),
       };
     }),
   );
@@ -88,7 +90,7 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
             </select>
           </label>
         ) : (
-          <figcaption className="lab-muted">{chosen}, measured the same way as the first run</figcaption>
+          <figcaption className="lab-muted">{chosen}, measured the same way as the newest run</figcaption>
         )}
         <div className="lab-chart-rows">
           {shared.map((bar) => (

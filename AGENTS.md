@@ -3,8 +3,8 @@
 <!-- Saturn gives this file to every agent working in this project (Codex reads it by itself too; CLAUDE.md points
      Claude Code here). Keep it short: what is not obvious from the code. -->
 
-Saturn is a desktop app that runs coding agents (API models, local models, Claude Code, Codex) on the user's own
-projects. Three parts:
+Saturn is a desktop workbench for AI research, with coding agents (API models, local models, Claude Code, Codex) that work on
+the user's own projects. Three parts:
 
 - `crates/`: the Rust runtime, one workspace with `Cargo.lock` at the root. `saturn-server` is the local HTTP API
   (axum, `127.0.0.1:4700`, data in `~/.saturn-app`), `saturn-cli` the `saturn` command, `saturn-core` the agent loop.

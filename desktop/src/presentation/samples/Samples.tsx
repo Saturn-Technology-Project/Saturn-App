@@ -109,16 +109,17 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
           <div className="lab-table-wrap">
             <table className="lab-table">
               <thead>
-                <tr><th scope="col">Run</th><th scope="col">Compared with the first</th><th scope="col">Output</th><th scope="col">Scores</th><th scope="col">Your label</th></tr>
+                <tr><th scope="col">Run</th><th scope="col">Model</th><th scope="col">Compared with the first</th><th scope="col">Output</th><th scope="col">Scores</th><th scope="col">Your label</th></tr>
               </thead>
               <tbody>
                 {rows.map((row) =>
                   row.samples.length === 0 ? (
-                    <tr key={row.runId}><td><code>{row.runId}</code></td><td colSpan={4} className="lab-muted">This run has no such sample.</td></tr>
+                    <tr key={row.runId}><td><code>{row.runId}</code></td><td colSpan={5} className="lab-muted">This run has no such sample.</td></tr>
                   ) : (
                     row.samples.map((line) => (
                       <tr key={`${row.runId}-${line.trial ?? 0}-${line.modelId ?? ""}`}>
-                        <td><code>{row.runId}</code>{row.models?.length ? <div className="lab-muted">{row.models.map((model) => `${model.role}: ${model.source}`).join(", ")}</div> : null}</td>
+                        <td><code>{row.runId}</code></td>
+                        <td>{row.models?.find((model) => model.modelId === line.modelId)?.source ?? line.modelId ?? "None named"}</td>
                         <td className={row.comparison.result === "comparable" ? "lab-muted" : "lab-warning"}>{comparisonText(row.comparison)}</td>
                         <td><pre className="lab-text">{sampleText(line.output)}</pre></td>
                         <td><pre className="lab-text">{sampleText(line.scores)}</pre>{line.error ? <div className="lab-warning">{line.error.kind} error</div> : null}</td>

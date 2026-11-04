@@ -4,6 +4,11 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+### Changed
+
+- **Saturn's interface is rebuilt for research.** Instead of agents and chats, it is organized around your questions, code, experiments, models, samples and findings. A research assistant sits beside your work and does what the open file's mode allows, and long work goes to Tasks, each in its own worktree.
+- **Groups, Automations, the Agents board, pull request follow-up and the marketplace no longer have screens.** Their data stays, and the runtime still offers them. Earlier chats are kept in your data folder and are not shown. Schedules and follow-up you already set going keep running until you turn them off in **Settings → Still running**.
+
 ### Added
 
 - **A research workbench.** Under Research, open a project's file, write it yourself, run an experiment and read its samples next to the code, then write down what you understood. Everything is kept as plain files in the project's `.saturn/research` folder, and reopening picks up where you stopped. A run records exactly what it computed, including uncommitted code, and a crash leaves its samples readable. Experiment runs work on macOS and Linux; on Windows they say they are not supported yet.

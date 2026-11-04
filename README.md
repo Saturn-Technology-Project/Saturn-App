@@ -4,7 +4,7 @@
 
 # Saturn
 
-**A local-first agent runtime and desktop app.**
+**A local-first workbench for AI research.**
 
 Bring your own models, scope every agent to the folders you grant, and keep each tool call, file edit and network request inspectable, reviewable and reversible.
 
@@ -47,33 +47,31 @@ What Saturn's own agent loop does (for API and local models; agents on Claude Co
 | Plugins | Yes (Claude Code's layout installs as is) | Yes | — |
 | Headless CLI | `saturn run` | `claude -p` | `codex exec` |
 | SDK | [`@saturn-app/sdk`](https://github.com/Saturn-Technology-Project/Saturn-SDK) (TypeScript, local) | Agent SDK | Codex SDK |
-| Pull request follow-up (fix failing checks) | Yes, at most two rounds | Yes, in Claude Code on the web | — |
-| Desktop app and editor | Agent app; no editor yet | Desktop app, IDE extensions | IDE extension, app |
-| Computer use, browser, multi-agent groups, schedules | Yes | — | — |
+| Pull request follow-up (fix failing checks) | Runtime only, at most two rounds | Yes, in Claude Code on the web | — |
+| Desktop app and editor | Research workbench with a code editor | Desktop app, IDE extensions | IDE extension, app |
+| Computer use, browser; multi-agent groups and schedules through the runtime | Yes | — | — |
 | Measured | Task evals (`scripts/eval`), nightly when a key is set | Anthropic's evaluations | OpenAI's evaluations |
 
 Saturn is younger than both and has had far less real-world use; the evals are how changes to its loop are checked.
 
 ## Features
 
+The interface is built around research. Groups, schedules and pull request follow-up remain in the runtime and its API, without screens of their own.
+
 | | |
 |---|---|
 | 🤖 **Agents** | Per-agent system prompt, model, reasoning effort, tool set and approval policy. Agent, Ask (read-only) and Plan modes per message. |
-| 📋 **Agents board** | One view of every running, queued, blocked and finished task across chats, with an inbox for approvals and failures, and native notifications. |
 | 🌿 **Isolated worktrees** | Run a task in its own git worktree and branch, in the background. Merge, keep or discard it; resolve conflicts with the agent; open a pull request from the branch. |
-| 🔁 **Pull request follow-up** | After Saturn opens a pull request it follows it every 2 minutes with your GitHub token. Failing checks go back to the agent with their log tails, at most twice, and its fix is committed and pushed so they run again. New comments and unresolved review threads wait in the chat until you send them to the agent (its answer is pushed too) or dismiss them. It stops when the pull request is merged or closed. |
 | 📎 **Context** | `@`-mention files, folders, git changes and URLs; paste screenshots; per-project rules from `AGENTS.md` and similar files; semantic code search backed by a bundled on-device embedding model. |
 | ✅ **Verification loop** | After a turn edits files, the project's check command (typecheck, lint, tests) runs, and failures go back to the agent for up to two automatic fix rounds. |
 | 🔍 **Review** | Per-turn diffs with inline comments sent back to the agent, editable plans, a summary card per turn, terminal output, and replayable browser recordings. |
 | ↩️ **Checkpoints** | Every file edit is recorded. Keep or revert a turn, or restore the workspace to any individual step. |
-| 👥 **Groups** | Several agents in one conversation; each decides whether it is addressed and delegates with `@mentions`. |
 | 📚 **Skills** | Folders with a `SKILL.md` (name, description, instructions) in a project's `.agents/skills`, `.saturn/skills` or `.claude/skills`, or your `~/.saturn-app/skills`. Agents see only the names and descriptions and load a skill when a task calls for it; type `/name` in the composer to use one yourself. |
 | 🧩 **Plugins** | One folder that bundles skills, `/` commands, hooks and MCP servers, installed from a folder or a git URL in **Settings → Plugins** and turned on or off as a unit. Claude Code plugins (`.claude-plugin/plugin.json`) install as they are. Installing runs nothing: a plugin's hooks and local MCP servers each wait for your approval. |
 | ⌨️ **Slash commands** | `/` in the composer lists Saturn's own commands (`/compact`, `/plan`, `/ask`, `/new`), the chat's skills, and prompt templates from a project's `.saturn/commands` or `.claude/commands` or your `~/.saturn-app/commands` (`$ARGUMENTS` is what follows the name). The chat shows what you typed; the expansion goes to the agent. |
 | 🪆 **Sub-agents** | An agent hands a self-contained task (a wide search, an investigation, a subtask) to a sub-agent with a fresh context and gets back only its answer; several run in parallel, read-only by default, nested under the step that started them, with the same approvals and checkpoints as the chat. |
 | 🛠️ **Tools** | Filesystem, shell (with background commands: a dev server or watcher keeps running across turns, readable and stoppable from the Terminal tab), web fetch, a browser you watch the agent use (live in the chat's Browser tab with its cursor, a visible Chrome window with Saturn's own profile, or a Safari automation window on macOS after turning on Develop → Allow Remote Automation once; Settings → General → Agent browser; Saturn ships no browser of its own, so the first two need Chrome or a relative such as Chromium or Edge, and the tool says so when there is none), multi-step planning, computer use on macOS and Windows, GitHub, automations, and any [MCP](https://modelcontextprotocol.io) server from the built-in marketplace. |
 | 🔬 **Research workbench** | Questions, hypotheses, frozen experiment versions, runs, samples and findings, kept as plain files in the project's `.saturn/research`. Write code yourself beside an experiment, follow a model from checkpoint to policy, compare one sample across runs, and label it without touching its score. A run records what it really computed, including uncommitted code, and survives a crash with its samples readable. Each file can be Manual, Pair or Delegate for agents. These modes are a workflow constraint, not a security boundary, and [`docs/research-contract.md`](docs/research-contract.md) says exactly what each backend can enforce. Experiment runs work on macOS and Linux, not yet on Windows. |
-| ⏰ **Automations** | Cron-scheduled agent runs, with templates such as a daily pull request review. |
 | 💸 **Usage and cost** | Token counts and cost at list price, per model and per agent, over any time range. |
 | 📈 **Observability** | OpenTelemetry traces, metrics and logs, an outbound network log, and optional OTLP export (JSON over HTTP) to your own collector. |
 
@@ -172,7 +170,7 @@ crates/                                   desktop/src/
 
 ### Lifecycle
 
-Launching Saturn starts the runtime (or reuses one already answering on its port), then opens the agent app. Closing the last window stops the runtime it started. The runtime holds a pipe from the app and stops when the pipe closes, so it does not outlive an app that crashed or was force-quit.
+Launching Saturn starts the runtime (or reuses one already answering on its port), then opens the research workbench. Closing the last window stops the runtime it started. The runtime holds a pipe from the app and stops when the pipe closes, so it does not outlive an app that crashed or was force-quit.
 
 **Context.** A chat's earlier turns are sent within a budget sized to the model's context window (half of it; a connection can state its own `contextTokens`). When they outgrow it, the oldest turns are summarized by the same model into the chat's running summary, which later turns ride on; the chat shows `⤵ n earlier turns folded` where it happened. The header's **Context · n%** chip shows how full the chat is, and clicking it, or sending `/compact`, folds the turns now. Claude Code and Codex manage their own context.
 

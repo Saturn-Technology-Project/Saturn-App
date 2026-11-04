@@ -2,7 +2,7 @@ import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import type { Model, Project } from "../../domain/model.js";
 import { chooseFolder } from "../ProjectAccess.js";
-import { ClaudeCodeLogin, CodexLogin, LlmPage, ProgramGate } from "../Settings.js";
+import { ClaudeCodeLogin, CodexLogin, LlmPage, ProgramGate } from "../settings/Settings.js";
 import { messageOf } from "../ui/Parts.js";
 
 const STEPS = ["Welcome", "Model", "Project", "Question"] as const;

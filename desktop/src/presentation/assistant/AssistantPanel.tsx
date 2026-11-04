@@ -19,7 +19,10 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
   const [threadId, setThreadId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [text, setText] = useState("");
-  const [off, setOff] = useState<Set<Attachment>>(new Set());
+  // A sample or error output goes along only when asked: what is sent to a model should be a choice. In review, the sample
+  // under review is the point.
+  const [off, setOff] = useState<Set<Attachment>>(new Set(["error", "sample"]));
+  const reviewing = Boolean(focus?.sample && !focus.file);
   const end = useRef<HTMLDivElement>(null);
   const conversation = useConversation(agent?.id ?? null, threadId, notify);
 
@@ -48,7 +51,7 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
     ...(focus?.errorOutput ? [{ id: "error" as const, label: "Error output" }] : []),
     ...(focus?.sample ? [{ id: "sample" as const, label: focus.sample.sample?.sampleId ?? "Sample" }] : []),
   ];
-  const attached = (id: Attachment) => available.some((item) => item.id === id) && !off.has(id);
+  const attached = (id: Attachment) => available.some((item) => item.id === id) && (reviewing && id === "sample" ? !off.has("selection") : !off.has(id));
 
   /** The message with what is attached, in a block the conversation keeps out of sight. */
   async function withContext(typed: string): Promise<string> {
@@ -64,10 +67,10 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
     return input;
   }
 
-  async function ask(typed: string) {
+  async function ask(typed: string, also?: string) {
     if (!typed.trim() || conversation.busy) return;
     try {
-      if (await conversation.send(await withContext(typed.trim()), assistantRunMode(mode))) setText("");
+      if (await conversation.send((await withContext(typed.trim())) + (also ?? ""), assistantRunMode(mode))) setText("");
     } catch (error) {
       notify(messageOf(error));
     }
@@ -146,7 +149,7 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
         {mode !== "pair" ? (
           <div className="lab-requests">
             {MANUAL_REQUESTS.map((request) => (
-              <button type="button" key={request.label} className="lab-request" disabled={conversation.busy} onClick={() => void ask(request.prompt)}>
+              <button type="button" key={request.label} className="lab-request" disabled={conversation.busy} onClick={() => void ask(request.prompt, request.label === "Explain the error" && focus?.errorOutput && !attached("error") ? errorContext(focus.errorOutput) : undefined)}>
                 {request.label}
               </button>
             ))}
@@ -164,8 +167,9 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
                 onClick={() =>
                   setOff((current) => {
                     const next = new Set(current);
-                    if (next.has(item.id)) next.delete(item.id);
-                    else next.add(item.id);
+                    const key = reviewing && item.id === "sample" ? "selection" : item.id;
+                    if (next.has(key)) next.delete(key);
+                    else next.add(key);
                     return next;
                   })
                 }

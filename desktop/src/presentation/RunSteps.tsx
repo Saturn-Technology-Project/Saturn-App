@@ -11,7 +11,7 @@ import type { Run, RunAction, RunThought } from "../domain/model";
 import { desktop } from "../application/desktop";
 import { RecordingPlayer } from "./RecordingPlayer";
 import { activateOnKey } from "./keyboard";
-import { SCOPE_CHOICES } from "./Permissions";
+import { SCOPE_CHOICES } from "./settings/Permissions";
 import { suggestedPattern } from "../domain/permissions";
 import type { PermissionScope } from "../domain/model";
 

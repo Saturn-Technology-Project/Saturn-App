@@ -4,7 +4,7 @@
 
 # Saturn
 
-**本機優先的 Agent Runtime 與桌面應用程式。**
+**本機優先的 AI 研究工作台。**
 
 自帶模型、以授權資料夾限縮每個 Agent 的權限，每一次工具呼叫、檔案修改與網路請求都可檢視、可審查、可回復。
 
@@ -47,33 +47,31 @@ Saturn 自己的 Agent 迴圈（API 模型與本機模型；使用 Claude Code �
 | Plugins | 是（Claude Code 的格式可直接安裝） | 是 | — |
 | 無介面 CLI | `saturn run` | `claude -p` | `codex exec` |
 | SDK | [`@saturn-app/sdk`](https://github.com/Saturn-Technology-Project/Saturn-SDK)（TypeScript，本機） | Agent SDK | Codex SDK |
-| Pull request 追蹤（修正失敗的檢查） | 是，最多兩輪 | 是，在網頁版 Claude Code | — |
-| 桌面應用程式與編輯器 | Agent App；目前沒有編輯器 | 桌面應用程式、IDE 擴充套件 | IDE 擴充套件、App |
-| 電腦操作、瀏覽器、多 Agent 群組、排程 | 是 | — | — |
+| Pull request 追蹤（修正失敗的檢查） | 僅限 Runtime，最多兩輪 | 是，在網頁版 Claude Code | — |
+| 桌面應用程式與編輯器 | 內建程式編輯器的研究工作台 | 桌面應用程式、IDE 擴充套件 | IDE 擴充套件、App |
+| 電腦操作、瀏覽器；透過 Runtime 使用多 Agent 群組與排程 | 是 | — | — |
 | 評測 | 任務評測（`scripts/eval`），設定金鑰後每夜執行 | Anthropic 自己的評測 | OpenAI 自己的評測 |
 
 Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它的 Agent 迴圈改動的方法。
 
 ## 功能
 
+介面以研究流程為核心。群組、排程與 pull request 追蹤仍在 runtime 和 API 中，但沒有專屬畫面。
+
 | | |
 |---|---|
 | 🤖 **Agent** | 每個 Agent 各自設定 system prompt、模型、推理強度、工具集與核准策略。每則訊息可切換 Agent、Ask（唯讀）與 Plan 模式。 |
-| 📋 **Agents 總覽** | 跨對話檢視所有執行中、排隊、受阻與已完成的任務，含核准與失敗的收件匣，以及系統原生通知。 |
 | 🌿 **隔離 worktree** | 任務在獨立的 git worktree 與分支中於背景執行。可合併、保留或捨棄；由 Agent 協助解決衝突；直接從分支開 pull request。 |
-| 🔁 **Pull request 追蹤** | Saturn 開出 pull request 後，會用你的 GitHub token 每 2 分鐘追蹤一次。檢查失敗時，會把失敗紀錄的結尾交給 Agent 修正（最多兩次），修好後自動 commit 並推送，讓檢查重跑。新留言與未解決的 review 討論會留在對話中，等你送給 Agent（它的回應也會推送）或略過。pull request 合併或關閉後即停止追蹤。 |
 | 📎 **上下文** | 以 `@` 引用檔案、資料夾、git 變更與網址；貼上截圖；從 `AGENTS.md` 等檔案載入專案規則；以內建的裝置端嵌入模型做語意程式碼搜尋。 |
 | ✅ **驗證迴圈** | 回合修改檔案後，自動執行專案的檢查指令（型別檢查、lint、測試），失敗時回饋給 Agent，最多自動修正兩輪。 |
 | 🔍 **審查** | 每回合的 diff 可逐行留言並回送 Agent，計畫可編輯，每回合有摘要卡片、終端機輸出，以及可重播的瀏覽器錄影。 |
 | ↩️ **檢查點** | 每次檔案修改都有紀錄。可保留或回復整個回合，或將工作區還原到任一步驟。 |
-| 👥 **群組** | 多個 Agent 在同一對話中協作；各自判斷是否被點名，並以 `@mention` 分派工作。 |
 | 📚 **Skills** | 含 `SKILL.md`（名稱、說明、步驟）的資料夾，放在專案的 `.agents/skills`、`.saturn/skills` 或 `.claude/skills`，或你的 `~/.saturn-app/skills`。Agent 只看到名稱與說明，任務需要時才載入；你也可以在輸入框打 `/名稱` 直接使用。 |
 | 🧩 **Plugins** | 把 skills、`/` 指令、hooks 與 MCP 伺服器打包在一個資料夾，在 **設定 → Plugins** 從資料夾或 git URL 安裝，整組開啟或關閉。Claude Code 的 plugin（`.claude-plugin/plugin.json`）可直接安裝。安裝時不會執行任何東西：plugin 的 hooks 與本機 MCP 伺服器都要各自經你核准。 |
 | ⌨️ **斜線指令** | 在輸入框打 `/` 會列出 Saturn 內建指令（`/compact`、`/plan`、`/ask`、`/new`）、對話可用的 skills，以及專案 `.saturn/commands`、`.claude/commands` 或你的 `~/.saturn-app/commands` 中的提示範本（`$ARGUMENTS` 會換成指令名稱後的內容）。對話只顯示你輸入的內容，展開後的內容會送給 Agent。 |
 | 🪆 **子 Agent** | Agent 可把獨立的任務（大範圍搜尋、調查、子任務）交給擁有全新上下文的子 Agent，只取回它的答案；可多個平行執行，預設唯讀，巢狀顯示在啟動它的步驟下，核准與檢查點與對話相同。 |
 | 🛠️ **工具** | 檔案系統、shell（支援背景指令：dev server 或 watcher 可跨回合持續執行，在 Terminal 分頁讀取輸出或停止）、網頁擷取、看得見 Agent 操作的瀏覽器（在聊天的 Browser 分頁即時顯示，連同 Agent 的游標；或用 Saturn 專用設定檔的可見 Chrome 視窗，或 macOS 上的 Safari 自動化視窗（需先在 Safari 開啟一次「開發 → 允許遠端自動化」），在設定 → 一般 → Agent 瀏覽器切換；Saturn 不附帶瀏覽器，前兩種需要 Chrome 或 Chromium、Edge 等同類瀏覽器，找不到時工具會說明）、多步驟規劃、macOS 與 Windows 電腦操作、GitHub、自動化，以及內建市集中的任何 [MCP](https://modelcontextprotocol.io) 伺服器。 |
 | 🔬 **研究工作台** | 研究問題、假說、凍結的實驗版本、執行、樣本與結論，都以純文字檔保存在專案的 `.saturn/research`。可在實驗旁親手寫程式、追蹤模型從 checkpoint 到 policy 的變化、跨執行比較同一個樣本，標註也不會改動原本的分數。每次執行都會記錄實際計算的內容（包含未提交的程式），當機後樣本仍可讀取。每個檔案可設為 Manual、Pair 或 Delegate，限制 Agent 的參與程度。這些模式是工作流程約束，不是安全邊界，各後端能做到什麼寫在 [`docs/research-contract.md`](docs/research-contract.md)。實驗執行支援 macOS 與 Linux，Windows 尚未支援。 |
-| ⏰ **自動化** | 以 cron 排程執行 Agent，內建範本如每日審查 pull request。 |
 | 💸 **用量與成本** | 依模型與 Agent 統計任意期間的 token 數與牌價成本。 |
 | 📈 **可觀測性** | OpenTelemetry trace、metric 與 log，對外網路請求紀錄，並可選擇以 OTLP（HTTP 上的 JSON）匯出到自己的 collector。 |
 
@@ -171,7 +169,7 @@ crates/                                   desktop/src/
 
 ### 生命週期
 
-啟動 Saturn 會先啟動 Runtime（或沿用已在該埠回應的 Runtime），再開啟 Agent App。關閉最後一個視窗會停止它所啟動的 Runtime。Runtime 持有一條來自 App 的管線，管線關閉就停止，所以 App 當掉或被強制結束時，Runtime 也不會繼續存活。
+啟動 Saturn 會先啟動 Runtime（或沿用已在該埠回應的 Runtime），再開啟研究工作台。關閉最後一個視窗會停止它所啟動的 Runtime。Runtime 持有一條來自 App 的管線，管線關閉就停止，所以 App 當掉或被強制結束時，Runtime 也不會繼續存活。
 
 **上下文。** 對話較早的回合會在依模型 context window 計算的預算內送出（視窗的一半；模型連線可自行指定 `contextTokens`）。超過預算時，最舊的回合會由同一個模型摘要成對話的累積摘要，之後的回合都以它為基礎；對話中會在發生處顯示「⤵ 已將 n 個較早回合併入摘要」。標頭的 **Context · n%** 標籤顯示對話的用量，點它或送出 `/compact` 可立即摘要。Claude Code 與 Codex 自行管理各自的上下文。
 

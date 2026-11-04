@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { ASSISTANT_NAME } from "../../domain/assistant.js";
 import type { Agent, Mcp, Model, Profile, Project, Rag } from "../../domain/model.js";
-import { Settings } from "../Settings.js";
+import { Settings } from "../settings/Settings.js";
 import { messageOf } from "../ui/Parts.js";
 
 /** Settings, given what they read. The agent they change is the assistant's. */
