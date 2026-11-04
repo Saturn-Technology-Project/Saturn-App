@@ -23,8 +23,21 @@ const LAST_CONNECTIONS: std::time::Duration = std::time::Duration::from_secs(2);
 /// The largest request body, which leaves room for a message's images.
 const BODY_LIMIT: usize = 10 * 1024 * 1024;
 
+/// Which runtime this is: the id its launcher gave it, or one of its own, so a launcher can tell its runtime from
+/// another Saturn on the same port.
+static INSTANCE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+fn instance() -> &'static str {
+    INSTANCE.get_or_init(|| {
+        env::var("SATURN_RUNTIME_INSTANCE")
+            .ok()
+            .filter(|given| !given.is_empty())
+            .unwrap_or_else(|| saturn_domain::random_hex(8).unwrap_or_default())
+    })
+}
+
 async fn health() -> Json<Value> {
-    Json(json!({ "ok": true }))
+    Json(json!({ "ok": true, "version": env!("CARGO_PKG_VERSION"), "instance": instance() }))
 }
 
 /// The folder Saturn keeps its data in: `SATURN_DATA_DIR`, or `~/.saturn-app`.

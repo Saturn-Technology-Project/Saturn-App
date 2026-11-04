@@ -4,6 +4,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+### Fixed
+
+- **The app keeps its runtime running.** It restarts a runtime that dies, shows where the runtime stands until it answers instead of a blank error, and no longer uses another Saturn that happens to be on its port, which could overwrite the same data folder. Settings and the command palette offer a restart.
+
 ### Changed
 
 - **Saturn's interface is rebuilt for research.** Instead of agents and chats, it is organized around your questions, code, experiments, models, samples and findings. A research assistant sits beside your work and does what the open file's mode allows, and long work goes to Tasks, each in its own worktree.

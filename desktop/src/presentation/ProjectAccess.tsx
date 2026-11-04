@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Project } from "../domain/model";
+import type { RuntimeStatus } from "../infrastructure/runtime-status";
 
 declare global {
   interface Window {
@@ -10,6 +11,8 @@ declare global {
       onOpenThread?(listener: (payload: { agentId?: string; threadId?: string }) => void): () => void;
       isFocused?(): boolean;
       setWindowControls?(colors: { color: string; symbolColor: string }): void;
+      runtimeStatus?(): Promise<RuntimeStatus>;
+      restartRuntime?(): Promise<void>;
     };
   }
 }

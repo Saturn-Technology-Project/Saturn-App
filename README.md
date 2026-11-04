@@ -170,7 +170,7 @@ crates/                                   desktop/src/
 
 ### Lifecycle
 
-Launching Saturn starts the runtime (or reuses one already answering on its port), then opens the research workbench. Closing the last window stops the runtime it started. The runtime holds a pipe from the app and stops when the pipe closes, so it does not outlive an app that crashed or was force-quit.
+Launching Saturn starts its own runtime and keeps it running: it restarts one that dies, and refuses to use another Saturn already on the port (set `SATURN_RUNTIME_PORT` to use a runtime you started yourself). The window shows where the runtime stands until it answers. Closing the last window stops the runtime it started. The runtime holds a pipe from the app and stops when the pipe closes, so it does not outlive an app that crashed or was force-quit.
 
 **Context.** A chat's earlier turns are sent within a budget sized to the model's context window (half of it; a connection can state its own `contextTokens`). When they outgrow it, the oldest turns are summarized by the same model into the chat's running summary, which later turns ride on; the chat shows `⤵ n earlier turns folded` where it happened. The header's **Context · n%** chip shows how full the chat is, and clicking it, or sending `/compact`, folds the turns now. Claude Code and Codex manage their own context.
 

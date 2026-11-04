@@ -32,7 +32,20 @@ function request({ method = "GET", path: target, headers = {} }) {
 test("the health probe answers without the token", async () => {
   const response = await request({ path: "/health" });
   assert.equal(response.status, 200);
-  assert.deepEqual(JSON.parse(response.body), { ok: true });
+  const body = JSON.parse(response.body);
+  assert.equal(body.ok, true);
+  assert.match(body.version, /^\d+\.\d+\.\d+/);
+  assert.match(body.instance, /^[0-9a-f]{8,}$/, "a runtime names itself, so a launcher can tell it from another");
+});
+
+test("a launcher's instance id is what the health probe reports", async () => {
+  const own = await startRuntime({ env: { SATURN_RUNTIME_INSTANCE: "launcher-7" } });
+  try {
+    const answer = await fetch(`${own.origin}/health`);
+    assert.equal((await answer.json()).instance, "launcher-7");
+  } finally {
+    await own.stop();
+  }
 });
 
 test("the session token is long and only this user can read its file", async () => {
@@ -87,7 +100,7 @@ test("only loopback origins are allowed across origins", async () => {
 test("the bind address can be a name, not only an IP address", async () => {
   const named = await startRuntime({ host: "localhost" });
   try {
-    assert.deepEqual(await (await fetch(`${named.origin}/health`)).json(), { ok: true });
+    assert.equal((await (await fetch(`${named.origin}/health`)).json()).ok, true);
   } finally {
     await named.stop();
   }

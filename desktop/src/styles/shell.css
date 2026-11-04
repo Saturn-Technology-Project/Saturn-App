@@ -222,3 +222,62 @@
 .lab-older .lab-row {
   margin-top: 4px;
 }
+
+.lab-gate {
+  position: absolute;
+  inset: var(--bar-height) 0 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--stage);
+}
+
+.lab-gate-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(560px, 100%);
+}
+
+.lab-gate-card h2 {
+  font-size: var(--text-title);
+  font-weight: 600;
+}
+
+.lab-gate-card pre {
+  max-height: 240px;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.lab-gate-card .lab-button {
+  align-self: flex-start;
+}
+
+.lab-main {
+  position: relative;
+}
+
+.lab-runtime {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--text-small);
+}
+
+.lab-runtime::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+.lab-runtime.off::before {
+  background: var(--wait);
+}

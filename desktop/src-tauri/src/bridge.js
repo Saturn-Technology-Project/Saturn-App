@@ -50,6 +50,10 @@
     notify: (options) => void invoke("notify", { options: options ?? {} }),
     /** Asks macOS for Accessibility or Screen Recording (its own prompt, and Saturn listed in System Settings). */
     requestPermission: (which) => invoke("request_permission", { which }),
+    /** Where the runtime stands: starting, ready, blocked by another Saturn, or failed, with its last output. */
+    runtimeStatus: () => invoke("runtime_status"),
+    /** Starts the runtime again, after it failed or when it is stuck. */
+    restartRuntime: () => invoke("restart_runtime"),
     /** Recolors the minimize, maximize and close buttons (Windows only). */
     setWindowControls: (colors) => paintWindowButtons(colors ?? {}),
     /** Called with { agentId, threadId } when a notification is clicked. */

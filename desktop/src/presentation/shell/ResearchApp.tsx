@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
 import type { Model, Profile, Project } from "../../domain/model.js";
+import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
 import { AccessDialog, chooseFolder } from "../ProjectAccess.js";
 import { AssistantIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
@@ -8,6 +9,7 @@ import { Empty, messageOf } from "../ui/Parts.js";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette.js";
 import { rememberScreen, rememberedScreen, SCREENS, type Screen } from "./navigation.js";
 import { Onboarding } from "./Onboarding.js";
+import { RuntimeGate } from "./RuntimeGate.js";
 import { ScreenSwitch } from "./ScreenSwitch.js";
 import { SettingsHost } from "./SettingsHost.js";
 import { useNotifications } from "./useNotifications.js";
@@ -48,6 +50,8 @@ export function ResearchApp() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [models, setModels] = useState<Model[]>([]);
   useNotifications();
+  const runtime = useRuntimeStatus();
+  const runtimeReady = runtime.status.state === "ready";
 
   const project = projects.find((item) => item.id === projectId) ?? null;
 
@@ -60,12 +64,14 @@ export function ResearchApp() {
     setModels(await desktop.catalog.listModels());
   }, []);
 
+  // Loads once the runtime answers, and again each time it comes back.
   useEffect(() => {
+    if (!runtimeReady) return;
     syncProjects()
       .then(() => setNotice(null))
       .catch((error: unknown) => setNotice(`Saturn's runtime is not answering: ${messageOf(error)}`))
       .finally(() => setLoaded(true));
-  }, [syncProjects]);
+  }, [runtimeReady, syncProjects]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -142,10 +148,11 @@ export function ResearchApp() {
       { id: "assistant", label: assistant ? "Hide the research assistant" : "Show the research assistant", hint: "⌘J", run: () => setAssistant((open) => !open) },
       { id: "theme", label: theme === "dark" ? "Use the light theme" : "Use the dark theme", run: () => setTheme(theme === "dark" ? "light" : "dark") },
       { id: "settings", label: "Open Settings", hint: "⌘,", run: () => setSettings(true) },
+      ...(runtime.restart ? [{ id: "restart-runtime", label: "Restart Saturn's runtime", run: () => void runtime.restart?.() }] : []),
     ],
     // The commands close over the latest state each time they are rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assistant, go, projectId, projects, theme],
+    [assistant, go, projectId, projects, runtime.restart, theme],
   );
 
   let body: ReactNode;
@@ -212,6 +219,9 @@ export function ResearchApp() {
             <option value="+">Add a project folder…</option>
           </select>
           <div className="lab-bar-context">{screen}</div>
+          <span className={runtimeReady ? "lab-runtime" : "lab-runtime off"} title={runtime.status.state === "ready" ? `Runtime ${runtime.status.version}` : "Runtime not answering"}>
+            {runtimeReady ? "Runtime" : "Runtime off"}
+          </span>
           <button type="button" className="lab-button quiet" onClick={() => setPalette(true)}>
             Commands <span className="lab-muted">⌘K</span>
           </button>
@@ -228,6 +238,7 @@ export function ResearchApp() {
           </div>
         ) : null}
         <div className="lab-screen">{body}</div>
+        <RuntimeGate status={runtime.status} restart={runtime.restart} />
       </div>
       {palette ? <CommandPalette commands={commands} onClose={() => setPalette(false)} /> : null}
       {accessRequest ? <AccessDialog path={accessRequest.path} name={accessRequest.name} onClose={() => setAccessRequest(null)} onAllow={() => allowAccess(accessRequest)} /> : null}

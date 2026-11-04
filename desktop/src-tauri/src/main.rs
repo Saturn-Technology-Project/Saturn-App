@@ -9,7 +9,7 @@ mod update;
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 
-use runtime::{Layout, Runtime};
+use runtime::{Layout, Runtime, Status};
 use serde::Deserialize;
 use tauri::utils::config::BackgroundThrottlingPolicy;
 use tauri::webview::NewWindowResponse;
@@ -125,6 +125,18 @@ fn request_permission(which: String) -> permissions::Answer {
     permissions::request(&which)
 }
 
+/// Where the runtime stands, for the interface's start-up screen and status line.
+#[tauri::command]
+fn runtime_status(app: AppHandle) -> Status {
+    app.state::<Runtime>().status()
+}
+
+/// The user asks for the runtime to be started again.
+#[tauri::command]
+fn restart_runtime(app: AppHandle) {
+    app.state::<Runtime>().restart();
+}
+
 /// The bridge script with this runtime's token and address filled in, for the interface at `interface` only.
 fn bridge_script(runtime: &Runtime, interface: &Url) -> String {
     let quoted = |text: &str| serde_json::Value::from(text).to_string();
@@ -193,7 +205,7 @@ fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
         "remote": { "urls": [format!("http://127.0.0.1:{port}/*")] },
         "permissions": [
             "allow-pick-folders", "allow-confirm-action", "allow-start-dragging", "allow-toggle-maximize", "allow-minimize-window",
-            "allow-close-window", "allow-notify", "allow-request-permission",
+            "allow-close-window", "allow-notify", "allow-request-permission", "allow-runtime-status", "allow-restart-runtime",
         ],
     });
     app.add_capability(capability.to_string())
@@ -201,7 +213,17 @@ fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
 
 /// Starts everything in order: the runtime, the interface, then the window.
 async fn start_up(app: AppHandle, layout: Layout) {
-    app.state::<Runtime>().ensure_started(&layout).await;
+    // The runtime is kept up for as long as the app runs. The window opens as soon as it answers, or after a moment
+    // anyway, and shows the runtime's state until it does.
+    let supervised = app.clone();
+    tauri::async_runtime::spawn(
+        async move { supervised.state::<Runtime>().supervise(&layout).await },
+    );
+    let began = std::time::Instant::now();
+    while began.elapsed() < std::time::Duration::from_secs(3) && !app.state::<Runtime>().is_ready()
+    {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
     let port = if cfg!(debug_assertions) {
         Ok(5174)
     } else {
@@ -250,7 +272,9 @@ fn main() {
             minimize_window,
             close_window,
             notify,
-            request_permission
+            request_permission,
+            runtime_status,
+            restart_runtime
         ])
         .setup(move |app| {
             let layout = if cfg!(debug_assertions) {

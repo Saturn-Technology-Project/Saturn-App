@@ -169,7 +169,7 @@ crates/                                   desktop/src/
 
 ### 生命週期
 
-啟動 Saturn 會先啟動 Runtime（或沿用已在該埠回應的 Runtime），再開啟研究工作台。關閉最後一個視窗會停止它所啟動的 Runtime。Runtime 持有一條來自 App 的管線，管線關閉就停止，所以 App 當掉或被強制結束時，Runtime 也不會繼續存活。
+啟動 Saturn 會啟動自己的 Runtime 並持續看顧：Runtime 當掉會自動重啟，若該埠已被另一個 Saturn 占用則會拒絕沿用（想沿用自己啟動的 Runtime，請設定 `SATURN_RUNTIME_PORT`）。Runtime 就緒前，視窗會顯示它的狀態，再開啟研究工作台。關閉最後一個視窗會停止它所啟動的 Runtime。Runtime 持有一條來自 App 的管線，管線關閉就停止，所以 App 當掉或被強制結束時，Runtime 也不會繼續存活。
 
 **上下文。** 對話較早的回合會在依模型 context window 計算的預算內送出（視窗的一半；模型連線可自行指定 `contextTokens`）。超過預算時，最舊的回合會由同一個模型摘要成對話的累積摘要，之後的回合都以它為基礎；對話中會在發生處顯示「⤵ 已將 n 個較早回合併入摘要」。標頭的 **Context · n%** 標籤顯示對話的用量，點它或送出 `/compact` 可立即摘要。Claude Code 與 Codex 自行管理各自的上下文。
 
