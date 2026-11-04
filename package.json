@@ -5,7 +5,7 @@
   "scripts": {
     "start": "cargo run -p saturn-server",
     "dev": "cargo run -p saturn-server",
-    "test": "cargo test && cargo build -p saturn-server -p saturn-cli && node --test contract/*.test.mjs",
+    "test": "cargo test && cargo build -p saturn-server -p saturn-cli && node --test contract/*.test.mjs desktop/test/*.test.mjs",
     "lint": "npm run lint --prefix desktop",
     "typecheck": "cd desktop && npx tsc --noEmit",
     "desktop": "npm run dev --prefix desktop",
