@@ -6,6 +6,7 @@ import { PublicAddress } from "../../domain/skills/public-address.js";
 import { assertPublicHost } from "../public-host.js";
 import { launchEnv } from "../launch-env.js";
 import { logger } from "../logger.js";
+import { recordingName, screenshotPath } from "./browser-files.js";
 import type { BrowserFrame } from "./browser-skill.js";
 
 /**
@@ -319,7 +320,7 @@ export class SafariBrowser {
         const data = await this.call<string>("GET", "/screenshot");
         const file = typeof args.file === "string" && args.file.trim() ? args.file.trim() : undefined;
         if (file) {
-          const target = path.resolve(this.dataDir, "workspace", file);
+          const target = await screenshotPath(this.dataDir, file);
           await mkdir(path.dirname(target), { recursive: true });
           await writeFile(target, Buffer.from(data, "base64"));
           return { file: target, bytes: Buffer.byteLength(data, "base64") };
@@ -339,7 +340,7 @@ export class SafariBrowser {
       }
       case "browser_record_start": {
         if (this.recording) throw new Error("Already recording; call browser_record_stop first.");
-        const name = typeof args.name === "string" && args.name.trim() ? args.name.trim().replace(/[^\w.-]/g, "_") : `recording-${Date.now().toString(36)}`;
+        const name = recordingName(args.name);
         const folder = path.resolve(this.dataDir, "workspace", "recordings", name);
         await mkdir(folder, { recursive: true });
         this.recording = { file: folder, frames: 0, started: Date.now(), chunks: [] };

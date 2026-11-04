@@ -8,6 +8,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - **An agent's GitHub tools could read any git repository on this computer.** A repository owner or name such as `../..` was used as a folder path, so a prompt-injected agent could read a repository outside its project. Owners and names must now be plain names. A remote on a host that merely ends in `github.com` also no longer counts as GitHub.
 - **The code index could send a linked or hidden file to the embedding model.** When the index was asked to refresh named files, a link to a file outside the project, a hidden file such as `.env`, or a file in a folder next to the project with a similar name was indexed. With an OpenAI-compatible embedding connection, that text left the computer. Named files now follow the same rules as a whole pass.
+- **The agent browser's screenshot tool could write outside the workspace.** A file path such as `../../secrets.json` or an absolute path was accepted, and the tool counts as a read, so it did not ask first. A screenshot now stays in the workspace, also through links, and a recording's name stays one folder under `recordings`.
 - **Electron 43.8.3 in the app** (from 43.7.7), which stops trusting the compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9).
 - **The web tool, the agent browser and the Browser tab could reach this computer and the private network through an IPv6 spelling of a private address** (such as `[::ffff:127.0.0.1]`). These addresses are now refused, along with carrier-grade NAT (which Tailscale uses), multicast and other reserved ranges. The web tool and the Browser tab now check an address at the moment of connecting, so a name cannot pass the check and then resolve somewhere private, and `browser_navigate` refuses names that resolve to private addresses.
 - **Opening a terminal on Windows no longer puts the folder's path on a command line**, where a folder name containing `&` could run a command.
@@ -20,6 +21,9 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 ### Fixed
 
 - Cancelling a code index build no longer reports it as failed.
+- **The agent browser now submits forms.** Pressing Enter, and typing with `submit`, did nothing to a form in Chrome. A key chord such as `ctrl+b` no longer also types its letter, and typing with `clear: false` adds to a field's text instead of replacing it.
+- **Safari recordings play in the app.** They were listed with no frames, since only Chrome's JPEG frames were counted.
+- **Quitting Saturn closes the agent browser**, which used to keep running in the background.
 - **Memory learned only from the start of a long chat.** Every six turns Saturn looks for things worth remembering; it read a chat's oldest six turns every time, and now reads the latest six.
 - **Settings are no longer forgotten when Saturn restarts.** Your permission rules, sandbox, hooks, plugins, browser, embedding source, memory and plan-approval choices were saved but dropped at the next start, and the next save erased them from disk. The first-launch onboarding also came back. This also turned off the deny rules and the stricter sandbox you had set, and turned memory back on, until you set them again. Check **Settings → Permissions** and your sandbox after upgrading: what was lost before this fix cannot be recovered.
 - **A `secrets.json` that Saturn cannot read as encrypted is kept aside** instead of being taken for an old plaintext file and overwritten.

@@ -7,6 +7,7 @@ import { PublicAddress } from "../../domain/skills/public-address.js";
 import { assertPublicHost } from "../public-host.js";
 import { launchEnv } from "../launch-env.js";
 import { errorText, logger } from "../logger.js";
+import { recordingName, screenshotPath } from "./browser-files.js";
 import { SafariBrowser } from "./safari-browser.js";
 
 /**
@@ -463,8 +464,10 @@ export class BrowserSkill {
       const target = await this.resolve(args);
       const { model } = (await cdp.send("DOM.getBoxModel", { objectId: target.objectId }, session).catch(() => ({ model: undefined }))) as { model?: { content: number[] } };
       if (model) await this.pointAt((model.content[0]! + model.content[2]!) / 2, (model.content[1]! + model.content[5]!) / 2, true);
-      await cdp.send("Runtime.callFunctionOn", { objectId: target.objectId, functionDeclaration: "function () { this.focus(); if ('select' in this) this.select(); }" }, session);
-      if (args.clear !== false) await cdp.send("Runtime.callFunctionOn", { objectId: target.objectId, functionDeclaration: "function () { if ('value' in this) { this.value = ''; this.dispatchEvent(new Event('input', { bubbles: true })); } }" }, session);
+      await cdp.send("Runtime.callFunctionOn", { objectId: target.objectId, functionDeclaration: "function () { this.focus(); }" }, session);
+      // Kept text is typed after, not replaced: the caret goes to its end.
+      if (args.clear !== false) await cdp.send("Runtime.callFunctionOn", { objectId: target.objectId, functionDeclaration: "function () { if ('select' in this) this.select(); if ('value' in this) { this.value = ''; this.dispatchEvent(new Event('input', { bubbles: true })); } }" }, session);
+      else await cdp.send("Runtime.callFunctionOn", { objectId: target.objectId, functionDeclaration: "function () { if ('setSelectionRange' in this && 'value' in this) { try { this.setSelectionRange(this.value.length, this.value.length); } catch {} } }" }, session);
     }
     await cdp.send("Input.insertText", { text }, session);
     if (args.submit) await this.press("Enter");
@@ -484,7 +487,9 @@ export class BrowserSkill {
     const last = parts.pop() ?? "";
     const modifiers = parts.reduce((bits, part) => bits | ({ alt: 1, ctrl: 2, control: 2, meta: 4, cmd: 4, command: 4, shift: 8 }[part.toLowerCase()] ?? 0), 0);
     const spec = named[last.toLowerCase()] ?? { key: last, code: `Key${last.toUpperCase()}`, keyCode: last.toUpperCase().charCodeAt(0) };
-    for (const type of ["keyDown", "keyUp"]) await cdp.send("Input.dispatchKeyEvent", { type, modifiers, key: spec.key, code: spec.code, windowsVirtualKeyCode: spec.keyCode, ...(type === "keyDown" && spec.key.length === 1 ? { text: spec.key } : {}) }, session);
+    // What the key types: Enter a return, which is what submits a form; nothing while ctrl or cmd is held (bits 2 and 4).
+    const typed = modifiers & 6 ? undefined : spec.key === "Enter" ? "\r" : spec.key.length === 1 ? spec.key : undefined;
+    for (const type of ["keyDown", "keyUp"]) await cdp.send("Input.dispatchKeyEvent", { type, modifiers, key: spec.key, code: spec.code, windowsVirtualKeyCode: spec.keyCode, ...(type === "keyDown" && typed ? { text: typed } : {}) }, session);
     await new Promise((resolve) => setTimeout(resolve, 300));
     return { pressed: key, snapshot: await this.snapshotText() };
   }
@@ -505,7 +510,7 @@ export class BrowserSkill {
     const { data } = (await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 70, ...(args.fullPage ? { captureBeyondViewport: true } : {}) }, session)) as { data: string };
     const file = typeof args.file === "string" && args.file.trim() ? args.file.trim() : undefined;
     if (file) {
-      const target = path.resolve(this.dataDir, "workspace", file);
+      const target = await screenshotPath(this.dataDir, file);
       await mkdir(path.dirname(target), { recursive: true });
       await writeFile(target, Buffer.from(data, "base64"));
       return { file: target, bytes: Buffer.byteLength(data, "base64") };
@@ -525,7 +530,7 @@ export class BrowserSkill {
   private async recordStart(args: Record<string, unknown>) {
     await this.ensure();
     if (this.recording) throw new Error("Already recording; call browser_record_stop first.");
-    const name = typeof args.name === "string" && args.name.trim() ? args.name.trim().replace(/[^\w.-]/g, "_") : `recording-${Date.now().toString(36)}`;
+    const name = recordingName(args.name);
     const folder = path.resolve(this.dataDir, "workspace", "recordings", name);
     await mkdir(folder, { recursive: true });
     const recording = { file: folder, frames: 0, started: Date.now(), chunks: [] as string[] };

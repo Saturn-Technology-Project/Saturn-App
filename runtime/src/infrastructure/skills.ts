@@ -13,7 +13,7 @@ const browsers = new Map<string, BrowserSkill>();
 export function browserFor(dataDir: string): BrowserSkill {
   let browser = browsers.get(dataDir);
   if (!browser) {
-    browser = new BrowserSkill(dataDir);
+    browser = new BrowserSkill(dataDir, process.env.SATURN_SAFARI_ENDPOINT);
     browsers.set(dataDir, browser);
   }
   return browser;

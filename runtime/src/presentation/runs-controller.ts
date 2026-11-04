@@ -194,7 +194,7 @@ export function mountRuns(app: Express, services: AppServices): void {
   app.get("/runs/:id/recordings/:name/frames/:index", (req, res, next) => {
     try {
       const file = services.recordingFrame(param(req.params.id), param(req.params.name), Number(req.params.index));
-      res.type("image/jpeg");
+      res.type(file.endsWith(".png") ? "image/png" : "image/jpeg");
       res.sendFile(file, (error) => {
         if (error) next(new HttpError(404, "That frame is gone"));
       });

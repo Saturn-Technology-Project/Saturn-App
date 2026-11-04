@@ -5,7 +5,7 @@ import { HttpError } from "../domain/errors.js";
 import type { RuntimeKernel } from "./kernel.js";
 
 /**
- * The screencasts a run recorded with the browser tools: JPEG frames under `<data>/workspace/recordings/<name>/`
+ * The screencasts a run recorded with the browser tools: JPEG or PNG frames under `<data>/workspace/recordings/<name>/`
  * (see browser-skill.ts). The apps play the frames themselves; ffmpeg, when installed, turns one into an MP4.
  */
 export class RecordingService {
@@ -27,7 +27,7 @@ export class RecordingService {
       if (!folder) continue;
       const name = path.basename(folder);
       if (found.some((item) => item.name === name)) continue;
-      const frames = readdirSync(folder).filter((file) => /^frame-\d+\.jpg$/.test(file)).length;
+      const frames = readdirSync(folder).filter((file) => /^frame-\d+\.(jpg|png)$/.test(file)).length;
       found.push({ name, frames, ...(typeof result.seconds === "number" ? { seconds: result.seconds } : {}), exported: existsSync(path.join(folder, "out.mp4")) });
     }
     return found;
@@ -38,7 +38,9 @@ export class RecordingService {
     const recording = this.list(runId).find((item) => item.name === name);
     if (!recording) throw new HttpError(404, "This run has no such recording");
     if (!Number.isInteger(index) || index < 1 || index > recording.frames) throw new HttpError(404, "No such frame");
-    return path.join(this.root(), name, `frame-${String(index).padStart(5, "0")}.jpg`);
+    // Chrome records JPEGs, Safari PNGs.
+    const base = path.join(this.root(), name, `frame-${String(index).padStart(5, "0")}`);
+    return existsSync(`${base}.jpg`) ? `${base}.jpg` : `${base}.png`;
   }
 
   /** Writes out.mp4 next to the frames with ffmpeg (10 fps), or says ffmpeg is missing. */

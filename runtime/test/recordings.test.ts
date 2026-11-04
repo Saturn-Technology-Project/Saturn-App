@@ -29,4 +29,14 @@ test("a run's browser recordings are listed from its results, frames are served 
   assert.equal(services.recordingFrame("run_rec", "demo", 2), path.join(folder, "frame-00002.jpg"));
   assert.throws(() => services.recordingFrame("run_rec", "demo", 4), /No such frame/);
   assert.throws(() => services.recordingFrame("run_rec", "other", 1), /no such recording/);
+
+  // Safari records PNG frames, which count and play too.
+  const safari = path.join(store.root, "workspace", "recordings", "safari");
+  await mkdir(safari, { recursive: true });
+  await writeFile(path.join(safari, "frame-00001.png"), Buffer.from([0x89, 0x50]));
+  await store.update((state) => {
+    state.runs.unshift({ id: "run_png", agentId: "agt", input: "record", status: "completed", output: "", generation: 0, actions: [{ id: "a1", toolId: "browser_record_stop", arguments: {}, status: "completed", result: { recording: safari, frames: 1 } }] } as Run);
+  });
+  assert.deepEqual(services.recordings("run_png"), [{ name: "safari", frames: 1, exported: false }]);
+  assert.equal(services.recordingFrame("run_png", "safari", 1), path.join(safari, "frame-00001.png"));
 });

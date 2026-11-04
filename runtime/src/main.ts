@@ -6,6 +6,7 @@ import { startTelemetry, telemetryStatus } from "./infrastructure/otel-sdk.js";
 import { observeActiveRuns } from "./infrastructure/telemetry.js";
 import { createApp } from "./presentation/app.js";
 import { networkLog } from "./infrastructure/network-log.js";
+import { browserFor } from "./infrastructure/skills.js";
 import { FileStore } from "./infrastructure/store.js";
 
 // On Electron's Node (the packaged app), read .asar files as plain files: the runtime copies and deletes app
@@ -24,7 +25,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
     logger.info("runtime", `Stopping (${signal})`);
     services.kernel.jobs.stopAll();
-    void stopTelemetry().finally(() => process.exit(0));
+    void Promise.allSettled([stopTelemetry(), browserFor(directory).close()]).finally(() => process.exit(0));
   });
 }
 // Observes crashes without changing them: the process still exits as Node decides.
@@ -78,7 +79,7 @@ if (process.env.SATURN_DESKTOP_ATTACHED === "1" && Number.isInteger(desktopPid) 
       if ((error as NodeJS.ErrnoException).code !== "ESRCH") return;
       clearInterval(watchdog);
       logger.warn("runtime", `The Saturn app (pid ${desktopPid}) is gone; stopping`);
-      void stopTelemetry().finally(() => process.exit(0));
+      void Promise.allSettled([stopTelemetry(), browserFor(directory).close()]).finally(() => process.exit(0));
     }
   }, 3000);
   watchdog.unref();
