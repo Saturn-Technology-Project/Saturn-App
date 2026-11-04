@@ -22,6 +22,6 @@ regex = "1"
 serde = "1"
 serde_json = { version = "1", features = ["preserve_order"] }
 subtle = "2"
-tokio = { version = "1", features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1", features = ["fs", "io-std", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-stream = "0.1"
 url = "2"

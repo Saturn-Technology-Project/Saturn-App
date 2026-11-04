@@ -1,7 +1,8 @@
-//! Starts the Saturn runtime, or reuses one already answering on its port, and talks to it.
+//! Starts the Saturn runtime, or reuses one already answering on its port, and talks to it. The runtime holds a pipe from this app:
+//! closing it asks the runtime to stop, on every system, and it closes by itself if this app crashes.
 use std::env;
-use std::path::PathBuf;
-use std::process::{Child, Command};
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -11,6 +12,8 @@ use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout};
 
 const HOST: &str = "127.0.0.1";
+/// How long the runtime gets to end its jobs, browser and programs by itself before it is ended.
+const STOPPING: Duration = Duration::from_secs(4);
 
 pub struct Runtime {
     port: u16,
@@ -78,15 +81,24 @@ impl Runtime {
 
     /// Stops the runtime if this app started it.
     pub fn stop(&self) {
-        if let Some(mut child) = self
+        let Some(mut child) = self
             .child
             .lock()
             .expect("the runtime lock is not poisoned")
             .take()
-        {
-            let _ = child.kill();
-            let _ = child.wait();
+        else {
+            return;
+        };
+        drop(child.stdin.take());
+        let began = std::time::Instant::now();
+        while began.elapsed() < STOPPING {
+            if matches!(child.try_wait(), Ok(Some(_))) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
         }
+        let _ = child.kill();
+        let _ = child.wait();
     }
 
     async fn healthy(&self) -> bool {
@@ -128,52 +140,37 @@ fn parse_answer(answer: &[u8]) -> Option<Value> {
     }
 }
 
-/// The Node to run the runtime on in development: SATURN_NODE, the PATH, then where Homebrew puts it.
-fn find_node() -> PathBuf {
-    if let Some(node) = env::var_os("SATURN_NODE")
-        .map(PathBuf::from)
-        .filter(|node| node.exists())
-    {
-        return node;
-    }
-    let path = env::var_os("PATH").unwrap_or_default();
-    env::split_paths(&path)
-        .chain(["/opt/homebrew/bin".into(), "/usr/local/bin".into()])
-        .map(|folder| folder.join(if cfg!(windows) { "node.exe" } else { "node" }))
-        .find(|node| node.exists())
-        .unwrap_or_else(|| "node".into())
+/// The runtime's program, next to its sibling `saturn`: beside the app's own when packaged, the workspace's build in development.
+fn runtime_program(folder: &Path) -> PathBuf {
+    folder.join(if cfg!(windows) {
+        "saturn-server.exe"
+    } else {
+        "saturn-server"
+    })
 }
 
 fn spawn(layout: &Layout, port: u16) -> std::io::Result<Child> {
     let mut command = match layout {
         Layout::Packaged { resources } => {
-            let root = resources.join("runtime");
-            let mut command = Command::new(resources.join("node").join(if cfg!(windows) {
-                "node.exe"
-            } else {
-                "node"
-            }));
-            command.arg(root.join("dist/main.js")).current_dir(root);
+            let app = env::current_exe()?;
+            let folder = app.parent().unwrap_or(resources);
+            let mut command = Command::new(runtime_program(folder));
+            command.current_dir(resources);
             // The built-in embedding model for the code index ships inside the app.
             command.env("SATURN_MODELS_DIR", resources.join("models"));
             command
         }
         Layout::Development { repository } => {
-            let root = repository.join("runtime");
-            let mut command = Command::new(find_node());
-            command
-                .arg(root.join("node_modules/tsx/dist/cli.mjs"))
-                .arg("watch")
-                .arg(root.join("src/main.ts"))
-                .current_dir(root);
+            let mut command = Command::new(runtime_program(&repository.join("target/debug")));
+            command.current_dir(repository);
             command
         }
     };
     command
+        .stdin(Stdio::piped())
         .env("SATURN_RUNTIME_HOST", HOST)
         .env("SATURN_RUNTIME_PORT", port.to_string())
         .env("SATURN_DESKTOP_ATTACHED", "1")
-        .env("SATURN_DESKTOP_PID", std::process::id().to_string())
         .spawn()
 }
 

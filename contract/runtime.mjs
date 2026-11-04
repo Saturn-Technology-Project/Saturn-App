@@ -35,16 +35,17 @@ function command() {
 /**
  * Starts a runtime and waits until it answers. `stop()` ends it and deletes its data folder, as does a failed start.
  * `host` is what SATURN_RUNTIME_HOST is set to and what clients connect to. `dataDir` and `keepData` restart a runtime
- * on the data of an earlier one. `env` adds to or replaces the runtime's environment.
+ * on the data of an earlier one. `env` adds to or replaces the runtime's environment. `stdin` "pipe" gives the runtime the pipe a
+ * desktop app holds, as `child.stdin`.
  */
-export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keepData = false, env = {} } = {}) {
+export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keepData = false, env = {}, stdin = "ignore" } = {}) {
   const dataDir = existing ?? await mkdtemp(path.join(os.tmpdir(), "saturn-contract-"));
   const port = await freePort();
   const { file, args, cwd } = command();
   let output = "";
   const child = spawn(file, args, {
     cwd,
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: [stdin, "pipe", "pipe"],
     env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_NO_WAKEUP: "1", SATURN_RUNTIME_TOKEN: "", ...env },
   });
   child.stdout.on("data", (chunk) => { output += chunk; });
@@ -80,5 +81,5 @@ export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keep
     throw error;
   }
 
-  return { origin, port, dataDir, stop };
+  return { origin, port, dataDir, stop, child };
 }

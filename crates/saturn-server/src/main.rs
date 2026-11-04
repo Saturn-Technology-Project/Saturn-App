@@ -15,6 +15,7 @@ use axum::{Json, middleware};
 use saturn_core::Kernel;
 use saturn_store::FileStore;
 use serde_json::{Value, json};
+use tokio::io::AsyncReadExt;
 
 /// How long connections get to finish once the runtime is stopping.
 const LAST_CONNECTIONS: std::time::Duration = std::time::Duration::from_secs(2);
@@ -37,6 +38,13 @@ fn data_directory() -> Result<PathBuf, &'static str> {
 
 /// Ends when the system asks this process to stop.
 async fn stop_requested() {
+    tokio::select! {
+        () = system_asks_to_stop() => {}
+        () = app_is_gone() => {}
+    }
+}
+
+async fn system_asks_to_stop() {
     #[cfg(unix)]
     {
         use tokio::signal::unix::{SignalKind, signal};
@@ -49,6 +57,18 @@ async fn stop_requested() {
     }
     #[cfg(not(unix))]
     let _ = tokio::signal::ctrl_c().await;
+}
+
+/// Started by the desktop app, the runtime holds a pipe from it. The pipe closes when the app asks the runtime to stop, on every
+/// system, and when the app crashed or was force-quit and could not ask. Started any other way, this never ends.
+async fn app_is_gone() {
+    if env::var("SATURN_DESKTOP_ATTACHED").as_deref() != Ok("1") {
+        return std::future::pending().await;
+    }
+    let mut pipe = tokio::io::stdin();
+    let mut chunk = [0_u8; 256];
+    while matches!(pipe.read(&mut chunk).await, Ok(read) if read > 0) {}
+    saturn_core::logger::log("runtime", "info", "The Saturn app is gone; stopping");
 }
 
 /// Resumes sleeping runs whose wake time has come, including runs that slept through a restart.

@@ -15,7 +15,9 @@
     "stage:runtime": "node scripts/stage-runtime-modules.mjs",
     "stage:runtime:win": "node scripts/stage-runtime-modules.mjs --os win32 --cpu x64",
     "fetch:model": "node scripts/fetch-embedding-model.mjs",
-    "archive:mac": "node scripts/mac-archives.mjs"
+    "archive:mac": "node scripts/mac-archives.mjs",
+    "stage:binaries": "node scripts/stage-rust-binaries.mjs",
+    "package": "npm run build && npm run fetch:model && npm run stage:binaries && tauri build --config src-tauri/tauri.package.json"
   },
   "build": {
     "appId": "inc.saturntechnology.desktop",

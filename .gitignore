@@ -24,3 +24,4 @@ saturn-mv/
 
 # Tauri build output and generated schemas
 desktop/src-tauri/gen/
+desktop/src-tauri/binaries/
