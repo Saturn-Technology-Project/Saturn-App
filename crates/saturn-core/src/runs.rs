@@ -1106,12 +1106,20 @@ impl Kernel {
         match text(&model, "provider") {
             // The official programs run the whole agent loop (tools, approvals, session) themselves.
             "claude-code" => {
-                Box::pin(self.claude_turn(run_id, at, &agent, &model)).await?;
+                let watched = self.get_run(run_id)?;
+                self.research_watch_run(&watched).await;
+                let turn = Box::pin(self.claude_turn(run_id, at, &agent, &model)).await;
+                self.research_check_run(&watched, "Claude Code").await;
+                turn?;
                 self.note_program_finished(run_id, at);
                 return Ok(());
             }
             "codex" => {
-                Box::pin(self.codex_turn(run_id, at, &agent, &model)).await?;
+                let watched = self.get_run(run_id)?;
+                self.research_watch_run(&watched).await;
+                let turn = Box::pin(self.codex_turn(run_id, at, &agent, &model)).await;
+                self.research_check_run(&watched, "Codex").await;
+                turn?;
                 self.note_program_finished(run_id, at);
                 return Ok(());
             }
@@ -1379,6 +1387,13 @@ impl Kernel {
                 ))
             } else {
                 None
+            };
+            let approval = match approval {
+                None => {
+                    self.research_needs_approval(&current, &call.name, &call.arguments)
+                        .await
+                }
+                reason => reason,
             };
             if let Some(reason) = approval {
                 let action = step(

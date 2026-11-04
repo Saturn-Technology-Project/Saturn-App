@@ -235,11 +235,41 @@ impl ClaudeTurn {
             return Ok(json!({ "behavior": "deny", "message": refusal, "toolUseID": id }));
         }
         self.note_action(&id, tool, &input);
-        let asks = match self.approval {
-            GuardrailMode::Bypass => false,
-            GuardrailMode::Default => risky(tool, &input, &self.workdir),
-            GuardrailMode::Review => true,
+        let run = self.turn.kernel.get_run(&self.turn.run_id)?;
+        let file = file_of(tool, &input).map(str::to_owned);
+        if let Some(file) = &file
+            && let Some(reason) = self
+                .turn
+                .kernel
+                .research_refusal_for_file(&run, tool, file, &id)
+                .await
+        {
+            let mut record = locked(&self.turn.record);
+            if let Some(action) = record
+                .actions
+                .iter_mut()
+                .find(|item| text(item, "id") == id)
+            {
+                action["status"] = "denied".into();
+                action["reason"] = json!(reason);
+            }
+            return Ok(json!({ "behavior": "deny", "message": reason, "toolUseID": id }));
+        }
+        let pair = match &file {
+            Some(file) => {
+                self.turn
+                    .kernel
+                    .research_file_needs_approval(&run, file)
+                    .await
+            }
+            None => false,
         };
+        let asks = pair
+            || match self.approval {
+                GuardrailMode::Bypass => false,
+                GuardrailMode::Default => risky(tool, &input, &self.workdir),
+                GuardrailMode::Review => true,
+            };
         if asks {
             let shown = skill_of(tool).unwrap_or(tool);
             let allow = self.turn.ask(text(&self.agent, "name"), &id, shown).await?;

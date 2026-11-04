@@ -2,6 +2,7 @@
 //! `docs/research-contract.md` is the contract, and `contract/research-*.test.mjs` hold the runtime to it.
 mod freeze;
 mod labels;
+mod policy;
 mod runs;
 mod source;
 
@@ -31,6 +32,8 @@ pub struct ResearchState {
     changes: watch::Sender<u64>,
     /// The experiment runs this runtime has started and that have not ended.
     active: Mutex<HashMap<String, runs::ActiveRun>>,
+    /// What each agent run last saw of its protected files.
+    baselines: Mutex<HashMap<String, policy::Signatures>>,
     /// Set once the runtime is stopping: its runs end as interrupted, whatever their exit says.
     ending: AtomicBool,
 }
@@ -41,6 +44,7 @@ impl Default for ResearchState {
             locks: Mutex::default(),
             changes: watch::channel(0).0,
             active: Mutex::default(),
+            baselines: Mutex::default(),
             ending: AtomicBool::new(false),
         }
     }

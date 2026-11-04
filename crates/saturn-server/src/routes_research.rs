@@ -176,8 +176,25 @@ async fn sample_across(
         .await?)
 }
 
+async fn policy(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_policy(&project).await?)
+}
+
+async fn set_policy(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    ok(kernel.research_set_policy(&project, &body_of(body)).await?)
+}
+
+async fn events(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_events(&project).await?)
+}
+
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route(
+            "/projects/{id}/research/policy",
+            get(policy).put(set_policy),
+        )
+        .route("/projects/{id}/research/events", get(events))
         .route(
             "/projects/{id}/research/runs/{run}/labels",
             get(labels).post(set_label),

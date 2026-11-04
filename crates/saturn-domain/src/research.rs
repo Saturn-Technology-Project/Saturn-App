@@ -267,6 +267,72 @@ pub fn makes_cycle(child: &str, parent: &str, parent_of: impl Fn(&str) -> Option
     false
 }
 
+/// What the policy says about an agent writing a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PolicyVerdict {
+    Allowed,
+    NeedsApproval,
+    Manual,
+    Locked,
+    Records,
+}
+
+/// Whether a path is at or under a policy's key, which is a file, or a folder.
+fn is_under(path: &str, key: &str) -> bool {
+    let key = key.trim_end_matches('/');
+    path == key
+        || path
+            .strip_prefix(key)
+            .is_some_and(|rest| rest.starts_with('/'))
+}
+
+/// Checks a requested policy's shape.
+pub fn check_policy(policy: &Value) -> Result<(), String> {
+    if let Some(modes) = policy.get("modes") {
+        let modes = modes
+            .as_object()
+            .ok_or("\"modes\" must map paths to modes.")?;
+        if modes
+            .values()
+            .any(|mode| !matches!(mode.as_str(), Some("manual" | "pair" | "delegate")))
+        {
+            return Err("A mode must be manual, pair or delegate.".to_owned());
+        }
+    }
+    if let Some(locked) = policy.get("locked")
+        && !locked
+            .as_array()
+            .is_some_and(|paths| paths.iter().all(Value::is_string))
+    {
+        return Err("\"locked\" must list paths.".to_owned());
+    }
+    Ok(())
+}
+
+/// What the policy says about an agent writing a path. The records and locks always hold; among modes, the most specific
+/// key wins, and a file no key names is the agent's to change.
+pub fn policy_verdict(policy: &Value, locked: &[String], path: &str) -> PolicyVerdict {
+    if is_under(path, ".saturn/research") {
+        return PolicyVerdict::Records;
+    }
+    if locked.iter().any(|key| is_under(path, key)) {
+        return PolicyVerdict::Locked;
+    }
+    let mode = policy
+        .get("modes")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flatten()
+        .filter(|(key, _)| is_under(path, key))
+        .max_by_key(|(key, _)| key.len())
+        .and_then(|(_, mode)| mode.as_str());
+    match mode {
+        Some("manual") => PolicyVerdict::Manual,
+        Some("pair") => PolicyVerdict::NeedsApproval,
+        _ => PolicyVerdict::Allowed,
+    }
+}
+
 /// The longest line a samples file may have.
 pub const MAX_SAMPLE_LINE: u64 = 64 * 1024 * 1024;
 
@@ -374,6 +440,37 @@ mod tests {
         assert_ne!(
             fingerprint(&json!({"b": {"d": [1, 2]}})),
             fingerprint(&json!({"b": {"d": [2, 1]}}))
+        );
+    }
+
+    #[test]
+    fn the_most_specific_mode_wins_and_locks_and_records_always_hold() {
+        let policy =
+            json!({"modes": {"src": "manual", "src/data.py": "delegate", "pair.py": "pair"}});
+        let locks = ["set.jsonl".to_owned()];
+        assert_eq!(
+            policy_verdict(&policy, &locks, "src/probe.py"),
+            PolicyVerdict::Manual
+        );
+        assert_eq!(
+            policy_verdict(&policy, &locks, "src/data.py"),
+            PolicyVerdict::Allowed
+        );
+        assert_eq!(
+            policy_verdict(&policy, &locks, "srcs/other.py"),
+            PolicyVerdict::Allowed
+        );
+        assert_eq!(
+            policy_verdict(&policy, &locks, "pair.py"),
+            PolicyVerdict::NeedsApproval
+        );
+        assert_eq!(
+            policy_verdict(&policy, &locks, "set.jsonl"),
+            PolicyVerdict::Locked
+        );
+        assert_eq!(
+            policy_verdict(&policy, &locks, ".saturn/research/hypotheses/h.json"),
+            PolicyVerdict::Records
         );
     }
 

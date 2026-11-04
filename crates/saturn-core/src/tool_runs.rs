@@ -134,6 +134,10 @@ impl Kernel {
     }
 
     /// The project folder a run works in, or nothing for chats outside a project (the private sandbox).
+    pub(crate) fn workdir_of_run(&self, run: &Value) -> Result<Option<PathBuf>, CoreError> {
+        self.workdir_of(run)
+    }
+
     fn workdir_of(&self, run: &Value) -> Result<Option<PathBuf>, CoreError> {
         self.workdir_for(self.find_thread(text(run, "threadId")).as_ref())
     }
@@ -298,11 +302,18 @@ impl Kernel {
         }
         let span = Span::start(format!("execute_tool {tool}"), Kind::Internal, attributes);
         let started = std::time::Instant::now();
+        let watched = self.get_run(run_id).ok();
+        if let Some(run) = &watched {
+            self.research_watch_run(run).await;
+        }
         let answer = span
             .scope(Box::pin(self.execute_tool_inner(
                 agent_id, tool, arguments, run_id, action_id,
             )))
             .await;
+        if let Some(run) = &watched {
+            self.research_check_run(run, tool).await;
+        }
         let status = answer.as_ref().map_or("failed".to_owned(), |action| {
             text(action, "status").to_owned()
         });
@@ -401,6 +412,15 @@ impl Kernel {
                 .await;
         }
         let run = self.get_run(run_id)?;
+        // Checked here, after any approval: a mode changed while a call waited still counts.
+        if let Some(reason) = self
+            .research_refusal(&run, tool, arguments, action_id)
+            .await
+        {
+            return Ok(failed(&reason));
+        }
+        self.research_note_assisted(&run, tool, arguments, action_id)
+            .await;
         match tool {
             "skill" => {
                 let name = text(arguments, "name");
