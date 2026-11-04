@@ -1,0 +1,175 @@
+/* The window around every screen. */
+.lab-app {
+  display: flex;
+  height: 100vh;
+  min-width: 0;
+  background: var(--stage);
+}
+
+.lab-rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: var(--rail-width);
+  padding: 6px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.lab-rail-drag {
+  flex: none;
+  height: 34px;
+  --app-region: drag;
+}
+
+.lab-rail-space {
+  flex: 1;
+}
+
+.lab-rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.lab-rail-item:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.lab-rail-item[aria-current="page"] {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.lab-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lab-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--bar-height);
+  padding: 4px calc(12px + var(--window-buttons)) 4px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--stage);
+  --app-region: drag;
+}
+
+.lab-bar button,
+.lab-bar select,
+.lab-bar a {
+  --app-region: no-drag;
+}
+
+.lab-bar-project {
+  max-width: 240px;
+  min-height: 30px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  font-weight: 600;
+}
+
+.lab-bar-project:hover {
+  border-color: var(--line-strong);
+}
+
+.lab-bar-context {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lab-screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lab-screen[hidden] {
+  display: none;
+}
+
+.lab-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.lab-palette {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100vw - 32px));
+  max-height: 60vh;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--elevated);
+  box-shadow: var(--shadow-md);
+  align-self: flex-start;
+}
+
+.lab-palette input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  outline: none;
+}
+
+.lab-palette ul {
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  list-style: none;
+}
+
+.lab-palette-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+}
+
+.lab-palette-item.active {
+  background: var(--hover);
+}

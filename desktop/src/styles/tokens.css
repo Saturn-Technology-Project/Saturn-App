@@ -1,0 +1,172 @@
+/* Saturn's colors, type and sizes, in light and dark. Every screen's style uses these names. */
+:root {
+  --bg: #f4f3ef;
+  --stage: #faf9f6;
+  --panel: #f6f5f1;
+  --fg: #18181b;
+  --muted: #71717a;
+  --subtle: #a1a1aa;
+  --line: #e4e2dc;
+  --line-strong: #d4d1c8;
+  --card: #ffffff;
+  --elevated: #ffffff;
+  --hover: #eceae4;
+  --input: #ffffff;
+  --code-bg: #f1f0ec;
+  --accent: #18181b;
+  --on-accent: #ffffff;
+  --ok: #15803d;
+  --ok-bg: rgba(21, 128, 61, 0.1);
+  --wait: #b45309;
+  --wait-bg: rgba(180, 83, 9, 0.12);
+  --off: #b91c1c;
+  --off-bg: rgba(185, 28, 28, 0.1);
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.05);
+  --shadow-md: 0 8px 24px rgba(24, 24, 27, 0.07);
+  --focus: rgba(24, 24, 27, 0.08);
+  --blue: #2563eb;
+  --blue-hover: #1d4ed8;
+  --on-blue: #ffffff;
+  --violet: #7c3aed;
+  --violet-bg: rgba(124, 58, 237, 0.1);
+  --blue-bg: rgba(37, 99, 235, 0.1);
+  --nav-width: 226px;
+  --inspector-width: 420px;
+  --term-bg: #ffffff;
+  --term-fg: #1f2328;
+  --term-cmd: #1f2328;
+  --term-prompt: #0969da;
+  --term-stdout: #24292f;
+  --term-stderr: #cf222e;
+  --term-exit-bg: rgba(207, 34, 46, 0.1);
+  --term-running: #9a6700;
+  --term-caret: #0969da;
+  --term-selection: rgba(9, 105, 218, 0.2);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #161618;
+  --stage: #1c1c1f;
+  --panel: #18181b;
+  --fg: #f4f4f5;
+  --muted: #a1a1aa;
+  --subtle: #71717a;
+  --line: #2c2c31;
+  --line-strong: #3c3c43;
+  --card: #232327;
+  --elevated: #27272c;
+  --hover: #25252a;
+  --input: #202024;
+  --code-bg: #151518;
+  --accent: #f4f4f5;
+  --on-accent: #18181b;
+  --ok: #4ade80;
+  --ok-bg: rgba(74, 222, 128, 0.12);
+  --wait: #fbbf24;
+  --wait-bg: rgba(251, 191, 36, 0.14);
+  --off: #f87171;
+  --off-bg: rgba(248, 113, 113, 0.14);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --focus: rgba(244, 244, 245, 0.12);
+  --blue: #1f5fa8;
+  --blue-hover: #2a6fbf;
+  --on-blue: #e8f1fc;
+  --violet: #a78bfa;
+  --violet-bg: rgba(167, 139, 250, 0.14);
+  --blue-bg: rgba(96, 165, 250, 0.14);
+  --term-bg: #0d1117;
+  --term-fg: #f0f6fc;
+  --term-cmd: #f0f6fc;
+  --term-prompt: #58a6ff;
+  --term-stdout: #c9d1d9;
+  --term-stderr: #f85149;
+  --term-exit-bg: rgba(248, 81, 73, 0.14);
+  --term-running: #d29922;
+  --term-caret: #58a6ff;
+  --term-selection: rgba(88, 166, 255, 0.25);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  --text-small: 12px;
+  --text-body: 13px;
+  --text-title: 18px;
+  --rail-width: 72px;
+  --bar-height: 44px;
+  --radius: 8px;
+  /* Room for the macOS window buttons, and for those the Windows bridge draws. */
+  --traffic-space: 0px;
+  --window-buttons: var(--saturn-window-buttons, 0px);
+}
+
+:root[data-platform="darwin"] {
+  --traffic-space: 78px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--text-body) / 1.5 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+h1,
+h2,
+h3,
+p,
+pre {
+  margin: 0;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
