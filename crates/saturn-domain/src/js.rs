@@ -1,4 +1,4 @@
-//! How JavaScript reads the values a tool call holds, for the places the TypeScript runtime coerces a model's arguments.
+//! How JavaScript reads the values a tool call holds, for the places earlier versions coerces a model's arguments.
 use serde_json::Value;
 
 /// Whether JavaScript's `trim` and `\s` count this character as white space.

@@ -27,7 +27,7 @@ Saturn is a preview. Only the latest release receives security fixes; please che
 
 ## Scope
 
-In scope: this repository's own code, that is the runtime (`runtime/`), the desktop app (`desktop/`), the SDK ([Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK), its own repository), and the release and supply-chain workflows.
+In scope: this repository's own code, that is the runtime and the CLI (`crates/`), the desktop app (`desktop/`), the SDK ([Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK), its own repository), and the release and supply-chain workflows.
 
 Out of scope, reported to their owners instead:
 
@@ -69,7 +69,7 @@ Saturn 目前為預覽版，只有最新版本會收到安全修補；回報前�
 
 ## 範圍
 
-範圍內：此 repository 自己的程式碼，即 Runtime（`runtime/`）、桌面應用程式（`desktop/`）、SDK（[Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)，獨立的 repository），以及發布與供應鏈的 workflow。
+範圍內：此 repository 自己的程式碼，即 Runtime 與 CLI（`crates/`）、桌面應用程式（`desktop/`）、SDK（[Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)，獨立的 repository），以及發布與供應鏈的 workflow。
 
 範圍外，請回報給各自的維護者：
 

@@ -11,7 +11,6 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **The agent browser's screenshot tool could write outside the workspace.** A file path such as `../../secrets.json` or an absolute path was accepted, and the tool counts as a read, so it did not ask first. A screenshot now stays in the workspace, also through links, and a recording's name stays one folder under `recordings`.
 - **Computer use only starts apps.** Finding an app by path or name handed it to the system's opener, so a script, a document or a web address given as an "app" would run outside the sandbox.
 - **An agent's customization tools stay in the project.** A rule named `../../somewhere` was written outside it, and a link in a cloned repository could lead a new rule, skill or plugin out of it, or bring a file from elsewhere into a migrated workflow or a bundled plugin.
-- **Electron 43.8.3 in the app** (from 43.7.7), which stops trusting the compromised eMudhra intermediate certificates (GHSA-jr5w-w6x2-84p9).
 - **The web tool, the agent browser and the Browser tab could reach this computer and the private network through an IPv6 spelling of a private address** (such as `[::ffff:127.0.0.1]`). These addresses are now refused, along with carrier-grade NAT (which Tailscale uses), multicast and other reserved ranges. The web tool and the Browser tab now check an address at the moment of connecting, so a name cannot pass the check and then resolve somewhere private, and `browser_navigate` refuses names that resolve to private addresses.
 - **Opening a terminal on Windows no longer puts the folder's path on a command line**, where a folder name containing `&` could run a command.
 - **The file view no longer follows a symbolic link out of the workspace**, which a cloned repository could use to show a file from elsewhere on the computer.
@@ -41,6 +40,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Changed
 
+- **Saturn is rewritten in Rust and Tauri.** The app and its runtime no longer carry Electron and Node.js, so the download is much smaller, and the interface now runs in your system's web view. Your data in `~/.saturn-app` keeps working as it is. An older Saturn cannot update to this version: install it by hand once, and later versions update themselves. The agent browser now needs Chrome or a relative such as Edge, or Safari on macOS, and says so when there is none. OTLP export sends JSON over HTTP only, so `OTEL_EXPORTER_OTLP_PROTOCOL` has no effect, and the desktop app's own spans are not exported for now. The Windows version has been type-checked but not run yet.
 - **The Completion Model setting is now Background Model** in Settings → General. It writes memory notes from your chats and drafts automations when an agent's own model has no API, so check where it points: chat content goes to that model.
 
 ### Removed

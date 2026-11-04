@@ -15,7 +15,7 @@ base64 = "0.22"
 jiff = "0.2"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
-# The code index's file, the same SQLite file the TypeScript runtime wrote.
+# The code index's file, the same SQLite file earlier versions wrote.
 rusqlite = { version = "0.41", features = ["bundled"] }
 saturn-browser = { path = "../saturn-browser" }
 saturn-computer = { path = "../saturn-computer" }

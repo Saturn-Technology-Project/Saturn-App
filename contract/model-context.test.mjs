@@ -312,7 +312,7 @@ test("a new agent gets the browser, and a browser tool refuses a private address
   const agent = await api(runtime, "POST", "/agents", { name: "Fresh" });
   assert.ok(agent.mcpConnectionIds.includes("browser"), agent.mcpConnectionIds.join(","));
 
-  const own = await startRuntime({ env: { SATURN_BROWSER: "/nonexistent/chrome", SATURN_ELECTRON: "" } });
+  const own = await startRuntime({ env: { SATURN_BROWSER: "/nonexistent/chrome" } });
   try {
     const scripted = await model((body) => (body.tools?.length && !actedSinceAsking(body.messages)
       ? (offeredBy(body).includes("browser_navigate")
