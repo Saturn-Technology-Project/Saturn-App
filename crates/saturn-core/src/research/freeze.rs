@@ -44,7 +44,7 @@ pub(crate) async fn hash_file(path: &Path) -> std::io::Result<(String, u64)> {
 }
 
 /// Whether a path, from a project's folder, is the records themselves or git's own.
-fn is_bookkeeping(relative: &str) -> bool {
+pub(super) fn is_bookkeeping(relative: &str) -> bool {
     relative == ".git"
         || relative.starts_with(".git/")
         || relative == RECORDS

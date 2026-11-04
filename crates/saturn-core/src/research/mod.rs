@@ -2,6 +2,7 @@
 //! `docs/research-contract.md` is the contract, and `contract/research-*.test.mjs` hold the runtime to it.
 mod freeze;
 mod runs;
+mod source;
 
 use std::collections::HashMap;
 use std::io::ErrorKind;

@@ -6,6 +6,7 @@ use axum::Router;
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use saturn_core::Kernel;
+use serde_json::Value;
 
 use crate::routes::{Answer, Body, Shared, body_of, created, given, ok};
 
@@ -97,8 +98,62 @@ async fn stop_run(State(kernel): Shared, Path((project, id)): Path<(String, Stri
     ok(kernel.research_stop_run(&project, &id).await?)
 }
 
+async fn read_source(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let path = query.get("path").map_or(".", String::as_str);
+    let thread = query.get("threadId").map(String::as_str);
+    ok(kernel.research_source_read(&project, path, thread).await?)
+}
+
+async fn write_source(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    ok(kernel
+        .research_source_write(
+            &project,
+            given(&body, "path").unwrap_or(""),
+            body.get("content").and_then(Value::as_str).unwrap_or(""),
+            given(&body, "expectedRevision"),
+            given(&body, "threadId"),
+        )
+        .await?)
+}
+
+async fn samples(
+    State(kernel): Shared,
+    Path((project, id)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let number = |key: &str| query.get(key).and_then(|value| value.parse::<u64>().ok());
+    ok(kernel
+        .research_samples(
+            &project,
+            &id,
+            number("cursor").unwrap_or(0),
+            number("limit").map(|limit| limit as usize),
+        )
+        .await?)
+}
+
+async fn log(
+    State(kernel): Shared,
+    Path((project, id)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let stream = query.get("stream").map_or("stdout", String::as_str);
+    ok(kernel.research_run_log(&project, &id, stream).await?)
+}
+
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route(
+            "/projects/{id}/research/source",
+            get(read_source).put(write_source),
+        )
+        .route("/projects/{id}/research/runs/{run}/samples", get(samples))
+        .route("/projects/{id}/research/runs/{run}/log", get(log))
         .route("/projects/{id}/research/runs", get(runs))
         .route("/projects/{id}/research/runs/{run}", get(run))
         .route("/projects/{id}/research/runs/{run}/stop", post(stop_run))
