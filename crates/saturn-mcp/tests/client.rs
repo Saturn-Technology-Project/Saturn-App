@@ -378,3 +378,37 @@ async fn a_sign_in_page_that_is_not_a_web_address_is_never_opened() {
     );
     assert_eq!(*opened.lock().expect("not poisoned"), 0);
 }
+
+/// A server that cannot be reached says which host, and why, without its full address.
+#[tokio::test]
+async fn an_unreachable_server_says_which_host_and_why() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("a port");
+    let port = listener.local_addr().expect("an address").port();
+    drop(listener);
+    let (store, _data) = store().await;
+    let client = McpClient::new(
+        store,
+        "http://127.0.0.1:1/oauth/callback".to_owned(),
+        Arc::new(|_: &str| {}),
+    )
+    .expect("a client");
+    let target = Target {
+        id: "gone".to_owned(),
+        url: format!("http://127.0.0.1:{port}/secret-path?token=abc"),
+        auth: String::new(),
+        command: None,
+    };
+    let message = client
+        .call(&target, "tool", &json!({}), &[])
+        .await
+        .expect_err("nothing listens there")
+        .to_string();
+    assert!(message.contains(&format!("127.0.0.1:{port}")), "{message}");
+    assert!(message.to_lowercase().contains("refused"), "{message}");
+    assert!(
+        !message.contains("secret-path") && !message.contains("token=abc"),
+        "{message}"
+    );
+}

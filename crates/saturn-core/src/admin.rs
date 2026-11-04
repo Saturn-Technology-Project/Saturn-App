@@ -72,6 +72,7 @@ impl Kernel {
             Some(Value::Null) => Some(None),
             Some(value) => Some(Some(check_sandbox(value)?)),
         };
+        let before = self.settings();
         let next = self
             .store
             .update(|state| {
@@ -143,9 +144,34 @@ impl Kernel {
             })
             .await?;
         if let Some(level) = logging {
+            // Recorded whichever way it goes: at the louder of the two levels, so lowering it is on record as well.
+            let was = before
+                .get("logging")
+                .and_then(Value::as_str)
+                .unwrap_or("info");
+            if was != level {
+                logger::set_level(if logger::rank(level) < logger::rank(was) {
+                    level
+                } else {
+                    "info"
+                });
+                log(
+                    "runtime",
+                    "info",
+                    &format!("Logging level changed from {was} to {level}"),
+                );
+            }
             logger::set_level(level);
         }
-        log("runtime", "info", "Settings saved");
+        let setting = |values: &Value, key: &str| text(values, key).to_owned();
+        let mut said = String::new();
+        if setting(&next, "name") != setting(&before, "name") {
+            said.push_str(&format!(" (name: {})", text(&next, "name")));
+        }
+        if setting(&next, "environment") != setting(&before, "environment") {
+            said.push_str(&format!(" (environment: {})", text(&next, "environment")));
+        }
+        log("runtime", "info", &format!("Settings saved{said}"));
         Ok(next)
     }
 

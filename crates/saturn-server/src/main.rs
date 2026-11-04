@@ -98,6 +98,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     saturn_telemetry::network::start(&directory);
     let telemetry = saturn_telemetry::start(&directory).await;
     let store = Arc::new(FileStore::load(&directory).await?);
+    if let Some(problem) = store.load_problem() {
+        saturn_core::logger::log("store", "error", problem);
+    }
     let kernel = Kernel::new(store)?;
     kernel.ensure_builtins().await?;
     if let Some(level) = kernel.settings().get("logging").and_then(Value::as_str) {

@@ -24,7 +24,7 @@ static LOG: LazyLock<Mutex<Lines>> = LazyLock::new(|| {
     })
 });
 
-fn rank(level: &str) -> u8 {
+pub(crate) fn rank(level: &str) -> u8 {
     match level {
         "debug" => 0,
         "info" => 1,

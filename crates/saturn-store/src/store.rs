@@ -31,6 +31,8 @@ struct Contents {
 /// The state and secrets of a data folder. Changes apply at once and reach the disk in the order they were made.
 pub struct FileStore {
     directory: PathBuf,
+    /// What was wrong with `state.json` when it was read, for the log.
+    load_problem: Option<String>,
     contents: Mutex<Contents>,
     /// Holds the writes in order; a write keeps it until finished, even if whoever asked for it stopped waiting.
     writing: Arc<AsyncMutex<SecretsFile>>,
@@ -46,16 +48,17 @@ impl FileStore {
     /// Reads the data folder with a given secrets file (tests choose its key store with this).
     pub async fn load_with(directory: &Path, mut secrets_file: SecretsFile) -> io::Result<Self> {
         let owned = directory.to_path_buf();
-        let (state, secrets, secrets_file) = task::spawn_blocking(move || {
+        let (state, load_problem, secrets, secrets_file) = task::spawn_blocking(move || {
             fs::create_dir_all(&owned)?;
-            let state = read_state(&owned)?;
+            let (state, problem) = read_state(&owned)?;
             let secrets = secrets_file.load()?;
-            io::Result::Ok((state, secrets, secrets_file))
+            io::Result::Ok((state, problem, secrets, secrets_file))
         })
         .await
         .map_err(io::Error::other)??;
         Ok(Self {
             directory: directory.to_path_buf(),
+            load_problem,
             contents: Mutex::new(Contents {
                 state,
                 secrets,
@@ -64,6 +67,11 @@ impl FileStore {
             writing: Arc::new(AsyncMutex::new(secrets_file)),
             changes: watch::channel(0).0,
         })
+    }
+
+    /// What was wrong with `state.json` at the start, if anything.
+    pub fn load_problem(&self) -> Option<&str> {
+        self.load_problem.as_deref()
     }
 
     pub fn root(&self) -> &Path {
@@ -184,11 +192,13 @@ impl FileStore {
 
 /// `state.json`'s contents. A missing file is a first start. An unusable one would be overwritten by the next save, so a copy
 /// is kept next to it and the loss is logged. An error means it could not be read at all, and starting empty would destroy it.
-fn read_state(directory: &Path) -> io::Result<AppState> {
+fn read_state(directory: &Path) -> io::Result<(AppState, Option<String>)> {
     let file = directory.join("state.json");
     let raw = match fs::read(&file) {
         Ok(raw) => raw,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(AppState::default()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return Ok((AppState::default(), None));
+        }
         Err(error) => return Err(error),
     };
     let mut clipped = false;
@@ -215,12 +225,12 @@ fn read_state(directory: &Path) -> io::Result<AppState> {
             Some(format!("is not valid JSON ({error})")),
         ),
     };
-    if let Some(problem) = problem {
+    let problem = problem.map(|problem| {
         let kept =
             set_aside(&file, "unreadable").unwrap_or_else(|| "(no copy could be made)".to_owned());
-        eprintln!(
-            "[store] state.json {problem}; what could not be read starts empty or is cut off. The old file was kept as {kept}"
-        );
-    }
-    Ok(state)
+        format!(
+            "state.json {problem}; what could not be read starts empty or is cut off. The old file was kept as {kept}"
+        )
+    });
+    Ok((state, problem))
 }

@@ -12,7 +12,8 @@ let folder;
 const servers = [];
 
 before(async () => {
-  runtime = await startRuntime();
+  // Stands for a credential in the runtime's own environment, which a local server must not inherit.
+  runtime = await startRuntime({ env: { CONTRACT_KEY_FROM_PARENT: "leaked-from-the-runtime" } });
   folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-mcp-")));
 });
 after(async () => {

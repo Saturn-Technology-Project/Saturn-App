@@ -375,9 +375,18 @@ impl Kernel {
             "catalog",
             "info",
             &format!(
-                "Model {} connected ({})",
+                "Model {} connected ({}, {})",
                 text(&model, "name"),
-                provider.label
+                provider.label,
+                if !secret.is_empty() {
+                    "key entered".to_owned()
+                } else if keyed["hasSecret"] == true {
+                    format!("using the saved {} key", provider.label)
+                } else if provider.needs_key {
+                    "no key".to_owned()
+                } else {
+                    "no key needed".to_owned()
+                }
             ),
         );
         if provider.needs_key && keyed["hasSecret"] != true {
@@ -403,7 +412,7 @@ impl Kernel {
 
     /// Changes an agent. Its permission rules are edited through /permissions, never through this.
     pub async fn update_agent(&self, id: &str, patch: &Value) -> Result<Value, CoreError> {
-        self.get_agent(id)?;
+        let before = self.get_agent(id)?;
         let changed = self
             .store
             .update(|state| {
@@ -437,28 +446,40 @@ impl Kernel {
             })
             .await?;
         let agent = changed.ok_or_else(|| CoreError::new(404, "Agent not found"))?;
-        // Field names only: instructions and descriptions can be long or private.
-        let names: Vec<&str> = patch
+        // Field names only: instructions and descriptions can be long or private. Nothing changed, nothing to say.
+        let names: Vec<&str> = agent
             .as_object()
             .into_iter()
             .flatten()
+            .filter(|(key, value)| before.get(key.as_str()) != Some(*value))
             .map(|(key, _)| key.as_str())
             .collect();
-        log(
-            "catalog",
-            "info",
-            &format!(
-                "Agent \"{}\" updated: {}",
-                text(&agent, "name"),
-                names.join(", ")
-            ),
-        );
+        if !names.is_empty() {
+            log(
+                "catalog",
+                "info",
+                &format!(
+                    "Agent \"{}\" updated: {}",
+                    text(&agent, "name"),
+                    names.join(", ")
+                ),
+            );
+        }
         Ok(agent)
     }
 
     /// Deletes an agent with its runs, chats and automations.
     pub async fn delete_agent(&self, id: &str) -> Result<(), CoreError> {
         let agent = self.get_agent(id)?;
+        let count = |records: &[Value]| {
+            records
+                .iter()
+                .filter(|item| text(item, "agentId") == id)
+                .count()
+        };
+        let (runs, automations) = self
+            .store
+            .read(|state| (count(&state.runs), count(&state.automations)));
         self.store
             .update(|state| {
                 state.agents.retain(|item| text(item, "id") != id);
@@ -470,7 +491,10 @@ impl Kernel {
         log(
             "catalog",
             "info",
-            &format!("Agent \"{}\" deleted", text(&agent, "name")),
+            &format!(
+                "Agent \"{}\" deleted with {runs} runs and {automations} automations",
+                text(&agent, "name")
+            ),
         );
         Ok(())
     }
@@ -478,6 +502,17 @@ impl Kernel {
     /// Changes a model connection. A new key also becomes the provider's saved key.
     pub async fn update_model(&self, id: &str, patch: &Value) -> Result<Value, CoreError> {
         let secret = text(patch, "secret");
+        let before = self
+            .store
+            .read(|state| by_id(&state.models, id).cloned())
+            .ok_or_else(|| CoreError::new(404, "Model connection not found"))?;
+        // Refused before anything is saved, or the model would claim a key it does not have.
+        if !secret.is_empty() && runs_on_plan(text(&before, "provider")) {
+            return Err(CoreError::new(
+                400,
+                "This model runs on your own plan through its official program and takes no API key.",
+            ));
+        }
         let updated = self
             .store
             .update(|state| {
@@ -505,22 +540,35 @@ impl Kernel {
             })
             .await?;
         let updated = updated.ok_or_else(|| CoreError::new(404, "Model connection not found"))?;
-        if !secret.is_empty() && runs_on_plan(text(&updated, "provider")) {
-            return Err(CoreError::new(
-                400,
-                "This model runs on your own plan through its official program and takes no API key.",
-            ));
-        }
         if !secret.is_empty() {
             self.broker
                 .save_key(&connection_of(&updated), secret)
                 .await?;
         }
-        log(
-            "catalog",
-            "info",
-            &format!("Model {} updated", text(&updated, "name")),
-        );
+        // Never the key itself; for a key, only that one was saved and that it now serves the whole provider.
+        let mut fields: Vec<&str> = ["name", "provider", "model", "baseUrl", "effort"]
+            .into_iter()
+            .filter(|key| before.get(*key) != updated.get(*key))
+            .collect();
+        if !secret.is_empty() {
+            fields.push("API key");
+        }
+        if !fields.is_empty() {
+            let shared = if secret.is_empty() {
+                String::new()
+            } else {
+                format!(" (now the saved {} key)", text(&updated, "provider"))
+            };
+            log(
+                "catalog",
+                "info",
+                &format!(
+                    "Model {} updated: {}{shared}",
+                    text(&updated, "name"),
+                    fields.join(", ")
+                ),
+            );
+        }
         Ok(self.with_key(&updated))
     }
 

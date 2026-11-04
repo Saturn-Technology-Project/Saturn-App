@@ -29,6 +29,12 @@ fn transport_error(error: &reqwest::Error) -> String {
     if let Some(url) = error.url() {
         message = message.replace(&format!(" for url ({url})"), "");
     }
+    // The cause says why (a name that does not resolve, a refused connection), where the top line only says the request failed.
+    let mut cause = std::error::Error::source(error);
+    while let Some(reason) = cause {
+        message = format!("{message}: {reason}");
+        cause = std::error::Error::source(reason);
+    }
     message
 }
 

@@ -77,7 +77,7 @@ test("a Claude Code turn starts the program as the SDK does, opens with what Sat
   }
 });
 
-test("the next turn of a Claude Code chat resumes its session, and a group member keeps one per agent", async () => {
+test("the next turn of a Claude Code chat resumes its session", async () => {
   const saturn = await startWithPrograms();
   try {
     const agent = await coder(saturn, "claude-code", { autonomy: "bypass" });
@@ -100,6 +100,7 @@ test("Saturn's rules, memory, mode and an image reach Claude Code; Plan is the p
     const agent = await coder(saturn, "claude-code", { instructions: "Be brief." });
     const { folder, thread } = await projectChat(saturn, agent);
     await writeFile(path.join(folder, "CLAUDE.md"), "Use small commits.\n");
+    await saturn.api("PUT", "/memory/global", { content: "- Prefers tabs over spaces." });
     await saturn.scenario({ steps: [result("planned")] });
     const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==";
     const run = await runToEnd(saturn, agent.id, { input: "make a plan", threadId: thread.id, mode: "plan", images: [`data:image/png;base64,${png}`] });
@@ -109,6 +110,7 @@ test("Saturn's rules, memory, mode and an image reach Claude Code; Plan is the p
     assert.equal(program.cwd, folder);
     const [initialize, user] = await received(saturn);
     assert.match(initialize.request.appendSystemPrompt, /Use small commits\./);
+    assert.match(initialize.request.appendSystemPrompt, /Prefers tabs over spaces/);
     assert.match(initialize.request.appendSystemPrompt, /Be brief\.\n\n/);
     assert.deepEqual(user.message.content, [
       { type: "image", source: { type: "base64", media_type: "image/png", data: png } },
@@ -154,7 +156,7 @@ test("Review asks for everything that is not read-only, and the program gets the
   }
 });
 
-test("The default asks only for risky actions, Bypass never asks, and a group's setting wins", async () => {
+test("The default asks only for risky actions, and Bypass never asks", async () => {
   const saturn = await startWithPrograms();
   try {
     const usual = await coder(saturn, "claude-code", { autonomy: "execute_when_allowed" });
@@ -369,6 +371,7 @@ test("A Codex thread is resumed, a resumed one is not told again what it knows, 
   await new Promise((resolve) => rag.listen(0, "127.0.0.1", resolve));
   try {
     const source = await saturn.api("POST", "/connections/rag", { name: "Docs", url: `http://127.0.0.1:${rag.address().port}/` });
+    await saturn.api("PUT", "/memory/global", { content: "- Prefers tabs over spaces." });
     const agent = await coder(saturn, "codex", { model: "default", instructions: "Be brief.", ragConnectionIds: [source.id] });
     await saturn.scenario({
       steps: [
@@ -388,7 +391,8 @@ test("A Codex thread is resumed, a resumed one is not told again what it knows, 
     const prompts = (await saturn.journal()).filter((entry) => entry.prompt !== undefined).map((entry) => entry.prompt);
     assert.match(prompts[0], /<instructions>\nBe brief\.\n<\/instructions>/);
     assert.match(prompts[0], /<knowledge>[\s\S]*scripts\/ship\.sh[\s\S]*<\/knowledge>\n\nhow do I deploy\?$/);
-    assert.doesNotMatch(prompts[1], /<instructions>/);
+    assert.match(prompts[0], /<memory>[\s\S]*Prefers tabs over spaces[\s\S]*<\/memory>/);
+    assert.doesNotMatch(prompts[1], /<instructions>|<memory>/);
     assert.match(prompts[1], /<knowledge>[\s\S]*<\/knowledge>\n\nand roll back\?$/);
     assert.deepEqual(queries, ["how do I deploy?", "and roll back?"]);
   } finally {
@@ -558,6 +562,30 @@ test("Stopping a Codex turn ends the program and closes its token", async () => 
     await saturn.until("the program to end", () => saturn.journal(), (entries) => entries.some((entry) => entry.signal === "SIGTERM"));
     const [program] = await started(saturn);
     await saturn.until("the token to close", async () => (await fetch(`${saturn.origin}/agent-mcp`, { method: "POST", headers: { authorization: `Bearer ${program.env.SATURN_SKILLS_TOKEN}`, "content-type": "application/json" }, body: "{}" })).status, (status) => status === 401);
+  } finally {
+    await saturn.stop();
+  }
+});
+
+test("In a group, a Claude Code member keeps one session of its own, and the group's approval setting wins over the agent's", async () => {
+  const saturn = await startWithPrograms();
+  try {
+    const agent = await coder(saturn, "claude-code", { autonomy: "bypass" });
+    const group = await saturn.api("POST", "/groups", { name: "Team", agentIds: [agent.id] });
+    await saturn.api("PATCH", `/groups/${group.id}`, { autonomy: "review" });
+    await saturn.scenario({ steps: [{ send: { type: "system", subtype: "init", session_id: "session-G" } }, { permission: { tool: "Bash", input: { command: "ls" }, id: "tu_group" } }, result("done", "session-G")] });
+    const transcript = () => saturn.api("GET", `/groups/${group.id}/messages`);
+    await saturn.api("POST", `/groups/${group.id}/messages`, { text: "first task" });
+    const waiting = await saturn.until("the card", transcript, (item) => item.runs.some((run) => run.status === "waiting_approval"));
+    const run = waiting.runs.find((item) => item.status === "waiting_approval");
+    assert.equal(run.actions.find((action) => action.status === "waiting_approval").id, "tu_group", "Bypass on the agent, Review in the group");
+    await saturn.api("POST", `/runs/${run.id}/actions/tu_group/decision`, { allow: true });
+    await saturn.until("the turn", transcript, (item) => item.runs.every((one) => ["completed", "failed", "cancelled"].includes(one.status)));
+    assert.equal((await saturn.api("GET", "/groups")).find((item) => item.id === group.id).sessions?.[agent.id]?.claudeSessionId, "session-G");
+    await saturn.api("POST", `/groups/${group.id}/messages`, { text: "second task" });
+    const programs = await saturn.until("a second turn", () => started(saturn), (list) => list.length === 2);
+    assert.ok(programs[1].args.includes("--resume=session-G"), programs[1].args.join(" "));
+    assert.doesNotMatch(JSON.stringify((await received(saturn)).at(-1)), /first task/, "what the session already saw is not sent again");
   } finally {
     await saturn.stop();
   }
