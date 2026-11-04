@@ -16,6 +16,8 @@ use saturn_core::Kernel;
 use saturn_store::FileStore;
 use serde_json::{Value, json};
 
+/// How long connections get to finish once the runtime is stopping.
+const LAST_CONNECTIONS: std::time::Duration = std::time::Duration::from_secs(2);
 /// The largest request body, which leaves room for a message's images.
 const BODY_LIMIT: usize = 10 * 1024 * 1024;
 
@@ -92,10 +94,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(middleware::from_fn_with_state(token, guards::authenticate))
         .layer(middleware::from_fn(guards::cors));
 
+    let stopping = Arc::clone(&kernel);
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
     println!("Saturn Runtime listening on http://{host}:{port}");
     axum::serve(listener, app)
-        .with_graceful_shutdown(stop_requested())
+        .with_graceful_shutdown(async move {
+            stop_requested().await;
+            // What runs on the runtime's behalf ends with it. A client still listening must not hold it open.
+            stopping.jobs.stop_all(None);
+            stopping.browser.close().await;
+            tokio::spawn(async {
+                tokio::time::sleep(LAST_CONNECTIONS).await;
+                std::process::exit(0);
+            });
+        })
         .await?;
     Ok(())
 }

@@ -189,6 +189,86 @@ async fn run_image(State(kernel): Shared, Path((id, index)): Path<(String, usize
     Ok(([(axum::http::header::CONTENT_TYPE, kind)], bytes).into_response())
 }
 
+/// What the agent's browser shows now.
+async fn browser_state(State(kernel): Shared) -> Answer {
+    kernel.browser.set_mode(kernel.browser_mode()).await;
+    ok(kernel.browser.state())
+}
+
+/// The agent's browser live, for the Browser panel: its state, and its page as base64 frames.
+async fn browser_live(State(kernel): Shared) -> Response {
+    let (tx, rx) = mpsc::channel(8);
+    tokio::spawn(async move {
+        let _ = tx
+            .send(Event::default().retry(Duration::from_secs(2)).comment(""))
+            .await;
+        let mut shown = kernel.browser.state();
+        if tx.send(event("state", &shown)).await.is_err() {
+            return;
+        }
+        let mut viewer = kernel.browser.watch();
+        // Opened, closed or navigated without a new frame (a closed browser sends none): checked every second.
+        let mut check = tokio::time::interval(Duration::from_secs(1));
+        let mut last_frame: Option<tokio::time::Instant> = None;
+        loop {
+            tokio::select! {
+                () = tx.closed() => return,
+                _ = check.tick() => {
+                    let now = kernel.browser.state();
+                    if now != shown {
+                        shown = now;
+                        if tx.send(event("state", &shown)).await.is_err() {
+                            return;
+                        }
+                    }
+                }
+                frame = viewer.next() => {
+                    let Some(frame) = frame else { return };
+                    // At most ~12 frames a second to a viewer; the page keeps its own pace.
+                    if last_frame.is_some_and(|at| at.elapsed() < Duration::from_millis(80)) {
+                        continue;
+                    }
+                    last_frame = Some(tokio::time::Instant::now());
+                    if tx.send(event("frame", &frame)).await.is_err() {
+                        return;
+                    }
+                }
+            }
+        }
+    });
+    stream_of(rx).into_response()
+}
+
+/// The recordings a run made with the browser tools.
+async fn run_recordings(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.recordings(&id)?)
+}
+
+/// One frame of a run's recording.
+async fn recording_frame(
+    State(kernel): Shared,
+    Path((id, name, index)): Path<(String, String, String)>,
+) -> Answer {
+    let file = kernel.recording_frame(&id, &name, &index)?;
+    let bytes = tokio::fs::read(&file)
+        .await
+        .map_err(|_| CoreError::new(404, "That frame is gone"))?;
+    let kind = if file.extension().is_some_and(|extension| extension == "png") {
+        "image/png"
+    } else {
+        "image/jpeg"
+    };
+    Ok(([(axum::http::header::CONTENT_TYPE, kind)], bytes).into_response())
+}
+
+/// Turns a run's recording into an MP4.
+async fn export_recording(
+    State(kernel): Shared,
+    Path((id, name)): Path<(String, String)>,
+) -> Answer {
+    ok(kernel.export_recording(&id, &name).await?)
+}
+
 async fn list_threads(State(kernel): Shared, Path(id): Path<String>) -> Answer {
     ok(kernel.list_threads(&id).await?)
 }
@@ -599,6 +679,17 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
             post(allow_always),
         )
         .route("/runs/{id}/images/{index}", get(run_image))
+        .route("/runs/{id}/recordings", get(run_recordings))
+        .route(
+            "/runs/{id}/recordings/{name}/frames/{index}",
+            get(recording_frame),
+        )
+        .route(
+            "/runs/{id}/recordings/{name}/export",
+            post(export_recording),
+        )
+        .route("/browser", get(browser_state))
+        .route("/browser/live", get(browser_live))
         .route("/runs/{id}/stop", post(stop_run))
         .route("/runs/{id}/wake", post(wake_run))
         .route("/runs/{id}/events", get(run_events))

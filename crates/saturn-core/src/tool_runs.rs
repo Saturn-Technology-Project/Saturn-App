@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use saturn_browser::Mode;
 use saturn_domain::js;
 use saturn_domain::new_id;
 use saturn_domain::policies::may_read_only;
@@ -298,13 +299,16 @@ impl Kernel {
         }
         if matches!(
             server.as_str(),
-            BROWSER_ID
-                | COMPUTER_USE_ID
-                | "cursor-computer-use"
-                | AUTOMATIONS_ID
-                | "antigravity-skills"
+            COMPUTER_USE_ID | "cursor-computer-use" | AUTOMATIONS_ID | "antigravity-skills"
         ) {
             return Ok(failed(&not_ported(&server, tool)));
+        }
+        if server == BROWSER_ID {
+            self.browser.set_mode(self.browser_mode()).await;
+            return Ok(match self.browser.run(tool, arguments).await {
+                Ok(result) => completed(result),
+                Err(reason) => failed(&reason),
+            });
         }
         if matches!(server.as_str(), ORIGIN_ID | "cursor-origin") {
             let run = self.get_run(run_id)?;
@@ -737,10 +741,17 @@ impl Kernel {
     }
 }
 
+impl Kernel {
+    /// The browser the settings choose.
+    pub fn browser_mode(&self) -> Mode {
+        self.store
+            .read(|state| Mode::parse(state.settings.get("browser").and_then(Value::as_str)))
+    }
+}
+
 /// Why a tool of a server the Rust runtime does not run yet failed.
 fn not_ported(server: &str, tool: &str) -> String {
     let named = match server {
-        BROWSER_ID => "The browser tools",
         COMPUTER_USE_ID | "cursor-computer-use" => "The computer-use tools",
         AUTOMATIONS_ID | "antigravity-skills" => "The automation tools",
         _ => "Other MCP servers' tools",

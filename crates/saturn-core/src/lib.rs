@@ -6,6 +6,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
+use saturn_browser::Browser;
 use saturn_llm::{Broker, Http, LlmError};
 use saturn_mcp::{McpClient, McpError};
 use saturn_store::FileStore;
@@ -32,6 +33,7 @@ pub mod permissions;
 pub mod plugins;
 pub mod projects;
 pub mod pull_requests;
+pub mod recordings;
 pub mod records;
 pub mod rules;
 pub mod run_images;
@@ -137,6 +139,8 @@ pub struct Kernel {
     pub mcp: McpClient,
     /// Background commands agents started.
     pub jobs: JobTable,
+    /// The agent's browser; it closes itself when idle.
+    pub browser: Browser,
     /// The running pass of each run, by "<run>:<generation>", so stopping can abort it.
     stops: Mutex<HashMap<String, AbortHandle>>,
     /// One capture at a time per run, so parallel tool calls on one file keep the first original.
@@ -174,6 +178,7 @@ impl Kernel {
                 oauth_redirect(),
                 Arc::new(open_in_browser),
             )?,
+            browser: Browser::new(store.root(), std::env::var("SATURN_SAFARI_ENDPOINT").ok()),
             store,
             jobs: JobTable::new(),
             stops: Mutex::default(),
