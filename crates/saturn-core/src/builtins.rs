@@ -1,5 +1,4 @@
-//! The tools Saturn itself provides, as saved in the state's list of MCP servers. `builtin-servers.json` is the same list
-//! `runtime/src/domain` builds, and a test there keeps the two alike.
+//! The tools Saturn itself provides, as saved in the state's list of MCP servers. Their list is in `builtin-servers.json`.
 use std::sync::LazyLock;
 
 use saturn_store::AppState;

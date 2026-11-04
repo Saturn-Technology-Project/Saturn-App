@@ -1,5 +1,5 @@
 //! Saturn's one door to every model provider, over plain HTTP. Each provider's module turns the same request into what that
-//! provider expects, and its reply into a `Completion`. `contract/cases/llm.json` holds what `runtime/`'s SDKs send, which
+//! provider expects, and its reply into a `Completion`. `contract/cases/llm.json` holds what the providers' official SDKs send, which
 //! these modules must send too. To stop a call, drop its future.
 pub mod broker;
 pub mod claude;

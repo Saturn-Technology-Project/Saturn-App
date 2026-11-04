@@ -1,6 +1,6 @@
 // The agent's browser and the recordings a run makes, whichever language runs them. Safari is a fake WebDriver server, so
 // every command it gets is compared with contract/cases/browser.json, recorded from the TypeScript runtime
-// (SATURN_RECORD_BROWSER=1). Chrome is the real one when installed, with its own scratch profile and a page on this computer.
+// (kept from before it was removed; a change here is a deliberate one). Chrome is the real one when installed, with its own scratch profile and a page on this computer.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
@@ -10,10 +10,9 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { runtimeKind, startRuntime } from "./runtime.mjs";
+import { startRuntime } from "./runtime.mjs";
 
 const casesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "cases/browser.json");
-const record = process.env.SATURN_RECORD_BROWSER === "1";
 const ELEMENT = "element-6066-11e4-a52f-4a8f-b8c4-f3bc2b7a1b40";
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const chromes = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium", "/usr/bin/google-chrome", "/usr/bin/chromium"];
@@ -172,12 +171,6 @@ async function fakeSafaridriver({ refuse } = {}) {
 async function matchesRecording(name, value, runtime) {
   const normalized = JSON.parse(JSON.stringify(value).replaceAll(runtime.dataDir, "<data>").replaceAll(scratch, "<scratch>"));
   const all = await readFile(casesFile, "utf8").then(JSON.parse).catch(() => ({}));
-  if (record) {
-    assert.equal(runtimeKind, "ts", "the recording comes from the TypeScript runtime");
-    all[name] = normalized;
-    await writeFile(casesFile, `${JSON.stringify(all, null, 2)}\n`);
-    return;
-  }
   assert.ok(all[name], `${name} is not recorded`);
   assert.deepEqual(normalized, all[name]);
 }

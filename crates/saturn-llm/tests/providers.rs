@@ -1,4 +1,4 @@
-//! What each provider's module sends and reads, against fake servers: `contract/cases/llm.json` as `runtime/`'s SDKs do it, then
+//! What each provider's module sends and reads, against fake servers: `contract/cases/llm.json` as the official SDKs do it, then
 //! what the broker adds. Keys here are fake, and no call leaves 127.0.0.1.
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};

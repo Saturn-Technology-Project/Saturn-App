@@ -1,6 +1,6 @@
-// Stand-ins for the official `claude` and `codex` programs, for the contract tests. Each one is placed where a runtime finds
-// its own download, so no test starts a real program, and on the TypeScript runtime the official SDKs talk to the stand-ins:
-// what these answer is therefore what the SDKs accept, and what they record is what the SDKs send.
+// Stand-ins for the official `claude` and `codex` programs, for the contract tests. Each one is placed where the runtime finds its
+// own download, so no test starts a real program. They were checked against the official SDKs, which talked to them on the
+// TypeScript runtime until it was removed: what these answer is what those SDKs accept, and the tests expect what they sent.
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -165,7 +165,7 @@ export async function startWithPrograms({ install = ["claude-code", "codex"], pa
   await writeFile(manifestFile, JSON.stringify(packages ?? { "claude-code": { [PLATFORM]: pinned }, codex: { [PLATFORM]: pinned } }));
   const runtime = await startRuntime({
     dataDir,
-    env: { PATH: `${bin}:/usr/bin:/bin`, SATURN_PROGRAM_PACKAGES: manifestFile, SATURN_NO_BUNDLED_PROGRAMS: "1", ...env },
+    env: { PATH: `${bin}:/usr/bin:/bin`, SATURN_PROGRAM_PACKAGES: manifestFile, ...env },
   });
   const token = (await readFile(path.join(dataDir, "runtime-token"), "utf8")).trim();
 

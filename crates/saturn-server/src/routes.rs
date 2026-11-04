@@ -1,4 +1,4 @@
-//! The agent loop's routes: agents, models, projects, chats, runs and permission rules, answering as `runtime/` does.
+//! The agent loop's routes: agents, models, projects, chats, runs and permission rules.
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;

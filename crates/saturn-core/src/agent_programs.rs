@@ -21,8 +21,8 @@ use crate::agent_sessions::SkillsBridge;
 use crate::records::text;
 use crate::{CoreError, Kernel, locked, log};
 
-/// The packages Saturn downloads, by program and platform. Generated from the lock file by
-/// `runtime/scripts/agent-programs-manifest.mjs`.
+/// The packages Saturn downloads, by program and platform. Written by
+/// `scripts/agent-programs-manifest.mjs`.
 const PINNED_PACKAGES: &str = include_str!("agent-programs.json");
 /// Attempts at a download before it waits for the user's next click.
 const DOWNLOAD_ATTEMPTS: u32 = 5;

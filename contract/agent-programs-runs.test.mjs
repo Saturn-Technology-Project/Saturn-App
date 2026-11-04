@@ -1,5 +1,5 @@
-// Whole turns of Claude Code and Codex, whichever language runs them. On the TypeScript runtime the official SDKs drive the
-// stand-ins in programs.mjs; the arguments and messages checked here are what those SDKs send, which is the protocol.
+// Whole turns of Claude Code and Codex. The arguments and messages checked here are what the official SDKs send, recorded from them
+// through the stand-ins in programs.mjs, which is the protocol.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";

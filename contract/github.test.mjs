@@ -1,6 +1,6 @@
 // The GitHub tools and following a pull request, whichever language runs them. Nothing here reaches GitHub: the API is a
 // fake server, git goes to local folders, and the token is a made-up value. Each tool's answer and each request GitHub got
-// are compared with contract/cases/origin.json, recorded from the TypeScript runtime (SATURN_RECORD_ORIGIN=1).
+// are compared with contract/cases/origin.json, recorded from the TypeScript runtime before it was removed; a change here is a deliberate one.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
@@ -9,10 +9,9 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { runtimeKind, startRuntime } from "./runtime.mjs";
+import { startRuntime } from "./runtime.mjs";
 
 const casesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "cases/origin.json");
-const record = process.env.SATURN_RECORD_ORIGIN === "1";
 const TOKEN = "made-up-github-token";
 
 let scratch;
@@ -236,12 +235,6 @@ async function runTools(steps, folder) {
 async function matchesRecording(name, value) {
   const normalized = JSON.parse(JSON.stringify(value).replaceAll(runtime.dataDir, "<data>").replaceAll(scratch, "<scratch>").replaceAll(github.url, "<github>").replaceAll(TOKEN, "<token>"));
   const all = await readFile(casesFile, "utf8").then(JSON.parse).catch(() => ({}));
-  if (record) {
-    assert.equal(runtimeKind, "ts", "the recording comes from the TypeScript runtime");
-    all[name] = normalized;
-    await writeFile(casesFile, `${JSON.stringify(all, null, 2)}\n`);
-    return;
-  }
   assert.ok(all[name], `${name} is not recorded`);
   for (const [index, expected] of (Array.isArray(all[name]) ? all[name] : [all[name]]).entries()) {
     assert.deepEqual(Array.isArray(all[name]) ? normalized[index] : normalized, expected, `${name}[${index}]`);

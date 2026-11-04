@@ -10,12 +10,17 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { PLATFORM, VERSION, startWithPrograms } from "./programs.mjs";
 
-test("the Rust runtime pins exactly the packages the TypeScript runtime pins", async () => {
+test("the pinned downloads cover the systems Saturn ships on, come from the npm registry and carry a sha512", async () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-  const generated = await readFile(path.join(root, "runtime/src/infrastructure/agent-programs-manifest.ts"), "utf8");
-  const pinned = JSON.parse(generated.slice(generated.indexOf(">> = ") + 5).trim().replace(/;$/, ""));
-  assert.deepEqual(JSON.parse(await readFile(path.join(root, "crates/saturn-core/src/agent-programs.json"), "utf8")), pinned);
-  for (const program of Object.values(pinned)) for (const item of Object.values(program)) assert.ok(item.url.startsWith("https://registry.npmjs.org/") && item.integrity.startsWith("sha512-"));
+  const pinned = JSON.parse(await readFile(path.join(root, "crates/saturn-core/src/agent-programs.json"), "utf8"));
+  for (const id of ["claude-code", "codex"]) {
+    assert.ok(pinned[id]["darwin-arm64"] && pinned[id]["win32-x64"], `${id} covers the platforms Saturn ships`);
+    for (const item of Object.values(pinned[id])) {
+      assert.ok(item.url.startsWith("https://registry.npmjs.org/"), item.url);
+      assert.match(item.integrity, /^sha512-/);
+      assert.ok(item.version);
+    }
+  }
 });
 
 /** A platform package as npm packs it. */

@@ -1,10 +1,8 @@
 // A runtime started by the desktop app holds a pipe from it: closing the pipe is the request to stop, on every system, and a crashed
-// app closes it too. The TypeScript runtime watches the app's process id instead, and goes away with Electron.
+// app closes it too.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { runtimeKind, startRuntime } from "./runtime.mjs";
-
-const skip = runtimeKind === "ts" && "the TypeScript runtime watches a process id";
+import { startRuntime } from "./runtime.mjs";
 
 async function ended(child, ms) {
   if (child.exitCode !== null) return child.exitCode;
@@ -14,7 +12,7 @@ async function ended(child, ms) {
   ]);
 }
 
-test("a runtime the app started stops, and exits cleanly, when the app's pipe closes", { skip }, async () => {
+test("a runtime the app started stops, and exits cleanly, when the app's pipe closes", async () => {
   const runtime = await startRuntime({ stdin: "pipe", env: { SATURN_DESKTOP_ATTACHED: "1" } });
   try {
     assert.equal((await fetch(`${runtime.origin}/health`)).ok, true);
@@ -26,7 +24,7 @@ test("a runtime the app started stops, and exits cleanly, when the app's pipe cl
   }
 });
 
-test("a runtime started by itself is not stopped by having no input", { skip }, async () => {
+test("a runtime started by itself is not stopped by having no input", async () => {
   const runtime = await startRuntime();
   try {
     assert.equal(await ended(runtime.child, 500), "still running");

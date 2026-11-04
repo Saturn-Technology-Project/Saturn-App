@@ -1,4 +1,4 @@
-//! The cases `runtime/test/shared-cases.test.ts` answers too, so both implementations behave alike.
+//! The cases in `contract/cases`, recorded from the TypeScript runtime before it was removed.
 use std::ffi::OsString;
 
 use saturn_tools::sandbox::{

@@ -1,5 +1,4 @@
-//! What `runtime/test/secrets.test.ts` and `runtime/test/shared-cases.test.ts` check, on this implementation, with the files
-//! in `contract/cases` both must agree on. Everything happens in temporary folders with the key file as the key store.
+//! The secrets file and the state file, with files in `contract/cases` written by earlier versions. Everything happens in temporary folders with the key file as the key store.
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -86,7 +85,7 @@ fn opens_what_typescript_encrypted_and_encrypts_it_byte_for_byte() {
     let again = encrypt_with_iv(&secrets, &key, KeyStoreName::File, &iv).expect("it encrypts");
     assert_eq!(
         again, envelope,
-        "the same bytes, which runtime/ decrypts in its own test"
+        "the same bytes earlier versions wrote and read"
     );
     assert_eq!(
         serde_json::to_value(&again).expect("JSON"),

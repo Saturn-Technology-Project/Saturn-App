@@ -141,7 +141,8 @@ const fn peaked(rate: Rate, peak: Rate) -> Pricing {
     }
 }
 
-/// Official list prices, as sourced and dated in `runtime/src/domain/llm/pricing.ts`. Models missing here (custom endpoints,
+/// Official list prices, USD per 1M tokens, standard tier, checked 2026-10-18 against each provider's pricing page (cached
+/// rates 2026-10-21). Models missing here (custom endpoints,
 /// models not on the price pages) are reported as unpriced, never guessed.
 fn pricing(provider: &str, model: &str) -> Option<Pricing> {
     Some(match (provider, model) {

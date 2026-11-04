@@ -1,6 +1,6 @@
 //! A semantic index of each project's code, kept on this machine: files are split into chunks (one per function or class
 //! where the language has them), each chunk gets an embedding, and everything is stored in a SQLite file under the data
-//! directory, the same file `runtime/src/application/index.ts` writes. A search embeds the question and ranks chunks by
+//! directory, the same file earlier versions of Saturn wrote. A search embeds the question and ranks chunks by
 //! cosine similarity.
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};

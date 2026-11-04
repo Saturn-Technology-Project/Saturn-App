@@ -1,7 +1,7 @@
 // The computer-use tools, whichever language runs them. Nothing here touches the real screen: SATURN_DESKTOP_BIN puts
 // stand-ins for osascript, screencapture, sips and open in place, and what they were asked to do is compared with
-// contract/cases/computer.json, recorded from the TypeScript runtime (SATURN_RECORD_COMPUTER=1). macOS only, since that is
-// what the stand-ins stand in for; Windows' helper has its own test in runtime/test and crates/saturn-computer.
+// contract/cases/computer.json, recorded from the TypeScript runtime before it was removed; a change here is a deliberate one. macOS only, since that is
+// what the stand-ins stand in for; Windows' helper has its own tests in crates/saturn-computer.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -9,10 +9,9 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { runtimeKind, startRuntime } from "./runtime.mjs";
+import { startRuntime } from "./runtime.mjs";
 
 const casesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "cases/computer.json");
-const record = process.env.SATURN_RECORD_COMPUTER === "1";
 const macOnly = { skip: process.platform !== "darwin" && "the stand-ins are for macOS" };
 
 let scratch;
@@ -151,12 +150,6 @@ function plain(value) {
 async function matchesRecording(name, value) {
   const normalized = plain(value);
   const all = await readFile(casesFile, "utf8").then(JSON.parse).catch(() => ({}));
-  if (record) {
-    assert.equal(runtimeKind, "ts", "the recording comes from the TypeScript runtime");
-    all[name] = normalized;
-    await writeFile(casesFile, `${JSON.stringify(all, null, 2)}\n`);
-    return;
-  }
   assert.ok(all[name], `${name} is not recorded`);
   assert.deepEqual(normalized, all[name]);
 }

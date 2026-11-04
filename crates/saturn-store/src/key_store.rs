@@ -1,4 +1,4 @@
-//! Where the key that encrypts `secrets.json` is kept. The same places and names as `runtime/`, so either reads the other's.
+//! Where the key that encrypts `secrets.json` is kept. The same places and names earlier versions of Saturn used, so their data stays readable.
 use std::env;
 use std::fmt::Write as _;
 use std::fs;

@@ -1,5 +1,5 @@
-//! The tools an agent runs: files, commands in a sandbox, background commands and web pages. Behaviour matches
-//! `runtime/src/infrastructure/skills`; `contract/cases/tools.json` holds the cases both must answer alike. Stopping a tool
+//! The tools an agent runs: files, commands in a sandbox, background commands and web pages.
+//! `contract/cases/tools.json` holds the cases they must answer. Stopping a tool
 //! is dropping its future: a command's whole process group goes with it.
 use saturn_domain::Arguments;
 use saturn_domain::js;

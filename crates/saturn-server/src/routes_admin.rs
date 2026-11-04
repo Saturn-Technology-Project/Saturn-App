@@ -1,4 +1,4 @@
-//! Settings, connections, projects, usage and the workspace views, answering as `runtime/` does.
+//! Settings, connections, projects, usage and the workspace views.
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

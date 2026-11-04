@@ -1,5 +1,5 @@
-//! The agent loop: a model's turns, its tool calls and approvals, hooks, compaction, sub-agents and checkpoints. Behaviour
-//! matches `runtime/src/application`; `contract/loop.test.mjs` drives both over HTTP. Stopping a run aborts its task: what it
+//! The agent loop: a model's turns, its tool calls and approvals, hooks, compaction, sub-agents and checkpoints.
+//! `contract/loop.test.mjs` drives it over HTTP. Stopping a run aborts its task: what it
 //! was waiting for is dropped, and a command it was running ends with its whole process group.
 use std::collections::{HashMap, HashSet};
 use std::io;

@@ -18,7 +18,7 @@ use crate::builtins::{
 use crate::records::{by_id, by_id_mut, remove, strings, text};
 use crate::{CoreError, Kernel, log};
 
-/// The providers with the models the settings page offers. A test in `runtime/test` keeps this like `domain/llm/catalog.ts`.
+/// The providers with the models the settings page offers.
 static PROVIDERS: LazyLock<Value> = LazyLock::new(|| {
     serde_json::from_str(include_str!("llm-providers.json")).expect("this file is valid JSON")
 });

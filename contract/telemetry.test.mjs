@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { runtimeKind, startRuntime } from "./runtime.mjs";
+import { startRuntime } from "./runtime.mjs";
 
 let scratch;
 const servers = [];
@@ -323,8 +323,8 @@ test("with an endpoint set, telemetry goes to the collector, with its headers", 
     assert.equal(request.method, "POST");
     assert.equal(request.headers["x-collector-key"], "made-up-value");
   }
-  // The Rust runtime sends OTLP/JSON, the TypeScript one protobuf; both are OTLP over HTTP.
-  if (runtimeKind === "rust") {
+  // OTLP over HTTP, in its JSON form.
+  {
     const sent = collector.seen.find((request) => request.url === "/v1/traces");
     assert.match(sent.headers["content-type"], /application\/json/);
     const body = JSON.parse(sent.raw);

@@ -1,4 +1,4 @@
-//! The cases `runtime/test/shared-cases.test.ts` answers too, so both implementations decide alike.
+//! The cases in `contract/cases`, recorded from the TypeScript runtime before it was removed.
 use saturn_domain::Arguments;
 use saturn_domain::js;
 use saturn_domain::permissions::{

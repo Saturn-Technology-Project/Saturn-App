@@ -1,6 +1,6 @@
 //! Splits a source file into chunks worth embedding: one per top-level declaration (function, class, method, export…) where
 //! the language has recognizable ones, else fixed windows of lines. Chunks carry the lines they cover, so a search hit can
-//! point at the file and line. Matches `runtime/src/domain/chunks.ts`.
+//! point at the file and line.
 use std::collections::HashMap;
 use std::sync::LazyLock;
 

@@ -5,15 +5,7 @@ release/
 .DS_Store
 # Linked worktrees created for side sessions
 .claude/worktrees/
-# Local runtime working data (generated when running the dev runtime from this folder)
-runtime/.artifacts/
-runtime/.agents/
-runtime/plugins/
-
-# Lifecycle test package (electron-builder --config.directories.output=release-test)
-desktop/release-test/
-
-# Runtime node_modules installed for another platform (desktop: npm run stage:runtime:win)
+# The embedding model the app ships (desktop: npm run fetch:model)
 desktop/.staging/
 
 # A personal MV project about building Saturn (kept out of the repository)

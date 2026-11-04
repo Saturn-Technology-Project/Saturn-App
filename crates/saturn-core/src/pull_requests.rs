@@ -1,5 +1,4 @@
-//! Following a pull request after Saturn opened it from a chat's worktree, matching
-//! `runtime/src/application/pull-requests.ts`: every CHECK_EVERY (and on request) it reads the pull request's state, its head's
+//! Following a pull request after Saturn opened it from a chat's worktree: every CHECK_EVERY (and on request) it reads the pull request's state, its head's
 //! checks, and its comments and unresolved review threads, with the user's GitHub token. When the checks fail on a head it has
 //! not handled, it hands the failing checks' log tails to the chat's agent as an automatic turn in the same worktree, at most
 //! MAX_FIX_ROUNDS times, and when that turn ends with changes it commits and pushes them. New comments are kept as feedback the

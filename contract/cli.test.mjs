@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { runtimeKind, startRuntime } from "./runtime.mjs";
+import { startRuntime } from "./runtime.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 let scratch;
@@ -21,8 +21,7 @@ const runs = {};
 
 /** The command line: the program and the arguments before saturn's own. */
 function program() {
-  if (runtimeKind === "rust") return [process.env.SATURN_RUST_CLI ?? path.join(root, "target/debug", process.platform === "win32" ? "saturn.exe" : "saturn")];
-  return [process.execPath, path.join(root, "runtime/node_modules/tsx/dist/cli.mjs"), path.join(root, "runtime/src/cli.ts")];
+  return [process.env.SATURN_RUST_CLI ?? path.join(root, "target/debug", process.platform === "win32" ? "saturn.exe" : "saturn")];
 }
 
 /** Runs a command; what it printed and how it ended. */

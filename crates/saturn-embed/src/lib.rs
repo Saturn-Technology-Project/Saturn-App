@@ -1,4 +1,4 @@
-//! Embedding models for the code index, matching `runtime/src/infrastructure/embeddings.ts`: one Saturn runs itself on
+//! Embedding models for the code index: one Saturn runs itself on
 //! the CPU, one loaded in LM Studio, or any OpenAI-compatible `/embeddings` endpoint.
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

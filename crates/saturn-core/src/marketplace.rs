@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use crate::records::{by_id, by_id_mut, remove, strings, text};
 use crate::{CoreError, Kernel, log};
 
-/// How each integration installs, as in `runtime/src/domain/marketplace.ts`; a test there keeps the two alike.
+/// How each integration installs.
 static RECIPES: LazyLock<Vec<Value>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("install-recipes.json")).expect("this file is valid JSON")
 });

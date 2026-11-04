@@ -1,4 +1,4 @@
-//! The GitHub tools, matching `runtime/src/infrastructure/skills/origin-skill.ts`; `contract/github.test.mjs` compares both.
+//! The GitHub tools; `contract/github.test.mjs` drives them against a fake GitHub.
 //! Repository content (files, trees, grep, branches, commits, diffs) comes from a local git checkout: the workspace repo when
 //! its `origin` remote is the requested owner/name, otherwise a blobless clone kept under <data>/origin/<owner>/<name> (made
 //! on first use, refreshed by sync_mirror). Hosted features go to the GitHub API with the user's own token. git always runs

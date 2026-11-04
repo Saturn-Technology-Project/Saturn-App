@@ -1,4 +1,4 @@
-//! The cases `runtime/test/shared-cases.test.ts` answers too, so both implementations decide alike.
+//! The cases in `contract/cases`, recorded from the TypeScript runtime before it was removed.
 use saturn_core::history::tool_turns;
 use saturn_core::memory::{merge, parse_notes};
 use saturn_core::permissions::{allows_everything, rules_fingerprint};

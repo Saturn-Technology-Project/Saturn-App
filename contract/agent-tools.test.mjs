@@ -1,5 +1,5 @@
 // The tools an agent has for automations, customizations, workflows and plugins, whichever language runs them. Answers are
-// compared with contract/cases/agent-tools.json, recorded from the TypeScript runtime (SATURN_RECORD_AGENT_TOOLS=1).
+// compared with contract/cases/agent-tools.json, recorded from the TypeScript runtime before it was removed; a change here is a deliberate one.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
@@ -8,10 +8,9 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { runtimeKind, startRuntime } from "./runtime.mjs";
+import { startRuntime } from "./runtime.mjs";
 
 const casesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "cases/agent-tools.json");
-const record = process.env.SATURN_RECORD_AGENT_TOOLS === "1";
 
 let scratch;
 let runtime;
@@ -83,12 +82,6 @@ async function matchesRecording(name, value) {
     .replace(/"(nextRun|lastRunAt)":"[^"]*"/g, '"$1":"<time>"')
     .replace(/next run [0-9:\-TZ. ]+\(/g, "next run <time> ("));
   const all = await readFile(casesFile, "utf8").then(JSON.parse).catch(() => ({}));
-  if (record) {
-    assert.equal(runtimeKind, "ts", "the recording comes from the TypeScript runtime");
-    all[name] = normalized;
-    await writeFile(casesFile, `${JSON.stringify(all, null, 2)}\n`);
-    return;
-  }
   assert.ok(all[name], `${name} is not recorded`);
   assert.deepEqual(normalized, all[name]);
 }

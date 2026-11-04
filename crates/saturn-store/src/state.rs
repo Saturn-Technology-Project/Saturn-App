@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-/// The saved state, with fields in the order `runtime/` writes them.
+/// The saved state, with fields in the order earlier versions wrote them.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppState {
@@ -74,7 +74,7 @@ impl AppState {
     }
 }
 
-/// Saved settings over the defaults, in the order `runtime/` writes them; everything saved is kept but `RETIRED_SETTINGS`.
+/// Saved settings over the defaults, in the order earlier versions wrote them; everything saved is kept but `RETIRED_SETTINGS`.
 fn settings_over_defaults(mut saved: Map<String, Value>) -> Map<String, Value> {
     let mut settings = Map::new();
     for (name, default) in [
