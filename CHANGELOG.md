@@ -22,6 +22,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- Signing Codex out when Codex is not installed now says to download it, instead of reporting a failed sign-out.
 - Cancelling a code index build no longer reports it as failed.
 - **Computer use can act on the elements it reads.** Each tool call forgot the last one, so an element id from `computer_app_state` was always called stale in `computer_set_value`, `computer_app_action` and `computer_type`.
 - **Migrating workflows says when it fails**, instead of reporting success with fewer migrated.

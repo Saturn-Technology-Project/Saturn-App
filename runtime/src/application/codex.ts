@@ -212,8 +212,9 @@ export class CodexService {
   /** Signs Saturn's Codex out with the official `codex logout`; the user's own Codex setup is untouched. */
   async logout(): Promise<CodexStatus> {
     this.cancelSignIn();
+    const cli = this.cli();
     try {
-      await exec(this.cli(), ["logout"], { env: this.environment(), timeout: 20_000 });
+      await exec(cli, ["logout"], { env: this.environment(), timeout: 20_000 });
     } catch (error) {
       // Signing out when already signed out is not an error worth showing.
       if (!/not logged in/i.test(errorText(error))) throw new HttpError(502, `Codex could not sign out: ${errorText(error)}`);
