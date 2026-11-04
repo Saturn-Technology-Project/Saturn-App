@@ -92,7 +92,7 @@ pub fn terminate(pid: u32) {
 
 /// Ends the group at once.
 #[cfg(unix)]
-pub(crate) fn force(pid: u32) {
+pub fn force(pid: u32) {
     signal_group(pid, rustix::process::Signal::KILL);
 }
 
@@ -124,7 +124,7 @@ pub fn terminate(pid: u32) {
 
 /// `terminate` already ended it by force.
 #[cfg(windows)]
-pub(crate) fn force(_pid: u32) {}
+pub fn force(_pid: u32) {}
 
 /// After the grace period, ends by force what `still_running` says is left. Without a runtime (the process is ending)
 /// there is nothing to wait in.

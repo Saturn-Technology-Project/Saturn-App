@@ -1,10 +1,12 @@
 //! Research records: plain JSON files in the project's `.saturn/research`, shared by every chat in it.
 //! `docs/research-contract.md` is the contract, and `contract/research-*.test.mjs` hold the runtime to it.
 mod freeze;
+mod runs;
 
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use saturn_domain::research::{
@@ -25,6 +27,10 @@ pub struct ResearchState {
     locks: Mutex<HashMap<PathBuf, Arc<AsyncMutex<()>>>>,
     /// Moves on whenever a record changes.
     changes: watch::Sender<u64>,
+    /// The experiment runs this runtime has started and that have not ended.
+    active: Mutex<HashMap<String, runs::ActiveRun>>,
+    /// Set once the runtime is stopping: its runs end as interrupted, whatever their exit says.
+    ending: AtomicBool,
 }
 
 impl Default for ResearchState {
@@ -32,6 +38,8 @@ impl Default for ResearchState {
         Self {
             locks: Mutex::default(),
             changes: watch::channel(0).0,
+            active: Mutex::default(),
+            ending: AtomicBool::new(false),
         }
     }
 }

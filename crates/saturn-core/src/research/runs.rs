@@ -1,0 +1,686 @@
+//! Experiment runs: a process per run, saved before it exists, identified so a restart can find it, and sealed when it
+//! ends. `docs/research-contract.md` says what each status means.
+use std::collections::HashSet;
+use std::io::{BufRead, BufReader, Read};
+use std::path::{Path, PathBuf};
+use std::process::Stdio;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
+
+use saturn_domain::new_id;
+use saturn_domain::research::{MAX_SAMPLE_LINE, SCHEMA_VERSION, is_id, sample_identity};
+use saturn_domain::time::{iso_time, now_millis};
+use saturn_tools::{force, in_own_group, launch_env, terminate};
+use serde_json::{Value, json};
+use tokio::process::Command;
+
+use super::freeze::hash_file;
+use super::{ResearchState, pretty, read_record, write_whole};
+use crate::records::text;
+use crate::{CoreError, Kernel, locked};
+
+/// A process that has been asked to stop gets this long before it is ended by force.
+const GRACE: Duration = Duration::from_secs(3);
+/// How many bad lines a run records.
+const PROBLEMS_KEPT: usize = 20;
+/// Written by the process itself, so a process is known even if the runtime dies right after starting it.
+const IDENTITY_FILE: &str = "process.identity";
+/// Starts the command with the process's own id and start time on record. `exec` keeps both.
+const WRAPPER: &str = r#"{ echo $$; LC_ALL=C ps -o lstart= -p $$; } > "$SATURN_RUN_DIRECTORY/process.identity.tmp" && mv "$SATURN_RUN_DIRECTORY/process.identity.tmp" "$SATURN_RUN_DIRECTORY/process.identity"; exec /bin/sh -c "$SATURN_RUN_COMMAND""#;
+
+/// A run this runtime started and has not finished.
+#[derive(Debug)]
+pub(super) struct ActiveRun {
+    pid: u32,
+    thread: Option<String>,
+    project: String,
+}
+
+fn is_active_status(status: &str) -> bool {
+    matches!(status, "starting" | "running" | "stopping")
+}
+
+/// What a samples file holds once its process has ended.
+#[derive(Debug)]
+struct Scan {
+    samples: u64,
+    infrastructure_errors: u64,
+    problems: Vec<Value>,
+    partial_line: bool,
+}
+
+/// Reads a samples file line by line, without holding it in memory.
+fn scan_samples(path: &Path) -> std::io::Result<Scan> {
+    let mut scan = Scan {
+        samples: 0,
+        infrastructure_errors: 0,
+        problems: Vec::new(),
+        partial_line: false,
+    };
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(scan),
+        Err(error) => return Err(error),
+    };
+    let mut reader = BufReader::new(file);
+    let mut seen = HashSet::new();
+    let mut line = Vec::new();
+    let mut number = 0;
+    loop {
+        line.clear();
+        let read = (&mut reader)
+            .take(MAX_SAMPLE_LINE + 1)
+            .read_until(b'\n', &mut line)?;
+        if read == 0 {
+            return Ok(scan);
+        }
+        number += 1;
+        if line.last() != Some(&b'\n') {
+            if read as u64 > MAX_SAMPLE_LINE {
+                scan.problems
+                    .push(json!({ "line": number, "reason": "The line is too long." }));
+            } else {
+                scan.partial_line = true;
+                scan.problems
+                    .push(json!({ "line": number, "reason": "The last line was not finished." }));
+            }
+            return Ok(scan);
+        }
+        let parsed = serde_json::from_slice::<Value>(&line)
+            .map_err(|error| format!("It is not JSON: {error}."))
+            .and_then(|value| sample_identity(&value).map(|identity| (value, identity)))
+            .and_then(|(value, identity)| {
+                if seen.insert(identity) {
+                    Ok(value)
+                } else {
+                    Err("This sample, trial and model already appeared.".to_owned())
+                }
+            });
+        match parsed {
+            Ok(value) => {
+                scan.samples += 1;
+                if value.pointer("/error/kind").and_then(Value::as_str) == Some("infrastructure") {
+                    scan.infrastructure_errors += 1;
+                }
+            }
+            Err(reason) => {
+                if scan.problems.len() < PROBLEMS_KEPT {
+                    scan.problems
+                        .push(json!({ "line": number, "reason": reason }));
+                }
+            }
+        }
+    }
+}
+
+/// What ended a run says about it, from its exit code and samples.
+fn status_after(exit: Option<i32>, scan: &Scan) -> &'static str {
+    match exit {
+        Some(0) if scan.problems.is_empty() && scan.samples > 0 => "completed",
+        Some(0) => "protocol_error",
+        _ => "failed",
+    }
+}
+
+/// The start time the system reports for a process, or nothing if it is gone.
+async fn process_start_time(pid: u32) -> Option<String> {
+    let output = Command::new("ps")
+        .args(["-o", "lstart=", "-p", &pid.to_string()])
+        .env("LC_ALL", "C")
+        .stdin(Stdio::null())
+        .output()
+        .await
+        .ok()?;
+    let printed = String::from_utf8_lossy(&output.stdout);
+    let printed = printed.split_whitespace().collect::<Vec<_>>().join(" ");
+    (!printed.is_empty()).then_some(printed)
+}
+
+/// The process id and start time a run's process wrote for itself.
+async fn recorded_identity(directory: &Path) -> Option<(u32, String)> {
+    let text = tokio::fs::read_to_string(directory.join(IDENTITY_FILE))
+        .await
+        .ok()?;
+    let mut lines = text.lines();
+    let pid = lines.next()?.trim().parse().ok()?;
+    let started = lines
+        .next()?
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    Some((pid, started))
+}
+
+/// Asks a process group to end, then ends it by force after a moment if it has not, and waits until it is gone.
+async fn end_group(pid: u32) {
+    terminate(pid);
+    let deadline = tokio::time::Instant::now() + GRACE;
+    while tokio::time::Instant::now() < deadline {
+        if !group_exists(pid) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    force(pid);
+}
+
+/// Whether any process of the group is still there.
+fn group_exists(pid: u32) -> bool {
+    std::process::Command::new("/bin/kill")
+        .args(["-0", &format!("-{pid}")])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+/// Whichever test hook holds a run at a moment a crash could happen.
+async fn test_hold(moment: &str) {
+    if std::env::var("SATURN_RESEARCH_TEST_HOLD").is_ok_and(|held| held == moment) {
+        tokio::time::sleep(Duration::from_secs(600)).await;
+    }
+}
+
+impl ResearchState {
+    fn holds_thread(&self, thread: &str) -> bool {
+        locked(&self.active)
+            .values()
+            .any(|run| run.thread.as_deref() == Some(thread))
+    }
+}
+
+impl Kernel {
+    /// A chat's worktree stays while an experiment runs in it.
+    pub(crate) fn refuse_if_running_experiment(&self, thread: &str) -> Result<(), CoreError> {
+        if self.research.holds_thread(thread) {
+            return Err(CoreError::new(
+                409,
+                "An experiment is running in this chat's folder. Stop it first.",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Every run of a project, newest last.
+    pub async fn research_runs(&self, project: &str) -> Result<Value, CoreError> {
+        let records = self.records_folder(project).await?;
+        let (items, problems) = read_runs(&records).await?;
+        Ok(json!({ "items": items, "problems": problems }))
+    }
+
+    /// One run.
+    pub async fn research_run(&self, project: &str, id: &str) -> Result<Value, CoreError> {
+        if !is_id(id) {
+            return Err(not_found());
+        }
+        let records = self.records_folder(project).await?;
+        read_record(&run_file(&records, id))
+            .await
+            .map_err(|reason| super::cannot_use(id, &reason))?
+            .ok_or_else(not_found)
+    }
+
+    /// Starts a version's command, unless this `clientId` already did.
+    pub async fn research_start_run(
+        self: &Arc<Self>,
+        project: &str,
+        version_id: &str,
+        client_id: &str,
+        thread: Option<&str>,
+    ) -> Result<(Value, bool), CoreError> {
+        if client_id.is_empty() {
+            return Err(CoreError::new(
+                400,
+                "A start needs a \"clientId\", so repeating it starts nothing.",
+            ));
+        }
+        if cfg!(windows) {
+            return Err(CoreError::new(
+                501,
+                "Experiment runs are not supported on Windows yet.",
+            ));
+        }
+        let version = self
+            .research_record(project, "versions", version_id)
+            .await?;
+        let source = self.research_source(project, thread)?;
+        let records = self.records_for_writing(project).await?;
+        if let Some(existing) = run_with_client(&records, client_id).await? {
+            return Ok((existing, false));
+        }
+        let working_folder = source.join(text(&version, "cwd"));
+        let content = self.frozen_content(&records, &source, &version).await?;
+        if saturn_domain::research::fingerprint(&content) != text(&version, "fingerprint") {
+            return Err(CoreError::new(
+                409,
+                "The code, data or models changed since this version was frozen. Freeze a new version to run them.",
+            ));
+        }
+
+        let lock = self.records_lock(&records);
+        let writing = lock.lock().await;
+        if let Some(existing) = run_with_client(&records, client_id).await? {
+            return Ok((existing, false));
+        }
+        let id = new_id("run")?;
+        let now = iso_time(now_millis());
+        let run = json!({
+            "schemaVersion": SCHEMA_VERSION,
+            "id": id,
+            "revision": 1,
+            "versionId": version_id,
+            "experimentId": text(&version, "experimentId"),
+            "clientId": client_id,
+            "threadId": thread,
+            "status": "starting",
+            "createdAt": now,
+            "updatedAt": now,
+        });
+        let directory = records.join("runs").join(&id);
+        tokio::fs::create_dir_all(&directory).await?;
+        write_whole(&directory.join("run.json"), &pretty(&run)?).await?;
+        drop(writing);
+        self.research_changed();
+        test_hold("before-process").await;
+
+        let started = self
+            .spawn_run(&id, &version, &working_folder, &directory)
+            .await;
+        let mut child = match started {
+            Ok(child) => child,
+            Err(error) => {
+                let failed = self
+                    .settle_run(&records, &id, |run| {
+                        run["status"] = json!("failed");
+                        run["error"] = json!(format!("The command could not start: {error}"));
+                    })
+                    .await?;
+                return Ok((failed, true));
+            }
+        };
+        let pid = child.id().unwrap_or(0);
+        locked(&self.research.active).insert(
+            id.clone(),
+            ActiveRun {
+                pid,
+                thread: thread.map(str::to_owned),
+                project: project.to_owned(),
+            },
+        );
+        test_hold("after-process").await;
+        let running = self
+            .settle_run(&records, &id, |run| {
+                run["status"] = json!("running");
+                run["pid"] = json!(pid);
+                run["startedAt"] = json!(iso_time(now_millis()));
+            })
+            .await?;
+
+        let kernel = Arc::clone(self);
+        let finishing = FinishingRun {
+            records,
+            source,
+            directory,
+            id,
+            version,
+            pid,
+        };
+        tokio::spawn(async move {
+            let exit = child.wait().await.ok().and_then(|status| status.code());
+            kernel.finish_run(finishing, exit).await;
+        });
+        Ok((running, true))
+    }
+
+    /// The version's command in its own process group, with its output in the run's folder.
+    async fn spawn_run(
+        &self,
+        id: &str,
+        version: &Value,
+        working_folder: &Path,
+        directory: &Path,
+    ) -> std::io::Result<tokio::process::Child> {
+        let stdout = tokio::fs::File::create(directory.join("stdout.log"))
+            .await?
+            .into_std()
+            .await;
+        let stderr = tokio::fs::File::create(directory.join("stderr.log"))
+            .await?
+            .into_std()
+            .await;
+        let mut command = Command::new("/bin/sh");
+        launch_env(&mut command);
+        for (key, _) in std::env::vars_os() {
+            if key.to_string_lossy().starts_with("SATURN_") {
+                command.env_remove(&key);
+            }
+        }
+        command
+            .args(["-c", WRAPPER])
+            .current_dir(working_folder)
+            .env("SATURN_RUN_COMMAND", text(version, "command"))
+            .env("SATURN_RUN_ID", id)
+            .env("SATURN_RUN_TOKEN", saturn_domain::random_hex(16)?)
+            .env("SATURN_RUN_VERSION", text(version, "id"))
+            .env("SATURN_RUN_DIRECTORY", directory)
+            .env("SATURN_RUN_SAMPLES", directory.join("samples.jsonl"))
+            .stdin(Stdio::null())
+            .stdout(stdout)
+            .stderr(stderr);
+        in_own_group(&mut command);
+        command.spawn()
+    }
+
+    /// Asks a run to stop. A run that already ended stays as it ended.
+    pub async fn research_stop_run(
+        self: &Arc<Self>,
+        project: &str,
+        id: &str,
+    ) -> Result<Value, CoreError> {
+        let current = self.research_run(project, id).await?;
+        let records = self.records_folder(project).await?;
+        let pid = locked(&self.research.active).get(id).map(|run| run.pid);
+        let Some(pid) = pid else {
+            return Ok(current);
+        };
+        let stopping = self
+            .change_active_run(&records, id, |run| run["status"] = json!("stopping"))
+            .await?;
+        terminate(pid);
+        let kernel = Arc::clone(self);
+        let run = id.to_owned();
+        tokio::spawn(async move {
+            tokio::time::sleep(GRACE).await;
+            if locked(&kernel.research.active).contains_key(&run) {
+                force(pid);
+            }
+        });
+        Ok(stopping)
+    }
+
+    /// Changes a run's saved record, whatever its status.
+    async fn settle_run(
+        &self,
+        records: &Path,
+        id: &str,
+        change: impl FnOnce(&mut Value),
+    ) -> Result<Value, CoreError> {
+        let lock = self.records_lock(records);
+        let _writing = lock.lock().await;
+        let file = run_file(records, id);
+        let mut run = read_record(&file)
+            .await
+            .map_err(|reason| super::cannot_use(id, &reason))?
+            .ok_or_else(not_found)?;
+        change(&mut run);
+        run["revision"] = json!(run["revision"].as_u64().unwrap_or(0) + 1);
+        run["updatedAt"] = json!(iso_time(now_millis()));
+        write_whole(&file, &pretty(&run)?).await?;
+        self.research_changed();
+        Ok(run)
+    }
+
+    /// Changes a run's record only if it has not ended.
+    async fn change_active_run(
+        &self,
+        records: &Path,
+        id: &str,
+        change: impl FnOnce(&mut Value),
+    ) -> Result<Value, CoreError> {
+        self.settle_run(records, id, |run| {
+            if is_active_status(text(run, "status")) {
+                change(run);
+            }
+        })
+        .await
+    }
+
+    /// Seals a run whose process has ended.
+    async fn finish_run(&self, finishing: FinishingRun, exit: Option<i32>) {
+        let FinishingRun {
+            records,
+            source,
+            directory,
+            id,
+            version,
+            pid,
+        } = finishing;
+        // What the process left running must not keep writing after the seal.
+        if group_exists(pid) {
+            end_group(pid).await;
+        }
+        if self.research.ending.load(Ordering::SeqCst) {
+            return;
+        }
+        let changed = self.inputs_changed(&records, &source, &version).await;
+        let sealed = seal(&directory).await;
+        let saved = self
+            .settle_run(&records, &id, |run| {
+                if !is_active_status(text(run, "status")) {
+                    return;
+                }
+                let stopped = text(run, "status") == "stopping";
+                match &sealed {
+                    Ok((scan, fields)) => {
+                        run["status"] = json!(if stopped {
+                            "stopped"
+                        } else {
+                            status_after(exit, scan)
+                        });
+                        merge(run, fields);
+                    }
+                    Err(error) => {
+                        run["status"] = json!("failed");
+                        run["error"] = json!(format!("The samples could not be read: {error}"));
+                    }
+                }
+                run["exitCode"] = json!(exit);
+                run["endedAt"] = json!(iso_time(now_millis()));
+                run["inputsChanged"] = json!(changed);
+            })
+            .await;
+        if let Err(error) = saved {
+            eprintln!("Could not save the end of research run {id}: {error}");
+        }
+        locked(&self.research.active).remove(&id);
+    }
+
+    /// Which frozen files differ now, compared with what the version recorded.
+    async fn inputs_changed(&self, records: &Path, source: &Path, version: &Value) -> Vec<String> {
+        let Ok(now) = self.frozen_content(records, source, version).await else {
+            return vec!["(the inputs could not be read again)".to_owned()];
+        };
+        let mut changed = Vec::new();
+        if version.pointer("/git/commit") != now.pointer("/git/commit") {
+            changed.push("(the git commit)".to_owned());
+        }
+        for field in ["inputs", "changedFiles"] {
+            let listed = |record: &Value| {
+                record
+                    .get(field)
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+            };
+            let current = listed(&now);
+            for item in listed(version) {
+                let path = text(&item, "path");
+                let same = current.iter().any(|other| {
+                    text(other, "path") == path && other.get("sha256") == item.get("sha256")
+                });
+                if !same && !changed.iter().any(|known| known == path) {
+                    changed.push(path.to_owned());
+                }
+            }
+        }
+        changed
+    }
+
+    /// Ends this runtime's runs because it is stopping: each one is interrupted, its samples kept.
+    pub async fn research_end_runs(&self) {
+        self.research.ending.store(true, Ordering::SeqCst);
+        let active: Vec<(String, u32, String)> = locked(&self.research.active)
+            .iter()
+            .map(|(id, run)| (id.clone(), run.pid, run.project.clone()))
+            .collect();
+        for (id, pid, project) in active {
+            end_group(pid).await;
+            if let Ok(records) = self.records_folder(&project).await {
+                self.interrupt(&records, &id, "ended").await;
+            }
+        }
+    }
+
+    /// Runs a runtime that died left behind: those still on record as active become interrupted. A process is ended
+    /// only when it is confirmed to be the same one.
+    pub async fn research_recover(&self) {
+        let projects: Vec<String> = self.store.read(|state| {
+            state
+                .projects
+                .iter()
+                .map(|project| text(project, "id").to_owned())
+                .collect()
+        });
+        for project in projects {
+            let Ok(records) = self.records_folder(&project).await else {
+                continue;
+            };
+            let Ok((runs, _)) = read_runs(&records).await else {
+                continue;
+            };
+            for run in runs
+                .iter()
+                .filter(|run| is_active_status(text(run, "status")))
+            {
+                let id = text(run, "id");
+                let directory = records.join("runs").join(id);
+                let process = match recorded_identity(&directory).await {
+                    None => "none",
+                    Some((pid, started)) => match process_start_time(pid).await {
+                        Some(now) if now == started => {
+                            end_group(pid).await;
+                            "ended"
+                        }
+                        Some(_) => "gone",
+                        None if group_exists(pid) => {
+                            // The leader is gone but something of its group lives; it is the same group only if it
+                            // has not been reused, which cannot be told apart here.
+                            "unconfirmed"
+                        }
+                        None => "gone",
+                    },
+                };
+                self.interrupt(&records, id, process).await;
+            }
+        }
+    }
+
+    /// Seals a run as interrupted, saying what became of its process.
+    async fn interrupt(&self, records: &Path, id: &str, process: &str) {
+        let directory = records.join("runs").join(id);
+        let sealed = seal(&directory).await;
+        let saved = self
+            .change_active_run(records, id, |run| {
+                run["status"] = json!("interrupted");
+                run["process"] = json!(process);
+                run["endedAt"] = json!(iso_time(now_millis()));
+                if let Ok((_, fields)) = &sealed {
+                    merge(run, fields);
+                }
+            })
+            .await;
+        if let Err(error) = saved {
+            eprintln!("Could not save research run {id} as interrupted: {error}");
+        }
+        locked(&self.research.active).remove(id);
+    }
+}
+
+/// What finishing a run needs to know.
+struct FinishingRun {
+    records: PathBuf,
+    source: PathBuf,
+    directory: PathBuf,
+    id: String,
+    version: Value,
+    pid: u32,
+}
+
+/// What a run records about its samples file when it ends; the hash and size fix what counts as its samples.
+async fn seal(directory: &Path) -> std::io::Result<(Scan, Value)> {
+    let path = directory.join("samples.jsonl");
+    let (sha256, size) = match hash_file(&path).await {
+        Ok(found) => found,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => (String::new(), 0),
+        Err(error) => return Err(error),
+    };
+    let scanned = path.clone();
+    let scan = tokio::task::spawn_blocking(move || scan_samples(&scanned))
+        .await
+        .map_err(std::io::Error::other)??;
+    let fields = json!({
+        "samples": scan.samples,
+        "infrastructureErrors": scan.infrastructure_errors,
+        "problems": scan.problems,
+        "partialLine": scan.partial_line,
+        "samplesSha256": sha256,
+        "samplesSize": size,
+    });
+    Ok((scan, fields))
+}
+
+/// Copies an object's fields onto a record.
+fn merge(run: &mut Value, fields: &Value) {
+    if let (Some(run), Some(fields)) = (run.as_object_mut(), fields.as_object()) {
+        run.extend(
+            fields
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone())),
+        );
+    }
+}
+
+fn run_file(records: &Path, id: &str) -> PathBuf {
+    records.join("runs").join(id).join("run.json")
+}
+
+fn not_found() -> CoreError {
+    CoreError::new(404, "No such run")
+}
+
+/// Every run in a project's records, and the ones that cannot be used.
+async fn read_runs(records: &Path) -> Result<(Vec<Value>, Vec<Value>), CoreError> {
+    let mut items = Vec::new();
+    let mut problems = Vec::new();
+    let mut entries = match tokio::fs::read_dir(records.join("runs")).await {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok((items, problems)),
+        Err(error) => return Err(error.into()),
+    };
+    while let Some(entry) = entries.next_entry().await? {
+        let id = entry.file_name().to_string_lossy().into_owned();
+        if !is_id(&id) {
+            continue;
+        }
+        match read_record(&entry.path().join("run.json")).await {
+            Ok(Some(run)) => items.push(run),
+            Ok(None) => {}
+            Err(error) => problems.push(json!({ "id": id, "error": error })),
+        }
+    }
+    items.sort_by_key(|item| {
+        (
+            text(item, "createdAt").to_owned(),
+            text(item, "id").to_owned(),
+        )
+    });
+    Ok((items, problems))
+}
+
+/// The run an earlier start with this `clientId` made.
+async fn run_with_client(records: &Path, client: &str) -> Result<Option<Value>, CoreError> {
+    let (runs, _) = read_runs(records).await?;
+    Ok(runs.into_iter().find(|run| text(run, "clientId") == client))
+}

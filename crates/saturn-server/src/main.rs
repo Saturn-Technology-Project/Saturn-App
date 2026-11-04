@@ -127,6 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
     });
     kernel.recover_interrupted().await?;
+    kernel.research_recover().await;
     kernel.sweep_worktrees().await;
     start_wakeups(Arc::clone(&kernel));
     kernel.resume_group_turns();
@@ -150,6 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             stop_requested().await;
             // What runs on the runtime's behalf ends with it. A client still listening must not hold it open.
             stopping.jobs.stop_all(None);
+            stopping.research_end_runs().await;
             stopping.stop_programs();
             stopping.browser.close().await;
             saturn_telemetry::stop().await;

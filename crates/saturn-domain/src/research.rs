@@ -262,6 +262,54 @@ pub fn makes_cycle(child: &str, parent: &str, parent_of: impl Fn(&str) -> Option
     false
 }
 
+/// The longest line a samples file may have.
+pub const MAX_SAMPLE_LINE: u64 = 64 * 1024 * 1024;
+
+/// A sample line's identity within a run, or why the line breaks JSONL version 1.
+pub fn sample_identity(line: &Value) -> Result<String, String> {
+    let fields = line.as_object().ok_or("A sample must be a JSON object.")?;
+    if fields.get("schemaVersion").and_then(Value::as_u64) != Some(1) {
+        return Err("\"schemaVersion\" must be 1.".to_owned());
+    }
+    let sample = fields
+        .get("sampleId")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .ok_or("\"sampleId\" is required.")?;
+    let trial = match fields.get("trial") {
+        None => 0,
+        Some(value) => value.as_u64().ok_or("\"trial\" must be a whole number.")?,
+    };
+    let model = match fields.get("modelId") {
+        None | Some(Value::Null) => "",
+        Some(value) => value.as_str().ok_or("\"modelId\" must be text.")?,
+    };
+    match fields.get("scores") {
+        None | Some(Value::Null) => {}
+        Some(Value::Object(scores)) => {
+            if scores
+                .values()
+                .any(|score| !(score.is_number() || score.is_string() || score.is_boolean()))
+            {
+                return Err("Each score must be a number, text or true or false.".to_owned());
+            }
+        }
+        Some(_) => return Err("\"scores\" must be an object.".to_owned()),
+    }
+    match fields.get("error") {
+        None | Some(Value::Null) => {}
+        Some(error) => {
+            let kind = error.get("kind").and_then(Value::as_str);
+            if !matches!(kind, Some("infrastructure" | "model" | "scorer")) {
+                return Err(
+                    "An error's \"kind\" must be infrastructure, model or scorer.".to_owned(),
+                );
+            }
+        }
+    }
+    Ok(serde_json::to_string(&(sample, trial, model)).unwrap_or_default())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -525,6 +525,22 @@ fn stream_of(rx: mpsc::Receiver<Event>) -> Sse<impl Stream<Item = Result<Event, 
 async fn events(State(kernel): Shared) -> Response {
     let (tx, rx) = mpsc::channel(32);
     let mut changes = kernel.store.changes();
+    let research_tx = tx.clone();
+    let mut research = kernel.research_changes();
+    tokio::spawn(async move {
+        while research.changed().await.is_ok() {
+            tokio::time::sleep(THROTTLE).await;
+            research.borrow_and_update();
+            // Only that something changed: what changed is read back, which also covers a dropped connection.
+            if research_tx
+                .send(event("research", &json!({})))
+                .await
+                .is_err()
+            {
+                return;
+            }
+        }
+    });
     tokio::spawn(async move {
         let _ = tx
             .send(Event::default().retry(Duration::from_secs(2)).comment(""))

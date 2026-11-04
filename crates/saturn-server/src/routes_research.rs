@@ -68,8 +68,44 @@ async fn compare(
         .await?)
 }
 
+async fn start_run(
+    State(kernel): Shared,
+    Path((project, version)): Path<(String, String)>,
+    body: Body,
+) -> Answer {
+    let body = body_of(body);
+    let (run, new) = kernel
+        .research_start_run(
+            &project,
+            &version,
+            given(&body, "clientId").unwrap_or(""),
+            given(&body, "threadId"),
+        )
+        .await?;
+    if new { created(run) } else { ok(run) }
+}
+
+async fn runs(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_runs(&project).await?)
+}
+
+async fn run(State(kernel): Shared, Path((project, id)): Path<(String, String)>) -> Answer {
+    ok(kernel.research_run(&project, &id).await?)
+}
+
+async fn stop_run(State(kernel): Shared, Path((project, id)): Path<(String, String)>) -> Answer {
+    ok(kernel.research_stop_run(&project, &id).await?)
+}
+
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route("/projects/{id}/research/runs", get(runs))
+        .route("/projects/{id}/research/runs/{run}", get(run))
+        .route("/projects/{id}/research/runs/{run}/stop", post(stop_run))
+        .route(
+            "/projects/{id}/research/versions/{version}/runs",
+            post(start_run),
+        )
         .route("/projects/{id}/research/compare", get(compare))
         .route(
             "/projects/{id}/research/{collection}",

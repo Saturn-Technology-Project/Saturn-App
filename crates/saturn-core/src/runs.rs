@@ -665,6 +665,7 @@ impl Kernel {
 
     /// Deletes a chat with its worktree, runs, background commands and saved copies.
     pub async fn delete_thread(&self, thread_id: &str) -> Result<(), CoreError> {
+        self.refuse_if_running_experiment(thread_id)?;
         if self
             .find_thread(thread_id)
             .is_some_and(|thread| thread.get("worktree").is_some_and(|tree| !tree.is_null()))

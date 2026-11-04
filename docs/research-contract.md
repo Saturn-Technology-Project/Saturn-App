@@ -70,7 +70,7 @@ A version is everything that decides what a run computes:
 - the git commit, or none outside git;
 - every uncommitted and untracked file, as a saved copy up to 5 MiB each and 200 MiB in all, and by hash beyond that;
 - outside git, the declared code inputs the same way;
-- the size and SHA-256 of every declared input (`code`, `data`, `scorer`, `environment`). Data and scorers are not copied.
+- the declared inputs as written, and the size and SHA-256 of every file in them (`code`, `data`, `scorer`, `environment`). Data and scorers are not copied.
 
 Freezing the same content again returns the same version. Different content makes the next version. Working files stay
 free to change: nothing is locked by having been frozen, and the next run freezes what is there then. Older versions and
@@ -127,8 +127,12 @@ While the process runs, a final line without a newline is treated as not written
 |---|---|
 | Valid lines, exit code 0 | `completed` |
 | Valid lines, exit code not 0 | `failed`, samples kept |
-| A bad line, a repeated identity, or a final partial line | `protocol_error`, with the line number; the raw file is kept and the valid lines stay readable |
+| A bad line, a repeated identity, or a final partial line, exit code 0 | `protocol_error`, with the line number; the raw file is kept and the valid lines stay readable |
+| The same, exit code not 0 | `failed`, with the problems recorded |
 | No valid line, exit code 0 | `protocol_error` |
+
+A run that writes new untracked files into the project makes the next run's content differ, so the next run is a new
+version. Write outputs to `SATURN_RUN_DIRECTORY`, or to a folder git ignores.
 
 Model output is data. It is shown as plain text and is never put in a system prompt.
 

@@ -256,6 +256,7 @@ impl Kernel {
         message: Option<&str>,
     ) -> Result<Value, CoreError> {
         let thread = self.thread_or_missing(thread_id)?;
+        self.refuse_if_running_experiment(thread_id)?;
         let project = text(&thread, "projectId");
         let folder = self
             .worktree_path(&thread)

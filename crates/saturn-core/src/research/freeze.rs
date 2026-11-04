@@ -236,13 +236,13 @@ impl Kernel {
     /// Every declared input's size and hash, or which one cannot be used.
     async fn input_hashes(
         source: &Path,
-        draft: &Value,
+        declared: &Value,
     ) -> Result<(Vec<Value>, Vec<String>), CoreError> {
         let workspace = Workspace::new(source);
         let mut hashes = Vec::new();
         let mut code = Vec::new();
         for role in INPUT_ROLES {
-            for path in crate::records::strings(draft.get("inputs").unwrap_or(&Value::Null), role) {
+            for path in crate::records::strings(declared, role) {
                 let target = inside_workspace(&workspace, &path).await.map_err(|error| {
                     unusable_input(format!("The {role} input {path} cannot be used: {error}"))
                 })?;
@@ -304,6 +304,55 @@ impl Kernel {
         Ok(bound)
     }
 
+    /// What a version made from these fields would hold, as things are now. `draft` is an experiment, or a version.
+    pub(super) async fn frozen_content(
+        &self,
+        records: &Path,
+        source: &Path,
+        draft: &Value,
+    ) -> Result<Value, CoreError> {
+        let command = text(draft, "command");
+        if command.trim().is_empty() {
+            return Err(unusable_input(
+                "An experiment needs a command before it can be frozen.",
+            ));
+        }
+        let working_folder = match draft.get("cwd").and_then(Value::as_str) {
+            Some(cwd) if !cwd.is_empty() => {
+                let workspace = Workspace::new(source);
+                let target = inside_workspace(&workspace, cwd).await.map_err(|error| {
+                    unusable_input(format!("The working folder {cwd} cannot be used: {error}"))
+                })?;
+                workspace.relative(&target)
+            }
+            _ => ".".to_owned(),
+        };
+        let declared = draft
+            .get("declaredInputs")
+            .or_else(|| draft.get("inputs"))
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let (inputs, code) = Self::input_hashes(source, &declared).await?;
+        let models = self.bound_models(records, draft).await?;
+        let mut copies = Copies {
+            objects: records.join("objects"),
+            used: 0,
+        };
+        let (git, changed_files) = self.source_state(source, &mut copies, &code).await?;
+        Ok(json!({
+            "command": command,
+            "cwd": working_folder,
+            "seeds": draft.get("seeds").cloned().unwrap_or_else(|| json!([])),
+            "envNames": draft.get("envNames").cloned().unwrap_or_else(|| json!([])),
+            "evaluation": draft.get("evaluation").cloned().unwrap_or(Value::Null),
+            "models": models,
+            "git": git,
+            "changedFiles": changed_files,
+            "inputs": inputs,
+            "declaredInputs": declared,
+        }))
+    }
+
     /// The version holding an experiment's content now, made if it is new, and whether it was.
     pub async fn research_freeze(
         &self,
@@ -314,43 +363,9 @@ impl Kernel {
         let draft = self
             .research_record(project, "experiments", experiment)
             .await?;
-        let command = text(&draft, "command");
-        if command.trim().is_empty() {
-            return Err(unusable_input(
-                "An experiment needs a command before it can be frozen.",
-            ));
-        }
         let source = self.research_source(project, thread)?;
         let records = self.records_for_writing(project).await?;
-        let working_folder = match draft.get("cwd").and_then(Value::as_str) {
-            Some(cwd) if !cwd.is_empty() => {
-                let workspace = Workspace::new(&source);
-                let target = inside_workspace(&workspace, cwd).await.map_err(|error| {
-                    unusable_input(format!("The working folder {cwd} cannot be used: {error}"))
-                })?;
-                workspace.relative(&target)
-            }
-            _ => ".".to_owned(),
-        };
-        let (inputs, code) = Self::input_hashes(&source, &draft).await?;
-        let models = self.bound_models(&records, &draft).await?;
-        let mut copies = Copies {
-            objects: records.join("objects"),
-            used: 0,
-        };
-        let (git, changed_files) = self.source_state(&source, &mut copies, &code).await?;
-
-        let content = json!({
-            "command": command,
-            "cwd": working_folder,
-            "seeds": draft.get("seeds").cloned().unwrap_or_else(|| json!([])),
-            "envNames": draft.get("envNames").cloned().unwrap_or_else(|| json!([])),
-            "evaluation": draft.get("evaluation").cloned().unwrap_or(Value::Null),
-            "models": models,
-            "git": git,
-            "changedFiles": changed_files,
-            "inputs": inputs,
-        });
+        let content = self.frozen_content(&records, &source, &draft).await?;
         let content_id = fingerprint(&content);
 
         let lock = self.records_lock(&records);
