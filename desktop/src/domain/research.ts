@@ -69,6 +69,117 @@ export interface SampleItem {
   raw?: string;
 }
 
+export type Verdict = "undecided" | "supported" | "refuted" | "inconclusive";
+
+export interface Question extends ResearchRecord {
+  title: string;
+}
+
+/** A hypothesis. Only its `verdict` says whether it holds; a run's status does not. */
+export interface Hypothesis extends ResearchRecord {
+  title: string;
+  verdict: Verdict;
+  questionId?: string;
+}
+
+/** A set of weights. `floating` means no revision pins it. */
+export interface ModelNode extends ResearchRecord {
+  source: string;
+  weightsRevision?: string;
+  floating: boolean;
+  parentId?: string;
+  name?: string;
+  trainingData?: string;
+}
+
+/** How an experiment measures: what two runs must share to be compared. */
+export interface EvaluationSpec {
+  dataset?: string;
+  split?: string;
+  sampleSet?: string;
+  scorer?: string;
+  promptFormat?: string;
+  chatTemplate?: string | null;
+  generation?: unknown;
+}
+
+export type ModelRole = "base" | "reference" | "policy";
+
+export interface Comparison {
+  result: "comparable" | "not_comparable" | "unknown";
+  differs: string[];
+  missing: string[];
+}
+
+export interface AcrossRow {
+  runId: string;
+  versionId: string;
+  status: RunStatus;
+  models?: { modelId: string; role: string; source: string; weightsRevision: string | null; floating: boolean }[];
+  comparison: Comparison;
+  samples: SampleLine[];
+}
+
+export interface RunLabels {
+  labels: Record<string, { sampleId: string; trial: number; modelId?: string | null; label: string; note?: string }>;
+  agreement: { labeled: number; compared: number; agreed: number };
+}
+
+export type ParticipationMode = "manual" | "pair" | "delegate";
+
+export interface ResearchPolicy {
+  revision: number;
+  modes: Record<string, ParticipationMode>;
+  locked: string[];
+}
+
+export type ResearchEvent =
+  | { kind: "refused"; path: string; tool: string; reason: string; runId: string; at: string }
+  | { kind: "integrity_changed"; paths: string[]; afterTool: string; runId: string; at: string }
+  | { kind: "assisted"; path: string; tool: string; policyRevision: number; runId: string; at: string };
+
+/** The mode that applies to a file: the most specific key wins, and a file with none is the agent's to change. */
+export function modeOf(policy: ResearchPolicy, path: string): ParticipationMode {
+  let chosen: ParticipationMode = "delegate";
+  let length = -1;
+  for (const [key, mode] of Object.entries(policy.modes)) {
+    const folder = key.replace(/\/+$/, "");
+    if ((path === folder || path.startsWith(`${folder}/`)) && folder.length > length) {
+      chosen = mode;
+      length = folder.length;
+    }
+  }
+  return chosen;
+}
+
+/** Why two runs cannot be compared, in words. */
+export function comparisonText(comparison: Comparison): string {
+  if (comparison.result === "comparable") return "Measured the same way";
+  if (comparison.result === "not_comparable") return `Not comparable, these differ: ${comparison.differs.join(", ")}`;
+  return `Cannot tell: ${comparison.missing.join(", ")} not stated`;
+}
+
+/** Models as a forest: each with its depth, parents before their children. */
+export function lineageOrder(models: ModelNode[]): { model: ModelNode; depth: number }[] {
+  const known = new Set(models.map((model) => model.id));
+  const children = new Map<string, ModelNode[]>();
+  const roots: ModelNode[] = [];
+  for (const model of models) {
+    if (model.parentId && known.has(model.parentId)) {
+      children.set(model.parentId, [...(children.get(model.parentId) ?? []), model]);
+    } else {
+      roots.push(model);
+    }
+  }
+  const ordered: { model: ModelNode; depth: number }[] = [];
+  const visit = (model: ModelNode, depth: number) => {
+    ordered.push({ model, depth });
+    for (const child of children.get(model.id) ?? []) visit(child, depth + 1);
+  };
+  for (const root of roots) visit(root, 0);
+  return ordered;
+}
+
 /** Whether a run can still change. */
 export function isRunActive(status: RunStatus): boolean {
   return status === "starting" || status === "running" || status === "stopping";

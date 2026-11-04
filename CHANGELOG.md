@@ -7,6 +7,9 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 ### Added
 
 - **A research workbench.** Under Research, open a project's file, write it yourself, run an experiment and read its samples next to the code, then write down what you understood. Everything is kept as plain files in the project's `.saturn/research` folder, and reopening picks up where you stopped. A run records exactly what it computed, including uncommitted code, and a crash leaves its samples readable. Experiment runs work on macOS and Linux; on Windows they say they are not supported yet.
+- **A model's lineage and fair comparisons.** Connect checkpoints to their fine-tuned branches, and compare one sample across runs. Two runs that measured differently say which setting differs instead of showing a misleading comparison.
+- **Your labels and counterexamples.** Label a sample without touching its score, see how far you agree with the scorer, and keep the samples that matter.
+- **How much AI each file gets.** Set a file or folder to Manual, Pair or Delegate. An agent's file tools cannot write a Manual or locked file, and a Pair file always asks you. Modes are a workflow constraint rather than a security boundary: a shell or Codex can still write a file, which Saturn notices afterwards and records under Protection.
 
 ### Security
 

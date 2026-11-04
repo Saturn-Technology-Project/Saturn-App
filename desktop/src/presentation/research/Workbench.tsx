@@ -7,11 +7,15 @@ import {
   sampleText,
   type ExperimentDraft,
   type ExperimentRun,
+  type ParticipationMode,
+  type ResearchPolicy,
   type Finding,
   type FindingKind,
   type SampleItem,
   type SourceEntry,
+  modeOf,
 } from "../../domain/research.js";
+import { ExperimentScreen, LineageScreen, ProjectHome, ProtectionScreen, SampleScreen } from "./Screens.js";
 import { SourceEditor } from "./SourceEditor.js";
 
 const FINDING_LABELS: Record<FindingKind, string> = {
@@ -72,7 +76,49 @@ export function ResearchWorkbench(props: { project: Project | null }) {
       </div>
     );
   }
-  return <Workbench key={project.id} projectId={project.id} projectName={project.name} />;
+  return <ResearchTabs key={project.id} projectId={project.id} projectName={project.name} />;
+}
+
+const TABS = ["Home", "Workspace", "Lineage", "Experiments", "Samples", "Protection"] as const;
+type Tab = (typeof TABS)[number];
+
+/** The workbench's screens. Switching keeps each one's state where it matters: the editor stays mounted. */
+function ResearchTabs(props: { projectId: string; projectName: string }) {
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      const saved = localStorage.getItem(`saturn-research-tab-${props.projectId}`);
+      return TABS.find((item) => item === saved) ?? "Home";
+    } catch {
+      return "Home";
+    }
+  });
+  function choose(next: Tab) {
+    setTab(next);
+    try {
+      localStorage.setItem(`saturn-research-tab-${props.projectId}`, next);
+    } catch {
+      // Only where the workbench reopens.
+    }
+  }
+  return (
+    <div className="research">
+      <div className="research-tabs" role="tablist" aria-label="Research">
+        {TABS.map((item) => (
+          <button type="button" role="tab" key={item} aria-selected={tab === item} className={tab === item ? "research-tab active" : "research-tab"} onClick={() => choose(item)}>
+            {item}
+          </button>
+        ))}
+      </div>
+      <div className="research-screen" hidden={tab !== "Workspace"}>
+        <Workbench projectId={props.projectId} projectName={props.projectName} />
+      </div>
+      {tab === "Home" ? <ProjectHome projectId={props.projectId} onContinue={() => choose("Workspace")} /> : null}
+      {tab === "Lineage" ? <LineageScreen projectId={props.projectId} /> : null}
+      {tab === "Experiments" ? <ExperimentScreen projectId={props.projectId} /> : null}
+      {tab === "Samples" ? <SampleScreen projectId={props.projectId} /> : null}
+      {tab === "Protection" ? <ProtectionScreen projectId={props.projectId} /> : null}
+    </div>
+  );
 }
 
 function Workbench(props: { projectId: string; projectName: string }) {
@@ -98,6 +144,7 @@ function Workbench(props: { projectId: string; projectName: string }) {
   const [findingKind, setFindingKind] = useState<FindingKind>("observation");
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [policy, setPolicy] = useState<ResearchPolicy | null>(null);
 
   const remember = useCallback(
     (changes: Partial<typeof session.current>) => {
@@ -163,6 +210,7 @@ function Workbench(props: { projectId: string; projectName: string }) {
     void (async () => {
       try {
         await showFolder(".");
+        setPolicy(await service.policy(projectId));
         const drafts = (await service.experiments(projectId)).items;
         const chosen = drafts.find((item) => item.id === session.current.experimentId) ?? drafts[drafts.length - 1] ?? null;
         if (!live) return;
@@ -244,7 +292,9 @@ function Workbench(props: { projectId: string; projectName: string }) {
     try {
       if (dirty && !(await save())) return;
       const code = open ? [open.path] : [];
-      let draft = experiment;
+      // Another screen may have changed the draft since this one read it.
+      const latest = (await service.experiments(projectId)).items;
+      let draft = latest.find((item) => item.id === experiment?.id) ?? experiment;
       if (!draft) {
         draft = await service.createExperiment(projectId, { title: `Experiment in ${props.projectName}`, command, inputs: { code } });
       } else if (draft.command !== command || !draft.inputs?.code?.length) {
@@ -293,11 +343,21 @@ function Workbench(props: { projectId: string; projectName: string }) {
     }
   }
 
+  async function chooseMode(mode: ParticipationMode) {
+    if (!open || !policy) return;
+    try {
+      setPolicy(await service.setMode(projectId, policy, open.path, mode));
+    } catch (error) {
+      setProblem(messageOf(error));
+      setPolicy(await service.policy(projectId));
+    }
+  }
+
   const selected = samples.find((item) => item.offset === selectedOffset) ?? null;
   const parentFolder = folder === "." ? null : folder.split("/").slice(0, -1).join("/") || ".";
 
   return (
-    <div className="research">
+    <div className="research-workspace">
       <header className="research-bar">
         <strong>{props.projectName}</strong>
         <label className="research-command">
@@ -353,6 +413,21 @@ function Workbench(props: { projectId: string; projectName: string }) {
                 <button type="button" className="research-link" disabled={!dirty || saving} onClick={() => void save()}>
                   Save
                 </button>
+                {policy ? (
+                  <div className="research-modes" role="group" aria-label="AI involvement in this file">
+                    {(["manual", "pair", "delegate"] as const).map((mode) => (
+                      <button
+                        type="button"
+                        key={mode}
+                        aria-pressed={modeOf(policy, open.path) === mode}
+                        className={modeOf(policy, open.path) === mode ? "research-mode active" : "research-mode"}
+                        onClick={() => void chooseMode(mode)}
+                      >
+                        {mode[0].toUpperCase() + mode.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               {conflict ? (
                 <div className="research-notice" role="alert">

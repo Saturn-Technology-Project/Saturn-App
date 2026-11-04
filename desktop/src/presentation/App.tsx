@@ -105,6 +105,15 @@ const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif
 const MAX_IMAGES = 4;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/** Whether the app was last closed on the research workbench, so it reopens there. */
+function rememberedResearch(): boolean {
+  try {
+    return localStorage.getItem("saturn-last-view") === "research";
+  } catch {
+    return false;
+  }
+}
+
 export function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [tasks, setTasks] = useState<PendingTask[]>([]);
@@ -166,7 +175,14 @@ export function App() {
   const [projectMenu, setProjectMenu] = useState<{ project: Project; x: number; y: number } | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [projectView, patchProjectView, resetProjectView] = useProjectView();
-  const [view, setView] = useState<"workspace" | "agents" | "settings" | "automations" | "customizations" | "research" | "project" | "group">("workspace");
+  const [view, setView] = useState<"workspace" | "agents" | "settings" | "automations" | "customizations" | "research" | "project" | "group">(() => (rememberedResearch() ? "research" : "workspace"));
+  useEffect(() => {
+    try {
+      localStorage.setItem("saturn-last-view", view);
+    } catch {
+      // Only where the app reopens.
+    }
+  }, [view]);
   const [settingsPage, setSettingsPage] = useState<SettingsPage>("settings");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(true);

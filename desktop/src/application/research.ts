@@ -1,9 +1,18 @@
 import type {
+  AcrossRow,
+  Comparison,
   ExperimentDraft,
   ExperimentRun,
   Finding,
   FindingKind,
   FrozenVersion,
+  Hypothesis,
+  ModelNode,
+  ParticipationMode,
+  Question,
+  ResearchEvent,
+  ResearchPolicy,
+  RunLabels,
   ResearchSession,
   SampleItem,
   SourceView,
@@ -83,6 +92,74 @@ export class ResearchService {
 
   addFinding(project: string, text: string, kind: FindingKind, runIds: string[]): Promise<Finding> {
     return this.send(`${this.route(project)}/findings`, "POST", { text, kind, runIds });
+  }
+
+  questions(project: string): Promise<RecordList<Question>> {
+    return this.runtime.request(`${this.route(project)}/questions`);
+  }
+
+  addQuestion(project: string, title: string): Promise<Question> {
+    return this.send(`${this.route(project)}/questions`, "POST", { title });
+  }
+
+  hypotheses(project: string): Promise<RecordList<Hypothesis>> {
+    return this.runtime.request(`${this.route(project)}/hypotheses`);
+  }
+
+  addHypothesis(project: string, title: string, questionId?: string): Promise<Hypothesis> {
+    return this.send(`${this.route(project)}/hypotheses`, "POST", { title, questionId });
+  }
+
+  setVerdict(project: string, hypothesis: Hypothesis, verdict: Hypothesis["verdict"]): Promise<Hypothesis> {
+    return this.send(`${this.route(project)}/hypotheses/${hypothesis.id}`, "PATCH", { verdict, expectedRevision: hypothesis.revision });
+  }
+
+  models(project: string): Promise<RecordList<ModelNode>> {
+    return this.runtime.request(`${this.route(project)}/models`);
+  }
+
+  addModel(project: string, fields: Pick<ModelNode, "source" | "name" | "weightsRevision" | "parentId" | "trainingData">): Promise<ModelNode> {
+    return this.send(`${this.route(project)}/models`, "POST", fields);
+  }
+
+  versions(project: string): Promise<RecordList<FrozenVersion>> {
+    return this.runtime.request(`${this.route(project)}/versions`);
+  }
+
+  compare(project: string, left: string, right: string): Promise<Comparison> {
+    return this.runtime.request(`${this.route(project)}/compare?left=${left}&right=${right}`);
+  }
+
+  sampleAcross(project: string, sample: string, runs: string[]): Promise<{ rows: AcrossRow[] }> {
+    return this.runtime.request(`${this.route(project)}/samples/${encodeURIComponent(sample)}?runs=${runs.join(",")}`);
+  }
+
+  labels(project: string, run: string): Promise<RunLabels> {
+    return this.runtime.request(`${this.route(project)}/runs/${run}/labels`);
+  }
+
+  setLabel(project: string, run: string, sample: { sampleId: string; trial?: number; modelId?: string | null }, label: string): Promise<unknown> {
+    return this.send(`${this.route(project)}/runs/${run}/labels`, "POST", { ...sample, label });
+  }
+
+  addCounterexample(project: string, run: string, sampleId: string, note: string): Promise<unknown> {
+    return this.send(`${this.route(project)}/counterexamples`, "POST", { runId: run, sampleId, note });
+  }
+
+  policy(project: string): Promise<ResearchPolicy> {
+    return this.runtime.request(`${this.route(project)}/policy`);
+  }
+
+  setMode(project: string, policy: ResearchPolicy, path: string, mode: ParticipationMode): Promise<ResearchPolicy> {
+    return this.send(`${this.route(project)}/policy`, "PUT", {
+      expectedRevision: policy.revision,
+      modes: { ...policy.modes, [path]: mode },
+      locked: policy.locked,
+    });
+  }
+
+  events(project: string): Promise<{ items: ResearchEvent[] }> {
+    return this.runtime.request(`${this.route(project)}/events`);
   }
 
   /** What this project's workbench had open. It is a convenience, so losing it loses no research. */

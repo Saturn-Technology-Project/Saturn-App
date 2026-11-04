@@ -72,6 +72,7 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 | ⌨️ **斜線指令** | 在輸入框打 `/` 會列出 Saturn 內建指令（`/compact`、`/plan`、`/ask`、`/new`）、對話可用的 skills，以及專案 `.saturn/commands`、`.claude/commands` 或你的 `~/.saturn-app/commands` 中的提示範本（`$ARGUMENTS` 會換成指令名稱後的內容）。對話只顯示你輸入的內容，展開後的內容會送給 Agent。 |
 | 🪆 **子 Agent** | Agent 可把獨立的任務（大範圍搜尋、調查、子任務）交給擁有全新上下文的子 Agent，只取回它的答案；可多個平行執行，預設唯讀，巢狀顯示在啟動它的步驟下，核准與檢查點與對話相同。 |
 | 🛠️ **工具** | 檔案系統、shell（支援背景指令：dev server 或 watcher 可跨回合持續執行，在 Terminal 分頁讀取輸出或停止）、網頁擷取、看得見 Agent 操作的瀏覽器（在聊天的 Browser 分頁即時顯示，連同 Agent 的游標；或用 Saturn 專用設定檔的可見 Chrome 視窗，或 macOS 上的 Safari 自動化視窗（需先在 Safari 開啟一次「開發 → 允許遠端自動化」），在設定 → 一般 → Agent 瀏覽器切換；Saturn 不附帶瀏覽器，前兩種需要 Chrome 或 Chromium、Edge 等同類瀏覽器，找不到時工具會說明）、多步驟規劃、macOS 與 Windows 電腦操作、GitHub、自動化，以及內建市集中的任何 [MCP](https://modelcontextprotocol.io) 伺服器。 |
+| 🔬 **研究工作台** | 研究問題、假說、凍結的實驗版本、執行、樣本與結論，都以純文字檔保存在專案的 `.saturn/research`。可在實驗旁親手寫程式、追蹤模型從 checkpoint 到 policy 的變化、跨執行比較同一個樣本，標註也不會改動原本的分數。每次執行都會記錄實際計算的內容（包含未提交的程式），當機後樣本仍可讀取。每個檔案可設為 Manual、Pair 或 Delegate，限制 Agent 的參與程度。這些模式是工作流程約束，不是安全邊界，各後端能做到什麼寫在 [`docs/research-contract.md`](docs/research-contract.md)。實驗執行支援 macOS 與 Linux，Windows 尚未支援。 |
 | ⏰ **自動化** | 以 cron 排程執行 Agent，內建範本如每日審查 pull request。 |
 | 💸 **用量與成本** | 依模型與 Agent 統計任意期間的 token 數與牌價成本。 |
 | 📈 **可觀測性** | OpenTelemetry trace、metric 與 log，對外網路請求紀錄，並可選擇以 OTLP（HTTP 上的 JSON）匯出到自己的 collector。 |
@@ -569,7 +570,7 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
-- 內建編輯器（檔案樹、CodeMirror 6、diff 審查、真實終端機）；已規劃，尚未實作
+- 研究工作台的 PDF 閱讀器、notebook、debugger、語言伺服器與真實終端機
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。
 

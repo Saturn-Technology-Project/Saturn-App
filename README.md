@@ -72,6 +72,7 @@ Saturn is younger than both and has had far less real-world use; the evals are h
 | ⌨️ **Slash commands** | `/` in the composer lists Saturn's own commands (`/compact`, `/plan`, `/ask`, `/new`), the chat's skills, and prompt templates from a project's `.saturn/commands` or `.claude/commands` or your `~/.saturn-app/commands` (`$ARGUMENTS` is what follows the name). The chat shows what you typed; the expansion goes to the agent. |
 | 🪆 **Sub-agents** | An agent hands a self-contained task (a wide search, an investigation, a subtask) to a sub-agent with a fresh context and gets back only its answer; several run in parallel, read-only by default, nested under the step that started them, with the same approvals and checkpoints as the chat. |
 | 🛠️ **Tools** | Filesystem, shell (with background commands: a dev server or watcher keeps running across turns, readable and stoppable from the Terminal tab), web fetch, a browser you watch the agent use (live in the chat's Browser tab with its cursor, a visible Chrome window with Saturn's own profile, or a Safari automation window on macOS after turning on Develop → Allow Remote Automation once; Settings → General → Agent browser; Saturn ships no browser of its own, so the first two need Chrome or a relative such as Chromium or Edge, and the tool says so when there is none), multi-step planning, computer use on macOS and Windows, GitHub, automations, and any [MCP](https://modelcontextprotocol.io) server from the built-in marketplace. |
+| 🔬 **Research workbench** | Questions, hypotheses, frozen experiment versions, runs, samples and findings, kept as plain files in the project's `.saturn/research`. Write code yourself beside an experiment, follow a model from checkpoint to policy, compare one sample across runs, and label it without touching its score. A run records what it really computed, including uncommitted code, and survives a crash with its samples readable. Each file can be Manual, Pair or Delegate for agents. These modes are a workflow constraint, not a security boundary, and [`docs/research-contract.md`](docs/research-contract.md) says exactly what each backend can enforce. Experiment runs work on macOS and Linux, not yet on Windows. |
 | ⏰ **Automations** | Cron-scheduled agent runs, with templates such as a daily pull request review. |
 | 💸 **Usage and cost** | Token counts and cost at list price, per model and per agent, over any time range. |
 | 📈 **Observability** | OpenTelemetry traces, metrics and logs, an outbound network log, and optional OTLP export (JSON over HTTP) to your own collector. |
@@ -570,7 +571,7 @@ Before opening a pull request:
 
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
-- A built-in editor (file tree, CodeMirror 6, diff review, a real terminal); it is planned and not built yet
+- For the research workbench: a PDF reader, notebooks, a debugger, language servers and a real terminal
 
 How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
