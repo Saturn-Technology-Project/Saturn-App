@@ -14,6 +14,7 @@ use saturn_domain::toolkits::{toolkit_name, toolkit_server};
 use saturn_llm::{ToolDef, ToolFunction};
 use saturn_mcp::McpError;
 use saturn_store::AppState;
+use saturn_telemetry::{Kind, Span};
 use saturn_tools::code::{CodeOptions, ScopedJobs};
 use saturn_tools::file::FileCheckpoint;
 use saturn_tools::general::{CallFuture, GeneralSkills, ToolCaller};
@@ -268,6 +269,64 @@ impl Kernel {
 
     /// One tool call. A tool's own failure is a failed step the model is told about; an error here ends the run.
     pub(crate) async fn execute_tool(
+        self: &Arc<Self>,
+        agent_id: &str,
+        tool: &str,
+        arguments: &Value,
+        run_id: &str,
+        action_id: &str,
+    ) -> Result<Value, CoreError> {
+        let server = self
+            .get_agent(agent_id)
+            .ok()
+            .and_then(|agent| self.tool_server(&agent, tool));
+        let kind = match server.as_deref() {
+            Some(GENERAL_SKILLS_ID) => "general_skill",
+            Some(_) => "mcp",
+            None => "unknown",
+        };
+        let mut attributes = json!({
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": tool,
+            "gen_ai.tool.call.id": action_id,
+            "gen_ai.agent.id": agent_id,
+            "saturn.run.id": run_id,
+            "saturn.tool.kind": kind,
+        });
+        if let Some(server) = &server {
+            attributes["saturn.tool.server"] = json!(server);
+        }
+        let span = Span::start(format!("execute_tool {tool}"), Kind::Internal, attributes);
+        let started = std::time::Instant::now();
+        let answer = span
+            .scope(Box::pin(self.execute_tool_inner(
+                agent_id, tool, arguments, run_id, action_id,
+            )))
+            .await;
+        let status = answer.as_ref().map_or("failed".to_owned(), |action| {
+            text(action, "status").to_owned()
+        });
+        span.set("saturn.tool.status", status.as_str());
+        if let Some(reason) = answer
+            .as_ref()
+            .ok()
+            .map(|action| text(action, "reason"))
+            .filter(|reason| !reason.is_empty())
+        {
+            span.set("saturn.tool.reason", js::prefix(reason, 200));
+        }
+        let labels = json!({ "gen_ai.tool.name": tool, "saturn.tool.kind": kind, "saturn.tool.status": status });
+        saturn_telemetry::add("saturn.tool.calls", 1.0, labels.clone());
+        saturn_telemetry::record(
+            "saturn.tool.duration",
+            started.elapsed().as_secs_f64(),
+            labels,
+        );
+        answer
+    }
+
+    /// The tool call itself.
+    async fn execute_tool_inner(
         self: &Arc<Self>,
         agent_id: &str,
         tool: &str,

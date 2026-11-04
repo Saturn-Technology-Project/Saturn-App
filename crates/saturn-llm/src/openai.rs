@@ -6,7 +6,7 @@ use serde_json::{Map, Value, json};
 
 use crate::http::{Http, LlmError};
 use crate::shared::{
-    OptionalField, choice, count, join_thinking, parse_arguments, system_text, trimmed,
+    OptionalField, choice, count, endpoint, join_thinking, parse_arguments, system_text,
     with_optional_fields, without_inline_images,
 };
 use crate::{
@@ -160,7 +160,7 @@ fn image_url_part(image: &crate::ImagePart) -> Value {
 
 /// Chat Completions, for OpenAI-compatible servers that are not api.openai.com.
 pub async fn complete_chat(http: &Http, request: &ChatRequest) -> Result<Completion, LlmError> {
-    let url = format!("{}/chat/completions", trimmed(&request.base_url));
+    let url = endpoint(&request.base_url, "/chat/completions");
     let authorization = authorization(request);
     let headers = [("authorization", authorization.as_str())];
     let headers = headers.as_slice();
@@ -265,7 +265,7 @@ pub async fn complete_responses(
     http: &Http,
     request: &ChatRequest,
 ) -> Result<Completion, LlmError> {
-    let url = format!("{}/responses", trimmed(&request.base_url));
+    let url = endpoint(&request.base_url, "/responses");
     let authorization = authorization(request);
     let headers = [("authorization", authorization.as_str())];
     let headers = headers.as_slice();
@@ -415,7 +415,7 @@ pub async fn complete_raw(
     http: &Http,
     request: &crate::lmstudio::RawRequest,
 ) -> Result<crate::lmstudio::RawStream, LlmError> {
-    let url = format!("{}/completions", trimmed(&request.base_url));
+    let url = endpoint(&request.base_url, "/completions");
     let stops: Vec<&String> = request.stops.iter().take(4).collect();
     let body = json!({
         "model": request.model,

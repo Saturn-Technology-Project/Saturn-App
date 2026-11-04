@@ -43,7 +43,10 @@ impl From<CoreError> for Failure {
 impl IntoResponse for Failure {
     fn into_response(self) -> Response {
         let status = StatusCode::from_u16(self.0.status).unwrap_or(StatusCode::BAD_REQUEST);
-        (status, Json(json!({ "error": self.0.message }))).into_response()
+        let reason = crate::guards::Refusal(self.0.message.clone());
+        let mut response = (status, Json(json!({ "error": self.0.message }))).into_response();
+        response.extensions_mut().insert(reason);
+        response
     }
 }
 

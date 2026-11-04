@@ -53,6 +53,7 @@ pub fn log(service: &str, level: &str, message: &str) {
             log.lines.pop_front();
         }
     }
+    saturn_telemetry::emit_log(service, level, message);
     if rank(level) >= 2 {
         eprintln!("[{service}] {message}");
     }

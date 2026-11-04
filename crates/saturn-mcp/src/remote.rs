@@ -1,4 +1,5 @@
 //! Servers reached over the network: Streamable HTTP, the older SSE transport, and plain JSON-RPC POSTs.
+use saturn_telemetry::network::SendNoted;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -152,7 +153,7 @@ impl HttpSession {
     ) -> Result<Response, PostFailure> {
         let send = |request: RequestBuilder| async move {
             request
-                .send()
+                .send_noted()
                 .await
                 .map_err(|error| PostFailure::Transport(transport_error(&error)))
         };
@@ -273,7 +274,7 @@ impl SseSession {
             target,
         );
         let mut response = request
-            .send()
+            .send_noted()
             .await
             .map_err(|error| transport_error(&error))?;
         if !response.status().is_success() {
@@ -343,7 +344,7 @@ impl SseSession {
             request = request.header("authorization", value);
         }
         let response = request
-            .send()
+            .send_noted()
             .await
             .map_err(|error| McpError::Failed(transport_error(&error)))?;
         if response.status().is_success() {
@@ -410,7 +411,7 @@ pub(crate) async fn send_plain(
     for (name, value) in headers {
         request = request.header(*name, *value);
     }
-    let response = request.send().await.map_err(|error| {
+    let response = request.send_noted().await.map_err(|error| {
         McpError::failed(format!(
             "Could not reach the MCP server at {}: {}",
             crate::host_of(url),

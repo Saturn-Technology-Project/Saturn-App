@@ -6,8 +6,8 @@ use serde_json::{Map, Value, json};
 
 use crate::http::{Http, LlmError};
 use crate::shared::{
-    OptionalField, choice, count, flat_input_schema, flatten_tool_turns, system_text, trimmed,
-    with_optional_fields, without_inline_images,
+    OptionalField, choice, count, endpoint, flat_input_schema, flatten_tool_turns, system_text,
+    trimmed, with_optional_fields, without_inline_images,
 };
 use crate::{ChatMessage, ChatRequest, Completion, ImagePart, Replay, Role, TokenUsage, ToolCall};
 
@@ -177,7 +177,7 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
     } else {
         trimmed(&request.base_url)
     };
-    let url = format!("{base_url}/v1/messages");
+    let url = endpoint(base_url, "/v1/messages");
     let headers = [("x-api-key", api_key), ("anthropic-version", API_VERSION)];
     let headers = headers.as_slice();
     let url = url.as_str();

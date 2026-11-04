@@ -3,6 +3,8 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import type { TelemetryDocument } from "../src/infrastructure/telemetry-file.js";
+import { render } from "../src/infrastructure/telemetry-formats.js";
 import { WINDOWS_HELPER_SCRIPT, WINDOWS_HELPER_SOURCE } from "../src/infrastructure/skills/windows-helper.js";
 import { priceCall } from "../src/domain/llm/pricing.js";
 import { commandSegments, fromClaudeRule, matchesRule, resolvePermission, suggestedPattern, type PermissionEffect, type PermissionLayer, type PermissionRule } from "../src/domain/permissions.js";
@@ -217,4 +219,11 @@ test("the Windows desktop helper in Rust is the one written here", async () => {
   const folder = "../../crates/saturn-computer/src/windows/";
   assert.equal(await readFile(new URL(`${folder}helper.ps1`, import.meta.url), "utf8"), WINDOWS_HELPER_SCRIPT);
   assert.equal(await readFile(new URL(`${folder}helper.cs`, import.meta.url), "utf8"), WINDOWS_HELPER_SOURCE);
+});
+
+test("the export formats are the ones the Rust runtime is checked against", async () => {
+  const cases = JSON.parse(await readFile(new URL("../../contract/cases/telemetry-formats.json", import.meta.url), "utf8")) as { document: TelemetryDocument; otlp: string; siem: string; emptyOtlp: string; emptySiem: string };
+  assert.equal(render(cases.document, "otlp"), cases.otlp);
+  assert.equal(render(cases.document, "siem"), cases.siem);
+  assert.equal(render({ ...cases.document, traces: [], logs: [], metrics: [] }, "otlp"), cases.emptyOtlp);
 });

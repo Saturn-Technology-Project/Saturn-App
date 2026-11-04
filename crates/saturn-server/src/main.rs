@@ -74,12 +74,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let launcher_token = env::var("SATURN_RUNTIME_TOKEN").ok();
     let token: Arc<str> = auth::load_or_create_token(&directory, launcher_token.as_deref())?.into();
 
+    // Before anything can send a request: every one from here on is recorded (Settings → Telemetry → Network).
+    saturn_telemetry::network::start(&directory);
+    let telemetry = saturn_telemetry::start(&directory).await;
     let store = Arc::new(FileStore::load(&directory).await?);
     let kernel = Kernel::new(store)?;
     kernel.ensure_builtins().await?;
     if let Some(level) = kernel.settings().get("logging").and_then(Value::as_str) {
         saturn_core::logger::set_level(level);
     }
+    match telemetry {
+        Ok(note) => saturn_core::logger::log("telemetry", "info", &note),
+        Err(note) => saturn_core::logger::log("telemetry", "warning", &note),
+    }
+    let counted = Arc::clone(&kernel);
+    saturn_telemetry::set_active_runs(move || {
+        counted.store.read(|state| {
+            state
+                .runs
+                .iter()
+                .filter(|run| {
+                    matches!(
+                        run.get("status").and_then(Value::as_str),
+                        Some("running" | "queued")
+                    )
+                })
+                .count()
+        })
+    });
     kernel.recover_interrupted().await?;
     kernel.sweep_worktrees().await;
     start_wakeups(Arc::clone(&kernel));
@@ -90,6 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = routes::router(Arc::clone(&kernel))
         .merge(routes_admin::router(Arc::clone(&kernel)))
         .route("/health", get(health))
+        .layer(middleware::from_fn(guards::trace_requests))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn_with_state(token, guards::authenticate))
         .layer(middleware::from_fn(guards::cors));
@@ -103,6 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // What runs on the runtime's behalf ends with it. A client still listening must not hold it open.
             stopping.jobs.stop_all(None);
             stopping.browser.close().await;
+            saturn_telemetry::stop().await;
             tokio::spawn(async {
                 tokio::time::sleep(LAST_CONNECTIONS).await;
                 std::process::exit(0);

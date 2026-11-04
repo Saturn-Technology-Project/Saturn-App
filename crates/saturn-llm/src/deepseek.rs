@@ -6,7 +6,7 @@ use serde_json::{Map, Value, json};
 
 use crate::http::{Http, LlmError};
 use crate::openai::{chat_tools, tool_calls_of, tool_calls_param};
-use crate::shared::{OptionalField, choice, count, trimmed, with_optional_fields};
+use crate::shared::{OptionalField, choice, count, endpoint, trimmed, with_optional_fields};
 use crate::{ChatMessage, ChatRequest, Completion, Role, TokenUsage};
 
 const DEFAULT_BASE_URL: &str = "https://api.deepseek.com";
@@ -47,7 +47,7 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
     } else {
         trimmed(&request.base_url)
     };
-    let url = format!("{base_url}/chat/completions");
+    let url = endpoint(base_url, "/chat/completions");
     let authorization = format!("Bearer {api_key}");
     let headers = [("authorization", authorization.as_str())];
     let headers = headers.as_slice();

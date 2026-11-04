@@ -15,6 +15,7 @@ use saturn_llm::{
     CallContext, ChatMessage, ChatToolCall, Completion, CompletionInput, ImagePart, Replay, Role,
     ToolDef,
 };
+use saturn_telemetry::network::{SendNoted, client_builder};
 use serde_json::{Value, json};
 
 use crate::builtins::GENERAL_SKILLS_ID;
@@ -552,19 +553,34 @@ impl Kernel {
         if servers.is_empty() {
             return Ok(String::new());
         }
-        let client = reqwest::Client::builder()
+        let span = saturn_telemetry::Span::start(
+            "retrieve",
+            saturn_telemetry::Kind::Client,
+            json!({ "gen_ai.operation.name": "retrieve", "gen_ai.agent.id": text(agent, "id"), "saturn.rag.sources": servers.len() }),
+        );
+        let context = span.scope(self.fetch_context(&servers, query)).await;
+        match &context {
+            Ok(found) => span.set("saturn.rag.context_chars", js::length(found)),
+            Err(error) => span.fail(&error.message, "Error"),
+        }
+        context
+    }
+
+    /// Asks each retrieval server in turn.
+    async fn fetch_context(&self, servers: &[Value], query: &str) -> Result<String, CoreError> {
+        let client = client_builder()
             .timeout(std::time::Duration::from_secs(60))
             .build()
             .map_err(|error| CoreError::new(400, error.without_url().to_string()))?;
         let mut chunks = Vec::new();
-        for server in &servers {
+        for server in servers {
             let name = text(server, "name");
             // URLs can carry tokens, so errors leave them out.
             let response = client
                 .post(text(server, "url"))
                 .header("content-type", "application/json")
                 .body(json!({ "query": query }).to_string())
-                .send()
+                .send_noted()
                 .await
                 .map_err(|error| CoreError::new(400, error.without_url().to_string()))?;
             if !response.status().is_success() {

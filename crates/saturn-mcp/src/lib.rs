@@ -4,9 +4,11 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use saturn_store::FileStore;
+use saturn_telemetry::network::client_builder;
+use saturn_telemetry::{Kind, Span};
 use serde_json::{Value, json};
 use tokio::sync::OnceCell;
 
@@ -146,7 +148,7 @@ impl McpClient {
         redirect_url: String,
         open_browser: OpenBrowser,
     ) -> Result<Self, McpError> {
-        let http = reqwest::Client::builder()
+        let http = client_builder()
             .no_proxy()
             .build()
             .map_err(|error| McpError::failed(error.without_url().to_string()))?;
@@ -297,35 +299,72 @@ impl McpClient {
         params: Value,
         headers: &[(&str, &str)],
     ) -> Result<Value, McpError> {
-        let answer = async {
-            let session = self.session(target).await?;
-            match session.as_ref() {
-                Session::Http(http) => {
-                    tokio::time::timeout(REQUEST, http.request(self, target, method, params))
-                        .await
-                        .unwrap_or_else(|_| Err(timed_out(method)))
+        let tool = (method == "tools/call").then(|| {
+            params
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned()
+        });
+        let name = tool.as_ref().map_or_else(
+            || format!("mcp {method}"),
+            |tool| format!("mcp {method} {tool}"),
+        );
+        let base = json!({ "mcp.method.name": method, "server.address": host_of(&target.url) });
+        let mut attributes = base.clone();
+        attributes["rpc.system"] = json!("jsonrpc");
+        if let Some(tool) = &tool {
+            attributes["gen_ai.tool.name"] = json!(tool);
+        }
+        let span = Span::start(name, Kind::Client, attributes);
+        let started = Instant::now();
+        let answer = span
+            .scope(async {
+                let session = self.session(target).await?;
+                match session.as_ref() {
+                    Session::Http(http) => {
+                        tokio::time::timeout(REQUEST, http.request(self, target, method, params))
+                            .await
+                            .unwrap_or_else(|_| Err(timed_out(method)))
+                    }
+                    Session::Sse(sse) => {
+                        tokio::time::timeout(REQUEST, sse.request(self, method, params))
+                            .await
+                            .unwrap_or_else(|_| Err(timed_out(method)))
+                    }
+                    Session::Local(local) => {
+                        tokio::time::timeout(REQUEST, local.request(method, params))
+                            .await
+                            .unwrap_or_else(|_| Err(timed_out(method)))
+                    }
+                    Session::Plain => {
+                        remote::send_plain(self, &target.url, method, params, headers).await
+                    }
                 }
-                Session::Sse(sse) => {
-                    tokio::time::timeout(REQUEST, sse.request(self, method, params))
-                        .await
-                        .unwrap_or_else(|_| Err(timed_out(method)))
-                }
-                Session::Local(local) => {
-                    tokio::time::timeout(REQUEST, local.request(method, params))
-                        .await
-                        .unwrap_or_else(|_| Err(timed_out(method)))
-                }
-                Session::Plain => {
-                    remote::send_plain(self, &target.url, method, params, headers).await
-                }
+            })
+            .await;
+        let outcome = match &answer {
+            Ok(_) => "ok".to_owned(),
+            Err(McpError::Failed(message)) if CONTROL.contains(&message.as_str()) => {
+                message.clone()
             }
+            Err(McpError::Failed(message)) => {
+                span.fail(message, "error");
+                self.close(&target.id);
+                "error".to_owned()
+            }
+            Err(_) => "sign_in_required".to_owned(),
+        };
+        if outcome != "ok" {
+            span.set("saturn.mcp.outcome", outcome.as_str());
         }
-        .await;
-        if let Err(McpError::Failed(message)) = &answer
-            && !CONTROL.contains(&message.as_str())
-        {
-            self.close(&target.id);
-        }
+        let mut labels = base;
+        labels["saturn.mcp.outcome"] = json!(outcome);
+        saturn_telemetry::record(
+            "saturn.mcp.request.duration",
+            started.elapsed().as_secs_f64(),
+            labels,
+        );
         answer
     }
 }

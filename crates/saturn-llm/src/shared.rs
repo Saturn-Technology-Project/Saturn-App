@@ -258,6 +258,14 @@ pub(crate) fn trimmed(base_url: &str) -> &str {
     base_url.strip_suffix('/').unwrap_or(base_url)
 }
 
+/// A base URL with a path added, before any query it carries (Azure and gateways put `?api-version=…` there).
+pub(crate) fn endpoint(base_url: &str, path: &str) -> String {
+    match base_url.split_once('?') {
+        Some((base, query)) => format!("{}{path}?{query}", trimmed(base)),
+        None => format!("{}{path}", trimmed(base_url)),
+    }
+}
+
 const COMBINATORS: [&str; 3] = ["allOf", "anyOf", "oneOf"];
 
 /// A tool's parameters as an input schema Anthropic accepts: an object schema with no oneOf, anyOf or allOf at the top level

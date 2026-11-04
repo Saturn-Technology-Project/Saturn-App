@@ -17,6 +17,8 @@ use saturn_core::skill_files::{
 use saturn_core::{CoreError, Kernel};
 use saturn_domain::js;
 use saturn_domain::skills::public_address::parse_public_address;
+use saturn_telemetry::network;
+use saturn_telemetry::{Kind, Span, formats};
 use saturn_tools::public_host::{SystemLookup, fetch_public};
 use saturn_tools::run_captured;
 use saturn_tools::sandbox::Platform;
@@ -502,17 +504,36 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
             }
         }
     }
-    let result = run_captured(
-        &invocation,
-        &cwd,
-        &variables,
-        b"",
-        Duration::from_secs(30),
-        512 * 1024,
-    )
-    .await;
+    // Only the program name is recorded; arguments may carry secrets.
+    let span = Span::start(
+        "workspace.exec",
+        Kind::Internal,
+        json!({
+            "process.executable.name": shell.rsplit(['/', '\\']).next().unwrap_or_default(),
+            "saturn.command.name": command.split_whitespace().next().unwrap_or_default(),
+        }),
+    );
+    let result = span
+        .scope(run_captured(
+            &invocation,
+            &cwd,
+            &variables,
+            b"",
+            Duration::from_secs(30),
+            512 * 1024,
+        ))
+        .await;
     let (stdout, final_cwd) = extract_cwd(&result.stdout, &shown);
     let code = result.code.unwrap_or(1);
+    span.set("process.exit.code", code);
+    if code != 0 {
+        span.set("error.type", "nonzero_exit");
+    }
+    saturn_telemetry::add(
+        "saturn.workspace.commands",
+        1.0,
+        json!({ "saturn.command.outcome": if code == 0 { "ok" } else { "failed" } }),
+    );
     let stderr = if code != 0 && result.stderr.is_empty() {
         "Command failed".to_owned()
     } else {
@@ -958,6 +979,84 @@ async fn computer_permissions(State(kernel): Shared) -> Answer {
     ok(kernel.computer.permission_status().await)
 }
 
+/// Every HTTP(S) request the runtime has sent since it started: by host, and the latest ones (no queries, no bodies).
+async fn network_view(Query(query): QueryText) -> Answer {
+    let asked = query
+        .get("limit")
+        .and_then(|limit| limit.parse::<usize>().ok())
+        .filter(|limit| *limit > 0);
+    ok(network::view(asked.unwrap_or(200).min(500)))
+}
+
+async fn telemetry_status() -> Answer {
+    ok(saturn_telemetry::status())
+}
+
+async fn telemetry_traces() -> Answer {
+    ok(saturn_telemetry::summaries())
+}
+
+async fn telemetry_trace(Path(id): Path<String>) -> Answer {
+    ok(saturn_telemetry::trace(&id)
+        .ok_or_else(|| CoreError::new(404, "Trace is no longer in memory"))?)
+}
+
+async fn telemetry_metrics() -> Answer {
+    ok(saturn_telemetry::metric_view())
+}
+
+async fn telemetry_logs(Query(query): QueryText) -> Answer {
+    let least = query
+        .get("minSeverity")
+        .and_then(|least| least.parse::<f64>().ok())
+        .filter(|least| *least != 0.0);
+    ok(saturn_telemetry::logs(
+        query.get("traceId").map(String::as_str),
+        least,
+    ))
+}
+
+/// Saves telemetry.json now and sends it as ?format=saturn (the file itself), otlp (OTLP/JSON lines) or siem (ECS NDJSON).
+async fn telemetry_export(Query(query): QueryText) -> Answer {
+    let format = match query.get("format").map(String::as_str) {
+        Some("otlp") => "otlp",
+        Some("siem") => "siem",
+        _ => "saturn",
+    };
+    let document = saturn_telemetry::save()
+        .await
+        .map_err(|error| CoreError::new(500, error.to_string()))?;
+    let (extension, kind) = formats::details(format);
+    let saved = document["savedAt"].as_str().unwrap_or_default();
+    let stamp = js::prefix(saved, 19).replace([':', 'T'], "-");
+    let name = if format == "saturn" {
+        "saturn-telemetry".to_owned()
+    } else {
+        format!("saturn-telemetry-{format}")
+    };
+    Ok((
+        [
+            (
+                axum::http::header::CONTENT_TYPE,
+                format!("{kind}; charset=utf-8"),
+            ),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{name}-{stamp}.{extension}\""),
+            ),
+        ],
+        formats::render(&document, format),
+    )
+        .into_response())
+}
+
+async fn telemetry_clear() -> Answer {
+    saturn_telemetry::clear()
+        .await
+        .map_err(|error| CoreError::new(500, error.to_string()))?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
 async fn open_permission_pane(body: Body) -> Answer {
     let body = body_of(body);
     let pane = match given(&body, "which") {
@@ -1046,6 +1145,14 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/workspace/files", get(workspace_files))
         .route("/workspace/browser/open", post(open_browser))
         .route("/workspace/browser/proxy", get(browser_proxy))
+        .route("/network", get(network_view))
+        .route("/telemetry", delete(telemetry_clear))
+        .route("/telemetry/status", get(telemetry_status))
+        .route("/telemetry/traces", get(telemetry_traces))
+        .route("/telemetry/traces/{id}", get(telemetry_trace))
+        .route("/telemetry/metrics", get(telemetry_metrics))
+        .route("/telemetry/logs", get(telemetry_logs))
+        .route("/telemetry/export", get(telemetry_export))
         .route("/computer/permissions", get(computer_permissions))
         .route("/computer/permissions/open", post(open_permission_pane))
         .route("/automations", get(automations).post(create_automation))

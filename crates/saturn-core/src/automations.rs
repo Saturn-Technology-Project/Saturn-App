@@ -10,6 +10,7 @@ use saturn_domain::prompt::clip;
 use saturn_domain::schedule::{next_slot, previous_slot, slot_label, trigger_of};
 use saturn_domain::time::{days_from_civil, iso_time, now_millis};
 use saturn_llm::{CallContext, ChatMessage, CompletionInput, Role};
+use saturn_telemetry::{Kind, Span};
 use serde_json::{Value, json};
 
 use crate::records::{by_id, by_id_mut, remove, text};
@@ -284,19 +285,40 @@ impl Kernel {
         now: i64,
     ) -> Result<(), CoreError> {
         let agent = text(automation, "agentId");
+        let frequency = automation["trigger"]["frequency"].clone();
+        let span = Span::start(
+            format!("automation {}", text(automation, "name")),
+            Kind::Internal,
+            json!({
+                "saturn.automation.frequency": frequency,
+                "saturn.automation.id": text(automation, "id"),
+                "saturn.automation.time_zone": text(automation, "timeZone"),
+                "gen_ai.agent.id": agent,
+            }),
+        );
         let started = match self.allowed_agent(agent) {
             Ok(_) => {
-                self.start_run(
+                span.scope(self.start_run(
                     agent,
                     text(automation, "prompt"),
                     None,
                     None,
                     StartOptions::default(),
-                )
+                ))
                 .await
             }
             Err(error) => Err(error),
         };
+        match &started {
+            Ok(run) => span.set("saturn.run.id", text(run, "id")),
+            Err(error) => span.fail(&error.message, "Error"),
+        }
+        saturn_telemetry::add(
+            "saturn.automation.runs",
+            1.0,
+            json!({ "saturn.automation.frequency": frequency, "saturn.automation.outcome": if started.is_ok() { "started" } else { "failed" } }),
+        );
+        drop(span);
         let (run_id, error) = match started {
             Ok(run) => {
                 log(

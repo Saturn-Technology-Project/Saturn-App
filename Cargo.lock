@@ -3908,6 +3908,7 @@ dependencies = [
  "futures-util",
  "reqwest",
  "saturn-domain",
+ "saturn-telemetry",
  "saturn-tools",
  "serde_json",
  "tempfile",
@@ -3946,6 +3947,7 @@ dependencies = [
  "saturn-llm",
  "saturn-mcp",
  "saturn-store",
+ "saturn-telemetry",
  "saturn-tools",
  "serde",
  "serde_json",
@@ -3995,6 +3997,7 @@ dependencies = [
  "base64 0.22.1",
  "reqwest",
  "saturn-llm",
+ "saturn-telemetry",
  "serde_json",
  "tempfile",
  "tokenizers",
@@ -4011,10 +4014,12 @@ dependencies = [
  "reqwest",
  "saturn-domain",
  "saturn-store",
+ "saturn-telemetry",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -4027,6 +4032,7 @@ dependencies = [
  "getrandom 0.3.4",
  "reqwest",
  "saturn-store",
+ "saturn-telemetry",
  "serde_json",
  "sha2",
  "tempfile",
@@ -4045,6 +4051,7 @@ dependencies = [
  "saturn-core",
  "saturn-domain",
  "saturn-store",
+ "saturn-telemetry",
  "saturn-tools",
  "serde",
  "serde_json",
@@ -4062,11 +4069,24 @@ dependencies = [
  "base64 0.22.1",
  "getrandom 0.3.4",
  "saturn-domain",
+ "saturn-telemetry",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "saturn-telemetry"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "saturn-domain",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "url",
 ]
 
 [[package]]
@@ -4079,6 +4099,7 @@ dependencies = [
  "reqwest",
  "rustix",
  "saturn-domain",
+ "saturn-telemetry",
  "serde",
  "serde_json",
  "tempfile",

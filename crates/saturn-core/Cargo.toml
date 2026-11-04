@@ -24,6 +24,7 @@ saturn-embed = { path = "../saturn-embed" }
 saturn-llm = { path = "../saturn-llm" }
 saturn-mcp = { path = "../saturn-mcp" }
 saturn-store = { path = "../saturn-store" }
+saturn-telemetry = { path = "../saturn-telemetry" }
 saturn-tools = { path = "../saturn-tools" }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 sha1 = "0.10"

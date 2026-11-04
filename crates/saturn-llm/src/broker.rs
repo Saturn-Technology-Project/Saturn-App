@@ -3,11 +3,13 @@
 use std::future::Future;
 use std::io;
 use std::sync::Arc;
+use std::time::Instant;
 
 use saturn_domain::llm::{CallToPrice, llm_provider, price_call, runs_on_plan};
 use saturn_domain::new_id;
 use saturn_domain::time::{iso_time, now_millis};
 use saturn_store::FileStore;
+use saturn_telemetry::{Kind, Span};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
@@ -235,12 +237,101 @@ impl<V: KeyVault> Broker<V> {
         input: &CompletionInput,
     ) -> Result<Completion, LlmError> {
         let adapter = self.adapter_for(model)?;
-        self.require_key(model)?;
         let request_model = if model.model.is_empty() {
             &model.name
         } else {
             &model.model
         };
+        let provider = if model.provider.is_empty() {
+            "openai"
+        } else {
+            model.provider.as_str()
+        };
+        let base = json!({
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": provider,
+            "gen_ai.request.model": request_model,
+        });
+        let mut attributes = base.clone();
+        attributes["saturn.llm.adapter"] = json!(adapter.id());
+        attributes["server.address"] = json!(
+            url::Url::parse(&model.base_url)
+                .ok()
+                .and_then(|url| url.host_str().map(str::to_owned))
+                .unwrap_or_default()
+        );
+        if let Some(temperature) = input.temperature {
+            attributes["gen_ai.request.temperature"] = json!(temperature);
+        }
+        if let Some(most) = input.max_output {
+            attributes["gen_ai.request.max_tokens"] = json!(most);
+        }
+        attributes["saturn.llm.tools.offered"] = json!(
+            input
+                .tools
+                .iter()
+                .filter(|tool| !tool.function.name.is_empty())
+                .count()
+        );
+        attributes["saturn.llm.messages"] = json!(input.messages.len());
+        let span = Span::start(format!("chat {request_model}"), Kind::Client, attributes);
+        let started = Instant::now();
+        let answer = span
+            .scope(self.complete_inner(model, input, adapter, request_model))
+            .await;
+        let seconds = started.elapsed().as_secs_f64();
+        match &answer {
+            Ok(completion) => {
+                let usage = completion.usage;
+                if let Some(cached) = usage.cached {
+                    span.set("gen_ai.usage.cache_read.input_tokens", cached);
+                }
+                span.set("saturn.llm.tool_calls", completion.tool_calls.len());
+                let tokens = |kind: &str| {
+                    let mut labels = base.clone();
+                    labels["gen_ai.token.type"] = json!(kind);
+                    labels
+                };
+                if let Some(count) = usage.input {
+                    span.set("gen_ai.usage.input_tokens", count);
+                    saturn_telemetry::record(
+                        "gen_ai.client.token.usage",
+                        count as f64,
+                        tokens("input"),
+                    );
+                }
+                if let Some(count) = usage.output {
+                    span.set("gen_ai.usage.output_tokens", count);
+                    saturn_telemetry::record(
+                        "gen_ai.client.token.usage",
+                        count as f64,
+                        tokens("output"),
+                    );
+                }
+                saturn_telemetry::record("gen_ai.client.operation.duration", seconds, base);
+            }
+            Err(error) => {
+                let kind = error
+                    .status
+                    .map_or_else(|| "error".to_owned(), |status| format!("http_{status}"));
+                span.fail(&error.to_string(), &kind);
+                let mut labels = base;
+                labels["error.type"] = json!(kind);
+                saturn_telemetry::record("gen_ai.client.operation.duration", seconds, labels);
+            }
+        }
+        answer
+    }
+
+    /// The call itself.
+    async fn complete_inner(
+        &self,
+        model: &ModelConnection,
+        input: &CompletionInput,
+        adapter: Adapter,
+        request_model: &String,
+    ) -> Result<Completion, LlmError> {
+        self.require_key(model)?;
         let mut request = ChatRequest {
             model: request_model.clone(),
             base_url: model.base_url.clone(),

@@ -16,6 +16,7 @@ getrandom = { version = "0.3", features = ["std"] }
 saturn-core = { path = "../saturn-core" }
 saturn-domain = { path = "../saturn-domain" }
 saturn-store = { path = "../saturn-store" }
+saturn-telemetry = { path = "../saturn-telemetry" }
 saturn-tools = { path = "../saturn-tools" }
 regex = "1"
 serde = "1"

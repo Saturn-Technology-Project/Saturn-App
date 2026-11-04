@@ -13,6 +13,7 @@ use saturn_domain::policies::{
 use saturn_domain::prompt::{RunMode, clip, explain_run_error, join_thinking, read_only_refusal};
 use saturn_domain::time::{iso_time, now_millis};
 use saturn_llm::{Completion, ImagePart, ToolCall};
+use saturn_telemetry::{Kind, Span};
 use serde_json::{Value, json};
 
 use crate::permissions::explain;
@@ -114,6 +115,101 @@ fn or_else<'a>(text: &'a str, fallback: &'a str) -> &'a str {
     if text.is_empty() { fallback } else { text }
 }
 
+/// A run's span and metrics, closed when its pass ends, however it does: a stopped run's task is dropped midway.
+struct RunSpan {
+    kernel: Arc<Kernel>,
+    run_id: String,
+    at: u64,
+    span: Span,
+    provider: Option<String>,
+    started: std::time::Instant,
+}
+
+impl RunSpan {
+    fn start(kernel: &Arc<Kernel>, run_id: &str, at: u64) -> Self {
+        let run = kernel.find_run(run_id).unwrap_or(Value::Null);
+        let agent_id = text(&run, "agentId").to_owned();
+        let agent = kernel.get_agent(&agent_id).ok();
+        let model = agent.as_ref().and_then(|agent| kernel.model_of(agent));
+        let shown = agent
+            .as_ref()
+            .map_or_else(|| agent_id.clone(), |agent| text(agent, "name").to_owned());
+        let mut attributes = json!({
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.id": agent_id,
+            "gen_ai.agent.name": agent.as_ref().map_or("", |agent| text(agent, "name")),
+            "saturn.run.id": run_id,
+            "saturn.run.generation": at,
+        });
+        if let Some(model) = &model {
+            let name = text(model, "model");
+            attributes["gen_ai.request.model"] = json!(if name.is_empty() {
+                text(model, "name")
+            } else {
+                name
+            });
+            attributes["gen_ai.provider.name"] = json!(text(model, "provider"));
+        }
+        if let Some(autonomy) = agent
+            .as_ref()
+            .map(|agent| text(agent, "autonomy"))
+            .filter(|autonomy| !autonomy.is_empty())
+        {
+            attributes["saturn.agent.autonomy"] = json!(autonomy);
+        }
+        Self {
+            kernel: Arc::clone(kernel),
+            run_id: run_id.to_owned(),
+            at,
+            span: Span::start(format!("invoke_agent {shown}"), Kind::Internal, attributes),
+            provider: model
+                .as_ref()
+                .map(|model| text(model, "provider").to_owned()),
+            started: std::time::Instant::now(),
+        }
+    }
+}
+
+impl Drop for RunSpan {
+    fn drop(&mut self) {
+        let run = self.kernel.find_run(&self.run_id);
+        let status = match &run {
+            None => "deleted".to_owned(),
+            Some(run) if run.get("generation").and_then(Value::as_u64).unwrap_or(0) != self.at => {
+                "superseded".to_owned()
+            }
+            Some(run) => text(run, "status").to_owned(),
+        };
+        self.span.set("saturn.run.status", status.as_str());
+        self.span.set(
+            "saturn.run.actions",
+            run.as_ref()
+                .and_then(|run| run["actions"].as_array())
+                .map_or(0, Vec::len),
+        );
+        if status == "failed" {
+            self.span.set("error.type", "run_failed");
+        }
+        if let Some(error) = run
+            .as_ref()
+            .map(|run| text(run, "error"))
+            .filter(|error| !error.is_empty())
+        {
+            self.span.set("saturn.run.error", js::prefix(error, 200));
+        }
+        let mut labels = json!({ "saturn.run.status": status });
+        if let Some(provider) = &self.provider {
+            labels["gen_ai.provider.name"] = json!(provider);
+        }
+        saturn_telemetry::add("saturn.agent.runs", 1.0, labels.clone());
+        saturn_telemetry::record(
+            "saturn.agent.run.duration",
+            self.started.elapsed().as_secs_f64(),
+            labels,
+        );
+    }
+}
+
 impl Kernel {
     /// Runs `work` as a run's pass, so stopping the run can abort it.
     fn spawn_tracked(
@@ -127,6 +223,8 @@ impl Kernel {
         let mut stops = locked(&self.stops);
         let kernel = Arc::clone(self);
         let owned = key.clone();
+        // The work belongs to the trace of the request that started it.
+        let work = saturn_telemetry::carry(work);
         let task = tokio::spawn(async move {
             work.await;
             locked(&kernel.stops).remove(&owned);
@@ -983,6 +1081,15 @@ impl Kernel {
         if !self.alive(run_id, at) {
             return;
         }
+        let traced = RunSpan::start(self, run_id, at);
+        traced
+            .span
+            .clone()
+            .scope(self.pass_traced(run_id, at))
+            .await;
+    }
+
+    async fn pass_traced(self: &Arc<Self>, run_id: &str, at: u64) {
         if let Err(error) = self.pass_inner(run_id, at).await
             && self.alive(run_id, at)
         {

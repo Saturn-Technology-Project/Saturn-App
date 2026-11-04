@@ -6,6 +6,7 @@ use reqwest::redirect::Policy;
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
 use saturn_domain::time::{days_from_civil, now_millis};
 use saturn_store::json;
+use saturn_telemetry::network::{SendNoted, client_builder};
 use serde_json::Value;
 
 /// How long one request may take: a long answer from a slow model, as the providers' own SDKs allow.
@@ -121,7 +122,7 @@ impl Http {
 
     /// Waits this long before the first retry and three times as long before the second (tests shorten it).
     pub fn with_retry_delay(retry_delay: Duration) -> Result<Self, LlmError> {
-        let client = Client::builder()
+        let client = client_builder()
             // A key sent in a provider's own header would follow a redirect to another host, so none is followed.
             .redirect(Policy::none())
             // Like the SDKs: local servers must not go through a proxy the environment names.
@@ -186,7 +187,7 @@ impl Http {
     /// One attempt.
     async fn answer(request: RequestBuilder) -> Result<Value, LlmError> {
         let response = request
-            .send()
+            .send_noted()
             .await
             .map_err(|error| LlmError::from_transport(&error))?;
         let response = Self::successful(response).await?;
@@ -244,7 +245,7 @@ impl Http {
         })?;
         let response = self
             .post(url, headers, &bytes)
-            .send()
+            .send_noted()
             .await
             .map_err(|error| LlmError::from_transport(&error))?;
         Self::successful(response).await
@@ -256,7 +257,7 @@ impl Http {
             .client
             .get(url)
             .timeout(timeout)
-            .send()
+            .send_noted()
             .await
             .map_err(|error| LlmError::from_transport(&error))?;
         if !response.status().is_success() {

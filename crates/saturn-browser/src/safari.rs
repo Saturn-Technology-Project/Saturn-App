@@ -13,6 +13,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use saturn_domain::js;
 use saturn_domain::skills::public_address::parse_public_address;
+use saturn_telemetry::network::{SendNoted, client_builder};
 use saturn_tools::launch_env;
 use saturn_tools::public_host::{SystemLookup, assert_public_host};
 use serde_json::{Value, json};
@@ -122,7 +123,10 @@ impl Driver {
         if let Some(body) = body {
             request = request.body(body.to_string());
         }
-        let response = request.send().await.map_err(|error| error.to_string())?;
+        let response = request
+            .send_noted()
+            .await
+            .map_err(|error| error.to_string())?;
         let status = response.status();
         let answer: Value = response.json().await.unwrap_or_else(|_| json!({}));
         let value = answer.get("value").cloned().unwrap_or(Value::Null);
@@ -170,10 +174,7 @@ impl Safari {
             data_dir: data_dir.to_path_buf(),
             viewers,
             endpoint,
-            http: reqwest::Client::builder()
-                .no_proxy()
-                .build()
-                .unwrap_or_default(),
+            http: client_builder().no_proxy().build().unwrap_or_default(),
             state: Arc::default(),
             queue: Arc::default(),
         }
@@ -247,7 +248,7 @@ impl Safari {
                 json!({ "capabilities": { "alwaysMatch": { "browserName": "safari" } } })
                     .to_string(),
             )
-            .send()
+            .send_noted()
             .await
             .map_err(|error| format!("Safari could not start an automation window: {error}"))?;
         let status = response.status();
@@ -324,7 +325,7 @@ impl Safari {
         let base = format!("http://127.0.0.1:{port}");
         for _ in 0..40 {
             settle(150).await;
-            let up = self.http.get(format!("{base}/status")).send().await;
+            let up = self.http.get(format!("{base}/status")).send_noted().await;
             if up.is_ok_and(|response| response.status().is_success()) {
                 locked(&self.state).driver = Some(driver);
                 return Ok(base);

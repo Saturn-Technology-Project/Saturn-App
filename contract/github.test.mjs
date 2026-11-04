@@ -209,8 +209,9 @@ async function repository_(name, remote) {
 /** Runs each [tool, arguments] through a scripted agent, a few to a run, and gives what each answered. */
 async function runTools(steps, folder) {
   const queue = [];
-  const { connection } = await model(() => {
-    const next = queue.shift();
+  const { connection } = await model((body) => {
+    // Background work (a chat's title, memory) asks without tools and must not take a step meant for the run.
+    const next = body.tools?.length ? queue.shift() : undefined;
     return next ? toolCall(next[0], next[1]) : "done";
   });
   const agent = await api("POST", "/agents", { name: "Tools", modelConnectionId: connection.id, autonomy: "bypass", mcpConnectionIds: ["general-skills", "origin"] });
@@ -402,7 +403,7 @@ test("the hosted tools ask GitHub with the user's token and answer in Saturn's s
 test("a tool that changes GitHub waits for approval in review mode, and a denied one reaches nothing", async () => {
   const folder = await repository_("approving", "https://github.com/acme/site.git");
   const queue = [toolCall("create_pull_request_comment", { ...site, number: 7, body: "Hello" })];
-  const { connection } = await model(() => queue.shift() ?? "done");
+  const { connection } = await model((body) => (body.tools?.length ? queue.shift() : undefined) ?? "done");
   const agent = await api("POST", "/agents", { name: "Careful", modelConnectionId: connection.id, autonomy: "review", mcpConnectionIds: ["general-skills", "origin"] });
   const project = await api("POST", "/projects", { path: folder, grant: true });
   const thread = await api("POST", `/agents/${agent.id}/threads`, { title: "Careful", projectId: project.id });
@@ -600,7 +601,7 @@ test("without a GitHub token the tools and the follow-up say what to do", async 
   let second;
   try {
     const queue = [toolCall("get_repository", site)];
-    const { connection } = await model(() => queue.shift() ?? "done", first);
+    const { connection } = await model((body) => (body.tools?.length ? queue.shift() : undefined) ?? "done", first);
     const agent = await api("POST", "/agents", { name: "NoToken", modelConnectionId: connection.id, autonomy: "bypass", mcpConnectionIds: ["general-skills", "origin"] }, first);
     const thread = await api("POST", `/agents/${agent.id}/threads`, { title: "NoToken" }, first);
     const started = await api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id }, first);

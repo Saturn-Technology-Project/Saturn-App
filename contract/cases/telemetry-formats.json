@@ -1,0 +1,168 @@
+{
+  "document": {
+    "format": "saturn-telemetry",
+    "version": 1,
+    "service": {
+      "name": "saturn-runtime",
+      "version": "0.1.0"
+    },
+    "savedAt": "2026-01-02T03:04:05.678Z",
+    "traces": [
+      {
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "spans": [
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "00f067aa0ba902b7",
+            "parentSpanId": null,
+            "name": "POST /agents/:id/runs",
+            "kind": "server",
+            "scope": "saturn-runtime",
+            "scopeVersion": "0.1.0",
+            "startMs": 1767323045678.25,
+            "durationMs": 12.5,
+            "status": "unset",
+            "attributes": {
+              "http.request.method": "POST",
+              "http.response.status_code": 201,
+              "url.path": "/agents/a/runs",
+              "saturn.ratio": 0.5,
+              "saturn.flag": true,
+              "saturn.list": [
+                "a",
+                1
+              ],
+              "saturn.none": null
+            },
+            "events": []
+          },
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "a0f067aa0ba902b7",
+            "parentSpanId": "00f067aa0ba902b7",
+            "name": "chat m",
+            "kind": "client",
+            "scope": "other-scope",
+            "startMs": 1767323045679,
+            "durationMs": 3,
+            "status": "error",
+            "statusMessage": "It broke",
+            "attributes": {
+              "error.type": "http_500"
+            },
+            "events": [
+              {
+                "name": "exception",
+                "timeMs": 1767323045680.5,
+                "attributes": {
+                  "exception.message": "It broke",
+                  "exception.type": "Error",
+                  "exception.stacktrace": "at x"
+                }
+              }
+            ]
+          },
+          {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "spanId": "b0f067aa0ba902b7",
+            "parentSpanId": "a0f067aa0ba902b7",
+            "name": "store.persist",
+            "kind": "internal",
+            "scope": "saturn-runtime",
+            "scopeVersion": "0.1.0",
+            "startMs": 1767323045681,
+            "durationMs": 1,
+            "status": "ok",
+            "attributes": {},
+            "events": []
+          }
+        ]
+      }
+    ],
+    "logs": [
+      {
+        "timeMs": 1767323045682.75,
+        "severity": "INFO",
+        "severityNumber": 9,
+        "body": "Done",
+        "attributes": {
+          "saturn.service": "agent"
+        },
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "spanId": "00f067aa0ba902b7"
+      },
+      {
+        "timeMs": 1767323045600,
+        "severity": "WARNING",
+        "severityNumber": 13,
+        "body": "Early",
+        "attributes": {}
+      }
+    ],
+    "metrics": [
+      {
+        "name": "saturn.tool.calls",
+        "description": "Tool calls",
+        "unit": "{call}",
+        "type": "sum",
+        "monotonic": true,
+        "points": [
+          {
+            "attributes": {
+              "saturn.tool.status": "completed"
+            },
+            "startMs": 1767323040000,
+            "timeMs": 1767323045700,
+            "value": 3
+          }
+        ]
+      },
+      {
+        "name": "saturn.tool.duration",
+        "description": "Duration",
+        "unit": "s",
+        "type": "histogram",
+        "points": [
+          {
+            "attributes": {},
+            "startMs": 1767323040000,
+            "timeMs": 1767323045700,
+            "histogram": {
+              "count": 2,
+              "sum": 0.5,
+              "min": 0.1,
+              "max": 0.4,
+              "boundaries": [
+                0.25,
+                1
+              ],
+              "counts": [
+                1,
+                1,
+                0
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "saturn.gauge",
+        "description": "A gauge",
+        "unit": "1",
+        "type": "gauge",
+        "points": [
+          {
+            "attributes": {},
+            "startMs": 1767323040000,
+            "timeMs": 1767323045700,
+            "value": 7
+          }
+        ]
+      }
+    ]
+  },
+  "otlp": "{\"resourceSpans\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"saturn-runtime\"}},{\"key\":\"service.version\",\"value\":{\"stringValue\":\"0.1.0\"}},{\"key\":\"telemetry.sdk.language\",\"value\":{\"stringValue\":\"nodejs\"}},{\"key\":\"telemetry.sdk.name\",\"value\":{\"stringValue\":\"opentelemetry\"}}]},\"scopeSpans\":[{\"scope\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"spans\":[{\"traceId\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"spanId\":\"00f067aa0ba902b7\",\"name\":\"POST /agents/:id/runs\",\"kind\":2,\"startTimeUnixNano\":\"1767323045678250000\",\"endTimeUnixNano\":\"1767323045690750000\",\"attributes\":[{\"key\":\"http.request.method\",\"value\":{\"stringValue\":\"POST\"}},{\"key\":\"http.response.status_code\",\"value\":{\"intValue\":\"201\"}},{\"key\":\"url.path\",\"value\":{\"stringValue\":\"/agents/a/runs\"}},{\"key\":\"saturn.ratio\",\"value\":{\"doubleValue\":0.5}},{\"key\":\"saturn.flag\",\"value\":{\"boolValue\":true}},{\"key\":\"saturn.list\",\"value\":{\"arrayValue\":{\"values\":[{\"stringValue\":\"a\"},{\"intValue\":\"1\"}]}}},{\"key\":\"saturn.none\",\"value\":{\"stringValue\":\"\"}}],\"events\":[],\"status\":{\"code\":0}},{\"traceId\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"spanId\":\"b0f067aa0ba902b7\",\"parentSpanId\":\"a0f067aa0ba902b7\",\"name\":\"store.persist\",\"kind\":1,\"startTimeUnixNano\":\"1767323045681000000\",\"endTimeUnixNano\":\"1767323045682000000\",\"attributes\":[],\"events\":[],\"status\":{\"code\":1}}]},{\"scope\":{\"name\":\"other-scope\"},\"spans\":[{\"traceId\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"spanId\":\"a0f067aa0ba902b7\",\"parentSpanId\":\"00f067aa0ba902b7\",\"name\":\"chat m\",\"kind\":3,\"startTimeUnixNano\":\"1767323045679000000\",\"endTimeUnixNano\":\"1767323045682000000\",\"attributes\":[{\"key\":\"error.type\",\"value\":{\"stringValue\":\"http_500\"}}],\"events\":[{\"timeUnixNano\":\"1767323045680500000\",\"name\":\"exception\",\"attributes\":[{\"key\":\"exception.message\",\"value\":{\"stringValue\":\"It broke\"}},{\"key\":\"exception.type\",\"value\":{\"stringValue\":\"Error\"}},{\"key\":\"exception.stacktrace\",\"value\":{\"stringValue\":\"at x\"}}]}],\"status\":{\"code\":2,\"message\":\"It broke\"}}]}]}]}\n{\"resourceLogs\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"saturn-runtime\"}},{\"key\":\"service.version\",\"value\":{\"stringValue\":\"0.1.0\"}},{\"key\":\"telemetry.sdk.language\",\"value\":{\"stringValue\":\"nodejs\"}},{\"key\":\"telemetry.sdk.name\",\"value\":{\"stringValue\":\"opentelemetry\"}}]},\"scopeLogs\":[{\"scope\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"logRecords\":[{\"timeUnixNano\":\"1767323045682750000\",\"observedTimeUnixNano\":\"1767323045682750000\",\"severityNumber\":9,\"severityText\":\"INFO\",\"body\":{\"stringValue\":\"Done\"},\"attributes\":[{\"key\":\"saturn.service\",\"value\":{\"stringValue\":\"agent\"}}],\"traceId\":\"4bf92f3577b34da6a3ce929d0e0e4736\",\"spanId\":\"00f067aa0ba902b7\"},{\"timeUnixNano\":\"1767323045600000000\",\"observedTimeUnixNano\":\"1767323045600000000\",\"severityNumber\":13,\"severityText\":\"WARNING\",\"body\":{\"stringValue\":\"Early\"},\"attributes\":[]}]}]}]}\n{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"saturn-runtime\"}},{\"key\":\"service.version\",\"value\":{\"stringValue\":\"0.1.0\"}},{\"key\":\"telemetry.sdk.language\",\"value\":{\"stringValue\":\"nodejs\"}},{\"key\":\"telemetry.sdk.name\",\"value\":{\"stringValue\":\"opentelemetry\"}}]},\"scopeMetrics\":[{\"scope\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"metrics\":[{\"name\":\"saturn.tool.calls\",\"description\":\"Tool calls\",\"unit\":\"{call}\",\"sum\":{\"aggregationTemporality\":2,\"isMonotonic\":true,\"dataPoints\":[{\"attributes\":[{\"key\":\"saturn.tool.status\",\"value\":{\"stringValue\":\"completed\"}}],\"startTimeUnixNano\":\"1767323040000000000\",\"timeUnixNano\":\"1767323045700000000\",\"asDouble\":3}]}},{\"name\":\"saturn.tool.duration\",\"description\":\"Duration\",\"unit\":\"s\",\"histogram\":{\"aggregationTemporality\":2,\"dataPoints\":[{\"attributes\":[],\"startTimeUnixNano\":\"1767323040000000000\",\"timeUnixNano\":\"1767323045700000000\",\"count\":\"2\",\"sum\":0.5,\"min\":0.1,\"max\":0.4,\"bucketCounts\":[\"1\",\"1\",\"0\"],\"explicitBounds\":[0.25,1]}]}},{\"name\":\"saturn.gauge\",\"description\":\"A gauge\",\"unit\":\"1\",\"gauge\":{\"dataPoints\":[{\"attributes\":[],\"startTimeUnixNano\":\"1767323040000000000\",\"timeUnixNano\":\"1767323045700000000\",\"asDouble\":7}]}}]}]}]}\n",
+  "siem": "{\"@timestamp\":\"2026-01-02T03:04:05.600Z\",\"message\":\"Early\",\"log\":{\"level\":\"warning\",\"logger\":\"runtime\"},\"event\":{\"kind\":\"event\",\"dataset\":\"saturn.logs\",\"module\":\"saturn\",\"severity\":13},\"service\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"otel\":{\"attributes\":{}}}\n{\"@timestamp\":\"2026-01-02T03:04:05.678Z\",\"message\":\"POST /agents/:id/runs\",\"event\":{\"kind\":\"event\",\"dataset\":\"saturn.traces\",\"module\":\"saturn\",\"action\":\"POST /agents/:id/runs\",\"category\":[\"web\"],\"type\":[\"info\"],\"outcome\":\"unknown\",\"start\":\"2026-01-02T03:04:05.678Z\",\"end\":\"2026-01-02T03:04:05.690Z\",\"duration\":12500000},\"service\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"trace\":{\"id\":\"4bf92f3577b34da6a3ce929d0e0e4736\"},\"span\":{\"id\":\"00f067aa0ba902b7\"},\"http\":{\"request\":{\"method\":\"POST\"},\"response\":{\"status_code\":201}},\"url\":{\"path\":\"/agents/a/runs\"},\"otel\":{\"kind\":\"server\",\"status\":\"unset\",\"scope\":\"saturn-runtime\",\"attributes\":{\"http.request.method\":\"POST\",\"http.response.status_code\":201,\"url.path\":\"/agents/a/runs\",\"saturn.ratio\":0.5,\"saturn.flag\":true,\"saturn.list\":[\"a\",1],\"saturn.none\":null}}}\n{\"@timestamp\":\"2026-01-02T03:04:05.679Z\",\"message\":\"chat m\",\"event\":{\"kind\":\"event\",\"dataset\":\"saturn.traces\",\"module\":\"saturn\",\"action\":\"chat m\",\"category\":[\"web\"],\"type\":[\"info\"],\"outcome\":\"failure\",\"start\":\"2026-01-02T03:04:05.679Z\",\"end\":\"2026-01-02T03:04:05.682Z\",\"duration\":3000000},\"service\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"trace\":{\"id\":\"4bf92f3577b34da6a3ce929d0e0e4736\"},\"span\":{\"id\":\"a0f067aa0ba902b7\"},\"parent\":{\"id\":\"00f067aa0ba902b7\"},\"error\":{\"type\":\"http_500\",\"message\":\"It broke\",\"stack_trace\":\"at x\"},\"otel\":{\"kind\":\"client\",\"status\":\"error\",\"scope\":\"other-scope\",\"attributes\":{\"error.type\":\"http_500\"}}}\n{\"@timestamp\":\"2026-01-02T03:04:05.681Z\",\"message\":\"store.persist\",\"event\":{\"kind\":\"event\",\"dataset\":\"saturn.traces\",\"module\":\"saturn\",\"action\":\"store.persist\",\"category\":[\"process\"],\"type\":[\"info\"],\"outcome\":\"success\",\"start\":\"2026-01-02T03:04:05.681Z\",\"end\":\"2026-01-02T03:04:05.682Z\",\"duration\":1000000},\"service\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"trace\":{\"id\":\"4bf92f3577b34da6a3ce929d0e0e4736\"},\"span\":{\"id\":\"b0f067aa0ba902b7\"},\"parent\":{\"id\":\"a0f067aa0ba902b7\"},\"otel\":{\"kind\":\"internal\",\"status\":\"ok\",\"scope\":\"saturn-runtime\",\"attributes\":{}}}\n{\"@timestamp\":\"2026-01-02T03:04:05.682Z\",\"message\":\"Done\",\"log\":{\"level\":\"info\",\"logger\":\"agent\"},\"event\":{\"kind\":\"event\",\"dataset\":\"saturn.logs\",\"module\":\"saturn\",\"severity\":9},\"service\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"trace\":{\"id\":\"4bf92f3577b34da6a3ce929d0e0e4736\"},\"span\":{\"id\":\"00f067aa0ba902b7\"},\"otel\":{\"attributes\":{\"saturn.service\":\"agent\"}}}\n{\"@timestamp\":\"2026-01-02T03:04:05.700Z\",\"message\":\"saturn.tool.calls\",\"event\":{\"kind\":\"metric\",\"dataset\":\"saturn.metrics\",\"module\":\"saturn\"},\"service\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"metric\":{\"name\":\"saturn.tool.calls\",\"unit\":\"{call}\",\"type\":\"sum\",\"value\":3},\"otel\":{\"attributes\":{\"saturn.tool.status\":\"completed\"},\"start\":\"2026-01-02T03:04:00.000Z\"}}\n{\"@timestamp\":\"2026-01-02T03:04:05.700Z\",\"message\":\"saturn.tool.duration\",\"event\":{\"kind\":\"metric\",\"dataset\":\"saturn.metrics\",\"module\":\"saturn\"},\"service\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"metric\":{\"name\":\"saturn.tool.duration\",\"unit\":\"s\",\"type\":\"histogram\",\"count\":2,\"sum\":0.5,\"avg\":0.25,\"min\":0.1,\"max\":0.4},\"otel\":{\"attributes\":{},\"start\":\"2026-01-02T03:04:00.000Z\"}}\n{\"@timestamp\":\"2026-01-02T03:04:05.700Z\",\"message\":\"saturn.gauge\",\"event\":{\"kind\":\"metric\",\"dataset\":\"saturn.metrics\",\"module\":\"saturn\"},\"service\":{\"name\":\"saturn-runtime\",\"version\":\"0.1.0\"},\"metric\":{\"name\":\"saturn.gauge\",\"unit\":\"1\",\"type\":\"gauge\",\"value\":7},\"otel\":{\"attributes\":{},\"start\":\"2026-01-02T03:04:00.000Z\"}}\n",
+  "emptyOtlp": "",
+  "emptySiem": ""
+}

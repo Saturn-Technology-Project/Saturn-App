@@ -14,6 +14,7 @@ aes-gcm = { version = "0.10", default-features = false, features = ["aes", "allo
 base64 = "0.22"
 saturn-domain = { path = "../saturn-domain" }
 getrandom = { version = "0.3", features = ["std"] }
+saturn-telemetry = { path = "../saturn-telemetry" }
 serde = { version = "1", features = ["derive"] }
 # Numbers as JavaScript wrote them: exact floats.
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }

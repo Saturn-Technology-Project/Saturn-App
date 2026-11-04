@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use base64::Engine;
 use saturn_llm::lmstudio::openai_compatible_url;
+use saturn_telemetry::network::{SendNoted, client_builder};
 use serde_json::{Value, json};
 use tokenizers::Tokenizer;
 use tract_onnx::prelude::*;
@@ -167,7 +168,9 @@ pub async fn ensure_model(data_root: &Path, model: &BuiltinModel) -> Result<Path
     if ready {
         return Ok(dir);
     }
-    let client = reqwest::Client::new();
+    let client = client_builder()
+        .build()
+        .map_err(|error| EmbedError::plain(error.to_string()))?;
     for file in MODEL_FILES {
         let target = dir.join(file);
         if target.is_file() {
@@ -182,7 +185,7 @@ pub async fn ensure_model(data_root: &Path, model: &BuiltinModel) -> Result<Path
         };
         let response = client
             .get(&address)
-            .send()
+            .send_noted()
             .await
             .map_err(|error| refused(error.to_string()))?;
         if !response.status().is_success() {
@@ -392,7 +395,7 @@ impl OpenAiEmbedder {
             .as_deref()
             .unwrap_or("https://api.openai.com/v1")
             .trim_end_matches('/');
-        let client = reqwest::Client::builder()
+        let client = client_builder()
             .timeout(Duration::from_secs(600))
             .build()
             .map_err(|error| EmbedError::plain(error.to_string()))?;
@@ -405,7 +408,7 @@ impl OpenAiEmbedder {
             .post(format!("{base}/embeddings"))
             .bearer_auth(key)
             .json(&json!({ "model": self.model, "input": texts }))
-            .send()
+            .send_noted()
             .await
             .map_err(|error| {
                 EmbedError::plain(if error.is_connect() {

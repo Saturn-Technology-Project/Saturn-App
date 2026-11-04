@@ -12,6 +12,7 @@ use base64::Engine;
 use regex::Regex;
 use reqwest::Method;
 use saturn_domain::js;
+use saturn_telemetry::network::{SendNoted, client_builder};
 use saturn_tools::shell::process_env;
 use serde_json::{Map, Value, json};
 use tokio::process::Command;
@@ -942,7 +943,7 @@ impl<'a> Origin<'a> {
             .ok()
             .filter(|base| !base.is_empty())
             .unwrap_or_else(|| "https://api.github.com".to_owned());
-        let client = reqwest::Client::builder()
+        let client = client_builder()
             .timeout(API_TIMEOUT)
             .build()
             .map_err(|error| error.to_string())?;
@@ -958,7 +959,7 @@ impl<'a> Origin<'a> {
                 .body(body.to_string());
         }
         let response = request
-            .send()
+            .send_noted()
             .await
             .map_err(|error| format!("Could not reach GitHub: {}", error.without_url()))?;
         let status = response.status();

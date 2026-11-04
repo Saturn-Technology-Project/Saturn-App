@@ -10,6 +10,7 @@ use std::sync::Arc;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use reqwest::redirect::Policy;
 use saturn_domain::skills::public_address::is_private_host;
+use saturn_telemetry::network::{SendNoted, client_builder};
 use url::Url;
 
 const NOT_ALLOWED: &str = "That address is not allowed";
@@ -122,7 +123,7 @@ pub async fn request_through<R: Resolve + 'static>(
     headers: &[(&str, &str)],
     resolver: Arc<R>,
 ) -> Result<reqwest::Response, String> {
-    let client = reqwest::Client::builder()
+    let client = client_builder()
         .redirect(Policy::none())
         .no_proxy()
         // Its own connection: a kept one would skip the lookup.
@@ -134,7 +135,7 @@ pub async fn request_through<R: Resolve + 'static>(
     for (name, value) in headers {
         request = request.header(*name, *value);
     }
-    request.send().await.map_err(|error| reason(&error))
+    request.send_noted().await.map_err(|error| reason(&error))
 }
 
 /// What went wrong with a request: the refusal when there was one, deep inside the connection's error.

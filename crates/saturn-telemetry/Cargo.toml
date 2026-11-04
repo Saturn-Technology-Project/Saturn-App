@@ -1,0 +1,21 @@
+[package]
+name = "saturn-telemetry"
+description = "The runtime's own traces, metrics and logs in OpenTelemetry's shape, and the record of every request it sends"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+reqwest = { version = "0.13", default-features = false }
+saturn-domain = { path = "../saturn-domain" }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+tokio = { version = "1", features = ["fs", "macros", "rt", "sync", "time"] }
+url = "2"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }

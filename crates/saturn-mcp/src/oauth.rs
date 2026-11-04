@@ -2,6 +2,7 @@
 //! registered), PKCE, tokens and their refresh. Everything is kept in the runtime's secrets file.
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use saturn_telemetry::network::SendNoted;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use url::Url;
@@ -71,7 +72,7 @@ impl McpClient {
             .http
             .get(url)
             .header("accept", "application/json")
-            .send()
+            .send_noted()
             .await
             .ok()?;
         if !response.status().is_success() {
@@ -206,7 +207,7 @@ impl McpClient {
             .post(register)
             .header("content-type", "application/json")
             .body(body.to_string())
-            .send()
+            .send_noted()
             .await
             .map_err(|error| McpError::failed(error.without_url().to_string()))?;
         if !response.status().is_success() {
@@ -323,7 +324,7 @@ impl McpClient {
             request = request.basic_auth(id, Some(secret));
         }
         let response = request
-            .send()
+            .send_noted()
             .await
             .map_err(|error| McpError::failed(error.without_url().to_string()))?;
         let status = response.status();

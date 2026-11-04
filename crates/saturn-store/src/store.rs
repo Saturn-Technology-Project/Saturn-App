@@ -6,8 +6,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::time::Instant;
 
-use serde_json::Value;
+use saturn_telemetry::{Kind, Span};
+use serde_json::{Value, json};
 use tokio::sync::{Mutex as AsyncMutex, watch};
 use tokio::task;
 
@@ -127,6 +129,27 @@ impl FileStore {
     /// Writes what is in memory now, so a later save always holds at least what an earlier one did. The state is written every
     /// time; the secrets, whose key may live behind a system tool, only when they changed.
     async fn save(&self) -> io::Result<()> {
+        let runs = self.read(|state| state.runs.len());
+        let span = Span::start(
+            "store.persist",
+            Kind::Internal,
+            json!({ "saturn.store.runs": runs }),
+        );
+        let started = Instant::now();
+        let saved = span.scope(self.write_out()).await;
+        match &saved {
+            Ok(()) => saturn_telemetry::record(
+                "saturn.store.write.duration",
+                started.elapsed().as_secs_f64(),
+                json!({}),
+            ),
+            Err(error) => span.fail(&error.to_string(), "Error"),
+        }
+        saved
+    }
+
+    /// The save itself.
+    async fn write_out(&self) -> io::Result<()> {
         let mut secrets_file = Arc::clone(&self.writing).lock_owned().await;
         let (state_text, changed_secrets) = {
             let mut contents = self.locked();
