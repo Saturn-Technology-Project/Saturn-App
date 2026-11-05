@@ -15,6 +15,6 @@ export const FlaskIcon = () => <Icon><path d="M7 2.5h4M7.7 2.5V7l-4 6.5A1.2 1.2 
 export const SamplesIcon = () => <Icon><path d="M3 4h12M3 9h12M3 14h7" /></Icon>;
 export const TasksIcon = () => <Icon><path d="M3 5l1.5 1.5L7 4M3 12l1.5 1.5L7 11M10 5.5h5M10 12.5h5" /></Icon>;
 export const ShieldIcon = () => <Icon><path d="M9 2.5l5.5 2v4c0 3.5-2.3 5.8-5.5 7-3.2-1.2-5.5-3.5-5.5-7v-4z" /></Icon>;
-export const GearIcon = () => <Icon><circle cx="9" cy="9" r="2.2" /><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2M4.4 4.4l1.4 1.4M12.2 12.2l1.4 1.4M4.4 13.6l1.4-1.4M12.2 5.8l1.4-1.4" /></Icon>;
+export const GearIcon = () => <Icon><circle cx="9" cy="9" r="2.3" /><path d="M7.22 3.80L7.46 1.86L10.54 1.86L10.78 3.80L11.42 4.06L12.96 2.87L15.13 5.04L13.94 6.58L14.20 7.22L16.14 7.46L16.14 10.54L14.20 10.78L13.94 11.42L15.13 12.96L12.96 15.13L11.42 13.94L10.78 14.20L10.54 16.14L7.46 16.14L7.22 14.20L6.58 13.94L5.04 15.13L2.87 12.96L4.06 11.42L3.80 10.78L1.86 10.54L1.86 7.46L3.80 7.22L4.06 6.58L2.87 5.04L5.04 2.87L6.58 4.06Z" /></Icon>;
 export const AssistantIcon = () => <Icon><path d="M3 4.5h12v8H8l-3 2.5v-2.5H3z" /></Icon>;
 export const BoxIcon = () => <Icon><path d="M9 2.5l6 3v7l-6 3-6-3v-7zM3 5.5l6 3 6-3M9 8.5v7" /></Icon>;

@@ -100,7 +100,7 @@
   --text-small: 12px;
   --text-body: 13px;
   --text-title: 18px;
-  --rail-width: 72px;
+  --rail-width: 80px;
   --bar-height: 44px;
   --radius: 8px;
   /* Room for the macOS window buttons, and for those the Windows bridge draws. */
