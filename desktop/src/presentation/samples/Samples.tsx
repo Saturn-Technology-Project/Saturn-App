@@ -309,15 +309,15 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                   {allRuns ? "This run only" : `Every run that saw it (${runs.length})`}
                 </button>
               </div>
-              <div className="lab-table-wrap">
-                <table className="lab-table">
+              <div className="lab-table-wrap" role="region" aria-label="Sample comparisons" tabIndex={0}>
+                <table className="lab-table lab-sample-table">
                   <thead>
                     <tr><th scope="col">Model</th>{allRuns ? <th scope="col">Run</th> : null}<th scope="col">Output</th><th scope="col">Scores</th><th scope="col">Scorer</th><th scope="col">Your label</th></tr>
                   </thead>
                   <tbody>
                     {rows.map((row) =>
                       row.samples.length === 0 ? (
-                        <tr key={row.runId}><td colSpan={allRuns ? 6 : 5} className="lab-muted"><code>{row.runId}</code> has no such sample.</td></tr>
+                        <tr key={row.runId}><td colSpan={allRuns ? 7 : 6} className="lab-muted"><code>{row.runId}</code> has no such sample.</td></tr>
                       ) : (
                         row.samples.map((line) => (
                           <tr key={`${row.runId}-${line.trial ?? 0}-${line.modelId ?? ""}`}>

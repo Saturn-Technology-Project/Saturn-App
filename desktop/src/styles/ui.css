@@ -692,6 +692,16 @@
   white-space: nowrap;
 }
 
+/* A narrow sample view scrolls the comparison, keeping the label choices on one readable row. */
+.lab-sample-table {
+  min-width: 760px;
+}
+
+.lab-sample-table .lab-segments {
+  flex-wrap: nowrap;
+  width: max-content;
+}
+
 /* What a run costs, as lines over time. */
 .lab-resources {
   display: flex;
