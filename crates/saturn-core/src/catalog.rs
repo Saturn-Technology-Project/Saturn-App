@@ -863,6 +863,80 @@ impl Kernel {
         Ok(())
     }
 
+    /// Removes a connection the agents using it can do without: a model's move to `move_to` ("none" leaves them with no
+    /// model, which they say when asked to run), and a server or index is taken off their lists. Done only when asked,
+    /// since `delete_connection` alone refuses; an agent may no longer have a screen of its own to change it on.
+    pub async fn release_connection(
+        &self,
+        kind: &str,
+        id: &str,
+        move_to: Option<&str>,
+    ) -> Result<(), CoreError> {
+        if !matches!(kind, "models" | "mcp" | "rag") {
+            return Err(CoreError::new(404, "Unknown connection kind"));
+        }
+        let target = if kind == "models" {
+            let asked = move_to.ok_or_else(|| {
+                CoreError::new(400, "Say which model its agents move to, or \"none\".")
+            })?;
+            if asked == id {
+                return Err(CoreError::new(
+                    400,
+                    "Its agents cannot move to the model being removed.",
+                ));
+            }
+            if asked != "none"
+                && !self
+                    .store
+                    .read(|state| state.models.iter().any(|model| text(model, "id") == asked))
+            {
+                return Err(CoreError::new(404, "No such model to move its agents to."));
+            }
+            (asked != "none").then(|| asked.to_owned())
+        } else {
+            None
+        };
+        let moved = self
+            .store
+            .update(|state| {
+                let mut moved = 0;
+                for agent in &mut state.agents {
+                    match kind {
+                        "models" if text(agent, "modelConnectionId") == id => {
+                            agent["modelConnectionId"] = json!(target);
+                            moved += 1;
+                        }
+                        "models" => {}
+                        _ => {
+                            let key = if kind == "mcp" {
+                                "mcpConnectionIds"
+                            } else {
+                                "ragConnectionIds"
+                            };
+                            let kept: Vec<String> = strings(agent, key)
+                                .into_iter()
+                                .filter(|item| item != id)
+                                .collect();
+                            if kept.len() != strings(agent, key).len() {
+                                agent[key] = json!(kept);
+                                moved += 1;
+                            }
+                        }
+                    }
+                }
+                moved
+            })
+            .await?;
+        if moved > 0 {
+            log(
+                "catalog",
+                "info",
+                &format!("{moved} agents released a {kind} connection that is being removed"),
+            );
+        }
+        self.delete_connection(kind, id).await
+    }
+
     /// Removes a connection no agent uses.
     pub async fn delete_connection(&self, kind: &str, id: &str) -> Result<(), CoreError> {
         if !matches!(kind, "models" | "mcp" | "rag") {

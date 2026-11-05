@@ -148,11 +148,32 @@ async fn list_connections(State(kernel): Shared, Path(kind): Path<String>) -> An
     ok(kernel.list_connections(&kind).await?)
 }
 
+/// Removes a connection. With `moveAgentsTo` (a model's) or `releaseAgents` (a server's or index's) its agents let go of
+/// it first; without either, a connection still in use is refused.
+async fn remove_connection(
+    kernel: &Kernel,
+    kind: &str,
+    id: &str,
+    query: &HashMap<String, String>,
+) -> Result<(), CoreError> {
+    let move_to = query.get("moveAgentsTo").map(String::as_str);
+    if move_to.is_some()
+        || query
+            .get("releaseAgents")
+            .is_some_and(|value| value == "true")
+    {
+        kernel.release_connection(kind, id, move_to).await
+    } else {
+        kernel.delete_connection(kind, id).await
+    }
+}
+
 async fn delete_connection(
     State(kernel): Shared,
     Path((kind, id)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
 ) -> Answer {
-    kernel.delete_connection(&kind, &id).await?;
+    remove_connection(&kernel, &kind, &id, &query).await?;
     no_content()
 }
 
@@ -164,13 +185,21 @@ async fn list_rag(State(kernel): Shared) -> Answer {
     ok(kernel.list_connections("rag").await?)
 }
 
-async fn delete_model(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    kernel.delete_connection("models", &id).await?;
+async fn delete_model(
+    State(kernel): Shared,
+    Path(id): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    remove_connection(&kernel, "models", &id, &query).await?;
     no_content()
 }
 
-async fn delete_mcp_connection(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    kernel.delete_connection("mcp", &id).await?;
+async fn delete_mcp_connection(
+    State(kernel): Shared,
+    Path(id): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    remove_connection(&kernel, "mcp", &id, &query).await?;
     no_content()
 }
 
