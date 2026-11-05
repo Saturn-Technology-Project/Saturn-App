@@ -78,6 +78,7 @@ export function Settings(props: {
   onChanged: () => Promise<void>;
   onPatchAgent: (patch: Partial<Agent>) => Promise<void>;
   onProfile: (profile: Profile) => void;
+  onProjectRemoved?: () => void;
   theme?: "light" | "dark";
   onSetTheme?: (theme: "light" | "dark") => void;
   onToggleTheme?: () => void;
@@ -201,6 +202,7 @@ export function Settings(props: {
           <div className={classes("flex flex-col gap-3", page === "telemetry" ? "max-w-[1180px]" : "max-w-[820px]")}>
             {selectedProject ? (
               <ProjectSettingsTab
+                onRemoved={props.onProjectRemoved}
                 project={selectedProject}
                 onError={setError}
               />
@@ -1373,6 +1375,7 @@ function General(props: {
 function ProjectSettingsTab(props: {
   project: Project;
   onError: (message: string) => void;
+  onRemoved?: () => void;
 }) {
   const [rules, setRules] = useState("");
   const [loading, setLoading] = useState(true);
@@ -1390,6 +1393,17 @@ function ProjectSettingsTab(props: {
     } catch (reason) {
       setSandbox(previous);
       props.onError(reason instanceof Error ? reason.message : "Could not save");
+    }
+  }
+
+  /** Takes the project and its chats out of Saturn. Its folder and everything in it stay. */
+  async function removeProject() {
+    if (!await askToConfirm(`Remove ${props.project.name} from Saturn? Its chats go with it. The folder and its files stay where they are.`)) return;
+    try {
+      await desktop.projects.delete(props.project.id);
+      props.onRemoved?.();
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : "Could not remove the project");
     }
   }
 
@@ -1534,6 +1548,9 @@ function ProjectSettingsTab(props: {
           </Button>
           <Button type="button" variant="outline" size="small" onClick={() => void desktop.projects.openInFolder(props.project.id)}>
             Reveal in Finder
+          </Button>
+          <Button type="button" variant="danger" size="small" onClick={() => void removeProject()}>
+            Remove from Saturn
           </Button>
         </SettingsCard>
       </div>

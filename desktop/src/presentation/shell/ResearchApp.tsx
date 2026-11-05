@@ -260,7 +260,7 @@ export function ResearchApp() {
       <Guide go={go} />
       {palette ? <CommandPalette commands={commands} onClose={() => setPalette(false)} /> : null}
       {accessRequest ? <AccessDialog path={accessRequest.path} name={accessRequest.name} onClose={() => setAccessRequest(null)} onAllow={() => allowAccess(accessRequest)} /> : null}
-      {settings ? <SettingsHost projects={projects} theme={theme} onSetTheme={setTheme} onClose={() => setSettings(false)} onProfile={setProfile} notify={setNotice} /> : null}
+      {settings ? <SettingsHost projects={projects} theme={theme} onSetTheme={setTheme} onClose={() => setSettings(false)} onProfile={setProfile} onProjectRemoved={() => { setSettings(false); void syncProjects(); }} notify={setNotice} /> : null}
       {touring ? (
         // Out of sight, not gone, under what its last step opens: it picks up where it was when that closes.
         <div hidden={settings || Boolean(accessRequest)}>

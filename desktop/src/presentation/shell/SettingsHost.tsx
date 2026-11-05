@@ -12,6 +12,7 @@ export function SettingsHost(props: {
   onSetTheme: (theme: "light" | "dark") => void;
   onClose: () => void;
   onProfile: (profile: Profile) => void;
+  onProjectRemoved: () => void;
   notify: (message: string) => void;
 }) {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -53,6 +54,7 @@ export function SettingsHost(props: {
         await reload();
       }}
       onProfile={props.onProfile}
+      onProjectRemoved={props.onProjectRemoved}
       theme={props.theme}
       onSetTheme={props.onSetTheme}
     />
