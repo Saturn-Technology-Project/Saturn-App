@@ -30,6 +30,7 @@ import type {
 } from "../domain/research.js";
 import type { DataList, DataOverlap, DataPage, DataProfile } from "../domain/data.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
+import type { ResearchImportRequest, ResearchImportPreview, TrainingMetric } from "../domain/research.js";
 
 /** A list of records, and those that could not be read. */
 interface RecordList<T> {
@@ -43,6 +44,21 @@ export class ResearchService {
 
   private route(project: string): string {
     return `/projects/${encodeURIComponent(project)}/research`;
+  }
+
+  /** Reads old results without creating an experiment or changing their source. */
+  previewImport(project: string, request: ResearchImportRequest): Promise<ResearchImportPreview> {
+    return this.send(`${this.route(project)}/imports/preview`, "POST", request);
+  }
+
+  /** Creates new, non-executable records from the exact previewed source. */
+  importResults(project: string, request: ResearchImportRequest): Promise<{ experiment: ExperimentDraft; version: FrozenVersion; run: ExperimentRun }> {
+    return this.send(`${this.route(project)}/imports`, "POST", request);
+  }
+
+  /** Reads a page of training metrics using byte offsets. */
+  metrics(project: string, run: string, cursor = 0): Promise<{ items: TrainingMetric[]; next: number | null }> {
+    return this.runtime.request(`${this.route(project)}/runs/${run}/metrics?cursor=${cursor}`);
   }
 
   private send<T>(path: string, method: string, body?: unknown): Promise<T> {

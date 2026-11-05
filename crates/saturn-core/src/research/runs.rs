@@ -245,6 +245,12 @@ impl Kernel {
         let version = self
             .research_record(project, "versions", version_id)
             .await?;
+        if version.get("imported").and_then(Value::as_bool) == Some(true) {
+            return Err(CoreError::new(
+                409,
+                "Imported versions describe past results. Set a command and freeze a new version to execute it.",
+            ));
+        }
         let source = self.research_source(project, thread)?;
         let records = self.records_for_writing(project).await?;
         if let Some(existing) = run_with_client(&records, client_id).await? {
@@ -368,6 +374,8 @@ impl Kernel {
             .env("SATURN_RUN_VERSION", text(version, "id"))
             .env("SATURN_RUN_DIRECTORY", directory)
             .env("SATURN_RUN_SAMPLES", directory.join("samples.jsonl"))
+            .env("SATURN_RUN_METRICS", directory.join("metrics.jsonl"))
+            .env("SATURN_RUN_ARTIFACTS", directory.join("artifacts.jsonl"))
             .stdin(Stdio::null())
             .stdout(stdout)
             .stderr(stderr);

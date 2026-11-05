@@ -428,8 +428,48 @@ async fn notebook_events(
     Ok(stream_of(receiver).into_response())
 }
 
+/// Reads an old result without creating records.
+async fn import_preview(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    ok(kernel
+        .research_import(&project, &body_of(body), true)
+        .await?)
+}
+
+/// Imports old results as new records, keeping their declared and unknown provenance.
+async fn import_results(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    created(
+        kernel
+            .research_import(&project, &body_of(body), false)
+            .await?,
+    )
+}
+
+/// Training metrics have their own stream, apart from evaluation samples.
+async fn metrics(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    ok(kernel
+        .research_metrics(
+            &project,
+            &run,
+            query
+                .get("cursor")
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(0),
+        )
+        .await?)
+}
+
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route(
+            "/projects/{id}/research/imports/preview",
+            post(import_preview),
+        )
+        .route("/projects/{id}/research/imports", post(import_results))
+        .route("/projects/{id}/research/runs/{run}/metrics", get(metrics))
         .route("/projects/{id}/research/notebook", get(notebook_status))
         .route(
             "/projects/{id}/research/notebook/events",

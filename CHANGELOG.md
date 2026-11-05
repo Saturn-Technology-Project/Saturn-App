@@ -4,6 +4,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+### Added
+
+- **Bring existing research results in.** Preview and import project JSONL, JSON, CSV or TSV without changing the source or first creating a hypothesis. Map columns explicitly and keep unknown provenance unknown. Trainer state imports become separate training metrics, plotted by step; imported versions describe past results and cannot be executed.
+
 ### Fixed
 
 - **Screens open fast on large runs.** A finished run's samples are read once and remembered, instead of again every time Lineage, Experiments, Samples or Home opened, which took seconds on a large run.

@@ -37,6 +37,8 @@ import { useRecords } from "../ui/useRecords.js";
 
 import { Mechanism } from "./Mechanism.js";
 import { ScoreChart } from "./ScoreChart.js";
+import { ImportResults } from "./ImportResults.js";
+import { TrainingMetrics } from "./TrainingMetrics.js";
 
 const service = desktop.research;
 const FIELD_LABELS: Record<(typeof EVALUATION_FIELD_NAMES)[number], string> = {
@@ -215,6 +217,7 @@ export function Experiments(props: ScreenProps) {
         ) : null}
       </div>
       {exported ? <Notice tone="good" className="my-2">Written to {exported} in the project.</Notice> : null}
+      <ImportResults projectId={projectId} onImported={(id) => { setSelected(id); void refresh(); }} notify={props.notify} />
       {!value ? <Loading /> : null}
       {value && drafts.length === 0 ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Running a command in the workspace creates the first experiment.</p> : null}
       {drafts.length > 1 ? drafts.map((item) => (
@@ -255,6 +258,7 @@ export function Experiments(props: ScreenProps) {
           </div>
 
           <ScoreChart projectId={projectId} runs={finished} versions={versions} models={value?.models ?? []} summaries={results.summaries} comparisons={results.comparisons} />
+          {newest ? <TrainingMetrics key={newest.id} projectId={projectId} runId={newest.id} notify={props.notify} /> : null}
 
           {sources && newest ? (
             <>

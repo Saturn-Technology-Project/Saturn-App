@@ -81,6 +81,9 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 
 **環境工作。** 建立環境、安裝套件與同步鎖定檔預設 30 分鐘逾時，可在 Environment 調整。逾時會停止整個行程群組、保留輸出，之後可重試；API 的 `timeoutSeconds` 範圍為 1–86400 秒。
 
+**既有結果。** Home 與 Experiments 可預覽並匯入專案內的 JSONL／JSON／CSV／TSV，以明確欄位對應與數值評分欄位接入舊結果，不需要改訓練程式或先建假說。
+Trainer state JSON 的 `log_history` 會另存為訓練指標。來源檔不變，未知的來源資訊仍保持未知，匯入版本不能直接執行；Experiments 按 step 畫出訓練指標，與評估樣本分開。
+
 ## 安裝
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。

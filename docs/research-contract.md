@@ -108,6 +108,26 @@ starting → running → stopping → stopped
 - A running run holds its worktree: discarding it, or the chat that owns it, gets 409.
 - Process identity is implemented for macOS and Linux. On Windows, starting a run says it is not supported yet.
 
+## Importing completed results
+
+`POST .../research/imports/preview` reads a project file without creating records. `POST .../research/imports`
+creates a new experiment, imported version and completed run; no question or hypothesis is required. Both take `path`,
+optional `format` (`jsonl`, `json`, `csv`, `tsv`, `trainer`), `columns` mapping protocol names to source columns,
+and `scoreColumns` listing numeric columns. Existing JSONL `scores` and other metadata are preserved. CSV supports quoted
+commas and newlines. Imports are bounded to 64 MiB and 100,000 rows; malformed rows, duplicate identities and invalid
+scores reject the import before records are created. Source paths use the granted project and cannot escape it.
+
+The preview includes the source SHA-256; passing it as `expectedSha256` rejects a changed file with 409. Provenance records
+the source path, format, hash and size, and says that this is not a verified execution. Missing IDs become `row-N`, marked
+as generated: positions do not establish identity across files. Unstated evaluation, weights and environment remain
+unknown. An optional `modelId` names an existing project model; `evaluation` can explicitly declare known conditions.
+Imported versions cannot be executed: set the experiment's command and freeze a new version to do that.
+
+Trainer `log_history` is saved as `metrics.jsonl`, not as scored samples. `GET .../runs/{run}/metrics?cursor=0` pages up to
+200 events using byte offsets. Each event has `schemaVersion: 1`, non-negative integer `step`, and finite numeric `values`.
+The process environment now names `SATURN_RUN_METRICS` and `SATURN_RUN_ARTIFACTS` alongside `SATURN_RUN_SAMPLES`; writing
+samples remains the execution contract for evaluation runs. The UI reads metrics separately and plots their source steps.
+
 ## Samples: JSONL version 1
 
 One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`. The process also gets `SATURN_RUN_ID`,

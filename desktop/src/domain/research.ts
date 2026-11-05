@@ -53,6 +53,9 @@ export interface FrozenVersion extends ResearchRecord {
 export type RunStatus = "starting" | "running" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
 
 export interface ExperimentRun extends ResearchRecord {
+  imported?: boolean;
+  kind?: "evaluation" | "training";
+  provenance?: { kind: string; path: string; sha256: string; identity?: string; note?: string };
   versionId: string;
   experimentId: string;
   status: RunStatus;
@@ -68,6 +71,29 @@ export interface ExperimentRun extends ResearchRecord {
   /** What the runtime noticed at the end: a sample count unlike the last comparable run's, for one. */
   warnings?: string[];
 }
+
+/** A file of old results and the column names the person explicitly mapped. */
+export interface ResearchImportRequest {
+  path: string;
+  format?: "jsonl" | "json" | "csv" | "tsv" | "trainer";
+  title?: string;
+  columns?: Record<string, string>;
+  scoreColumns?: string[];
+  modelId?: string;
+  evaluation?: EvaluationSpec;
+  expectedSha256?: string;
+}
+
+/** What an import would read, before it creates any record. */
+export interface ResearchImportPreview {
+  samples: number;
+  metrics: number;
+  preview: SampleLine[];
+  provenance: { path: string; sha256: string; identity: string; note: string };
+}
+
+/** One training event, separate from a scored evaluation sample. */
+export interface TrainingMetric { step: number; values: Record<string, number> }
 
 export interface SourceEntry {
   name: string;

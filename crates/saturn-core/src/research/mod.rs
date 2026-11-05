@@ -5,6 +5,7 @@ mod checks;
 mod data;
 mod environment;
 mod freeze;
+mod imports;
 mod inside;
 mod labels;
 mod manage;
