@@ -86,7 +86,8 @@ export function ResearchApp() {
     const list = await desktop.projects.list();
     setProjects(list);
     const active = await desktop.projects.getActive().catch(() => null);
-    setProjectId((current) => current ?? active?.id ?? list[0]?.id ?? null);
+    // A project that is gone, removed here or elsewhere, gives way to the runtime's active one.
+    setProjectId((current) => (current && list.some((item) => item.id === current) ? current : (active?.id ?? list[0]?.id ?? null)));
     setProfile(await desktop.catalog.settings());
     setModels(await desktop.catalog.listModels());
   }, []);
