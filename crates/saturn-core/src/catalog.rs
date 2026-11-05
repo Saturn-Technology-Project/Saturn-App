@@ -187,7 +187,7 @@ pub fn command_fingerprint(command: &Value, env: &BTreeMap<String, String>) -> S
             .to_string()
             .as_bytes(),
     );
-    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+    saturn_domain::research::hex(&digest)
 }
 
 /// How the command reads in a terminal, for the approval card. Arguments with spaces or quotes are quoted.

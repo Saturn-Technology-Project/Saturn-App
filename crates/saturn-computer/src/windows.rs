@@ -90,12 +90,7 @@ impl Helper {
         let mut hash = Sha256::new();
         hash.update(SOURCE);
         hash.update(SCRIPT);
-        let name: String = hash
-            .finalize()
-            .iter()
-            .take(6)
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
+        let name = saturn_domain::research::hex(&hash.finalize()[..6]);
         let folder = self.data_dir.join("desktop-helper");
         let unwritable = |error: std::io::Error| {
             Failure::plain(format!("The Windows desktop helper did not start: {error}"))

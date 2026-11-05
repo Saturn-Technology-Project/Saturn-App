@@ -72,11 +72,7 @@ pub fn rules_fingerprint(rules: &[Rule]) -> String {
         .collect();
     allow.sort();
     let digest = Sha256::digest(json!(allow).to_string().as_bytes());
-    digest
-        .iter()
-        .take(8)
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    saturn_domain::research::hex(&digest[..8])
 }
 
 /// A list of saved rules; anything that is not a rule is left out.

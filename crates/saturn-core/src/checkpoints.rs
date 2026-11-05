@@ -15,7 +15,6 @@ use saturn_domain::skills::workspace::Workspace;
 use saturn_domain::time::now_millis;
 use saturn_tools::file::{CaptureFuture, FileCheckpoint, inside_workspace};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use tokio::process::Command;
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -155,10 +154,7 @@ async fn changed_paths(cwd: &Path) -> Result<Vec<String>, GitFailure> {
 }
 
 fn sha256(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    saturn_domain::research::sha256_hex(bytes)
 }
 
 /// A file's bytes, or nothing when it is missing or not a file.

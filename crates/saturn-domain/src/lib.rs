@@ -28,7 +28,7 @@ pub(crate) fn argument_text(arguments: &Arguments, key: &str) -> String {
 pub fn random_hex(bytes: usize) -> std::io::Result<String> {
     let mut random = vec![0u8; bytes];
     getrandom::fill(&mut random).map_err(std::io::Error::other)?;
-    Ok(random.iter().map(|byte| format!("{byte:02x}")).collect())
+    Ok(research::hex(&random))
 }
 
 /// A new id for a record, like `run_0123456789abcdef`.
