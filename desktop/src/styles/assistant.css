@@ -27,14 +27,6 @@
   text-align: right;
 }
 
-.lab-assistant-mode {
-  flex: 1 1 100%;
-}
-
-.lab-assistant-mode .lab-segment {
-  flex: 1;
-}
-
 .lab-assistant-role {
   flex: 1 1 100%;
 }

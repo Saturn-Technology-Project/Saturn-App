@@ -176,13 +176,13 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
             </option>
           ))}
         </select>
-        <div className="lab-segments lab-assistant-mode" role="group" aria-label="How much the assistant may do in this chat" data-tour="assistant-mode">
+        <select className="lab-assistant-model" aria-label="How much the assistant may do in this chat" data-tour="assistant-mode" value={mode} onChange={(event) => void chooseMode(event.target.value as ChatMode)}>
           {CHAT_MODES.map((item) => (
-            <button type="button" key={item.id} aria-pressed={mode === item.id} className={mode === item.id ? "lab-segment active" : "lab-segment"} title={item.hint} onClick={() => void chooseMode(item.id)}>
+            <option key={item.id} value={item.id} title={item.hint}>
               {item.label}
-            </button>
+            </option>
           ))}
-        </div>
+        </select>
         <div className="lab-muted lab-assistant-role" role="status">{assistantRole(mode, models.find((model) => model.id === agent?.modelConnectionId)?.provider)}</div>
       </div>
 
