@@ -1,5 +1,6 @@
 //! Research records: plain JSON files in the project's `.saturn/research`, shared by every chat in it.
 //! `docs/research-contract.md` is the contract, and `contract/research-*.test.mjs` hold the runtime to it.
+mod checks;
 mod environment;
 mod freeze;
 mod inside;

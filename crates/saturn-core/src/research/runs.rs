@@ -321,6 +321,7 @@ impl Kernel {
 
         let kernel = Arc::clone(self);
         let finishing = FinishingRun {
+            project: project.to_owned(),
             records,
             source,
             directory,
@@ -441,6 +442,7 @@ impl Kernel {
     /// Seals a run whose process has ended.
     async fn finish_run(&self, finishing: FinishingRun, exit: Option<i32>) {
         let FinishingRun {
+            project,
             records,
             source,
             directory,
@@ -457,6 +459,9 @@ impl Kernel {
         }
         let changed = self.inputs_changed(&records, &source, &version).await;
         let sealed = seal(&directory).await;
+        let (per_model, warnings) = self
+            .drift_check(&project, &records, &version, &directory)
+            .await;
         let saved = self
             .settle_run(&records, &id, |run| {
                 if !is_active_status(text(run, "status")) {
@@ -480,6 +485,8 @@ impl Kernel {
                 run["exitCode"] = json!(exit);
                 run["endedAt"] = json!(iso_time(now_millis()));
                 run["inputsChanged"] = json!(changed);
+                run["samplesPerModel"] = json!(per_model);
+                run["warnings"] = json!(warnings);
             })
             .await;
         if let Err(error) = saved {
@@ -601,6 +608,7 @@ impl Kernel {
 
 /// What finishing a run needs to know.
 struct FinishingRun {
+    project: String,
     records: PathBuf,
     source: PathBuf,
     directory: PathBuf,

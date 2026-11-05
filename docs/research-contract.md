@@ -143,6 +143,10 @@ While the process runs, a final line without a newline is treated as not written
 | The same, exit code not 0 | `failed`, with the problems recorded |
 | No valid line, exit code 0 | `protocol_error` |
 
+When a run ends, `samplesPerModel` records the most samples any one model got, and `warnings` holds what the runtime
+noticed: for now, a count unlike that of the last ended run of the same experiment whose version compares as the same
+evaluation, since a stated evaluation can go stale while the program changes. A warning changes nothing else.
+
 A run that writes new untracked files into the project makes the next run's content differ, so the next run is a new
 version. Write outputs to `SATURN_RUN_DIRECTORY`, or to a folder git ignores.
 
@@ -173,7 +177,8 @@ environment that ran the experiment; a command that starts with anything else is
   each layer patched, and the log-probability of the expected token there. Whether a layer "restores" a sample is for
   the reader: the runtime gives the tokens, not a verdict.
 - The answer is saved in the run's folder under `inside/`, named by the request, and the same request is answered from
-  there without running again. `GET .../activations?sample=&model=` reads what was saved, or 404.
+  there without running again. `GET /projects/{id}/research/runs/{run}/inside` lists everything saved there, newest
+  first, each with `kind` `reading` or `sweep`. `GET .../activations?sample=&model=` reads what was saved, or 404.
 - A helper that fails answers 422 with the end of its error output. The runtime never interprets the values.
 
 ## What a run costs

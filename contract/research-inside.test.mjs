@@ -119,6 +119,11 @@ test("a sweep patches every layer on several samples in one helper process, and 
   assert.equal(again.recordedAt, swept.recordedAt);
   const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id, "inside"));
   assert.equal(saved.filter((name) => name.startsWith("sweep-")).length, 1);
+  await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
+  assert.deepEqual(listed.items.map((item) => item.kind).sort(), ["reading", "sweep"]);
+  assert.equal(listed.items.find((item) => item.kind === "sweep").samples[0].sampleId, "a");
+  assert.deepEqual((await saturn.api("GET", `${route}/runs/run_0000000000000000/inside`)).items, []);
   assert.equal((await saturn.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: [], sourceModelId: tuned.id, targetModelId: base.id })).status, 400);
   assert.equal((await saturn.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["zzz"], sourceModelId: tuned.id, targetModelId: base.id })).status, 404);
 });

@@ -211,6 +211,13 @@ async fn intervene(State(kernel): Shared, Path(project): Path<String>, body: Bod
     ok(kernel.research_look_inside(&project, run, &body).await?)
 }
 
+async fn inside_list(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+) -> Answer {
+    ok(kernel.research_inside_list(&project, &run).await?)
+}
+
 async fn sweep(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
     ok(kernel.research_sweep(&project, &body_of(body)).await?)
 }
@@ -278,6 +285,10 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
         )
         .route("/projects/{id}/research/interventions", post(intervene))
         .route("/projects/{id}/research/interventions/sweep", post(sweep))
+        .route(
+            "/projects/{id}/research/runs/{run}/inside",
+            get(inside_list),
+        )
         .route(
             "/projects/{id}/research/runs/{run}/resources",
             get(resources),

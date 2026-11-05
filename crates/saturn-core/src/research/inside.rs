@@ -178,6 +178,39 @@ impl Kernel {
         Ok(answer)
     }
 
+    /// Everything saved under a run's `inside/`: single readings and sweeps, newest first, whole.
+    pub async fn research_inside_list(&self, project: &str, run: &str) -> Result<Value, CoreError> {
+        if !is_id(run) {
+            return Err(CoreError::new(404, "No such run"));
+        }
+        let records = self.records_folder(project).await?;
+        let folder = records.join("runs").join(run).join(FOLDER);
+        let mut items = Vec::new();
+        let mut entries = match tokio::fs::read_dir(&folder).await {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(json!({ "runId": run, "items": [] }));
+            }
+            Err(error) => return Err(error.into()),
+        };
+        while let Some(entry) = entries.next_entry().await? {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !name.ends_with(".json") {
+                continue;
+            }
+            if let Ok(Some(mut saved)) = read_record(&entry.path()).await {
+                saved["kind"] = json!(if name.starts_with("sweep-") {
+                    "sweep"
+                } else {
+                    "reading"
+                });
+                items.push(saved);
+            }
+        }
+        items.sort_by(|left, right| text(right, "recordedAt").cmp(text(left, "recordedAt")));
+        Ok(json!({ "runId": run, "items": items }))
+    }
+
     /// Patches every layer in turn, from one model into another, on several samples of a run, in one helper process.
     /// Saved with the run like a single reading.
     pub async fn research_sweep(&self, project: &str, request: &Value) -> Result<Value, CoreError> {

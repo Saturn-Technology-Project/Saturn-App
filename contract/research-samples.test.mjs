@@ -167,3 +167,26 @@ test("a counterexample is a record that names its run and sample", async () => {
   const kept = await saturn.api("POST", `${route}/counterexamples`, { runId: "run_x", sampleId: "a", note: "indirect" });
   assert.equal((await saturn.api("GET", `${route}/counterexamples`)).items[0].id, kept.id);
 });
+
+test("a run that measures a different number of samples than the last comparable run of its experiment is warned about", posixOnly, async () => {
+  const { folder, route } = await project();
+  let experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", evaluation });
+  const run = async (lines) => {
+    await writeFile(path.join(folder, "probe.mjs"), script(lines));
+    const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+    const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: crypto.randomUUID() });
+    return until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  };
+  const first = await run([line("a"), line("b")]);
+  assert.equal(first.samplesPerModel, 2);
+  assert.deepEqual(first.warnings, []);
+  const same = await run([line("a"), line("b"), line("x", { output: "changed" })].slice(0, 2).concat([]));
+  assert.deepEqual(same.warnings, []);
+  const more = await run([line("a"), line("b"), line("c")]);
+  assert.equal(more.samplesPerModel, 3);
+  assert.equal(more.warnings.length, 1, JSON.stringify(more.warnings));
+  assert.match(more.warnings[0], new RegExp(`Measured 3 samples per model where ${same.id}.*measured 2`));
+  experiment = await saturn.api("PATCH", `${route}/experiments/${experiment.id}`, { expectedRevision: experiment.revision, evaluation: { ...evaluation, sampleSet: "one" } });
+  const apart = await run([line("a")]);
+  assert.deepEqual(apart.warnings, []);
+});
