@@ -26,7 +26,7 @@ test("a run's processor share, memory and sample count are sampled while it live
   await writeFile(path.join(folder, "probe.mjs"), `
 import { appendFileSync } from "node:fs";
 for (let index = 0; index < 3; index += 1) {
-  appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "s" + index, input: "i", output: "o" }) + "\\n");
+  appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "s" + index, input: "i", output: "o", usage: { inputTokens: 10, outputTokens: 5 + index, deviceMemoryBytes: 1000 * (index + 1) } }) + "\\n");
   await new Promise((resolve) => setTimeout(resolve, 1500));
 }
 `);
@@ -46,6 +46,12 @@ for (let index = 0; index < 3; index += 1) {
   assert.ok(last.processes >= 1);
   assert.ok(last.elapsedMs >= 1000);
   assert.ok(last.samplesLines >= 1 && last.samplesLines <= 3);
+  assert.equal(last.inputTokens, 10 * last.samplesLines);
+  assert.equal(last.outputTokens, [5, 11, 18][last.samplesLines - 1]);
+  assert.equal(last.deviceMemoryBytes, 1000 * last.samplesLines);
+  const summary = await saturn.api("GET", `${route}/runs/${started.id}/summary`);
+  assert.deepEqual(summary.models[0].tokens, { input: 30, output: 18, samplesReporting: 3 });
+  assert.equal(summary.models[0].deviceMemoryPeakBytes, 3000);
   assert.ok(read.points.every((point, index) => index === 0 || point.elapsedMs >= read.points[index - 1].elapsedMs));
   const file = await readFile(path.join(folder, ".saturn/research/runs", started.id, "resources.jsonl"), "utf8");
   assert.equal(file.trim().split("\n").length, read.points.length);

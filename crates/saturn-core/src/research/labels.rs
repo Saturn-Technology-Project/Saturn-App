@@ -193,12 +193,28 @@ struct ModelTally {
     samples: u64,
     errors: BTreeMap<String, u64>,
     scores: BTreeMap<String, (f64, u64, u64)>,
+    /// Tokens the program reported under `usage`, added up: in, out, and how many samples said.
+    tokens: (u64, u64, u64),
+    /// The most device memory the program reported holding, in bytes.
+    device_memory_peak: Option<u64>,
 }
 
 impl ModelTally {
     /// Counts one sample. A sample with an infrastructure error has no score worth averaging, even if it wrote one.
     fn add(&mut self, sample: &Value) {
         self.samples += 1;
+        if let Some(usage) = sample.get("usage").and_then(Value::as_object) {
+            let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+            self.tokens.0 += count("inputTokens");
+            self.tokens.1 += count("outputTokens");
+            if usage.contains_key("inputTokens") || usage.contains_key("outputTokens") {
+                self.tokens.2 += 1;
+            }
+            if let Some(held) = usage.get("deviceMemoryBytes").and_then(Value::as_u64) {
+                self.device_memory_peak =
+                    Some(self.device_memory_peak.map_or(held, |peak| peak.max(held)));
+            }
+        }
         let error = sample.pointer("/error/kind").and_then(Value::as_str);
         if let Some(kind) = error {
             *self.errors.entry(kind.to_owned()).or_default() += 1;
@@ -243,6 +259,8 @@ impl ModelTally {
             "samples": self.samples,
             "errors": self.errors,
             "scores": scores,
+            "tokens": { "input": self.tokens.0, "output": self.tokens.1, "samplesReporting": self.tokens.2 },
+            "deviceMemoryPeakBytes": self.device_memory_peak,
         })
     }
 }

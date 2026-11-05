@@ -81,31 +81,50 @@ async fn gpus() -> Option<Vec<Value>> {
     )
 }
 
-/// How many sample lines a file holds, counted from where the last count stopped.
-fn count_lines(path: &Path, from: u64, known: u64) -> (u64, u64) {
+/// What the samples file has said so far: how far it was read, how many lines, the tokens the program reported under
+/// `usage`, and the device memory it last reported holding.
+#[derive(Clone, Copy, Default)]
+struct Counted {
+    read: u64,
+    lines: u64,
+    input_tokens: u64,
+    output_tokens: u64,
+    device_memory: Option<u64>,
+}
+
+/// Reads the sample lines written since the last count and adds them to it.
+fn count_lines(path: &Path, mut counted: Counted) -> Counted {
     let Ok(file) = std::fs::File::open(path) else {
-        return (from, known);
+        return counted;
     };
     let size = file.metadata().map(|meta| meta.len()).unwrap_or(0);
-    if size <= from {
-        return (from, known);
+    if size <= counted.read {
+        return counted;
     }
     let mut reader = BufReader::new(file);
-    if std::io::Seek::seek(&mut reader, std::io::SeekFrom::Start(from)).is_err() {
-        return (from, known);
+    if std::io::Seek::seek(&mut reader, std::io::SeekFrom::Start(counted.read)).is_err() {
+        return counted;
     }
-    let mut lines = known;
-    let mut read = from;
     let mut buffer = Vec::new();
     while let Ok(bytes) = reader.read_until(b'\n', &mut buffer) {
         if bytes == 0 || buffer.last() != Some(&b'\n') {
             break;
         }
-        lines += 1;
-        read += bytes as u64;
+        counted.lines += 1;
+        counted.read += bytes as u64;
+        if let Ok(line) = serde_json::from_slice::<Value>(&buffer)
+            && let Some(usage) = line.get("usage").and_then(Value::as_object)
+        {
+            let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+            counted.input_tokens += count("inputTokens");
+            counted.output_tokens += count("outputTokens");
+            if let Some(held) = usage.get("deviceMemoryBytes").and_then(Value::as_u64) {
+                counted.device_memory = Some(held);
+            }
+        }
         buffer.clear();
     }
-    (read, lines)
+    counted
 }
 
 /// This computer, as the readings are measured against it.
@@ -123,7 +142,7 @@ impl Kernel {
         let samples = directory.join("samples.jsonl");
         let file = directory.join(FILE);
         tokio::spawn(async move {
-            let mut counted = (0, 0);
+            let mut counted = Counted::default();
             let mut gpu_present = true;
             loop {
                 if !group_exists(pid) {
@@ -133,8 +152,8 @@ impl Kernel {
                 let gpu = if gpu_present { gpus().await } else { None };
                 gpu_present = gpu.is_some();
                 let path = samples.clone();
-                let (from, known) = counted;
-                counted = tokio::task::spawn_blocking(move || count_lines(&path, from, known))
+                let before = counted;
+                counted = tokio::task::spawn_blocking(move || count_lines(&path, before))
                     .await
                     .unwrap_or(counted);
                 let point = json!({
@@ -143,8 +162,11 @@ impl Kernel {
                     "cpuPercent": usage.map(|(cpu, _, _)| cpu),
                     "memoryBytes": usage.map(|(_, memory, _)| memory),
                     "processes": usage.map(|(_, _, count)| count),
-                    "samplesBytes": counted.0,
-                    "samplesLines": counted.1,
+                    "samplesBytes": counted.read,
+                    "samplesLines": counted.lines,
+                    "inputTokens": counted.input_tokens,
+                    "outputTokens": counted.output_tokens,
+                    "deviceMemoryBytes": counted.device_memory,
                     "gpus": gpu,
                 });
                 let line = format!("{point}\n");

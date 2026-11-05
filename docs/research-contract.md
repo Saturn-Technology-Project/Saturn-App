@@ -126,6 +126,11 @@ One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`.
   labels counts only samples that have it, in the same run, so with the same version of the scorer.
 - `expected`, optional, is what the scorer compared the output with: the right name, the reference answer. It is shown
   with the sample and never used by the runtime.
+- `usage`, optional, is what the sample cost as the program measured it: `inputTokens`, `outputTokens`, and
+  `deviceMemoryBytes`, the device memory the program held when it wrote the line (`torch.cuda.max_memory_allocated()`,
+  `torch.mps.current_allocated_memory()`). The summary adds the tokens up per model and keeps the highest memory, and
+  the resource readings carry the running totals, so a token rate can be read while the run lives. Only the program
+  knows these; the runtime never estimates them.
 - Standard output and standard error are only logs.
 
 While the process runs, a final line without a newline is treated as not written yet. Once it has ended:
@@ -169,8 +174,9 @@ environment that ran the experiment; a command that starts with anything else is
 
 While a run lives the runtime samples its process group every two seconds into `runs/{id}/resources.jsonl`, one
 object per line: `at`, `elapsedMs`, `cpuPercent` and `memoryBytes` (every process in the group, added up, from `ps`),
-`processes`, `samplesBytes` and `samplesLines` (the samples file so far), and `gpus` (each GPU's name, utilization
-and memory from `nvidia-smi`, or null where there is none). `GET /projects/{id}/research/runs/{run}/resources` answers
+`processes`, `samplesBytes` and `samplesLines` (the samples file so far), `inputTokens` and `outputTokens` (the
+`usage` of the lines so far, added up), `deviceMemoryBytes` (the last `usage.deviceMemoryBytes` a line gave, or null),
+and `gpus` (each GPU's name, utilization and memory from `nvidia-smi`, or null where there is none). `GET /projects/{id}/research/runs/{run}/resources` answers
 with `{"runId","status","system":{"cpus","platform"},"points":[...]}`, the newest 900 points. The readings are what
 the system said; nothing is derived from them.
 
