@@ -475,6 +475,40 @@ test("A resumed Claude Code session gets instructions that changed", async () =>
   }
 });
 
+test("A second call that arrives before Codex reports the first gets its own card", async () => {
+  const saturn = await startWithPrograms();
+  try {
+    const agent = await coder(saturn, "codex", { model: "default", autonomy: "review", mcpConnectionIds: ["automations"] });
+    const call = { name: "automation_list", arguments: {} };
+    const item = { id: "mcp1", type: "mcp_tool_call", server: "saturn", tool: "automation_list", arguments: {} };
+    await saturn.scenario({
+      steps: [
+        { send: { type: "thread.started", thread_id: "thread-M" } },
+        { skills: { rpc: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "stand-in", version: "1" } } } },
+        { send: { type: "item.started", item: { ...item, status: "in_progress" } } },
+        { wait: 100 },
+        { skills: { rpc: "tools/call", id: 3, params: call } },
+        { skills: { rpc: "tools/call", id: 4, params: call } },
+        { send: { type: "item.completed", item: { ...item, status: "completed", result: { content: [{ type: "text", text: "listed" }] } } } },
+        { send: { type: "item.completed", item: { ...item, id: "mcp2", status: "failed", error: { message: "Denied" } } } },
+        { send: { type: "turn.completed", usage: {} } },
+      ],
+    });
+    const begun = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "list" });
+    const card = await untilCard(saturn, begun.id);
+    assert.equal(card.action.id, "mcp1");
+    await saturn.api("POST", `/runs/${begun.id}/actions/mcp1/decision`, { allow: true });
+    const second = await saturn.until("the second card", () => saturn.api("GET", `/runs/${begun.id}`), (run) => run.status === "waiting_approval" && run.actions.some((action) => action.id !== "mcp1" && action.status === "waiting_approval"));
+    const waiting = second.actions.find((action) => action.status === "waiting_approval");
+    await saturn.api("POST", `/runs/${begun.id}/actions/${waiting.id}/decision`, { allow: false });
+    const done = await untilFinished(saturn, begun.id);
+    assert.equal(done.status, "completed", done.error);
+    assert.deepEqual(done.actions.map((action) => [action.toolId, action.status]), [["automation_list", "completed"], ["automation_list", "denied"]]);
+  } finally {
+    await saturn.stop();
+  }
+});
+
 test("Ask and Plan turns run in Codex's read-only sandbox, with the mode's note and images as files", async () => {
   const saturn = await startWithPrograms();
   try {

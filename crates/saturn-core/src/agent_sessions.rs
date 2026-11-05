@@ -395,6 +395,8 @@ pub(crate) struct SkillsBridge {
     pub(crate) tools: Vec<Value>,
     /// Codex's own items adopt the actions cards went on before it reported them.
     pub(crate) orphans: Mutex<HashSet<String>>,
+    /// Actions a call has already asked about. Codex's report of a call can arrive after the next identical call.
+    pub(crate) asked: Mutex<HashSet<String>>,
 }
 
 impl SkillsBridge {
@@ -490,12 +492,14 @@ impl SkillsBridge {
             // The card goes on the action Codex already reported for this call, or on one its report adopts later.
             let waiting = {
                 let mut record = locked(&turn.record);
+                let mut asked = locked(&self.asked);
                 let reported = record.actions.iter().rev().find(|item| {
                     item.get("result").is_none()
                         && text(item, "status") == "completed"
                         && same_call(item, tool, arguments)
+                        && !asked.contains(text(item, "id"))
                 });
-                match reported {
+                let id = match reported {
                     Some(action) => text(action, "id").to_owned(),
                     None => {
                         let id = new_id("act")
@@ -504,7 +508,9 @@ impl SkillsBridge {
                         locked(&self.orphans).insert(id.clone());
                         id
                     }
-                }
+                };
+                asked.insert(id.clone());
+                id
             };
             let allow = turn.ask(text(&self.agent, "name"), &waiting, tool).await?;
             if !allow {

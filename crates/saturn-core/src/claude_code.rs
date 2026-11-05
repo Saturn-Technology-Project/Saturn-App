@@ -516,6 +516,7 @@ impl Kernel {
             approval: GuardrailMode::Bypass,
             tools,
             orphans: Mutex::default(),
+            asked: Mutex::default(),
         });
         // By default the program records a session's system prompt on its first request and ignores any other text on a resume.
         let mut initialize = json!({ "subtype": "initialize", "systemPromptSnapshot": false });

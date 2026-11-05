@@ -650,6 +650,7 @@ impl Kernel {
                 approval: approval_mode(agent, group.as_ref()),
                 tools,
                 orphans: Mutex::default(),
+                asked: Mutex::default(),
             });
             locked(&self.programs.bridges).insert(token.clone(), Arc::clone(&bridge));
             bridge
