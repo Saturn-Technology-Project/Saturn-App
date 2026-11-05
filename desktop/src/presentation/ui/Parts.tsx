@@ -6,6 +6,11 @@ export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** What a screen shows while it reads, so that a slow read is not taken for an empty project. */
+export function Loading() {
+  return <p className="mt-3 text-sm text-muted-foreground" role="status">Reading this project's records…</p>;
+}
+
 /** What a screen shows when there is nothing yet, and the next thing to do. */
 export function Empty(props: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (

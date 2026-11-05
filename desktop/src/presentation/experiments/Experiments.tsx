@@ -32,7 +32,7 @@ import { Input } from "../ui/base/Input.js";
 import { Notice } from "../ui/base/Notice.js";
 import { Textarea } from "../ui/base/Textarea.js";
 import { classes } from "../ui/base/classes.js";
-import { messageOf } from "../ui/Parts.js";
+import { Loading, messageOf } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
 
 import { Mechanism } from "./Mechanism.js";
@@ -215,10 +215,12 @@ export function Experiments(props: ScreenProps) {
         ) : null}
       </div>
       {exported ? <Notice tone="good" className="my-2">Written to {exported} in the project.</Notice> : null}
-      {drafts.length === 0 ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Running a command in the workspace creates the first experiment.</p> : null}
+      {!value ? <Loading /> : null}
+      {value && drafts.length === 0 ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Running a command in the workspace creates the first experiment.</p> : null}
       {drafts.length > 1 ? drafts.map((item) => (
-        <Button key={item.id} variant={item.id === draft?.id ? "soft" : "ghost"} aria-pressed={item.id === draft?.id} className="h-auto min-h-10 w-full justify-start py-1.5 text-left whitespace-normal" onClick={() => setSelected(item.id)}>
-          <strong>{item.title}</strong> <code className="text-xs text-muted-foreground">{item.command}</code>
+        <Button key={item.id} variant={item.id === draft?.id ? "soft" : "ghost"} aria-pressed={item.id === draft?.id} className="h-auto min-h-8 w-full justify-start gap-3 py-1 text-left" title={item.command} onClick={() => setSelected(item.id)}>
+          <strong className="max-w-[55%] shrink-0 truncate">{item.title}</strong>
+          <code className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{item.command}</code>
         </Button>
       )) : null}
       {draft ? (

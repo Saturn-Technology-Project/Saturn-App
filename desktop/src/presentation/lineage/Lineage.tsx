@@ -10,7 +10,7 @@ import { Input } from "../ui/base/Input.js";
 import { Notice } from "../ui/base/Notice.js";
 import { Textarea } from "../ui/base/Textarea.js";
 import { classes } from "../ui/base/classes.js";
-import { Empty, messageOf, Page } from "../ui/Parts.js";
+import { Empty, Loading, Page, messageOf } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
 import { useRecords } from "../ui/useRecords.js";
 
@@ -235,6 +235,7 @@ export function Lineage(props: ScreenProps) {
   return (
     <Split id="lineage" side="right" size={320} minimum={240} label="Model details" open={Boolean(current)} pane={details}>
       <Page title="Model lineage" lead="From checkpoints to fine-tuned and preference-trained branches. Saturn records where weights are, and does not copy them.">
+          {!value ? <Loading /> : null}
           {value && models.length === 0 && !adding ? (
             <Empty title="No models yet" action={<Button data-tour="lineage-add" onClick={() => setAdding(true)}>Add the first model</Button>}>
               Add a checkpoint to start a lineage.
