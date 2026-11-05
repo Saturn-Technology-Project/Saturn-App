@@ -1,7 +1,7 @@
 // Reading samples: one sample across runs, a person's labels kept apart from scores, and pages while a run still writes.
 // docs/research-contract.md is the contract.
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, posixOnly, until } from "./files-support.mjs";
@@ -156,6 +156,37 @@ test("disputed samples are filtered across the whole run, with the same explicit
   assert.equal((await saturn.call("GET", `${route}/runs/${done.id}/samples?only=unknown`)).status, 400);
   const bad = await saturn.call("PATCH", `${route}/experiments/${draft.id}`, { expectedRevision: draft.revision + 1, labelAliases: { Bad: 5 } });
   assert.equal(bad.status, 400);
+});
+
+test("a sealed run's summary is read from its file once, and again when the file changes", posixOnly, async () => {
+  const { route, folder, run } = await project();
+  const done = await run([line("a"), line("b")]);
+  const file = path.join(folder, ".saturn/research/runs", done.id, "samples.jsonl");
+  const stamp = new Date(1_700_000_000_000);
+  await utimes(file, stamp, stamp);
+  const first = await saturn.api("GET", `${route}/runs/${done.id}/summary`);
+  assert.equal(first.models[0].scores.s.mean, 1);
+  const content = await readFile(file, "utf8");
+  await writeFile(file, content.replaceAll('"s":1', '"s":3'));
+  await utimes(file, stamp, stamp);
+  assert.deepEqual(await saturn.api("GET", `${route}/runs/${done.id}/summary`), first, "the same file is not read again");
+  const later = new Date(1_700_000_100_000);
+  await utimes(file, later, later);
+  assert.equal((await saturn.api("GET", `${route}/runs/${done.id}/summary`)).models[0].scores.s.mean, 3, "a changed file is");
+});
+
+test("labels compare with the scorer from one reading of a sealed run, and nothing labeled needs no reading", posixOnly, async () => {
+  const { route, folder, run } = await project();
+  const done = await run([line("a", { scorerLabel: "good" }), line("b", { scorerLabel: "bad" })]);
+  const empty = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.deepEqual(empty.agreement, { labeled: 0, compared: 0, agreed: 0 });
+  await saturn.api("GET", `${route}/runs/${done.id}/summary`);
+  await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a", label: "good" });
+  await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "b", label: "good" });
+  const labeled = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.deepEqual(labeled.agreement, { labeled: 2, compared: 2, agreed: 1 });
+  assert.equal(Object.values(labeled.labels).find((item) => item.sampleId === "b").agreesWithScorer, false);
+  assert.ok(folder);
 });
 
 test("a summary adds up each model's samples, without letting infrastructure errors count as scores", posixOnly, async () => {

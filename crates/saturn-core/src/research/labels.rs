@@ -1,7 +1,9 @@
 //! A person's labels on a run's samples, kept apart from its scores, and one sample across runs.
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, PoisonError};
+use std::time::SystemTime;
 
 use saturn_domain::research::{
     MAX_SAMPLE_LINE, SCHEMA_VERSION, compare_versions, is_id, labels_agree, sample_identity,
@@ -45,6 +47,48 @@ pub(super) fn each_sample(
     Ok(())
 }
 
+/// The most sealed runs whose digests are kept. Going past it starts over, which only costs reading them again.
+const MOST_DIGESTS: usize = 64;
+
+/// What a run's samples add up to, in one pass: what its summary says, and each scorer's word to compare labels with.
+#[derive(Debug)]
+pub struct RunDigest {
+    /// The file as it was when read: a changed file does not answer from here.
+    stamp: (u64, Option<SystemTime>, Option<u64>),
+    models: Vec<Value>,
+    scorer_words: Vec<(String, String)>,
+}
+
+/// Reads a samples file through once.
+fn digest_samples(
+    path: &Path,
+    end: Option<u64>,
+    stamp: (u64, Option<SystemTime>, Option<u64>),
+) -> std::io::Result<RunDigest> {
+    let mut models: BTreeMap<String, ModelTally> = BTreeMap::new();
+    let mut scorer_words = Vec::new();
+    each_sample(path, end, |value, identity| {
+        models
+            .entry(text(value, "modelId").to_owned())
+            .or_default()
+            .add(value);
+        if let Some(word) = value.get("scorerLabel").and_then(Value::as_str)
+            && !word.trim().is_empty()
+        {
+            scorer_words.push((identity.to_owned(), word.to_owned()));
+        }
+    })?;
+    let models = models
+        .into_iter()
+        .map(|(model, tally)| tally.into_json(&model))
+        .collect();
+    Ok(RunDigest {
+        stamp,
+        models,
+        scorer_words,
+    })
+}
+
 /// The identity a label request names, the same way a sample line would.
 fn requested_identity(request: &Value) -> Result<String, CoreError> {
     let line = json!({
@@ -66,12 +110,67 @@ impl Kernel {
         let path = records.join("runs").join(run).join("samples.jsonl");
         let end = found.get("samplesSize").and_then(Value::as_u64);
         let aliases = self.research_label_aliases(project, &found).await?;
-        let (labels, agreement) = tokio::task::spawn_blocking(move || {
-            agreement_with_scorer(&path, end, labels, &aliases)
-        })
-        .await
-        .map_err(|error| CoreError::new(500, error.to_string()))??;
+        // With nothing labeled there is nothing to compare, so the samples need no reading.
+        let digest = if labels.as_object().is_some_and(|labels| !labels.is_empty()) {
+            Some(self.run_digest(path, end).await?)
+        } else {
+            None
+        };
+        let (labels, agreement) = agreement_with_scorer(digest.as_deref(), labels, &aliases);
         Ok(json!({ "runId": run, "labels": labels, "agreement": agreement }))
+    }
+
+    /// A run's digest. A sealed run's file does not change, so it is read once; a running one's is read each time.
+    async fn run_digest(
+        &self,
+        path: PathBuf,
+        end: Option<u64>,
+    ) -> Result<Arc<RunDigest>, CoreError> {
+        let stamp_of = |path: &Path| {
+            std::fs::metadata(path).map_or((0, None, end), |file| {
+                (file.len(), file.modified().ok(), end)
+            })
+        };
+        let remembered = |kernel: &Self, stamp: &(u64, Option<SystemTime>, Option<u64>)| {
+            kernel
+                .run_digests
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .get(&path)
+                .filter(|digest| digest.stamp == *stamp)
+                .cloned()
+        };
+        let sealed = end.is_some();
+        let _digesting = if sealed {
+            if let Some(found) = remembered(self, &stamp_of(&path)) {
+                return Ok(found);
+            }
+            let held = self.digesting.lock().await;
+            if let Some(found) = remembered(self, &stamp_of(&path)) {
+                return Ok(found);
+            }
+            Some(held)
+        } else {
+            None
+        };
+        let stamp = stamp_of(&path);
+        let reading = path.clone();
+        let digest = Arc::new(
+            tokio::task::spawn_blocking(move || digest_samples(&reading, end, stamp))
+                .await
+                .map_err(|error| CoreError::new(500, error.to_string()))??,
+        );
+        if sealed {
+            let mut digests = self
+                .run_digests
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if digests.len() >= MOST_DIGESTS {
+                digests.clear();
+            }
+            digests.insert(path, Arc::clone(&digest));
+        }
+        Ok(digest)
     }
 
     /// The experiment's current annotation vocabulary; it changes the comparison of labels, never the scorer's output.
@@ -142,21 +241,7 @@ impl Kernel {
         let records = self.records_folder(project).await?;
         let path = records.join("runs").join(run).join("samples.jsonl");
         let end = found.get("samplesSize").and_then(Value::as_u64);
-        let models = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<Value>> {
-            let mut models: BTreeMap<String, ModelTally> = BTreeMap::new();
-            each_sample(&path, end, |value, _| {
-                models
-                    .entry(text(value, "modelId").to_owned())
-                    .or_default()
-                    .add(value);
-            })?;
-            Ok(models
-                .into_iter()
-                .map(|(model, tally)| tally.into_json(&model))
-                .collect())
-        })
-        .await
-        .map_err(|error| CoreError::new(500, error.to_string()))??;
+        let models = self.run_digest(path, end).await?.models.clone();
         Ok(
             json!({ "runId": run, "versionId": text(&found, "versionId"), "status": text(&found, "status"), "models": models }),
         )
@@ -305,11 +390,10 @@ pub(super) async fn read_labels(records: &Path, run: &str) -> Result<Value, Core
 /// How many labels can be compared with a scorer's own label, and how many agree. A sample without a `scorerLabel`,
 /// or a label on a sample this run does not hold, is not counted as agreeing or disagreeing.
 fn agreement_with_scorer(
-    path: &Path,
-    end: Option<u64>,
+    digest: Option<&RunDigest>,
     mut labels: Value,
     aliases: &Value,
-) -> Result<(Value, Value), CoreError> {
+) -> (Value, Value) {
     let labeled = labels.as_object().map_or(0, |labels| labels.len());
     for entry in labels
         .as_object_mut()
@@ -322,10 +406,8 @@ fn agreement_with_scorer(
     }
     let mut compared = 0;
     let mut agreed = 0;
-    each_sample(path, end, |value, identity| {
+    for (identity, scored) in digest.map_or(&[][..], |digest| &digest.scorer_words) {
         if let Some(entry) = labels.get_mut(identity)
-            && let Some(scored) = value.get("scorerLabel").and_then(Value::as_str)
-            && !scored.trim().is_empty()
             && entry.is_object()
         {
             compared += 1;
@@ -335,9 +417,9 @@ fn agreement_with_scorer(
                 agreed += 1;
             }
         }
-    })?;
-    Ok((
+    }
+    (
         labels,
         json!({ "labeled": labeled, "compared": compared, "agreed": agreed }),
-    ))
+    )
 }

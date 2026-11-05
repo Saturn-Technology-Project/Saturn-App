@@ -13,6 +13,8 @@ mod runs;
 mod skills;
 mod source;
 
+pub use labels::RunDigest;
+
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};

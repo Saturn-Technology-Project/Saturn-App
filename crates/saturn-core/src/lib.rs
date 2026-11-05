@@ -159,6 +159,10 @@ pub struct Kernel {
     checkpoint_locks: Mutex<HashMap<String, Arc<AsyncMutex<()>>>>,
     /// Folders outside git too big to snapshot, until when (in milliseconds) they are not tried again.
     too_big: Mutex<HashMap<PathBuf, i64>>,
+    /// What each sealed run's samples add up to, so that a large file is read once.
+    run_digests: Mutex<HashMap<PathBuf, Arc<research::RunDigest>>>,
+    /// Held while a digest is made, so that two screens asking together do not read a large file twice.
+    digesting: AsyncMutex<()>,
     tracked_jobs: Mutex<HashMap<String, Arc<TrackedJob>>>,
     /// Chats whose memory is being extracted.
     extracting: Mutex<HashSet<String>>,
@@ -200,6 +204,8 @@ impl Kernel {
             stops: Mutex::default(),
             checkpoint_locks: Mutex::default(),
             too_big: Mutex::default(),
+            run_digests: Mutex::default(),
+            digesting: AsyncMutex::new(()),
             tracked_jobs: Mutex::default(),
             extracting: Mutex::default(),
             group_queue: Mutex::default(),

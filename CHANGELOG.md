@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **Screens open fast on large runs.** A finished run's samples are read once and remembered, instead of again every time Lineage, Experiments, Samples or Home opened, which took seconds on a large run.
 - **The sidebar reads at a glance.** Each screen's icon and name share a line, only the screen you are on is highlighted, and Settings has a gear. In a narrow window the sidebar shrinks to its icons.
 - **A step waiting for your approval can always be seen.** Once a turn had said anything, its steps folded away with the approval card inside them, so a task could sit waiting with nothing to answer in view. The card now comes last in its turn.
 - **Settings look the same throughout.** Every field and menu shares one style, the model form is laid out properly, each built-in tool says what it is for, and About describes the research workbench. Permissions and Hooks say what they are for in a line, with the details folded away, and Telemetry's traces and logs show 25 at a time.
@@ -33,7 +34,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Changed
 
-- **A new look.** Menus, dialogs and panes are frosted, without showing what is behind the window. Color now means something: a state, what the assistant wrote, a kind of data, code. Everything else is neutral. Menus, dialogs and buttons look the same across screens, and keyboard focus stays inside a dialog and returns where it was when it closes.
+- **A new look.** Menus and the command palette are frosted, without showing what is behind the window. Color now means something: a state, what the assistant wrote, a kind of data, code. Everything else is neutral. Menus, dialogs and buttons look the same across screens, and keyboard focus stays inside a dialog and returns where it was when it closes.
 - **Saturn's interface is rebuilt for research.** Instead of agents and chats, it is organized around your questions, code, experiments, models, samples and findings. A research assistant sits beside your work and does what you allow in that chat, and long work goes to Tasks, each in its own worktree.
 - **The first launch is a tour, not a setup form.** It boxes each part of the live interface in turn and says what it is for, then helps you choose a project folder, connect a model and write your first question. Commands (⌘K) has "Take the tour" for later.
 - **Groups, Automations, the Agents board, pull request follow-up and the marketplace no longer have screens.** Their data stays, and the runtime still offers them. Earlier chats are kept in your data folder and are not shown. Schedules and follow-up you already set going keep running until you turn them off in **Settings → Still running**.
