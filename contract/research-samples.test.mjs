@@ -100,15 +100,16 @@ test("pages read while a run writes never show half a line, and reach every samp
   await writeFile(path.join(folder, "probe.mjs"), `
     import { appendFileSync } from "node:fs";
     const text = "瑪麗".repeat(2000);
-    let index = 0;
-    const timer = setInterval(() => {
-      const line = JSON.stringify({ schemaVersion: 1, sampleId: "s" + index++, output: text }) + "\\n";
-      const bytes = Buffer.from(line);
-      // In two writes, so a reader can catch the line unfinished.
+    const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+    for (let index = 0; index < 40; index += 1) {
+      const bytes = Buffer.from(JSON.stringify({ schemaVersion: 1, sampleId: "s" + index, output: text }) + "\\n");
+      // In two writes, so a reader can catch the line unfinished. One line at a time: on a busy computer, lines on
+      // timers of their own would interleave, and the file itself would hold a bad line.
       appendFileSync(process.env.SATURN_RUN_SAMPLES, bytes.subarray(0, 100));
-      setTimeout(() => appendFileSync(process.env.SATURN_RUN_SAMPLES, bytes.subarray(100)), 2);
-      if (index === 40) { clearInterval(timer); }
-    }, 8);
+      await pause(2);
+      appendFileSync(process.env.SATURN_RUN_SAMPLES, bytes.subarray(100));
+      await pause(6);
+    }
   `);
   const made = await saturn.api("POST", "/projects", { path: folder });
   await saturn.api("POST", `/projects/${made.id}/access`, {});
