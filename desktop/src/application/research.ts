@@ -28,6 +28,7 @@ import type {
   SourceView,
   SweepView,
 } from "../domain/research.js";
+import type { DataList, DataOverlap, DataPage, DataProfile } from "../domain/data.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 /** A list of records, and those that could not be read. */
@@ -205,6 +206,29 @@ export class ResearchService {
   /** One layer on a prompt of your own read through a sparse autoencoder, with one feature set to zero if asked; saved with the run. */
   readFeatures(project: string, run: string, request: { modelId: string; prompt: string; layer: number; saeRelease?: string; saeId?: string; saePath?: string; expected?: string; alternative?: string; ablate?: number }): Promise<FeaturesView> {
     return this.send(`${this.route(project)}/runs/${run}/inspections`, "POST", { action: "features", ...request });
+  }
+
+  /** Every file named as a data input, with who used it. Slow only while a changed file is hashed. */
+  dataList(project: string): Promise<DataList> {
+    return this.runtime.request(`${this.route(project)}/data`);
+  }
+
+  /** A page of a data file's rows, from where the last page ended. */
+  dataPreview(project: string, path: string, cursor: number, split?: string): Promise<DataPage> {
+    const query = new URLSearchParams({ path, cursor: String(cursor), ...(split ? { split } : {}) });
+    return this.runtime.request(`${this.route(project)}/data/preview?${query}`);
+  }
+
+  /** What a data file's columns hold. The runtime reads the whole file the first time. */
+  dataProfile(project: string, path: string, split?: string): Promise<DataProfile> {
+    const query = new URLSearchParams({ path, ...(split ? { split } : {}) });
+    return this.runtime.request(`${this.route(project)}/data/profile?${query}`);
+  }
+
+  /** How many rows two data files share, whole or by chosen columns. Exact duplicates only. */
+  dataOverlap(project: string, left: string, right: string, columns: string[]): Promise<DataOverlap> {
+    const query = new URLSearchParams({ left, right, ...(columns.length ? { columns: columns.join(",") } : {}) });
+    return this.runtime.request(`${this.route(project)}/data/overlap?${query}`);
   }
 
   /** What was saved under a run's inside folder: readings and sweeps, newest first. */

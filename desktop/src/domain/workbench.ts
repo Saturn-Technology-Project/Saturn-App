@@ -3,7 +3,7 @@
 // assistant cannot disagree.
 
 /** The screens of the workbench. */
-export const SCREENS = ["Home", "Workspace", "Lineage", "Experiments", "Samples", "Inspect", "Tasks", "Protection", "Environment"] as const;
+export const SCREENS = ["Home", "Workspace", "Lineage", "Experiments", "Samples", "Data", "Inspect", "Tasks", "Protection", "Environment"] as const;
 export type Screen = (typeof SCREENS)[number];
 
 /** The screens where work is read and written, with the assistant beside them unless closed. Elsewhere it opens when asked. */
@@ -34,7 +34,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "rail",
     target: "rail",
     title: "The screens",
-    text: "Saturn is organized around your research, not around chats: questions, code, models, experiments, samples, long tasks, protection and the environment. ⌘1 to ⌘8 switch between them.",
+    text: "Saturn is organized around your research, not around chats: questions, code, models, experiments, samples, data, long tasks, protection and the environment. ⌘1 to ⌘9 switch to the first nine.",
   },
   {
     id: "home",
@@ -76,6 +76,13 @@ export const TOUR_STEPS: TourStep[] = [
     screen: "Samples",
     title: "Samples: what the model actually did",
     text: "One sample across every model that saw it, with the scorer's own word next to your label. Your label never overwrites a score. Keep a sample as a counterexample, or look inside: read activations at every layer, or patch a layer in from another model.",
+  },
+  {
+    id: "data",
+    target: "rail-Data",
+    screen: "Data",
+    title: "Data: what went in",
+    text: "Every file your experiments named as data: whether it changed since it was frozen, and which runs read it and when, so you can check how often test data was touched. A name is not proof, and a declared split says more. Read its rows and columns, and count the rows two files share, which finds exact duplicates only.",
   },
   {
     id: "inspect",
@@ -154,6 +161,9 @@ export const GUIDE_PLACES: GuidePlace[] = [
   { id: "samples-labels", screen: "Samples", title: "Your labels", hint: "Label what each model did. A label never overwrites a score.", when: "a sample is selected" },
   { id: "samples-inside", screen: "Samples", title: "Look inside", hint: "Read activations at every layer, or patch a layer in from another model.", when: "a sample is selected" },
   { id: "samples-keep", screen: "Samples", title: "Keep it", hint: "Save the sample as a counterexample, with why.", when: "a sample is selected" },
+  { id: "data-files", screen: "Data", title: "The data files", hint: "Read which files experiments named, whether they changed, and which runs read them. Select one to look inside it.", when: "an experiment names a data input" },
+  { id: "data-rows", screen: "Data", title: "One file", hint: "Read its rows, its columns, and the runs that read it.", when: "a file is selected" },
+  { id: "data-overlap", screen: "Data", title: "Do two files share rows?", hint: "Choose two files and compare them. It finds exact duplicates only.", when: "an experiment names a data input" },
   { id: "tasks-new", screen: "Tasks", title: "New task", hint: "Describe long work, and start it in its own worktree.", when: "a model is connected" },
   { id: "protection-events", screen: "Protection", title: "What has happened", hint: "Read what was refused and what changed, and release a lock if you want a file changed." },
   { id: "environment-managed", screen: "Environment", title: "Managed environment", hint: "Make a Python environment in the project, or install more into it." },

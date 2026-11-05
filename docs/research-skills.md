@@ -40,6 +40,8 @@ To change one for a project, put a skill of the same name in `.saturn/skills/<na
 | `data-leakage-audit` | Find ways the test data reaches the model or the choice of model. Read after splitting, and whenever a score looks too good. |
 | `tokenizer-and-format` | Avoid tokenizer, padding, chat template and label-masking mistakes. Read before training or evaluating a language model. |
 
+The audit and the tools skill use `research_read` with `data_list`, `data_profile` and `data_overlap`, the same reads the Data screen shows. Rows themselves are for the person, on that screen.
+
 ## Experiments
 
 | Skill | What it is for |

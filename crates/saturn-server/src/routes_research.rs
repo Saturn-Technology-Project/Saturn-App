@@ -6,6 +6,7 @@ use axum::Router;
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use saturn_core::Kernel;
+use saturn_core::research::DataOverlapRequest;
 use serde_json::{Value, json};
 
 use crate::routes::{Answer, Body, Shared, body_of, created, given, ok};
@@ -288,8 +289,71 @@ async fn events(State(kernel): Shared, Path(project): Path<String>) -> Answer {
     ok(kernel.research_events(&project).await?)
 }
 
+/// Every data input of the project's experiments and versions.
+async fn data_list(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_data_list(&project).await?)
+}
+
+/// A page of a data file's rows.
+async fn data_preview(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let number = |key: &str| query.get(key).and_then(|value| value.parse::<u64>().ok());
+    ok(kernel
+        .research_data_preview(
+            &project,
+            query.get("path").map_or("", String::as_str),
+            number("cursor").unwrap_or(0),
+            number("limit").map(|limit| limit as usize),
+            query.get("split").map(String::as_str),
+        )
+        .await?)
+}
+
+/// What a data file's columns hold.
+async fn data_profile(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    ok(kernel
+        .research_data_profile(
+            &project,
+            query.get("path").map_or("", String::as_str),
+            query.get("split").map(String::as_str),
+        )
+        .await?)
+}
+
+/// How many rows two data files share.
+async fn data_overlap(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let given = |key: &str| query.get(key).map(String::as_str);
+    let request = DataOverlapRequest {
+        left: given("left").unwrap_or(""),
+        right: given("right").unwrap_or(""),
+        columns: given("columns")
+            .unwrap_or("")
+            .split(',')
+            .map(str::to_owned)
+            .collect(),
+        left_split: given("leftSplit"),
+        right_split: given("rightSplit"),
+    };
+    ok(kernel.research_data_overlap(&project, &request).await?)
+}
+
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route("/projects/{id}/research/data", get(data_list))
+        .route("/projects/{id}/research/data/preview", get(data_preview))
+        .route("/projects/{id}/research/data/profile", get(data_profile))
+        .route("/projects/{id}/research/data/overlap", get(data_overlap))
         .route("/projects/{id}/research/runs/{run}/summary", get(summary))
         .route(
             "/projects/{id}/research/runs/{run}/activations",

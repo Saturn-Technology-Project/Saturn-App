@@ -217,6 +217,55 @@ environment that ran the experiment; a command that starts with anything else is
   counts only current results as findings and says how many earlier ones are kept. `GET .../activations?sample=&model=` reads what was saved, or 404.
 - A helper that fails answers 422 with the end of its error output. The runtime never interprets the values.
 
+## The data experiments read
+
+Routes under `/projects/{id}/research/data` read a project's data files for the Data screen and the assistant. They read
+only inside the project's main folder (not a chat's worktree), and refuse with 403 a path that climbs out, a path through
+a symbolic link even one that stays inside the project, and Saturn's records and git's folder. Nothing is written. What a
+file's rows say is data: it is shown as plain text and counted, and it is never put in a system prompt. An answer that
+carries rows has a `note` saying so.
+
+- `GET .../data` lists every file named as a `data` input by an experiment or a version. A declared folder counts as its
+  files, up to 2000 (`filesCapped`), except a Hugging Face dataset folder (one holding `dataset_dict.json`, `state.json` or
+  `dataset_info.json`), which is one entry of `kind` `dataset`. Each of `items` has `path`, `kind`, `format`, `exists`,
+  `problem` (why a path was refused; nothing else is said about it then), `size`, `modifiedAt`, `frozen` (the newest
+  version that froze it: `versionId`, `number`, `experimentId`, `sha256`, `size`, `frozenAt`; a folder's `sha256` is
+  of its files' paths and hashes), `frozenBy` (every such version), `changed` (differs from `frozen` now; null when never
+  frozen), `experiments`, `runs`, `looksLikeTest`, `declaredSplits` and `testReads`. A file is hashed only when its size
+  matches, and a hash is remembered by size and time, so the first list after a change can take a while.
+- A run in `runs` read what its version froze, once its process had started: `id`, `versionId`, `experimentId`, `status`,
+  `at`, `split` (its version's `evaluation.split`) and `testRead`. `testRead` is `declared` when that split says test,
+  `name` when no split was stated and the file's name looks like a test split, `conflict` when another split was stated
+  but the name looks like test, and null otherwise. `testReads` counts the runs where it is not null. This is how a person checks how often test
+  data was touched, and it has limits: a name is not proof, only words in the file's name or the folder right above it count (`test`, `testing`, `testset`, `holdout`, `heldout`, `held-out`, so not `latest`),
+  and only declared inputs are known, since a program can read a file it never declared.
+- `GET .../data/preview?path=&cursor=&limit=&split=` answers a page of rows without holding the file in memory, from a
+  `.jsonl` or `.ndjson`, a `.json` array, a `.csv` or a `.tsv` with a header: `items`, each `{"offset","row"}` or
+  `{"offset","problem","raw"?}`, and `next`, the `cursor` of the next page or null. `limit` is 50 by default and 200
+  at most, and a page also ends once it holds 4 MiB. A row longer than `maxRowBytes` (1 MiB) is left out and says so, a malformed line
+  or a row with the wrong number of fields is shown as a problem, and neither stops the read. Quoted fields may hold line
+  breaks; an unclosed quote stops counting at the row limit, so it cannot swallow the file. A cursor that is not the start of a row is 400, a
+  `.json` file that is not an array 422, and any other kind of file 415.
+- `GET .../data/profile?path=&split=` reads every row and answers `rows`, `malformed`, `tooLong`, `columnsCapped` and
+  `columns`: for each `name`, `kind` (`number`, `text`, `other`, `mixed` or `empty`), `present`, `missing` (null, empty
+  text, or a row without the column), `numbers`, `texts`, `others`, `distinct`, `distinctCapped`, `common` (the five most
+  common values, each up to 200 characters) and `range` or `lengths`. A number written in a `.csv` or `.tsv` counts as a number; a JSON string does not.
+  Memory is capped: 200 columns, and 1000 different values per column. Past that `distinct` is the least there are, and
+  `common` counts only values seen before the limit. A profile is remembered until the file's size or time changes
+  (`remembered`), so an edit that keeps both is not noticed.
+- `GET .../data/overlap?left=&right=&columns=&leftSplit=&rightSplit=` finds **exact duplicates only**: rows identical
+  by the hash of the canonical row (keys in order, missing fields left out, numbers and booleans as their text, so that a
+  `.csv` compares with a `.jsonl`), or of the chosen `columns`, comma separated. It answers `left` and `right`, each
+  with `path`, `split`, `rows`, `malformed`, `tooLong`, `withoutColumns` (rows with none of the chosen columns, not
+  compared) and `inBoth`; `sharedDistinct`; `comparedBy`; and `capped`. Paraphrases, reformatted text and near duplicates
+  are not found, so zero does not mean no leakage. The smaller file's hashes are kept, up to 4,000,000 different rows; past that `capped` is true and
+  the counts are the least there are.
+- Parquet (`.parquet`), Arrow (`.arrow`) and Hugging Face dataset folders are answered by a helper run with the project's
+  Python, using `datasets` if it is there, in the project's folder without the folder on its import path, offline, in streaming mode for files. The helper's rows
+  go through the same reading as any other file, and `cursor` and `next` count rows there. A folder with splits answers `splits`
+  and `split`, and takes `split`; the first one is read otherwise. Without `datasets` the answer is 422 and says to install the Post-training kit on the Environment screen.
+  With no Python set it is 422 too, and a helper that fails is 422 with the end of its error output. Not on Windows.
+
 ## What a run costs
 
 While a run lives the runtime samples its process group every two seconds into `runs/{id}/resources.jsonl`, one
@@ -309,7 +358,7 @@ An agent with the built-in `research` server, which an agent has only when its l
 | Tool | Reads or writes | What it does |
 |---|---|---|
 | `research_skill` | Reads | Lists or reads a skill. A project's or user's skill of the same name comes first |
-| `research_read` | Reads | Status, records, runs, summaries, samples (50 at most at a time), logs, resources, labels, comparisons, events, the environment, the policy, saved readings |
+| `research_read` | Reads | Status, records, runs, summaries, samples (50 at most at a time), logs, resources, labels, comparisons, events, the environment, the policy, saved readings, and the project's data: which files were read (`data_list`), what is in one (`data_profile`), and what two share (`data_overlap`) |
 | `research_wait` | Reads | Holds the turn until a run ends, for up to 600 seconds at a time, and ends with the turn |
 | `research_write` | Writes | Makes questions, hypotheses, experiments, models, findings and counterexamples, and changes them with `expectedRevision` |
 | `research_run` | Writes | Freezes an experiment from the chat's own folder, starts a version, stops a run |
