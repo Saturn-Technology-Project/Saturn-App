@@ -210,13 +210,13 @@ export function ResearchApp() {
       <nav className="lab-rail" aria-label="Screens" data-tour="rail">
         <div className="lab-rail-drag" />
         {SCREENS.map((item, index) => (
-          <button type="button" key={item} className="lab-rail-item" data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={`Meta+${index + 1}`} onClick={() => go(item)}>
+          <button type="button" key={item} className="lab-rail-item" title={item} data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={`Meta+${index + 1}`} onClick={() => go(item)}>
             {SCREEN_ICONS[item]}
             <span>{item}</span>
           </button>
         ))}
         <div className="lab-rail-space" />
-        <button type="button" className="lab-rail-item" data-tour="settings" aria-keyshortcuts="Meta+," onClick={() => setSettings(true)}>
+        <button type="button" className="lab-rail-item" title="Settings" data-tour="settings" aria-keyshortcuts="Meta+," onClick={() => setSettings(true)}>
           <GearIcon />
           <span>Settings</span>
         </button>

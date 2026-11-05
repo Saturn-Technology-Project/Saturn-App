@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **The sidebar reads at a glance.** Each screen's icon and name share a line, only the screen you are on is highlighted, and Settings has a gear. In a narrow window the sidebar shrinks to its icons.
 - **A step waiting for your approval can always be seen.** Once a turn had said anything, its steps folded away with the approval card inside them, so a task could sit waiting with nothing to answer in view. The card now comes last in its turn.
 - **Settings look the same throughout.** Every field and menu shares one style, the model form is laid out properly, each built-in tool says what it is for, and About describes the research workbench. Permissions and Hooks say what they are for in a line, with the details folded away, and Telemetry's traces and logs show 25 at a time.
 - **Lineage reads as one tree.** Each model takes one line under the one it came from, with its score in a column, instead of a card and a section per branch.
