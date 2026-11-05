@@ -6,6 +6,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **Take your research evidence with you.** Home and Experiments export a project bundle with raw samples, human labels, metrics, logs, Inspect results, saved source objects and analysis snapshots, plus escaped Markdown and HTML reports. Validate and import into another project without overwriting different evidence. External dependencies remain explicit; archived contexts cannot execute or reconnect, and credentials and permissions are not restored.
+
 - **Explore a model before running an experiment.** Inspect sessions preserve selected model references and Python independently of scored runs. Keep figures, analysis JSON and notebook snapshots with hashes, or register large activation/SAE stores as external references. Scripts need only plain files and an artifact manifest; remote snapshots are fetched explicitly and verified. Previews run no code or HTML.
 
 - **Leave a remote experiment running.** Configure your existing SSH host, start a frozen command, close Saturn and reconnect later. A detached Rust worker owns its time limit and process group; disconnected cancellation waits for acknowledgement. Outputs are synchronized and checked before completion. Code and data are not uploaded, and training frameworks remain responsible for checkpoint recovery. Explicit training runs can finish with metrics alone.

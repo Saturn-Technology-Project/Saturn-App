@@ -40,7 +40,7 @@ export function RemoteRun(props: { projectId: string; versions: FrozenVersion[];
   const [minutes, setMinutes] = useState("60");
   const [checkpoint, setCheckpoint] = useState("");
   const [busy, setBusy] = useState(false);
-  const versions = props.versions.filter((version) => !version.imported);
+  const versions = props.versions.filter((version) => !version.imported && !version.archived);
   const version = versions.find((version) => version.id === selected) ?? versions.at(-1);
   const seconds = Number(minutes) * 60;
   async function start() {

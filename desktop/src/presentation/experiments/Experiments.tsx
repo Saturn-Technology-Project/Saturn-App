@@ -42,6 +42,7 @@ import { TrainingMetrics } from "./TrainingMetrics.js";
 import { ComparisonPanel } from "./ComparisonPanel.js";
 import { RemoteRun } from "../environment/RemoteExecution.js";
 import { Artifacts } from "./Artifacts.js";
+import { ResearchBundle } from "./ResearchBundle.js";
 
 const service = desktop.research;
 const FIELD_LABELS: Record<(typeof EVALUATION_FIELD_NAMES)[number], string> = {
@@ -214,13 +215,14 @@ export function Experiments(props: ScreenProps) {
         <h1 className="text-(length:--text-title) font-semibold">Experiments</h1>
         {draft ? (
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" data-tour="experiments-export" onClick={() => void exportRecord()}>Export</Button>
+            <Button variant="outline" data-tour="experiments-export" onClick={() => void exportRecord()}>Export summary JSON</Button>
             <Button data-tour="experiments-freeze" onClick={() => void freeze()}>New version</Button>
           </div>
         ) : null}
       </div>
       {exported ? <Notice tone="good" className="my-2">Written to {exported} in the project.</Notice> : null}
       <ImportResults projectId={projectId} onImported={(id) => { setSelected(id); void refresh(); }} notify={props.notify} />
+      <ResearchBundle projectId={projectId} notify={props.notify} go={props.go} onImported={() => void refresh()} />
       <ComparisonPanel projectId={projectId} runs={value?.runs ?? []} notify={props.notify} go={props.go} />
       {draft ? <RemoteRun projectId={projectId} versions={versions} notify={props.notify} onStarted={() => void refresh()} /> : null}
       <Artifacts key={newest?.id ?? projectId} projectId={projectId} runId={newest?.id} notify={props.notify} go={props.go} />
@@ -408,6 +410,7 @@ export function Experiments(props: ScreenProps) {
                       <td className={CELL}>{named.length > 3 ? `${named.length} models` : named.join(", ") || "—"}</td>
                       <td className={CELL}>
                         {runStatusLabel(run.status)}{run.inputsChanged?.length ? `, ${run.inputsChanged.length} inputs changed during it` : ""}
+                        {run.archived ? <span className="ml-1 text-muted-foreground">· imported archive</span> : null}
                         {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? "pending"}{run.resumeFrom ? ` · resume ${run.resumeFrom}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{["starting", "running", "stopping"].includes(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>Request stop</Button> : null}</div> : null}
                         {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
                       </td>

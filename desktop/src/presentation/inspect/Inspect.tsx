@@ -91,6 +91,7 @@ export function Inspect(props: ScreenProps) {
       {view === "Features" && chosenRun ? <Features projectId={projectId} run={chosenRun} models={availableModels} sent={sent} onDone={refresh} onRecord={record} /> : null}
       {view === "Recorded" ? <RecordedList items={value?.recorded ?? []} models={models} /> : null}
       {session ? <Artifacts key={session.id} projectId={projectId} inspectionId={session.id} notify={props.notify} go={props.go} /> : null}
+      {session?.archived ? <Notice tone="wait">This is archived evidence. Create a new inspection session with this machine's Python and models to compute new results.</Notice> : null}
       {session ? value?.findings.filter((finding) => finding.inspectionIds?.includes(session.id)).map((finding) => <div key={finding.id} className="my-2 rounded-lg bg-panel p-3 text-sm"><span className="text-xs text-muted-foreground">{finding.kind}: </span>{finding.text}</div>) : null}
     </Page>
   );

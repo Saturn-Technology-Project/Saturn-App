@@ -69,8 +69,13 @@ impl Kernel {
                 .await;
         }
         let run = self.research_run(project, id).await?;
-        self.research_record(project, "versions", text(&run, "versionId"))
-            .await
+        let mut version = self
+            .research_record(project, "versions", text(&run, "versionId"))
+            .await?;
+        if run["archived"] == true {
+            version["archived"] = json!(true);
+        }
+        Ok(version)
     }
 
     /// Standalone sessions have their own evidence directory, outside the scored run namespace.

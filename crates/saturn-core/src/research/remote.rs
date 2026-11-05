@@ -216,7 +216,7 @@ impl Kernel {
         let version = self
             .research_record(project, "versions", text(request, "versionId"))
             .await?;
-        if version.get("imported") == Some(&json!(true)) {
+        if version.get("imported") == Some(&json!(true)) || version["archived"] == true {
             return Err(CoreError::new(
                 409,
                 "Set a command and freeze a new executable version before starting a remote job.",

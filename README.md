@@ -102,6 +102,15 @@ analysis JSON or notebook snapshots with hashes; large activation/SAE stores rem
 Experiments and Inspect expose these outputs. Scripts can write a plain `artifacts.jsonl` manifest; importing a remote
 run's small outputs checks them over SSH. No Python SDK is required, and previews execute neither code nor HTML.
 
+**Portable evidence.** Home and Experiments export a project bundle and escaped Markdown/HTML reports, including raw
+samples, human labels, logs, training metrics, Inspect results, saved source objects and analysis snapshots. Preview and
+import a bundle already copied into another project; hashes and paths are checked before publication, and conflicting
+files are never replaced. Imported execution contexts are read-only archives and never reconnect to remote workers.
+Weights, datasets, scorers and environments remain explicit external dependencies: this preserves evidence, not a
+guarantee of reproducibility. Bundles hold at most 5,000 files and 64 MiB of decoded evidence. Publication is staged;
+after a process crash, retry the same import to reuse identical files and finish it. Permissions and remote settings
+are not restored.
+
 ## Install
 
 Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) for macOS on Apple Silicon, and a setup `.exe` for Windows x64. Releases are pre-releases while Saturn is in preview; [`CHANGELOG.md`](CHANGELOG.md) summarizes what changed in each. Each file ships with a SHA-256 checksum and a signed build provenance attestation ([verify a download](#5-verify-the-release-provenance)).

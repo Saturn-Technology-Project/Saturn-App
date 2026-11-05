@@ -35,6 +35,7 @@ import type { PairedComparison, PairedComparisonRequest } from "../domain/resear
 import type { CounterexampleSet } from "../domain/research.js";
 import type { RemoteTarget } from "../domain/research.js";
 import type { InspectionSession, ResearchArtifact, ArtifactContent } from "../domain/research.js";
+import type { ResearchBundleExport, ResearchBundlePreview } from "../domain/research.js";
 
 /** A list of records, and those that could not be read. */
 interface RecordList<T> {
@@ -77,6 +78,19 @@ export class ResearchService {
 
   artifactContent(project: string, id: string): Promise<ArtifactContent> {
     return this.runtime.request(`${this.route(project)}/artifacts/${id}/content`);
+  }
+
+  /** Exports the project's research evidence and static reports, listing uncopied dependencies explicitly. */
+  exportBundle(project: string, path?: string): Promise<ResearchBundleExport> {
+    return this.send(`${this.route(project)}/bundles/export`, "POST", path ? { path } : {});
+  }
+
+  previewBundle(project: string, path: string): Promise<ResearchBundlePreview> {
+    return this.send(`${this.route(project)}/bundles/preview`, "POST", { path });
+  }
+
+  importBundle(project: string, path: string, expectedSha256: string): Promise<{ imported: number; reused: number; activeRunsArchived: number; note: string }> {
+    return this.send(`${this.route(project)}/bundles/import`, "POST", { path, expectedSha256 });
   }
 
   /** Reads old results without creating an experiment or changing their source. */

@@ -465,6 +465,18 @@ async fn metrics(
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
         .route(
+            "/projects/{id}/research/bundles/export",
+            post(export_bundle),
+        )
+        .route(
+            "/projects/{id}/research/bundles/preview",
+            post(preview_bundle),
+        )
+        .route(
+            "/projects/{id}/research/bundles/import",
+            post(import_bundle),
+        )
+        .route(
             "/projects/{id}/research/inspection-sessions",
             get(inspection_sessions).post(create_inspection_session),
         )
@@ -612,6 +624,29 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             post(freeze),
         )
         .with_state(kernel)
+}
+
+/// Writes a complete project research package and static reports without overwriting existing files.
+async fn export_bundle(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    created(
+        kernel
+            .research_bundle_export(&project, &body_of(body))
+            .await?,
+    )
+}
+/// Checks every manifest entry before the user chooses to import it.
+async fn preview_bundle(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    ok(kernel
+        .research_bundle_import(&project, &body_of(body), true)
+        .await?)
+}
+/// Imports evidence only: permissions, credentials and live execution authority are not restored.
+async fn import_bundle(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    created(
+        kernel
+            .research_bundle_import(&project, &body_of(body), false)
+            .await?,
+    )
 }
 
 /// Standalone inspection sessions do not require a scored experiment run.

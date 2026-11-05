@@ -10,6 +10,7 @@ import { messageOf, Page } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
 import { Heading, Row } from "./Row.js";
 import { ImportResults } from "../experiments/ImportResults.js";
+import { ResearchBundle } from "../experiments/ResearchBundle.js";
 
 const service = desktop.research;
 const VERDICTS: Verdict[] = ["undecided", "supported", "refuted", "inconclusive"];
@@ -80,6 +81,7 @@ export function Home(props: ScreenProps) {
     <Page title={lastQuestion ? lastQuestion.title : `Start ${props.project.name}`} lead={lastFinding ? `Latest note: ${lastFinding.text}` : "Write down the question this project is trying to answer, then work on it."}>
       {active ? <div className={MUTED}>Last active {when(active)}</div> : null}
       <ImportResults projectId={projectId} onImported={() => { void refresh(); props.go("Experiments"); }} notify={props.notify} />
+      <ResearchBundle projectId={projectId} notify={props.notify} go={props.go} onImported={() => void refresh()} />
       <div className="mt-3.5 flex flex-wrap items-end gap-2">
         <Button onClick={() => props.go("Workspace")}>
           {restored.length ? "Restore last layout" : "Continue in the workspace"}

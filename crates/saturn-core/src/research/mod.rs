@@ -2,6 +2,7 @@
 //! `docs/research-contract.md` is the contract, and `contract/research-*.test.mjs` hold the runtime to it.
 mod agent;
 mod artifacts;
+mod bundles;
 mod checks;
 mod comparison;
 mod data;

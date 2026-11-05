@@ -95,6 +95,11 @@ Experiments 可啟動凍結版本；獨立 Rust worker 在 Saturn 關閉後繼�
 PNG／JPEG／WebP 圖表、分析 JSON 與 Notebook 可保存帶雜湊的快照，大型 activation／SAE 儲存則保留為明確參照。
 Workspace、Experiments、Inspect 都可查看；腳本只需寫一般 `artifacts.jsonl`，匯入遠端小型產物時會透過 SSH 檢查內容。不必安裝 Saturn Python SDK，預覽不執行程式或 HTML。
 
+**可攜研究證據。** Home 與 Experiments 可匯出整個專案的研究包，以及經過文字跳脫的 Markdown／HTML 報告，包含原始樣本、人工標籤、日誌、訓練指標、Inspect 結果、已保存的程式物件與分析快照。
+將研究包複製到另一個專案後，可先驗證再匯入；發布檔案前檢查雜湊與路徑，有內容衝突就拒絕覆寫。匯入的執行脈絡是唯讀封存，不會重連遠端 worker。
+權重、資料集、評分器與環境仍明列為外部依賴；保存證據不代表保證重現。每包最多 5,000 個檔案、解碼後 64 MiB。
+匯入先暫存再發布；若程式中途崩潰，可重試同一研究包，重用相同檔案並完成剩餘部分。權限與遠端設定不會還原。
+
 ## 安裝
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。

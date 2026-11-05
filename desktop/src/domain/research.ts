@@ -47,6 +47,7 @@ export interface Finding extends ResearchRecord {
 
 /** A standalone exploration pins model references and the Python path without creating evaluation samples. */
 export interface InspectionSession extends ResearchRecord {
+  archived?: boolean;
   title: string; kind: "inspection"; python: string; cwd: string; note: string;
   models: { modelId: string; source: string; name?: string; weightsRevision: string | null; floating: boolean }[];
 }
@@ -60,7 +61,12 @@ export interface ResearchArtifact extends ResearchRecord {
 
 export interface ArtifactContent { data: string; encoding: "base64"; mime: string; sha256: string; sourceChanged: boolean }
 
+/** Evidence manifests describe what is portable and what remains external; no execution authority is restored. */
+export interface ResearchBundlePreview { sha256: string; files: number; activeRuns: number; external: unknown[]; unavailable: unknown[]; note: string }
+export interface ResearchBundleExport { path: string; markdownPath: string; htmlPath: string; files: number; external: unknown[]; unavailable: unknown[]; sha256: string; note: string }
+
 export interface FrozenVersion extends ResearchRecord {
+  archived?: boolean;
   imported?: boolean;
   command?: string;
   kind?: "evaluation" | "training";
@@ -73,8 +79,9 @@ export interface FrozenVersion extends ResearchRecord {
 export type RunStatus = "starting" | "running" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
 
 export interface ExperimentRun extends ResearchRecord {
+  archived?: boolean;
   remote?: RemoteTarget;
-  remoteConnection?: "connecting" | "connected" | "disconnected" | "unresponsive";
+  remoteConnection?: "connecting" | "connected" | "disconnected" | "unresponsive" | "archived";
   remoteStatus?: string;
   remoteError?: string | null;
   resumeFrom?: string | null;

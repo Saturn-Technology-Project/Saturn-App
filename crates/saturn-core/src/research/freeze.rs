@@ -380,10 +380,9 @@ impl Kernel {
             .iter()
             .filter(|version| text(version, "experimentId") == experiment)
             .collect();
-        if let Some(existing) = own
-            .iter()
-            .find(|version| text(version, "fingerprint") == content_id)
-        {
+        if let Some(existing) = own.iter().find(|version| {
+            version["archived"] != true && text(version, "fingerprint") == content_id
+        }) {
             return Ok(((*existing).clone(), false));
         }
         let number = own

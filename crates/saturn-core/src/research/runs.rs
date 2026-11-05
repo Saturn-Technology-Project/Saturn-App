@@ -245,7 +245,9 @@ impl Kernel {
         let version = self
             .research_record(project, "versions", version_id)
             .await?;
-        if version.get("imported").and_then(Value::as_bool) == Some(true) {
+        if version.get("imported").and_then(Value::as_bool) == Some(true)
+            || version["archived"] == true
+        {
             return Err(CoreError::new(
                 409,
                 "Imported versions describe past results. Set a command and freeze a new version to execute it.",
@@ -699,7 +701,7 @@ fn not_found() -> CoreError {
 }
 
 /// Every run in a project's records, and the ones that cannot be used.
-async fn read_runs(records: &Path) -> Result<(Vec<Value>, Vec<Value>), CoreError> {
+pub(super) async fn read_runs(records: &Path) -> Result<(Vec<Value>, Vec<Value>), CoreError> {
     let mut items = Vec::new();
     let mut problems = Vec::new();
     let mut entries = match tokio::fs::read_dir(records.join("runs")).await {
