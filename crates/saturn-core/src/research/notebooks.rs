@@ -211,11 +211,15 @@ impl Log {
                     self.python,
                     self.missing.join(" or ")
                 ));
+                // Nothing will run, so what waited is let go now, in the same step: the state never says missing
+                // while cells still look queued.
+                self.let_go();
                 self.push_state(id);
             }
             "failed" => {
                 self.state = "failed";
                 self.message = Some(text(&message, "message").to_owned());
+                self.let_go();
                 self.push_state(id);
             }
             "started" => {
