@@ -21,7 +21,7 @@ export function SelectContent({ className, children, ...props }: SelectPrimitive
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner sideOffset={4} alignItemWithTrigger={false} className="isolate z-50">
-        <SelectPrimitive.Popup data-slot="select-content" className={classes("relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1", className)} {...props}>
+        <SelectPrimitive.Popup data-slot="select-content" className={classes("relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md glass text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1", className)} {...props}>
           <SelectPrimitive.List>{children}</SelectPrimitive.List>
         </SelectPrimitive.Popup>
       </SelectPrimitive.Positioner>

@@ -17,6 +17,7 @@ use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, Webvie
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 pub(crate) const MAIN_WINDOW: &str = "main";
+#[cfg(not(target_os = "macos"))]
 const BACKGROUND: tauri::window::Color = tauri::window::Color(0x16, 0x16, 0x18, 0xff);
 
 /// Where the interface is served, known once it is up.
@@ -126,6 +127,12 @@ fn request_permission(which: String) -> permissions::Answer {
 }
 
 /// The window's title, which says the screen and project: it is what the system and computer use find the window by.
+/// Gives the window's blur the theme the page chose, which may differ from the system's.
+#[tauri::command]
+fn set_window_theme(window: WebviewWindow, dark: bool) -> tauri::Result<()> {
+    window.set_theme(Some(if dark { tauri::Theme::Dark } else { tauri::Theme::Light }))
+}
+
 #[tauri::command]
 fn set_window_title(window: WebviewWindow, title: String) -> tauri::Result<()> {
     let plain: String = title
@@ -184,7 +191,6 @@ pub(crate) fn show_main_window(app: &AppHandle) {
     let script = bridge_script(&app.state::<Runtime>(), &interface);
     let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::External(interface))
         .title("Saturn")
-        .background_color(BACKGROUND)
         .disable_drag_drop_handler()
         // A hidden window keeps running: chats update and notifications arrive with Saturn in the background.
         .background_throttling(BackgroundThrottlingPolicy::Disabled)
@@ -200,9 +206,17 @@ pub(crate) fn show_main_window(app: &AppHandle) {
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .traffic_light_position(tauri::LogicalPosition::new(16.0, 18.0))
-        .hidden_title(true);
+        .hidden_title(true)
+        // What is behind the window shows through, blurred, where a page leaves its background clear.
+        .transparent(true)
+        .effects(
+            tauri::window::EffectsBuilder::new()
+                .effect(tauri::window::Effect::Sidebar)
+                .state(tauri::window::EffectState::FollowsWindowActiveState)
+                .build(),
+        );
     #[cfg(not(target_os = "macos"))]
-    let builder = builder.decorations(false);
+    let builder = builder.background_color(BACKGROUND).decorations(false);
     if let Err(error) = builder.build() {
         eprintln!("Could not open the Saturn window: {error}");
     }
@@ -215,7 +229,7 @@ fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
         "windows": [MAIN_WINDOW],
         "remote": { "urls": [format!("http://127.0.0.1:{port}/*")] },
         "permissions": [
-            "allow-pick-folders", "allow-confirm-action", "allow-start-dragging", "allow-toggle-maximize", "allow-minimize-window",
+            "allow-pick-folders", "allow-confirm-action", "allow-set-window-theme", "allow-start-dragging", "allow-toggle-maximize", "allow-minimize-window",
             "allow-close-window", "allow-notify", "allow-request-permission", "allow-runtime-status", "allow-restart-runtime", "allow-set-window-title",
         ],
     });
@@ -286,6 +300,7 @@ fn main() {
             request_permission,
             runtime_status,
             restart_runtime,
+            set_window_theme,
             set_window_title
         ])
         .setup(move |app| {

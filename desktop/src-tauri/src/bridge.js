@@ -56,6 +56,7 @@
     restartRuntime: () => invoke("restart_runtime"),
     /** Sets the window's title. */
     setTitle: (title) => invoke("set_window_title", { title }),
+    setWindowTheme: (dark) => void invoke("set_window_theme", { dark: Boolean(dark) }),
     /** Recolors the minimize, maximize and close buttons (Windows only). */
     setWindowControls: (colors) => paintWindowButtons(colors ?? {}),
     /** Called with { agentId, threadId } when a notification is clicked. */

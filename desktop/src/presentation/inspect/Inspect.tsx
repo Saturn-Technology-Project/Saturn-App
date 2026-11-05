@@ -1,10 +1,10 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { controlCeiling, promptPatchText, readingDifference, restoredByLayer, strongestPatch, type ExperimentRun, type InsideItem, type ModelCompareView, type ModelNode, type PromptPatchView } from "../../domain/research.js";
 import { ActivationGrid } from "../samples/LookInside.js";
 import { Button } from "../ui/base/Button.js";
 import { Input } from "../ui/base/Input.js";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "../ui/base/Select.js";
+import { Choice, Field } from "../ui/base/Field.js";
 import { Tabs, TabsList, TabsTrigger } from "../ui/base/Tabs.js";
 import { Textarea } from "../ui/base/Textarea.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
@@ -92,32 +92,6 @@ function runName(run: ExperimentRun): string {
 function modelName(models: ModelNode[], id: string | null | undefined): string {
   const model = models.find((item) => item.id === id);
   return model ? model.name || model.source : (id ?? "the run's model");
-}
-
-/** A form's field: its name above what fills it in. */
-function Field(props: { label: string; className?: string; children: ReactNode }) {
-  return (
-    <label className={`flex min-w-0 flex-col gap-1 text-xs text-muted-foreground ${props.className ?? ""}`}>
-      {props.label}
-      {props.children}
-    </label>
-  );
-}
-
-/** One of several values, with its name above. The name is tied to the trigger by id, since the list renders a hidden input too. */
-function Choice(props: { label: string; value: string; options: { value: string; label: string }[]; placeholder?: string; className?: string; onChange: (value: string) => void }) {
-  const id = useId();
-  return (
-    <div className={`flex min-w-0 flex-col gap-1 text-xs text-muted-foreground ${props.className ?? ""}`}>
-      <span id={id}>{props.label}</span>
-      <Select value={props.value || null} items={props.options} onValueChange={(value) => props.onChange(String(value ?? ""))}>
-        <SelectTrigger aria-labelledby={id} placeholder={props.placeholder} className="w-full text-foreground" />
-        <SelectContent>
-          {props.options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </div>
-  );
 }
 
 /** Chooses a model of the project. */

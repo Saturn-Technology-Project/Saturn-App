@@ -13,6 +13,7 @@ declare global {
       onOpenThread?(listener: (payload: { agentId?: string; threadId?: string }) => void): () => void;
       isFocused?(): boolean;
       setWindowControls?(colors: { color: string; symbolColor: string }): void;
+      setWindowTheme?(dark: boolean): void;
       runtimeStatus?(): Promise<RuntimeStatus>;
       restartRuntime?(): Promise<void>;
       setTitle?(title: string): Promise<void>;

@@ -1,19 +1,19 @@
 /* Saturn's colors, type and sizes, in light and dark. Every screen's style uses these names. */
 :root {
-  --bg: #f4f3ef;
-  --stage: #faf9f6;
-  --panel: #f6f5f1;
-  --fg: #18181b;
-  --muted: #71717a;
-  --subtle: #a1a1aa;
-  --line: #e4e2dc;
-  --line-strong: #d4d1c8;
+  --bg: #f5f4f8;
+  --stage: #fbfafd;
+  --panel: #f1eff6;
+  --fg: #1a1825;
+  --muted: #6b6880;
+  --subtle: #a09db3;
+  --line: #e6e3ee;
+  --line-strong: #d5d1e0;
   --card: #ffffff;
   --elevated: #ffffff;
-  --hover: #eceae4;
+  --hover: #ebe8f3;
   --input: #ffffff;
-  --code-bg: #f1f0ec;
-  --accent: #18181b;
+  --code-bg: #f1eff6;
+  --accent: #6650f0;
   --on-accent: #ffffff;
   --ok: #15803d;
   --ok-bg: rgba(21, 128, 61, 0.1);
@@ -23,7 +23,7 @@
   --off-bg: rgba(185, 28, 28, 0.1);
   --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.05);
   --shadow-md: 0 8px 24px rgba(24, 24, 27, 0.07);
-  --focus: rgba(24, 24, 27, 0.08);
+  --focus: rgba(102, 80, 240, 0.18);
   --blue: #2563eb;
   --blue-hover: #1d4ed8;
   --on-blue: #ffffff;
@@ -42,25 +42,38 @@
   --term-running: #9a6700;
   --term-caret: #0969da;
   --term-selection: rgba(9, 105, 218, 0.2);
+  /* A color for each screen, for its icon and what marks it. */
+  --hue-home: #3b6ff0;
+  --hue-workspace: #0e9f8e;
+  --hue-lineage: #8b4ff0;
+  --hue-experiments: #e0820b;
+  --hue-samples: #de3f8d;
+  --hue-inspect: #0a93d1;
+  --hue-tasks: #2f9e44;
+  --hue-protection: #e0483f;
+  --hue-environment: #b7791f;
+  --hue-settings: #6b6880;
+  /* What lets the blur through, where the window has one, and what holds its own over the page. */
+  --glass: rgba(255, 255, 255, 0.78);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg: #161618;
-  --stage: #1c1c1f;
-  --panel: #18181b;
-  --fg: #f4f4f5;
-  --muted: #a1a1aa;
-  --subtle: #71717a;
-  --line: #2c2c31;
-  --line-strong: #3c3c43;
-  --card: #232327;
-  --elevated: #27272c;
-  --hover: #25252a;
-  --input: #202024;
-  --code-bg: #151518;
-  --accent: #f4f4f5;
-  --on-accent: #18181b;
+  --bg: #14131b;
+  --stage: #1a1923;
+  --panel: #16151e;
+  --fg: #f3f2f8;
+  --muted: #a5a2b8;
+  --subtle: #75728a;
+  --line: #2d2b3a;
+  --line-strong: #3e3b4e;
+  --card: #23212e;
+  --elevated: #292735;
+  --hover: #2a2836;
+  --input: #1f1d29;
+  --code-bg: #14131b;
+  --accent: #8f80ff;
+  --on-accent: #100d26;
   --ok: #4ade80;
   --ok-bg: rgba(74, 222, 128, 0.12);
   --wait: #fbbf24;
@@ -69,10 +82,10 @@
   --off-bg: rgba(248, 113, 113, 0.14);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --focus: rgba(244, 244, 245, 0.12);
-  --blue: #1f5fa8;
-  --blue-hover: #2a6fbf;
-  --on-blue: #e8f1fc;
+  --focus: rgba(143, 128, 255, 0.24);
+  --blue: #3b82f6;
+  --blue-hover: #2f6fdc;
+  --on-blue: #f3f7ff;
   --violet: #a78bfa;
   --violet-bg: rgba(167, 139, 250, 0.14);
   --blue-bg: rgba(96, 165, 250, 0.14);
@@ -86,7 +99,50 @@
   --term-running: #d29922;
   --term-caret: #58a6ff;
   --term-selection: rgba(88, 166, 255, 0.25);
+  --hue-home: #7ea2ff;
+  --hue-workspace: #3fd4c0;
+  --hue-lineage: #b794ff;
+  --hue-experiments: #ffb454;
+  --hue-samples: #ff7fb9;
+  --hue-inspect: #5cc4f5;
+  --hue-tasks: #6fd98a;
+  --hue-protection: #ff8a80;
+  --hue-environment: #e6b866;
+  --hue-settings: #a5a2b8;
+  --glass: rgba(38, 36, 50, 0.72);
   color-scheme: dark;
+}
+
+/*
+ * With the window's own blur behind the page: the rail stays nearly clear, the work a little more opaque so that text
+ * reads over any wallpaper, and lines and hovers are see-through too.
+ */
+:root[data-vibrant] {
+  --bg: rgba(245, 244, 250, 0.5);
+  --stage: rgba(252, 251, 254, 0.72);
+  --panel: rgba(241, 239, 247, 0.28);
+  --card: rgba(255, 255, 255, 0.66);
+  --hover: rgba(40, 30, 90, 0.07);
+  --line: rgba(40, 30, 90, 0.1);
+  --line-strong: rgba(40, 30, 90, 0.18);
+  --input: rgba(255, 255, 255, 0.6);
+  --code-bg: rgba(40, 30, 90, 0.05);
+}
+
+:root[data-vibrant][data-theme="dark"] {
+  --bg: rgba(20, 19, 27, 0.45);
+  --stage: rgba(24, 23, 33, 0.68);
+  --panel: rgba(22, 21, 30, 0.22);
+  --card: rgba(255, 255, 255, 0.06);
+  --hover: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --input: rgba(0, 0, 0, 0.2);
+  --code-bg: rgba(0, 0, 0, 0.24);
+}
+
+:root[data-vibrant] body {
+  background: transparent;
 }
 
 * {

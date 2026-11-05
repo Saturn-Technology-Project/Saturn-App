@@ -1,14 +1,11 @@
 /*
- * Tailwind, for the components in presentation/ui/base and the screens moved onto them. Only those files are scanned, so a
- * class name an older screen happens to share with a utility changes nothing. There is no preflight: the older styles keep
+ * Tailwind, for the components in presentation/ui/base and the screens moved onto them. There is no preflight: the older styles keep
  * their reset. Tailwind's theme stays in a layer, so that Saturn's tokens win over its variables of the same name.
  */
 @layer theme, base;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" source(none);
-@source "../presentation/ui/base";
-@source "../presentation/inspect";
-@source "../presentation/ProjectAccess.tsx";
+@source "../presentation";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -27,6 +24,23 @@
   --color-accent: var(--hover);
   --color-accent-foreground: var(--fg);
   --color-destructive: var(--off);
+  --color-good: var(--ok);
+  --color-wait: var(--wait);
+  --color-info: var(--blue);
+  --color-violet: var(--violet);
+  --color-glass: var(--glass);
+  --color-stage: var(--stage);
+  --color-panel: var(--panel);
+  --color-hue-home: var(--hue-home);
+  --color-hue-workspace: var(--hue-workspace);
+  --color-hue-lineage: var(--hue-lineage);
+  --color-hue-experiments: var(--hue-experiments);
+  --color-hue-samples: var(--hue-samples);
+  --color-hue-inspect: var(--hue-inspect);
+  --color-hue-tasks: var(--hue-tasks);
+  --color-hue-protection: var(--hue-protection);
+  --color-hue-environment: var(--hue-environment);
+  --color-hue-settings: var(--hue-settings);
   --color-border: var(--line);
   --color-input: var(--line-strong);
   --color-ring: var(--subtle);
@@ -41,7 +55,10 @@
   [data-slot="select-trigger"],
   [data-slot="tabs-trigger"],
   [data-slot="input"],
-  [data-slot="textarea"] {
+  [data-slot="textarea"],
+  [data-slot="switch"],
+  [data-slot="checkbox"],
+  [data-slot="menu-trigger"] {
     appearance: none;
     margin: 0;
     padding: 0;
@@ -50,4 +67,11 @@
     font: inherit;
     color: inherit;
   }
+}
+
+/* Floats over the page and blurs what is behind it: menus, dialogs, the command palette. */
+@utility glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(28px) saturate(1.7);
+  backdrop-filter: blur(28px) saturate(1.7);
 }
