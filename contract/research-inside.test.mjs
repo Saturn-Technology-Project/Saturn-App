@@ -24,6 +24,13 @@ if [ "$1" = "-" ]; then
   node -e '
     const request = JSON.parse(process.argv[1]);
     if (request.input === "boom") { console.error("a traceback"); process.exit(3); }
+    if (request.sweep) {
+      const layers = request.sweep.layers ?? [0, 1];
+      process.stdout.write(JSON.stringify({ sourceModelId: request.sweep.modelId, targetModelId: request.modelId, layers, samples: request.sweep.samples.map((item) => ({
+        sampleId: item.sampleId, expected: item.expected, top: "x", expectedLogProb: -3,
+        byLayer: layers.map((layer) => ({ layer, top: layer === 1 ? item.expected : "x", expectedLogProb: layer === 1 ? -0.5 : -3 })) })) }));
+      process.exit(0);
+    }
     const layers = [0, 1].map((layer) => ({ layer, values: request.input.split(" ").map((_, index) => layer + index / 10) }));
     const answer = { sampleId: request.sampleId, modelId: request.modelId, measure: "stand-in", tokens: request.input.split(" "), layers, top: "x",
       patched: request.patch ? { layer: request.patch.layer, sourceModelId: request.patch.modelId, layers, top: "y" } : null, helper: process.argv[2] };
@@ -97,6 +104,23 @@ test("an intervention patches a layer from one bound model into another, and the
   assert.match(failed.body.error, /a traceback/);
   const missing = await saturn.call("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: tuned.id });
   assert.equal(missing.status, 400);
+});
+
+test("a sweep patches every layer on several samples in one helper process, and is saved with the run", posixOnly, async () => {
+  const { folder, route, run, base, tuned } = await project();
+  const swept = await saturn.api("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["a"], sourceModelId: tuned.id, targetModelId: base.id, layers: [0, 1, 2] });
+  assert.deepEqual(swept.layers, [0, 1, 2]);
+  assert.equal(swept.samples.length, 1);
+  assert.deepEqual(swept.samples[0].byLayer.map((item) => item.top), ["x", " Mary", "x"]);
+  const asked = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
+  assert.deepEqual(asked.sweep.source, { source: "org/tuned", revision: "v1" });
+  assert.deepEqual(asked.sweep.samples.map((item) => item.expected), [" Mary"]);
+  const again = await saturn.api("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["a"], sourceModelId: tuned.id, targetModelId: base.id, layers: [0, 1, 2] });
+  assert.equal(again.recordedAt, swept.recordedAt);
+  const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id, "inside"));
+  assert.equal(saved.filter((name) => name.startsWith("sweep-")).length, 1);
+  assert.equal((await saturn.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: [], sourceModelId: tuned.id, targetModelId: base.id })).status, 400);
+  assert.equal((await saturn.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["zzz"], sourceModelId: tuned.id, targetModelId: base.id })).status, 404);
 });
 
 test("a command that does not start with a python is refused with what to do", posixOnly, async () => {

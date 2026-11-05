@@ -166,6 +166,12 @@ environment that ran the experiment; a command that starts with anything else is
   runs the source model on the same input, replaces the residual stream leaving `layer` of the target with the source's,
   and answers in the same shape with `patched: {"layer","sourceModelId","layers","top"}`. Everything up to that layer is
   then the source's, everything after it the target's.
+- `POST /projects/{id}/research/interventions/sweep` with `{"runId","sampleIds":[...],"sourceModelId",
+  "targetModelId","layers"?}` does the patch at every layer (or the ones named) on up to 32 samples in one helper
+  process, both models loaded once, and answers `{"sourceModelId","targetModelId","layers":[...],"samples":[{"sampleId",
+  "expected","top","expectedLogProb","byLayer":[{"layer","top","expectedLogProb"}]}]}`: what the target ends on with
+  each layer patched, and the log-probability of the expected token there. Whether a layer "restores" a sample is for
+  the reader: the runtime gives the tokens, not a verdict.
 - The answer is saved in the run's folder under `inside/`, named by the request, and the same request is answered from
   there without running again. `GET .../activations?sample=&model=` reads what was saved, or 404.
 - A helper that fails answers 422 with the end of its error output. The runtime never interprets the values.

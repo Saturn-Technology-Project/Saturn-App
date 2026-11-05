@@ -158,6 +158,7 @@
   "POST /projects/:id/research/environment/job/stop",
   "POST /projects/:id/research/experiments/:item/versions",
   "POST /projects/:id/research/interventions",
+  "POST /projects/:id/research/interventions/sweep",
   "POST /projects/:id/research/runs/:run/activations",
   "POST /projects/:id/research/runs/:run/labels",
   "POST /projects/:id/research/runs/:run/stop",

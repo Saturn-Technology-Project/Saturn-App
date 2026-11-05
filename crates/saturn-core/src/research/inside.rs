@@ -19,6 +19,8 @@ use crate::{CoreError, Kernel};
 const HELPER: &str = include_str!("inside.py");
 /// The folder in a run's directory where its answers are kept.
 const FOLDER: &str = "inside";
+/// How many samples one sweep takes, so one helper process stays minutes, not hours.
+const MAX_SWEEP: usize = 32;
 
 /// The model a request is about: `modelId`, or an intervention's `targetModelId`.
 fn asked_model(request: &Value) -> Option<&str> {
@@ -174,6 +176,154 @@ impl Kernel {
         write_whole(&file, &pretty(&answer)?).await?;
         self.research_changed();
         Ok(answer)
+    }
+
+    /// Patches every layer in turn, from one model into another, on several samples of a run, in one helper process.
+    /// Saved with the run like a single reading.
+    pub async fn research_sweep(&self, project: &str, request: &Value) -> Result<Value, CoreError> {
+        if cfg!(windows) {
+            return Err(CoreError::new(
+                501,
+                "Looking inside a model is not supported on Windows yet.",
+            ));
+        }
+        let run_id = text(request, "runId");
+        let sample_ids: Vec<&str> = request
+            .get("sampleIds")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        if sample_ids.is_empty() || sample_ids.len() > MAX_SWEEP {
+            return Err(CoreError::new(
+                400,
+                format!("A sweep names 1 to {MAX_SWEEP} sampleIds."),
+            ));
+        }
+        let (source_id, target_id) = (
+            text(request, "sourceModelId"),
+            text(request, "targetModelId"),
+        );
+        if source_id.is_empty() || target_id.is_empty() {
+            return Err(CoreError::new(
+                400,
+                "A sweep names a sourceModelId and a targetModelId.",
+            ));
+        }
+        let key = sha256_hex(
+            json!({ "sweep": sample_ids, "source": source_id, "target": target_id, "layers": request.get("layers") })
+                .to_string()
+                .as_bytes(),
+        );
+        let records = self.records_folder(project).await?;
+        if !is_id(run_id) {
+            return Err(CoreError::new(404, "No such run"));
+        }
+        let file = records
+            .join("runs")
+            .join(run_id)
+            .join(FOLDER)
+            .join(format!("sweep-{}.json", &key[..16]));
+        if let Some(saved) = read_record(&file)
+            .await
+            .map_err(|reason| CoreError::new(422, reason))?
+        {
+            return Ok(saved);
+        }
+        let run = self.research_run(project, run_id).await?;
+        let version = self
+            .research_record(project, "versions", text(&run, "versionId"))
+            .await?;
+        let python = match super::environment::python_of(text(&version, "command")) {
+            Some(python) => python.to_owned(),
+            None => self.research_python(project).await?,
+        };
+        let mut samples = Vec::new();
+        for sample_id in &sample_ids {
+            let line = self
+                .inside_sample(
+                    project,
+                    &run,
+                    &json!({ "sampleId": sample_id, "modelId": target_id }),
+                )
+                .await?;
+            if !line.get("input").is_some_and(Value::is_string) {
+                return Err(CoreError::new(
+                    422,
+                    format!("Sample {sample_id}'s input is not text."),
+                ));
+            }
+            samples.push(json!({ "sampleId": sample_id, "input": line.get("input"), "expected": line.get("expected") }));
+        }
+        let ask = json!({
+            "sampleId": sample_ids[0],
+            "modelId": target_id,
+            "target": self.model_weights(project, &version, target_id).await?,
+            "sweep": {
+                "modelId": source_id,
+                "source": self.model_weights(project, &version, source_id).await?,
+                "layers": request.get("layers"),
+                "samples": samples,
+            },
+        });
+        let mut answer = self.run_helper(project, &version, &python, &ask).await?;
+        answer["schemaVersion"] = json!(SCHEMA_VERSION);
+        answer["request"] = request.clone();
+        answer["key"] = json!(key);
+        answer["recordedAt"] = json!(iso_time(now_millis()));
+        if let Some(parent) = file.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        write_whole(&file, &pretty(&answer)?).await?;
+        self.research_changed();
+        Ok(answer)
+    }
+
+    /// Runs the helper with a request in the version's folder and reads its answer, or says how it failed.
+    async fn run_helper(
+        &self,
+        project: &str,
+        version: &Value,
+        python: &str,
+        ask: &Value,
+    ) -> Result<Value, CoreError> {
+        let source = self.research_source(project, None)?;
+        let working_folder = source.join(text(version, "cwd"));
+        let mut command = Command::new(python);
+        launch_env(&mut command);
+        for (name, _) in std::env::vars_os() {
+            if name.to_string_lossy().starts_with("SATURN_") {
+                command.env_remove(&name);
+            }
+        }
+        let child = command
+            .args(["-", &ask.to_string()])
+            .current_dir(&working_folder)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| CoreError::new(422, format!("{python} could not start: {error}")))?;
+        let output = feed(child, HELPER).await?;
+        if !output.status.success() {
+            let log = String::from_utf8_lossy(&output.stderr);
+            let tail: Vec<&str> = log.lines().rev().take(12).collect();
+            return Err(CoreError::new(
+                422,
+                format!(
+                    "The helper ended with {}.\n{}",
+                    output.status,
+                    tail.into_iter().rev().collect::<Vec<_>>().join("\n")
+                ),
+            ));
+        }
+        serde_json::from_slice(&output.stdout).map_err(|error| {
+            CoreError::new(
+                422,
+                format!("The helper's answer could not be read: {error}"),
+            )
+        })
     }
 
     /// Where a model's weights are: as the version pinned them, else as the project's model record says.

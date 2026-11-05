@@ -51,8 +51,58 @@ def read(tokenizer, model, hidden, expected_id):
     return layers
 
 
+def patched_run(model, encoded, layer, donor):
+    """The model on the input with the residual stream leaving `layer` replaced by `donor`."""
+
+    def replace(module, inputs, result):
+        return (donor,) + tuple(result[1:]) if isinstance(result, tuple) else donor
+
+    handle = blocks(model)[layer].register_forward_hook(replace)
+    try:
+        with torch.no_grad():
+            return model(**encoded, output_hidden_states=True)
+    finally:
+        handle.remove()
+
+
+def last_token(tokenizer, logits, expected_id):
+    """What the model ends on, and how likely the expected token is there."""
+    final = torch.log_softmax(logits[0, -1], dim=-1)
+    return tokenizer.decode(logits[0, -1].argmax()), (round(final[expected_id].item(), 4) if expected_id is not None else None)
+
+
+def sweep(tokenizer, model, request):
+    """Every sample at every layer: the residual stream leaving that layer taken from the source model, and what the
+    target then ends on. Both models are loaded once."""
+    asked = request["sweep"]
+    _, source = load(asked["source"])
+    layers = asked.get("layers") or list(range(model.config.num_hidden_layers))
+    samples = []
+    for item in asked["samples"]:
+        encoded = tokenizer(item["input"], return_tensors="pt")
+        expected = item.get("expected")
+        expected_id = tokenizer(expected, add_special_tokens=False).input_ids[0] if expected else None
+        with torch.no_grad():
+            plain = model(**encoded, output_hidden_states=True)
+            donor = source(**encoded, output_hidden_states=True).hidden_states
+        top, likelihood = last_token(tokenizer, plain.logits, expected_id)
+        by_layer = []
+        for layer in layers:
+            layer = int(layer)
+            if donor[layer + 1].shape != plain.hidden_states[layer + 1].shape:
+                raise SystemExit("The two models' residual streams differ in shape, so one cannot be patched into the other.")
+            patched = patched_run(model, encoded, layer, donor[layer + 1])
+            patched_top, patched_likelihood = last_token(tokenizer, patched.logits, expected_id)
+            by_layer.append({"layer": layer, "top": patched_top, "expectedLogProb": patched_likelihood})
+        samples.append({"sampleId": item["sampleId"], "expected": expected, "top": top, "expectedLogProb": likelihood, "byLayer": by_layer})
+    json.dump({"sourceModelId": asked.get("modelId"), "targetModelId": request.get("modelId"), "layers": layers, "samples": samples}, sys.stdout)
+
+
 def main():
     tokenizer, model = load(request["target"])
+    if "sweep" in request:
+        sweep(tokenizer, model, request)
+        return
     encoded = tokenizer(request["input"], return_tensors="pt")
     tokens = [tokenizer.decode([token]) for token in encoded.input_ids[0].tolist()]
     expected = request.get("expected")
@@ -79,16 +129,7 @@ def main():
             donor = source(**encoded, output_hidden_states=True).hidden_states[layer + 1]
         if donor.shape != output.hidden_states[layer + 1].shape:
             raise SystemExit("The two models' residual streams differ in shape, so one cannot be patched into the other.")
-
-        def replace(module, inputs, result):
-            return (donor,) + tuple(result[1:]) if isinstance(result, tuple) else donor
-
-        handle = blocks(model)[layer].register_forward_hook(replace)
-        try:
-            with torch.no_grad():
-                patched = model(**encoded, output_hidden_states=True)
-        finally:
-            handle.remove()
+        patched = patched_run(model, encoded, layer, donor)
         answer["patched"] = {
             "layer": layer,
             "sourceModelId": patch.get("modelId"),
