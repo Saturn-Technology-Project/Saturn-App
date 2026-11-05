@@ -701,10 +701,7 @@ fn changed_files(
         if content.contains('\0') {
             continue;
         }
-        let hash: String = Sha1::digest(content.as_bytes())
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
+        let hash = saturn_domain::research::hex(&Sha1::digest(content.as_bytes()));
         if known.get(&relative) == Some(&hash) {
             continue;
         }

@@ -87,7 +87,7 @@ pub fn hooks_fingerprint(hooks: &[Hook]) -> String {
         })
         .collect();
     let digest = Sha256::digest(Value::Array(rows).to_string().as_bytes());
-    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+    crate::research::hex(&digest)
 }
 
 /// Whether a hook's matcher covers a tool: exact, a `*` glob, or a `|` list (Claude Code's `Edit|Write`).

@@ -1,4 +1,5 @@
 //! Gemini, through its generateContent API. Tool schemas go out in the form Google's SDK writes them.
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use serde_json::{Map, Value, json};
 
 use crate::http::{Http, LlmError};
@@ -423,17 +424,13 @@ fn low_thinking(model: &str) -> Value {
     }
 }
 
+/// What a model's name keeps as it is in a path segment, besides letters and digits.
+const PATH_SEGMENT: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'_').remove(b'.');
+
 /// A model's name as one path segment.
 fn path_segment(model: &str) -> String {
     let name = model.strip_prefix("models/").unwrap_or(model);
-    name.bytes().fold(String::new(), |mut text, byte| {
-        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.') {
-            text.push(byte as char);
-        } else {
-            text.push_str(&format!("%{byte:02X}"));
-        }
-        text
-    })
+    utf8_percent_encode(name, PATH_SEGMENT).to_string()
 }
 
 /// One call to Gemini.
@@ -559,4 +556,18 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
         },
         None,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_model_name_is_one_path_segment() {
+        assert_eq!(path_segment("models/gemini-2.5-pro"), "gemini-2.5-pro");
+        assert_eq!(
+            path_segment("a/b c:d!~*'()é"),
+            "a%2Fb%20c%3Ad%21%7E%2A%27%28%29%C3%A9"
+        );
+    }
 }

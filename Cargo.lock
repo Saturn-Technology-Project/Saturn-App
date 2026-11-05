@@ -4106,6 +4106,7 @@ dependencies = [
 name = "saturn-cli"
 version = "0.1.0"
 dependencies = [
+ "percent-encoding",
  "reqwest",
  "serde_json",
  "tokio",
@@ -4132,6 +4133,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "jiff",
+ "percent-encoding",
  "regex",
  "reqwest",
  "rusqlite",
@@ -4178,10 +4180,12 @@ name = "saturn-domain"
 version = "0.1.0"
 dependencies = [
  "getrandom 0.3.4",
+ "jiff",
  "regex",
  "serde",
  "serde_json",
  "sha2",
+ "similar",
  "url",
 ]
 
@@ -4206,6 +4210,7 @@ name = "saturn-llm"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "percent-encoding",
  "regex",
  "reqwest",
  "saturn-domain",
@@ -4664,6 +4669,12 @@ name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "similar"
+version = "3.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2f8bec09ae8fae0f4f265a4559a9334be3929d8504e9b536df0a41302bd1733"
 
 [[package]]
 name = "siphasher"

@@ -1,6 +1,5 @@
 //! Where the key that encrypts `secrets.json` is kept. The same places and names earlier versions of Saturn used, so their data stays readable.
 use std::env;
-use std::fmt::Write as _;
 use std::fs;
 use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
@@ -44,14 +43,7 @@ pub trait KeyStore: Send + Sync {
 pub fn account(data_dir: &Path) -> String {
     let real = fs::canonicalize(data_dir).unwrap_or_else(|_| data_dir.to_path_buf());
     let digest = Sha256::digest(real.to_string_lossy().as_bytes());
-    format!("api-keys-{}", &to_hex(&digest)[..16])
-}
-
-fn to_hex(bytes: &[u8]) -> String {
-    bytes.iter().fold(String::new(), |mut text, byte| {
-        let _ = write!(text, "{byte:02x}");
-        text
-    })
+    format!("api-keys-{}", &saturn_domain::research::hex(&digest)[..16])
 }
 
 /// A key saved as hex; anything that is not exactly one key counts as none.
@@ -162,7 +154,7 @@ impl KeyStore for Keychain {
         let line = format!(
             "add-generic-password -U -s \"{SERVICE}\" -a \"{}\" -l \"Saturn API key encryption\" -w {}\nquit\n",
             self.account,
-            to_hex(key)
+            saturn_domain::research::hex(key)
         );
         run(Path::new(SECURITY), &["-i"], &line)?;
         if self.get()?.as_ref() != Some(key) {
@@ -291,7 +283,7 @@ impl KeyStore for Libsecret {
                 "account",
                 &self.account,
             ],
-            &to_hex(key),
+            &saturn_domain::research::hex(key),
         )?;
         if !result.succeeded() {
             return Err(io::Error::other(format!(
@@ -326,7 +318,10 @@ impl KeyStore for KeyFile {
     }
 
     fn set(&self, key: &Key) -> io::Result<()> {
-        write_private(&self.file, format!("{}\n", to_hex(key)).as_bytes())
+        write_private(
+            &self.file,
+            format!("{}\n", saturn_domain::research::hex(key)).as_bytes(),
+        )
     }
 }
 

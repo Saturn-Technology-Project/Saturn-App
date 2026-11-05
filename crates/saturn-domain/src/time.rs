@@ -1,4 +1,7 @@
 //! Times as Saturn saves them: UTC, in the form `Date.toISOString` writes.
+use jiff::Timestamp;
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Milliseconds since 1970-01-01 UTC.
@@ -8,48 +11,55 @@ pub fn now_millis() -> i64 {
         .map_or(0, |elapsed| elapsed.as_millis() as i64)
 }
 
-/// A time like `2026-11-03T05:37:09.916Z`.
+/// A time like `2026-11-03T05:37:09.916Z`. A time past the year 9999 either way, which no clock gives, reads as the nearest time
+/// jiff can hold.
 pub fn iso_time(millis: i64) -> String {
-    let days = millis.div_euclid(86_400_000);
-    let clock = millis.rem_euclid(86_400_000);
-    let (year, month, day) = civil_date(days);
+    let (earliest, latest) = (
+        Timestamp::MIN.as_millisecond(),
+        Timestamp::MAX.as_millisecond(),
+    );
+    let at = Timestamp::from_millisecond(millis.clamp(earliest, latest))
+        .unwrap_or(Timestamp::UNIX_EPOCH);
+    let time = at.to_zoned(TimeZone::UTC).datetime();
     format!(
-        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.{:03}Z",
-        clock / 3_600_000,
-        clock % 3_600_000 / 60_000,
-        clock % 60_000 / 1000,
-        clock % 1000
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        time.year(),
+        time.month(),
+        time.day(),
+        time.hour(),
+        time.minute(),
+        time.second(),
+        time.millisecond()
     )
 }
 
-/// The calendar date of a day counted from 1970-01-01 (Howard Hinnant's `civil_from_days`).
+/// The calendar date of a day counted from 1970-01-01. Days past the year 9999 either way read as the nearest date jiff can hold.
 pub fn civil_date(days: i64) -> (i64, u32, u32) {
-    let shifted = days + 719_468;
-    let era = shifted.div_euclid(146_097);
-    let day_of_era = shifted.rem_euclid(146_097);
-    let year_of_era =
-        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let shifted_month = (5 * day_of_year + 2) / 153;
-    let day = (day_of_year - (153 * shifted_month + 2) / 5 + 1) as u32;
-    let month = if shifted_month < 10 {
-        shifted_month + 3
-    } else {
-        shifted_month - 9
-    } as u32;
-    let year = year_of_era + era * 400 + i64::from(month <= 2);
-    (year, month, day)
+    let (earliest, latest) = (Timestamp::MIN.as_second(), Timestamp::MAX.as_second());
+    let seconds = days.saturating_mul(86_400).clamp(earliest, latest);
+    let date = Timestamp::from_second(seconds)
+        .unwrap_or(Timestamp::UNIX_EPOCH)
+        .to_zoned(TimeZone::UTC)
+        .date();
+    (
+        i64::from(date.year()),
+        u32::try_from(date.month()).unwrap_or(1),
+        u32::try_from(date.day()).unwrap_or(1),
+    )
 }
 
-/// The day counted from 1970-01-01 of a calendar date (Howard Hinnant's `days_from_civil`).
+/// The day counted from 1970-01-01 of a calendar date, or `None` for a year jiff cannot hold (past 9999 either way) or a month
+/// outside 1 to 12. A day past the end of its month runs on into the next, as it always has here.
+fn checked_days_from_civil(year: i64, month: u32, day: u32) -> Option<i64> {
+    let first = Date::new(i16::try_from(year).ok()?, i8::try_from(month).ok()?, 1).ok()?;
+    let start = first.at(0, 0, 0, 0).to_zoned(TimeZone::UTC).ok()?;
+    Some(start.timestamp().as_second().div_euclid(86_400) + i64::from(day) - 1)
+}
+
+/// The day counted from 1970-01-01 of a calendar date. A year jiff cannot hold counts as the nearest one it can, a month outside 1
+/// to 12 as the nearest month.
 pub fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
-    let year = year - i64::from(month <= 2);
-    let era = year.div_euclid(400);
-    let year_of_era = year.rem_euclid(400);
-    let shifted_month = i64::from((month + 9) % 12);
-    let day_of_year = (153 * shifted_month + 2) / 5 + i64::from(day) - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    era * 146_097 + day_of_era - 719_468
+    checked_days_from_civil(year.clamp(-9999, 9999), month.clamp(1, 12), day).unwrap_or(0)
 }
 
 /// The day of the week of a day counted from 1970-01-01; 0 is Sunday.
@@ -72,7 +82,7 @@ pub fn parse_iso(text: &str) -> Option<i64> {
     if parts.next().is_some() || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
         return None;
     }
-    let midnight = days_from_civil(year, month, day) * 86_400_000;
+    let midnight = checked_days_from_civil(year, month, day)? * 86_400_000;
     let Some(time) = time else {
         return Some(midnight);
     };
@@ -134,5 +144,14 @@ mod tests {
         assert_eq!(days_from_civil(2026, 12, 1) * 86_400_000, 1_796_083_200_000);
         assert_eq!(weekday(0), 4, "1970-01-01 was a Thursday");
         assert_eq!(weekday(days_from_civil(2026, 11, 3)), 2, "a Tuesday");
+    }
+
+    #[test]
+    fn a_day_past_the_end_of_its_month_runs_on_and_a_year_jiff_cannot_hold_is_refused() {
+        assert_eq!(days_from_civil(2026, 2, 31), days_from_civil(2026, 3, 3));
+        assert_eq!(parse_iso("2026-02-31"), parse_iso("2026-03-03"));
+        assert_eq!(parse_iso("10000-01-01"), None);
+        assert_eq!(iso_time(i64::MAX), iso_time(i64::MAX - 1));
+        assert_eq!(civil_date(i64::MIN).0, -9999);
     }
 }

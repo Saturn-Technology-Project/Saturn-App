@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::io::{IsTerminal, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use reqwest::{Method, Response};
 use serde_json::{Value, json};
 
@@ -115,22 +116,21 @@ impl Arguments {
     }
 }
 
+/// What a path component keeps as it is, besides letters and digits (as `encodeURIComponent` does).
+const PATH_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'!')
+    .remove(b'~')
+    .remove(b'*')
+    .remove(b'\'')
+    .remove(b'(')
+    .remove(b')');
+
 /// A path component for a URL.
 fn encoded(text: &str) -> String {
-    let mut out = String::new();
-    for byte in text.bytes() {
-        if byte.is_ascii_alphanumeric()
-            || matches!(
-                byte,
-                b'-' | b'_' | b'.' | b'!' | b'~' | b'*' | b'\'' | b'(' | b')'
-            )
-        {
-            out.push(char::from(byte));
-        } else {
-            out.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    out
+    utf8_percent_encode(text, PATH_COMPONENT).to_string()
 }
 
 /// The running Saturn.
