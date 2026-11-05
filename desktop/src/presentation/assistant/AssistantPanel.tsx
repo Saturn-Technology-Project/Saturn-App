@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { assistantRole, assistantRunMode, errorContext, MANUAL_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
+import { assistantRole, assistantRunMode, errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
 import { GUARDRAIL_MODES, normalizeGuardrailMode, type GuardrailModeId } from "../../domain/conversation.js";
 import type { Agent, ContextItem, Model } from "../../domain/model.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
@@ -167,7 +167,7 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
       <div className="lab-composer">
         {mode !== "pair" ? (
           <div className="lab-requests">
-            {MANUAL_REQUESTS.map((request) => (
+            {(reviewing ? REVIEW_REQUESTS : MANUAL_REQUESTS).map((request) => (
               <button type="button" key={request.label} className="lab-request" disabled={conversation.busy} onClick={() => void ask(request.prompt, request.label === "Explain the error" && focus?.errorOutput && !attached("error") ? errorContext(focus.errorOutput) : undefined)}>
                 {request.label}
               </button>
