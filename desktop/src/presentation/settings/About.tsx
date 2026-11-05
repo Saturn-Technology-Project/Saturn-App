@@ -3,41 +3,41 @@ import type { RuntimeInfo } from "../../domain/model";
 
 const PARTS: { name: string; role: string; body: string }[] = [
   {
-    name: "Agent App",
+    name: "Research workbench",
     role: "This window",
-    body: "Create agents, give each one a model and tools, and chat with them alone, in a project, or together in a group.",
+    body: "Your questions, code, experiments, models, samples and findings, with a research assistant beside them.",
   },
   {
     name: "Saturn Runtime",
     role: "The local core",
-    body: "Runs on this Mac at 127.0.0.1. It calls the models, runs the built-in skills and MCP tools, and keeps your agents, chats and keys.",
+    body: "Runs on this computer at 127.0.0.1. It runs your experiments, calls the models, keeps your keys, and writes research records as plain files in each project.",
   },
 ];
 
 const FEATURES: { title: string; body: string }[] = [
   {
-    title: "Your models, side by side",
-    body: "Claude through your own Claude plan, Codex through your ChatGPT plan, Gemini, DeepSeek, OpenAI, or a local LM Studio model. Each agent picks its model and effort.",
+    title: "Experiments you can trust",
+    body: "A run freezes what it computed. Only runs measured the same way are compared, and a verdict is always yours to set.",
+  },
+  {
+    title: "A line of models",
+    body: "Follow checkpoints and their fine-tuned branches, read one sample across them, and look inside to see what changed.",
+  },
+  {
+    title: "As much AI as you want",
+    body: "In each chat, the assistant only reads, proposes changes for you to approve, or works on a task apart until you merge it.",
+  },
+  {
+    title: "Your models",
+    body: "Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local LM Studio model.",
   },
   {
     title: "Projects are real folders",
-    body: "A project is a folder on this Mac. Agents work in it only after you allow access, and can be revoked any time.",
+    body: "An agent works in a folder only after you allow it, and you can take that back at any time. Its edits can be reviewed and reverted.",
   },
   {
-    title: "Agents that work together",
-    body: "Put agents in a group: each one reads the conversation, decides whether it is needed, and hands work to others with @mentions.",
-  },
-  {
-    title: "Tools you control",
-    body: "Files, shell, web, computer use, automations and any MCP server. Risky actions wait for your approval.",
-  },
-  {
-    title: "Every change can be undone",
-    body: "Agent edits are checkpointed: review each file as a diff, keep it, revert it, or restore a chat to before any turn.",
-  },
-  {
-    title: "Stays on this machine",
-    body: "The runtime listens only on 127.0.0.1 behind a session token. Telemetry, including the IDE's, goes to the runtime, not to a vendor.",
+    title: "Stays on this computer",
+    body: "The runtime listens only on 127.0.0.1 behind a session token. Telemetry stays here unless you send it somewhere, and every request it sends is in the network log.",
   },
 ];
 
@@ -50,7 +50,7 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
         <img className="about-icon" src={saturnIcon} alt="" width={64} height={64} />
         <div>
           <h3 className="about-name">Saturn</h3>
-          <p className="about-tagline">AI agents that run on your own computer.</p>
+          <p className="about-tagline">A workbench for AI research, on your own computer.</p>
         </div>
         {props.onRerunOnboarding ? (
           <button type="button" className="btn ghost tiny about-rerun" onClick={props.onRerunOnboarding} title="Show the tour again">
@@ -60,9 +60,9 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
       </header>
 
       <p className="about-lead">
-        Saturn is a desktop workspace for AI agents. You choose the models, the tools and the folders they may touch; the agents
-        then read code, run commands, edit files and automate work for you, while everything they do stays visible, reviewable and
-        reversible. The app, its runtime and its editor all run locally.
+        Saturn is a desktop workbench for AI research. Read the method, write the code yourself, run the experiment and inspect
+        every sample, with as much help from AI as you choose. The app and its runtime run locally, and your records stay in your
+        project.
       </p>
 
       <section className="about-section">

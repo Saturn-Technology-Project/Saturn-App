@@ -268,6 +268,16 @@ export function Settings(props: {
 }
 
 /** Settings → General → Command line: install the `saturn` command, which runs this app's own CLI. */
+/** What each of Saturn's own tool servers is for. */
+const BUILT_IN_SUMMARIES: Record<string, string> = {
+  "general-skills": "Files, commands, web and plans",
+  "computer-use": "Mouse, keyboard and screen",
+  origin: "GitHub repositories and pull requests",
+  automations: "Schedules, rules, skills and plugins",
+  browser: "A browser agents can drive",
+  research: "Research records, runs and looking inside models",
+};
+
 function CommandLine(props: { onError: (message: string) => void }) {
   const [status, setStatus] = useState<CliStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -502,7 +512,7 @@ function McpPage(props: {
               <span className="hint">
                 {item.command
                   ? `${item.approval === "approved" ? `${item.tools.length} tools · ` : ""}Local program · ${item.commandLine ?? item.command.program}`
-                  : `${item.tools.length} tools · ${builtin ? "Built-in workspace skills" : item.url}`}
+                  : `${item.tools.length} tools · ${builtin ? (BUILT_IN_SUMMARIES[item.id] ?? "Built in") : item.url}`}
               </span>
             </span>
           </button>
@@ -570,8 +580,8 @@ function McpPage(props: {
 
   return (
     <>
+      <div className="section-subtitle">Connect an MCP server</div>
       <section className="card">
-        <div className="label">Connect MCP Server</div>
         <div className="segmented mcp-kind">
           <button type="button" className={kind === "url" ? "seg-btn active" : "seg-btn"} onClick={() => setKind("url")}>URL</button>
           <button type="button" className={kind === "command" ? "seg-btn active" : "seg-btn"} onClick={() => setKind("command")}>Local Program</button>
@@ -765,7 +775,7 @@ export function LlmPage(props: {
 
   return (
     <>
-      <div className="section-subtitle">Connected Models</div>
+      <div className="section-subtitle">Connected models</div>
       {props.models.length === 0 ? (
         <p className="hint" style={{ marginBottom: 14 }}>No models connected yet. Add a cloud or local LM Studio model below.</p>
       ) : (
@@ -870,7 +880,7 @@ export function LlmPage(props: {
         })
       )}
 
-      <div className="section-subtitle" style={{ marginTop: 20 }}>Add Model Connection</div>
+      <div className="section-subtitle" style={{ marginTop: 20 }}>Connect a model</div>
       <section className="card">
         <div className="form-grid-2">
           <div>
@@ -1170,7 +1180,7 @@ function General(props: {
           <div className="settings-card-row">
             <div className="settings-row-text">
               <span className="settings-row-label">Theme</span>
-              <span className="settings-row-desc">Light or dark appearance for the Agent App.</span>
+              <span className="settings-row-desc">Light or dark appearance.</span>
             </div>
             {themeButtons}
           </div>

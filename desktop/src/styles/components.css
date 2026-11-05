@@ -3748,3 +3748,74 @@ button.trace-row:hover {
   border-radius: 12px;
   box-shadow: var(--shadow-md);
 }
+
+/* Settings' fields: one look for every input and menu, whichever page they are on. */
+.settings-modal-dialog input:not([type="checkbox"], [type="radio"]),
+.settings-modal-dialog select,
+.settings-modal-dialog textarea {
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--input);
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.settings-modal-dialog textarea {
+  min-height: 96px;
+}
+
+.settings-modal-dialog input:focus,
+.settings-modal-dialog select:focus,
+.settings-modal-dialog textarea:focus {
+  border-color: var(--blue);
+  outline: 0;
+}
+
+.settings-modal-dialog input::placeholder,
+.settings-modal-dialog textarea::placeholder {
+  color: var(--subtle);
+}
+
+/* A label sits over its field, in the same words and case as the rest of the page. */
+.settings-modal-dialog .label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.settings-modal-dialog .card > div > select,
+.settings-modal-dialog .card > div > input,
+.settings-modal-dialog .form-grid-2 select,
+.settings-modal-dialog .form-grid-2 input {
+  display: block;
+  width: 100%;
+}
+
+.settings-modal-dialog .form-grid-2 {
+  gap: 12px;
+}
+
+.settings-modal-dialog .card {
+  gap: 14px;
+}
+
+.settings-modal-dialog .card .hint {
+  margin: 6px 0 0;
+  line-height: 1.45;
+}
+
+.settings-modal-dialog .section-subtitle {
+  margin: 4px 0 0;
+}
+
+.settings-modal-dialog .inline-form input {
+  flex: 1;
+  min-width: 0;
+}
+
