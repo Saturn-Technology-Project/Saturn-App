@@ -75,7 +75,7 @@ export function Guide(props: { go: (screen: Screen) => void }) {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-30">
-      {box ? <div className="absolute rounded-lg border-2 border-primary shadow-[0_0_0_3px_var(--stage),0_0_0_5px_var(--accent)]" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : null}
+      {box ? <div className="absolute rounded-lg border-2 border-primary shadow-[0_0_0_3px_var(--bg),0_0_0_5px_var(--accent)]" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : null}
       <section className="glass pointer-events-auto absolute flex max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-xl px-3.5 py-3 text-foreground shadow-lg ring-1 ring-foreground/10" aria-label="Walking you through it" style={{ top, left, width: CARD_WIDTH }}>
         <div className="text-[11px] text-muted-foreground">
           {at + 1} of {places.length}

@@ -11,7 +11,7 @@ export function RuntimeGate(props: { status: RuntimeStatus; restart: (() => Prom
   const log = status.state === "starting" || status.state === "failed" ? status.log : [];
   const tone = status.state === "failed" ? "bg-destructive" : status.state === "blocked" ? "bg-wait" : "bg-info";
   return (
-    <div className="absolute inset-x-0 top-(--bar-height) bottom-0 z-50 flex items-center justify-center bg-stage p-6" role="status" aria-live="polite">
+    <div className="absolute inset-x-0 top-(--bar-height) bottom-0 z-50 flex items-center justify-center bg-background p-6" role="status" aria-live="polite">
       <div className="flex w-[min(560px,100%)] flex-col gap-2.5">
         <h2 className="mt-0! flex items-center gap-2 text-(length:--text-title) font-semibold">
           <span aria-hidden="true" className={classes("size-2.5 shrink-0 rounded-full", tone, status.state === "starting" && "animate-pulse")} />

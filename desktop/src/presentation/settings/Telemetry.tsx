@@ -498,7 +498,7 @@ function SpanDetail(props: { span: SpanRecord; traceStart: number }) {
   const { span } = props;
   const attributes = Object.entries(span.attributes).sort(([a], [b]) => a.localeCompare(b));
   return (
-    <div className="mx-3.5 mt-0.5 mb-2 flex flex-col gap-3 rounded-lg border border-border bg-stage px-3.5 py-3">
+    <div className="mx-3.5 mt-0.5 mb-2 flex flex-col gap-3 rounded-lg border border-border bg-background px-3.5 py-3">
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
         <Fact label="Duration" value={formatDuration(span.durationMs)} />
         <Fact label="Starts at" value={`+${formatDuration(span.startMs - props.traceStart)}`} />
