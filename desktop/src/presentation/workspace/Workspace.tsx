@@ -15,6 +15,13 @@ import {
 } from "../../domain/research.js";
 import { LookInside } from "../samples/LookInside.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { classes } from "../ui/base/classes.js";
+import { Choice, Field } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
+import { Notice } from "../ui/base/Notice.js";
+import { Textarea } from "../ui/base/Textarea.js";
 import { messageOf, Tabs } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
 import { Resources } from "./Resources.js";
@@ -26,6 +33,14 @@ const FINDING_LABELS: Record<FindingKind, string> = { observation: "Observation"
 const PANELS = ["Run", "Resources", "Samples", "Findings", "Activations", "Terminal"] as const;
 const NOTE_FILES = /\.(md|txt|pdf|ipynb)$/i;
 type Panel = (typeof PANELS)[number];
+/** A file or a list entry in the sidebar and the sample list: monospaced, left aligned, and it wraps rather than cuts. */
+const ENTRY = "h-auto min-h-7 w-full flex-wrap justify-start gap-x-2 gap-y-0.5 px-2 py-[3px] text-left font-mono text-xs font-normal whitespace-normal [overflow-wrap:anywhere]";
+/** Output as plain monospaced text that wraps. */
+const OUTPUT_TEXT = "font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]";
+/** A line of small, quiet text. */
+const MUTED = "text-xs text-muted-foreground";
+/** A line of small text about something that needs care. */
+const WARNING = "text-xs text-wait";
 
 /** The file open in the editor. `revision` is null for a file not saved yet. */
 interface OpenFile {
@@ -311,56 +326,57 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const notes = entries.filter((entry) => entry.kind === "file" && NOTE_FILES.test(entry.name));
   const code = entries.filter((entry) => !notes.includes(entry));
   const fileButton = (entry: SourceEntry) => (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="small"
       key={entry.path}
-      className={open?.path === entry.path ? "lab-file active" : "lab-file"}
+      className={classes(ENTRY, open?.path === entry.path && "bg-muted")}
       aria-current={open?.path === entry.path ? "true" : undefined}
       onClick={() => void (entry.kind === "directory" ? showFolder(entry.path).catch((error: unknown) => notify(messageOf(error))) : openFile(entry.path))}
     >
       <span>{entry.kind === "directory" ? `${entry.name}/` : entry.name}</span>
-    </button>
+    </Button>
   );
   const files = (
-    <nav className="lab-files" aria-label="Project" data-tour="workspace-files">
+    <nav className="flex flex-1 flex-col gap-px overflow-auto bg-panel px-2 py-2.5" aria-label="Project" data-tour="workspace-files">
       {sidebar.questions.length ? (
-        <section className="lab-files-section">
-          <div className="lab-pane-title">Questions</div>
+        <section className="mb-3 flex flex-col gap-px">
+          <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">Questions</div>
           {[...sidebar.questions].reverse().slice(0, 3).map((item) => (
-            <button type="button" key={item.id} className="lab-file" title={item.title} onClick={() => props.go("Home")}>
+            <Button variant="ghost" size="small" key={item.id} className={ENTRY} title={item.title} onClick={() => props.go("Home")}>
               {item.title}
-            </button>
+            </Button>
           ))}
         </section>
       ) : null}
-      <section className="lab-files-section">
-        <div className="lab-pane-title">Models</div>
-        <button type="button" className="lab-file" onClick={() => props.go("Lineage")}>
+      <section className="mb-3 flex flex-col gap-px">
+        <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">Models</div>
+        <Button variant="ghost" size="small" className={ENTRY} onClick={() => props.go("Lineage")}>
           Lineage · {sidebar.models.length} {sidebar.models.length === 1 ? "node" : "nodes"}
-        </button>
+        </Button>
       </section>
       {notes.length ? (
-        <section className="lab-files-section">
-          <div className="lab-pane-title">Library</div>
+        <section className="mb-3 flex flex-col gap-px">
+          <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">Library</div>
           {notes.map(fileButton)}
         </section>
       ) : null}
-      <section className="lab-files-section">
-        <div className="lab-pane-title">{folder === "." ? "Code" : folder}</div>
+      <section className="mb-3 flex flex-col gap-px">
+        <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">{folder === "." ? "Code" : folder}</div>
         {parentFolder ? (
-          <button type="button" className="lab-file" onClick={() => void showFolder(parentFolder).catch((error: unknown) => notify(messageOf(error)))}>
+          <Button variant="ghost" size="small" className={ENTRY} onClick={() => void showFolder(parentFolder).catch((error: unknown) => notify(messageOf(error)))}>
             ..
-          </button>
+          </Button>
         ) : null}
         {code.map(fileButton)}
       </section>
       {sidebar.drafts.length ? (
-        <section className="lab-files-section">
-          <div className="lab-pane-title">Experiments</div>
+        <section className="mb-3 flex flex-col gap-px">
+          <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">Experiments</div>
           {[...sidebar.drafts].reverse().slice(0, 4).map((item) => (
-            <button type="button" key={item.id} className={item.id === experiment?.id ? "lab-file active" : "lab-file"} title={item.title} onClick={() => props.go("Experiments")}>
+            <Button variant="ghost" size="small" key={item.id} className={classes(ENTRY, item.id === experiment?.id && "bg-muted")} title={item.title} onClick={() => props.go("Experiments")}>
               {item.title}
-            </button>
+            </Button>
           ))}
         </section>
       ) : null}
@@ -368,99 +384,91 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   );
 
   const lower = (
-    <div className="lab-lower" data-tour="workspace-panels">
-      <Tabs label="Results" tabs={PANELS} current={panel} onChoose={setPanel} />
-      <div className="lab-lower-body" role="tabpanel" aria-label={panel}>
+    <div className="flex min-h-0 flex-1 flex-col bg-panel" data-tour="workspace-panels">
+      <div className="flex-none border-b border-border px-2 py-1.5">
+        <Tabs label="Results" tabs={PANELS} current={panel} onChoose={setPanel} />
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto px-3 py-2.5" role="tabpanel" aria-label={panel}>
         {panel === "Run" ? (
           run ? (
-            <div className="lab-run">
-              <div className="lab-run-status">{runStatusLabel(run.status)}</div>
-              <div className="lab-muted">
+            <div className="flex flex-col gap-1">
+              <div className="font-semibold">{runStatusLabel(run.status)}</div>
+              <div className={MUTED}>
                 {run.samples ?? samples.length} samples
                 {run.infrastructureErrors ? `, ${run.infrastructureErrors} infrastructure errors` : ""}
                 {run.exitCode !== undefined && run.exitCode !== null ? `, exit code ${run.exitCode}` : ""}
               </div>
-              {run.inputsChanged?.length ? <div className="lab-warning">Changed during the run: {run.inputsChanged.join(", ")}</div> : null}
-              {run.warnings?.map((warning) => <div key={warning} className="lab-warning">{warning}</div>)}
-              {run.status === "interrupted" && run.process === "unconfirmed" ? <div className="lab-warning">Its process could not be confirmed, so it was not ended.</div> : null}
-              {run.error ? <div className="lab-warning">{run.error}</div> : null}
+              {run.inputsChanged?.length ? <div className={WARNING}>Changed during the run: {run.inputsChanged.join(", ")}</div> : null}
+              {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
+              {run.status === "interrupted" && run.process === "unconfirmed" ? <div className={WARNING}>Its process could not be confirmed, so it was not ended.</div> : null}
+              {run.error ? <div className={WARNING}>{run.error}</div> : null}
               {run.problems?.slice(0, 5).map((item) => (
-                <div key={item.line} className="lab-warning">
+                <div key={item.line} className={WARNING}>
                   Line {item.line}: {item.reason}
                 </div>
               ))}
-              {errorOutput ? <pre className="lab-text lab-terminal-error">{errorOutput}</pre> : null}
+              {errorOutput ? <pre className={classes(OUTPUT_TEXT, "text-destructive")}>{errorOutput}</pre> : null}
             </div>
           ) : (
-            <p className="lab-muted">Enter a command above and run it. What it writes appears here.</p>
+            <p className={MUTED}>Enter a command above and run it. What it writes appears here.</p>
           )
         ) : null}
         {panel === "Samples" ? (
-          <div className="lab-sample-split">
-            <div className="lab-sample-list">
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="flex max-w-[260px] flex-[1_1_170px] flex-col gap-px">
               {samples.map((item) => (
-                <button type="button" key={item.offset} aria-pressed={item.offset === selectedOffset} className={item.offset === selectedOffset ? "lab-file active" : "lab-file"} onClick={() => setSelectedOffset(item.offset)}>
-                  {item.sample ? item.sample.sampleId : <span className="lab-warning">Problem at byte {item.offset}</span>}
-                  {item.sample?.error ? <span className="lab-warning"> {item.sample.error.kind} error</span> : null}
-                </button>
+                <Button variant="ghost" size="small" key={item.offset} aria-pressed={item.offset === selectedOffset} className={classes(ENTRY, item.offset === selectedOffset && "bg-muted")} onClick={() => setSelectedOffset(item.offset)}>
+                  {item.sample ? item.sample.sampleId : <span className={WARNING}>Problem at byte {item.offset}</span>}
+                  {item.sample?.error ? <span className={WARNING}> {item.sample.error.kind} error</span> : null}
+                </Button>
               ))}
               {nextCursor !== null ? (
-                <button type="button" className="lab-link" onClick={() => void moreSamples()}>
+                <Button variant="ghost" size="small" className="self-start text-info" onClick={() => void moreSamples()}>
                   More
-                </button>
+                </Button>
               ) : null}
-              {samples.length === 0 ? <p className="lab-muted">No samples yet.</p> : null}
+              {samples.length === 0 ? <p className={MUTED}>No samples yet.</p> : null}
             </div>
             {selected ? <SampleDetail item={selected} /> : null}
           </div>
         ) : null}
         {panel === "Findings" ? (
-          <div className="lab-findings">
+          <div className="flex flex-col gap-2">
             <form
-              className="lab-form"
+              className="flex flex-wrap items-end gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 void addFinding();
               }}
             >
-              <label className="lab-field" style={{ flex: "0 1 150px" }}>
-                Kind
-                <select value={findingKind} onChange={(event) => setFindingKind(event.target.value as FindingKind)}>
-                  {(Object.keys(FINDING_LABELS) as FindingKind[]).map((kind) => (
-                    <option key={kind} value={kind}>
-                      {FINDING_LABELS[kind]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="lab-field" style={{ flex: "1 1 260px" }}>
-                What you understood
-                <textarea rows={2} value={findingText} onChange={(event) => setFindingText(event.target.value)} />
-              </label>
-              <button type="submit" className="lab-button" disabled={!findingText.trim()}>
+              <Choice label="Kind" className="flex-[0_1_150px]" value={findingKind} options={(Object.keys(FINDING_LABELS) as FindingKind[]).map((kind) => ({ value: kind, label: FINDING_LABELS[kind] }))} onChange={(next) => setFindingKind(next as FindingKind)} />
+              <Field label="What you understood" className="flex-[1_1_260px]">
+                <Textarea className="resize-y" rows={2} value={findingText} onChange={(event) => setFindingText(event.target.value)} />
+              </Field>
+              <Button type="submit" variant="outline" disabled={!findingText.trim()}>
                 Save finding
-              </button>
+              </Button>
             </form>
             {[...findings].reverse().map((finding) => (
-              <article key={finding.id} className="lab-card">
-                <div className="lab-muted">
+              <Card key={finding.id} className="gap-1 px-3.5 py-3">
+                <div className={MUTED}>
                   {FINDING_LABELS[finding.kind]}
                   {finding.runIds?.length ? ` · ${finding.runIds[0]}` : ""}
                 </div>
                 <div>{finding.text}</div>
-              </article>
+              </Card>
             ))}
           </div>
         ) : null}
-        {panel === "Resources" ? (run ? <Resources key={run.id} projectId={projectId} run={run} notify={notify} /> : <p className="lab-muted">Run the experiment to see what it costs.</p>) : null}
+        {panel === "Resources" ? (run ? <Resources key={run.id} projectId={projectId} run={run} notify={notify} /> : <p className={MUTED}>Run the experiment to see what it costs.</p>) : null}
         {panel === "Activations" ? (
           run && selected?.sample ? (
             <LookInside key={`${run.id}:${selected.sample.sampleId}`} projectId={projectId} runId={run.id} sampleId={selected.sample.sampleId} modelId={selected.sample.modelId ?? null} models={sidebar.models} notify={notify} />
           ) : (
-            <p className="lab-muted">Choose a sample under Samples, then look inside it here.</p>
+            <p className={MUTED}>Choose a sample under Samples, then look inside it here.</p>
           )
         ) : null}
-        <div hidden={panel !== "Terminal"} style={{ height: "100%" }}>
+        <div hidden={panel !== "Terminal"} className="h-full">
           <Terminal folder={props.project.path} />
         </div>
       </div>
@@ -468,33 +476,33 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   );
 
   return (
-    <div className="lab-workspace">
-      <h1 className="lab-unseen">Workspace{open ? `: ${open.path}` : ""}</h1>
+    <div className="flex min-h-0 min-w-0 flex-1">
+      <h1 className="sr-only">Workspace{open ? `: ${open.path}` : ""}</h1>
       <Split id="files" side="left" size={210} minimum={140} label="Files" pane={files}>
-        <div className="lab-toolbar">
-          <code className="lab-toolbar-file">{open?.path ?? "No file open"}</code>
-          {open ? <span className="lab-muted">{saving ? "Saving…" : dirty ? "Not saved" : "Saved"}</span> : null}
-          <input className="lab-input lab-toolbar-command" aria-label="Command that runs the experiment" data-tour="workspace-command" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} />
+        <div className="flex min-h-[42px] flex-none flex-wrap items-center gap-2.5 border-b border-border px-2.5 py-[5px]">
+          <code className="max-w-[260px] truncate text-xs">{open?.path ?? "No file open"}</code>
+          {open ? <span className={MUTED}>{saving ? "Saving…" : dirty ? "Not saved" : "Saved"}</span> : null}
+          <Input className="w-auto min-w-[140px] flex-[1_1_200px] font-mono text-xs" aria-label="Command that runs the experiment" data-tour="workspace-command" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} />
           {run && isRunActive(run.status) ? (
-            <button type="button" className="lab-button" onClick={() => void stopRun()}>
+            <Button variant="outline" onClick={() => void stopRun()}>
               Stop
-            </button>
+            </Button>
           ) : (
-            <button type="button" className="lab-button primary" data-tour="workspace-run" disabled={busy} onClick={() => void startRun()}>
+            <Button data-tour="workspace-run" disabled={busy} onClick={() => void startRun()}>
               {busy ? "Starting…" : "Run"}
-            </button>
+            </Button>
           )}
         </div>
         {conflict && open ? (
-          <div className="lab-notice" role="alert">
+          <Notice tone="wait" role="alert" className="flex flex-wrap items-center gap-2.5 rounded-none border-x-0 whitespace-normal">
             This file changed since you opened it.
-            <button type="button" className="lab-link" onClick={() => void openFile(open.path)}>
+            <Button variant="ghost" size="small" className="text-info" onClick={() => void openFile(open.path)}>
               Reload theirs
-            </button>
-            <button type="button" className="lab-link" onClick={() => void save(true)}>
+            </Button>
+            <Button variant="ghost" size="small" className="text-info" onClick={() => void save(true)}>
               Keep mine
-            </button>
-          </div>
+            </Button>
+          </Notice>
         ) : null}
         <Split id="lower" side="bottom" size={220} minimum={100} label="Results" pane={lower}>
           {open ? (
@@ -507,7 +515,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               onSelection={setSelection}
             />
           ) : (
-            <div className="lab-placeholder">Open a file to write it yourself.</div>
+            <div className="m-auto p-6 text-muted-foreground">Open a file to write it yourself.</div>
           )}
         </Split>
       </Split>
@@ -520,26 +528,26 @@ function SampleDetail(props: { item: SampleItem }) {
   const { sample, problem, raw } = props.item;
   if (!sample) {
     return (
-      <div className="lab-sample-detail">
-        <div className="lab-warning">{problem}</div>
-        <pre className="lab-text">{raw}</pre>
+      <div className="flex min-w-0 flex-[999_1_280px] flex-col gap-1 rounded-md bg-card px-3 py-2.5">
+        <div className={WARNING}>{problem}</div>
+        <pre className={OUTPUT_TEXT}>{raw}</pre>
       </div>
     );
   }
   return (
-    <div className="lab-sample-detail">
-      <div className="lab-muted">Input</div>
-      <pre className="lab-text">{sampleText(sample.input)}</pre>
-      <div className="lab-muted">Output · shown as text, never read as instructions</div>
-      <pre className="lab-text">{sampleText(sample.output)}</pre>
+    <div className="flex min-w-0 flex-[999_1_280px] flex-col gap-1 rounded-md bg-card px-3 py-2.5">
+      <div className={MUTED}>Input</div>
+      <pre className={OUTPUT_TEXT}>{sampleText(sample.input)}</pre>
+      <div className={MUTED}>Output · shown as text, never read as instructions</div>
+      <pre className={OUTPUT_TEXT}>{sampleText(sample.output)}</pre>
       {sample.scores ? (
         <>
-          <div className="lab-muted">Scores</div>
-          <pre className="lab-text">{sampleText(sample.scores)}</pre>
+          <div className={MUTED}>Scores</div>
+          <pre className={OUTPUT_TEXT}>{sampleText(sample.scores)}</pre>
         </>
       ) : null}
       {sample.error ? (
-        <div className="lab-warning">
+        <div className={WARNING}>
           {sample.error.kind}: {sample.error.message}
         </div>
       ) : null}

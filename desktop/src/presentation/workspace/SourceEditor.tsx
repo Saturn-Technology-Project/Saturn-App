@@ -63,5 +63,5 @@ export function SourceEditor(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.documentKey]);
 
-  return <div ref={host} className="research-editor-host" />;
+  return <div ref={host} className="min-h-0 flex-1 overflow-hidden [&_.cm-editor]:h-full" />;
 }

@@ -1,15 +1,16 @@
 import { useState } from "react";
+import { Button } from "./ui/base/Button.js";
 
 /** A reply with fenced code blocks shown as copyable snippets. */
 export function FormattedOutput(props: { text: string }) {
   const blocks = splitCodeBlocks(props.text);
   return (
-    <div className="formatted-output">
+    <div className="flex flex-col gap-2.5">
       {blocks.map((block, index) =>
         block.kind === "code" ? (
           <CodeSnippet key={index} lang={block.lang} code={block.content} />
         ) : (
-          <p className="assistant-paragraph" key={index}>
+          <p className="whitespace-pre-wrap" key={index}>
             {block.content}
           </p>
         ),
@@ -26,14 +27,14 @@ function CodeSnippet(props: { lang: string; code: string }) {
     window.setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <div className="code-block">
-      <div className="code-block-head">
+    <div className="overflow-hidden rounded-lg border border-border bg-(--code-bg)">
+      <div className="flex items-center justify-between border-b border-border px-2.5 py-1.5 text-[11px] text-muted-foreground">
         <span>{props.lang || "code"}</span>
-        <button type="button" className="copy-btn" onClick={copy}>
+        <Button variant="ghost" size="small" className="h-5 px-1.5 text-[11px] text-muted-foreground" onClick={copy}>
           {copied ? "Copied" : "Copy"}
-        </button>
+        </Button>
       </div>
-      <pre>
+      <pre className="overflow-x-auto px-3 py-2.5 text-[12.5px] leading-normal">
         <code>{props.code}</code>
       </pre>
     </div>

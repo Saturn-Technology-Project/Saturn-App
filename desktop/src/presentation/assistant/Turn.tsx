@@ -2,6 +2,7 @@ import { isBusy } from "../../domain/conversation.js";
 import type { Run } from "../../domain/model.js";
 import { shownInput, shownSources } from "../../domain/slash.js";
 import { guideIn } from "../../domain/workbench.js";
+import { Button } from "../ui/base/Button.js";
 import { FormattedOutput } from "../FormattedOutput.js";
 import { RunChangesCard } from "../RunChanges.js";
 import { RunSteps, WaitingSteps } from "../RunSteps.js";
@@ -13,24 +14,24 @@ export function Turn(props: { run: Run; onComment?: (text: string) => void }) {
   const details = [shownSources(run.input), run.mode === "ask" ? "Reads only" : ""].filter(Boolean).join(" · ");
   const guide = guideIn(run.output ?? "");
   return (
-    <article className="lab-turn">
-      <div className="lab-turn-input">
+    <article className="flex min-w-0 flex-none flex-col gap-2">
+      <div className="flex max-w-[88%] min-w-0 flex-col gap-[3px] self-end rounded-[12px_12px_3px_12px] bg-primary/12 px-[11px] py-[7px] whitespace-pre-wrap [overflow-wrap:anywhere]">
         <p>{shownInput(run.input)}</p>
-        {details ? <div className="lab-turn-details" title={details}>{details}</div> : null}
+        {details ? <div className="truncate text-[11px] text-muted-foreground" title={details}>{details}</div> : null}
       </div>
       <RunSteps run={run} busy={run.status === "running" || run.status === "queued"} />
       <RunChangesCard run={run} onComment={props.onComment} />
       {run.output ? (
-        <div className="lab-turn-output">
+        <div className="min-w-0 leading-[1.55] [overflow-wrap:anywhere]">
           <FormattedOutput text={guide.text} />
           {guide.places.length ? (
-            <button type="button" className="lab-button lab-turn-guide" title={guide.places.map((place) => place.title).join(", ")} onClick={() => startGuide(guide.places)}>
+            <Button variant="outline" className="mt-2" title={guide.places.map((place) => place.title).join(", ")} onClick={() => startGuide(guide.places)}>
               {guide.places.length === 1 ? `Show me: ${guide.places[0].title}` : `Walk me through it (${guide.places.length} steps)`}
-            </button>
+            </Button>
           ) : null}
         </div>
       ) : isBusy(run) || run.status === "waiting_approval" ? null : (
-        <div className={run.status === "failed" ? "lab-warning" : "lab-muted"}>{run.status === "cancelled" ? "Stopped" : run.error || run.status}</div>
+        <div className={run.status === "failed" ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{run.status === "cancelled" ? "Stopped" : run.error || run.status}</div>
       )}
       <WaitingSteps run={run} />
     </article>
