@@ -134,6 +134,8 @@ One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`.
   Disputed filtering and agreement use the same Rust rule and experiment vocabulary; error filtering uses `error`.
 - `expected`, optional, is what the scorer compared the output with: the right name, the reference answer. It is shown
   with the sample and never used by the runtime.
+- `alternative`, optional, is the word `expected` is scored against, for a scorer that compares two: the other name. A
+  layer sweep then reports the logit margin of `expected` over it. Only each word's first token is compared.
 - `usage`, optional, is what the sample cost as the program measured it: `inputTokens`, `outputTokens`, and
   `deviceMemoryBytes`, the device memory the program held when it wrote the line (`torch.cuda.max_memory_allocated()`,
   `torch.mps.current_allocated_memory()`). The summary adds the tokens up per model and keeps the highest memory, and
@@ -152,8 +154,9 @@ While the process runs, a final line without a newline is treated as not written
 | No valid line, exit code 0 | `protocol_error` |
 
 When a run ends, `samplesPerModel` records the most samples any one model got, and `warnings` holds what the runtime
-noticed: for now, a count unlike that of the last ended run of the same experiment whose version compares as the same
-evaluation, since a stated evaluation can go stale while the program changes. A warning changes nothing else.
+noticed: for now, a count unlike that of the last completed run of the same experiment whose version compares as the
+same evaluation, since a stated evaluation can go stale while the program changes. Only completed runs compare: a run
+that failed or was stopped neither gets this warning nor is compared with. A warning changes nothing else.
 
 A run that writes new untracked files into the project makes the next run's content differ, so the next run is a new
 version. Write outputs to `SATURN_RUN_DIRECTORY`, or to a folder git ignores.
@@ -181,9 +184,11 @@ environment that ran the experiment; a command that starts with anything else is
 - `POST /projects/{id}/research/interventions/sweep` with `{"runId","sampleIds":[...],"sourceModelId",
   "targetModelId","layers"?}` does the patch at every layer (or the ones named) on up to 32 samples in one helper
   process, both models loaded once, and answers `{"sourceModelId","targetModelId","layers":[...],"samples":[{"sampleId",
-  "expected","top","expectedLogProb","byLayer":[{"layer","top","expectedLogProb"}]}]}`: what the target ends on with
-  each layer patched, and the log-probability of the expected token there. Whether a layer "restores" a sample is for
-  the reader: the runtime gives the tokens, not a verdict.
+  "expected","alternative","top","expectedLogProb","margin","byLayer":[{"layer","top","expectedLogProb","margin"}]}]}`:
+  what the target ends on with each layer patched, the log-probability of the expected token there, and its logit margin
+  over `alternative` (null when the line names none). Whether a layer "restores" a sample is for the reader: the runtime
+  gives the numbers, not a verdict. The interface counts a margin above zero when every sample has one, since that is
+  what a two-way scorer judges, and the top token otherwise, and says which.
 - Block patches use the actual residual leaving the block, before final normalization. The final logit-lens reading
   uses the already normalized final hidden state without normalizing it again. Reading layer 0 is the embedding;
   intervention layer 0 is the output of the first block. A residual transplant replaces the whole prefix's state,
@@ -191,7 +196,8 @@ environment that ran the experiment; a command that starts with anything else is
 - The answer includes `helperSha256` and is saved in the run's folder under `inside/`, named by the request and the
   helper's hash. The same request with the same helper is answered from there without running again. An updated
   helper computes a new result and keeps earlier results intact. `GET /projects/{id}/research/runs/{run}/inside` lists everything saved there, newest
-  first, each with `kind` `reading` or `sweep`. `GET .../activations?sample=&model=` reads what was saved, or 404.
+  first, each with `kind` `reading` or `sweep`, and `current` true when this runtime's helper made it. An interface
+  counts only current results as findings and says how many earlier ones are kept. `GET .../activations?sample=&model=` reads what was saved, or 404.
 - A helper that fails answers 422 with the end of its error output. The runtime never interprets the values.
 
 ## What a run costs

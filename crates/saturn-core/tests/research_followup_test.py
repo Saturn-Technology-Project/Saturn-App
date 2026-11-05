@@ -106,6 +106,13 @@ class ResearchFollowupTests(unittest.TestCase):
             self.assertEqual(layer["top"], sample["top"])
             self.assertAlmostEqual(layer["expectedLogProb"], sample["expectedLogProb"], places=3)
 
+    def test_runtime_helper_margin_is_the_logit_difference_and_needs_both_words(self):
+        with torch.no_grad():
+            logits = self.model(**self.encoded).logits
+        self.assertAlmostEqual(inside.logit_margin(logits, 3, 5), (logits[0, -1, 3] - logits[0, -1, 5]).item(), places=3)
+        self.assertIsNone(inside.logit_margin(logits, 3, None))
+        self.assertIsNone(inside.logit_margin(logits, None, 5))
+
     def test_runtime_helper_final_reading_matches_the_actual_output_distribution(self):
         with torch.no_grad():
             result = self.model(**self.encoded, output_hidden_states=True)

@@ -93,6 +93,19 @@ def last_token(tokenizer, logits, expected_id):
     return tokenizer.decode(logits[0, -1].argmax()), (round(final[expected_id].item(), 4) if expected_id is not None else None)
 
 
+def first_token(tokenizer, text):
+    """The token a word starts with, or None when there is no word."""
+    return tokenizer(text, add_special_tokens=False).input_ids[0] if text else None
+
+
+def logit_margin(logits, expected_id, alternative_id):
+    """How far the expected token is ahead of the alternative at the end, or None without both."""
+    if expected_id is None or alternative_id is None:
+        return None
+    final = logits[0, -1]
+    return round((final[expected_id] - final[alternative_id]).item(), 4)
+
+
 def sweep(tokenizer, model, request):
     """Every sample at every layer: the residual stream leaving that layer taken from the source model, and what the
     target then ends on. Both models are loaded once."""
@@ -103,7 +116,8 @@ def sweep(tokenizer, model, request):
     for item in asked["samples"]:
         encoded = tokenizer(item["input"], return_tensors="pt")
         expected = item.get("expected")
-        expected_id = tokenizer(expected, add_special_tokens=False).input_ids[0] if expected else None
+        expected_id = first_token(tokenizer, expected)
+        alternative_id = first_token(tokenizer, item.get("alternative"))
         with torch.no_grad():
             plain = model(**encoded, output_hidden_states=True)
             donor = block_residuals(source, encoded)
@@ -115,8 +129,8 @@ def sweep(tokenizer, model, request):
                 raise SystemExit("The two models' residual streams differ in shape, so one cannot be patched into the other.")
             patched = patched_run(model, encoded, layer, donor[layer])
             patched_top, patched_likelihood = last_token(tokenizer, patched.logits, expected_id)
-            by_layer.append({"layer": layer, "top": patched_top, "expectedLogProb": patched_likelihood})
-        samples.append({"sampleId": item["sampleId"], "expected": expected, "top": top, "expectedLogProb": likelihood, "byLayer": by_layer})
+            by_layer.append({"layer": layer, "top": patched_top, "expectedLogProb": patched_likelihood, "margin": logit_margin(patched.logits, expected_id, alternative_id)})
+        samples.append({"sampleId": item["sampleId"], "expected": expected, "alternative": item.get("alternative"), "top": top, "expectedLogProb": likelihood, "margin": logit_margin(plain.logits, expected_id, alternative_id), "byLayer": by_layer})
     json.dump({"sourceModelId": asked.get("modelId"), "targetModelId": request.get("modelId"), "layers": layers, "samples": samples}, sys.stdout)
 
 

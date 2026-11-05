@@ -27,8 +27,8 @@ if [ "$1" = "-" ]; then
     if (request.sweep) {
       const layers = request.sweep.layers ?? [0, 1];
       process.stdout.write(JSON.stringify({ sourceModelId: request.sweep.modelId, targetModelId: request.modelId, layers, samples: request.sweep.samples.map((item) => ({
-        sampleId: item.sampleId, expected: item.expected, top: "x", expectedLogProb: -3,
-        byLayer: layers.map((layer) => ({ layer, top: layer === 1 ? item.expected : "x", expectedLogProb: layer === 1 ? -0.5 : -3 })) })) }));
+        sampleId: item.sampleId, expected: item.expected, alternative: item.alternative, top: "x", expectedLogProb: -3, margin: -1,
+        byLayer: layers.map((layer) => ({ layer, top: layer === 1 ? item.expected : "x", expectedLogProb: layer === 1 ? -0.5 : -3, margin: layer === 2 ? 0.5 : -1 })) })) }));
       process.exit(0);
     }
     const layers = [0, 1].map((layer) => ({ layer, values: request.input.split(" ").map((_, index) => layer + index / 10) }));
@@ -42,7 +42,7 @@ fi
 `;
 const PROBE = `
 import { appendFileSync } from "node:fs";
-const line = (sampleId, modelId, input, expected) => JSON.stringify({ schemaVersion: 1, sampleId, modelId, input, expected, output: "o", scores: { s: 1 } }) + "\\n";
+const line = (sampleId, modelId, input, expected) => JSON.stringify({ schemaVersion: 1, sampleId, modelId, input, expected, alternative: expected ? " John" : undefined, output: "o", scores: { s: 1 } }) + "\\n";
 appendFileSync(process.env.SATURN_RUN_SAMPLES, line("a", process.argv[2], "When Mary and John went", " Mary"));
 appendFileSync(process.env.SATURN_RUN_SAMPLES, line("b", process.argv[3], "boom", null));
 `;
@@ -106,6 +106,8 @@ test("a changed helper computes a new reading and leaves an earlier helper's res
   assert.equal(current.legacy, undefined);
   assert.equal(await readFile(legacy, "utf8"), original);
   assert.equal((await readdir(directory)).length, 2);
+  const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
+  assert.deepEqual(listed.items.map((item) => [Boolean(item.legacy), item.current]).sort(), [[false, true], [true, false]], "the earlier result is listed, and said not to be current");
 });
 
 test("an intervention patches a layer from one bound model into another, and the helper's failure is reported", posixOnly, async () => {
@@ -132,6 +134,8 @@ test("a sweep patches every layer on several samples in one helper process, and 
   const asked = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
   assert.deepEqual(asked.sweep.source, { source: "org/tuned", revision: "v1" });
   assert.deepEqual(asked.sweep.samples.map((item) => item.expected), [" Mary"]);
+  assert.deepEqual(asked.sweep.samples.map((item) => item.alternative), [" John"], "the line's alternative goes to the helper");
+  assert.deepEqual(swept.samples[0].byLayer.map((item) => item.margin), [-1, -1, 0.5]);
   const again = await saturn.api("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["a"], sourceModelId: tuned.id, targetModelId: base.id, layers: [0, 1, 2] });
   assert.equal(again.recordedAt, swept.recordedAt);
   const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id, "inside"));
@@ -139,6 +143,7 @@ test("a sweep patches every layer on several samples in one helper process, and 
   await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
   const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
   assert.deepEqual(listed.items.map((item) => item.kind).sort(), ["reading", "sweep"]);
+  assert.ok(listed.items.every((item) => item.current === true), "made by this runtime's helper");
   assert.equal(listed.items.find((item) => item.kind === "sweep").samples[0].sampleId, "a");
   assert.deepEqual((await saturn.api("GET", `${route}/runs/run_0000000000000000/inside`)).items, []);
   assert.equal((await saturn.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: [], sourceModelId: tuned.id, targetModelId: base.id })).status, 400);

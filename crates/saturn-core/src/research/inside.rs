@@ -179,13 +179,15 @@ impl Kernel {
         Ok(answer)
     }
 
-    /// Everything saved under a run's `inside/`: single readings and sweeps, newest first, whole.
+    /// Everything saved under a run's `inside/`: single readings and sweeps, newest first, whole. `current` says whether
+    /// the helper that made one is this runtime's, since a corrected helper leaves earlier results in place.
     pub async fn research_inside_list(&self, project: &str, run: &str) -> Result<Value, CoreError> {
         if !is_id(run) {
             return Err(CoreError::new(404, "No such run"));
         }
         let records = self.records_folder(project).await?;
         let folder = records.join("runs").join(run).join(FOLDER);
+        let helper = sha256_hex(HELPER.as_bytes());
         let mut items = Vec::new();
         let mut entries = match tokio::fs::read_dir(&folder).await {
             Ok(entries) => entries,
@@ -205,6 +207,7 @@ impl Kernel {
                 } else {
                     "reading"
                 });
+                saved["current"] = json!(text(&saved, "helperSha256") == helper);
                 items.push(saved);
             }
         }
@@ -288,7 +291,7 @@ impl Kernel {
                     format!("Sample {sample_id}'s input is not text."),
                 ));
             }
-            samples.push(json!({ "sampleId": sample_id, "input": line.get("input"), "expected": line.get("expected") }));
+            samples.push(json!({ "sampleId": sample_id, "input": line.get("input"), "expected": line.get("expected"), "alternative": line.get("alternative") }));
         }
         let ask = json!({
             "sampleId": sample_ids[0],
