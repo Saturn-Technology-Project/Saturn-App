@@ -87,8 +87,8 @@ export class ResearchService {
     return this.runtime.request(`${this.route(project)}/runs`);
   }
 
-  samples(project: string, run: string, cursor = 0, only: "all" | "disputed" | "errors" = "all"): Promise<{ items: SampleItem[]; next: number | null }> {
-    return this.runtime.request(`${this.route(project)}/runs/${run}/samples?cursor=${cursor}&only=${only}`);
+  samples(project: string, run: string, cursor = 0, only: "all" | "disputed" | "errors" = "all", limit?: number): Promise<{ items: SampleItem[]; next: number | null }> {
+    return this.runtime.request(`${this.route(project)}/runs/${run}/samples?cursor=${cursor}&only=${only}${limit ? `&limit=${limit}` : ""}`);
   }
 
   log(project: string, run: string, stream: "stdout" | "stderr"): Promise<{ text: string }> {

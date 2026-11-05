@@ -6,6 +6,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **A model's mechanism no longer shows a result from a corrected helper.** Sweeps made before a helper changed stay with the run and are counted apart, so an old number cannot stand for the model.
+- **"Restored" follows the scorer.** A program that writes `alternative` on its sample lines gets a layer sweep counted by the logit margin a two-way scorer judges, with the top token shown beside it; without one the sweep says it counts the top token.
+- **The Samples list keeps your place.** Labeling a sample, or any other change to the records, no longer sends the list back to its first page, and the list loads the whole run by itself up to 20,000 lines.
+- **A run is only warned about against whole runs.** A failed or stopped run no longer gets a sample-count warning, or causes one for the next run.
 - **Environment jobs have a deadline**, 30 minutes by default and adjustable before creating, installing or syncing. A timeout stops the whole process group, keeps the output and allows a retry; Stop also clears children that ignore the first signal.
 - **Run counters recover when a script rewrites its samples.** Lines and reported tokens are recounted from the current file, Resources flags the rewrite, and throughput no longer crosses the reset.
 - **Disputed samples are found across the whole run**, including past 5,000 lines. Experiments can map custom label names to scorer words; agreement and review warnings use the same rule, and switching runs or filters cannot show a late response from the preceding choice.

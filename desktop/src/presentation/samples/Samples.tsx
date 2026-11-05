@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import {
+  changeRereadsList,
   comparisonFactors,
   labelsOf,
+  readSamplePages,
   reviewProgress,
   runHasResults,
   runStatusLabel,
@@ -22,6 +24,8 @@ import { useRecords } from "../ui/useRecords.js";
 import { LookInside } from "./LookInside.js";
 
 const service = desktop.research;
+/** The most lines the runtime gives in one page. */
+const PAGE_LINES = 200;
 const ONLY: { id: "all" | "disputed" | "errors"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "disputed", label: "Disputed" },
@@ -90,9 +94,10 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
 
   useEffect(() => service.onOpen((asked) => asked.kind === "sample" && setTarget(asked)), []);
 
-  // The runtime filters before paging, so a dispute past the first pages is still found. Old requests cannot replace a new run/filter.
+  // The runtime filters before paging, so a dispute anywhere in the run is found. Old requests cannot replace a new run/filter.
   useEffect(() => {
     const current = ++generation.current;
+    const live = () => generation.current === current;
     setItems([]);
     setNextCursor(null);
     setLabels(null);
@@ -101,20 +106,57 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
     if (!runId) return undefined;
     void (async () => {
       try {
-        const [page, labeled, summed] = await Promise.all([service.samples(projectId, runId, 0, only), service.labels(projectId, runId), service.summary(projectId, runId)]);
-        if (generation.current !== current) return;
-        setItems(page.items);
-        setNextCursor(page.next);
+        setLoadingMore(true);
+        const [labeled, summed] = await Promise.all([service.labels(projectId, runId), service.summary(projectId, runId)]);
+        if (!live()) return;
         setLabels(labeled);
         setSummary(summed);
+        await readSamplePages((cursor) => service.samples(projectId, runId, cursor, only, PAGE_LINES), {
+          live,
+          onPage: (page) => {
+            setItems((loaded) => [...loaded, ...page.items]);
+            setNextCursor(page.next);
+          },
+        });
       } catch (error) {
-        if (generation.current === current) notify(messageOf(error));
+        if (live()) notify(messageOf(error));
+      } finally {
+        if (live()) setLoadingMore(false);
       }
     })();
     return () => { generation.current += 1; };
-  }, [notify, only, projectId, refresh, runId]);
+  }, [notify, only, projectId, runId]);
 
   useEffect(() => desktop.live.onResearchChange(() => setRefresh((current) => current + 1)), []);
+
+  // A change to the records must not cost the reader their place: labels and counts update, and the list stays as it is
+  // unless the change moves what its filter holds, when the new list replaces it whole.
+  useEffect(() => {
+    if (!refresh || !runId) return undefined;
+    let live = true;
+    const rereads = changeRereadsList(only);
+    const current = rereads ? ++generation.current : generation.current;
+    const fresh = () => live && generation.current === current;
+    void (async () => {
+      try {
+        const [labeled, summed] = await Promise.all([service.labels(projectId, runId), service.summary(projectId, runId)]);
+        if (!fresh()) return;
+        setLabels(labeled);
+        setSummary(summed);
+        if (!rereads) return;
+        const list = await readSamplePages((cursor) => service.samples(projectId, runId, cursor, only, PAGE_LINES), { live: fresh });
+        if (!fresh()) return;
+        setItems(list.items);
+        setNextCursor(list.next);
+        setLoadingMore(false);
+      } catch (error) {
+        if (fresh()) notify(messageOf(error));
+      }
+    })();
+    return () => { live = false; };
+    // Only when the records change; a new run or filter is the effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refresh]);
 
   // The chosen sample across the models of this run, and across every other run that saw it when asked.
   useEffect(() => {
@@ -150,9 +192,9 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
     const current = generation.current;
     setLoadingMore(true);
     try {
-      const page = await service.samples(projectId, runId, nextCursor, only);
+      const page = await readSamplePages((cursor) => service.samples(projectId, runId, cursor, only, PAGE_LINES), { from: nextCursor, live: () => generation.current === current });
       if (generation.current !== current) return;
-      setItems((current) => [...current, ...page.items]);
+      setItems((loaded) => [...loaded, ...page.items]);
       setNextCursor(page.next);
     } catch (error) {
       if (generation.current === current) notify(messageOf(error));
@@ -221,9 +263,10 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
           </button>
         );
       })}
-      {nextCursor !== null ? (
-        <button type="button" className="lab-link" disabled={loadingMore} onClick={() => void moreSamples()}>
-          {loadingMore ? "Loading…" : "More"}
+      {loadingMore ? <p className="lab-muted">Loading…</p> : null}
+      {!loadingMore && nextCursor !== null ? (
+        <button type="button" className="lab-link" onClick={() => void moreSamples()}>
+          More
         </button>
       ) : null}
       {runs.length === 0 && value ? <p className="lab-muted">No run has results yet.</p> : null}
