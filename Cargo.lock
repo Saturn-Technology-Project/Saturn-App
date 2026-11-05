@@ -4106,6 +4106,7 @@ dependencies = [
 name = "saturn-cli"
 version = "0.1.0"
 dependencies = [
+ "percent-encoding",
  "reqwest",
  "serde_json",
  "tokio",
@@ -4132,6 +4133,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "jiff",
+ "percent-encoding",
  "regex",
  "reqwest",
  "rusqlite",
@@ -4207,6 +4209,7 @@ name = "saturn-llm"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "percent-encoding",
  "regex",
  "reqwest",
  "saturn-domain",

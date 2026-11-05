@@ -10,6 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+percent-encoding = "2"
 regex = "1"
 # The operating system's TLS, so its trusted certificates apply and no C toolchain is needed on macOS or Windows.
 reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }

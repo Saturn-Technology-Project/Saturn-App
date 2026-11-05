@@ -9,6 +9,7 @@ use std::sync::LazyLock;
 use std::time::Duration;
 
 use base64::Engine;
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use regex::Regex;
 use reqwest::Method;
 use saturn_domain::js;
@@ -66,17 +67,21 @@ fn page_size(args: &Value, fallback: f64) -> i64 {
         .clamp(1.0, 100.0) as i64
 }
 
+/// What `encodeURIComponent` leaves as it is, besides letters and digits.
+const URI_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'!')
+    .remove(b'~')
+    .remove(b'*')
+    .remove(b'\'')
+    .remove(b'(')
+    .remove(b')');
+
 /// `encodeURIComponent`.
 fn encode(text: &str) -> String {
-    let mut encoded = String::new();
-    for byte in text.bytes() {
-        if byte.is_ascii_alphanumeric() || b"-_.!~*'()".contains(&byte) {
-            encoded.push(byte as char);
-        } else {
-            encoded.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    encoded
+    utf8_percent_encode(text, URI_COMPONENT).to_string()
 }
 
 /// Refs and SHAs the model passes to git. git runs without a shell, so the risks left are a value that reads as an option
@@ -2056,6 +2061,13 @@ fn grep_line(rest: &str) -> Option<(&str, i64, &str, bool)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_path_component_is_encoded_as_encode_uri_component_does() {
+        assert_eq!(encode("a/b c?d&e=f"), "a%2Fb%20c%3Fd%26e%3Df");
+        assert_eq!(encode("keep-_.!~*'()AZaz09"), "keep-_.!~*'()AZaz09");
+        assert_eq!(encode("é日\u{1F600}"), "%C3%A9%E6%97%A5%F0%9F%98%80");
+    }
 
     #[test]
     fn a_grep_line_splits_at_its_first_numbered_separator() {

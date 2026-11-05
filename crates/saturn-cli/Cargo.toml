@@ -14,6 +14,7 @@ name = "saturn"
 path = "src/main.rs"
 
 [dependencies]
+percent-encoding = "2"
 # Only ever to the runtime on this computer, so without TLS.
 reqwest = { version = "0.13", default-features = false }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
