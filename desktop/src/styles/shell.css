@@ -174,49 +174,74 @@
   background: var(--hover);
 }
 
-.lab-onboarding {
-  height: 100vh;
-  overflow: auto;
-  background: var(--stage);
+/* The tour: a box around one part of the live interface, and a card beside it. */
+.lab-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
 }
 
-.lab-onboarding-drag {
-  position: sticky;
-  top: 0;
-  height: 28px;
-  --app-region: drag;
+.lab-tour-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
 }
 
-.lab-onboarding-inner {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 24px;
+.lab-tour-box {
+  position: absolute;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s;
 }
 
-.lab-onboarding h1 {
-  margin-bottom: 8px;
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.lab-onboarding-steps {
+.lab-tour-card {
+  position: absolute;
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin: 0 0 28px;
-  padding: 0;
-  color: var(--subtle);
-  font-size: var(--text-small);
-  list-style: none;
-}
-
-.lab-onboarding-steps .reached {
-  color: var(--muted);
-}
-
-.lab-onboarding-steps [aria-current="step"] {
+  flex-direction: column;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
   color: var(--fg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+
+.lab-tour-card h2 {
+  margin: 0;
+  font-size: 15px;
   font-weight: 600;
+}
+
+.lab-tour-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+
+.lab-tour-count {
+  font-size: 11px;
+}
+
+.lab-tour-start {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.lab-tour-start .lab-row {
+  padding: 4px 0;
+}
+
+.lab-tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .lab-older .lab-row {

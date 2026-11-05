@@ -53,8 +53,8 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
           <p className="about-tagline">AI agents that run on your own computer.</p>
         </div>
         {props.onRerunOnboarding ? (
-          <button type="button" className="btn ghost tiny about-rerun" onClick={props.onRerunOnboarding} title="Show the first-launch setup again">
-            Run setup again
+          <button type="button" className="btn ghost tiny about-rerun" onClick={props.onRerunOnboarding} title="Show the tour again">
+            Take the tour again
           </button>
         ) : null}
       </header>

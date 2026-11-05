@@ -11,6 +11,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 ### Changed
 
 - **Saturn's interface is rebuilt for research.** Instead of agents and chats, it is organized around your questions, code, experiments, models, samples and findings. A research assistant sits beside your work and does what the open file's mode allows, and long work goes to Tasks, each in its own worktree.
+- **The first launch is a tour, not a setup form.** It boxes each part of the live interface in turn and says what it is for, then helps you choose a project folder, connect a model and write your first question. Commands (⌘K) has "Take the tour" for later.
 - **Groups, Automations, the Agents board, pull request follow-up and the marketplace no longer have screens.** Their data stays, and the runtime still offers them. Earlier chats are kept in your data folder and are not shown. Schedules and follow-up you already set going keep running until you turn them off in **Settings → Still running**.
 
 ### Added

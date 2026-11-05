@@ -8,10 +8,10 @@ import { AssistantIcon, BoxIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, Lineag
 import { Empty, messageOf } from "../ui/Parts.js";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette.js";
 import { rememberScreen, rememberedScreen, SCREENS, type Screen } from "./navigation.js";
-import { Onboarding } from "./Onboarding.js";
 import { RuntimeGate } from "./RuntimeGate.js";
 import { ScreenSwitch } from "./ScreenSwitch.js";
 import { SettingsHost } from "./SettingsHost.js";
+import { Tour } from "./Tour.js";
 import { useNotifications } from "./useNotifications.js";
 
 const SCREEN_ICONS: Record<Screen, ReactNode> = {
@@ -46,6 +46,8 @@ export function ResearchApp() {
   const [assistant, setAssistant] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // The tour runs over the live interface on the first launch, and again whenever it is asked for.
+  const [tour, setTour] = useState(false);
   const [accessRequest, setAccessRequest] = useState<{ path: string; name?: string; projectId?: string } | null>(null);
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -149,6 +151,7 @@ export function ResearchApp() {
       { id: "assistant", label: assistant ? "Hide the research assistant" : "Show the research assistant", hint: "⌘J", run: () => setAssistant((open) => !open) },
       { id: "theme", label: theme === "dark" ? "Use the light theme" : "Use the dark theme", run: () => setTheme(theme === "dark" ? "light" : "dark") },
       { id: "settings", label: "Open Settings", hint: "⌘,", run: () => setSettings(true) },
+      { id: "tour", label: "Take the tour", run: () => setTour(true) },
       ...(runtime.restart ? [{ id: "restart-runtime", label: "Restart Saturn's runtime", run: () => void runtime.restart?.() }] : []),
     ],
     // The commands close over the latest state each time they are rebuilt.
@@ -175,29 +178,24 @@ export function ResearchApp() {
     body = <ScreenSwitch key={project.id} project={project} screen={screen} assistant={assistant} go={go} notify={setNotice} onOpenSettings={() => setSettings(true)} />;
   }
 
-  if (profile && !profile.onboardedAt) {
-    return (
-      <Onboarding
-        models={models}
-        projects={projects}
-        theme={theme}
-        onSetTheme={setTheme}
-        onChanged={syncProjects}
-        onChooseProject={(chosen) => chooseProject(chosen.id)}
-        onFinish={async () => {
-          setProfile(await desktop.admin.updateSettings({ onboardedAt: new Date().toISOString() }));
-          go("Workspace");
-        }}
-      />
-    );
+  const touring = loaded && (tour || Boolean(profile && !profile.onboardedAt));
+  async function finishTour() {
+    setTour(false);
+    if (profile && !profile.onboardedAt) {
+      try {
+        setProfile(await desktop.admin.updateSettings({ onboardedAt: new Date().toISOString() }));
+      } catch (error) {
+        setNotice(messageOf(error));
+      }
+    }
   }
 
   return (
     <div className="lab-app">
-      <nav className="lab-rail" aria-label="Screens">
+      <nav className="lab-rail" aria-label="Screens" data-tour="rail">
         <div className="lab-rail-drag" />
         {SCREENS.map((item) => (
-          <button type="button" key={item} className="lab-rail-item" aria-current={screen === item ? "page" : undefined} onClick={() => go(item)}>
+          <button type="button" key={item} className="lab-rail-item" data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} onClick={() => go(item)}>
             {SCREEN_ICONS[item]}
             <span>{item}</span>
           </button>
@@ -210,7 +208,7 @@ export function ResearchApp() {
       </nav>
       <div className="lab-main">
         <header className="lab-bar">
-          <select className="lab-bar-project" aria-label="Project" value={projectId ?? ""} onChange={(event) => void (event.target.value === "+" ? addProject() : chooseProject(event.target.value))}>
+          <select className="lab-bar-project" aria-label="Project" data-tour="project" value={projectId ?? ""} onChange={(event) => void (event.target.value === "+" ? addProject() : chooseProject(event.target.value))}>
             {projectId ? null : <option value="">No project</option>}
             {projects.map((item) => (
               <option key={item.id} value={item.id}>
@@ -226,7 +224,7 @@ export function ResearchApp() {
           <button type="button" className="lab-button quiet" onClick={() => setPalette(true)}>
             Commands <span className="lab-muted">⌘K</span>
           </button>
-          <button type="button" className="lab-button quiet" aria-pressed={assistant} onClick={() => setAssistant((open) => !open)}>
+          <button type="button" className="lab-button quiet" data-tour="assistant" aria-pressed={assistant} onClick={() => setAssistant((open) => !open)}>
             <AssistantIcon /> Assistant
           </button>
         </header>
@@ -244,6 +242,7 @@ export function ResearchApp() {
       {palette ? <CommandPalette commands={commands} onClose={() => setPalette(false)} /> : null}
       {accessRequest ? <AccessDialog path={accessRequest.path} name={accessRequest.name} onClose={() => setAccessRequest(null)} onAllow={() => allowAccess(accessRequest)} /> : null}
       {settings ? <SettingsHost projects={projects} theme={theme} onSetTheme={setTheme} onClose={() => setSettings(false)} onProfile={setProfile} notify={setNotice} /> : null}
+      {touring && !settings && !accessRequest ? <Tour project={project?.access ? project : null} models={models} go={go} onAddProject={addProject} onOpenSettings={() => setSettings(true)} onFinish={finishTour} /> : null}
     </div>
   );
 }
