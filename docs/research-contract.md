@@ -266,6 +266,45 @@ otherwise, and fill it with kits of packages. The record carries `tools` (`uv` a
 - The installs are made by uv or pip, which reach the package index on their own; Saturn's network log does not see
   them. Not on Windows.
 
+## Notebooks
+
+A notebook is a file of the project's, read and saved through `GET`/`PUT .../research/source` with the same revision
+check as any other file. A `.ipynb` opens up to 8 MB rather than 2 MB. Running its cells is the person's own action, like
+the terminal: it records no run, is no research record, changes no version, and no assistant tool reaches it. To have
+results to compare, freeze an experiment.
+
+`POST .../research/notebook/start` with `{"path"}` starts a kernel for that notebook, or answers with the one it has.
+`POST .../notebook/run` with `{"path", "cells": [{"cell", "code"}]}` queues cells in order, starting a kernel when there
+is none that can take them, so installing a missing package and running again is enough. `cell` is the client's name for
+it and comes back in the events. `POST .../notebook/interrupt` and `.../notebook/restart` act on the kernel and answer
+409 when it has none. `POST .../notebook/stop` ends it and answers `{"stopped"}`. `GET .../notebook?path=` is its state:
+`kernel` (an id, or null), `state` (`none`, `starting`, `idle`, `busy`, `restarting`, `stopping`, `stopped`, `dead`,
+`missing`, `failed`), `python`, `message`, `missing` (the packages), `running`, `queued` and `seq`, the number the next
+event will have.
+
+`GET .../notebook/events?path=&kernel=&after=` is a server-sent stream of `notebook` events, from `after` or else from now,
+that ends with the kernel. It answers 404 when that kernel is gone. Each event has `type` and `seq`: `state` (the fields
+above), `started` (`cell`), `output` (`cell`, and `output` as a notebook stores it), `clear` (`cell`, `wait`), `finished`
+(`cell`, `status`, `count`), `ended`. `status` is `ok`, `error`, `aborted` (let go by a restart, a stop or the helper's end),
+`skipped` (it waited behind a cell that did not finish) or `dead` (the kernel died under it). 16 MB of events are kept for a
+client reconnecting; one that was away longer first hears `gap`, without a `seq`.
+
+One run of one cell keeps 2 MB of output as stored JSON. Text keeps its start; an image or table past the limit is left out.
+Either way, one `display_data` output with `metadata.saturn.truncated` says so, which is valid in the notebook when saved.
+The cell itself goes on. The interface shows output only as text and PNG images: HTML, SVG and the like appear in their
+text form, and output is never read as instructions.
+
+The kernel runs with the project's Python, in the notebook's folder, with `SATURN_*` removed from its environment. A
+helper in that Python holds it with `jupyter_client`, and asks for `ipykernel_launcher` directly rather than by kernel
+name, as a `python3` kernel spec in the person's own Jupyter folder could start another Python. Without `jupyter_client`
+or `ipykernel` the state is `missing` and `message` points at the Notebooks kit under Environment; no Python, or one that
+cannot start, answers 422. The notebook still opens, edits and saves. `input()` is refused, as in the terminal.
+
+A kernel ends when its notebook is closed, its project is removed or loses access, or the runtime stops. The helper is
+asked, then signalled, then ended by force. If the runtime dies, the helper's standard input closes and it ends the kernel,
+and a kernel whose helper was killed ends by itself. A path that leads out of the project or into `.saturn` or `.git` answers
+403, as for the editor, and one that is not a `.ipynb` answers 400. Running a notebook answers 501 on Windows.
+
 ## What is enforced, and what is not
 
 **Participation modes and locks are a workflow constraint, not a security boundary.** The HTTP API has one bearer token and

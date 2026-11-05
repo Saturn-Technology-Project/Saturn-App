@@ -7,6 +7,7 @@ mod freeze;
 mod inside;
 mod labels;
 mod manage;
+mod notebooks;
 mod policy;
 mod resources;
 mod runs;
@@ -47,6 +48,8 @@ pub struct ResearchState {
     ending: AtomicBool,
     /// The projects whose managed environment has a job running.
     environment_jobs: Mutex<manage::RunningJobs>,
+    /// The kernels of notebooks open in the Workspace.
+    notebooks: notebooks::Notebooks,
 }
 
 impl Default for ResearchState {
@@ -58,6 +61,7 @@ impl Default for ResearchState {
             baselines: Mutex::default(),
             ending: AtomicBool::new(false),
             environment_jobs: Mutex::default(),
+            notebooks: notebooks::Notebooks::default(),
         }
     }
 }

@@ -15,6 +15,8 @@ use crate::{CoreError, Kernel};
 
 /// The largest file the editor opens.
 const OPEN_LIMIT: u64 = 2 * 1024 * 1024;
+/// The largest notebook the editor opens: its stored images are most of it, and it still fits a save's request.
+const NOTEBOOK_OPEN_LIMIT: u64 = 8 * 1024 * 1024;
 /// How much of a run's log is returned: its end.
 const LOG_TAIL: u64 = 64 * 1024;
 const DEFAULT_PAGE: usize = 50;
@@ -22,7 +24,7 @@ const LARGEST_PAGE: usize = 200;
 
 impl Kernel {
     /// A path inside the source folder, as a path and how the client names it.
-    async fn source_path(
+    pub(super) async fn source_path(
         &self,
         project: &str,
         requested: &str,
@@ -57,7 +59,12 @@ impl Kernel {
         if info.is_dir() {
             return read_folder_entries(&target, &relative).await;
         }
-        if info.len() > OPEN_LIMIT {
+        let limit = if relative.to_ascii_lowercase().ends_with(".ipynb") {
+            NOTEBOOK_OPEN_LIMIT
+        } else {
+            OPEN_LIMIT
+        };
+        if info.len() > limit {
             return Err(CoreError::new(413, "This file is too large to open here."));
         }
         let bytes = tokio::fs::read(&target).await?;

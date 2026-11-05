@@ -6,7 +6,7 @@ import os
 import platform
 import sys
 
-PACKAGES = ["torch", "transformers", "numpy", "datasets", "accelerate", "trl", "peft", "transformer_lens", "sae_lens", "einops", "jupyter_core"]
+PACKAGES = ["torch", "transformers", "numpy", "datasets", "accelerate", "trl", "peft", "transformer_lens", "sae_lens", "einops", "jupyter_core", "jupyter", "jupyter_client", "ipykernel"]
 
 
 def version(name):
