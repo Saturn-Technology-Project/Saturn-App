@@ -10,6 +10,9 @@ use tokio::net::TcpListener;
 
 const PREFERRED_PORT: u16 = 5174;
 const HOST: &str = "127.0.0.1";
+/// What the built interface may load: its own files, and only the runtime and the shell to talk to. CodeMirror writes its
+/// styles at run time, so styles may be inline; scripts may not. Nothing it shows can load or run from elsewhere.
+const CONTENT_SECURITY_POLICY: &str = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://127.0.0.1:*; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* ipc: http://ipc.localhost; media-src 'self' blob:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'";
 
 /// Starts the server; answers the port it listens on, 5174 unless something else has it.
 pub async fn serve(app: AppHandle) -> std::io::Result<u16> {
@@ -33,10 +36,50 @@ async fn asset(State(app): State<Arc<AppHandle>>, request: Request) -> Response 
     let path = if path.is_empty() { "index.html" } else { path };
     match app.asset_resolver().get(path.to_owned()) {
         Some(asset) => (
-            [(header::CONTENT_TYPE, asset.mime_type.clone())],
+            [
+                (header::CONTENT_TYPE, asset.mime_type.clone()),
+                (
+                    header::CONTENT_SECURITY_POLICY,
+                    CONTENT_SECURITY_POLICY.to_owned(),
+                ),
+            ],
             asset.bytes,
         )
             .into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_interface_runs_only_its_own_scripts_and_talks_only_to_this_computer() {
+        let policy = CONTENT_SECURITY_POLICY;
+        assert!(policy.contains("default-src 'none'"));
+        assert!(policy.contains("script-src 'self';"));
+        assert!(
+            !policy
+                .split("script-src")
+                .nth(1)
+                .unwrap_or_default()
+                .split(';')
+                .next()
+                .unwrap_or_default()
+                .contains("unsafe")
+        );
+        let connect = policy
+            .split("connect-src")
+            .nth(1)
+            .unwrap_or_default()
+            .split(';')
+            .next()
+            .unwrap_or_default();
+        assert!(connect.contains("http://127.0.0.1:*"));
+        assert!(
+            !connect.contains("https:"),
+            "nothing goes off this computer from here"
+        );
     }
 }
