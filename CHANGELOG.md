@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **The Samples list is easier to scan.** Each sample takes one line, a long name keeps its start and end, a dot shows whether it has been reviewed or has errors, and the run and filter stay in view as you scroll.
 - **A chat follows what it says.** The assistant and a task's log now stay at the newest text as it arrives. Scrolling up to read leaves you there, and scrolling back down picks it up again. A task's log did not scroll at all before.
 - **A second approval no longer goes missing on Codex.** When Codex repeated a call right after you approved the first one, the new card could vanish and leave the run waiting with nothing to answer.
 - **An assistant on Claude Code now hears new instructions in a chat it already has.** Claude Code kept the instructions from a chat's first message, so an existing chat never learned about Saturn, and edits to memory or project rules did not reach it either. It now gets the current ones on every message, and the conversation stays as it was.

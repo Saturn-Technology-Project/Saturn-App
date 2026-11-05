@@ -2,7 +2,7 @@
 // out, and how a comparison is said. Everything else is checked over HTTP in contract/.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { comparisonText, lineageOrder, lineageTracks, runHasResults, scoreText } from "../src/domain/research.ts";
+import { comparisonText, lineageOrder, lineageTracks, runHasResults, sampleIdParts, scoreText } from "../src/domain/research.ts";
 
 const model = (id, parentId) => ({ id, parentId, source: id, floating: false, revision: 1, createdAt: "", updatedAt: "" });
 
@@ -38,4 +38,13 @@ test("a score keeps enough digits and says when there is none", () => {
   assert.equal(scoreText(0.123456), "0.123");
   assert.equal(scoreText(0), "0");
   assert.equal(scoreText(null), "No score");
+});
+
+test("a long sample id keeps its end when the middle has to go", () => {
+  assert.deepEqual(sampleIdParts("shuffled-lr0.0001-s0-step00020"), { start: "shuffled-lr0.0001-s0", end: "-step00020" });
+  assert.deepEqual(sampleIdParts("sample_0412"), { start: "sample", end: "_0412" });
+  assert.deepEqual(sampleIdParts("abcdefghijkl"), { start: "abcdef", end: "ghijkl" });
+  assert.deepEqual(sampleIdParts("a"), { start: "", end: "a" });
+  const whole = "x-" + "y".repeat(40);
+  assert.equal(Object.values(sampleIdParts(whole)).join(""), whole);
 });

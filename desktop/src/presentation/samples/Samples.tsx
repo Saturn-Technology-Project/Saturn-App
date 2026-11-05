@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import {
+import { sampleIdParts,
   changeRereadsList,
   comparisonFactors,
   labelsOf,
@@ -232,34 +232,40 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
 
   const list = (
     <nav className="lab-sample-nav" aria-label="Samples" data-tour="samples-list">
-      <label className="lab-field" data-tour="samples-run">
-        Run
-        <select value={runId ?? ""} onChange={(event) => { setRunId(event.target.value); setSampleId(null); }}>
-          {runs.map((item: ExperimentRun) => (
-            <option key={item.id} value={item.id}>
-              {item.id} · {runStatusLabel(item.status)}
-            </option>
+      <div className="lab-sample-controls">
+        <label className="lab-field" data-tour="samples-run">
+          Run
+          <select value={runId ?? ""} onChange={(event) => { setRunId(event.target.value); setSampleId(null); }}>
+            {runs.map((item: ExperimentRun) => (
+              <option key={item.id} value={item.id}>
+                {item.id} · {runStatusLabel(item.status)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="lab-segments" role="group" aria-label="Which samples" data-tour="samples-filter">
+          {ONLY.map((item) => (
+            <button type="button" key={item.id} aria-pressed={only === item.id} className={only === item.id ? "lab-segment active" : "lab-segment"} onClick={() => setOnly(item.id)}>
+              {item.label}
+            </button>
           ))}
-        </select>
-      </label>
-      <div className="lab-segments" role="group" aria-label="Which samples" data-tour="samples-filter">
-        {ONLY.map((item) => (
-          <button type="button" key={item.id} aria-pressed={only === item.id} className={only === item.id ? "lab-segment active" : "lab-segment"} onClick={() => setOnly(item.id)}>
-            {item.label}
-          </button>
-        ))}
+        </div>
       </div>
       {listed.map((line) => {
         const own = lines.filter((other) => other.sampleId === line.sampleId);
         const labeled = Object.values(labels?.labels ?? {}).filter((entry) => entry.sampleId === line.sampleId).length;
         const errors = own.filter((other) => other.error).length;
+        const idParts = sampleIdParts(line.sampleId);
+        const note = [labeled ? `${labeled} ${labeled === 1 ? "label" : "labels"}` : "", errors ? `${errors} ${errors === 1 ? "error" : "errors"}` : ""].filter(Boolean).join(", ");
+        const state = note || "To review";
         return (
-          <button type="button" key={line.sampleId} aria-current={line.sampleId === sampleId ? "true" : undefined} className={line.sampleId === sampleId ? "lab-file active" : "lab-file"} onClick={() => setSampleId(line.sampleId)}>
-            <span className="lab-sample-id">{line.sampleId}</span>
-            <span className="lab-muted">
-              {labeled ? `${labeled} ${labeled === 1 ? "label" : "labels"}` : "To review"}
-              {errors ? `, ${errors} errors` : ""}
+          <button type="button" key={line.sampleId} aria-current={line.sampleId === sampleId ? "true" : undefined} className={line.sampleId === sampleId ? "lab-sample-row active" : "lab-sample-row"} title={`${line.sampleId}: ${state}`} onClick={() => setSampleId(line.sampleId)}>
+            <span className={errors ? "lab-sample-dot bad" : labeled ? "lab-sample-dot done" : "lab-sample-dot"} aria-hidden="true" />
+            <span className="lab-sample-id">
+              <span className="lab-sample-id-start">{idParts.start}</span>
+              <span className="lab-sample-id-end">{idParts.end}</span>
             </span>
+            {note ? <span className="lab-sample-note">{note}</span> : <span className="lab-unseen">To review</span>}
           </button>
         );
       })}

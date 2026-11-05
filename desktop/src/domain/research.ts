@@ -634,3 +634,13 @@ export interface ResearchSession {
   /** What another screen asked the Samples screen to show. */
   review?: Extract<OpenTarget, { kind: "sample" }>;
 }
+
+/**
+ * A sample's id, split so that a list too narrow for it can leave out the middle: long ids tend to differ at both ends, as in
+ * `shuffled-lr0.0001-s0-step00020`. The end is the last part after a separator, or the last few characters of an id with none.
+ */
+export function sampleIdParts(id: string): { start: string; end: string } {
+  const separator = Math.max(id.lastIndexOf("-"), id.lastIndexOf("_"), id.lastIndexOf("/"));
+  const cut = separator > 0 && id.length - separator <= 16 ? separator : Math.max(0, id.length - 6);
+  return { start: id.slice(0, cut), end: id.slice(cut) };
+}
