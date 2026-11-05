@@ -11,6 +11,17 @@ export interface ExperimentDraft extends ResearchRecord {
   title: string;
   command?: string;
   inputs?: { code?: string[]; data?: string[]; scorer?: string[]; environment?: string[] };
+  evaluation?: EvaluationSpec;
+  models?: ModelBinding[];
+  /** The question and hypothesis this experiment is for, when the person said. */
+  questionId?: string;
+  hypothesisId?: string;
+}
+
+/** A model an experiment measures, and what it stands for in it. */
+export interface ModelBinding {
+  modelId: string;
+  role: ModelRole;
 }
 
 export type FindingKind = "observation" | "ai_suggestion" | "conclusion";
@@ -24,6 +35,8 @@ export interface Finding extends ResearchRecord {
 export interface FrozenVersion extends ResearchRecord {
   experimentId: string;
   number: number;
+  evaluation?: EvaluationSpec | null;
+  models?: { modelId: string; role: ModelRole; source: string; weightsRevision: string | null; floating: boolean }[];
 }
 
 export type RunStatus = "starting" | "running" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
@@ -57,7 +70,11 @@ export interface SampleLine {
   modelId?: string | null;
   input?: unknown;
   output?: unknown;
+  /** What the scorer compared the output with, when the program wrote it down. */
+  expected?: unknown;
   scores?: Record<string, number | string | boolean> | null;
+  /** The scorer's own word for its result, when the program wrote one. */
+  scorerLabel?: string;
   error?: { kind: string; message?: string } | null;
 }
 
@@ -90,6 +107,12 @@ export interface ModelNode extends ResearchRecord {
   parentId?: string;
   name?: string;
   trainingData?: string;
+  /** The frozen model a preference-trained one was trained against. */
+  referenceId?: string;
+  /** How these weights came about: a training run, a script, a published release. */
+  producedBy?: string;
+  /** The person's own note on this node. */
+  note?: string;
 }
 
 /** How an experiment measures: what two runs must share to be compared. */
@@ -157,6 +180,29 @@ export function modeOf(policy: ResearchPolicy, path: string): ParticipationMode 
     }
   }
   return chosen;
+}
+
+/** The evaluation fields two versions share: stated in the spec, and neither different nor missing. */
+export function heldFixed(spec: EvaluationSpec | null | undefined, comparison: Comparison): { field: string; value: string }[] {
+  const apart = new Set([...comparison.differs, ...comparison.missing]);
+  return EVALUATION_FIELD_NAMES.flatMap((field) => {
+    const value = spec?.[field];
+    const stated = value !== undefined && value !== "" && !(field === "chatTemplate" && value === null);
+    return stated && !apart.has(field) ? [{ field, value: typeof value === "string" ? value : JSON.stringify(value) }] : [];
+  });
+}
+
+/** The evaluation fields, in the order they are shown. */
+export const EVALUATION_FIELD_NAMES = ["dataset", "split", "sampleSet", "scorer", "promptFormat", "chatTemplate"] as const satisfies readonly (keyof EvaluationSpec)[];
+
+/** Each factor of a comparison with whether it held, for saying what differs and what did not. */
+export function comparisonFactors(spec: EvaluationSpec | null | undefined, comparison: Comparison | null): { field: string; state: "same" | "differs" | "missing"; value: string | null }[] {
+  return EVALUATION_FIELD_NAMES.map((field) => {
+    const value = spec?.[field];
+    const shown = value === undefined || value === null || value === "" ? null : typeof value === "string" ? value : JSON.stringify(value);
+    const state = comparison?.differs.includes(field) ? "differs" : comparison?.missing.includes(field) || shown === null ? "missing" : "same";
+    return { field, state, value: shown };
+  });
 }
 
 /** Why two runs cannot be compared, in words. */
@@ -269,6 +315,81 @@ export function sampleText(value: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value, null, 2);
 }
 
+/** Where a run's score comes from: what the scorer judged, what a person disputed, and what was kept out. */
+export interface ScoreSources {
+  /** Samples the scorer gave a score. */
+  scored: number;
+  /** Samples a person labeled. */
+  reviewed: number;
+  /** Labeled samples where the person and the scorer disagree. */
+  disputed: number;
+  /** Samples excluded for an infrastructure error. */
+  infrastructure: number;
+  /** Samples with a model or scorer error. */
+  otherErrors: number;
+}
+
+export function scoreSources(summary: RunSummary, labels: RunLabels | null): ScoreSources {
+  let infrastructure = 0;
+  let otherErrors = 0;
+  let samples = 0;
+  for (const model of summary.models) {
+    samples += model.samples;
+    for (const [kind, count] of Object.entries(model.errors)) {
+      if (kind === "infrastructure") infrastructure += count;
+      else otherErrors += count;
+    }
+  }
+  const agreement = labels?.agreement;
+  return {
+    scored: samples - infrastructure - otherErrors,
+    reviewed: agreement?.labeled ?? 0,
+    disputed: agreement ? agreement.compared - agreement.agreed : 0,
+    infrastructure,
+    otherErrors,
+  };
+}
+
+/** How far a run's review is: labeled samples against those with a score. */
+export function reviewProgress(summary: RunSummary | null, labels: RunLabels | null): { labeled: number; total: number } {
+  const sources = summary ? scoreSources(summary, labels) : null;
+  return { labeled: labels?.agreement.labeled ?? 0, total: sources?.scored ?? 0 };
+}
+
+/** The newest change among records, for saying when the work stopped. */
+export function lastActive(groups: { updatedAt: string }[][]): string | null {
+  let newest: string | null = null;
+  for (const group of groups) for (const item of group) if (!newest || item.updatedAt > newest) newest = item.updatedAt;
+  return newest;
+}
+
+/** Records changed after a moment, newest first. */
+export function changedSince<T extends { updatedAt: string }>(items: T[], since: string | null): T[] {
+  return [...items].filter((item) => !since || item.updatedAt > since).sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1));
+}
+
+/** Activations a run captured for one sample at one model, as the runtime will serve them. Each layer holds one value per token. */
+export interface ActivationView {
+  sampleId: string;
+  modelId: string | null;
+  /** What each value is: a norm, a projection onto a direction, a logit lens score. */
+  measure: string;
+  tokens: string[];
+  layers: { layer: number; values: number[] }[];
+}
+
+/** An intervention the runtime will carry out: weights of one layer patched from a source model into a target, on one sample. */
+export interface InterventionRequest {
+  runId: string;
+  sampleId: string;
+  sourceModelId: string;
+  targetModelId: string;
+  layer: number;
+}
+
+/** Where a screen was asked to open: a sample in a run, or a file. */
+export type OpenTarget = { kind: "sample"; runId: string; sampleId?: string; only?: "disputed" | "errors" | "all" } | { kind: "file"; path: string };
+
 /** What a project's workbench reopens to. */
 export interface ResearchSession {
   file?: string;
@@ -276,4 +397,8 @@ export interface ResearchSession {
   runId?: string;
   /** A draft not saved yet, with the revision it was based on. */
   draft?: { file: string; content: string; revision: string | null };
+  /** When this device last opened the project, for saying what changed since. */
+  visitedAt?: string;
+  /** What another screen asked the Samples screen to show. */
+  review?: Extract<OpenTarget, { kind: "sample" }>;
 }

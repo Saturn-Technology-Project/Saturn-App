@@ -124,6 +124,8 @@ One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`.
   apart and are not model failures.
 - `scorerLabel`, optional, is the scorer's verdict in the words a person would label it with. Agreement with a person's
   labels counts only samples that have it, in the same run, so with the same version of the scorer.
+- `expected`, optional, is what the scorer compared the output with: the right name, the reference answer. It is shown
+  with the sample and never used by the runtime.
 - Standard output and standard error are only logs.
 
 While the process runs, a final line without a newline is treated as not written yet. Once it has ended:
@@ -140,6 +142,17 @@ A run that writes new untracked files into the project makes the next run's cont
 version. Write outputs to `SATURN_RUN_DIRECTORY`, or to a folder git ignores.
 
 Model output is data. It is shown as plain text and is never put in a system prompt.
+
+## Looking inside: not in the runtime yet
+
+The interface asks for two things the runtime does not do yet, and shows the runtime's answer as it is: a 404 reads as
+"not recorded yet". They are stated here so the runtime has a shape to meet.
+
+- `GET /projects/{id}/research/runs/{run}/activations?sample=&model=` answers with
+  `{"sampleId","modelId","measure","tokens":[...],"layers":[{"layer":0,"values":[...]}]}`: one value per token at each
+  layer, of the kind `measure` names, captured in the project's own Python environment and saved with the run.
+- `POST /projects/{id}/research/interventions` with `{"runId","sampleId","sourceModelId","targetModelId","layer"}`
+  patches one layer from one model into another on one sample, and answers in the same shape.
 
 ## What is enforced, and what is not
 

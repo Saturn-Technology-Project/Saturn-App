@@ -1,6 +1,9 @@
 import type {
   AcrossRow,
+  ActivationView,
   Comparison,
+  InterventionRequest,
+  OpenTarget,
   ExperimentDraft,
   ExperimentRun,
   Finding,
@@ -119,8 +122,12 @@ export class ResearchService {
     return this.runtime.request(`${this.route(project)}/models`);
   }
 
-  addModel(project: string, fields: Pick<ModelNode, "source" | "name" | "weightsRevision" | "parentId" | "trainingData">): Promise<ModelNode> {
+  addModel(project: string, fields: Pick<ModelNode, "source" | "name" | "weightsRevision" | "parentId" | "trainingData" | "referenceId" | "producedBy">): Promise<ModelNode> {
     return this.send(`${this.route(project)}/models`, "POST", fields);
+  }
+
+  updateModel(project: string, model: ModelNode, fields: Partial<Pick<ModelNode, "note" | "referenceId" | "producedBy" | "trainingData">>): Promise<ModelNode> {
+    return this.send(`${this.route(project)}/models/${model.id}`, "PATCH", { ...fields, expectedRevision: model.revision });
   }
 
   versions(project: string): Promise<RecordList<FrozenVersion>> {
@@ -176,6 +183,44 @@ export class ResearchService {
 
   events(project: string): Promise<{ items: ResearchEvent[] }> {
     return this.runtime.request(`${this.route(project)}/events`);
+  }
+
+  /** Activations a run captured for a sample. Declared ahead of the runtime, which answers 404 until it records them. */
+  activations(project: string, run: string, sampleId: string, modelId: string | null): Promise<ActivationView> {
+    const model = modelId ? `&model=${encodeURIComponent(modelId)}` : "";
+    return this.runtime.request<ActivationView>(`${this.route(project)}/runs/${run}/activations?sample=${encodeURIComponent(sampleId)}${model}`);
+  }
+
+  /** Asks the runtime to patch one layer from one model into another on a sample. Declared ahead of the runtime. */
+  intervene(project: string, request: InterventionRequest): Promise<ActivationView> {
+    return this.send(`${this.route(project)}/interventions`, "POST", request);
+  }
+
+  /** Writes a file into the project, for taking an experiment's record elsewhere. */
+  async exportFile(project: string, path: string, content: string): Promise<void> {
+    await this.writeSource(project, path, content, null);
+  }
+
+  /** Asks a screen to open on something: the Samples screen reads it when it shows, the workspace follows it at once. */
+  open(project: string, target: OpenTarget): void {
+    const session = this.loadSession(project);
+    if (target.kind === "sample") this.saveSession(project, { ...session, review: target });
+    else this.saveSession(project, { ...session, file: target.path });
+    window.dispatchEvent(new CustomEvent<OpenTarget>("saturn-research-open", { detail: target }));
+  }
+
+  /** Hears what `open` asks for. */
+  onOpen(listener: (target: OpenTarget) => void): () => void {
+    const handle = (event: Event) => listener((event as CustomEvent<OpenTarget>).detail);
+    window.addEventListener("saturn-research-open", handle);
+    return () => window.removeEventListener("saturn-research-open", handle);
+  }
+
+  /** The moment this device last opened the project, and marks now as the newest visit. */
+  visit(project: string): string | null {
+    const session = this.loadSession(project);
+    this.saveSession(project, { ...session, visitedAt: new Date().toISOString() });
+    return session.visitedAt ?? null;
   }
 
   /** What this project's workbench had open. It is a convenience, so losing it loses no research. */
