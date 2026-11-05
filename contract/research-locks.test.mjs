@@ -222,7 +222,8 @@ test("Claude Code: its file tools are refused or asked about, and its shell is c
     assert.match(answers[0].response.message, /Manual mode/);
     assert.equal(done.actions.find((item) => item.id === "tu_manual").status, "denied");
     assert.equal(await readFile(path.join(folder, "probe.py"), "utf8"), "by bash\n");
-    const events = (await programs.api("GET", `${route}/events`)).items;
+    // The comparison comes after the run says it finished.
+    const { items: events } = await programs.until("the comparison", () => programs.api("GET", `${route}/events`), (answer) => answer.items.length > 1);
     assert.deepEqual(events.map((event) => event.kind), ["refused", "integrity_changed"]);
     assert.deepEqual(events[1].paths, ["probe.py"]);
   } finally {
@@ -250,7 +251,8 @@ test("Codex: nothing can refuse its file writes, so they are compared after its 
     const begun = await programs.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id, projectId: project.id });
     await untilFinished(programs, begun.id);
     assert.equal(await readFile(path.join(folder, "probe.py"), "utf8"), "by codex\n");
-    const events = (await programs.api("GET", `${route}/events`)).items;
+    // The comparison comes after the run says it finished.
+    const { items: events } = await programs.until("the comparison", () => programs.api("GET", `${route}/events`), (answer) => answer.items.length > 0);
     assert.deepEqual(events.map((event) => [event.kind, event.paths, event.afterTool]), [["integrity_changed", ["probe.py"], "Codex"]]);
   } finally {
     await programs.stop();
