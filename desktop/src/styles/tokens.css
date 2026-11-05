@@ -116,10 +116,13 @@
   box-sizing: border-box;
 }
 
+/* The window itself never scrolls or bounces: only the panes inside it do. */
 html,
 body,
 #root {
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -128,6 +131,17 @@ body {
   color: var(--fg);
   font: var(--text-body) / 1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Read by assistive technology and computer use, and not drawn. */
+.lab-unseen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 button,
