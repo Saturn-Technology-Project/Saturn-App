@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Choice } from "../ui/base/Field.js";
 import { comparisonText, lineageOrder, scoreText, type Comparison, type ExperimentRun, type FrozenVersion, type ModelNode, type RunSummary } from "../../domain/research.js";
 
 /** One bar: a model in a run, and whether it measured the same way as the first bar. */
@@ -46,33 +47,24 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
 
   return (
     <>
-      <h2>Mean score</h2>
-      <figure className="lab-chart" data-tour="experiments-score" aria-label={`Mean ${chosen} of each model`}>
+      <h2 className="mt-5! mb-2 text-sm font-semibold">Mean score</h2>
+      <figure className="m-0 flex flex-col gap-2.5 rounded-lg bg-panel px-3.5 py-3" data-tour="experiments-score" aria-label={`Mean ${chosen} of each model`}>
         {scorers.length > 1 ? (
-          <label className="lab-field" style={{ maxWidth: 220 }}>
-            Scorer
-            <select value={chosen} onChange={(event) => setScorer(event.target.value)}>
-              {scorers.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Choice label="Scorer" className="max-w-[220px]" value={chosen} options={scorers.map((name) => ({ value: name, label: name }))} onChange={setScorer} />
         ) : (
-          <figcaption className="lab-muted">{chosen}, measured the same way as the newest run</figcaption>
+          <figcaption className="text-xs text-muted-foreground">{chosen}, measured the same way as the newest run</figcaption>
         )}
-        <div className="lab-chart-rows">
+        <div className="flex flex-col gap-1">
           {shared.map((bar) => (
-            <div className="lab-chart-row" key={bar.key} title={`${bar.label}, v${bar.version}: ${scoreText(bar.mean)} from ${bar.count} samples`}>
-              <span className="lab-chart-label">
-                {bar.label} <span className="lab-muted">v{bar.version}</span>
+            <div className="grid min-h-[26px] grid-cols-[minmax(90px,200px)_minmax(60px,1fr)_56px_minmax(60px,110px)] items-center gap-2 text-xs" key={bar.key} title={`${bar.label}, v${bar.version}: ${scoreText(bar.mean)} from ${bar.count} samples`}>
+              <span className="truncate">
+                {bar.label} <span className="text-muted-foreground">v{bar.version}</span>
               </span>
-              <span className="lab-chart-track">
-                <span className="lab-chart-bar" style={{ width: `${(Math.abs(bar.mean ?? 0) / widest) * 100}%` }} />
+              <span className="block h-3.5 rounded-[3px] bg-muted">
+                <span className="block h-3.5 rounded-r-[4px] bg-primary" style={{ width: `${(Math.abs(bar.mean ?? 0) / widest) * 100}%` }} />
               </span>
-              <span className="lab-chart-value">{scoreText(bar.mean)}</span>
-              <span className="lab-muted">
+              <span className="text-right font-mono">{scoreText(bar.mean)}</span>
+              <span className="text-muted-foreground">
                 n = {bar.count}
                 {bar.errors ? `, ${bar.errors} errors` : ""}
               </span>
@@ -80,10 +72,10 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
           ))}
         </div>
         {apart.length ? (
-          <div className="lab-chart-apart">
-            <div className="lab-warning">Not on this chart, because they were not measured the same way:</div>
+          <div className="flex flex-col gap-0.5">
+            <div className="text-xs text-wait">Not on this chart, because they were not measured the same way:</div>
             {apart.map((bar) => (
-              <div key={bar.key} className="lab-muted">
+              <div key={bar.key} className="text-xs text-muted-foreground">
                 {bar.label} v{bar.version}: {scoreText(bar.mean)}. {bar.comparison ? comparisonText(bar.comparison) : ""}
               </div>
             ))}

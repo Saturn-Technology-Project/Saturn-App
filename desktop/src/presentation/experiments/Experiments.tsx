@@ -23,6 +23,15 @@ import {
   type Verdict,
 } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
+import { Badge } from "../ui/base/Badge.js";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { Checkbox } from "../ui/base/Checkbox.js";
+import { Choice, Field } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
+import { Notice } from "../ui/base/Notice.js";
+import { Textarea } from "../ui/base/Textarea.js";
+import { classes } from "../ui/base/classes.js";
 import { messageOf } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
 
@@ -40,6 +49,28 @@ const FIELD_LABELS: Record<(typeof EVALUATION_FIELD_NAMES)[number], string> = {
 };
 const FINDING_LABELS: Record<FindingKind, string> = { observation: "Observation", ai_suggestion: "AI suggestion", conclusion: "Conclusion" };
 const VERDICTS: Verdict[] = ["undecided", "supported", "refuted", "inconclusive"];
+/** Which badge tone marks a finding: an AI suggestion stands apart, and a conclusion is the person's. */
+const FINDING_TONES: Record<FindingKind, "neutral" | "accent" | "violet"> = { observation: "neutral", ai_suggestion: "violet", conclusion: "accent" };
+/** The color of a verdict's word; the word itself always says it too. */
+const VERDICT_TEXT: Record<Verdict, string> = { undecided: "", supported: "text-good", refuted: "text-destructive", inconclusive: "text-wait" };
+/** What a Question or Hypothesis choice holds while none is set, since a choice cannot hold an empty string. */
+const NOT_SET = "__not_set";
+/** Small quiet text, and a warning in the same size. */
+const MUTED = "text-xs text-muted-foreground";
+const WARNING = "text-xs text-wait";
+/** A section's heading inside the page. */
+const SECTION = "mt-5! mb-2 text-sm font-semibold";
+/** A small fact across the top of the record. */
+const STAT = "flex flex-col gap-0.5 rounded-lg bg-panel p-2.5 text-xs";
+/** Cards side by side, and one card in them. */
+const CARDS = "mt-2 mb-4 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3";
+const CARD = "gap-0.5 border-0 bg-panel px-3.5 py-3";
+const HEADLINE = "my-0.5 block text-lg font-semibold";
+/** A card that is a button taking the person to the samples behind a number. */
+const SOURCE = "flex flex-col items-start gap-1 rounded-lg border-0 bg-panel px-3.5 py-3 text-left text-foreground hover:bg-muted";
+/** A heading cell and a body cell of a table. */
+const HEAD = "px-2 py-1.5 text-left font-medium whitespace-nowrap text-muted-foreground";
+const CELL = "border-t border-border p-2 align-top wrap-anywhere";
 
 /** What an experiment measures, its frozen versions and runs, where its score comes from, and what was concluded. */
 export function Experiments(props: ScreenProps) {
@@ -172,95 +203,79 @@ export function Experiments(props: ScreenProps) {
   };
 
   return (
-    <div className="lab-page"><div className="lab-page-inner">
-      <div className="lab-page-head">
-        <h1>Experiments</h1>
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-[920px] px-6 py-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <h1 className="flex items-center gap-2 text-(length:--text-title) font-semibold before:size-2 before:rounded-full before:bg-(--screen-hue)">Experiments</h1>
         {draft ? (
-          <div className="lab-page-actions">
-            <button type="button" className="lab-button" data-tour="experiments-export" onClick={() => void exportRecord()}>Export</button>
-            <button type="button" className="lab-button primary" data-tour="experiments-freeze" onClick={() => void freeze()}>New version</button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" data-tour="experiments-export" onClick={() => void exportRecord()}>Export</Button>
+            <Button data-tour="experiments-freeze" onClick={() => void freeze()}>New version</Button>
           </div>
         ) : null}
       </div>
-      {exported ? <div className="lab-notice">Written to {exported} in the project.</div> : null}
-      {drafts.length === 0 ? <p className="lab-lead">Running a command in the workspace creates the first experiment.</p> : null}
+      {exported ? <Notice tone="good" className="my-2">Written to {exported} in the project.</Notice> : null}
+      {drafts.length === 0 ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Running a command in the workspace creates the first experiment.</p> : null}
       {drafts.length > 1 ? drafts.map((item) => (
-        <button type="button" key={item.id} aria-pressed={item.id === draft?.id} className={item.id === draft?.id ? "lab-list-item active" : "lab-list-item"} onClick={() => setSelected(item.id)}>
-          <strong>{item.title}</strong> <code className="lab-muted">{item.command}</code>
-        </button>
+        <Button key={item.id} variant={item.id === draft?.id ? "soft" : "ghost"} aria-pressed={item.id === draft?.id} className="h-auto min-h-10 w-full justify-start py-1.5 text-left whitespace-normal" onClick={() => setSelected(item.id)}>
+          <strong>{item.title}</strong> <code className="text-xs text-muted-foreground">{item.command}</code>
+        </Button>
       )) : null}
       {draft ? (
         <>
-          <div className="lab-stats" data-tour="experiments-links">
-            <label className="lab-stat">
-              <span className="lab-muted">Question</span>
-              <select value={draft.questionId ?? ""} onChange={(event) => void change({ questionId: event.target.value || undefined })}>
-                <option value="">Not set</option>
-                {value?.questions.map((item: Question) => <option key={item.id} value={item.id}>{item.title}</option>)}
-              </select>
-            </label>
-            <label className="lab-stat">
-              <span className="lab-muted">Hypothesis</span>
-              <select value={draft.hypothesisId ?? ""} onChange={(event) => void change({ hypothesisId: event.target.value || undefined })}>
-                <option value="">Not set</option>
-                {value?.hypotheses.map((item: Hypothesis) => <option key={item.id} value={item.id}>{item.title}</option>)}
-              </select>
-            </label>
-            <div className="lab-stat current"><span className="lab-muted">Experiment</span><strong>{versions.length ? `v${versions.at(-1)?.number} frozen` : "Not frozen yet"}</strong></div>
-            <div className="lab-stat"><span className="lab-muted">Runs</span><strong>{runs.length}</strong></div>
-            <div className="lab-stat"><span className="lab-muted">Evidence</span><strong>{sources ? `${sources.scored} samples` : "None yet"}</strong></div>
-            <div className="lab-stat"><span className="lab-muted">Findings</span><strong>{findings.length ? `${findings.length}, ${findings.some((item) => item.kind === "conclusion") ? "concluded" : "no conclusion"}` : "None"}</strong></div>
+          <div className="mt-3 mb-4 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2" data-tour="experiments-links">
+            <Choice label="Question" className={STAT} value={draft.questionId ?? NOT_SET} options={[{ value: NOT_SET, label: "Not set" }, ...(value?.questions ?? []).map((item: Question) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ questionId: chosen === NOT_SET ? undefined : chosen })} />
+            <Choice label="Hypothesis" className={STAT} value={draft.hypothesisId ?? NOT_SET} options={[{ value: NOT_SET, label: "Not set" }, ...(value?.hypotheses ?? []).map((item: Hypothesis) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ hypothesisId: chosen === NOT_SET ? undefined : chosen })} />
+            <div className={classes(STAT, "ring-1 ring-input")}><span className={MUTED}>Experiment</span><strong>{versions.length ? `v${versions.at(-1)?.number} frozen` : "Not frozen yet"}</strong></div>
+            <div className={STAT}><span className={MUTED}>Runs</span><strong>{runs.length}</strong></div>
+            <div className={STAT}><span className={MUTED}>Evidence</span><strong>{sources ? `${sources.scored} samples` : "None yet"}</strong></div>
+            <div className={STAT}><span className={MUTED}>Findings</span><strong>{findings.length ? `${findings.length}, ${findings.some((item) => item.kind === "conclusion") ? "concluded" : "no conclusion"}` : "None"}</strong></div>
           </div>
 
-          <div className="lab-cards">
-            <div className="lab-card">
-              <div className="lab-muted">Execution</div>
-              <strong className="lab-card-headline">{newest ? runStatusLabel(newest.status) : runs.length ? runStatusLabel(runs.at(-1)!.status) : "Not run"}</strong>
-              <div className="lab-muted">{finished.length} of {runs.length} runs have results. Execution says nothing about whether the hypothesis holds.</div>
-            </div>
-            <div className={hypothesis?.verdict === "undecided" ? "lab-card attention" : "lab-card"}>
-              <div className="lab-muted">{hypothesis ? `Hypothesis` : "Hypothesis"}</div>
+          <div className={CARDS}>
+            <Card className={CARD}>
+              <div className={MUTED}>Execution</div>
+              <strong className={HEADLINE}>{newest ? runStatusLabel(newest.status) : runs.length ? runStatusLabel(runs.at(-1)!.status) : "Not run"}</strong>
+              <div className={MUTED}>{finished.length} of {runs.length} runs have results. Execution says nothing about whether the hypothesis holds.</div>
+            </Card>
+            <Card className={classes(CARD, hypothesis?.verdict === "undecided" && "ring-1 ring-wait")}>
+              <div className={MUTED}>Hypothesis</div>
               {hypothesis ? (
                 <>
-                  <strong className="lab-card-headline">{hypothesis.verdict[0].toUpperCase() + hypothesis.verdict.slice(1)}</strong>
-                  <div className="lab-muted">{hypothesis.title}</div>
-                  <label className="lab-field" style={{ maxWidth: 220 }}>
-                    Only you set this
-                    <select value={hypothesis.verdict} onChange={(event) => void service.setVerdict(projectId, hypothesis, event.target.value as Verdict).then(refresh).catch((error: unknown) => props.notify(messageOf(error)))}>
-                      {VERDICTS.map((verdict) => <option key={verdict} value={verdict}>{verdict[0].toUpperCase() + verdict.slice(1)}</option>)}
-                    </select>
-                  </label>
+                  <strong className={classes(HEADLINE, VERDICT_TEXT[hypothesis.verdict])}>{hypothesis.verdict[0].toUpperCase() + hypothesis.verdict.slice(1)}</strong>
+                  <div className={MUTED}>{hypothesis.title}</div>
+                  <Choice label="Only you set this" className="max-w-[220px]" value={hypothesis.verdict} options={VERDICTS.map((verdict) => ({ value: verdict, label: verdict[0].toUpperCase() + verdict.slice(1) }))} onChange={(chosen) => void service.setVerdict(projectId, hypothesis, chosen as Verdict).then(refresh).catch((error: unknown) => props.notify(messageOf(error)))} />
                 </>
               ) : (
-                <div className="lab-muted">Choose the hypothesis this experiment tests, above.</div>
+                <div className={MUTED}>Choose the hypothesis this experiment tests, above.</div>
               )}
-            </div>
+            </Card>
           </div>
 
           <ScoreChart projectId={projectId} runs={finished} versions={versions} models={value?.models ?? []} summaries={results.summaries} comparisons={results.comparisons} />
 
           {sources && newest ? (
             <>
-              <h2 data-tour="experiments-sources">Where the score comes from</h2>
-              <p className="lab-lead">The newest run with results, {newest.id}.</p>
-              <div className="lab-cards">
-                <button type="button" className="lab-card lab-card-button" onClick={() => toSamples("all")}>
+              <h2 className={SECTION} data-tour="experiments-sources">Where the score comes from</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">The newest run with results, {newest.id}.</p>
+              <div className={CARDS}>
+                <button type="button" className={SOURCE} onClick={() => toSamples("all")}>
                   <strong>Model behavior</strong>
-                  <span className="lab-muted">{sources.scored} samples the scorer judged</span>
+                  <span className={MUTED}>{sources.scored} samples the scorer judged</span>
                 </button>
-                <button type="button" className={sources.disputed ? "lab-card lab-card-button attention" : "lab-card lab-card-button"} onClick={() => toSamples("disputed")}>
+                <button type="button" className={classes(SOURCE, sources.disputed > 0 && "ring-1 ring-wait")} onClick={() => toSamples("disputed")}>
                   <strong>Scorer in question</strong>
-                  <span className="lab-muted">{sources.reviewed ? `${sources.disputed} of ${sources.reviewed} reviewed disagree with the scorer` : "Nothing reviewed yet"}</span>
+                  <span className={MUTED}>{sources.reviewed ? `${sources.disputed} of ${sources.reviewed} reviewed disagree with the scorer` : "Nothing reviewed yet"}</span>
                 </button>
-                <button type="button" className="lab-card lab-card-button" onClick={() => toSamples("errors")}>
+                <button type="button" className={SOURCE} onClick={() => toSamples("errors")}>
                   <strong>Errors</strong>
-                  <span className="lab-muted">{sources.infrastructure} infrastructure, excluded{sources.otherErrors ? `; ${sources.otherErrors} model or scorer` : ""}</span>
+                  <span className={MUTED}>{sources.infrastructure} infrastructure, excluded{sources.otherErrors ? `; ${sources.otherErrors} model or scorer` : ""}</span>
                 </button>
               </div>
             </>
           ) : null}
 
-          <h2>Does the mechanism change too?</h2>
+          <h2 className={SECTION}>Does the mechanism change too?</h2>
           <Mechanism
             projectId={projectId}
             run={newest}
@@ -277,131 +292,112 @@ export function Experiments(props: ScreenProps) {
             }}
           />
 
-          <h2>Findings</h2>
-          <div className="lab-chips">
-            {findings.length === 0 ? <span className="lab-muted">None linked to this experiment's runs yet.</span> : null}
+          <h2 className={SECTION}>Findings</h2>
+          <div className="my-2 flex flex-wrap gap-1.5">
+            {findings.length === 0 ? <span className={MUTED}>None linked to this experiment's runs yet.</span> : null}
             {findings.map((finding: Finding) => (
-              <span key={finding.id} className={finding.kind === "ai_suggestion" ? "lab-chip marked" : "lab-chip"} title={finding.text}>
+              <Badge key={finding.id} tone={FINDING_TONES[finding.kind]} title={finding.text}>
                 {FINDING_LABELS[finding.kind]}{finding.kind === "ai_suggestion" ? " · marked" : finding.kind === "conclusion" ? " · yours" : ""}{finding.runIds?.[0] ? ` · ${finding.runIds[0]}` : ""}
-              </span>
+              </Badge>
             ))}
           </div>
           {[...findings].reverse().slice(0, 3).map((finding) => (
-            <article key={finding.id} className="lab-card">
-              <div className="lab-muted">{FINDING_LABELS[finding.kind]}</div>
-              <div>{finding.text}</div>
-            </article>
+            <Card key={finding.id} className="mb-2 gap-1 border-0 bg-panel px-3.5 py-3">
+              <div className={MUTED}>{FINDING_LABELS[finding.kind]}</div>
+              <div className="text-sm">{finding.text}</div>
+            </Card>
           ))}
           <form
-            className="lab-form"
+            className="flex flex-wrap items-end gap-2"
             onSubmit={(event) => {
               event.preventDefault();
               void conclude();
             }}
           >
-            <label className="lab-field" data-tour="experiments-conclusion" style={{ flex: "1 1 320px" }}>
-              Conclusion
-              <textarea rows={2} value={conclusion} placeholder={newest ? `Saved with run ${newest.id} and its exact conditions.` : "Saved with this experiment."} onChange={(event) => setConclusion(event.target.value)} />
-            </label>
-            <button type="submit" className="lab-button" disabled={!conclusion.trim()}>Save conclusion</button>
+            <div className="flex-[1_1_320px]" data-tour="experiments-conclusion">
+              <Field label="Conclusion">
+                <Textarea rows={2} value={conclusion} placeholder={newest ? `Saved with run ${newest.id} and its exact conditions.` : "Saved with this experiment."} onChange={(event) => setConclusion(event.target.value)} />
+              </Field>
+            </div>
+            <Button type="submit" variant="outline" disabled={!conclusion.trim()}>Save conclusion</Button>
           </form>
 
-          <h2 data-tour="experiments-measures">How it measures</h2>
-          <p className="lab-lead">Two runs compare only when all of this matches. Training data is not part of it.</p>
-          <div className="lab-form">
+          <h2 className={SECTION} data-tour="experiments-measures">How it measures</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Two runs compare only when all of this matches. Training data is not part of it.</p>
+          <div className="mt-2 flex flex-wrap items-end gap-2">
             {EVALUATION_FIELD_NAMES.map((key) => (
-              <label className="lab-field" key={key}>
-                <span>{FIELD_LABELS[key]}</span>
-                <input value={edits[key] ?? String(spec[key] ?? "")} onChange={(event) => setEdits({ ...edits, [key]: event.target.value })} />
-              </label>
+              <Field label={FIELD_LABELS[key]} className="flex-[1_1_160px]" key={key}>
+                <Input value={edits[key] ?? String(spec[key] ?? "")} onChange={(event) => setEdits({ ...edits, [key]: event.target.value })} />
+              </Field>
             ))}
-            <label className="lab-field">
-              <span>Label names, comma separated</span>
-              <input value={edits.labels ?? (draft.labels ?? []).join(", ")} placeholder={DEFAULT_LABELS.join(", ")} onChange={(event) => setEdits({ ...edits, labels: event.target.value })} />
-            </label>
+            <Field label="Label names, comma separated" className="flex-[1_1_160px]">
+              <Input value={edits.labels ?? (draft.labels ?? []).join(", ")} placeholder={DEFAULT_LABELS.join(", ")} onChange={(event) => setEdits({ ...edits, labels: event.target.value })} />
+            </Field>
             {labelsOf({ ...draft, labels: (edits.labels ?? (draft.labels ?? []).join(",")).split(",") }).map((name) => (
-              <label className="lab-field" key={`alias:${name}`}>
-                <span>Scorer word for “{name}”</span>
-                <input value={edits[`alias:${name}`] ?? draft.labelAliases?.[name] ?? ""} placeholder={name} onChange={(event) => setEdits({ ...edits, [`alias:${name}`]: event.target.value })} />
-              </label>
+              <Field label={`Scorer word for “${name}”`} className="flex-[1_1_160px]" key={`alias:${name}`}>
+                <Input value={edits[`alias:${name}`] ?? draft.labelAliases?.[name] ?? ""} placeholder={name} onChange={(event) => setEdits({ ...edits, [`alias:${name}`]: event.target.value })} />
+              </Field>
             ))}
-            <div className="lab-muted">Optional wording matches, such as “Wrong name” → “Wrong”. Applies to this experiment's review comparisons, including earlier labels; original labels and scores stay unchanged.</div>
-            <button type="button" className="lab-button" onClick={() => void saveEvaluation()}>
+            <div className={classes(MUTED, "w-full")}>Optional wording matches, such as “Wrong name” → “Wrong”. Applies to this experiment's review comparisons, including earlier labels; original labels and scores stay unchanged.</div>
+            <Button variant="outline" onClick={() => void saveEvaluation()}>
               Save
-            </button>
+            </Button>
           </div>
 
-          <h2>Models</h2>
+          <h2 className={SECTION}>Models</h2>
           {bound.map((item) => (
-            <div className="lab-row" key={`${item.modelId}-${item.role}`}>
-              <span>{value?.models.find((model) => model.id === item.modelId)?.name ?? value?.models.find((model) => model.id === item.modelId)?.source ?? item.modelId}</span>
-              <span className="lab-muted">{item.role}</span>
+            <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-border px-2.5 py-1.5 text-sm" key={`${item.modelId}-${item.role}`}>
+              <span className="min-w-0 flex-[1_1_220px] wrap-anywhere">{value?.models.find((model) => model.id === item.modelId)?.name ?? value?.models.find((model) => model.id === item.modelId)?.source ?? item.modelId}</span>
+              <span className={MUTED}>{item.role}</span>
             </div>
           ))}
-          <div className="lab-form">
-            <label className="lab-field">
-              <span>Model</span>
-              <select value={binding.modelId} onChange={(event) => setBinding({ ...binding, modelId: event.target.value })}>
-                <option value="">Choose</option>
-                {value?.models.map((model: ModelNode) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name || model.source}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="lab-field">
-              <span>Role</span>
-              <select value={binding.role} onChange={(event) => setBinding({ ...binding, role: event.target.value as ModelRole })}>
-                <option value="base">Base</option>
-                <option value="reference">Reference</option>
-                <option value="policy">Policy</option>
-              </select>
-            </label>
-            <button type="button" className="lab-button" disabled={!binding.modelId} onClick={() => void bindModel()}>
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            <Choice label="Model" className="flex-[1_1_160px]" placeholder="Choose" value={binding.modelId} options={(value?.models ?? []).map((model: ModelNode) => ({ value: model.id, label: model.name || model.source }))} onChange={(chosen) => setBinding({ ...binding, modelId: chosen })} />
+            <Choice label="Role" className="flex-[1_1_160px]" value={binding.role} options={[{ value: "base", label: "Base" }, { value: "reference", label: "Reference" }, { value: "policy", label: "Policy" }]} onChange={(chosen) => setBinding({ ...binding, role: chosen as ModelRole })} />
+            <Button variant="outline" disabled={!binding.modelId} onClick={() => void bindModel()}>
               Add
-            </button>
+            </Button>
           </div>
 
-          <h2>Frozen versions</h2>
-          <div className="lab-table-wrap">
-            <table className="lab-table" aria-label="Frozen versions">
+          <h2 className={SECTION}>Frozen versions</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs" aria-label="Frozen versions">
               <thead>
-                <tr><th scope="col">Compare</th><th scope="col">Version</th><th scope="col">Runs</th><th scope="col">Created</th></tr>
+                <tr><th scope="col" className={HEAD}>Compare</th><th scope="col" className={HEAD}>Version</th><th scope="col" className={HEAD}>Runs</th><th scope="col" className={HEAD}>Created</th></tr>
               </thead>
               <tbody>
                 {versions.map((version: FrozenVersion) => (
                   <tr key={version.id}>
-                    <td><input type="checkbox" aria-label={`Compare version ${version.number}`} checked={compared.includes(version.id)} onChange={() => void toggleCompared(version.id)} /></td>
-                    <td>v{version.number}</td>
-                    <td>{runs.filter((run) => run.versionId === version.id).length}</td>
-                    <td>{new Date(version.createdAt).toLocaleString()}</td>
+                    <td className={CELL}><Checkbox aria-label={`Compare version ${version.number}`} checked={compared.includes(version.id)} onCheckedChange={() => void toggleCompared(version.id)} /></td>
+                    <td className={CELL}>v{version.number}</td>
+                    <td className={CELL}>{runs.filter((run) => run.versionId === version.id).length}</td>
+                    <td className={CELL}>{new Date(version.createdAt).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {comparison ? <div className={comparison.result === "comparable" ? "lab-muted" : "lab-warning"}>{comparisonText(comparison)}</div> : null}
+          {comparison ? <div className={comparison.result === "comparable" ? MUTED : WARNING}>{comparisonText(comparison)}</div> : null}
 
-          <h2>Runs</h2>
-          <div className="lab-table-wrap">
-            <table className="lab-table" aria-label="Runs">
+          <h2 className={SECTION}>Runs</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs" aria-label="Runs">
               <thead>
-                <tr><th scope="col">Run</th><th scope="col">Version</th><th scope="col">Models</th><th scope="col">Execution</th><th scope="col">Samples</th></tr>
+                <tr><th scope="col" className={HEAD}>Run</th><th scope="col" className={HEAD}>Version</th><th scope="col" className={HEAD}>Models</th><th scope="col" className={HEAD}>Execution</th><th scope="col" className={HEAD}>Samples</th></tr>
               </thead>
               <tbody>
                 {[...runs].reverse().map((run: ExperimentRun) => {
                   const named = results.summaries.find((item) => item.runId === run.id)?.models.map((model) => value?.models.find((item) => item.id === model.modelId)?.name ?? model.modelId ?? "unnamed") ?? [];
                   return (
                     <tr key={run.id}>
-                      <td><button type="button" className="lab-link" onClick={() => { service.open(projectId, { kind: "sample", runId: run.id }); props.go("Samples"); }}><code>{run.id}</code></button></td>
-                      <td>v{versions.find((version) => version.id === run.versionId)?.number ?? "?"}</td>
-                      <td>{named.length > 3 ? `${named.length} models` : named.join(", ") || "—"}</td>
-                      <td>
+                      <td className={CELL}><Button variant="ghost" size="small" className="text-primary" onClick={() => { service.open(projectId, { kind: "sample", runId: run.id }); props.go("Samples"); }}><code>{run.id}</code></Button></td>
+                      <td className={CELL}>v{versions.find((version) => version.id === run.versionId)?.number ?? "?"}</td>
+                      <td className={CELL}>{named.length > 3 ? `${named.length} models` : named.join(", ") || "—"}</td>
+                      <td className={CELL}>
                         {runStatusLabel(run.status)}{run.inputsChanged?.length ? `, ${run.inputsChanged.length} inputs changed during it` : ""}
-                        {run.warnings?.map((warning) => <div key={warning} className="lab-warning">{warning}</div>)}
+                        {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
                       </td>
-                      <td>{run.samples ?? 0}</td>
+                      <td className={CELL}>{run.samples ?? 0}</td>
                     </tr>
                   );
                 })}
@@ -410,7 +406,8 @@ export function Experiments(props: ScreenProps) {
           </div>
         </>
       ) : null}
-    </div></div>
+      </div>
+    </div>
   );
 }
 

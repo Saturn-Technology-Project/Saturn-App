@@ -2,11 +2,31 @@ import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { comparisonText, earlierSweeps, heldFixed, lineageRows, mechanismOf, RESTORE_MEASURE_TEXT, runHasResults, scoreText, type Comparison, type EvaluationSpec, type InsideItem, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
-import { Empty, messageOf } from "../ui/Parts.js";
+import { Badge } from "../ui/base/Badge.js";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { Choice, Field } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
+import { Notice } from "../ui/base/Notice.js";
+import { Textarea } from "../ui/base/Textarea.js";
+import { classes } from "../ui/base/classes.js";
+import { Empty, messageOf, Page } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
 import { useRecords } from "../ui/useRecords.js";
 
 const service = desktop.research;
+/** Small quiet text. */
+const MUTED = "text-xs text-muted-foreground";
+/** A heading inside the page or the details, and a fact in the details with its value. */
+const SECTION = "mt-5! mb-2 text-sm font-semibold";
+const DETAIL_TITLE = "mt-2! mb-0.5 text-sm font-semibold";
+const DETAIL_ROW = "flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-sm wrap-anywhere";
+/** A row of fields and the buttons that go with them. */
+const FORM = "flex flex-wrap items-end gap-2";
+/** What a Reference model or Parent choice holds while none is chosen, since a choice cannot hold an empty string. */
+const NONE = "__none";
+/** The tree's columns: the model, its score and its status. */
+const TREE_ROW = "grid grid-cols-[minmax(0,1fr)_76px_minmax(96px,150px)] items-center gap-3 px-3";
 
 /** What a model's newest run found, and how much of it a person has looked at. */
 interface Latest {
@@ -97,10 +117,9 @@ export function Lineage(props: ScreenProps) {
   }
 
   const field = (key: keyof typeof form, label: string) => (
-    <label className="lab-field">
-      {label}
-      <input value={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.value })} />
-    </label>
+    <Field label={label} className="flex-[1_1_160px]">
+      <Input value={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.value })} />
+    </Field>
   );
 
   const nameOf = (model: ModelNode) => model.name || model.source;
@@ -121,48 +140,48 @@ export function Lineage(props: ScreenProps) {
   }
 
   const details = current ? (
-    <div className="lab-lineage-detail" data-tour="lineage-details">
-      <div className="lab-muted">{current.parentId ? (current.referenceId ? "Policy" : "Branch") : "Base model"}{current.floating ? "" : " · pinned weights"}</div>
-      <h2>{nameOf(current)}</h2>
-      <div className="lab-detail-row"><span className="lab-muted">Source</span><code>{current.source}</code></div>
-      <div className="lab-detail-row"><span className="lab-muted">Revision</span>{current.floating ? <span className="lab-tag warn">Not fixed, so it can change</span> : <code>{current.weightsRevision}</code>}</div>
-      <div className="lab-detail-row"><span className="lab-muted">Parent</span><span>{models.find((item) => item.id === current.parentId)?.source ?? "None"}</span></div>
-      <div className="lab-detail-row"><span className="lab-muted">Reference model</span><span>{current.referenceId ? (models.find((item) => item.id === current.referenceId) ? nameOf(models.find((item) => item.id === current.referenceId)!) : current.referenceId) : "None"}</span></div>
-      <div className="lab-detail-row"><span className="lab-muted">Produced by</span><span>{current.producedBy ?? "Not recorded"}</span></div>
-      <div className="lab-detail-row"><span className="lab-muted">Training data</span><span>{current.trainingData ?? "Not recorded"}</span></div>
-      {value?.compared[current.id] && value.compared[current.id].result !== "comparable" ? <div className="lab-notice">{comparisonText(value.compared[current.id])} from its parent. Measure it the same way, or start a new experiment.</div> : null}
+    <div className="flex flex-1 flex-col gap-1.5 overflow-auto bg-panel p-3.5" data-tour="lineage-details">
+      <div className={MUTED}>{current.parentId ? (current.referenceId ? "Policy" : "Branch") : "Base model"}{current.floating ? "" : " · pinned weights"}</div>
+      <h2 className={DETAIL_TITLE}>{nameOf(current)}</h2>
+      <div className={DETAIL_ROW}><span className={MUTED}>Source</span><code>{current.source}</code></div>
+      <div className={DETAIL_ROW}><span className={MUTED}>Revision</span>{current.floating ? <Badge tone="wait">Not fixed, so it can change</Badge> : <code>{current.weightsRevision}</code>}</div>
+      <div className={DETAIL_ROW}><span className={MUTED}>Parent</span><span>{models.find((item) => item.id === current.parentId)?.source ?? "None"}</span></div>
+      <div className={DETAIL_ROW}><span className={MUTED}>Reference model</span><span>{current.referenceId ? (models.find((item) => item.id === current.referenceId) ? nameOf(models.find((item) => item.id === current.referenceId)!) : current.referenceId) : "None"}</span></div>
+      <div className={DETAIL_ROW}><span className={MUTED}>Produced by</span><span>{current.producedBy ?? "Not recorded"}</span></div>
+      <div className={DETAIL_ROW}><span className={MUTED}>Training data</span><span>{current.trainingData ?? "Not recorded"}</span></div>
+      {value?.compared[current.id] && value.compared[current.id].result !== "comparable" ? <Notice tone="wait">{comparisonText(value.compared[current.id])} from its parent. Measure it the same way, or start a new experiment.</Notice> : null}
 
-      <h2>Behavior</h2>
+      <h2 className={DETAIL_TITLE}>Behavior</h2>
       {measured ? (
         <>
           {Object.entries(measured.summary.scores).map(([name, score]) => (
-            <div className="lab-detail-row" key={name}>
-              <span className="lab-muted">{name}</span>
-              <span>{scoreText(score.mean)} <span className="lab-muted">n = {score.count}</span></span>
+            <div className={DETAIL_ROW} key={name}>
+              <span className={MUTED}>{name}</span>
+              <span>{scoreText(score.mean)} <span className={MUTED}>n = {score.count}</span></span>
             </div>
           ))}
-          <div className="lab-detail-row"><span className="lab-muted">Run</span><code>{measured.runId}</code></div>
-          <div className="lab-detail-row"><span className="lab-muted">Review</span><span>{measured.toReview ? `${measured.toReview} samples to review` : "Every scored sample labeled"}</span></div>
-          <div className="lab-form">
-            <button type="button" className="lab-button" onClick={() => { service.open(projectId, { kind: "sample", runId: measured.runId }); props.go("Samples"); }}>Open samples at this node</button>
-            <button type="button" className="lab-button" onClick={() => props.go("Experiments")}>Open its experiment</button>
+          <div className={DETAIL_ROW}><span className={MUTED}>Run</span><code>{measured.runId}</code></div>
+          <div className={DETAIL_ROW}><span className={MUTED}>Review</span><span>{measured.toReview ? `${measured.toReview} samples to review` : "Every scored sample labeled"}</span></div>
+          <div className={classes(FORM, "mt-1.5")}>
+            <Button variant="outline" onClick={() => { service.open(projectId, { kind: "sample", runId: measured.runId }); props.go("Samples"); }}>Open samples at this node</Button>
+            <Button variant="outline" onClick={() => props.go("Experiments")}>Open its experiment</Button>
           </div>
         </>
       ) : (
-        <p className="lab-muted">No run has named this model. A run names one with each sample's modelId.</p>
+        <p className={MUTED}>No run has named this model. A run names one with each sample's modelId.</p>
       )}
 
-      <h2>Mechanism</h2>
+      <h2 className={DETAIL_TITLE}>Mechanism</h2>
       {(() => {
         const known = measured ? mechanismOf(value?.inside[measured.runId] ?? [], current.id) : [];
         const readings = measured ? (value?.inside[measured.runId] ?? []).filter((item) => item.kind === "reading" && item.current !== false && item.modelId === current.id).length : 0;
         const earlier = measured ? earlierSweeps(value?.inside[measured.runId] ?? [], current.id) : 0;
-        const earlierNote = earlier ? <p className="lab-muted">{earlier === 1 ? "1 earlier sweep" : `${earlier} earlier sweeps`} came from a helper that has since changed. Kept with the run, not counted here; sweep again under Experiments.</p> : null;
+        const earlierNote = earlier ? <p className={MUTED}>{earlier === 1 ? "1 earlier sweep" : `${earlier} earlier sweeps`} came from a helper that has since changed. Kept with the run, not counted here; sweep again under Experiments.</p> : null;
         return known.length ? (
           <>
           {known.map((item, index) => (
-            <div className="lab-detail-row" key={index}>
-              <span className="lab-muted">From {nameOf(models.find((model) => model.id === item.sourceModelId) ?? { source: item.sourceModelId ?? "?" } as ModelNode)}</span>
+            <div className={DETAIL_ROW} key={index}>
+              <span className={MUTED}>From {nameOf(models.find((model) => model.id === item.sourceModelId) ?? { source: item.sourceModelId ?? "?" } as ModelNode)}</span>
               <span>{item.layers.length ? `${item.layers.length === 1 ? "Layer" : "Layers"} ${item.layers.join(", ")} ${item.layers.length === 1 ? "restores" : "restore"} ${item.restored} of ${item.of} ${RESTORE_MEASURE_TEXT[item.measure]}${item.layers.length > 1 ? " (tied)" : ""}` : `No layer restores any of ${item.of} ${RESTORE_MEASURE_TEXT[item.measure]}`}</span>
             </div>
           ))}
@@ -170,79 +189,76 @@ export function Lineage(props: ScreenProps) {
           </>
         ) : (
           <>
-          <p className="lab-muted">{readings ? `${readings} activation readings, no patch yet.` : "No intervention is recorded at this node. Under Experiments, sweep every layer into it from another node; a sample's Look inside does one layer."}</p>
+          <p className={MUTED}>{readings ? `${readings} activation readings, no patch yet.` : "No intervention is recorded at this node. Under Experiments, sweep every layer into it from another node; a sample's Look inside does one layer."}</p>
           {earlierNote}
           </>
         );
       })()}
-      <div className="lab-card">
-        <div className="lab-muted">Feature alignment across nodes</div>
+      <Card className="gap-1 p-3 text-sm">
+        <div className={MUTED}>Feature alignment across nodes</div>
         Not set. Features from different models are not treated as the same until you record how they were aligned and test them with an intervention.
-      </div>
+      </Card>
 
-      <h2>Your note</h2>
+      <h2 className={DETAIL_TITLE}>Your note</h2>
       {note === null ? (
         <>
-          <div>{current.note || <span className="lab-muted">No note yet.</span>}</div>
-          <button type="button" className="lab-button quiet" onClick={() => setNote(current.note ?? "")}>{current.note ? "Change" : "Write one"}</button>
+          <div className="text-sm">{current.note || <span className={MUTED}>No note yet.</span>}</div>
+          <Button variant="ghost" className="mt-1.5 w-fit" onClick={() => setNote(current.note ?? "")}>{current.note ? "Change" : "Write one"}</Button>
         </>
       ) : (
         <form
-          className="lab-form"
+          className={FORM}
           onSubmit={(event) => {
             event.preventDefault();
             void saveNote();
           }}
         >
-          <textarea aria-label="Your note on this model" rows={3} value={note} onChange={(event) => setNote(event.target.value)} />
-          <button type="submit" className="lab-button">Save</button>
-          <button type="button" className="lab-button quiet" onClick={() => setNote(null)}>Cancel</button>
+          <Textarea aria-label="Your note on this model" rows={3} value={note} onChange={(event) => setNote(event.target.value)} />
+          <Button type="submit" variant="outline">Save</Button>
+          <Button variant="ghost" onClick={() => setNote(null)}>Cancel</Button>
         </form>
       )}
 
-      <button
-        type="button"
-        className="lab-button"
-        style={{ marginTop: 12 }}
+      <Button
+        variant="outline"
+        className="mt-3 w-fit"
         onClick={() => {
           setForm({ source: "", name: "", weightsRevision: "", parentId: current.id, trainingData: "", referenceId: "", producedBy: "" });
           setAdding(true);
         }}
       >
         Branch from here
-      </button>
+      </Button>
     </div>
   ) : null;
 
   return (
     <Split id="lineage" side="right" size={320} minimum={240} label="Model details" open={Boolean(current)} pane={details}>
-      <div className="lab-page">
-        <div className="lab-page-inner">
-          <h1>Model lineage</h1>
-          <p className="lab-lead">From checkpoints to fine-tuned and preference-trained branches. Saturn records where weights are, and does not copy them.</p>
+      <Page title="Model lineage" lead="From checkpoints to fine-tuned and preference-trained branches. Saturn records where weights are, and does not copy them.">
           {value && models.length === 0 && !adding ? (
-            <Empty title="No models yet" action={<button type="button" className="lab-button primary" data-tour="lineage-add" onClick={() => setAdding(true)}>Add the first model</button>}>
+            <Empty title="No models yet" action={<Button data-tour="lineage-add" onClick={() => setAdding(true)}>Add the first model</Button>}>
               Add a checkpoint to start a lineage.
             </Empty>
           ) : null}
           {models.length ? (
-            <div className="lab-tree" role="group" aria-label="Models, each under the one it came from">
-              <div className="lab-tree-head" aria-hidden="true">
+            <div className="mt-3.5 flex flex-col overflow-hidden rounded-lg border border-border" role="group" aria-label="Models, each under the one it came from">
+              <div className={classes(TREE_ROW, "min-h-[30px] border-b border-border bg-panel text-[11.5px] text-muted-foreground")} aria-hidden="true">
                 <span>Model</span>
-                <span className="lab-tree-score">{scoreName ?? "Score"}</span>
+                <span className="truncate text-right">{scoreName ?? "Score"}</span>
                 <span>Status</span>
               </div>
               {lineageRows(models).map(({ model, depth, branch }) => {
                 const score = firstScore(value?.latest[model.id]);
                 const compared = value?.compared[model.id];
                 return (
-                  <button type="button" key={model.id} aria-pressed={model.id === current?.id} className={model.id === current?.id ? "lab-tree-row active" : "lab-tree-row"} title={nameOf(model)} onClick={() => setSelected(model.id)}>
-                    <span className="lab-tree-name" style={{ paddingLeft: `${Math.min(depth, 6) * 18}px` }}>
-                      {depth ? <span className={branch ? "lab-tree-link" : "lab-tree-link continues"} aria-hidden="true" /> : null}
-                      <span className="lab-tree-label">{nameOf(model)}</span>
+                  <button type="button" key={model.id} aria-pressed={model.id === current?.id} className={classes(TREE_ROW, "min-h-[34px] w-full border-0 border-b border-border text-left text-foreground last:border-b-0 hover:bg-muted", model.id === current?.id && "bg-muted shadow-[inset_2px_0_0_var(--hue-lineage)]")} title={nameOf(model)} onClick={() => setSelected(model.id)}>
+                    <span className="flex min-w-0 items-center gap-1.5" style={{ paddingLeft: `${Math.min(depth, 6) * 18}px` }}>
+                      {/* The corner joining a model to the one above it, or straight on from it when the line is itself a branch. */}
+                      {depth ? <span className={classes("-mt-[9px] h-3.5 w-2.5 flex-none rounded-bl-[3px] border-b border-l border-hue-lineage", !branch && "mt-0 h-[34px] rounded-bl-none border-b-0")} aria-hidden="true" /> : null}
+                      <span className="min-w-0 truncate font-mono text-xs">{nameOf(model)}</span>
                     </span>
-                    <span className="lab-tree-score" title={score ? score.name : undefined}>{score ? scoreText(score.mean) : "–"}</span>
-                    <span className="lab-tree-status">{compared && compared.result === "not_comparable" ? <span className="lab-tag warn">Not comparable</span> : compared && compared.result === "unknown" ? <span className="lab-tag">Cannot tell</span> : model.floating ? <span className="lab-tag warn">Revision not fixed</span> : value?.latest[model.id]?.toReview ? <span className="lab-muted">{value.latest[model.id].toReview} to review</span> : score ? <span className="lab-tag good">Evaluated</span> : null}</span>
+                    <span className="truncate text-right text-sm tabular-nums" title={score ? score.name : undefined}>{score ? scoreText(score.mean) : "–"}</span>
+                    <span className="flex min-w-0 overflow-hidden whitespace-nowrap">{compared && compared.result === "not_comparable" ? <Badge tone="wait">Not comparable</Badge> : compared && compared.result === "unknown" ? <Badge>Cannot tell</Badge> : model.floating ? <Badge tone="wait">Revision not fixed</Badge> : value?.latest[model.id]?.toReview ? <span className={MUTED}>{value.latest[model.id].toReview} to review</span> : score ? <Badge tone="good">Evaluated</Badge> : null}</span>
                   </button>
                 );
               })}
@@ -250,28 +266,28 @@ export function Lineage(props: ScreenProps) {
           ) : null}
 
           {value?.fixed.length ? (
-            <div className="lab-card" style={{ marginTop: 16 }}>
-              <div style={{ fontWeight: 500, marginBottom: 6 }}>Held fixed across the measured nodes</div>
-              <div className="lab-fixed">
+            <Card className="mt-4 gap-1.5 border-0 bg-panel px-3.5 py-3">
+              <div className="mb-1.5 text-sm font-medium">Held fixed across the measured nodes</div>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-4 gap-y-2 text-xs">
                 {value.fixed.map((item) => (
                   <div key={item.field}>
-                    <div className="lab-muted">{item.field}</div>
+                    <div className={MUTED}>{item.field}</div>
                     <code>{item.value}</code>
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           ) : null}
           {models.length > 0 && !adding ? (
-            <button type="button" className="lab-button" data-tour="lineage-add" style={{ marginTop: 16 }} onClick={() => setAdding(true)}>
+            <Button variant="outline" className="mt-4 w-fit" data-tour="lineage-add" onClick={() => setAdding(true)}>
               Add a model
-            </button>
+            </Button>
           ) : null}
           {adding ? (
             <>
-              <h2>Add a model</h2>
+              <h2 className={SECTION}>Add a model</h2>
               <form
-                className="lab-form"
+                className={FORM}
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (form.source.trim()) void add();
@@ -282,39 +298,18 @@ export function Lineage(props: ScreenProps) {
                 {field("weightsRevision", "Revision")}
                 {field("trainingData", "Training data")}
                 {field("producedBy", "Produced by (a script, a training run, a release)")}
-                <label className="lab-field">
-                  Reference model
-                  <select value={form.referenceId} onChange={(event) => setForm({ ...form, referenceId: event.target.value })}>
-                    <option value="">None</option>
-                    {models.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {nameOf(model)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="lab-field">
-                  Parent
-                  <select value={form.parentId} onChange={(event) => setForm({ ...form, parentId: event.target.value })}>
-                    <option value="">None</option>
-                    {models.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {nameOf(model)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="submit" className="lab-button primary" disabled={!form.source.trim()}>
+                <Choice label="Reference model" className="flex-[1_1_160px]" value={form.referenceId || NONE} options={[{ value: NONE, label: "None" }, ...models.map((model) => ({ value: model.id, label: nameOf(model) }))]} onChange={(chosen) => setForm({ ...form, referenceId: chosen === NONE ? "" : chosen })} />
+                <Choice label="Parent" className="flex-[1_1_160px]" value={form.parentId || NONE} options={[{ value: NONE, label: "None" }, ...models.map((model) => ({ value: model.id, label: nameOf(model) }))]} onChange={(chosen) => setForm({ ...form, parentId: chosen === NONE ? "" : chosen })} />
+                <Button type="submit" disabled={!form.source.trim()}>
                   Add
-                </button>
-                <button type="button" className="lab-button quiet" onClick={() => setAdding(false)}>
+                </Button>
+                <Button variant="ghost" onClick={() => setAdding(false)}>
                   Cancel
-                </button>
+                </Button>
               </form>
             </>
           ) : null}
-        </div>
-      </div>
+      </Page>
     </Split>
   );
 }

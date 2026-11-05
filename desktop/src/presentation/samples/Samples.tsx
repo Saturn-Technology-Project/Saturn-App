@@ -18,6 +18,11 @@ import { sampleIdParts,
   type SampleLine,
 } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
+import { Button } from "../ui/base/Button.js";
+import { Card, CardTitle } from "../ui/base/Card.js";
+import { Choice, Field } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
+import { classes } from "../ui/base/classes.js";
 import { messageOf } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
 import { useRecords } from "../ui/useRecords.js";
@@ -31,6 +36,24 @@ const ONLY: { id: "all" | "disputed" | "errors"; label: string }[] = [
   { id: "disputed", label: "Disputed" },
   { id: "errors", label: "Errors" },
 ];
+/** Small quiet text, and a warning in the same size. */
+const MUTED = "text-xs text-muted-foreground";
+const WARNING = "text-xs text-wait";
+/** A screen's title, marked with the screen's color, and a section's heading inside the page. */
+const TITLE = "flex items-center gap-2 text-(length:--text-title) font-semibold before:size-2 before:rounded-full before:bg-(--screen-hue)";
+const SECTION = "mt-5! mb-2 text-sm font-semibold";
+/** A heading with what belongs beside it. */
+const HEAD_ROW = "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2";
+/** A row of buttons of which one is chosen. */
+const SEGMENTS = "flex gap-0.5 rounded-lg border border-border bg-card p-0.5";
+/** Code-like text that keeps its line breaks. */
+const TEXT = "font-mono text-xs wrap-anywhere whitespace-pre-wrap";
+/** A table's heading cell and body cell. */
+const HEAD = "px-2 py-1.5 text-left font-medium whitespace-nowrap text-muted-foreground";
+const CELL = "border-t border-border p-2 align-top wrap-anywhere";
+/** One of the cards about a sample, and a fact in it with its value. */
+const ABOUT = "gap-1.5 border-0 bg-panel px-3.5 py-3";
+const DETAIL_ROW = "flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-sm wrap-anywhere";
 const FACTOR_LABELS: Record<string, string> = { dataset: "Data", split: "Split", sampleSet: "Sample set", scorer: "Scorer", promptFormat: "Prompt format", chatTemplate: "Chat template" };
 
 /** The label a person gave a line, if any. */
@@ -239,23 +262,16 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
   const factors = comparisonFactors(runVersion?.evaluation, rows.find((row) => row.runId !== runId)?.comparison ?? null);
 
   const list = (
-    <nav className="lab-sample-nav" aria-label="Samples" data-tour="samples-list">
-      <div className="lab-sample-controls">
-        <label className="lab-field" data-tour="samples-run">
-          Run
-          <select value={runId ?? ""} onChange={(event) => { setRunId(event.target.value); setSampleId(null); }}>
-            {runs.map((item: ExperimentRun) => (
-              <option key={item.id} value={item.id}>
-                {item.id} · {runStatusLabel(item.status)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="lab-segments" role="group" aria-label="Which samples" data-tour="samples-filter">
+    <nav className="flex min-w-0 flex-1 flex-col overflow-auto bg-panel px-1.5 pb-2.5" aria-label="Samples" data-tour="samples-list">
+      <div className="sticky top-0 z-[1] mb-1 flex flex-none flex-col gap-2 bg-panel px-1 pt-2.5 pb-2">
+        <div data-tour="samples-run">
+          <Choice label="Run" value={runId ?? ""} options={runs.map((item: ExperimentRun) => ({ value: item.id, label: `${item.id} · ${runStatusLabel(item.status)}` }))} onChange={(chosen) => { setRunId(chosen); setSampleId(null); }} />
+        </div>
+        <div className={SEGMENTS} role="group" aria-label="Which samples" data-tour="samples-filter">
           {ONLY.map((item) => (
-            <button type="button" key={item.id} aria-pressed={only === item.id} className={only === item.id ? "lab-segment active" : "lab-segment"} onClick={() => setOnly(item.id)}>
+            <Button key={item.id} size="small" variant={only === item.id ? "default" : "ghost"} aria-pressed={only === item.id} className="flex-1" onClick={() => setOnly(item.id)}>
               {item.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -267,91 +283,92 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
         const note = [labeled ? `${labeled} ${labeled === 1 ? "label" : "labels"}` : "", errors ? `${errors} ${errors === 1 ? "error" : "errors"}` : ""].filter(Boolean).join(", ");
         const state = note || "To review";
         return (
-          <button type="button" key={line.sampleId} aria-current={line.sampleId === sampleId ? "true" : undefined} className={line.sampleId === sampleId ? "lab-sample-row active" : "lab-sample-row"} title={`${line.sampleId}: ${state}`} onClick={() => setSampleId(line.sampleId)}>
-            <span className={errors ? "lab-sample-dot bad" : labeled ? "lab-sample-dot done" : "lab-sample-dot"} aria-hidden="true" />
-            <span className="lab-sample-id">
-              <span className="lab-sample-id-start">{idParts.start}</span>
-              <span className="lab-sample-id-end">{idParts.end}</span>
+          <button type="button" key={line.sampleId} aria-current={line.sampleId === sampleId ? "true" : undefined} className={classes("flex min-h-7 w-full flex-none items-center gap-2 rounded-md border-0 px-1.5 py-0.5 text-left text-foreground hover:bg-muted", line.sampleId === sampleId && "bg-muted shadow-[inset_2px_0_0_var(--screen-hue)]")} title={`${line.sampleId}: ${state}`} onClick={() => setSampleId(line.sampleId)}>
+            {/* Hollow until someone has looked at it. */}
+            <span className={classes("size-[7px] flex-none rounded-full border border-muted-foreground", errors ? "border-destructive bg-destructive" : labeled ? "border-good bg-good" : "")} aria-hidden="true" />
+            {/* The start gives way to keep the end, where ids tend to differ. */}
+            <span className="flex min-w-0 flex-1 font-mono text-xs whitespace-nowrap">
+              <span className="min-w-0 flex-[0_1_auto] truncate">{idParts.start}</span>
+              <span className="flex-none">{idParts.end}</span>
             </span>
-            {note ? <span className="lab-sample-note">{note}</span> : <span className="lab-unseen">To review</span>}
+            {note ? <span className="flex-none text-[11px] text-muted-foreground">{note}</span> : <span className="sr-only">To review</span>}
           </button>
         );
       })}
-      {loadingMore ? <p className="lab-muted">Loading…</p> : null}
+      {loadingMore ? <p className={MUTED}>Loading…</p> : null}
       {!loadingMore && nextCursor !== null ? (
-        <button type="button" className="lab-link" onClick={() => void moreSamples()}>
+        <Button variant="ghost" size="small" className="w-fit text-primary" onClick={() => void moreSamples()}>
           More
-        </button>
+        </Button>
       ) : null}
-      {runs.length === 0 && value ? <p className="lab-muted">No run has results yet.</p> : null}
-      {runs.length && listed.length === 0 ? <p className="lab-muted">Nothing here.</p> : null}
+      {runs.length === 0 && value ? <p className={MUTED}>No run has results yet.</p> : null}
+      {runs.length && listed.length === 0 ? <p className={MUTED}>Nothing here.</p> : null}
     </nav>
   );
 
   const about = run ? (
-    <div className="lab-sample-about">
-      <section>
-      <h2>What differs</h2>
-      <div className="lab-muted">{allRuns && rows.length > 1 ? "Between this run's version and the others shown." : "Stated by this run's version. Show every run to compare."}</div>
-      {factors.map((factor) => (
-        <div className="lab-detail-row" key={factor.field}>
-          <span className="lab-muted">{FACTOR_LABELS[factor.field] ?? factor.field}</span>
-          <span className={factor.state === "differs" ? "lab-warning" : undefined}>
-            {factor.state === "differs" ? "Changed" : factor.state === "missing" ? "Not stated" : "Same"}
-            {factor.value ? ` · ${factor.value}` : ""}
-          </span>
-        </div>
-      ))}
-      <div className="lab-detail-row"><span className="lab-muted">Infrastructure errors</span><span>{run.infrastructureErrors ?? 0}</span></div>
-      </section>
+    <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-x-6 gap-y-3">
+      <Card className={ABOUT}>
+        <CardTitle className="mb-1">What differs</CardTitle>
+        <div className={MUTED}>{allRuns && rows.length > 1 ? "Between this run's version and the others shown." : "Stated by this run's version. Show every run to compare."}</div>
+        {factors.map((factor) => (
+          <div className={DETAIL_ROW} key={factor.field}>
+            <span className={MUTED}>{FACTOR_LABELS[factor.field] ?? factor.field}</span>
+            <span className={factor.state === "differs" ? WARNING : undefined}>
+              {factor.state === "differs" ? "Changed" : factor.state === "missing" ? "Not stated" : "Same"}
+              {factor.value ? ` · ${factor.value}` : ""}
+            </span>
+          </div>
+        ))}
+        <div className={DETAIL_ROW}><span className={MUTED}>Infrastructure errors</span><span>{run.infrastructureErrors ?? 0}</span></div>
+      </Card>
 
-      <section>
-      <h2>Review progress</h2>
-      <div className="lab-progress" role="img" aria-label={`${progress.labeled} of ${progress.total} reviewed`}>
-        <span className="lab-progress-bar" style={{ width: `${progress.total ? (progress.labeled / progress.total) * 100 : 0}%` }} />
-      </div>
-      <div>{progress.labeled} of {progress.total} reviewed</div>
-      <div className="lab-muted">{labels?.agreement.compared ? `${labels.agreement.agreed} of ${labels.agreement.compared} with a scorer label agree with it.` : "Agreement with the scorer appears as you label."}</div>
-      </section>
+      <Card className={ABOUT}>
+        <CardTitle className="mb-1">Review progress</CardTitle>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-[3px] bg-muted" role="img" aria-label={`${progress.labeled} of ${progress.total} reviewed`}>
+          <span className="block h-full bg-primary" style={{ width: `${progress.total ? (progress.labeled / progress.total) * 100 : 0}%` }} />
+        </div>
+        <div className="text-sm">{progress.labeled} of {progress.total} reviewed</div>
+        <div className={MUTED}>{labels?.agreement.compared ? `${labels.agreement.agreed} of ${labels.agreement.compared} with a scorer label agree with it.` : "Agreement with the scorer appears as you label."}</div>
+      </Card>
 
       {current && sampleId ? (
         <>
-          <section>
-          <h2 data-tour="samples-inside">Look inside</h2>
-          {inside ? (
-            <LookInside projectId={projectId} runId={run.id} sampleId={sampleId} modelId={current.modelId ?? null} candidates={rows.filter((row) => row.runId === run.id).flatMap((row) => row.samples.map((line) => line.modelId ?? null))} models={value?.models ?? []} notify={notify} />
-          ) : (
-            <button type="button" className="lab-button" onClick={() => setInside(true)}>Compare activations or patch a layer</button>
-          )}
-          {typeof current.input === "string" ? (
-            <button type="button" className="lab-button" onClick={() => openInInspect(current)}>Open in Inspect</button>
-          ) : null}
-          </section>
+          <Card className={ABOUT}>
+            <CardTitle className="mb-1" data-tour="samples-inside">Look inside</CardTitle>
+            {inside ? (
+              <LookInside projectId={projectId} runId={run.id} sampleId={sampleId} modelId={current.modelId ?? null} candidates={rows.filter((row) => row.runId === run.id).flatMap((row) => row.samples.map((line) => line.modelId ?? null))} models={value?.models ?? []} notify={notify} />
+            ) : (
+              <Button variant="outline" className="w-fit" onClick={() => setInside(true)}>Compare activations or patch a layer</Button>
+            )}
+            {typeof current.input === "string" ? (
+              <Button variant="outline" className="w-fit" onClick={() => openInInspect(current)}>Open in Inspect</Button>
+            ) : null}
+          </Card>
 
-          <section>
-          <h2 data-tour="samples-keep">Keep it</h2>
-          <div className="lab-muted">The assistant runs apart from the model under test. A sample shared with it is marked as data.</div>
-          <label className="lab-field">
-            Why keep this sample
-            <input value={note} onChange={(event) => setNote(event.target.value)} />
-          </label>
-          <button
-            type="button"
-            className="lab-button"
-            onClick={() => {
-              void service
-                .addCounterexample(projectId, run.id, sampleId, note)
-                .then(() => {
-                  setNote("");
-                  setSaved("Saved as a counterexample.");
-                })
-                .catch((error: unknown) => notify(messageOf(error)));
-            }}
-          >
-            Save as counterexample
-          </button>
-          {saved ? <span className="lab-muted">{saved}</span> : null}
-          </section>
+          <Card className={ABOUT}>
+            <CardTitle className="mb-1" data-tour="samples-keep">Keep it</CardTitle>
+            <div className={MUTED}>The assistant runs apart from the model under test. A sample shared with it is marked as data.</div>
+            <Field label="Why keep this sample">
+              <Input value={note} onChange={(event) => setNote(event.target.value)} />
+            </Field>
+            <Button
+              variant="outline"
+              className="w-fit"
+              onClick={() => {
+                void service
+                  .addCounterexample(projectId, run.id, sampleId, note)
+                  .then(() => {
+                    setNote("");
+                    setSaved("Saved as a counterexample.");
+                  })
+                  .catch((error: unknown) => notify(messageOf(error)));
+              }}
+            >
+              Save as counterexample
+            </Button>
+            {saved ? <span className={MUTED}>{saved}</span> : null}
+          </Card>
         </>
       ) : null}
     </div>
@@ -359,61 +376,62 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
 
   return (
     <Split id="samples" side="left" size={240} minimum={180} label="Samples" pane={list}>
-        <div className="lab-page"><div className="lab-page-inner">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-[920px] px-6 py-5">
           {!current ? (
             <>
-              <h1>Samples</h1>
-              <p className="lab-lead">Choose a sample. Model output is data: it is shown as plain text and never read as instructions. A label never overwrites a score.</p>
+              <h1 className={TITLE}>Samples</h1>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Choose a sample. Model output is data: it is shown as plain text and never read as instructions. A label never overwrites a score.</p>
             </>
           ) : (
             <>
-              <div className="lab-page-head">
-                <h1>{current.sampleId}</h1>
-                <span className="lab-muted">Model output is data. It is never read as instructions.</span>
+              <div className={HEAD_ROW}>
+                <h1 className={TITLE}>{current.sampleId}</h1>
+                <span className={MUTED}>Model output is data. It is never read as instructions.</span>
               </div>
-              <div className="lab-card">
-                <div className="lab-muted">Input{current.expected !== undefined ? <> · expected: <code>{sampleText(current.expected)}</code></> : null}</div>
-                <pre className="lab-text">{sampleText(current.input)}</pre>
-              </div>
+              <Card className="mt-3 gap-1.5 border-0 bg-panel px-3.5 py-3">
+                <div className={MUTED}>Input{current.expected !== undefined ? <> · expected: <code>{sampleText(current.expected)}</code></> : null}</div>
+                <pre className={TEXT}>{sampleText(current.input)}</pre>
+              </Card>
 
-              <div className="lab-page-head">
-                <h2>Same sample across the lineage</h2>
-                <button type="button" className="lab-button quiet" aria-pressed={allRuns} onClick={() => setAllRuns((on) => !on)}>
+              <div className={HEAD_ROW}>
+                <h2 className={SECTION}>Same sample across the lineage</h2>
+                <Button variant="ghost" aria-pressed={allRuns} onClick={() => setAllRuns((on) => !on)}>
                   {allRuns ? "This run only" : `Every run that saw it (${runs.length})`}
-                </button>
+                </Button>
               </div>
-              <div className="lab-table-wrap" role="region" aria-label="Sample comparisons" data-tour="samples-labels" tabIndex={0}>
-                <table className="lab-table lab-sample-table" aria-label={`${current.sampleId} in each model`}>
+              <div className="overflow-x-auto" role="region" aria-label="Sample comparisons" data-tour="samples-labels" tabIndex={0}>
+                <table className="w-full min-w-[760px] border-collapse text-xs" aria-label={`${current.sampleId} in each model`}>
                   <thead>
-                    <tr><th scope="col">Model</th>{allRuns ? <th scope="col">Run</th> : null}<th scope="col">Output</th><th scope="col">Scores</th><th scope="col">Scorer</th><th scope="col">Your label</th></tr>
+                    <tr><th scope="col" className={HEAD}>Model</th>{allRuns ? <th scope="col" className={HEAD}>Run</th> : null}<th scope="col" className={HEAD}>Output</th><th scope="col" className={HEAD}>Scores</th><th scope="col" className={HEAD}>Scorer</th><th scope="col" className={HEAD}>Your label</th></tr>
                   </thead>
                   <tbody>
                     {rows.map((row) =>
                       row.samples.length === 0 ? (
-                        <tr key={row.runId}><td colSpan={allRuns ? 7 : 6} className="lab-muted"><code>{row.runId}</code> has no such sample.</td></tr>
+                        <tr key={row.runId}><td colSpan={allRuns ? 7 : 6} className={classes(CELL, MUTED)}><code>{row.runId}</code> has no such sample.</td></tr>
                       ) : (
                         row.samples.map((line) => (
                           <tr key={`${row.runId}-${line.trial ?? 0}-${line.modelId ?? ""}`}>
-                            <td>{modelName(line.modelId)}{row.comparison.result !== "comparable" && row.runId !== runId ? <div className="lab-warning">Not measured the same way</div> : null}</td>
-                            {allRuns ? <td><code>{row.runId}</code> <span className="lab-muted">v{version(row.versionId)?.number ?? "?"}</span></td> : null}
-                            <td><pre className="lab-text">{sampleText(line.output)}</pre></td>
-                            <td><div className="lab-text">{line.scores ? Object.entries(line.scores).map(([name, score]) => <div key={name}>{name} = {String(score)}</div>) : <span className="lab-muted">None</span>}</div></td>
-                            <td>
-                              {line.scorerLabel ?? <span className="lab-muted">No word</span>}
-                              {line.error ? <div className="lab-warning">{line.error.kind} error{line.error.message ? `: ${line.error.message}` : ""}</div> : null}
+                            <td className={CELL}>{modelName(line.modelId)}{row.comparison.result !== "comparable" && row.runId !== runId ? <div className={WARNING}>Not measured the same way</div> : null}</td>
+                            {allRuns ? <td className={CELL}><code>{row.runId}</code> <span className={MUTED}>v{version(row.versionId)?.number ?? "?"}</span></td> : null}
+                            <td className={CELL}><pre className={TEXT}>{sampleText(line.output)}</pre></td>
+                            <td className={CELL}><div className={TEXT}>{line.scores ? Object.entries(line.scores).map(([name, score]) => <div key={name}>{name} = {String(score)}</div>) : <span className={MUTED}>None</span>}</div></td>
+                            <td className={CELL}>
+                              {line.scorerLabel ?? <span className={MUTED}>No word</span>}
+                              {line.error ? <div className={WARNING}>{line.error.kind} error{line.error.message ? `: ${line.error.message}` : ""}</div> : null}
                             </td>
-                            <td>
-                              <div className="lab-segments" role="group" aria-label={`Your label for ${modelName(line.modelId)} in ${row.runId}`}>
+                            <td className={CELL}>
+                              <div className={classes(SEGMENTS, "w-max")} role="group" aria-label={`Your label for ${modelName(line.modelId)} in ${row.runId}`}>
                                 {choicesFor(row.runId).map((item) => {
                                   const chosen = labelOf(labelsFor(row.runId), line) === item;
                                   return (
-                                    <button type="button" key={item} aria-pressed={chosen} className={chosen ? "lab-segment active" : "lab-segment"} onClick={() => void label(row.runId, line, item)}>
+                                    <Button key={item} size="small" variant={chosen ? "default" : "ghost"} aria-pressed={chosen} onClick={() => void label(row.runId, line, item)}>
                                       {item}
-                                    </button>
+                                    </Button>
                                   );
                                 })}
                               </div>
-                              {disputed(labelsFor(row.runId), line) ? <div className="lab-warning">Disagrees with the scorer. Both are kept.</div> : null}
+                              {disputed(labelsFor(row.runId), line) ? <div className={WARNING}>Disagrees with the scorer. Both are kept.</div> : null}
                             </td>
                           </tr>
                         ))
@@ -423,18 +441,19 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                 </table>
               </div>
 
-              <h2>Scoring rationale</h2>
-              <div className="lab-card">
-                {current.scorerLabel ? <div>The scorer called it <strong>{current.scorerLabel}</strong>{current.scores ? ` from ${Object.entries(current.scores).map(([name, score]) => `${name} = ${String(score)}`).join(", ")}` : ""}.</div> : null}
-                {!current.scorerLabel && current.scores ? <div>Scores: {Object.entries(current.scores).map(([name, score]) => `${name} = ${String(score)}`).join(", ")}. The scorer gave no word for its result.</div> : null}
-                {current.error ? <div className="lab-warning">{current.error.kind} error: {current.error.message ?? "no message"}. {current.error.kind === "infrastructure" ? "Excluded from the score." : "Counted as an error, not as a score."}</div> : null}
-                {!current.scores && !current.error ? <div className="lab-muted">No score on this line.</div> : null}
-                <div className="lab-muted">A rationale written by the program, as a scorerLabel on the line, is shown here. The score itself is never changed by a label.</div>
-              </div>
+              <h2 className={SECTION}>Scoring rationale</h2>
+              <Card className="gap-1.5 border-0 bg-panel px-3.5 py-3">
+                {current.scorerLabel ? <div className="text-sm">The scorer called it <strong>{current.scorerLabel}</strong>{current.scores ? ` from ${Object.entries(current.scores).map(([name, score]) => `${name} = ${String(score)}`).join(", ")}` : ""}.</div> : null}
+                {!current.scorerLabel && current.scores ? <div className="text-sm">Scores: {Object.entries(current.scores).map(([name, score]) => `${name} = ${String(score)}`).join(", ")}. The scorer gave no word for its result.</div> : null}
+                {current.error ? <div className={WARNING}>{current.error.kind} error: {current.error.message ?? "no message"}. {current.error.kind === "infrastructure" ? "Excluded from the score." : "Counted as an error, not as a score."}</div> : null}
+                {!current.scores && !current.error ? <div className={MUTED}>No score on this line.</div> : null}
+                <div className={MUTED}>A rationale written by the program, as a scorerLabel on the line, is shown here. The score itself is never changed by a label.</div>
+              </Card>
             </>
           )}
           {about}
-        </div></div>
+        </div>
+      </div>
     </Split>
   );
 }

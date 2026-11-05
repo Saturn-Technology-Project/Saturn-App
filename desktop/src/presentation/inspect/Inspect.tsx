@@ -4,6 +4,7 @@ import { controlCeiling, promptPatchText, readingDifference, restoredByLayer, st
 import { ActivationGrid } from "../samples/LookInside.js";
 import { Button } from "../ui/base/Button.js";
 import { Input } from "../ui/base/Input.js";
+import { Notice } from "../ui/base/Notice.js";
 import { Choice, Field } from "../ui/base/Field.js";
 import { Tabs, TabsList, TabsTrigger } from "../ui/base/Tabs.js";
 import { Textarea } from "../ui/base/Textarea.js";
@@ -144,7 +145,7 @@ function TwoPrompts(props: { projectId: string; run: ExperimentRun; models: Mode
         </Button>
       </div>
       <div className="text-xs text-muted-foreground">Spaces count: a name in the middle of a sentence usually starts with one.</div>
-      {problem ? <div role="alert" className="whitespace-pre-wrap rounded-md border border-border p-2 text-xs">{problem}</div> : null}
+      {problem ? <Notice tone="bad">{problem}</Notice> : null}
       {answer ? <PatchResult view={answer} models={props.models} onRecord={(text) => props.onRecord(text, props.run.id)} /> : null}
     </section>
   );
@@ -216,7 +217,7 @@ function TwoModels(props: { projectId: string; run: ExperimentRun; models: Model
           {busy ? "Reading…" : "Read both"}
         </Button>
       </div>
-      {problem ? <div role="alert" className="whitespace-pre-wrap rounded-md border border-border p-2 text-xs">{problem}</div> : null}
+      {problem ? <Notice tone="bad">{problem}</Notice> : null}
       {answer ? <CompareResult view={answer} models={props.models} /> : null}
     </section>
   );
@@ -243,7 +244,7 @@ function RecordedList(props: { items: Recorded[]; models: ModelNode[] }) {
   const keyOf = (item: Recorded) => `${item.runId}:${item.key ?? item.recordedAt}`;
   if (!props.items.length) return <Empty title="Nothing recorded yet">What you and the assistant look at inside a model is kept here, with the run it used.</Empty>;
   return (
-    <section className="mt-3 flex flex-col gap-3 rounded-lg bg-card p-4 gap-0.5">
+    <section className="mt-3 flex flex-col gap-0.5 rounded-lg bg-card p-4">
       {props.items.map((item) => {
         const key = keyOf(item);
         return (

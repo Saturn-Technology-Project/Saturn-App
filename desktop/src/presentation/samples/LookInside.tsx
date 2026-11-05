@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import type { ActivationView, ModelNode } from "../../domain/research.js";
+import { Button } from "../ui/base/Button.js";
+import { Choice, Field } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
+import { Notice } from "../ui/base/Notice.js";
+import { classes } from "../ui/base/classes.js";
 import { messageOf } from "../ui/Parts.js";
 
 const service = desktop.research;
@@ -55,53 +60,33 @@ export function LookInside(props: { projectId: string; runId: string; sampleId: 
   }
 
   return (
-    <div className="lab-inside">
-      <div className="lab-muted">Runs with the Python the experiment's command names, in float32. The result is saved with the run and answered from there when asked again.</div>
-      <div className="lab-inside-patch">
+    <div className="flex flex-col gap-2 py-2.5">
+      <div className="text-xs text-muted-foreground">Runs with the Python the experiment's command names, in float32. The result is saved with the run and answered from there when asked again.</div>
+      <div className="flex flex-wrap items-end gap-2">
         {candidates.length > 1 ? (
-          <label className="lab-field">
-            Model
-            <select value={modelId ?? ""} onChange={(event) => { setModelId(event.target.value || null); setAnswer(null); }}>
-              {candidates.map((id) => (
-                <option key={id} value={id}>
-                  {nameOf(id)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Choice label="Model" className="flex-[0_1_160px]" value={modelId ?? ""} options={candidates.map((id) => ({ value: id, label: nameOf(id) }))} onChange={(chosen) => { setModelId(chosen || null); setAnswer(null); }} />
         ) : null}
-        <button type="button" className="lab-button" disabled={busy} onClick={() => void compare()}>
+        <Button variant="outline" disabled={busy} onClick={() => void compare()}>
           {busy ? "Running…" : "Read activations at every layer"}
-        </button>
+        </Button>
       </div>
-      <div className="lab-inside-patch">
-        <label className="lab-field">
-          Patch layer
-          <input value={layer} inputMode="numeric" onChange={(event) => setLayer(event.target.value.replace(/\D/g, ""))} />
-        </label>
-        <label className="lab-field">
-          From
-          <select value={source} onChange={(event) => setSource(event.target.value)}>
-            <option value="">Choose a model</option>
-            {models.filter((model) => model.id !== modelId).map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.name || model.source}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="lab-button" disabled={busy || !source || !modelId || !layer} onClick={() => void patch()}>
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Patch layer" className="flex-[0_1_160px]">
+          <Input value={layer} inputMode="numeric" onChange={(event) => setLayer(event.target.value.replace(/\D/g, ""))} />
+        </Field>
+        <Choice label="From" className="flex-[0_1_160px]" placeholder="Choose a model" value={source} options={models.filter((model) => model.id !== modelId).map((model) => ({ value: model.id, label: model.name || model.source }))} onChange={setSource} />
+        <Button variant="outline" disabled={busy || !source || !modelId || !layer} onClick={() => void patch()}>
           Patch into {nameOf(modelId)}
-        </button>
+        </Button>
       </div>
-      {answer?.kind === "unavailable" ? <div className="lab-notice">{answer.reason}</div> : null}
+      {answer?.kind === "unavailable" ? <Notice tone="wait">{answer.reason}</Notice> : null}
       {answer?.kind === "view" ? (
         <>
           <ActivationGrid caption={`${answer.view.measure}, layer by token${answer.view.top !== undefined ? `; the model ends on ${JSON.stringify(answer.view.top)}` : ""}`} tokens={answer.view.tokens} layers={answer.view.layers} />
           {answer.view.patched ? (
             <ActivationGrid caption={`The same with the residual stream after layer ${answer.view.patched.layer} taken from ${nameOf(answer.view.patched.sourceModelId)}, so layers up to ${answer.view.patched.layer} are its and the rest stay; it then ends on ${JSON.stringify(answer.view.patched.top)}`} tokens={answer.view.tokens} layers={answer.view.patched.layers} />
           ) : null}
-          {answer.view.recordedAt ? <div className="lab-muted">Recorded {new Date(answer.view.recordedAt).toLocaleString()} and kept with the run.</div> : null}
+          {answer.view.recordedAt ? <div className="text-xs text-muted-foreground">Recorded {new Date(answer.view.recordedAt).toLocaleString()} and kept with the run.</div> : null}
         </>
       ) : null}
     </div>
@@ -113,15 +98,15 @@ export function ActivationGrid(props: { caption: string; tokens: string[]; layer
   const view = props;
   const widest = Math.max(...view.layers.flatMap((row) => row.values.map(Math.abs)), Number.EPSILON);
   return (
-    <figure className="lab-activations">
-      <figcaption className="lab-muted">{props.caption}</figcaption>
-      <div className="lab-table-wrap">
-        <table className="lab-table lab-activation-table" aria-label={props.caption}>
+    <figure className="m-0 flex flex-col gap-1.5">
+      <figcaption className="text-xs text-muted-foreground">{props.caption}</figcaption>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-xs" aria-label={props.caption}>
           <thead>
             <tr>
-              <th scope="col">Layer</th>
+              <th scope="col" className="px-1 py-0.5 text-center font-medium whitespace-nowrap text-muted-foreground">Layer</th>
               {view.tokens.map((token, index) => (
-                <th scope="col" key={`${index}-${token}`}>
+                <th scope="col" key={`${index}-${token}`} className="px-1 py-0.5 text-center font-medium whitespace-nowrap text-muted-foreground">
                   <code>{token}</code>
                 </th>
               ))}
@@ -130,12 +115,21 @@ export function ActivationGrid(props: { caption: string; tokens: string[]; layer
           <tbody>
             {view.layers.map((row) => (
               <tr key={row.layer}>
-                <th scope="row">{row.layer}</th>
-                {row.values.map((value, index) => (
-                  <td key={index} title={`layer ${row.layer}, ${view.tokens[index] ?? index}: ${value.toFixed(3)}`}>
-                    <span className={`lab-activation-cell${props.signed && value < 0 ? " negative" : ""}${props.signed && value >= 0 ? " positive" : ""}${props.quietAtOrBelow !== undefined && Math.abs(value) <= props.quietAtOrBelow ? " quiet" : ""}`} role="img" aria-label={value.toFixed(3)} style={{ opacity: 0.15 + (Math.abs(value) / widest) * 0.85 }} />
-                  </td>
-                ))}
+                <th scope="row" className="px-1 py-0.5 text-center font-medium whitespace-nowrap text-muted-foreground">{row.layer}</th>
+                {row.values.map((value, index) => {
+                  // No further from zero than the control went, so it says nothing: an outline, not a fill.
+                  const quiet = props.quietAtOrBelow !== undefined && Math.abs(value) <= props.quietAtOrBelow;
+                  return (
+                    <td key={index} title={`layer ${row.layer}, ${view.tokens[index] ?? index}: ${value.toFixed(3)}`} className="border-t border-border px-1 py-0.5 text-center align-top">
+                      <span
+                        className={classes("inline-block size-[18px] rounded-[3px] bg-primary", props.signed && value < 0 && "bg-destructive", props.signed && value >= 0 && "bg-info", quiet && "border border-input bg-transparent")}
+                        role="img"
+                        aria-label={value.toFixed(3)}
+                        style={{ opacity: quiet ? 1 : 0.15 + (Math.abs(value) / widest) * 0.85 }}
+                      />
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
