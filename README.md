@@ -109,7 +109,7 @@ files are never replaced. Imported execution contexts are read-only archives and
 Weights, datasets, scorers and environments remain explicit external dependencies: this preserves evidence, not a
 guarantee of reproducibility. Bundles hold at most 5,000 files and 64 MiB of decoded evidence. Publication is staged;
 after a process crash, retry the same import to reuse identical files and finish it. Permissions and remote settings
-are not restored.
+are not restored. See the [workflow guide](docs/research-workflow.md) for formats, setup and limits.
 
 ## Install
 
