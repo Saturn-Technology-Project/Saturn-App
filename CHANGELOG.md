@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **Looking inside uses the right side of the final normalization.** A last-block patch used an already normalized residual, and the final layer's reading normalized it again. Both could change the result. New readings and sweeps use a cache key that includes the helper's hash, so corrected results are computed again while earlier results stay intact.
 - **The app keeps its runtime running.** It restarts a runtime that dies, shows where the runtime stands until it answers instead of a blank error, and no longer uses another Saturn that happens to be on its port, which could overwrite the same data folder. Settings and the command palette offer a restart.
 
 ### Changed

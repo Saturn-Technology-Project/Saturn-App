@@ -541,6 +541,8 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 
 ## Development
 
+**Research helper checks.** With torch and transformers installed in a research Python, `python crates/saturn-core/tests/research_followup_test.py` checks residual self-patches and final normalization using tiny random models, without downloads. The [Pythia follow-up](docs/research/name-tracking-2026-11-05.md) includes a real offline checkpoint experiment, its evidence and replay command; candidate-name margins and full-vocabulary top-1 are reported separately.
+
 ```bash
 npm test            # cargo test, then the HTTP contract tests
 npm run typecheck   # strict type-check of the desktop interface

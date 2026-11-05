@@ -46,7 +46,9 @@ def read(tokenizer, model, hidden, expected_id):
         if expected_id is None:
             values = state[0].norm(dim=-1)
         else:
-            values = torch.log_softmax(unembed(norm(state))[0], dim=-1)[:, expected_id]
+            # The final hidden state has already passed through the model's final normalization.
+            normalized = state if layer == len(hidden) - 1 else norm(state)
+            values = torch.log_softmax(unembed(normalized)[0], dim=-1)[:, expected_id]
         layers.append({"layer": layer, "values": [round(value, 4) for value in values.tolist()]})
     return layers
 
@@ -63,6 +65,26 @@ def patched_run(model, encoded, layer, donor):
             return model(**encoded, output_hidden_states=True)
     finally:
         handle.remove()
+
+
+@torch.no_grad()
+def block_residuals(model, encoded):
+    """Captures actual block outputs before final normalization, including the last block.
+    hidden_states[-1] is already normalized and cannot be transplanted into a block's output hook."""
+    states = {}
+
+    def remember(layer):
+        def capture(module, inputs, result):
+            states[layer] = (result[0] if isinstance(result, tuple) else result).detach().clone()
+        return capture
+
+    handles = [block.register_forward_hook(remember(layer)) for layer, block in enumerate(blocks(model))]
+    try:
+        model(**encoded, use_cache=False)
+    finally:
+        for handle in handles:
+            handle.remove()
+    return states
 
 
 def last_token(tokenizer, logits, expected_id):
@@ -84,14 +106,14 @@ def sweep(tokenizer, model, request):
         expected_id = tokenizer(expected, add_special_tokens=False).input_ids[0] if expected else None
         with torch.no_grad():
             plain = model(**encoded, output_hidden_states=True)
-            donor = source(**encoded, output_hidden_states=True).hidden_states
+            donor = block_residuals(source, encoded)
         top, likelihood = last_token(tokenizer, plain.logits, expected_id)
         by_layer = []
         for layer in layers:
             layer = int(layer)
-            if donor[layer + 1].shape != plain.hidden_states[layer + 1].shape:
+            if donor[layer].shape != plain.hidden_states[layer + 1].shape:
                 raise SystemExit("The two models' residual streams differ in shape, so one cannot be patched into the other.")
-            patched = patched_run(model, encoded, layer, donor[layer + 1])
+            patched = patched_run(model, encoded, layer, donor[layer])
             patched_top, patched_likelihood = last_token(tokenizer, patched.logits, expected_id)
             by_layer.append({"layer": layer, "top": patched_top, "expectedLogProb": patched_likelihood})
         samples.append({"sampleId": item["sampleId"], "expected": expected, "top": top, "expectedLogProb": likelihood, "byLayer": by_layer})
@@ -126,7 +148,7 @@ def main():
         layer = int(patch["layer"])
         _, source = load(patch["source"])
         with torch.no_grad():
-            donor = source(**encoded, output_hidden_states=True).hidden_states[layer + 1]
+            donor = block_residuals(source, encoded)[layer]
         if donor.shape != output.hidden_states[layer + 1].shape:
             raise SystemExit("The two models' residual streams differ in shape, so one cannot be patched into the other.")
         patched = patched_run(model, encoded, layer, donor)

@@ -166,6 +166,7 @@ impl Kernel {
                 format!("The helper's answer could not be read: {error}"),
             )
         })?;
+        answer["helperSha256"] = json!(sha256_hex(HELPER.as_bytes()));
         answer["schemaVersion"] = json!(SCHEMA_VERSION);
         answer["request"] = request.clone();
         answer["key"] = json!(key);
@@ -245,7 +246,7 @@ impl Kernel {
             ));
         }
         let key = sha256_hex(
-            json!({ "sweep": sample_ids, "source": source_id, "target": target_id, "layers": request.get("layers") })
+            json!({ "sweep": sample_ids, "source": source_id, "target": target_id, "layers": request.get("layers"), "helperSha256": sha256_hex(HELPER.as_bytes()) })
                 .to_string()
                 .as_bytes(),
         );
@@ -301,6 +302,7 @@ impl Kernel {
             },
         });
         let mut answer = self.run_helper(project, &version, &python, &ask).await?;
+        answer["helperSha256"] = json!(sha256_hex(HELPER.as_bytes()));
         answer["schemaVersion"] = json!(SCHEMA_VERSION);
         answer["request"] = request.clone();
         answer["key"] = json!(key);
@@ -392,6 +394,7 @@ impl Kernel {
         let records = self.records_folder(project).await?;
         let key = sha256_hex(
             json!({
+                "helperSha256": sha256_hex(HELPER.as_bytes()),
                 "sampleId": request.get("sampleId"),
                 "modelId": asked_model(request),
                 "sourceModelId": request.get("sourceModelId"),

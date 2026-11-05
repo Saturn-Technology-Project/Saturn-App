@@ -2,10 +2,10 @@
 // with the run, and refuses when it cannot. A stand-in "python" plays the environment. docs/research-contract.md is
 // the contract.
 import assert from "node:assert/strict";
-import { chmod, readdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, until } from "./files-support.mjs";
+import { bench, posixOnly, sha, until } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -89,6 +89,23 @@ test("activations are read by the experiment's own python, saved with the run, a
   const repeated = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
   assert.equal(repeated.recordedAt, first.recordedAt);
   assert.equal((await saturn.call("GET", `${route}/runs/${run.id}/activations?sample=zzz`)).status, 404);
+});
+
+test("a changed helper computes a new reading and leaves an earlier helper's result intact", posixOnly, async () => {
+  const { folder, route, run, base } = await project();
+  const directory = path.join(folder, ".saturn/research/runs", run.id, "inside");
+  await mkdir(directory, { recursive: true });
+  // The old cache key did not include the helper. Keep that result in the history, but do not reuse it.
+  const key = sha(JSON.stringify({ layer: null, modelId: null, sampleId: "a", sourceModelId: null }));
+  const legacy = path.join(directory, `${key.slice(0, 16)}.json`);
+  const original = JSON.stringify({ schemaVersion: 1, sampleId: "a", modelId: base.id, legacy: true });
+  await writeFile(legacy, original);
+  const current = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  const helper = await readFile(new URL("../crates/saturn-core/src/research/inside.py", import.meta.url));
+  assert.equal(current.helperSha256, sha(helper));
+  assert.equal(current.legacy, undefined);
+  assert.equal(await readFile(legacy, "utf8"), original);
+  assert.equal((await readdir(directory)).length, 2);
 });
 
 test("an intervention patches a layer from one bound model into another, and the helper's failure is reported", posixOnly, async () => {

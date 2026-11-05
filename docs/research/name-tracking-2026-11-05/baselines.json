@@ -1,0 +1,3370 @@
+{
+  "step100000": {
+    "sample-0000": {
+      "margin": 2.0105056762695312,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.9503239393234253
+    },
+    "sample-0001": {
+      "margin": 1.9356307983398438,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -1.1216411590576172
+    },
+    "sample-0002": {
+      "margin": 1.8404922485351562,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -1.0848259925842285
+    },
+    "sample-0003": {
+      "margin": 1.8030166625976562,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -1.2365751266479492
+    },
+    "sample-0004": {
+      "margin": 1.8748703002929688,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -0.9946399331092834
+    },
+    "sample-0005": {
+      "margin": 2.0055694580078125,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.0368400812149048
+    },
+    "sample-0006": {
+      "margin": 1.7942733764648438,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.0414013862609863
+    },
+    "sample-0007": {
+      "margin": 1.808074951171875,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.1504178047180176
+    },
+    "sample-0016": {
+      "margin": 0.70257568359375,
+      "correct": true,
+      "top": " Anna",
+      "topCorrect": true,
+      "expectedLogProb": -1.7972439527511597
+    },
+    "sample-0017": {
+      "margin": 0.6438674926757812,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.252378225326538
+    },
+    "sample-0018": {
+      "margin": 0.35565948486328125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1604270935058594
+    },
+    "sample-0019": {
+      "margin": 1.1727447509765625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.049376964569092
+    },
+    "sample-0020": {
+      "margin": 2.4646072387695312,
+      "correct": true,
+      "top": " Paul",
+      "topCorrect": true,
+      "expectedLogProb": -1.2961324453353882
+    },
+    "sample-0021": {
+      "margin": 2.0164337158203125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7983310222625732
+    },
+    "sample-0022": {
+      "margin": 2.2351150512695312,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.537152647972107
+    },
+    "sample-0023": {
+      "margin": 1.8088912963867188,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.979401707649231
+    },
+    "sample-0024": {
+      "margin": 2.8741073608398438,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.8887016773223877
+    },
+    "sample-0025": {
+      "margin": 2.8858718872070312,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -1.2211036682128906
+    },
+    "sample-0026": {
+      "margin": 2.7629852294921875,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.9882990717887878
+    },
+    "sample-0027": {
+      "margin": 3.240997314453125,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -1.2730835676193237
+    },
+    "sample-0028": {
+      "margin": 1.2127151489257812,
+      "correct": true,
+      "top": " Mike",
+      "topCorrect": true,
+      "expectedLogProb": -1.2744654417037964
+    },
+    "sample-0029": {
+      "margin": 0.694549560546875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.8969717025756836
+    },
+    "sample-0030": {
+      "margin": 1.0152206420898438,
+      "correct": true,
+      "top": " Mike",
+      "topCorrect": true,
+      "expectedLogProb": -1.461466670036316
+    },
+    "sample-0031": {
+      "margin": 0.7681198120117188,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1072874069213867
+    },
+    "sample-0032": {
+      "margin": 0.96844482421875,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.2449761629104614
+    },
+    "sample-0033": {
+      "margin": 0.97760009765625,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.5092459917068481
+    },
+    "sample-0034": {
+      "margin": 1.2253646850585938,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.3191277980804443
+    },
+    "sample-0035": {
+      "margin": 1.25714111328125,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.5500786304473877
+    },
+    "sample-0036": {
+      "margin": 2.6882247924804688,
+      "correct": true,
+      "top": " James",
+      "topCorrect": true,
+      "expectedLogProb": -1.5265660285949707
+    },
+    "sample-0037": {
+      "margin": 2.408905029296875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1331753730773926
+    },
+    "sample-0038": {
+      "margin": 2.7115325927734375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7488089799880981
+    },
+    "sample-0039": {
+      "margin": 2.57293701171875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.030308246612549
+    },
+    "sample-0040": {
+      "margin": 5.383270263671875,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.1571832299232483
+    },
+    "sample-0041": {
+      "margin": 5.483367919921875,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.23405978083610535
+    },
+    "sample-0042": {
+      "margin": 4.521278381347656,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.27875080704689026
+    },
+    "sample-0043": {
+      "margin": 4.582252502441406,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.6436665058135986
+    },
+    "sample-0044": {
+      "margin": 1.7507247924804688,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -0.8386372923851013
+    },
+    "sample-0045": {
+      "margin": 1.6606521606445312,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.1587082147598267
+    },
+    "sample-0046": {
+      "margin": 1.1650924682617188,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.1175187826156616
+    },
+    "sample-0047": {
+      "margin": 1.5948715209960938,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.4334372282028198
+    },
+    "sample-0048": {
+      "margin": 2.7895965576171875,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.3888521194458008
+    },
+    "sample-0049": {
+      "margin": 2.6537017822265625,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.49891409277915955
+    },
+    "sample-0050": {
+      "margin": 2.3562698364257812,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.47203996777534485
+    },
+    "sample-0051": {
+      "margin": 2.764495849609375,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.5330837965011597
+    },
+    "sample-0052": {
+      "margin": 2.44549560546875,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.40957462787628174
+    },
+    "sample-0053": {
+      "margin": 2.47747802734375,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.456997811794281
+    },
+    "sample-0054": {
+      "margin": 2.1093978881835938,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.5328474640846252
+    },
+    "sample-0055": {
+      "margin": 2.4012451171875,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.5311007499694824
+    },
+    "sample-0056": {
+      "margin": 1.061614990234375,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.8626568913459778
+    },
+    "sample-0057": {
+      "margin": 1.240509033203125,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.9752492308616638
+    },
+    "sample-0058": {
+      "margin": 1.9548797607421875,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.6730371713638306
+    },
+    "sample-0059": {
+      "margin": 1.3929901123046875,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -1.1646671295166016
+    },
+    "sample-0060": {
+      "margin": 1.448089599609375,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -0.784914493560791
+    },
+    "sample-0061": {
+      "margin": 1.7477874755859375,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -0.8740804195404053
+    },
+    "sample-0062": {
+      "margin": 1.8216094970703125,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -0.7541110515594482
+    },
+    "sample-0063": {
+      "margin": 1.8107147216796875,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -1.1413037776947021
+    },
+    "sample-0064": {
+      "margin": 3.2548904418945312,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.4766432046890259
+    },
+    "sample-0065": {
+      "margin": 2.9349899291992188,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.7815252542495728
+    },
+    "sample-0066": {
+      "margin": 2.8780593872070312,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.6156480312347412
+    },
+    "sample-0067": {
+      "margin": 2.8868408203125,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.9351891875267029
+    },
+    "sample-0068": {
+      "margin": 3.1350555419921875,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.5565896034240723
+    },
+    "sample-0069": {
+      "margin": 2.8699874877929688,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.7335204482078552
+    },
+    "sample-0070": {
+      "margin": 2.4057464599609375,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.7262253165245056
+    },
+    "sample-0071": {
+      "margin": 2.9507904052734375,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.742726743221283
+    },
+    "sample-0072": {
+      "margin": 3.6944580078125,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.5327355861663818
+    },
+    "sample-0073": {
+      "margin": 2.699127197265625,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -1.098948359489441
+    },
+    "sample-0074": {
+      "margin": 2.7513961791992188,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.8372751474380493
+    },
+    "sample-0075": {
+      "margin": 2.2230224609375,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -1.2176233530044556
+    },
+    "sample-0076": {
+      "margin": 2.7361907958984375,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -0.9876205921173096
+    },
+    "sample-0077": {
+      "margin": 3.420379638671875,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.168500542640686
+    },
+    "sample-0078": {
+      "margin": 3.2530899047851562,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.0435352325439453
+    },
+    "sample-0079": {
+      "margin": 3.4983901977539062,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.2383760213851929
+    },
+    "sample-0080": {
+      "margin": 3.776397705078125,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.4980141222476959
+    },
+    "sample-0081": {
+      "margin": 3.9669570922851562,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.5168607831001282
+    },
+    "sample-0082": {
+      "margin": 3.7369537353515625,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.52774578332901
+    },
+    "sample-0083": {
+      "margin": 4.118247985839844,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.5178080797195435
+    },
+    "sample-0084": {
+      "margin": 1.87969970703125,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -0.931979775428772
+    },
+    "sample-0085": {
+      "margin": 1.3666305541992188,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.2173973321914673
+    },
+    "sample-0086": {
+      "margin": 1.6074066162109375,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.1080669164657593
+    },
+    "sample-0087": {
+      "margin": 0.9572296142578125,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.512270212173462
+    },
+    "sample-0088": {
+      "margin": 2.6823806762695312,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -0.33918097615242004
+    },
+    "sample-0089": {
+      "margin": 2.0179824829101562,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -0.5999693870544434
+    },
+    "sample-0090": {
+      "margin": 1.5349655151367188,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -0.6316097378730774
+    },
+    "sample-0091": {
+      "margin": 1.82086181640625,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -0.726878821849823
+    },
+    "sample-0092": {
+      "margin": 0.8412246704101562,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.6321126222610474
+    },
+    "sample-0093": {
+      "margin": 0.8866958618164062,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.759833574295044
+    },
+    "sample-0094": {
+      "margin": 0.7421188354492188,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.7685033679008484
+    },
+    "sample-0095": {
+      "margin": 0.6733016967773438,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.9855763912200928
+    },
+    "sample-0096": {
+      "margin": 1.7824478149414062,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.7032950520515442
+    },
+    "sample-0097": {
+      "margin": 2.0643768310546875,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.8959094285964966
+    },
+    "sample-0098": {
+      "margin": 2.3692169189453125,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.6385254859924316
+    },
+    "sample-0099": {
+      "margin": 2.6987152099609375,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.8526594042778015
+    },
+    "sample-0100": {
+      "margin": 0.3225860595703125,
+      "correct": true,
+      "top": " Dan",
+      "topCorrect": true,
+      "expectedLogProb": -1.3746020793914795
+    },
+    "sample-0101": {
+      "margin": -0.3843994140625,
+      "correct": false,
+      "top": " Lucy",
+      "topCorrect": false,
+      "expectedLogProb": -2.1384968757629395
+    },
+    "sample-0102": {
+      "margin": -0.46401214599609375,
+      "correct": false,
+      "top": " Lucy",
+      "topCorrect": false,
+      "expectedLogProb": -1.9325281381607056
+    },
+    "sample-0103": {
+      "margin": -0.45450592041015625,
+      "correct": false,
+      "top": " Lucy",
+      "topCorrect": false,
+      "expectedLogProb": -2.302093029022217
+    },
+    "sample-0104": {
+      "margin": 2.463958740234375,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -0.715087890625
+    },
+    "sample-0105": {
+      "margin": 2.1088104248046875,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -1.0378247499465942
+    },
+    "sample-0106": {
+      "margin": 2.5422744750976562,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -0.7137958407402039
+    },
+    "sample-0107": {
+      "margin": 2.287689208984375,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -1.184861183166504
+    },
+    "sample-0108": {
+      "margin": 2.0500106811523438,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -0.5331019759178162
+    },
+    "sample-0109": {
+      "margin": 3.375396728515625,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -0.426234632730484
+    },
+    "sample-0110": {
+      "margin": 2.4458465576171875,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -0.5244032144546509
+    },
+    "sample-0111": {
+      "margin": 3.0892257690429688,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -0.6713705658912659
+    },
+    "sample-0112": {
+      "margin": 0.7399673461914062,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.589209794998169
+    },
+    "sample-0113": {
+      "margin": 1.4228286743164062,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.565692663192749
+    },
+    "sample-0114": {
+      "margin": 1.3322219848632812,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.4631117582321167
+    },
+    "sample-0115": {
+      "margin": 1.4282379150390625,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.605254888534546
+    },
+    "sample-0116": {
+      "margin": 3.3382797241210938,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.7515280246734619
+    },
+    "sample-0117": {
+      "margin": 2.9023284912109375,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -1.0284780263900757
+    },
+    "sample-0118": {
+      "margin": 2.3437881469726562,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -1.170029878616333
+    },
+    "sample-0119": {
+      "margin": 2.415008544921875,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -1.3447602987289429
+    },
+    "sample-0120": {
+      "margin": 1.5272979736328125,
+      "correct": true,
+      "top": " Jane",
+      "topCorrect": true,
+      "expectedLogProb": -1.360357403755188
+    },
+    "sample-0121": {
+      "margin": 1.1529922485351562,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.83347487449646
+    },
+    "sample-0122": {
+      "margin": 1.2434463500976562,
+      "correct": true,
+      "top": " Jane",
+      "topCorrect": true,
+      "expectedLogProb": -1.6228748559951782
+    },
+    "sample-0123": {
+      "margin": 1.2947311401367188,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9318959712982178
+    },
+    "sample-0124": {
+      "margin": 1.5273208618164062,
+      "correct": true,
+      "top": " Steve",
+      "topCorrect": true,
+      "expectedLogProb": -1.2223044633865356
+    },
+    "sample-0125": {
+      "margin": 1.22076416015625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7563188076019287
+    },
+    "sample-0126": {
+      "margin": 1.1863021850585938,
+      "correct": true,
+      "top": " Steve",
+      "topCorrect": true,
+      "expectedLogProb": -1.5712074041366577
+    },
+    "sample-0127": {
+      "margin": 1.2449798583984375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7754420042037964
+    }
+  },
+  "step120000": {
+    "sample-0000": {
+      "margin": 1.710296630859375,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -1.3031076192855835
+    },
+    "sample-0001": {
+      "margin": 1.387542724609375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.6044431924819946
+    },
+    "sample-0002": {
+      "margin": 1.275634765625,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -1.538400411605835
+    },
+    "sample-0003": {
+      "margin": 1.626922607421875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.534773349761963
+    },
+    "sample-0004": {
+      "margin": 1.969390869140625,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.0671648979187012
+    },
+    "sample-0005": {
+      "margin": 1.814117431640625,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.2220982313156128
+    },
+    "sample-0006": {
+      "margin": 2.047515869140625,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.0734449625015259
+    },
+    "sample-0007": {
+      "margin": 1.757476806640625,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.2897039651870728
+    },
+    "sample-0016": {
+      "margin": 0.396026611328125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9584786891937256
+    },
+    "sample-0017": {
+      "margin": 0.395599365234375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.273876190185547
+    },
+    "sample-0018": {
+      "margin": 0.366851806640625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.119175910949707
+    },
+    "sample-0019": {
+      "margin": 0.670654296875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.233107566833496
+    },
+    "sample-0020": {
+      "margin": 3.757476806640625,
+      "correct": true,
+      "top": " Paul",
+      "topCorrect": true,
+      "expectedLogProb": -1.126673698425293
+    },
+    "sample-0021": {
+      "margin": 2.8797607421875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7217614650726318
+    },
+    "sample-0022": {
+      "margin": 3.884521484375,
+      "correct": true,
+      "top": " Paul",
+      "topCorrect": true,
+      "expectedLogProb": -1.1756490468978882
+    },
+    "sample-0023": {
+      "margin": 3.008941650390625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7836616039276123
+    },
+    "sample-0024": {
+      "margin": 3.109527587890625,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -1.10379159450531
+    },
+    "sample-0025": {
+      "margin": 2.733612060546875,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -1.5449906587600708
+    },
+    "sample-0026": {
+      "margin": 2.911590576171875,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -1.2617417573928833
+    },
+    "sample-0027": {
+      "margin": 2.936431884765625,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -1.560680866241455
+    },
+    "sample-0028": {
+      "margin": -0.19012451171875,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1548964977264404
+    },
+    "sample-0029": {
+      "margin": -0.309051513671875,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.6150729656219482
+    },
+    "sample-0030": {
+      "margin": 0.58697509765625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.884390115737915
+    },
+    "sample-0031": {
+      "margin": -0.07470703125,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.597076892852783
+    },
+    "sample-0032": {
+      "margin": 0.339202880859375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.920325517654419
+    },
+    "sample-0033": {
+      "margin": -0.053985595703125,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.3288681507110596
+    },
+    "sample-0034": {
+      "margin": 0.41558837890625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9297770261764526
+    },
+    "sample-0035": {
+      "margin": 0.12677001953125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.4682908058166504
+    },
+    "sample-0036": {
+      "margin": 2.229034423828125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.950832486152649
+    },
+    "sample-0037": {
+      "margin": 1.8087158203125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.250983715057373
+    },
+    "sample-0038": {
+      "margin": 2.425628662109375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.882673740386963
+    },
+    "sample-0039": {
+      "margin": 2.247100830078125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.177468776702881
+    },
+    "sample-0040": {
+      "margin": 3.851837158203125,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.5355498790740967
+    },
+    "sample-0041": {
+      "margin": 3.97900390625,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.6792140007019043
+    },
+    "sample-0042": {
+      "margin": 3.930450439453125,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.5305125713348389
+    },
+    "sample-0043": {
+      "margin": 3.552703857421875,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -1.0068038702011108
+    },
+    "sample-0044": {
+      "margin": 1.826019287109375,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.4112286567687988
+    },
+    "sample-0045": {
+      "margin": 1.052490234375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.0143966674804688
+    },
+    "sample-0046": {
+      "margin": 2.112884521484375,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.3282606601715088
+    },
+    "sample-0047": {
+      "margin": 1.751190185546875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9364997148513794
+    },
+    "sample-0048": {
+      "margin": 1.64801025390625,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.9454832673072815
+    },
+    "sample-0049": {
+      "margin": 1.51373291015625,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -1.1621642112731934
+    },
+    "sample-0050": {
+      "margin": 1.5511474609375,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.894898533821106
+    },
+    "sample-0051": {
+      "margin": 1.997100830078125,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -1.2252919673919678
+    },
+    "sample-0052": {
+      "margin": 3.6722412109375,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.33177945017814636
+    },
+    "sample-0053": {
+      "margin": 3.44708251953125,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.46331650018692017
+    },
+    "sample-0054": {
+      "margin": 3.280548095703125,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.4111950397491455
+    },
+    "sample-0055": {
+      "margin": 3.55950927734375,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.5197491645812988
+    },
+    "sample-0056": {
+      "margin": 2.122100830078125,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.6272350549697876
+    },
+    "sample-0057": {
+      "margin": 1.138031005859375,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -1.1313202381134033
+    },
+    "sample-0058": {
+      "margin": 1.941253662109375,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.7219722867012024
+    },
+    "sample-0059": {
+      "margin": 1.388031005859375,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -1.2221271991729736
+    },
+    "sample-0060": {
+      "margin": 2.506378173828125,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -0.8893359899520874
+    },
+    "sample-0061": {
+      "margin": 2.551727294921875,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -1.0029628276824951
+    },
+    "sample-0062": {
+      "margin": 2.858489990234375,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -0.7935678362846375
+    },
+    "sample-0063": {
+      "margin": 2.859283447265625,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -1.2297252416610718
+    },
+    "sample-0064": {
+      "margin": 3.123504638671875,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -1.0990328788757324
+    },
+    "sample-0065": {
+      "margin": 2.192718505859375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7564064264297485
+    },
+    "sample-0066": {
+      "margin": 2.405242919921875,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -1.3739702701568604
+    },
+    "sample-0067": {
+      "margin": 1.853759765625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1825766563415527
+    },
+    "sample-0068": {
+      "margin": 2.686492919921875,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -1.1998558044433594
+    },
+    "sample-0069": {
+      "margin": 3.57122802734375,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -1.0900681018829346
+    },
+    "sample-0070": {
+      "margin": 2.91302490234375,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -1.1820621490478516
+    },
+    "sample-0071": {
+      "margin": 4.214935302734375,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -1.1190922260284424
+    },
+    "sample-0072": {
+      "margin": 1.606170654296875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7884507179260254
+    },
+    "sample-0073": {
+      "margin": 0.681549072265625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.6268396377563477
+    },
+    "sample-0074": {
+      "margin": 1.0433349609375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.0978126525878906
+    },
+    "sample-0075": {
+      "margin": 1.00091552734375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.4861347675323486
+    },
+    "sample-0076": {
+      "margin": 4.458099365234375,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.190401554107666
+    },
+    "sample-0077": {
+      "margin": 4.531646728515625,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.3943456411361694
+    },
+    "sample-0078": {
+      "margin": 4.52484130859375,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.143030047416687
+    },
+    "sample-0079": {
+      "margin": 5.017608642578125,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.3481731414794922
+    },
+    "sample-0080": {
+      "margin": 2.06787109375,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.9083302617073059
+    },
+    "sample-0081": {
+      "margin": 2.032440185546875,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -1.0783746242523193
+    },
+    "sample-0082": {
+      "margin": 1.88055419921875,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -1.0141502618789673
+    },
+    "sample-0083": {
+      "margin": 2.3291015625,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -1.072120189666748
+    },
+    "sample-0084": {
+      "margin": 2.24896240234375,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.295152187347412
+    },
+    "sample-0085": {
+      "margin": 1.27703857421875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.754987359046936
+    },
+    "sample-0086": {
+      "margin": 1.73809814453125,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.5669543743133545
+    },
+    "sample-0087": {
+      "margin": 1.34686279296875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9538017511367798
+    },
+    "sample-0088": {
+      "margin": 0.486297607421875,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -1.3858836889266968
+    },
+    "sample-0089": {
+      "margin": -0.09307861328125,
+      "correct": false,
+      "top": " Jack",
+      "topCorrect": false,
+      "expectedLogProb": -1.8449935913085938
+    },
+    "sample-0090": {
+      "margin": -0.557647705078125,
+      "correct": false,
+      "top": " Jack",
+      "topCorrect": false,
+      "expectedLogProb": -1.9426929950714111
+    },
+    "sample-0091": {
+      "margin": 0.0145263671875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.050845146179199
+    },
+    "sample-0092": {
+      "margin": 2.59442138671875,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.4994765520095825
+    },
+    "sample-0093": {
+      "margin": 2.07208251953125,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.8068969249725342
+    },
+    "sample-0094": {
+      "margin": 2.86614990234375,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.48397907614707947
+    },
+    "sample-0095": {
+      "margin": 2.507598876953125,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.8241106867790222
+    },
+    "sample-0096": {
+      "margin": 3.116912841796875,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.6644510626792908
+    },
+    "sample-0097": {
+      "margin": 2.87579345703125,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -1.022012710571289
+    },
+    "sample-0098": {
+      "margin": 3.20068359375,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.8002857565879822
+    },
+    "sample-0099": {
+      "margin": 3.1539306640625,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -1.080729603767395
+    },
+    "sample-0100": {
+      "margin": 0.43780517578125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.439077615737915
+    },
+    "sample-0101": {
+      "margin": -0.414306640625,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.182727813720703
+    },
+    "sample-0102": {
+      "margin": 0.71453857421875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.584851026535034
+    },
+    "sample-0103": {
+      "margin": -0.257965087890625,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.311178207397461
+    },
+    "sample-0104": {
+      "margin": 0.214569091796875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.287553548812866
+    },
+    "sample-0105": {
+      "margin": -0.26190185546875,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.837092876434326
+    },
+    "sample-0106": {
+      "margin": 0.370147705078125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.2350831031799316
+    },
+    "sample-0107": {
+      "margin": -0.0723876953125,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.939943790435791
+    },
+    "sample-0108": {
+      "margin": 3.788970947265625,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -0.9685788154602051
+    },
+    "sample-0109": {
+      "margin": 3.561065673828125,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -1.1505928039550781
+    },
+    "sample-0110": {
+      "margin": 2.84210205078125,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -1.3070085048675537
+    },
+    "sample-0111": {
+      "margin": 3.82244873046875,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -1.3160234689712524
+    },
+    "sample-0112": {
+      "margin": -0.7484130859375,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.906825542449951
+    },
+    "sample-0113": {
+      "margin": -1.01812744140625,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.39206600189209
+    },
+    "sample-0114": {
+      "margin": -0.551666259765625,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.790700912475586
+    },
+    "sample-0115": {
+      "margin": -0.9569091796875,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.2610912322998047
+    },
+    "sample-0116": {
+      "margin": 5.174072265625,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.36339423060417175
+    },
+    "sample-0117": {
+      "margin": 5.168792724609375,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.4643068313598633
+    },
+    "sample-0118": {
+      "margin": 4.118743896484375,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.5583238005638123
+    },
+    "sample-0119": {
+      "margin": 5.36004638671875,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.4584107995033264
+    },
+    "sample-0120": {
+      "margin": -0.213348388671875,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.1634562015533447
+    },
+    "sample-0121": {
+      "margin": -0.1009521484375,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.336899518966675
+    },
+    "sample-0122": {
+      "margin": -0.049041748046875,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.983035087585449
+    },
+    "sample-0123": {
+      "margin": 0.081024169921875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.373436450958252
+    },
+    "sample-0124": {
+      "margin": 1.44378662109375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.3858885765075684
+    },
+    "sample-0125": {
+      "margin": 0.73443603515625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.003204822540283
+    },
+    "sample-0126": {
+      "margin": 1.141021728515625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.496382236480713
+    },
+    "sample-0127": {
+      "margin": 0.97430419921875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.9807214736938477
+    }
+  },
+  "step130000": {
+    "sample-0000": {
+      "margin": 3.07305908203125,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.5647215843200684
+    },
+    "sample-0001": {
+      "margin": 2.9622802734375,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.6764346957206726
+    },
+    "sample-0002": {
+      "margin": 2.876953125,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.7087905406951904
+    },
+    "sample-0003": {
+      "margin": 3.39959716796875,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.6140151023864746
+    },
+    "sample-0004": {
+      "margin": 1.82281494140625,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -0.9621980786323547
+    },
+    "sample-0005": {
+      "margin": 1.41119384765625,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.110226035118103
+    },
+    "sample-0006": {
+      "margin": 1.42413330078125,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.2607603073120117
+    },
+    "sample-0007": {
+      "margin": 1.1912841796875,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.368594765663147
+    },
+    "sample-0016": {
+      "margin": 1.3089599609375,
+      "correct": true,
+      "top": " Anna",
+      "topCorrect": true,
+      "expectedLogProb": -1.6033834218978882
+    },
+    "sample-0017": {
+      "margin": 1.02532958984375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9145512580871582
+    },
+    "sample-0018": {
+      "margin": 0.84375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9904475212097168
+    },
+    "sample-0019": {
+      "margin": 1.324951171875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.887574315071106
+    },
+    "sample-0020": {
+      "margin": 4.7080078125,
+      "correct": true,
+      "top": " Paul",
+      "topCorrect": true,
+      "expectedLogProb": -0.841471254825592
+    },
+    "sample-0021": {
+      "margin": 4.42962646484375,
+      "correct": true,
+      "top": " Paul",
+      "topCorrect": true,
+      "expectedLogProb": -1.0763400793075562
+    },
+    "sample-0022": {
+      "margin": 4.351318359375,
+      "correct": true,
+      "top": " Paul",
+      "topCorrect": true,
+      "expectedLogProb": -1.0653454065322876
+    },
+    "sample-0023": {
+      "margin": 4.0140380859375,
+      "correct": true,
+      "top": " Paul",
+      "topCorrect": true,
+      "expectedLogProb": -1.3696777820587158
+    },
+    "sample-0024": {
+      "margin": 4.22418212890625,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.3731350004673004
+    },
+    "sample-0025": {
+      "margin": 3.854248046875,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.60597825050354
+    },
+    "sample-0026": {
+      "margin": 3.73175048828125,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.50865238904953
+    },
+    "sample-0027": {
+      "margin": 3.85009765625,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.6810625791549683
+    },
+    "sample-0028": {
+      "margin": 1.06982421875,
+      "correct": true,
+      "top": " Mike",
+      "topCorrect": true,
+      "expectedLogProb": -1.3721612691879272
+    },
+    "sample-0029": {
+      "margin": 0.78314208984375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.8355945348739624
+    },
+    "sample-0030": {
+      "margin": 1.19073486328125,
+      "correct": true,
+      "top": " Mike",
+      "topCorrect": true,
+      "expectedLogProb": -1.4729118347167969
+    },
+    "sample-0031": {
+      "margin": 0.5531005859375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.101978063583374
+    },
+    "sample-0032": {
+      "margin": 2.2218017578125,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -0.8411434888839722
+    },
+    "sample-0033": {
+      "margin": 2.02978515625,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.0212653875350952
+    },
+    "sample-0034": {
+      "margin": 1.97430419921875,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.0323371887207031
+    },
+    "sample-0035": {
+      "margin": 2.77410888671875,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -0.973626971244812
+    },
+    "sample-0036": {
+      "margin": 2.0992431640625,
+      "correct": true,
+      "top": " James",
+      "topCorrect": true,
+      "expectedLogProb": -1.3617838621139526
+    },
+    "sample-0037": {
+      "margin": 1.96636962890625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.598359227180481
+    },
+    "sample-0038": {
+      "margin": 2.2166748046875,
+      "correct": true,
+      "top": " James",
+      "topCorrect": true,
+      "expectedLogProb": -1.4753726720809937
+    },
+    "sample-0039": {
+      "margin": 1.9228515625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7617199420928955
+    },
+    "sample-0040": {
+      "margin": 2.86944580078125,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.6713883876800537
+    },
+    "sample-0041": {
+      "margin": 2.95391845703125,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.8349767327308655
+    },
+    "sample-0042": {
+      "margin": 2.92266845703125,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.6934332251548767
+    },
+    "sample-0043": {
+      "margin": 2.933837890625,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -1.1359409093856812
+    },
+    "sample-0044": {
+      "margin": 3.6141357421875,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -0.8016484975814819
+    },
+    "sample-0045": {
+      "margin": 3.226318359375,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.0868419408798218
+    },
+    "sample-0046": {
+      "margin": 3.185546875,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -0.9282183647155762
+    },
+    "sample-0047": {
+      "margin": 3.12432861328125,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.3236263990402222
+    },
+    "sample-0048": {
+      "margin": 3.518310546875,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.2849572002887726
+    },
+    "sample-0049": {
+      "margin": 3.13165283203125,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.4082895517349243
+    },
+    "sample-0050": {
+      "margin": 3.080810546875,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.38400548696517944
+    },
+    "sample-0051": {
+      "margin": 3.15338134765625,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.5669594407081604
+    },
+    "sample-0052": {
+      "margin": 2.1251220703125,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.5033912062644958
+    },
+    "sample-0053": {
+      "margin": 1.80328369140625,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.6915737986564636
+    },
+    "sample-0054": {
+      "margin": 1.8251953125,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.660230815410614
+    },
+    "sample-0055": {
+      "margin": 1.98223876953125,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.7339720129966736
+    },
+    "sample-0056": {
+      "margin": 2.7022705078125,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.4982994496822357
+    },
+    "sample-0057": {
+      "margin": 2.06640625,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.7515684962272644
+    },
+    "sample-0058": {
+      "margin": 2.492431640625,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.5568143129348755
+    },
+    "sample-0059": {
+      "margin": 2.68048095703125,
+      "correct": true,
+      "top": " Laura",
+      "topCorrect": true,
+      "expectedLogProb": -0.8115671873092651
+    },
+    "sample-0060": {
+      "margin": 2.18768310546875,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -0.782963216304779
+    },
+    "sample-0061": {
+      "margin": 2.64794921875,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -0.768473207950592
+    },
+    "sample-0062": {
+      "margin": 2.62762451171875,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -0.6661089658737183
+    },
+    "sample-0063": {
+      "margin": 2.52423095703125,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -1.047250747680664
+    },
+    "sample-0064": {
+      "margin": 4.44287109375,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.6027073264122009
+    },
+    "sample-0065": {
+      "margin": 3.4317626953125,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.9914782643318176
+    },
+    "sample-0066": {
+      "margin": 3.753662109375,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.819112241268158
+    },
+    "sample-0067": {
+      "margin": 3.42547607421875,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -1.1264206171035767
+    },
+    "sample-0068": {
+      "margin": 6.09124755859375,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.6138556003570557
+    },
+    "sample-0069": {
+      "margin": 6.0419921875,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.6966993808746338
+    },
+    "sample-0070": {
+      "margin": 5.841064453125,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.6834644079208374
+    },
+    "sample-0071": {
+      "margin": 5.74151611328125,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.7871734499931335
+    },
+    "sample-0072": {
+      "margin": 6.29827880859375,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.46109965443611145
+    },
+    "sample-0073": {
+      "margin": 5.44195556640625,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.7215206623077393
+    },
+    "sample-0074": {
+      "margin": 5.0462646484375,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.6247298121452332
+    },
+    "sample-0075": {
+      "margin": 4.860107421875,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.8884013295173645
+    },
+    "sample-0076": {
+      "margin": 6.06005859375,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -0.8616307377815247
+    },
+    "sample-0077": {
+      "margin": 5.5877685546875,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.0737723112106323
+    },
+    "sample-0078": {
+      "margin": 5.42327880859375,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -0.9535327553749084
+    },
+    "sample-0079": {
+      "margin": 5.44818115234375,
+      "correct": true,
+      "top": " Peter",
+      "topCorrect": true,
+      "expectedLogProb": -1.211792230606079
+    },
+    "sample-0080": {
+      "margin": 5.45806884765625,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.21447928249835968
+    },
+    "sample-0081": {
+      "margin": 5.0548095703125,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.28296586871147156
+    },
+    "sample-0082": {
+      "margin": 4.90802001953125,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.2965501844882965
+    },
+    "sample-0083": {
+      "margin": 5.2950439453125,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.27950477600097656
+    },
+    "sample-0084": {
+      "margin": 0.87713623046875,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.2263721227645874
+    },
+    "sample-0085": {
+      "margin": 0.75360107421875,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.4279892444610596
+    },
+    "sample-0086": {
+      "margin": 1.00726318359375,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.3340775966644287
+    },
+    "sample-0087": {
+      "margin": 1.4449462890625,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.4057016372680664
+    },
+    "sample-0088": {
+      "margin": 3.9307861328125,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -0.536419689655304
+    },
+    "sample-0089": {
+      "margin": 3.519775390625,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -0.7310574054718018
+    },
+    "sample-0090": {
+      "margin": 2.92620849609375,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -0.7461299896240234
+    },
+    "sample-0091": {
+      "margin": 3.6458740234375,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -0.8634166121482849
+    },
+    "sample-0092": {
+      "margin": 2.219482421875,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.5402777791023254
+    },
+    "sample-0093": {
+      "margin": 2.3167724609375,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.6526411771774292
+    },
+    "sample-0094": {
+      "margin": 2.77813720703125,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -0.4878407120704651
+    },
+    "sample-0095": {
+      "margin": 1.9666748046875,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -1.0357472896575928
+    },
+    "sample-0096": {
+      "margin": 3.7236328125,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.5928988456726074
+    },
+    "sample-0097": {
+      "margin": 3.40869140625,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.8167927265167236
+    },
+    "sample-0098": {
+      "margin": 3.26092529296875,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.7662349939346313
+    },
+    "sample-0099": {
+      "margin": 3.6141357421875,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.931410014629364
+    },
+    "sample-0100": {
+      "margin": 4.76141357421875,
+      "correct": true,
+      "top": " Dan",
+      "topCorrect": true,
+      "expectedLogProb": -0.8978484272956848
+    },
+    "sample-0101": {
+      "margin": 4.1473388671875,
+      "correct": true,
+      "top": " Dan",
+      "topCorrect": true,
+      "expectedLogProb": -1.2470481395721436
+    },
+    "sample-0102": {
+      "margin": 4.375244140625,
+      "correct": true,
+      "top": " Dan",
+      "topCorrect": true,
+      "expectedLogProb": -1.2168117761611938
+    },
+    "sample-0103": {
+      "margin": 3.45391845703125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7092965841293335
+    },
+    "sample-0104": {
+      "margin": 2.26800537109375,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -0.9793117046356201
+    },
+    "sample-0105": {
+      "margin": 1.30767822265625,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -1.4586859941482544
+    },
+    "sample-0106": {
+      "margin": 1.85711669921875,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -1.123526692390442
+    },
+    "sample-0107": {
+      "margin": 1.52996826171875,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -1.7049857378005981
+    },
+    "sample-0108": {
+      "margin": 3.67279052734375,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -0.6699082851409912
+    },
+    "sample-0109": {
+      "margin": 3.0450439453125,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -0.9795964956283569
+    },
+    "sample-0110": {
+      "margin": 3.20556640625,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -0.8533496260643005
+    },
+    "sample-0111": {
+      "margin": 2.9945068359375,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -1.197081208229065
+    },
+    "sample-0112": {
+      "margin": 2.25445556640625,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.1090344190597534
+    },
+    "sample-0113": {
+      "margin": 1.44561767578125,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.6204884052276611
+    },
+    "sample-0114": {
+      "margin": 2.02655029296875,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.1766189336776733
+    },
+    "sample-0115": {
+      "margin": 1.50262451171875,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.6142959594726562
+    },
+    "sample-0116": {
+      "margin": 4.37762451171875,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.4373008608818054
+    },
+    "sample-0117": {
+      "margin": 4.27471923828125,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.5930514931678772
+    },
+    "sample-0118": {
+      "margin": 3.5357666015625,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.6843711137771606
+    },
+    "sample-0119": {
+      "margin": 3.958251953125,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.7389102578163147
+    },
+    "sample-0120": {
+      "margin": 2.4666748046875,
+      "correct": true,
+      "top": " Jane",
+      "topCorrect": true,
+      "expectedLogProb": -1.1852216720581055
+    },
+    "sample-0121": {
+      "margin": 2.372802734375,
+      "correct": true,
+      "top": " Jane",
+      "topCorrect": true,
+      "expectedLogProb": -1.4212162494659424
+    },
+    "sample-0122": {
+      "margin": 2.2408447265625,
+      "correct": true,
+      "top": " Jane",
+      "topCorrect": true,
+      "expectedLogProb": -1.2720791101455688
+    },
+    "sample-0123": {
+      "margin": 2.69622802734375,
+      "correct": true,
+      "top": " Jane",
+      "topCorrect": true,
+      "expectedLogProb": -1.4861007928848267
+    },
+    "sample-0124": {
+      "margin": 3.54669189453125,
+      "correct": true,
+      "top": " Steve",
+      "topCorrect": true,
+      "expectedLogProb": -0.8518723249435425
+    },
+    "sample-0125": {
+      "margin": 3.3328857421875,
+      "correct": true,
+      "top": " Steve",
+      "topCorrect": true,
+      "expectedLogProb": -0.9799633622169495
+    },
+    "sample-0126": {
+      "margin": 3.17657470703125,
+      "correct": true,
+      "top": " Steve",
+      "topCorrect": true,
+      "expectedLogProb": -1.0367887020111084
+    },
+    "sample-0127": {
+      "margin": 3.3726806640625,
+      "correct": true,
+      "top": " Steve",
+      "topCorrect": true,
+      "expectedLogProb": -1.1756054162979126
+    }
+  },
+  "step143000": {
+    "sample-0000": {
+      "margin": 3.5859375,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.5663279891014099
+    },
+    "sample-0001": {
+      "margin": 3.13568115234375,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.8437849879264832
+    },
+    "sample-0002": {
+      "margin": 3.16949462890625,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.7086742520332336
+    },
+    "sample-0003": {
+      "margin": 3.51007080078125,
+      "correct": true,
+      "top": " Mary",
+      "topCorrect": true,
+      "expectedLogProb": -0.7981570363044739
+    },
+    "sample-0004": {
+      "margin": 1.0411376953125,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.524899959564209
+    },
+    "sample-0005": {
+      "margin": 0.7091064453125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.8768601417541504
+    },
+    "sample-0006": {
+      "margin": 1.0186767578125,
+      "correct": true,
+      "top": " John",
+      "topCorrect": true,
+      "expectedLogProb": -1.6068154573440552
+    },
+    "sample-0007": {
+      "margin": 0.84869384765625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.901914358139038
+    },
+    "sample-0016": {
+      "margin": 1.7548828125,
+      "correct": true,
+      "top": " Anna",
+      "topCorrect": true,
+      "expectedLogProb": -1.4286171197891235
+    },
+    "sample-0017": {
+      "margin": 1.59228515625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7862423658370972
+    },
+    "sample-0018": {
+      "margin": 1.38140869140625,
+      "correct": true,
+      "top": " Anna",
+      "topCorrect": true,
+      "expectedLogProb": -1.7123152017593384
+    },
+    "sample-0019": {
+      "margin": 1.98919677734375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.8222335577011108
+    },
+    "sample-0020": {
+      "margin": 3.07330322265625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.5234527587890625
+    },
+    "sample-0021": {
+      "margin": 3.11639404296875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.8214962482452393
+    },
+    "sample-0022": {
+      "margin": 2.80218505859375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.8612251281738281
+    },
+    "sample-0023": {
+      "margin": 2.619873046875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1049160957336426
+    },
+    "sample-0024": {
+      "margin": 4.73992919921875,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.5231902003288269
+    },
+    "sample-0025": {
+      "margin": 4.4288330078125,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.7660576701164246
+    },
+    "sample-0026": {
+      "margin": 4.5465087890625,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.5807819366455078
+    },
+    "sample-0027": {
+      "margin": 4.62823486328125,
+      "correct": true,
+      "top": " Sarah",
+      "topCorrect": true,
+      "expectedLogProb": -0.798325777053833
+    },
+    "sample-0028": {
+      "margin": -0.6536865234375,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.4674668312072754
+    },
+    "sample-0029": {
+      "margin": -0.81390380859375,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.9060168266296387
+    },
+    "sample-0030": {
+      "margin": 0.4188232421875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.007521390914917
+    },
+    "sample-0031": {
+      "margin": -0.76812744140625,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.997441291809082
+    },
+    "sample-0032": {
+      "margin": 2.1793212890625,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -0.9916113018989563
+    },
+    "sample-0033": {
+      "margin": 1.7777099609375,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.396249771118164
+    },
+    "sample-0034": {
+      "margin": 2.03271484375,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.1327886581420898
+    },
+    "sample-0035": {
+      "margin": 1.755615234375,
+      "correct": true,
+      "top": " Emma",
+      "topCorrect": true,
+      "expectedLogProb": -1.618833303451538
+    },
+    "sample-0036": {
+      "margin": 2.10321044921875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.8216484785079956
+    },
+    "sample-0037": {
+      "margin": 2.10272216796875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1042914390563965
+    },
+    "sample-0038": {
+      "margin": 1.72216796875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.881849765777588
+    },
+    "sample-0039": {
+      "margin": 2.33514404296875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.16068959236145
+    },
+    "sample-0040": {
+      "margin": 3.7890625,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.25065043568611145
+    },
+    "sample-0041": {
+      "margin": 3.83203125,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.39106619358062744
+    },
+    "sample-0042": {
+      "margin": 3.33306884765625,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.38911202549934387
+    },
+    "sample-0043": {
+      "margin": 3.64581298828125,
+      "correct": true,
+      "top": " Kate",
+      "topCorrect": true,
+      "expectedLogProb": -0.5352290868759155
+    },
+    "sample-0044": {
+      "margin": 1.51763916015625,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.015033483505249
+    },
+    "sample-0045": {
+      "margin": 1.42205810546875,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.2309976816177368
+    },
+    "sample-0046": {
+      "margin": 1.49951171875,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.1352691650390625
+    },
+    "sample-0047": {
+      "margin": 1.335693359375,
+      "correct": true,
+      "top": " Ben",
+      "topCorrect": true,
+      "expectedLogProb": -1.5402133464813232
+    },
+    "sample-0048": {
+      "margin": 3.51593017578125,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.6270687580108643
+    },
+    "sample-0049": {
+      "margin": 2.97955322265625,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.9087178707122803
+    },
+    "sample-0050": {
+      "margin": 3.1842041015625,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -0.7188521027565002
+    },
+    "sample-0051": {
+      "margin": 3.3114013671875,
+      "correct": true,
+      "top": " Alice",
+      "topCorrect": true,
+      "expectedLogProb": -1.114165186882019
+    },
+    "sample-0052": {
+      "margin": 2.05242919921875,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.8355008959770203
+    },
+    "sample-0053": {
+      "margin": 1.7972412109375,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -1.0852247476577759
+    },
+    "sample-0054": {
+      "margin": 1.92584228515625,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -0.9341734051704407
+    },
+    "sample-0055": {
+      "margin": 1.90228271484375,
+      "correct": true,
+      "top": " Bob",
+      "topCorrect": true,
+      "expectedLogProb": -1.2594884634017944
+    },
+    "sample-0056": {
+      "margin": -3.20819091796875,
+      "correct": false,
+      "top": " David",
+      "topCorrect": false,
+      "expectedLogProb": -4.607333183288574
+    },
+    "sample-0057": {
+      "margin": -3.05352783203125,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -4.771850109100342
+    },
+    "sample-0058": {
+      "margin": -3.0675048828125,
+      "correct": false,
+      "top": " David",
+      "topCorrect": false,
+      "expectedLogProb": -4.587876319885254
+    },
+    "sample-0059": {
+      "margin": -2.9759521484375,
+      "correct": false,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -5.100901126861572
+    },
+    "sample-0060": {
+      "margin": 1.9083251953125,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -1.6958856582641602
+    },
+    "sample-0061": {
+      "margin": 2.29339599609375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7346158027648926
+    },
+    "sample-0062": {
+      "margin": 2.96600341796875,
+      "correct": true,
+      "top": " David",
+      "topCorrect": true,
+      "expectedLogProb": -1.3615065813064575
+    },
+    "sample-0063": {
+      "margin": 2.4583740234375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1254420280456543
+    },
+    "sample-0064": {
+      "margin": 4.812744140625,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.36227694153785706
+    },
+    "sample-0065": {
+      "margin": 3.902099609375,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.700981616973877
+    },
+    "sample-0066": {
+      "margin": 4.44970703125,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.44000813364982605
+    },
+    "sample-0067": {
+      "margin": 4.2115478515625,
+      "correct": true,
+      "top": " Nina",
+      "topCorrect": true,
+      "expectedLogProb": -0.764681339263916
+    },
+    "sample-0068": {
+      "margin": 2.289306640625,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.807030975818634
+    },
+    "sample-0069": {
+      "margin": 2.53125,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.8938685059547424
+    },
+    "sample-0070": {
+      "margin": 1.902099609375,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -0.9359386563301086
+    },
+    "sample-0071": {
+      "margin": 2.625,
+      "correct": true,
+      "top": " Mark",
+      "topCorrect": true,
+      "expectedLogProb": -1.0037734508514404
+    },
+    "sample-0072": {
+      "margin": 5.3839111328125,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.4159451723098755
+    },
+    "sample-0073": {
+      "margin": 4.5902099609375,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.7078070640563965
+    },
+    "sample-0074": {
+      "margin": 4.45501708984375,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.5732301473617554
+    },
+    "sample-0075": {
+      "margin": 4.537353515625,
+      "correct": true,
+      "top": " Julia",
+      "topCorrect": true,
+      "expectedLogProb": -0.7940945625305176
+    },
+    "sample-0076": {
+      "margin": 1.28143310546875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.002805709838867
+    },
+    "sample-0077": {
+      "margin": 1.18695068359375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.3138084411621094
+    },
+    "sample-0078": {
+      "margin": 1.0179443359375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.1914358139038086
+    },
+    "sample-0079": {
+      "margin": 1.28961181640625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.4295191764831543
+    },
+    "sample-0080": {
+      "margin": 4.41241455078125,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.46987006068229675
+    },
+    "sample-0081": {
+      "margin": 3.92010498046875,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.7085888981819153
+    },
+    "sample-0082": {
+      "margin": 4.20770263671875,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.57594233751297
+    },
+    "sample-0083": {
+      "margin": 4.27557373046875,
+      "correct": true,
+      "top": " Clara",
+      "topCorrect": true,
+      "expectedLogProb": -0.629826009273529
+    },
+    "sample-0084": {
+      "margin": 1.20355224609375,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.321903944015503
+    },
+    "sample-0085": {
+      "margin": 1.25469970703125,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.486351728439331
+    },
+    "sample-0086": {
+      "margin": 1.04742431640625,
+      "correct": true,
+      "top": " Sam",
+      "topCorrect": true,
+      "expectedLogProb": -1.4460245370864868
+    },
+    "sample-0087": {
+      "margin": 0.97540283203125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.7850656509399414
+    },
+    "sample-0088": {
+      "margin": 0.63714599609375,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -1.3221735954284668
+    },
+    "sample-0089": {
+      "margin": 0.5098876953125,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -1.6010122299194336
+    },
+    "sample-0090": {
+      "margin": 0.4437255859375,
+      "correct": true,
+      "top": " Rose",
+      "topCorrect": true,
+      "expectedLogProb": -1.4228414297103882
+    },
+    "sample-0091": {
+      "margin": 0.8455810546875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.775296688079834
+    },
+    "sample-0092": {
+      "margin": 0.7703857421875,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -1.260842204093933
+    },
+    "sample-0093": {
+      "margin": 0.5650634765625,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -1.769567847251892
+    },
+    "sample-0094": {
+      "margin": 0.8858642578125,
+      "correct": true,
+      "top": " Jack",
+      "topCorrect": true,
+      "expectedLogProb": -1.3031316995620728
+    },
+    "sample-0095": {
+      "margin": 0.683349609375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.8732472658157349
+    },
+    "sample-0096": {
+      "margin": 3.73345947265625,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.5342797636985779
+    },
+    "sample-0097": {
+      "margin": 3.8458251953125,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.7404584884643555
+    },
+    "sample-0098": {
+      "margin": 3.73675537109375,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.68903648853302
+    },
+    "sample-0099": {
+      "margin": 4.244873046875,
+      "correct": true,
+      "top": " Lucy",
+      "topCorrect": true,
+      "expectedLogProb": -0.7327059507369995
+    },
+    "sample-0100": {
+      "margin": 1.491455078125,
+      "correct": true,
+      "top": " Dan",
+      "topCorrect": true,
+      "expectedLogProb": -1.553563117980957
+    },
+    "sample-0101": {
+      "margin": 1.28253173828125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9180654287338257
+    },
+    "sample-0102": {
+      "margin": 1.45086669921875,
+      "correct": true,
+      "top": " Dan",
+      "topCorrect": true,
+      "expectedLogProb": -1.7964096069335938
+    },
+    "sample-0103": {
+      "margin": 0.86737060546875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.413567543029785
+    },
+    "sample-0104": {
+      "margin": 2.1444091796875,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -1.5599297285079956
+    },
+    "sample-0105": {
+      "margin": 1.5792236328125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.9828517436981201
+    },
+    "sample-0106": {
+      "margin": 2.25018310546875,
+      "correct": true,
+      "top": " Helen",
+      "topCorrect": true,
+      "expectedLogProb": -1.5885953903198242
+    },
+    "sample-0107": {
+      "margin": 1.78271484375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.284909963607788
+    },
+    "sample-0108": {
+      "margin": 1.89532470703125,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -1.5713329315185547
+    },
+    "sample-0109": {
+      "margin": 2.14263916015625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -1.6523337364196777
+    },
+    "sample-0110": {
+      "margin": 2.72430419921875,
+      "correct": true,
+      "top": " Chris",
+      "topCorrect": true,
+      "expectedLogProb": -1.433122992515564
+    },
+    "sample-0111": {
+      "margin": 1.87127685546875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.03428316116333
+    },
+    "sample-0112": {
+      "margin": 2.2906494140625,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -0.904487133026123
+    },
+    "sample-0113": {
+      "margin": 1.35870361328125,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.5961471796035767
+    },
+    "sample-0114": {
+      "margin": 2.04278564453125,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.0789546966552734
+    },
+    "sample-0115": {
+      "margin": 1.49346923828125,
+      "correct": true,
+      "top": " Grace",
+      "topCorrect": true,
+      "expectedLogProb": -1.573695182800293
+    },
+    "sample-0116": {
+      "margin": 1.964599609375,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.7912093997001648
+    },
+    "sample-0117": {
+      "margin": 2.27520751953125,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -0.9265002608299255
+    },
+    "sample-0118": {
+      "margin": 1.19891357421875,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -1.1445696353912354
+    },
+    "sample-0119": {
+      "margin": 1.66217041015625,
+      "correct": true,
+      "top": " Luke",
+      "topCorrect": true,
+      "expectedLogProb": -1.2865064144134521
+    },
+    "sample-0120": {
+      "margin": 1.14849853515625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.2775156497955322
+    },
+    "sample-0121": {
+      "margin": 1.25872802734375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.602994918823242
+    },
+    "sample-0122": {
+      "margin": 1.1754150390625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.4013209342956543
+    },
+    "sample-0123": {
+      "margin": 1.31158447265625,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.727813720703125
+    },
+    "sample-0124": {
+      "margin": 1.04229736328125,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.5175368785858154
+    },
+    "sample-0125": {
+      "margin": 0.69866943359375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.959872245788574
+    },
+    "sample-0126": {
+      "margin": 0.58807373046875,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -2.760531425476074
+    },
+    "sample-0127": {
+      "margin": 0.3861083984375,
+      "correct": true,
+      "top": " the",
+      "topCorrect": false,
+      "expectedLogProb": -3.3386974334716797
+    }
+  }
+}

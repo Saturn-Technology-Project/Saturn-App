@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "run_03e5449a6b6dfda4",
+  "revision": 3,
+  "versionId": "version_bba096cb501b8c5d",
+  "experimentId": "experiment_57ec2b216ff21978",
+  "clientId": "name-tracking-followup-20261105-v2",
+  "threadId": null,
+  "status": "completed",
+  "createdAt": "2026-11-05T05:53:34.258Z",
+  "updatedAt": "2026-11-05T05:54:42.599Z",
+  "pid": 67845,
+  "startedAt": "2026-11-05T05:53:34.264Z",
+  "samples": 512,
+  "infrastructureErrors": 0,
+  "problems": [],
+  "partialLine": false,
+  "samplesSha256": "64484533d3d4adf07486e8274b79a58f2ed7a4f57a43263c13d76dc7a9ae6d8f",
+  "samplesSize": 157432,
+  "exitCode": 0,
+  "endedAt": "2026-11-05T05:54:42.599Z",
+  "inputsChanged": [],
+  "samplesPerModel": 128,
+  "warnings": [
+    "Measured 128 samples per model where run_bd837f4d40bff113, whose version compares as the same evaluation, measured 20. Say what changed in the evaluation (its sample set, for one) before comparing them."
+  ]
+}

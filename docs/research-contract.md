@@ -176,8 +176,13 @@ environment that ran the experiment; a command that starts with anything else is
   "expected","top","expectedLogProb","byLayer":[{"layer","top","expectedLogProb"}]}]}`: what the target ends on with
   each layer patched, and the log-probability of the expected token there. Whether a layer "restores" a sample is for
   the reader: the runtime gives the tokens, not a verdict.
-- The answer is saved in the run's folder under `inside/`, named by the request, and the same request is answered from
-  there without running again. `GET /projects/{id}/research/runs/{run}/inside` lists everything saved there, newest
+- Block patches use the actual residual leaving the block, before final normalization. The final logit-lens reading
+  uses the already normalized final hidden state without normalizing it again. Reading layer 0 is the embedding;
+  intervention layer 0 is the output of the first block. A residual transplant replaces the whole prefix's state,
+  not only that block's contribution, and cannot by itself locate a defect to that block.
+- The answer includes `helperSha256` and is saved in the run's folder under `inside/`, named by the request and the
+  helper's hash. The same request with the same helper is answered from there without running again. An updated
+  helper computes a new result and keeps earlier results intact. `GET /projects/{id}/research/runs/{run}/inside` lists everything saved there, newest
   first, each with `kind` `reading` or `sweep`. `GET .../activations?sample=&model=` reads what was saved, or 404.
 - A helper that fails answers 422 with the end of its error output. The runtime never interprets the values.
 

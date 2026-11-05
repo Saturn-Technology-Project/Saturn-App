@@ -540,6 +540,8 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
 
 ## 開發
 
+**研究 helper 檢查。** 在裝有 torch 與 transformers 的研究 Python 中執行 `python crates/saturn-core/tests/research_followup_test.py`，以隨機初始化的小模型檢查 residual self-patch 與 final norm，不下載模型。[Pythia 後續實驗](docs/research/name-tracking-2026-11-05.md) 保存一次真正離線執行的 checkpoint 實驗、原始證據與重跑指令；名字間的 margin 和全詞表 top-1 分開報告。
+
 ```bash
 npm test            # cargo test，接著執行 HTTP 合約測試
 npm run typecheck   # 桌面介面的嚴格型別檢查
