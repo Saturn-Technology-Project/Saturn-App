@@ -21,7 +21,7 @@ import { Tour } from "./Tour.js";
 import { useNotifications } from "./useNotifications.js";
 
 /** A screen's row in the rail. Its icon is the same color as its name; where you are is marked by a lighter row. */
-const RAIL_ITEM = "flex h-[34px] w-full flex-none cursor-pointer appearance-none items-center gap-2.5 rounded-[7px] border-0 bg-transparent px-2.5 text-[12.5px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-muted aria-[current=page]:bg-muted aria-[current=page]:font-semibold max-[1080px]:h-[38px] max-[1080px]:justify-center max-[1080px]:px-0 [&>svg]:flex-none";
+const RAIL_ITEM = "flex h-[34px] w-full flex-none cursor-pointer appearance-none items-center gap-2.5 rounded-[7px] border-0 bg-transparent px-2.5 text-[12.5px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-muted aria-[current=page]:bg-(--selected) aria-[current=page]:font-semibold max-[1080px]:h-[38px] max-[1080px]:justify-center max-[1080px]:px-0 [&>svg]:flex-none";
 
 const SCREEN_ICONS: Record<Screen, ReactNode> = {
   Home: <HomeIcon />,

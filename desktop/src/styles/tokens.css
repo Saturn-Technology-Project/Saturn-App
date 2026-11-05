@@ -61,25 +61,27 @@
   --glass: rgba(255, 255, 255, 0.76);
   /* The soft light behind the translucent surfaces, which is what makes them read as frosted. */
   --backdrop: radial-gradient(1100px 700px at 12% -10%, rgba(255, 255, 255, 0.95), transparent 70%), radial-gradient(900px 700px at 100% 110%, rgba(31, 30, 28, 0.05), transparent 70%);
+  /* The row of where you are, in the rail. */
+  --selected: rgba(31, 30, 28, 0.1);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg: #131312;
-  --stage: rgba(0, 0, 0, 0.38);
-  --panel: rgba(255, 255, 255, 0.028);
-  --fg: #f4f3ef;
-  --muted: #a3a29c;
-  --subtle: #75746e;
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --card: rgba(255, 255, 255, 0.04);
-  --elevated: #232321;
-  --hover: rgba(255, 255, 255, 0.075);
-  --input: rgba(0, 0, 0, 0.3);
-  --code-bg: rgba(0, 0, 0, 0.3);
-  --accent: #f4f3ef;
-  --on-accent: #1f1e1c;
+  --bg: #191919;
+  --stage: #191919;
+  --panel: #272625;
+  --fg: #eeeeee;
+  --muted: #9c9c9c;
+  --subtle: #6e6e6e;
+  --line: #303030;
+  --line-strong: #3d3d3d;
+  --card: #202020;
+  --elevated: #2a2a2a;
+  --hover: #2a2a2a;
+  --input: #202020;
+  --code-bg: #141414;
+  --accent: #eeeeee;
+  --on-accent: #191919;
   --ok: #4ade80;
   --ok-bg: rgba(74, 222, 128, 0.12);
   --wait: #fbbf24;
@@ -89,7 +91,7 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
   --focus: rgba(244, 243, 239, 0.14);
-  --blue: #4d8ff5;
+  --blue: #4d8ae6;
   --blue-hover: #2f6fdc;
   --on-blue: #f3f7ff;
   --violet: #a78bfa;
@@ -116,8 +118,10 @@
   --code-number: #e9b872;
   --code-function: #7fb0f5;
   --code-type: #ef9dc2;
-  --glass: rgba(35, 35, 33, 0.74);
-  --backdrop: radial-gradient(1100px 700px at 12% -10%, rgba(255, 255, 255, 0.035), transparent 70%);
+  --glass: rgba(42, 42, 42, 0.78);
+  --backdrop: none;
+  /* The row of where you are, in the rail. */
+  --selected: #474645;
   color-scheme: dark;
 }
 
