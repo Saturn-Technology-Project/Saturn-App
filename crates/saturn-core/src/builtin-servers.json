@@ -3532,6 +3532,53 @@
       "runId"
      ]
     }
+   },
+   {
+    "toolId": "research_task_start",
+    "serverId": "research",
+    "category": "write",
+    "description": "Start a task: another agent working on its own in a separate git worktree and branch, while you carry on. Give it everything it needs in the prompt, since it does not see this chat. Its code reaches the project only if the person merges it. A task cannot start another task, and at most 4 run at once.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "prompt": {
+       "type": "string",
+       "description": "What the task should do, complete in itself."
+      }
+     },
+     "required": [
+      "prompt"
+     ]
+    }
+   },
+   {
+    "toolId": "research_task_read",
+    "serverId": "research",
+    "category": "read",
+    "description": "Follow tasks. what=list shows this project's tasks. what=status (task) says how one stands: its status, what it answered, what it is waiting for, and what it changed. what=wait (task, seconds) holds your turn until it ends or needs a decision, up to 600 seconds at a time. Only the person can answer a task's approval, or merge or discard it.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "what": {
+       "type": "string",
+       "enum": [
+        "list",
+        "status",
+        "wait"
+       ]
+      },
+      "task": {
+       "type": "string"
+      },
+      "seconds": {
+       "type": "integer",
+       "description": "At most 600."
+      }
+     },
+     "required": [
+      "what"
+     ]
+    }
    }
   ]
  }

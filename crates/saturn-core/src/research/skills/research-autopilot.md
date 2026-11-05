@@ -38,5 +38,8 @@ The loop for an independent study. Each stage names the skill to read before doi
 ## What you never do
 Set a verdict, set a label, change a chat's mode, lift a lock, or merge a task. The tools do not offer these. Finish by telling the person exactly which of them are waiting: see `handing-back`.
 
+## Doing several things
+Separate, long pieces of work can go to tasks of their own, while you carry on. See `starting-tasks`.
+
 ## Long runs
 `research_wait` holds a turn for up to 600 seconds, so call it again until the run ends. A turn has a limit on tool steps; if yours stops, the person says continue and you resume from status and your findings.

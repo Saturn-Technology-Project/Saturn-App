@@ -245,6 +245,78 @@ test("a long answer is cut and says how to read less", async () => {
   assert.match(answer.note, /smaller part/);
 });
 
+/** A chat in a git project whose agent has the research tools, so that a task can have its own worktree. */
+async function gitBed(options = {}) {
+  const folder = await saturn.folder();
+  const { execFileSync } = await import("node:child_process");
+  execFileSync("git", ["init", "-q"], { cwd: folder });
+  await writeFile(path.join(folder, "readme.md"), "start\n");
+  execFileSync("git", ["add", "."], { cwd: folder });
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "start"], { cwd: folder });
+  const setup = await saturn.chat(folder, { mcpConnectionIds: ["research"], ...options });
+  return { ...setup, folder };
+}
+
+test("an assistant starts a task, which works apart, and follows it to its answer", posixOnly, async () => {
+  const setup = await gitBed();
+  const begun = await call(setup, "research_task_start", { prompt: "Clean up the data\nand say what you did" });
+  assert.match(begun.branch, /saturn\//);
+  const threads = await saturn.api("GET", `/agents/${setup.agent.id}/threads`);
+  const task = threads.find((item) => item.id === begun.task);
+  assert.equal(task.title, "Task: Clean up the data", "named so that it shows on the Tasks screen");
+  assert.equal(task.projectId, setup.project.id);
+  assert.equal(task.chatMode, "delegate");
+  assert.ok(task.worktree, "it has its own worktree");
+  const report = await call(setup, "research_task_read", { what: "wait", task: begun.task, seconds: 30 });
+  assert.equal(report.status, "completed", report.error);
+  assert.equal(report.answer, "done");
+  assert.deepEqual(report.waitingForThePerson, []);
+  const listed = await call(setup, "research_task_read", { what: "list" });
+  assert.deepEqual(listed.tasks.map((item) => item.task), [begun.task]);
+  assert.equal(listed.tasks[0].answer, undefined, "a list stays short");
+  assert.equal((await readFile(path.join(setup.folder, "readme.md"), "utf8")), "start\n");
+});
+
+test("a task starts in the mode of the chat that started it, and never asks less than that", posixOnly, async () => {
+  const auto = await gitBed();
+  await saturn.api("PATCH", `/threads/${auto.thread.id}`, { chatMode: "delegate_auto" });
+  const fromAuto = await call(auto, "research_task_start", { prompt: "One" });
+  const threads = await saturn.api("GET", `/agents/${auto.agent.id}/threads`);
+  assert.equal(threads.find((item) => item.id === fromAuto.task).chatMode, "delegate_auto");
+});
+
+test("a Manual chat cannot start a task, and a Pair chat waits for the person first", posixOnly, async () => {
+  const manual = await gitBed();
+  await saturn.api("PATCH", `/threads/${manual.thread.id}`, { chatMode: "manual" });
+  const refused = await manual.turn([["research_task_start", { prompt: "No" }]]);
+  assert.notEqual(refused.actions[0].status, "completed");
+  assert.equal((await saturn.api("GET", `/agents/${manual.agent.id}/threads`)).length, 1);
+  assert.deepEqual((await manual.turn([["research_task_read", { what: "list" }]])).actions[0].result.tasks, [], "it can still read them");
+
+  const pair = await gitBed();
+  await saturn.api("PATCH", `/threads/${pair.thread.id}`, { chatMode: "pair" });
+  const started = await pair.start([["research_task_start", { prompt: "Wait for me" }]]);
+  const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
+  assert.match(waiting.actions[0].reason, /Pair mode/);
+  assert.equal((await saturn.api("GET", `/agents/${pair.agent.id}/threads`)).length, 1, "nothing has started");
+  await saturn.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: false });
+  await saturn.finished(started.id);
+  assert.equal((await saturn.api("GET", `/agents/${pair.agent.id}/threads`)).length, 1);
+});
+
+test("a task cannot start a task, and one that cannot begin leaves nothing behind", posixOnly, async () => {
+  const setup = await gitBed();
+  const inner = await setup.newThread("Task: already one");
+  const run = await setup.turn([["research_task_start", { prompt: "Deeper" }]], "go", inner.id);
+  assert.equal(run.actions[0].status, "failed");
+  assert.match(run.actions[0].reason, /cannot start another task/);
+
+  const plain = await bed();
+  assert.match(await refused(plain, "research_task_start", { prompt: "No git here" }), /could not start/);
+  assert.equal((await saturn.api("GET", `/agents/${plain.agent.id}/threads`)).length, 1);
+  assert.match(await refused(setup, "research_task_read", { what: "status", task: "thread_none" }), /No task/);
+});
+
 test("a turn with the research tools goes on past the usual limit on tool steps", async () => {
   const setup = await bed();
   const steps = Array.from({ length: 70 }, () => [["research_read", { what: "events" }]]);
@@ -274,6 +346,7 @@ test("the tools reach Claude Code, which sees them and calls them like any other
     const offered = Object.values(initialize.request.sdkMcpServerManifests)[0].toolsListResult.tools.map((tool) => tool.name);
     assert.ok(offered.includes("research_skill"), offered.join(" "));
     assert.ok(offered.includes("research_run"), offered.join(" "));
+    assert.ok(offered.includes("research_task_start"), offered.join(" "));
     const questions = await programs.api("GET", `/projects/${project.id}/research/questions`);
     assert.deepEqual(questions.items.map((item) => item.title), ["Asked through the program"]);
   } finally {

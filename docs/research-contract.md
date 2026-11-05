@@ -288,7 +288,7 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
 
 ## What an agent does with the records
 
-An agent with the built-in `research` server, which an agent has only when its list names it, has seven tools, on every backend. `docs/research-skills.md` lists the skills that teach them.
+An agent with the built-in `research` server, which an agent has only when its list names it, has nine tools, on every backend. `docs/research-skills.md` lists the skills that teach them.
 
 | Tool | Reads or writes | What it does |
 |---|---|---|
@@ -299,11 +299,14 @@ An agent with the built-in `research` server, which an agent has only when its l
 | `research_run` | Writes | Freezes an experiment from the chat's own folder, starts a version, stops a run |
 | `research_environment_action` | Writes | Checks, makes, fills and chooses the project's Python |
 | `research_inspect` | Writes | Activations, a patch and a sweep |
+| `research_task_start` | Writes | Starts a task: another agent on its own, in a separate worktree |
+| `research_task_read` | Reads | Lists tasks, reports on one, or waits until one ends or needs the person, for up to 600 seconds at a time |
 
 - A Manual chat keeps the tools that read. A Pair chat waits for the user before those that write, even with approvals off.
 - What an agent finds is always `ai_suggestion`: `kind` is set for it, and a `conclusion` is refused.
 - A hypothesis it makes has no verdict, and it does not change once made, so that nothing under a person's verdict moves. It changes only its own findings. A record's other changes go through `expectedRevision` as usual.
 - There is no tool for labels, verdicts, modes, the policy, or merging a task.
+- A task cannot start a task, and at most 4 of an agent's tasks in a project are going at once. A task starts in `delegate`, or `delegate_auto` if the chat that started it is. Only the person answers its approvals, and merges or discards it.
 - A start's `attempt` (default 1) makes its `clientId` with the turn and the version: repeating a call in a turn starts nothing, and a new attempt runs the version again.
 - An answer over 60,000 characters is cut, and says to read less.
 - A turn of an agent with these tools may take 400 tool steps, where others take 60. This applies to Saturn's own agent loop. Claude Code and Codex keep their own limits. No limit caps what a study spends on a paid model: a person or a skill's budget has to.

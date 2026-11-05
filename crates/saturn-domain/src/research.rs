@@ -332,6 +332,42 @@ pub fn check_policy(policy: &Value) -> Result<(), String> {
     Ok(())
 }
 
+/// What a task's chat is called, followed by what it was asked.
+pub const TASK_PREFIX: &str = "Task: ";
+/// The most tasks an agent may have going in a project at once. Each one is a model working, and may be a program training.
+pub const MOST_TASKS_AT_ONCE: usize = 4;
+
+/// Why an agent may not start a task from this chat, if it may not: tasks do not start tasks, and only so many run at once.
+pub fn task_refusal(from_title: &str, going: usize) -> Option<String> {
+    if from_title.starts_with(TASK_PREFIX) {
+        return Some(
+            "A task cannot start another task. Do the work here, or say what should be started."
+                .to_owned(),
+        );
+    }
+    (going >= MOST_TASKS_AT_ONCE).then(|| {
+        format!("{going} tasks are already going, which is the most at once. Wait for one to end, with research_task_read.")
+    })
+}
+
+/// A task's chat title, from what it was asked: its first line, not too long.
+pub fn task_title(prompt: &str) -> String {
+    let first = prompt.trim().lines().next().unwrap_or_default().trim();
+    format!(
+        "{TASK_PREFIX}{}",
+        first.chars().take(80).collect::<String>()
+    )
+}
+
+/// The mode a task starts in, from the chat that starts it. A task never asks less than the person chose for that chat.
+pub fn task_mode(from_mode: Option<&str>) -> &'static str {
+    if from_mode == Some("delegate_auto") {
+        "delegate_auto"
+    } else {
+        "delegate"
+    }
+}
+
 /// The kinds of record an agent may make.
 const AGENT_COLLECTIONS: [&str; 6] = [
     "questions",
@@ -523,6 +559,23 @@ mod tests {
             fingerprint(&json!({"b": {"d": [1, 2]}})),
             fingerprint(&json!({"b": {"d": [2, 1]}}))
         );
+    }
+
+    #[test]
+    fn tasks_do_not_start_tasks_and_only_so_many_run_at_once() {
+        assert_eq!(task_refusal("Research assistant", 0), None);
+        assert_eq!(
+            task_refusal("Research assistant", MOST_TASKS_AT_ONCE - 1),
+            None
+        );
+        assert!(task_refusal("Research assistant", MOST_TASKS_AT_ONCE).is_some());
+        assert!(task_refusal("Task: clean up", 0).is_some());
+        assert_eq!(task_title("  Train it\nthen more"), "Task: Train it");
+        assert_eq!(task_title(&"x".repeat(200)).len(), TASK_PREFIX.len() + 80);
+        assert_eq!(task_mode(Some("delegate_auto")), "delegate_auto");
+        for mode in [Some("pair"), Some("delegate"), Some("manual"), None] {
+            assert_eq!(task_mode(mode), "delegate");
+        }
     }
 
     #[test]

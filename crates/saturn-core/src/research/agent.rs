@@ -4,7 +4,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use saturn_domain::js;
-use saturn_domain::research::{agent_change, agent_record};
+use saturn_domain::research::{
+    TASK_PREFIX, agent_change, agent_record, task_mode, task_refusal, task_title,
+};
 use saturn_domain::skill_files::parse_skill;
 use serde_json::{Value, json};
 
@@ -89,6 +91,8 @@ impl Kernel {
                 self.research_environment_action(&project, arguments).await
             }
             "research_inspect" => self.research_inspect(&project, arguments).await,
+            "research_task_start" => self.research_task_start(&project, arguments, run).await,
+            "research_task_read" => self.research_task_read(&project, arguments, run).await,
             _ => Err(format!("Unknown research tool: {tool}")),
         }?;
         Ok(fitted(answer))
@@ -363,6 +367,181 @@ impl Kernel {
                 .await
                 .map_err(said),
             other => Err(format!("research_run has no action \"{other}\".")),
+        }
+    }
+
+    /// This project's tasks of this agent, newest first.
+    fn tasks_of(&self, project: &str, agent: &str) -> Vec<Value> {
+        self.store.read(|state| {
+            let mut tasks: Vec<Value> = state
+                .threads
+                .iter()
+                .filter(|thread| {
+                    text(thread, "agentId") == agent
+                        && text(thread, "projectId") == project
+                        && text(thread, "title").starts_with(TASK_PREFIX)
+                })
+                .cloned()
+                .collect();
+            tasks.sort_by(|left, right| text(right, "createdAt").cmp(text(left, "createdAt")));
+            tasks
+        })
+    }
+
+    /// The newest turn of a chat.
+    fn newest_turn(&self, thread: &str) -> Option<Value> {
+        self.store.read(|state| {
+            state
+                .runs
+                .iter()
+                .filter(|run| text(run, "threadId") == thread)
+                .max_by(|left, right| text(left, "createdAt").cmp(text(right, "createdAt")))
+                .or_else(|| {
+                    state
+                        .runs
+                        .iter()
+                        .find(|run| text(run, "threadId") == thread)
+                })
+                .cloned()
+        })
+    }
+
+    /// Starts another agent on its own in a separate worktree, and returns at once.
+    async fn research_task_start(
+        self: &Arc<Self>,
+        project: &str,
+        arguments: &Value,
+        turn: &Value,
+    ) -> Result<Value, String> {
+        let prompt = js::trim(needed(arguments, "prompt")?).to_owned();
+        let agent = text(turn, "agentId");
+        let from = self
+            .find_thread(text(turn, "threadId"))
+            .ok_or("This chat is gone.")?;
+        let going = self
+            .tasks_of(project, agent)
+            .iter()
+            .filter(|task| {
+                self.newest_turn(text(task, "id"))
+                    .is_some_and(|run| crate::records::active(&run))
+            })
+            .count();
+        if let Some(reason) = task_refusal(text(&from, "title"), going) {
+            return Err(reason);
+        }
+        let title = task_title(&prompt);
+        let thread = self
+            .create_thread(agent, Some(&title), Some(project))
+            .await
+            .map_err(said)?;
+        let id = text(&thread, "id").to_owned();
+        let begun = async {
+            self.set_chat_mode(&id, task_mode(self.chat_mode_of(turn).as_deref()))
+                .await?;
+            let worktree = self.create_worktree(&id).await?;
+            let run = Box::pin(self.start_run(
+                agent,
+                &prompt,
+                Some(&id),
+                None,
+                crate::runs::StartOptions::default(),
+            ))
+            .await?;
+            Ok::<_, CoreError>((worktree, run))
+        }
+        .await;
+        match begun {
+            Ok((worktree, run)) => Ok(json!({
+                "task": id,
+                "run": text(&run, "id"),
+                "branch": worktree.get("branch"),
+                "status": text(&run, "status"),
+                "note": "It runs on its own. Follow it with research_task_read. The person merges it or discards it, and answers anything it asks.",
+            })),
+            Err(error) => {
+                // A chat that never began leaves nothing behind on the person's Tasks screen.
+                let _ = self.delete_thread(&id).await;
+                Err(format!("The task could not start: {}", error.message))
+            }
+        }
+    }
+
+    /// How a task stands: its status, its answer, what it waits for and what it changed.
+    async fn task_report(&self, task: &Value) -> Value {
+        let id = text(task, "id");
+        let run = self.newest_turn(id);
+        let waiting: Vec<Value> = run
+            .as_ref()
+            .and_then(|run| run.get("actions"))
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter(|action| text(action, "status") == "waiting_approval")
+            .map(|action| json!({ "tool": text(action, "toolId"), "reason": text(action, "reason") }))
+            .collect();
+        let changes = self.worktree_status(id).await.ok();
+        json!({
+            "task": id,
+            "title": js::prefix(text(task, "title"), 120),
+            "mode": task.get("chatMode"),
+            "status": run.as_ref().map_or("not started", |run| text(run, "status")),
+            "answer": run.as_ref().map(|run| js::prefix(text(run, "output"), 8000).to_owned()),
+            "error": run.as_ref().and_then(|run| run.get("error")),
+            "waitingForThePerson": waiting,
+            "branch": changes.as_ref().and_then(|status| status.get("branch")),
+            "changedFiles": changes.as_ref().and_then(|status| status.get("changedFiles")),
+        })
+    }
+
+    /// Lists tasks, reports on one, or holds the turn until one ends or needs the person.
+    async fn research_task_read(
+        &self,
+        project: &str,
+        arguments: &Value,
+        turn: &Value,
+    ) -> Result<Value, String> {
+        let agent = text(turn, "agentId");
+        let what = needed(arguments, "what")?;
+        if what == "list" {
+            let mut items = Vec::new();
+            for task in self.tasks_of(project, agent) {
+                let mut report = self.task_report(&task).await;
+                if let Some(fields) = report.as_object_mut() {
+                    fields.remove("answer");
+                }
+                items.push(report);
+            }
+            return Ok(json!({ "tasks": items }));
+        }
+        let wanted = needed(arguments, "task")?;
+        let task = self
+            .tasks_of(project, agent)
+            .into_iter()
+            .find(|task| text(task, "id") == wanted)
+            .ok_or_else(|| format!("No task {wanted} in this project."))?;
+        match what {
+            "status" => Ok(self.task_report(&task).await),
+            "wait" => {
+                let seconds = arguments
+                    .get("seconds")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(LONGEST_WAIT)
+                    .clamp(1, LONGEST_WAIT);
+                let deadline = Instant::now() + Duration::from_secs(seconds);
+                let turn_id = text(turn, "id");
+                while Instant::now() < deadline
+                    && self
+                        .find_run(turn_id)
+                        .is_some_and(|current| crate::records::active(&current))
+                    && self.newest_turn(wanted).is_some_and(|run| {
+                        crate::records::active(&run) && text(&run, "status") != "waiting_approval"
+                    })
+                {
+                    tokio::time::sleep(WAIT_STEP).await;
+                }
+                Ok(self.task_report(&task).await)
+            }
+            other => Err(format!("Nothing to read called \"{other}\".")),
         }
     }
 
