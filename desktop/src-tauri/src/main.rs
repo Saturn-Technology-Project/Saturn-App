@@ -130,7 +130,11 @@ fn request_permission(which: String) -> permissions::Answer {
 /// Gives the window's blur the theme the page chose, which may differ from the system's.
 #[tauri::command]
 fn set_window_theme(window: WebviewWindow, dark: bool) -> tauri::Result<()> {
-    window.set_theme(Some(if dark { tauri::Theme::Dark } else { tauri::Theme::Light }))
+    window.set_theme(Some(if dark {
+        tauri::Theme::Dark
+    } else {
+        tauri::Theme::Light
+    }))
 }
 
 #[tauri::command]
