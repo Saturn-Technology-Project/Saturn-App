@@ -21,7 +21,9 @@ import type {
   RunSummary,
   ResearchSession,
   SampleItem,
+  SampleLine,
   SourceView,
+  SweepView,
 } from "../domain/research.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
@@ -190,6 +192,23 @@ export class ResearchService {
   /** A model's activations on a sample, read in the project's own Python and saved with the run; the same request again is answered from what was saved. */
   activations(project: string, run: string, sampleId: string, modelId: string | null): Promise<ActivationView> {
     return this.send(`${this.route(project)}/runs/${run}/activations`, "POST", { sampleId, modelId });
+  }
+
+  /** Every layer patched from one model into another on several samples, in one helper process; saved with the run. */
+  sweep(project: string, request: { runId: string; sampleIds: string[]; sourceModelId: string; targetModelId: string; layers?: number[] }): Promise<SweepView> {
+    return this.send(`${this.route(project)}/interventions/sweep`, "POST", request);
+  }
+
+  /** Every sample line of a run, page by page, up to a limit. */
+  async allSamples(project: string, run: string, limit = 5000): Promise<SampleLine[]> {
+    const lines: SampleLine[] = [];
+    let cursor: number | null = 0;
+    while (cursor !== null && lines.length < limit) {
+      const page: { items: SampleItem[]; next: number | null } = await this.samples(project, run, cursor);
+      for (const item of page.items) if (item.sample) lines.push(item.sample);
+      cursor = page.next;
+    }
+    return lines;
   }
 
   /** One layer patched from one model into another on a sample, in the same way. */

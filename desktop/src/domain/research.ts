@@ -386,6 +386,33 @@ export interface ActivationView {
   recordedAt?: string;
 }
 
+/** Every layer patched from one model into another, on several samples: what the target then ends on at each. */
+export interface SweepView {
+  sourceModelId: string | null;
+  targetModelId: string | null;
+  layers: number[];
+  samples: { sampleId: string; expected: string | null; top: string; expectedLogProb: number | null; byLayer: { layer: number; top: string; expectedLogProb: number | null }[] }[];
+  recordedAt?: string;
+}
+
+/** Whether the patched model ends on the expected token: what "restored" means here, said once. */
+export function restores(sample: SweepView["samples"][number], layer: number): boolean {
+  const at = sample.byLayer.find((item) => item.layer === layer);
+  return Boolean(sample.expected && at && at.top === sample.expected);
+}
+
+/** How many samples each layer restores, in the sweep's layer order. */
+export function restoredByLayer(view: SweepView): number[] {
+  return view.layers.map((layer) => view.samples.filter((sample) => restores(sample, layer)).length);
+}
+
+/** Whether a sample line is one the scorer marked wrong: a false score, or a scorer word that says so. */
+export function scorerSaysWrong(line: SampleLine): boolean {
+  if (line.error) return false;
+  if (line.scorerLabel && /wrong|incorrect|fail/i.test(line.scorerLabel)) return true;
+  return Object.values(line.scores ?? {}).some((score) => score === false);
+}
+
 /** An intervention the runtime will carry out: weights of one layer patched from a source model into a target, on one sample. */
 export interface InterventionRequest {
   runId: string;

@@ -2,7 +2,7 @@
 // changed since a visit. Node runs the domain file as it is, so only a module without imports can be tested here.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, kitState, lastActive, reviewProgress, scoreSources, throughput } from "../src/domain/research.ts";
+import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, kitState, lastActive, restoredByLayer, reviewProgress, scoreSources, scorerSaysWrong, throughput } from "../src/domain/research.ts";
 
 const point = (elapsedMs, samplesLines, outputTokens = 0) => ({ at: "", elapsedMs, cpuPercent: 1, memoryBytes: 1, processes: 1, samplesBytes: 0, samplesLines, inputTokens: 0, outputTokens, deviceMemoryBytes: null, gpus: null });
 
@@ -72,4 +72,14 @@ test("what changed since a visit comes newest first, and the last activity is th
   assert.equal(changedSince(items, null).length, 3);
   assert.equal(lastActive([items, [{ updatedAt: "2026-04-01T00:00:00Z" }]]), "2026-04-01T00:00:00Z");
   assert.equal(lastActive([[]]), null);
+});
+
+test("a layer restores a sample when the patched model ends on the expected token, and the scorer's wrong is read from a false score or its word", () => {
+  const sample = (expected, tops) => ({ sampleId: "s", expected, top: "x", expectedLogProb: null, byLayer: tops.map((top, layer) => ({ layer, top, expectedLogProb: null })) });
+  const view = { sourceModelId: "a", targetModelId: "b", layers: [0, 1, 2], samples: [sample(" Mary", ["x", " Mary", " Mary"]), sample(" John", [" John", "x", " John"]), sample(null, [" Mary", " Mary", " Mary"])] };
+  assert.deepEqual(restoredByLayer(view), [1, 1, 2]);
+  assert.equal(scorerSaysWrong({ sampleId: "s", scores: { correct: false } }), true);
+  assert.equal(scorerSaysWrong({ sampleId: "s", scores: { correct: true } }), false);
+  assert.equal(scorerSaysWrong({ sampleId: "s", scores: { score: 0.1 }, scorerLabel: "Wrong name" }), true);
+  assert.equal(scorerSaysWrong({ sampleId: "s", scores: { correct: false }, error: { kind: "scorer" } }), false);
 });

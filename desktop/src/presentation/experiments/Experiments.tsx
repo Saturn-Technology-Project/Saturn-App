@@ -24,6 +24,7 @@ import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { messageOf } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
 
+import { Mechanism } from "./Mechanism.js";
 import { ScoreChart } from "./ScoreChart.js";
 
 const service = desktop.research;
@@ -251,10 +252,21 @@ export function Experiments(props: ScreenProps) {
           ) : null}
 
           <h2>Does the mechanism change too?</h2>
-          <div className="lab-card">
-            <div>No intervention is recorded for this experiment. Open a sample and look inside to compare activations or patch a layer between two models.</div>
-            <div className="lab-muted">Features are not compared across models until an alignment method is recorded and tested with an intervention.</div>
-          </div>
+          <Mechanism
+            projectId={projectId}
+            run={newest}
+            summary={summary}
+            models={value?.models ?? []}
+            notify={props.notify}
+            onRecord={async (text) => {
+              try {
+                await service.addFinding(projectId, text, "observation", newest ? [newest.id] : []);
+                await refresh();
+              } catch (error) {
+                props.notify(messageOf(error));
+              }
+            }}
+          />
 
           <h2>Findings</h2>
           <div className="lab-chips">
