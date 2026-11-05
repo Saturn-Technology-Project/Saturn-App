@@ -1,6 +1,7 @@
 import type {
   AcrossRow,
   ActivationView,
+  FeaturesView,
   ModelCompareView,
   PromptPatchView,
   Comparison,
@@ -199,6 +200,11 @@ export class ResearchService {
   /** A clean prompt patched into a corrupted one at every layer and position, beside a random control; saved with the run. */
   patchPrompts(project: string, run: string, request: { modelId: string; clean: string; corrupted: string; expected: string; alternative: string }): Promise<PromptPatchView> {
     return this.send(`${this.route(project)}/runs/${run}/inspections`, "POST", { action: "prompts", ...request });
+  }
+
+  /** One layer on a prompt of your own read through a sparse autoencoder, with one feature set to zero if asked; saved with the run. */
+  readFeatures(project: string, run: string, request: { modelId: string; prompt: string; layer: number; saeRelease?: string; saeId?: string; saePath?: string; expected?: string; alternative?: string; ablate?: number }): Promise<FeaturesView> {
+    return this.send(`${this.route(project)}/runs/${run}/inspections`, "POST", { action: "features", ...request });
   }
 
   /** What was saved under a run's inside folder: readings and sweeps, newest first. */
