@@ -1,6 +1,7 @@
 //! Research records' rules, with no I/O: which kinds exist, what each must hold, and what makes two versions the same.
 //! `docs/research-contract.md` is the contract.
 use serde_json::{Map, Value, json};
+pub mod comparison;
 use sha2::{Digest, Sha256};
 
 /// The version of the record format this runtime writes.
@@ -30,6 +31,7 @@ pub fn id_prefix(collection: &str) -> Option<&'static str> {
         "findings" => Some("finding"),
         "models" => Some("model"),
         "counterexamples" => Some("counterexample"),
+        "counterexample_sets" => Some("counterexample_set"),
         "versions" => Some("version"),
         _ => None,
     }

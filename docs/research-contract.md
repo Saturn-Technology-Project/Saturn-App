@@ -88,6 +88,25 @@ differ, or `unknown` with the fields that are missing. Training data is not part
 meant to differ. A version's `data` and `scorer` inputs are the evaluation's files, and files that changed under the same
 name make two versions `not_comparable`. Declare training data elsewhere, on the model that came from it.
 
+### Paired behavior changes
+
+`POST .../research/comparisons` takes `left` and `right` (`runId`, optional `modelId`), `scorer`, optional
+`higherIsBetter` (default true) and `sliceField` (default `category`). Each side selects one model; ambiguous runs are
+refused. Only sealed bytes are read and their hash must still match. Each side is bounded to 64 MiB and 100,000 samples.
+
+Pairs match `sampleId` and `trial`, then require identical known inputs, a finite numeric score on both sides, no error,
+and no generated row identity. Missing sides, input mismatches, errors and other exclusions are counted separately.
+Delta is right minus left; the chosen score direction decides improvement. The mean weights each sample ID equally
+after averaging its trials. The conservative 95% paired t interval treats sample IDs as independent, assumes approximately
+normal prompt means, has no multiple-comparison correction, and does not express uncertainty across training seeds.
+Unknown or different evaluation conditions, or fewer than two independent sample IDs, omit the interval. Differences
+remain descriptive. Category slices use the left sample's metadata when present.
+
+`only` and `slice` filter before paging; `cursor` indexes the filtered rows, 200 per page. `save: true` and optional `title`
+save every regression in the selected slice as a `counterexample_sets` record, including members beyond the visible page,
+the original request, summary, method note and source digests. Scores and labels are never modified. Saved memberships
+remain readable; recomputing their original request checks the source seals again.
+
 ## A run's life
 
 ```

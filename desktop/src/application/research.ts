@@ -31,6 +31,8 @@ import type {
 import type { DataList, DataOverlap, DataPage, DataProfile } from "../domain/data.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import type { ResearchImportRequest, ResearchImportPreview, TrainingMetric } from "../domain/research.js";
+import type { PairedComparison, PairedComparisonRequest } from "../domain/research.js";
+import type { CounterexampleSet } from "../domain/research.js";
 
 /** A list of records, and those that could not be read. */
 interface RecordList<T> {
@@ -59,6 +61,16 @@ export class ResearchService {
   /** Reads a page of training metrics using byte offsets. */
   metrics(project: string, run: string, cursor = 0): Promise<{ items: TrainingMetric[]; next: number | null }> {
     return this.runtime.request(`${this.route(project)}/runs/${run}/metrics?cursor=${cursor}`);
+  }
+
+  /** Compares the same inputs and optionally keeps every regression as a counterexample set. */
+  pairedComparison(project: string, request: PairedComparisonRequest): Promise<PairedComparison> {
+    return this.send(`${this.route(project)}/comparisons`, "POST", request);
+  }
+
+  /** Lists saved regression cohorts, including their original requests and full memberships. */
+  counterexampleSets(project: string): Promise<RecordList<CounterexampleSet>> {
+    return this.runtime.request(`${this.route(project)}/counterexample_sets`);
   }
 
   private send<T>(path: string, method: string, body?: unknown): Promise<T> {

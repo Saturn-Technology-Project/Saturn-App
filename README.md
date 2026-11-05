@@ -86,6 +86,10 @@ mapping and numeric score columns, without rewriting training code or first crea
 imports its `log_history` as separate training metrics. Sources remain unchanged, unknown provenance stays unknown, and
 imported versions cannot be executed. Experiments plots training metrics by step, separately from evaluation samples.
 
+**Behavior changes.** Experiments compares sealed samples across runs or selected models, showing improvements,
+regressions, missing/error counts and category slices. Uncertainty groups repeated trials by sample ID and is omitted
+when evaluation conditions are unknown or different. Save the whole regression cohort and reopen its membership later.
+
 ## Install
 
 Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) for macOS on Apple Silicon, and a setup `.exe` for Windows x64. Releases are pre-releases while Saturn is in preview; [`CHANGELOG.md`](CHANGELOG.md) summarizes what changed in each. Each file ships with a SHA-256 checksum and a signed build provenance attestation ([verify a download](#5-verify-the-release-provenance)).

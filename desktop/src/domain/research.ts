@@ -95,6 +95,41 @@ export interface ResearchImportPreview {
 /** One training event, separate from a scored evaluation sample. */
 export interface TrainingMetric { step: number; values: Record<string, number> }
 
+/** A fixed pair of runs/models and a numeric score, with explicit score direction. */
+export interface PairedComparisonRequest {
+  left: { runId: string; modelId?: string };
+  right: { runId: string; modelId?: string };
+  scorer: string;
+  higherIsBetter?: boolean;
+  sliceField?: string;
+  slice?: string;
+  only?: string;
+  cursor?: number;
+  save?: boolean;
+  title?: string;
+}
+
+/** Prompt-weighted differences; trials of the same prompt are not independent observations. */
+export interface PairedSummary {
+  paired: number; independentSamples: number; meanDelta: number | null; interval95: [number, number] | null;
+  improved: number; regressed: number; unchanged: number; missingLeft: number; missingRight: number; excluded: number;
+}
+
+export interface PairedComparison {
+  comparison: Comparison;
+  summary: PairedSummary;
+  slices: (PairedSummary & { name: string })[];
+  items: { sampleId: string; trial: number; slice: string; delta: number | null; change: string; reason: string | null; left: SampleLine | null; right: SampleLine | null }[];
+  next: number | null; total: number; note: string;
+  saved?: ResearchRecord & { title: string; members: unknown[] };
+}
+
+/** A saved regression cohort, including samples beyond a visible comparison page. */
+export interface CounterexampleSet extends ResearchRecord {
+  title: string; request: PairedComparisonRequest; summary: PairedSummary;
+  members: { sampleId: string; trial: number; delta: number; slice: string }[];
+}
+
 export interface SourceEntry {
   name: string;
   path: string;

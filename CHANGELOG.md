@@ -6,6 +6,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **Compare behavior, down to the same inputs.** See improvements, regressions, missing samples and category slices across runs or models. Repeated trials share one independent sample ID for uncertainty; unknown or different evaluation conditions receive no interval. Keep every regression as a saved set, including those beyond the visible page.
+
 - **Bring existing research results in.** Preview and import project JSONL, JSON, CSV or TSV without changing the source or first creating a hypothesis. Map columns explicitly and keep unknown provenance unknown. Trainer state imports become separate training metrics, plotted by step; imported versions describe past results and cannot be executed.
 
 ### Fixed

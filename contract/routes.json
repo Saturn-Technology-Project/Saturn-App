@@ -160,6 +160,7 @@
   "POST /projects/:id/index",
   "POST /projects/:id/permissions/approve",
   "POST /projects/:id/research/:collection",
+  "POST /projects/:id/research/comparisons",
   "POST /projects/:id/research/environment/check",
   "POST /projects/:id/research/environment/create",
   "POST /projects/:id/research/environment/install",

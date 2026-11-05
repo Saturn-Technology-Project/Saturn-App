@@ -84,6 +84,9 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 **既有結果。** Home 與 Experiments 可預覽並匯入專案內的 JSONL／JSON／CSV／TSV，以明確欄位對應與數值評分欄位接入舊結果，不需要改訓練程式或先建假說。
 Trainer state JSON 的 `log_history` 會另存為訓練指標。來源檔不變，未知的來源資訊仍保持未知，匯入版本不能直接執行；Experiments 按 step 畫出訓練指標，與評估樣本分開。
 
+**行為變化。** Experiments 可比較 run 或指定模型的封存樣本，分開顯示改善、退步、缺失、錯誤與分類切片。
+不確定性按樣本 ID 合併重複 trial，評估條件未知或不同時不提供推論區間。可保存整個退步集合，之後重新查看其成員。
+
 ## 安裝
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。

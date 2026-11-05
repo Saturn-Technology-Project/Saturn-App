@@ -465,6 +465,10 @@ async fn metrics(
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
         .route(
+            "/projects/{id}/research/comparisons",
+            post(paired_comparison),
+        )
+        .route(
             "/projects/{id}/research/imports/preview",
             post(import_preview),
         )
@@ -572,4 +576,15 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             post(freeze),
         )
         .with_state(kernel)
+}
+
+/// Compares fixed samples across runs or selected models, and optionally keeps their regressions as a set.
+async fn paired_comparison(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_paired_comparison(&project, &body_of(body))
+        .await?)
 }
