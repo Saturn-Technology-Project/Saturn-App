@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop";
 import type { PermissionLayer, PermissionRule, PermissionScope, Project } from "../../domain/model";
 import { patternHint } from "../../domain/permissions";
+import { Explained } from "./Explained";
 
 const EFFECTS: { id: PermissionRule["effect"]; label: string; hint: string }[] = [
   { id: "allow", label: "Allow", hint: "runs without asking, in every approval mode" },
@@ -156,15 +157,12 @@ export function PermissionsPage(props: { projects: Project[]; agents: { id: stri
   const shown = layers.filter((layer) => (target === "user" ? layer.scope === "user" : layer.scope !== "user"));
   return (
     <div className="settings-section-list">
-      <div className="settings-section">
-        <div className="settings-section-title">How rules work</div>
-        <div className="settings-card">
-          <p className="settings-row-desc">
-            A rule names a tool and a pattern. Before each tool call the rules are checked first: <strong>deny</strong> refuses the call, <strong>ask</strong> shows an approval card, <strong>allow</strong> runs it without asking in any approval mode. Deny beats ask beats allow. When no rule applies, the agent's approval mode decides, and sensitive commands (<code>rm -rf</code>, <code>sudo</code>, <code>git push --force</code>, deleting files, paths outside the project) always ask in the default mode.
-            Rules in a project's <code>.saturn/settings.json</code> and the <code>permissions</code> of its <code>.claude/settings.json</code> apply too. They come with the folder (a cloned repository, say), so their deny and ask rules apply at once, but their allow rules only after you allow them in the project's rules here. A rule that allows every command is never applied.
-          </p>
-        </div>
-      </div>
+      <Explained summary="Rules decide which tool calls run, wait for you, or are refused, before any approval setting applies.">
+        <li>A rule names a tool and a pattern. <strong>Deny</strong> refuses the call, <strong>ask</strong> shows an approval card, and <strong>allow</strong> runs it without asking. Deny beats ask, and ask beats allow.</li>
+        <li>When no rule applies, the approval setting decides. Sensitive commands (<code>rm -rf</code>, <code>sudo</code>, <code>git push --force</code>, deleting files, paths outside the project) always ask in the default setting.</li>
+        <li>Rules in a project's <code>.saturn/settings.json</code> and the <code>permissions</code> of its <code>.claude/settings.json</code> apply too. They come with the folder (a cloned repository, say), so their deny and ask rules apply at once, but their allow rules only after you allow them in the project's rules here.</li>
+        <li>A rule that allows every command is never applied.</li>
+      </Explained>
       <div className="settings-section">
         <div className="settings-section-title">Rules for</div>
         <div className="settings-card">

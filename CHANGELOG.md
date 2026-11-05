@@ -6,7 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
-- **Settings look the same throughout.** Every field and menu shares one style, the model form is laid out properly, each built-in tool says what it is for, and About describes the research workbench.
+- **Settings look the same throughout.** Every field and menu shares one style, the model form is laid out properly, each built-in tool says what it is for, and About describes the research workbench. Permissions and Hooks say what they are for in a line, with the details folded away, and Telemetry's traces and logs show 25 at a time.
 - **Lineage reads as one tree.** Each model takes one line under the one it came from, with its score in a column, instead of a card and a section per branch.
 - **The Samples list is easier to scan.** Each sample takes one line, a long name keeps its start and end, a dot shows whether it has been reviewed or has errors, and the run and filter stay in view as you scroll.
 - **A chat follows what it says.** The assistant and a task's log now stay at the newest text as it arrives. Scrolling up to read leaves you there, and scrolling back down picks it up again. A task's log did not scroll at all before.

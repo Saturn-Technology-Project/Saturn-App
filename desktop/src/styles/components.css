@@ -3801,7 +3801,7 @@ button.trace-row:hover {
   gap: 12px;
 }
 
-.settings-modal-dialog .card {
+.settings-modal-dialog .card:has(> .form-grid-2) {
   gap: 14px;
 }
 
@@ -3817,5 +3817,43 @@ button.trace-row:hover {
 .settings-modal-dialog .inline-form input {
   flex: 1;
   min-width: 0;
+}
+
+/* A page's purpose in a line, with the details folded away. */
+.settings-explained {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-explained p {
+  margin: 0 0 4px;
+}
+
+.settings-explained summary {
+  width: fit-content;
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.settings-explained ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.telemetry-more {
+  align-self: center;
+  margin: 10px auto;
+}
+
+/* A long list reads better close together. */
+.telemetry-table .trace-row {
+  min-height: 34px;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 

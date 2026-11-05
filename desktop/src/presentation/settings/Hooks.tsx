@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop";
 import type { Hook, HookEvent, HookSet, Project } from "../../domain/model";
+import { Explained } from "./Explained";
 
 const EVENTS: { id: HookEvent; label: string; hint: string }[] = [
   { id: "pre_tool", label: "Before a tool", hint: "Exit 2 blocks the call (stderr goes to the agent). Print {\"decision\": \"allow\" | \"ask\" | \"deny\"} to skip the card, ask, or refuse." },
@@ -70,14 +71,11 @@ export function HooksPage(props: { projects: Project[]; onError: (message: strin
   const withFiles = props.projects.filter((project) => (projectSets[project.id] ?? []).length);
   return (
     <div className="settings-section-list">
-      <div className="settings-section">
-        <div className="settings-section-title">How hooks work</div>
-        <div className="settings-card">
-          <p className="settings-row-desc">
-            A hook is a shell command that runs around an agent's tool calls, or when its turn ends, in the chat's project folder. It gets the event as JSON on stdin (the tool, its arguments and result, the turn's answer). Your hooks below run in every project. A project can bring its own in <code>.saturn/hooks.json</code>, and the hooks of its <code>.claude/settings.json</code> are read too (PreToolUse, PostToolUse and Stop); those run only after you allow them here, and any change to the file asks again.
-          </p>
-        </div>
-      </div>
+      <Explained summary="A hook is a shell command that runs around an agent's tool calls, or when its turn ends.">
+        <li>It runs in the chat's project folder, and gets the event as JSON on stdin: the tool, its arguments and result, and the turn's answer.</li>
+        <li>Your hooks below run in every project.</li>
+        <li>A project can bring its own in <code>.saturn/hooks.json</code>, and the hooks of its <code>.claude/settings.json</code> are read too (PreToolUse, PostToolUse and Stop). Those run only after you allow them here, and any change to the file asks again.</li>
+      </Explained>
 
       <div className="settings-section">
         <div className="settings-section-title">Your hooks</div>

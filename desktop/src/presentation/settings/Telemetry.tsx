@@ -281,6 +281,19 @@ function DownloadMenu(props: {
 
 /* ─── Traces ─── */
 
+/** How many rows a long list shows at a time, so that a page stays short enough to find its way around. */
+const PAGE = 25;
+
+/** The way to the rest of a long list. */
+function ShowMore(props: { left: number; onMore: () => void }) {
+  if (props.left <= 0) return null;
+  return (
+    <button type="button" className="btn ghost tiny telemetry-more" onClick={props.onMore}>
+      Show {Math.min(PAGE, props.left)} more ({props.left} left)
+    </button>
+  );
+}
+
 function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) => void }) {
   const [query, setQuery] = useState("");
   const [hideRoutine, setHideRoutine] = useState(true);
@@ -293,6 +306,7 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
     return true;
   });
   const longest = Math.max(1, ...shown.map((trace) => trace.durationMs));
+  const [limit, setLimit] = useState(PAGE);
 
   return (
     <>
@@ -320,7 +334,7 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
             <span>Duration</span>
             <span>When</span>
           </div>
-          {shown.map((trace) => (
+          {shown.slice(0, limit).map((trace) => (
             <button
               key={trace.traceId}
               type="button"
@@ -343,6 +357,7 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
               <span className="hint" title={new Date(trace.startMs).toLocaleString()}>{formatAgo(trace.startMs)}</span>
             </button>
           ))}
+          <ShowMore left={shown.length - limit} onMore={() => setLimit((current) => current + PAGE)} />
         </section>
       )}
     </>
@@ -665,6 +680,7 @@ function MetricRow(props: { point: MetricPoint; metric: MetricView }) {
 /* ─── Logs ─── */
 
 function Logs(props: { logs: TelemetryLog[]; onOpenTrace: (traceId: string) => void }) {
+  const [limit, setLimit] = useState(PAGE);
   const [floor, setFloor] = useState(0);
   const [query, setQuery] = useState("");
   const shown = props.logs
@@ -687,9 +703,10 @@ function Logs(props: { logs: TelemetryLog[]; onOpenTrace: (traceId: string) => v
         </div>
       ) : (
         <section className="card telemetry-logs">
-          {shown.map((line, index) => (
+          {shown.slice(0, limit).map((line, index) => (
             <LogRow key={`${line.timeMs}-${index}`} line={line} onOpenTrace={props.onOpenTrace} />
           ))}
+          <ShowMore left={shown.length - limit} onMore={() => setLimit((current) => current + PAGE)} />
         </section>
       )}
     </>
