@@ -393,6 +393,73 @@ export interface SweepView {
   recordedAt?: string;
 }
 
+/** Two models read on one prompt, layer by layer. */
+export interface ModelCompareView {
+  modelId: string;
+  otherModelId: string;
+  measure: string;
+  tokens: string[];
+  layers: { layer: number; values: number[] }[];
+  otherLayers: { layer: number; values: number[] }[];
+  top: string;
+  otherTop: string;
+  recordedAt?: string;
+}
+
+/** A corrupted prompt with each layer and position restored from a clean one: how much of the margin comes back, 0 none and 1 all, beside a random control. */
+export interface PromptPatchView {
+  modelId: string;
+  tokens: string[];
+  corruptedTokens: string[];
+  expected: string;
+  alternative: string;
+  cleanMargin: number;
+  corruptedMargin: number;
+  cleanTop: string;
+  corruptedTop: string;
+  layers: number[];
+  recovery: number[][];
+  control: number[][];
+  recordedAt?: string;
+}
+
+/** One layer's values less the other model's. The caller's two readings share their tokens, since the runtime refuses otherwise. */
+export function readingDifference(left: ModelCompareView["layers"], right: ModelCompareView["layers"]): ModelCompareView["layers"] {
+  return left.flatMap((row) => {
+    const other = right.find((item) => item.layer === row.layer);
+    return other ? [{ layer: row.layer, values: row.values.map((value, index) => Number((value - (other.values[index] ?? 0)).toFixed(4))) }] : [];
+  });
+}
+
+/** The furthest any random change of the same size moved the margin, in either direction. Patches at or below it say nothing. */
+export function controlCeiling(view: PromptPatchView): number {
+  return Math.max(0, ...view.control.flat().map(Math.abs));
+}
+
+/** The layer and position that bring back the most, if any brings back more than the control does. */
+export function strongestPatch(view: PromptPatchView): { layer: number; token: string; position: number; recovery: number } | null {
+  const ceiling = controlCeiling(view);
+  let best: { layer: number; token: string; position: number; recovery: number } | null = null;
+  view.recovery.forEach((row, rowIndex) => row.forEach((recovery, position) => {
+    if (recovery > ceiling && (!best || recovery > best.recovery)) best = { layer: view.layers[rowIndex] ?? rowIndex, token: view.tokens[position] ?? "", position, recovery };
+  }));
+  return best;
+}
+
+/** What a patch across prompts found, in words fit to keep as an observation. */
+export function promptPatchText(view: PromptPatchView, modelName: string): string {
+  const best = strongestPatch(view);
+  const margins = `Margin of ${JSON.stringify(view.expected)} over ${JSON.stringify(view.alternative)} on ${modelName}: clean ${view.cleanMargin}, corrupted ${view.corruptedMargin}.`;
+  const ceiling = `A random change of the same size moved at most ${percentText(controlCeiling(view))}.`;
+  if (!best) return `${margins} No layer and position brought back more than the control. ${ceiling} Prompts typed by hand, one pair: not a measurement of the model in general.`;
+  return `${margins} Restoring layer ${best.layer} at position ${best.position} (${JSON.stringify(best.token)}) brought back ${percentText(best.recovery)}. ${ceiling} Prompts typed by hand, one pair: not a measurement of the model in general.`;
+}
+
+/** A share as a percentage, whole enough to read. */
+function percentText(share: number): string {
+  return `${(share * 100).toFixed(1)}%`;
+}
+
 /** What counts as brought back: the logit margin when every sample has one, since a two-way scorer judges that, else the top token. */
 export type RestoreMeasure = "margin" | "top";
 
@@ -405,9 +472,11 @@ export function sweepMeasure(view: SweepView): RestoreMeasure {
 export const RESTORE_MEASURE_TEXT: Record<RestoreMeasure, string> = { margin: "by logit margin", top: "by top token" };
 
 /** One thing saved under a run's inside folder: a reading of one sample, or a sweep. */
-export type InsideItem = (({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView)) & {
+export type InsideItem = (({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView) | ({ kind: "compare" } & ModelCompareView) | ({ kind: "prompts" } & PromptPatchView)) & {
   /** Whether this runtime's helper made it; a corrected helper leaves earlier results in place. */
   current?: boolean;
+  /** What names it among a run's records. */
+  key?: string;
 };
 
 /**
@@ -622,6 +691,8 @@ export interface ResearchSession {
   visitedAt?: string;
   /** What another screen asked the Samples screen to show. */
   review?: Extract<OpenTarget, { kind: "sample" }>;
+  /** A sample to look at on the Inspect screen, with the run it came from. */
+  inspect?: { runId: string; modelId: string | null; input: string; expected?: string; alternative?: string };
 }
 
 /**

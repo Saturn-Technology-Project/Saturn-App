@@ -109,7 +109,7 @@ export function LookInside(props: { projectId: string; runId: string; sampleId: 
 }
 
 /** Layers down, tokens across, each cell as dark as its value is large. Numbers are in the title, so nothing rests on color. */
-function ActivationGrid(props: { caption: string; tokens: string[]; layers: ActivationView["layers"] }) {
+export function ActivationGrid(props: { caption: string; tokens: string[]; layers: ActivationView["layers"]; signed?: boolean; quietAtOrBelow?: number }) {
   const view = props;
   const widest = Math.max(...view.layers.flatMap((row) => row.values.map(Math.abs)), Number.EPSILON);
   return (
@@ -133,7 +133,7 @@ function ActivationGrid(props: { caption: string; tokens: string[]; layers: Acti
                 <th scope="row">{row.layer}</th>
                 {row.values.map((value, index) => (
                   <td key={index} title={`layer ${row.layer}, ${view.tokens[index] ?? index}: ${value.toFixed(3)}`}>
-                    <span className="lab-activation-cell" role="img" aria-label={value.toFixed(3)} style={{ opacity: 0.15 + (Math.abs(value) / widest) * 0.85 }} />
+                    <span className={`lab-activation-cell${props.signed && value < 0 ? " negative" : ""}${props.signed && value >= 0 ? " positive" : ""}${props.quietAtOrBelow !== undefined && Math.abs(value) <= props.quietAtOrBelow ? " quiet" : ""}`} role="img" aria-label={value.toFixed(3)} style={{ opacity: 0.15 + (Math.abs(value) / widest) * 0.85 }} />
                   </td>
                 ))}
               </tr>

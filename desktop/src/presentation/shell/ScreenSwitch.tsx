@@ -5,6 +5,7 @@ import { AssistantPanel } from "../assistant/AssistantPanel.js";
 import { Environment } from "../environment/Environment.js";
 import { Experiments } from "../experiments/Experiments.js";
 import { Home } from "../home/Home.js";
+import { Inspect } from "../inspect/Inspect.js";
 import { Lineage } from "../lineage/Lineage.js";
 import { Protection } from "../protection/Protection.js";
 import { Samples } from "../samples/Samples.js";
@@ -35,6 +36,7 @@ export function ScreenSwitch(props: ScreenProps & { screen: Screen; assistant: b
       {screen === "Lineage" ? <Lineage {...shared} /> : null}
       {screen === "Experiments" ? <Experiments {...shared} /> : null}
       {screen === "Samples" ? <Samples {...shared} onReview={setReviewed} /> : null}
+      {screen === "Inspect" ? <Inspect {...shared} /> : null}
       {screen === "Tasks" ? <Tasks {...shared} onOpenSettings={onOpenSettings} /> : null}
       {screen === "Protection" ? <Protection {...shared} /> : null}
       {screen === "Environment" ? <Environment {...shared} /> : null}

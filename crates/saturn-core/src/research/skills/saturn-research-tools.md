@@ -43,7 +43,7 @@ Leave out `id` to make a record. To change one, pass `id` and `expectedRevision`
 `check`, `create`, `install`, `set`, `stop`. Create and install are jobs: follow them with `what: "environment"`.
 
 ## Inside a model: `research_inspect`
-`activations`, `patch`, `sweep`. See `activation-reading`, `activation-patching`, `layer-sweeps`.
+`activations`, `patch`, `sweep` on a run's samples, and `compare`, `prompts` on prompts of your own. See `activation-reading`, `activation-patching`, `layer-sweeps`.
 
 ## Skills: `research_skill`
 With no name, lists them. A project's own skill of the same name is used first.

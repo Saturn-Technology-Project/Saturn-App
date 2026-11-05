@@ -226,6 +226,14 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
   });
   const current = rows.find((row) => row.runId === runId)?.samples[0] ?? lines.find((line) => line.sampleId === sampleId) ?? null;
   const progress = reviewProgress(summary, labels);
+
+  /** Takes a sample to the Inspect screen, with the run it came from. */
+  function openInInspect(line: SampleLine) {
+    if (!run || typeof line.input !== "string") return;
+    const words = { ...(typeof line.expected === "string" ? { expected: line.expected } : {}), ...(typeof line.alternative === "string" ? { alternative: line.alternative } : {}) };
+    service.saveSession(projectId, { ...service.loadSession(projectId), inspect: { runId: run.id, modelId: line.modelId ?? null, input: line.input, ...words } });
+    props.go("Inspect");
+  }
   const version = (id: string | undefined) => value?.versions.find((item) => item.id === id);
   const runVersion = run ? version(run.versionId) : undefined;
   const factors = comparisonFactors(runVersion?.evaluation, rows.find((row) => row.runId !== runId)?.comparison ?? null);
@@ -315,6 +323,9 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
           ) : (
             <button type="button" className="lab-button" onClick={() => setInside(true)}>Compare activations or patch a layer</button>
           )}
+          {typeof current.input === "string" ? (
+            <button type="button" className="lab-button" onClick={() => openInInspect(current)}>Open in Inspect</button>
+          ) : null}
           </section>
 
           <section>

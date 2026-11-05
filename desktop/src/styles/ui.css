@@ -791,6 +791,54 @@
   background: var(--accent);
 }
 
+.lab-activation-cell.positive {
+  background: var(--blue);
+}
+
+.lab-activation-cell.negative {
+  background: var(--off);
+}
+
+/* No further from zero than the control went, so it says nothing: an outline, not a fill. */
+.lab-activation-cell.quiet {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  opacity: 1 !important;
+}
+
+/* The Inspect screen. */
+.lab-inspect-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.lab-inspect-card h2 {
+  margin: 0;
+}
+
+.lab-inspect-controls {
+  align-items: flex-end;
+}
+
+.lab-inspect-prompts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 12px;
+}
+
+.lab-inspect-prompts textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.lab-inspect-history {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 /* What is known about a sample, after its rows: comparison, progress, looking inside, keeping it. */
 .lab-sample-about {
   display: grid;

@@ -161,6 +161,7 @@
   "POST /projects/:id/research/interventions",
   "POST /projects/:id/research/interventions/sweep",
   "POST /projects/:id/research/runs/:run/activations",
+  "POST /projects/:id/research/runs/:run/inspections",
   "POST /projects/:id/research/runs/:run/labels",
   "POST /projects/:id/research/runs/:run/stop",
   "POST /projects/:id/research/versions/:version/runs",

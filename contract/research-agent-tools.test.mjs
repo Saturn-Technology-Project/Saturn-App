@@ -317,6 +317,12 @@ test("a task cannot start a task, and one that cannot begin leaves nothing behin
   assert.match(await refused(setup, "research_task_read", { what: "status", task: "thread_none" }), /No task/);
 });
 
+test("the assistant can look at prompts of its own, under the same rules", posixOnly, async () => {
+  const setup = await bed();
+  assert.match(await refused(setup, "research_inspect", { action: "prompts", runId: "run_0000000000000000", modelId: "m", clean: "a", corrupted: "a", expected: " x", alternative: " y" }), /same/);
+  assert.match(await refused(setup, "research_inspect", { action: "compare", runId: "run_0000000000000000", modelId: "m", otherModelId: "m", input: "a" }), /different models/);
+});
+
 test("a turn with the research tools goes on past the usual limit on tool steps", async () => {
   const setup = await bed();
   const steps = Array.from({ length: 70 }, () => [["research_read", { what: "events" }]]);

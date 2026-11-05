@@ -3,12 +3,12 @@
 // assistant cannot disagree.
 
 /** The screens of the workbench. */
-export const SCREENS = ["Home", "Workspace", "Lineage", "Experiments", "Samples", "Tasks", "Protection", "Environment"] as const;
+export const SCREENS = ["Home", "Workspace", "Lineage", "Experiments", "Samples", "Inspect", "Tasks", "Protection", "Environment"] as const;
 export type Screen = (typeof SCREENS)[number];
 
 /** The screens where work is read and written, with the assistant beside them unless closed. Elsewhere it opens when asked. */
 export function isWorkScreen(screen: Screen): boolean {
-  return screen === "Workspace" || screen === "Samples";
+  return screen === "Workspace" || screen === "Samples" || screen === "Inspect";
 }
 
 /** One stop of the tour: what is boxed, what is said about it, and which screen shows meanwhile. */
@@ -76,6 +76,13 @@ export const TOUR_STEPS: TourStep[] = [
     screen: "Samples",
     title: "Samples: what the model actually did",
     text: "One sample across every model that saw it, with the scorer's own word next to your label. Your label never overwrites a score. Keep a sample as a counterexample, or look inside: read activations at every layer, or patch a layer in from another model.",
+  },
+  {
+    id: "inspect",
+    target: "rail-Inspect",
+    screen: "Inspect",
+    title: "Inspect: inside a model",
+    text: "Type two prompts to see which layer and position carries the answer, read against a random control, or read two models on one prompt to see where they part. Everything already looked at in the project is listed here. A prompt typed here is one case, not a measurement.",
   },
   {
     id: "tasks",

@@ -5,7 +5,7 @@ import type { Model, Profile, Project } from "../../domain/model.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
 import { AccessDialog, chooseFolder } from "../ProjectAccess.js";
-import { AssistantIcon, BoxIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
+import { AssistantIcon, BoxIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, InspectIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette.js";
 import { Guide } from "./Guide.js";
@@ -22,6 +22,7 @@ const SCREEN_ICONS: Record<Screen, ReactNode> = {
   Lineage: <LineageIcon />,
   Experiments: <FlaskIcon />,
   Samples: <SamplesIcon />,
+  Inspect: <InspectIcon />,
   Tasks: <TasksIcon />,
   Protection: <ShieldIcon />,
   Environment: <BoxIcon />,

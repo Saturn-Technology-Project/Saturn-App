@@ -59,7 +59,7 @@ test("the state sent with a message and the names read from outside say where th
   assert.equal(windowTitle("Samples", "Pythia"), "Samples – Pythia – Saturn");
   assert.equal(windowTitle("Home", null), "Home – Saturn");
   assert.equal(statusText({ screen: "Home", project: "P", runtime: "ready" }), "Home screen, project P. Runtime ready.");
-  assert.deepEqual(SCREENS.filter(isWorkScreen), ["Workspace", "Samples"]);
+  assert.deepEqual(SCREENS.filter(isWorkScreen), ["Workspace", "Samples", "Inspect"]);
   assert.ok(HELP_REQUESTS.length >= 1);
 });
 

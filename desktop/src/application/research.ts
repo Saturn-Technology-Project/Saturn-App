@@ -1,6 +1,8 @@
 import type {
   AcrossRow,
   ActivationView,
+  ModelCompareView,
+  PromptPatchView,
   Comparison,
   EnvironmentRecord,
   InsideItem,
@@ -187,6 +189,16 @@ export class ResearchService {
   /** Every layer patched from one model into another on several samples, in one helper process; saved with the run. */
   sweep(project: string, request: { runId: string; sampleIds: string[]; sourceModelId: string; targetModelId: string; layers?: number[] }): Promise<SweepView> {
     return this.send(`${this.route(project)}/interventions/sweep`, "POST", request);
+  }
+
+  /** Two models read on a prompt of your own, with a run's Python and weights; saved with the run. */
+  compareModels(project: string, run: string, request: { modelId: string; otherModelId: string; input: string; expected?: string }): Promise<ModelCompareView> {
+    return this.send(`${this.route(project)}/runs/${run}/inspections`, "POST", { action: "compare", ...request });
+  }
+
+  /** A clean prompt patched into a corrupted one at every layer and position, beside a random control; saved with the run. */
+  patchPrompts(project: string, run: string, request: { modelId: string; clean: string; corrupted: string; expected: string; alternative: string }): Promise<PromptPatchView> {
+    return this.send(`${this.route(project)}/runs/${run}/inspections`, "POST", { action: "prompts", ...request });
   }
 
   /** What was saved under a run's inside folder: readings and sweeps, newest first. */

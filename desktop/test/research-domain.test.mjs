@@ -2,7 +2,7 @@
 // out, and how a comparison is said. Everything else is checked over HTTP in contract/.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { comparisonText, lineageOrder, lineageRows, runHasResults, sampleIdParts, scoreText } from "../src/domain/research.ts";
+import { comparisonText, controlCeiling, lineageOrder, lineageRows, promptPatchText, readingDifference, runHasResults, sampleIdParts, scoreText, strongestPatch } from "../src/domain/research.ts";
 
 const model = (id, parentId) => ({ id, parentId, source: id, floating: false, revision: 1, createdAt: "", updatedAt: "" });
 
@@ -45,4 +45,19 @@ test("a long sample id keeps its end when the middle has to go", () => {
   assert.deepEqual(sampleIdParts("a"), { start: "", end: "a" });
   const whole = "x-" + "y".repeat(40);
   assert.equal(Object.values(sampleIdParts(whole)).join(""), whole);
+});
+
+test("a patch across prompts counts only beyond what the control did, in either direction", () => {
+  const view = { modelId: "m", tokens: ["a", " b"], corruptedTokens: ["a", " c"], expected: " x", alternative: " y", cleanMargin: 2, corruptedMargin: -1, cleanTop: " x", corruptedTop: " y", layers: [0, 3], recovery: [[0, 0.2], [0, 0.9]], control: [[0, -0.3], [0, 0.1]] };
+  assert.equal(controlCeiling(view), 0.3);
+  assert.deepEqual(strongestPatch(view), { layer: 3, token: " b", position: 1, recovery: 0.9 });
+  assert.match(promptPatchText(view, "tuned"), /layer 3 at position 1 \(" b"\) brought back 90\.0%.*at most 30\.0%.*not a measurement/);
+  const nothing = { ...view, recovery: [[0, 0.3], [0, -0.9]] };
+  assert.equal(strongestPatch(nothing), null, "at the control, or pushing away, is not bringing back");
+  assert.match(promptPatchText(nothing, "tuned"), /No layer and position/);
+});
+
+test("two readings differ cell by cell, over the layers both have", () => {
+  const left = [{ layer: 0, values: [1, 2] }, { layer: 1, values: [3, 3] }];
+  assert.deepEqual(readingDifference(left, [{ layer: 0, values: [0.5, 2.5] }]), [{ layer: 0, values: [0.5, -0.5] }]);
 });

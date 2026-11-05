@@ -3484,7 +3484,7 @@
     "toolId": "research_inspect",
     "serverId": "research",
     "category": "write",
-    "description": "Look inside a model on a run's samples, with the Python the experiment's command starts with. action=activations (runId, sampleId, modelId) reads each layer. action=patch (runId, sampleId, sourceModelId, targetModelId, layer) replaces the residual stream leaving a layer with the source's. action=sweep (runId, sampleIds up to 32, sourceModelId, targetModelId, layers) patches every layer. Results are saved with the run.",
+    "description": "Look inside a model on a run's samples or your own prompts, with the Python the experiment's command starts with. action=activations (runId, sampleId, modelId) reads each layer. action=patch (runId, sampleId, sourceModelId, targetModelId, layer) replaces the residual stream leaving a layer with the source's. action=sweep (runId, sampleIds up to 32, sourceModelId, targetModelId, layers) patches every layer. action=compare (runId, modelId, otherModelId, input, expected) reads two models on a prompt of your own. action=prompts (runId, modelId, clean, corrupted, expected, alternative) restores each layer and position of a corrupted prompt from a clean one with the same number of tokens, beside a random control. Results are saved with the run.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3493,7 +3493,9 @@
        "enum": [
         "activations",
         "patch",
-        "sweep"
+        "sweep",
+        "compare",
+        "prompts"
        ]
       },
       "runId": {
@@ -3525,6 +3527,24 @@
        "items": {
         "type": "integer"
        }
+      },
+      "otherModelId": {
+       "type": "string"
+      },
+      "input": {
+       "type": "string"
+      },
+      "clean": {
+       "type": "string"
+      },
+      "corrupted": {
+       "type": "string"
+      },
+      "expected": {
+       "type": "string"
+      },
+      "alternative": {
+       "type": "string"
       }
      },
      "required": [

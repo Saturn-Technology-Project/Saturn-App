@@ -17,6 +17,11 @@ use crate::{CoreError, Kernel};
 
 /// The helper that reads and patches a model. It goes to the interpreter on standard input.
 const HELPER: &str = include_str!("inside.py");
+/// What prompts of the person's own are looked at with. It goes after the helper's functions, without its start, and apart
+/// from it so that this does not mark results of the helper as made by an earlier one.
+const PROMPTS_HELPER: &str = include_str!("inside_prompts.py");
+/// The longest prompt a request may carry, in characters. The helper limits its tokens.
+const MAX_PROMPT: usize = 4000;
 /// The folder in a run's directory where its answers are kept.
 const FOLDER: &str = "inside";
 /// How many samples one sweep takes, so one helper process stays minutes, not hours.
@@ -29,6 +34,79 @@ fn asked_model(request: &Value) -> Option<&str> {
         .or_else(|| request.get("targetModelId"))
         .and_then(Value::as_str)
         .filter(|id| !id.is_empty())
+}
+
+/// The whole program for prompts of the person's own.
+fn prompts_helper() -> String {
+    let functions = HELPER.split("\nif __name__").next().unwrap_or(HELPER);
+    format!("{functions}\n{PROMPTS_HELPER}")
+}
+
+/// A required text of a request, with its length checked.
+fn prompt_field<'a>(request: &'a Value, name: &str) -> Result<&'a str, CoreError> {
+    let value = text(request, name);
+    if value.trim().is_empty() {
+        return Err(CoreError::new(400, format!("This names \"{name}\".")));
+    }
+    if value.chars().count() > MAX_PROMPT {
+        return Err(CoreError::new(
+            400,
+            format!("\"{name}\" is longer than {MAX_PROMPT} characters."),
+        ));
+    }
+    Ok(value)
+}
+
+/// What a request about prompts asks the helper, once it is known to make sense, without the weights.
+fn prompts_question(request: &Value) -> Result<Value, CoreError> {
+    let model = prompt_field(request, "modelId")?;
+    match text(request, "action") {
+        "compare" => {
+            let other = prompt_field(request, "otherModelId")?;
+            if model == other {
+                return Err(CoreError::new(400, "Comparing takes two different models."));
+            }
+            Ok(json!({
+                "action": "compare",
+                "modelId": model,
+                "otherModelId": other,
+                "input": prompt_field(request, "input")?,
+                "expected": request.get("expected").and_then(Value::as_str).filter(|word| !word.is_empty()),
+            }))
+        }
+        "prompts" => {
+            let (clean, corrupted) = (
+                prompt_field(request, "clean")?,
+                prompt_field(request, "corrupted")?,
+            );
+            if clean == corrupted {
+                return Err(CoreError::new(400, "The two prompts are the same."));
+            }
+            let (expected, alternative) = (
+                prompt_field(request, "expected")?,
+                prompt_field(request, "alternative")?,
+            );
+            if expected == alternative {
+                return Err(CoreError::new(
+                    400,
+                    "The expected word and its alternative are the same.",
+                ));
+            }
+            Ok(json!({
+                "action": "prompts",
+                "modelId": model,
+                "clean": clean,
+                "corrupted": corrupted,
+                "expected": expected,
+                "alternative": alternative,
+                "layers": request.get("layers"),
+            }))
+        }
+        other => Err(CoreError::new(
+            400,
+            format!("There is nothing to do called \"{other}\"."),
+        )),
+    }
 }
 
 /// The weights a model record names, as the helper loads them.
@@ -179,6 +257,78 @@ impl Kernel {
         Ok(answer)
     }
 
+    /// Looks at prompts of the person's own rather than a run's samples: two models read on one prompt, or a clean prompt
+    /// patched into a corrupted one at every layer and position. The run says which Python and weights; the answer is saved
+    /// with it, and given again without running when asked the same thing.
+    pub async fn research_inspection(
+        &self,
+        project: &str,
+        run_id: &str,
+        request: &Value,
+    ) -> Result<Value, CoreError> {
+        if cfg!(windows) {
+            return Err(CoreError::new(
+                501,
+                "Looking inside a model is not supported on Windows yet.",
+            ));
+        }
+        if !is_id(run_id) {
+            return Err(CoreError::new(404, "No such run"));
+        }
+        let mut ask = prompts_question(request)?;
+        let helper = prompts_helper();
+        let helper_sha = sha256_hex(helper.as_bytes());
+        let key = sha256_hex(
+            json!({ "helper": helper_sha, "ask": ask })
+                .to_string()
+                .as_bytes(),
+        );
+        let file = self
+            .records_folder(project)
+            .await?
+            .join("runs")
+            .join(run_id)
+            .join(FOLDER)
+            .join(format!("inspect-{}.json", &key[..16]));
+        if let Some(saved) = read_record(&file)
+            .await
+            .map_err(|reason| CoreError::new(422, reason))?
+        {
+            return Ok(saved);
+        }
+        let run = self.research_run(project, run_id).await?;
+        let version = self
+            .research_record(project, "versions", text(&run, "versionId"))
+            .await?;
+        let python = match super::environment::python_of(text(&version, "command")) {
+            Some(python) => python.to_owned(),
+            None => self.research_python(project).await?,
+        };
+        ask["target"] = self
+            .model_weights(project, &version, text(&ask, "modelId"))
+            .await?;
+        if text(&ask, "action") == "compare" {
+            ask["other"] = self
+                .model_weights(project, &version, text(&ask, "otherModelId"))
+                .await?;
+        }
+        let mut answer = self
+            .run_helper(project, &version, &python, &ask, &helper)
+            .await?;
+        answer["action"] = ask["action"].clone();
+        answer["helperSha256"] = json!(helper_sha);
+        answer["schemaVersion"] = json!(SCHEMA_VERSION);
+        answer["request"] = request.clone();
+        answer["key"] = json!(key);
+        answer["recordedAt"] = json!(iso_time(now_millis()));
+        if let Some(parent) = file.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        write_whole(&file, &pretty(&answer)?).await?;
+        self.research_changed();
+        Ok(answer)
+    }
+
     /// Everything saved under a run's `inside/`: single readings and sweeps, newest first, whole. `current` says whether
     /// the helper that made one is this runtime's, since a corrected helper leaves earlier results in place.
     pub async fn research_inside_list(&self, project: &str, run: &str) -> Result<Value, CoreError> {
@@ -188,6 +338,7 @@ impl Kernel {
         let records = self.records_folder(project).await?;
         let folder = records.join("runs").join(run).join(FOLDER);
         let helper = sha256_hex(HELPER.as_bytes());
+        let prompts = sha256_hex(prompts_helper().as_bytes());
         let mut items = Vec::new();
         let mut entries = match tokio::fs::read_dir(&folder).await {
             Ok(entries) => entries,
@@ -202,12 +353,16 @@ impl Kernel {
                 continue;
             }
             if let Ok(Some(mut saved)) = read_record(&entry.path()).await {
-                saved["kind"] = json!(if name.starts_with("sweep-") {
-                    "sweep"
+                let inspection = name.starts_with("inspect-");
+                saved["kind"] = if inspection {
+                    saved["action"].clone()
+                } else if name.starts_with("sweep-") {
+                    json!("sweep")
                 } else {
-                    "reading"
-                });
-                saved["current"] = json!(text(&saved, "helperSha256") == helper);
+                    json!("reading")
+                };
+                let made_by = if inspection { &prompts } else { &helper };
+                saved["current"] = json!(text(&saved, "helperSha256") == made_by);
                 items.push(saved);
             }
         }
@@ -304,7 +459,9 @@ impl Kernel {
                 "samples": samples,
             },
         });
-        let mut answer = self.run_helper(project, &version, &python, &ask).await?;
+        let mut answer = self
+            .run_helper(project, &version, &python, &ask, HELPER)
+            .await?;
         answer["helperSha256"] = json!(sha256_hex(HELPER.as_bytes()));
         answer["schemaVersion"] = json!(SCHEMA_VERSION);
         answer["request"] = request.clone();
@@ -325,6 +482,7 @@ impl Kernel {
         version: &Value,
         python: &str,
         ask: &Value,
+        helper: &str,
     ) -> Result<Value, CoreError> {
         let source = self.research_source(project, None)?;
         let working_folder = source.join(text(version, "cwd"));
@@ -343,7 +501,7 @@ impl Kernel {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|error| CoreError::new(422, format!("{python} could not start: {error}")))?;
-        let output = feed(child, HELPER).await?;
+        let output = feed(child, helper).await?;
         if !output.status.success() {
             let log = String::from_utf8_lossy(&output.stderr);
             let tail: Vec<&str> = log.lines().rev().take(12).collect();

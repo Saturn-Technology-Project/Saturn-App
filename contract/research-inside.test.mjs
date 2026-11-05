@@ -24,6 +24,16 @@ if [ "$1" = "-" ]; then
   node -e '
     const request = JSON.parse(process.argv[1]);
     if (request.input === "boom") { console.error("a traceback"); process.exit(3); }
+    if (request.action === "compare") {
+      const layers = [{ layer: 0, values: [1, 2] }];
+      process.stdout.write(JSON.stringify({ modelId: request.modelId, otherModelId: request.otherModelId, measure: "stand-in", tokens: ["a", "b"], layers, otherLayers: layers, top: "x", otherTop: "y", first: process.argv[2] }));
+      process.exit(0);
+    }
+    if (request.action === "prompts") {
+      if (request.clean === "boom") { console.error("different lengths"); process.exit(1); }
+      process.stdout.write(JSON.stringify({ modelId: request.modelId, tokens: ["a", "b"], corruptedTokens: ["a", "c"], expected: request.expected, alternative: request.alternative, cleanMargin: 2, corruptedMargin: -1, cleanTop: "x", corruptedTop: "y", layers: [0], recovery: [[0, 0.8]], control: [[0, 0.1]], first: process.argv[2] }));
+      process.exit(0);
+    }
     if (request.sweep) {
       const layers = request.sweep.layers ?? [0, 1];
       process.stdout.write(JSON.stringify({ sourceModelId: request.sweep.modelId, targetModelId: request.modelId, layers, samples: request.sweep.samples.map((item) => ({
@@ -123,6 +133,55 @@ test("an intervention patches a layer from one bound model into another, and the
   assert.match(failed.body.error, /a traceback/);
   const missing = await saturn.call("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: tuned.id });
   assert.equal(missing.status, 400);
+});
+
+test("prompts of the person's own are looked at with a run's python and weights, and saved with it", posixOnly, async () => {
+  const { folder, route, run, base, tuned } = await project();
+  const place = `${route}/runs/${run.id}/inspections`;
+  const asked = { action: "prompts", modelId: tuned.id, clean: "John gave to", corrupted: "Mary gave to", expected: " Mary", alternative: " John" };
+  const first = await saturn.api("POST", place, asked);
+  assert.deepEqual(first.recovery, [[0, 0.8]]);
+  assert.equal(first.action, "prompts");
+  const heard = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
+  assert.deepEqual(heard.target, { source: "org/tuned", revision: "v1" });
+  assert.equal(heard.clean, "John gave to");
+  await writeFile(path.join(folder, "asked.json"), "untouched");
+  const again = await saturn.api("POST", place, asked);
+  assert.equal(again.recordedAt, first.recordedAt, "answered from what was saved");
+  assert.equal(await readFile(path.join(folder, "asked.json"), "utf8"), "untouched");
+
+  const compared = await saturn.api("POST", place, { action: "compare", modelId: tuned.id, otherModelId: base.id, input: "When Mary" });
+  assert.equal(compared.otherTop, "y");
+  assert.deepEqual(JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8")).other, { source: "org/base", revision: "step1" });
+
+  const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
+  assert.deepEqual(listed.items.map((item) => item.kind).sort(), ["compare", "prompts"]);
+  assert.ok(listed.items.every((item) => item.current === true));
+  // The helper that reads samples did not change, so what it already made stays current.
+  await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  assert.ok((await saturn.api("GET", `${route}/runs/${run.id}/inside`)).items.every((item) => item.current === true));
+});
+
+test("a look at prompts that cannot mean anything is refused, and a helper's refusal is passed on", posixOnly, async () => {
+  const { route, run, base, tuned } = await project();
+  const place = `${route}/runs/${run.id}/inspections`;
+  const good = { action: "prompts", modelId: tuned.id, clean: "a", corrupted: "b", expected: " x", alternative: " y" };
+  for (const [change, why] of [
+    [{ corrupted: "a" }, /same/],
+    [{ alternative: " x" }, /same/],
+    [{ expected: "" }, /expected/],
+    [{ clean: "z".repeat(4001) }, /longer/],
+    [{ action: "other" }, /nothing to do/],
+  ]) {
+    const refused = await saturn.call("POST", place, { ...good, ...change });
+    assert.equal(refused.status, 400, JSON.stringify(change).slice(0, 60));
+    assert.match(JSON.stringify(refused.body), why);
+  }
+  assert.equal((await saturn.call("POST", place, { action: "compare", modelId: base.id, otherModelId: base.id, input: "a" })).status, 400);
+  assert.equal((await saturn.call("POST", `${route}/runs/run_0000000000000000/inspections`, good)).status, 404);
+  const failed = await saturn.call("POST", place, { ...good, clean: "boom" });
+  assert.equal(failed.status, 422);
+  assert.match(JSON.stringify(failed.body), /different lengths/);
 });
 
 test("a sweep patches every layer on several samples in one helper process, and is saved with the run", posixOnly, async () => {

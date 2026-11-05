@@ -212,6 +212,17 @@ async fn intervene(State(kernel): Shared, Path(project): Path<String>, body: Bod
     ok(kernel.research_look_inside(&project, run, &body).await?)
 }
 
+/// Prompts of the person's own looked at inside a model, with a run's Python and weights.
+async fn inspection(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_inspection(&project, &run, &body_of(body))
+        .await?)
+}
+
 async fn inside_list(
     State(kernel): Shared,
     Path((project, run)): Path<(String, String)>,
@@ -283,6 +294,10 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
         .route(
             "/projects/{id}/research/runs/{run}/activations",
             get(inside_saved).post(look_inside),
+        )
+        .route(
+            "/projects/{id}/research/runs/{run}/inspections",
+            post(inspection),
         )
         .route("/projects/{id}/research/interventions", post(intervene))
         .route("/projects/{id}/research/interventions/sweep", post(sweep))
