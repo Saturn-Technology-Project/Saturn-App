@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
+import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../src/domain/chat-mode.ts";
 import { assistantInstructions, GUIDE_PLACES, guideIn, guidePlace, HELP_REQUESTS, isWorkScreen, SCREENS, statusText, TOUR_STEPS, windowTitle, workbenchState } from "../src/domain/workbench.ts";
 
 const presentation = new URL("../src/presentation", import.meta.url).pathname;
@@ -51,10 +52,19 @@ test("the assistant is told every screen and place, and that the person does the
 
 test("the state sent with a message and the names read from outside say where things stand", () => {
   assert.equal(workbenchState({ screen: "Home", project: "P" }), "Screen: Home\nProject: P");
-  assert.equal(workbenchState({ screen: "Workspace", project: "P", file: "a.py", mode: "manual", run: { id: "r", status: "running" }, sampleId: "s" }), "Screen: Workspace\nProject: P\nOpen file: a.py, in manual mode\nLatest run: r, running\nSample on screen: s");
+  assert.equal(workbenchState({ screen: "Workspace", project: "P", chatMode: "manual", file: "a.py", run: { id: "r", status: "running" }, sampleId: "s" }), "Screen: Workspace\nProject: P\nThis chat's mode: manual\nOpen file: a.py\nLatest run: r, running\nSample on screen: s");
   assert.equal(windowTitle("Samples", "Pythia"), "Samples – Pythia – Saturn");
   assert.equal(windowTitle("Home", null), "Home – Saturn");
   assert.equal(statusText({ screen: "Home", project: "P", runtime: "ready" }), "Home screen, project P. Runtime ready.");
   assert.deepEqual(SCREENS.filter(isWorkScreen), ["Workspace", "Samples"]);
   assert.ok(HELP_REQUESTS.length >= 1);
+});
+
+test("a chat's mode says what the assistant may do, and a chat nobody has set only reads", () => {
+  assert.equal(chatModeOf({}), "manual");
+  assert.equal(chatModeOf({ chatMode: "pair" }), "pair");
+  assert.deepEqual(CHAT_MODES.map((mode) => assistantRunMode(mode.id)), ["ask", "agent", "ask"]);
+  assert.match(assistantRole("pair", "codex"), /cannot ask/);
+  assert.match(assistantRole("pair", "claude-code"), /approval/);
+  assert.match(assistantRole("delegate"), /task/);
 });

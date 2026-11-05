@@ -262,7 +262,11 @@ impl ClaudeTurn {
                     .research_file_needs_approval(&run, file)
                     .await
             }
-            None => false,
+            // A Pair chat asks about anything that changes something, and a command can.
+            None => {
+                matches!(tool, "Bash" | "PowerShell")
+                    && self.turn.kernel.chat_mode_of(&run).as_deref() == Some("pair")
+            }
         };
         let asks = pair
             || match self.approval {

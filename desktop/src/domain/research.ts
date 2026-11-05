@@ -165,11 +165,8 @@ export interface RunLabels {
   agreement: { labeled: number; compared: number; agreed: number };
 }
 
-export type ParticipationMode = "manual" | "pair" | "delegate";
-
 export interface ResearchPolicy {
   revision: number;
-  modes: Record<string, ParticipationMode>;
   locked: string[];
   /** Locks the user lifted until the next frozen version. */
   released?: string[];
@@ -184,20 +181,6 @@ export type ResearchEvent =
   | { kind: "refused"; path: string; tool: string; reason: string; runId: string; at: string }
   | { kind: "integrity_changed"; paths: string[]; afterTool: string; runId: string; at: string }
   | { kind: "assisted"; path: string; tool: string; policyRevision: number; runId: string; at: string };
-
-/** The mode that applies to a file: the most specific key wins, and a file with none is the agent's to change. */
-export function modeOf(policy: ResearchPolicy, path: string): ParticipationMode {
-  let chosen: ParticipationMode = "delegate";
-  let length = -1;
-  for (const [key, mode] of Object.entries(policy.modes)) {
-    const folder = key.replace(/\/+$/, "");
-    if ((path === folder || path.startsWith(`${folder}/`)) && folder.length > length) {
-      chosen = mode;
-      length = folder.length;
-    }
-  }
-  return chosen;
-}
 
 /** The evaluation fields two versions share: stated in the spec, and neither different nor missing. */
 export function heldFixed(spec: EvaluationSpec | null | undefined, comparison: Comparison): { field: string; value: string }[] {

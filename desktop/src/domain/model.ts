@@ -117,11 +117,16 @@ export type Project = {
   isDefault?: boolean;
 };
 
+/** How much a chat's agent may change: Manual only reads, Pair asks about each change, Delegate hands work to a task. */
+export type ChatMode = "manual" | "pair" | "delegate";
+
 export type Conversation = {
   id: string;
   agentId: string;
   /** The project folder this chat works in. */
   projectId?: string;
+  /** How much this chat's agent may change. A task has none: its worktree keeps it apart until it is merged. */
+  chatMode?: ChatMode;
   /** Set while the chat works in its own git worktree and branch. */
   worktree?: { branch: string; base: string };
   /** The pull request Saturn opened from this chat, and what following it found. */

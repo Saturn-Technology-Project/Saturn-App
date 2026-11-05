@@ -229,8 +229,3 @@
   gap: 2px 8px;
 }
 
-.lab-file-mode {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  color: var(--muted);
-}

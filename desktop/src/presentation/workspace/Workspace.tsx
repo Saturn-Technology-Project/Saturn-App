@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import {
   isRunActive,
-  modeOf,
   runStatusLabel,
   sampleText,
   type ExperimentDraft,
@@ -10,9 +9,7 @@ import {
   type Finding,
   type FindingKind,
   type ModelNode,
-  type ParticipationMode,
   type Question,
-  type ResearchPolicy,
   type SampleItem,
   type SourceEntry,
 } from "../../domain/research.js";
@@ -25,13 +22,6 @@ import { SourceEditor } from "./SourceEditor.js";
 import { Terminal } from "./Terminal.js";
 
 const service = desktop.research;
-const MODES: ParticipationMode[] = ["manual", "pair", "delegate"];
-const MODE_LABELS: Record<ParticipationMode, string> = { manual: "Manual", pair: "Pair", delegate: "Delegate" };
-const MODE_HINTS: Record<ParticipationMode, string> = {
-  manual: "You write this file. The assistant only reads it.",
-  pair: "The assistant proposes changes, and each one needs your approval.",
-  delegate: "An agent may change this file, with every change recorded.",
-};
 const FINDING_LABELS: Record<FindingKind, string> = { observation: "Observation", ai_suggestion: "AI suggestion", conclusion: "Conclusion" };
 const PANELS = ["Run", "Resources", "Samples", "Findings", "Activations", "Terminal"] as const;
 const NOTE_FILES = /\.(md|txt|pdf|ipynb)$/i;
@@ -49,7 +39,6 @@ interface OpenFile {
 /** What the workspace is looking at, which the assistant can be given. */
 export interface WorkspaceFocus {
   file: string | null;
-  mode: ParticipationMode;
   selection: { text: string; line: number } | null;
   run: ExperimentRun | null;
   errorOutput: string;
@@ -84,7 +73,6 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const [findingText, setFindingText] = useState("");
   const [findingKind, setFindingKind] = useState<FindingKind>("observation");
   const [busy, setBusy] = useState(false);
-  const [policy, setPolicy] = useState<ResearchPolicy | null>(null);
   const [panel, setPanel] = useState<Panel>("Run");
   const [sidebar, setSidebar] = useState<{ questions: Question[]; models: ModelNode[]; drafts: ExperimentDraft[] }>({ questions: [], models: [], drafts: [] });
 
@@ -164,7 +152,6 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     void (async () => {
       try {
         await showFolder(".");
-        setPolicy(await service.policy(projectId));
         const drafts = (await service.experiments(projectId)).items;
         const chosen = drafts.find((item) => item.id === session.current.experimentId) ?? drafts.at(-1) ?? null;
         if (!live) return;
@@ -314,23 +301,12 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     }
   }
 
-  async function chooseMode(mode: ParticipationMode) {
-    if (!open || !policy) return;
-    try {
-      setPolicy(await service.setMode(projectId, policy, open.path, mode));
-    } catch (error) {
-      notify(messageOf(error));
-      setPolicy(await service.policy(projectId).catch(() => policy));
-    }
-  }
-
-  const mode = open && policy ? modeOf(policy, open.path) : "delegate";
   const selected = samples.find((item) => item.offset === selectedOffset) ?? null;
   const parentFolder = folder === "." ? null : folder.split("/").slice(0, -1).join("/") || ".";
 
   useEffect(() => {
-    onFocus({ file: open?.path ?? null, mode, selection, run, errorOutput, sample: selected });
-  }, [errorOutput, mode, onFocus, open?.path, run, selected, selection]);
+    onFocus({ file: open?.path ?? null, selection, run, errorOutput, sample: selected });
+  }, [errorOutput, onFocus, open?.path, run, selected, selection]);
 
   const notes = entries.filter((entry) => entry.kind === "file" && NOTE_FILES.test(entry.name));
   const code = entries.filter((entry) => !notes.includes(entry));
@@ -343,7 +319,6 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
       onClick={() => void (entry.kind === "directory" ? showFolder(entry.path).catch((error: unknown) => notify(messageOf(error))) : openFile(entry.path))}
     >
       <span>{entry.kind === "directory" ? `${entry.name}/` : entry.name}</span>
-      {entry.kind === "file" && policy ? <span className="lab-file-mode">{MODE_LABELS[modeOf(policy, entry.path)]}</span> : null}
     </button>
   );
   const files = (
@@ -499,15 +474,6 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
         <div className="lab-toolbar">
           <code className="lab-toolbar-file">{open?.path ?? "No file open"}</code>
           {open ? <span className="lab-muted">{saving ? "Saving…" : dirty ? "Not saved" : "Saved"}</span> : null}
-          {policy && open ? (
-            <div className="lab-segments" role="group" aria-label="AI involvement in this file" data-tour="workspace-mode" title={MODE_HINTS[mode]}>
-              {MODES.map((item) => (
-                <button type="button" key={item} aria-pressed={mode === item} className={mode === item ? "lab-segment active" : "lab-segment"} onClick={() => void chooseMode(item)}>
-                  {MODE_LABELS[item]}
-                </button>
-              ))}
-            </div>
-          ) : null}
           <input className="lab-input lab-toolbar-command" aria-label="Command that runs the experiment" data-tour="workspace-command" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} />
           {run && isRunActive(run.status) ? (
             <button type="button" className="lab-button" onClick={() => void stopRun()}>

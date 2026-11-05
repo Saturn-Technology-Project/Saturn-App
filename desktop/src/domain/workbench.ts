@@ -48,13 +48,13 @@ export const TOUR_STEPS: TourStep[] = [
     target: "rail-Workspace",
     screen: "Workspace",
     title: "Workspace: code beside its results",
-    text: "Open a file, write it, and run the experiment's command. Below the editor: the run, what it cost, its samples, your findings, a look inside the model, and a terminal. Each file has a mode: Manual (you write it), Pair (the assistant proposes, you approve) or Delegate (an agent may change it, recorded).",
+    text: "Open a file, write it, and run the experiment's command. Below the editor: the run, what it cost, its samples, your findings, a look inside the model, and a terminal.",
   },
   {
     id: "assistant",
     target: "assistant",
     title: "The research assistant",
-    text: "A panel beside your work, on every screen (⌘J). Ask it what a screen is for or how to do something, and it can walk you through it, boxing each place while you do the work. For code it does what the open file's mode allows: in Manual it only reads and explains; in Pair it proposes changes you approve; in Delegate it hands work to a task. Samples it is given are marked as data, never as instructions.",
+    text: "A panel beside your work, on every screen (⌘J). Ask it what a screen is for or how to do something, and it can walk you through it, boxing each place while you do the work. At the top of the chat you choose how much it may do: in Manual it only reads and explains; in Pair it proposes changes you approve; in Delegate each message starts a task. Samples it is given are marked as data, never as instructions.",
   },
   {
     id: "lineage",
@@ -82,7 +82,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "rail-Tasks",
     screen: "Tasks",
     title: "Tasks: long work, apart",
-    text: "Batch runs and cleanups go to an agent in its own worktree. It cannot touch Manual or locked files, and nothing reaches the project until you merge it. When it wants to change a locked file, you decide: release it for the next version, keep it, or edit it yourself.",
+    text: "Batch runs and cleanups go to an agent in its own worktree. It cannot touch locked files, and nothing reaches the project until you merge it. When it wants to change a locked file, you decide: release it for the next version, keep it, or edit it yourself.",
   },
   {
     id: "protection",
@@ -122,12 +122,12 @@ export const GUIDE_PLACES: GuidePlace[] = [
   ...SCREENS.map((screen) => ({ id: `rail-${screen}`, title: `The ${screen} screen`, hint: `Select ${screen} in the rail to open it.` })),
   { id: "project", title: "The project", hint: "Choose the project here, or add a folder." },
   { id: "assistant", title: "The research assistant", hint: "Show or hide the assistant here, or with ⌘J." },
+  { id: "assistant-mode", title: "How much the assistant may do", hint: "Choose Manual, Pair or Delegate for this chat." },
   { id: "commands", title: "Commands", hint: "Open every command here, or with ⌘K." },
   { id: "settings", title: "Settings", hint: "Connect models, MCP servers and more here." },
   { id: "home-questions", screen: "Home", title: "Questions", hint: "Write down the question this project is trying to answer." },
   { id: "home-hypotheses", screen: "Home", title: "Hypotheses", hint: "Add a hypothesis, and set its verdict when you have evidence. Only you set it." },
-  { id: "workspace-files", screen: "Workspace", title: "Project files", hint: "Open a file to write it. Each one shows its mode." },
-  { id: "workspace-mode", screen: "Workspace", title: "AI involvement in this file", hint: "Choose Manual, Pair or Delegate for the open file.", when: "a file is open" },
+  { id: "workspace-files", screen: "Workspace", title: "Project files", hint: "Open a file to write it." },
   { id: "workspace-command", screen: "Workspace", title: "The experiment's command", hint: "Type the command that runs the experiment, starting with its Python." },
   { id: "workspace-run", screen: "Workspace", title: "Run", hint: "Run freezes a version and starts the command." },
   { id: "workspace-panels", screen: "Workspace", title: "Results", hint: "Read the run, what it costs, its samples, your findings, activations and a terminal here." },
@@ -205,11 +205,12 @@ Verdicts, labels, modes, frozen versions, releasing a lock and merging a task ar
 }
 
 /** What is on screen now, sent with each message. It describes the interface and asks nothing. */
-export function workbenchState(state: { screen: Screen; project: string; file?: string | null; mode?: string | null; run?: { id: string; status: string } | null; sampleId?: string | null }): string {
+export function workbenchState(state: { screen: Screen; project: string; chatMode?: string | null; file?: string | null; run?: { id: string; status: string } | null; sampleId?: string | null }): string {
   return [
     `Screen: ${state.screen}`,
     `Project: ${state.project}`,
-    ...(state.file ? [`Open file: ${state.file}${state.mode ? `, in ${state.mode} mode` : ""}`] : []),
+    ...(state.chatMode ? [`This chat's mode: ${state.chatMode}`] : []),
+    ...(state.file ? [`Open file: ${state.file}`] : []),
     ...(state.run ? [`Latest run: ${state.run.id}, ${state.run.status}`] : []),
     ...(state.sampleId ? [`Sample on screen: ${state.sampleId}`] : []),
   ].join("\n");

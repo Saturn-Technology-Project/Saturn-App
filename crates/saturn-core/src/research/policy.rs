@@ -1,8 +1,9 @@
-//! Per-file AI involvement and locks. This is a workflow constraint, not a security boundary: `docs/research-contract.md`
+//! A chat's AI involvement and locks on files. This is a workflow constraint, not a security boundary: `docs/research-contract.md`
 //! says what each backend can and cannot enforce.
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use saturn_domain::policies::is_read_only_call;
 use saturn_domain::research::{
     PolicyVerdict, SCHEMA_VERSION, check_policy, policy_verdict, sha256_hex,
 };
@@ -22,7 +23,7 @@ const BASELINES_KEPT: usize = 256;
 
 /// A policy that has never been saved.
 fn no_policy() -> Value {
-    json!({ "schemaVersion": SCHEMA_VERSION, "revision": 0, "modes": {}, "locked": [], "released": [] })
+    json!({ "schemaVersion": SCHEMA_VERSION, "revision": 0, "locked": [], "released": [] })
 }
 
 /// What a tool call writes, from the folder it works in. Unknown tools and failed parses write nothing here.
@@ -115,7 +116,6 @@ impl Kernel {
         let next = json!({
             "schemaVersion": SCHEMA_VERSION,
             "revision": revision + 1,
-            "modes": request.get("modes").cloned().unwrap_or_else(|| json!({})),
             "locked": request.get("locked").cloned().unwrap_or_else(|| json!([])),
             "released": request.get("released").cloned().unwrap_or_else(|| json!([])),
             "updatedAt": iso_time(now_millis()),
@@ -220,13 +220,14 @@ impl Kernel {
             .flatten()
             .unwrap_or_else(no_policy);
         let locks = self.locked_paths(&records, &policy).await;
+        let chat_mode = self.chat_mode_of(run);
         let revision = policy.get("revision").and_then(Value::as_u64).unwrap_or(0);
         let mut pair = None;
         for target in targets {
             let Some(relative) = relative_in(&root, target).await else {
                 continue;
             };
-            match policy_verdict(&policy, &locks, &relative) {
+            match policy_verdict(&locks, &relative, chat_mode.as_deref()) {
                 PolicyVerdict::Allowed => {}
                 PolicyVerdict::NeedsApproval => pair = Some(relative),
                 refused => return Some((refused, relative, revision)),
@@ -269,7 +270,7 @@ impl Kernel {
         let (verdict, path, _) = self.verdict_on(run, targets).await?;
         let reason = match verdict {
             PolicyVerdict::Manual => format!(
-                "{path} is in Manual mode: the user writes it. Suggest the change in words instead."
+                "This chat is in Manual mode, so {path} stays as it is: the user writes the code. Suggest the change in words instead."
             ),
             PolicyVerdict::Locked => format!(
                 "{path} is locked for this experiment. Changing it needs the user, and makes a new version."
@@ -286,7 +287,16 @@ impl Kernel {
         Some(reason)
     }
 
-    /// Why this call must wait for the user even with approvals off: a Pair file.
+    /// The mode of the chat a run belongs to, as it is now: a change while a call waits applies to that call.
+    pub(crate) fn chat_mode_of(&self, run: &Value) -> Option<String> {
+        let thread = self.find_thread(text(run, "threadId"))?;
+        thread
+            .get("chatMode")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    }
+
+    /// Why this call must wait for the user even with approvals off: a Pair chat asks about anything that changes something.
     pub(crate) async fn research_needs_approval(
         &self,
         run: &Value,
@@ -294,15 +304,28 @@ impl Kernel {
         arguments: &Value,
     ) -> Option<String> {
         let targets = write_targets(tool, arguments);
-        match self.verdict_on(run, &targets).await? {
-            (PolicyVerdict::NeedsApproval, path, _) => Some(format!(
-                "{path} is in Pair mode: its changes need your approval"
+        match self.verdict_on(run, &targets).await {
+            Some((PolicyVerdict::NeedsApproval, path, _)) => Some(format!(
+                "This chat is in Pair mode: changes to {path} need your approval"
             )),
-            _ => None,
+            // A refused file is refused when the call runs.
+            Some(_) => None,
+            None => {
+                if self.chat_mode_of(run).as_deref() != Some("pair") {
+                    return None;
+                }
+                let agent = self.get_agent(text(run, "agentId")).ok()?;
+                let category = self
+                    .store
+                    .read(|state| crate::tool_runs::tool_category(state, &agent, tool));
+                let arguments = arguments.as_object().cloned().unwrap_or_default();
+                (!is_read_only_call(tool, &arguments, category.as_deref()))
+                    .then(|| format!("This chat is in Pair mode: {tool} needs your approval"))
+            }
         }
     }
 
-    /// The same for a program's file.
+    /// The same for a file a program writes.
     pub(crate) async fn research_file_needs_approval(&self, run: &Value, file: &str) -> bool {
         matches!(
             self.verdict_on(run, &[file.to_owned()]).await,
@@ -310,7 +333,7 @@ impl Kernel {
         )
     }
 
-    /// A change the user accepted on a Pair file: what it was, and under which policy.
+    /// A change the user accepted in a Pair chat: what it was, and under which policy.
     pub(crate) async fn research_note_assisted(
         &self,
         run: &Value,
@@ -375,7 +398,7 @@ impl Kernel {
         }
     }
 
-    /// The size and time of everything protected in a run's folder: Manual and locked files, the policy, the verdicts
+    /// The size and time of everything protected in a run's folder: locked files, the policy, the verdicts
     /// and the frozen versions.
     async fn protected_signatures(&self, run: &Value) -> Option<Signatures> {
         let (_, root, records) = self.run_scope(run).await?;
@@ -390,16 +413,6 @@ impl Kernel {
             .into_iter()
             .map(|path| (path.clone(), root.join(path)))
             .collect();
-        for (path, mode) in policy
-            .get("modes")
-            .and_then(Value::as_object)
-            .into_iter()
-            .flatten()
-        {
-            if mode == "manual" {
-                files.push((path.clone(), root.join(path)));
-            }
-        }
         files.push((
             format!("{RECORDS}/policy.json"),
             records.join("policy.json"),

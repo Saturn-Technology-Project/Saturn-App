@@ -17,7 +17,7 @@ models/<id>.json
 findings/<id>.json
 labels/<run id>.json       the user's labels, kept apart from scores
 counterexamples/<id>.json  a run's sample kept for later
-policy.json                each file's mode and the locks
+policy.json                the locks
 events.jsonl               refusals, unexplained changes and accepted Pair changes
 objects/<sha256>           saved copies of source files
 runs/<id>/run.json
@@ -268,17 +268,19 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
 |---|---|---|
 | API and local models | Refused before writing | A command is compared by hash afterwards |
 | Claude Code | Refused through `can_use_tool` for the tools it asks about | Compared afterwards |
-| Codex | Not possible per file: its sandbox is read-only or writable | Compared afterwards; a Delegate task runs in a worktree |
+| Codex | Not possible per file: its sandbox is read-only or writable, so a Pair chat runs read-only | Compared afterwards; a task runs in a worktree |
 | MCP tools | Saturn cannot tell what they write | Compared afterwards |
 
-- A file's mode is `manual`, `pair` or `delegate`, by file or folder, and the most specific one wins. A file with none is
-  the agent's to change. `pair` makes a file tool wait for the user even with approvals off, and an accepted change is
-  recorded with its content and the policy's revision. A mode that changes while a call waits applies to that call.
+- A chat's mode is `manual`, `pair` or `delegate` (`chatMode`, set with `PATCH /threads/{id}`), kept on the chat rather than
+  in the project's records. `manual` makes every run of the chat read-only. `pair` makes a file tool, a command or any other
+  call that changes something wait for the user even with approvals off, and an accepted file change is recorded with its
+  content and the policy's revision. `delegate` puts no limit on the chat; the interface starts a task for each message. A
+  chat with no mode, such as a task's, is the agent's to change. A mode that changes while a call waits applies to that call.
 - Locked for agents: what the policy names, and the `data` and `scorer` inputs of each experiment's newest version. The
   user can release a lock (`released` in the policy) when an agent asks to change such a file: it may then change it,
   and the next frozen version locks what it uses again and ends every release, so older versions keep their results.
 - Changes are noticed by a file's size and time, so an edit that keeps both is not.
-- No agent tool sets a verdict, a mode, an approval or a frozen version, and file tools refuse `.saturn/research/`.
+- No agent tool sets a verdict, a chat's mode, an approval or a frozen version, and file tools refuse `.saturn/research/`.
 - A refused tool call is recorded as a confirmed violation. A hash that changed is recorded as `integrity_changed` with
   no claim about who changed it, since the user may have edited the file. A file changed and restored between checks
   is not detected.

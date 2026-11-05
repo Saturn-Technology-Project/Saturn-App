@@ -1,5 +1,4 @@
-import type { RunMode } from "./model.js";
-import type { ParticipationMode, SampleItem } from "./research.js";
+import type { SampleItem } from "./research.js";
 import { sampleText } from "./research.js";
 import { hiddenContext } from "./slash.js";
 
@@ -9,18 +8,6 @@ export const ASSISTANT_NAME = "Research assistant";
 export const ASSISTANT_THREAD = "Research assistant";
 /** What a task's chat is called, followed by what it was asked. */
 export const TASK_PREFIX = "Task: ";
-
-/** The mode a message to the assistant runs in, for a file in this participation mode. A Manual file only gets read. */
-export function assistantRunMode(mode: ParticipationMode | null): RunMode {
-  return mode === "pair" ? "agent" : "ask";
-}
-
-/** Says in words what the assistant can do now. */
-export function assistantRole(mode: ParticipationMode | null): string {
-  if (mode === "pair") return "Proposes changes; each one to a Pair file needs your approval.";
-  if (mode === "delegate") return "Answers here, and reads only. Hand changes to a task.";
-  return "Reads and explains. It changes nothing.";
-}
 
 /** Where a task stands: waiting on the person, working, done and waiting for review, or closed. */
 export type TaskState = "decision" | "running" | "review" | "finished";

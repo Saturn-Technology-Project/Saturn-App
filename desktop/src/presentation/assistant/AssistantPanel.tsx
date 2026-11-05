@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { assistantRole, assistantRunMode, errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
+import { errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
+import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../../domain/chat-mode.js";
 import { GUARDRAIL_MODES, normalizeGuardrailMode, type GuardrailModeId } from "../../domain/conversation.js";
-import type { Agent, ContextItem, Model } from "../../domain/model.js";
+import type { Agent, ChatMode, ContextItem, Model } from "../../domain/model.js";
 import { HELP_REQUESTS, workbenchState, type Screen } from "../../domain/workbench.js";
 import { hiddenContext } from "../../domain/slash.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
@@ -13,12 +14,13 @@ import { useConversation } from "./useConversation.js";
 
 type Attachment = "file" | "selection" | "error" | "sample";
 
-/** The assistant beside the work. What it may do follows the open file's mode, and it says so. */
+/** The assistant beside the work. What it may do follows the mode chosen here, for this chat, and it says so. */
 export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: WorkspaceFocus | null; onOpenSettings: () => void }) {
   const { project, screen, focus, notify } = props;
   const [agent, setAgent] = useState<Agent | null>(null);
   const [models, setModels] = useState<Model[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
+  const [mode, setMode] = useState<ChatMode>("manual");
   const [ready, setReady] = useState(false);
   const [text, setText] = useState("");
   // A sample or error output goes along only when asked: what is sent to a model should be a choice. In review, the sample
@@ -38,7 +40,11 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
       const found = await desktop.assistant.agent();
       setAgent(found.agent);
       setModels(found.models);
-      if (found.agent) setThreadId((await desktop.assistant.thread(found.agent, project.id)).id);
+      if (found.agent) {
+        const thread = await desktop.assistant.thread(found.agent, project.id);
+        setThreadId(thread.id);
+        setMode(chatModeOf(thread));
+      }
     } catch (error) {
       notify(messageOf(error));
     } finally {
@@ -64,7 +70,6 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     end.current?.scrollIntoView({ block: "end" });
   }, [conversation.runs]);
 
-  const mode = focus?.file ? focus.mode : null;
   const available: { id: Attachment; label: string }[] = [
     ...(focus?.file ? [{ id: "file" as const, label: focus.file }] : []),
     ...(focus?.selection ? [{ id: "selection" as const, label: `Selection, line ${focus.selection.line}` }] : []),
@@ -85,7 +90,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     if (attached("selection") && focus?.selection && focus.file) input += selectionContext(focus.file, focus.selection.line, focus.selection.text);
     if (attached("error") && focus?.errorOutput) input += errorContext(focus.errorOutput);
     if (attached("sample") && focus?.sample) input += sampleContext(focus.sample);
-    input += hiddenContext("the screen you are on", workbenchState({ screen, project: project.name, file: focus?.file, mode: focus?.file ? focus.mode : null, run: focus?.run, sampleId: focus?.sample?.sample?.sampleId }));
+    input += hiddenContext("the screen you are on", workbenchState({ screen, project: project.name, chatMode: mode, file: focus?.file, run: focus?.run, sampleId: focus?.sample?.sample?.sampleId }));
     return input;
   }
 
@@ -104,6 +109,20 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
       await desktop.assistant.startTask(agent, project.id, await withContext(text.trim()));
       setText("");
       props.go("Tasks");
+    } catch (error) {
+      notify(messageOf(error));
+    }
+  }
+
+  /** What sending does: a Delegate chat starts a task, the others answer here. */
+  function send() {
+    return mode === "delegate" ? handToTask() : ask(text);
+  }
+
+  async function chooseMode(next: ChatMode) {
+    if (!threadId) return;
+    try {
+      setMode(chatModeOf(await desktop.catalog.setChatMode(threadId, next)));
     } catch (error) {
       notify(messageOf(error));
     }
@@ -157,7 +176,14 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
             </option>
           ))}
         </select>
-        <div className="lab-muted lab-assistant-role">{assistantRole(mode)}</div>
+        <div className="lab-segments lab-assistant-mode" role="group" aria-label="How much the assistant may do in this chat" data-tour="assistant-mode">
+          {CHAT_MODES.map((item) => (
+            <button type="button" key={item.id} aria-pressed={mode === item.id} className={mode === item.id ? "lab-segment active" : "lab-segment"} title={item.hint} onClick={() => void chooseMode(item.id)}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="lab-muted lab-assistant-role" role="status">{assistantRole(mode, models.find((model) => model.id === agent?.modelConnectionId)?.provider)}</div>
       </div>
 
       <div className="lab-conversation" role="log" aria-label="Conversation with the research assistant">
@@ -225,7 +251,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
               event.preventDefault();
-              void ask(text);
+              void send();
             }
           }}
         />
@@ -233,19 +259,14 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
           <button type="button" className="lab-button quiet" aria-pressed={picking} onClick={() => setPicking((open) => !open)}>
             @ File
           </button>
-          {mode === "delegate" ? (
-            <button type="button" className="lab-button" disabled={!text.trim()} onClick={() => void handToTask()}>
-              Hand to a task
-            </button>
-          ) : null}
           <div className="lab-rail-space" />
           {conversation.busy && conversation.latest ? (
             <button type="button" className="lab-button" onClick={() => void conversation.stop(conversation.latest!)}>
               Stop
             </button>
           ) : (
-            <button type="button" className="lab-button primary" disabled={!text.trim()} onClick={() => void ask(text)}>
-              Send
+            <button type="button" className="lab-button primary" disabled={!text.trim()} onClick={() => void send()}>
+              {mode === "delegate" ? "Start a task" : "Send"}
             </button>
           )}
         </div>

@@ -25,7 +25,7 @@ export function ScreenSwitch(props: ScreenProps & { screen: Screen; assistant: b
   const { screen, assistant, onOpenSettings, ...shared } = props;
   const [workspaceFocus, setWorkspaceFocus] = useState<WorkspaceFocus | null>(null);
   const [reviewed, setReviewed] = useState<SampleItem | null>(null);
-  const focus: WorkspaceFocus | null = screen === "Samples" ? { file: null, mode: "manual", selection: null, run: null, errorOutput: "", sample: reviewed } : screen === "Workspace" ? workspaceFocus : null;
+  const focus: WorkspaceFocus | null = screen === "Samples" ? { file: null, selection: null, run: null, errorOutput: "", sample: reviewed } : screen === "Workspace" ? workspaceFocus : null;
   return (
     <Split id="assistant" side="right" size={340} minimum={260} open={assistant} label="Research assistant" pane={<AssistantPanel {...shared} screen={screen} focus={focus} onOpenSettings={onOpenSettings} />}>
       <div className="lab-screen" hidden={screen !== "Workspace"}>

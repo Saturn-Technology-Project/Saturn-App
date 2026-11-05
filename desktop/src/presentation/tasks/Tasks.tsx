@@ -92,7 +92,7 @@ export function Tasks(props: ScreenProps & { onOpenSettings: () => void }) {
         <button type="submit" className="lab-button primary" disabled={!prompt.trim() || starting}>
           {starting ? "Starting…" : "Start in its own worktree"}
         </button>
-        <p className="lab-muted">Manual and locked files are refused, and nothing reaches the project until you merge it.</p>
+        <p className="lab-muted">Locked files are refused, and nothing reaches the project until you merge it.</p>
       </form>
       {STATES.map((state) => {
         const group = tasks.filter((task) => stateOf(task) === state);
@@ -164,8 +164,6 @@ function TaskDetail(props: {
   const runIds = new Set(conversation.runs.map((run) => run.id));
   const own = events.filter((event) => runIds.has(event.runId));
   const refusals = own.filter((event) => event.kind === "refused" && lockedPathOf(event) && !(policy?.released ?? []).includes(lockedPathOf(event)!));
-  const canChange = Object.entries(policy?.modes ?? {}).filter(([, mode]) => mode === "delegate").map(([path]) => path);
-  const refused = Object.entries(policy?.modes ?? {}).filter(([, mode]) => mode === "manual").map(([path]) => path);
 
   async function finish(how: "merge" | "discard") {
     const question = how === "merge" ? `Merge ${task.worktree?.branch} into ${task.worktree?.base}?` : "Discard this task's worktree and everything in it?";
@@ -221,11 +219,11 @@ function TaskDetail(props: {
       <div className="lab-task-scope">
         <div>
           <div className="lab-muted">Can change</div>
-          <div>{canChange.length ? canChange.join(", ") : "Every file not set to Manual"}</div>
+          <div>Every file that is not locked</div>
         </div>
         <div>
           <div className="lab-muted">Locked</div>
-          <div>{[...(policy?.locked ?? []), ...refused].length ? [...(policy?.locked ?? []), ...refused].join(", ") : "Nothing"}</div>
+          <div>{policy?.locked.length ? policy.locked.join(", ") : "Nothing named; a frozen version also locks its data and scorer"}</div>
         </div>
         <div>
           <div className="lab-muted">Limits</div>

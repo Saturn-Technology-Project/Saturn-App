@@ -320,17 +320,6 @@ fn is_under(path: &str, key: &str) -> bool {
 
 /// Checks a requested policy's shape.
 pub fn check_policy(policy: &Value) -> Result<(), String> {
-    if let Some(modes) = policy.get("modes") {
-        let modes = modes
-            .as_object()
-            .ok_or("\"modes\" must map paths to modes.")?;
-        if modes
-            .values()
-            .any(|mode| !matches!(mode.as_str(), Some("manual" | "pair" | "delegate")))
-        {
-            return Err("A mode must be manual, pair or delegate.".to_owned());
-        }
-    }
     for key in ["locked", "released"] {
         if let Some(paths) = policy.get(key)
             && !paths
@@ -343,24 +332,21 @@ pub fn check_policy(policy: &Value) -> Result<(), String> {
     Ok(())
 }
 
-/// What the policy says about an agent writing a path. The records and locks always hold; among modes, the most specific
-/// key wins, and a file no key names is the agent's to change.
-pub fn policy_verdict(policy: &Value, locked: &[String], path: &str) -> PolicyVerdict {
+/// How much a chat's agent may change: `manual` only reads, `pair` asks about each change, `delegate` works on its own.
+pub fn is_chat_mode(mode: &str) -> bool {
+    matches!(mode, "manual" | "pair" | "delegate")
+}
+
+/// What applies to an agent writing a path. The records and locks always hold; after them, the mode of the chat it works in.
+/// A chat with no mode, such as a task's, is the agent's to change.
+pub fn policy_verdict(locked: &[String], path: &str, chat_mode: Option<&str>) -> PolicyVerdict {
     if is_under(path, ".saturn/research") {
         return PolicyVerdict::Records;
     }
     if locked.iter().any(|key| is_under(path, key)) {
         return PolicyVerdict::Locked;
     }
-    let mode = policy
-        .get("modes")
-        .and_then(Value::as_object)
-        .into_iter()
-        .flatten()
-        .filter(|(key, _)| is_under(path, key))
-        .max_by_key(|(key, _)| key.len())
-        .and_then(|(_, mode)| mode.as_str());
-    match mode {
+    match chat_mode {
         Some("manual") => PolicyVerdict::Manual,
         Some("pair") => PolicyVerdict::NeedsApproval,
         _ => PolicyVerdict::Allowed,
@@ -478,32 +464,34 @@ mod tests {
     }
 
     #[test]
-    fn the_most_specific_mode_wins_and_locks_and_records_always_hold() {
-        let policy =
-            json!({"modes": {"src": "manual", "src/data.py": "delegate", "pair.py": "pair"}});
+    fn the_chat_mode_decides_after_locks_and_records() {
         let locks = ["set.jsonl".to_owned()];
         assert_eq!(
-            policy_verdict(&policy, &locks, "src/probe.py"),
+            policy_verdict(&locks, "probe.py", Some("manual")),
             PolicyVerdict::Manual
         );
         assert_eq!(
-            policy_verdict(&policy, &locks, "src/data.py"),
-            PolicyVerdict::Allowed
-        );
-        assert_eq!(
-            policy_verdict(&policy, &locks, "srcs/other.py"),
-            PolicyVerdict::Allowed
-        );
-        assert_eq!(
-            policy_verdict(&policy, &locks, "pair.py"),
+            policy_verdict(&locks, "probe.py", Some("pair")),
             PolicyVerdict::NeedsApproval
         );
         assert_eq!(
-            policy_verdict(&policy, &locks, "set.jsonl"),
+            policy_verdict(&locks, "probe.py", Some("delegate")),
+            PolicyVerdict::Allowed
+        );
+        assert_eq!(
+            policy_verdict(&locks, "probe.py", None),
+            PolicyVerdict::Allowed
+        );
+        assert_eq!(
+            policy_verdict(&locks, "set.jsonl", None),
             PolicyVerdict::Locked
         );
         assert_eq!(
-            policy_verdict(&policy, &locks, ".saturn/research/hypotheses/h.json"),
+            policy_verdict(
+                &locks,
+                ".saturn/research/hypotheses/h.json",
+                Some("delegate")
+            ),
             PolicyVerdict::Records
         );
     }

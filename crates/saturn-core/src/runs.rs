@@ -298,7 +298,16 @@ impl Kernel {
         if !options.images.is_empty() {
             run["inputImages"] = json!(save_images(self.store.root(), &id, &options.images).await?);
         }
-        if let Some(mode) = options.mode.filter(|mode| *mode != RunMode::Agent) {
+        // A Manual chat only reads, whatever was asked. So does a Pair chat on Codex, which cannot ask before it writes.
+        let chat_mode = self.chat_mode_of(&run);
+        let reads_only = chat_mode.as_deref() == Some("manual")
+            || (chat_mode.as_deref() == Some("pair") && text(&model, "provider") == "codex");
+        let mode = match options.mode {
+            Some(mode) if mode.reads_only() => Some(mode),
+            _ if reads_only => Some(RunMode::Ask),
+            mode => mode,
+        };
+        if let Some(mode) = mode.filter(|mode| *mode != RunMode::Agent) {
             run["mode"] = mode.as_str().into();
         }
         if options.automatic {
@@ -657,6 +666,26 @@ impl Kernel {
                 let thread = by_id_mut(&mut state.threads, thread_id)
                     .ok_or_else(|| CoreError::new(404, "Conversation not found"))?;
                 thread["title"] = trimmed.into();
+                thread["updatedAt"] = now.into();
+                Ok(thread.clone())
+            })
+            .await?
+    }
+
+    /// Sets how much a chat's agent may change.
+    pub async fn set_chat_mode(&self, thread_id: &str, mode: &str) -> Result<Value, CoreError> {
+        if !saturn_domain::research::is_chat_mode(mode) {
+            return Err(CoreError::new(
+                400,
+                "A chat's mode must be manual, pair or delegate.",
+            ));
+        }
+        let now = iso_time(now_millis());
+        self.store
+            .update(|state| {
+                let thread = by_id_mut(&mut state.threads, thread_id)
+                    .ok_or_else(|| CoreError::new(404, "Conversation not found"))?;
+                thread["chatMode"] = mode.into();
                 thread["updatedAt"] = now.into();
                 Ok(thread.clone())
             })

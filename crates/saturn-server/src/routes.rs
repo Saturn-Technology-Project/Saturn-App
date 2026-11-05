@@ -287,8 +287,11 @@ async fn create_thread(State(kernel): Shared, Path(id): Path<String>, body: Body
     )
 }
 
-async fn rename_thread(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+async fn update_thread(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
     let body = body_of(body);
+    if let Some(mode) = given(&body, "chatMode") {
+        return ok(kernel.set_chat_mode(&id, mode).await?);
+    }
     ok(kernel
         .rename_thread(&id, given(&body, "title").unwrap_or(""))
         .await?)
@@ -673,7 +676,7 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/projects", get(list_projects).post(create_project))
         .route(
             "/threads/{id}",
-            axum::routing::patch(rename_thread).delete(delete_thread),
+            axum::routing::patch(update_thread).delete(delete_thread),
         )
         .route("/threads/{id}/context", get(thread_context))
         .route("/threads/{id}/compact", post(compact_thread))

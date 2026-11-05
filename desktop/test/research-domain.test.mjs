@@ -1,20 +1,10 @@
-// The research interface's rules that are worth holding on their own: which mode applies to a file, how a lineage is laid
+// The research interface's rules that are worth holding on their own: how a lineage is laid
 // out, and how a comparison is said. Everything else is checked over HTTP in contract/.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { comparisonText, lineageOrder, lineageTracks, modeOf, runHasResults, scoreText } from "../src/domain/research.ts";
+import { comparisonText, lineageOrder, lineageTracks, runHasResults, scoreText } from "../src/domain/research.ts";
 
-const policy = (modes) => ({ revision: 1, modes, locked: [] });
 const model = (id, parentId) => ({ id, parentId, source: id, floating: false, revision: 1, createdAt: "", updatedAt: "" });
-
-test("the most specific mode applies, and a file with none is the agent's to change", () => {
-  const modes = policy({ core: "manual", "core/data.py": "delegate", "core/deep/": "pair" });
-  assert.equal(modeOf(modes, "core/a.py"), "manual");
-  assert.equal(modeOf(modes, "core/data.py"), "delegate");
-  assert.equal(modeOf(modes, "core/deep/b.py"), "pair");
-  assert.equal(modeOf(modes, "corelike/a.py"), "delegate");
-  assert.equal(modeOf(policy({}), "a.py"), "delegate");
-});
 
 test("a line of checkpoints stays one line, and each other child starts its own", () => {
   const models = [model("a"), model("b", "a"), model("c", "b"), model("sft", "c"), model("sft2", "c"), model("dpo", "sft"), model("other")];
