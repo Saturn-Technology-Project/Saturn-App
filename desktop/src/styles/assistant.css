@@ -9,59 +9,103 @@
 
 .lab-assistant-head {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
   align-items: center;
-  gap: 4px 8px;
-  padding: 8px 12px;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 12px;
   border-bottom: 1px solid var(--line);
 }
 
-.lab-assistant-model {
-  flex: 1 1 100px;
+.lab-assistant-head strong {
+  flex: none;
+}
+
+.lab-assistant-setting {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   min-width: 0;
+  color: var(--subtle);
+  font-size: var(--text-small);
+}
+
+/* The chat's settings: quiet until they are pointed at. */
+.lab-chat-select {
+  min-width: 0;
+  max-width: 130px;
   min-height: 26px;
+  padding: 0 2px;
   border: 0;
+  border-radius: 6px;
   background: transparent;
   color: var(--muted);
   font-size: var(--text-small);
-  text-align: right;
+  text-overflow: ellipsis;
+}
+
+.lab-chat-select:hover {
+  background: var(--hover);
+  color: var(--fg);
 }
 
 .lab-assistant-role {
-  flex: 1 1 100%;
+  padding: 0 2px;
+  font-size: 11.5px;
+  line-height: 1.4;
 }
 
 .lab-conversation {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   min-height: 0;
-  padding: 12px;
+  padding: 14px 12px;
   overflow: auto;
+}
+
+.lab-conversation-empty {
+  margin: auto;
+  max-width: 220px;
+  text-align: center;
 }
 
 .lab-turn {
   display: flex;
+  flex: none;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
 }
 
+/* What the person wrote sits to the right, and takes only the room it needs. */
 .lab-turn-input {
+  align-self: flex-end;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 8px 10px;
-  border-radius: var(--radius);
+  gap: 3px;
+  min-width: 0;
+  max-width: 88%;
+  padding: 7px 11px;
+  border-radius: 12px 12px 3px 12px;
   background: var(--hover);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
+.lab-turn-details {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .lab-turn-output {
   min-width: 0;
+  line-height: 1.55;
   overflow-wrap: anywhere;
 }
 
@@ -90,14 +134,65 @@
   gap: 8px;
 }
 
-.lab-requests,
 .lab-attachments {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
+/* One row that scrolls sideways, so suggestions never push the conversation up. */
+.lab-requests {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lab-requests::-webkit-scrollbar {
+  display: none;
+}
+
+/* The message and what it is sent with, as one box. */
+.lab-message-box {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--input);
+}
+
+.lab-message-box:focus-within {
+  border-color: var(--blue);
+}
+
+.lab-composer .lab-message-box textarea {
+  max-height: 160px;
+  padding: 8px 10px 2px;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  box-shadow: none;
+}
+
+.lab-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 5px 5px;
+}
+
+.lab-message-actions .lab-button {
+  flex: none;
+}
+
+.lab-message-attach {
+  min-width: 28px;
+  padding: 2px 6px;
+}
+
 .lab-request {
+  flex: none;
   min-height: 26px;
   padding: 1px 9px;
   border: 1px solid var(--line-strong);
@@ -105,6 +200,7 @@
   background: transparent;
   color: var(--fg);
   font-size: 11.5px;
+  white-space: nowrap;
 }
 
 .lab-request:hover:not(:disabled) {

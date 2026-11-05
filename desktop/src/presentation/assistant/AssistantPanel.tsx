@@ -33,6 +33,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   const [found, setFound] = useState<string[]>([]);
   const reviewing = Boolean(focus?.sample && !focus.file);
   const end = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
   const conversation = useConversation(agent?.id ?? null, threadId, notify);
 
   const load = useCallback(async () => {
@@ -69,6 +70,14 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
   }, [conversation.runs]);
+
+  // The message box grows with what is typed, up to the height its style allows, and scrolls after that.
+  useEffect(() => {
+    const element = box.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  }, [text]);
 
   const available: { id: Attachment; label: string }[] = [
     ...(focus?.file ? [{ id: "file" as const, label: focus.file }] : []),
@@ -162,34 +171,23 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     <div className="lab-assistant">
       <div className="lab-assistant-head">
         <strong>Research assistant</strong>
-        <select className="lab-assistant-model" aria-label="Model" value={agent?.modelConnectionId ?? ""} onChange={(event) => void chooseModel(event.target.value)}>
-          {models.map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.name}
-            </option>
-          ))}
-        </select>
-        <select className="lab-assistant-model" aria-label="When the assistant asks first" value={normalizeGuardrailMode(agent?.autonomy)} onChange={(event) => void chooseApprovals(event.target.value as GuardrailModeId)}>
-          {GUARDRAIL_MODES.map((item) => (
-            <option key={item.id} value={item.id} title={item.description}>
-              {item.title}
-            </option>
-          ))}
-        </select>
-        <select className="lab-assistant-model" aria-label="How much the assistant may do in this chat" data-tour="assistant-mode" value={mode} onChange={(event) => void chooseMode(event.target.value as ChatMode)}>
-          {CHAT_MODES.map((item) => (
-            <option key={item.id} value={item.id} title={item.hint}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-        <div className="lab-muted lab-assistant-role" role="status">{assistantRole(mode, models.find((model) => model.id === agent?.modelConnectionId)?.provider)}</div>
+        <label className="lab-assistant-setting">
+          Approvals
+          <select className="lab-chat-select" value={normalizeGuardrailMode(agent?.autonomy)} onChange={(event) => void chooseApprovals(event.target.value as GuardrailModeId)}>
+            {GUARDRAIL_MODES.map((item) => (
+              <option key={item.id} value={item.id} title={item.description}>
+                {item.title}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="lab-conversation" role="log" aria-label="Conversation with the research assistant">
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(comment) => void ask(comment)} />
         ))}
+        {ready && !conversation.runs.length ? <p className="lab-muted lab-conversation-empty">Ask about your work, or how to do something in Saturn.</p> : null}
         <div ref={end} />
       </div>
 
@@ -242,34 +240,52 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
             </div>
           </div>
         ) : null}
-        <textarea
-          aria-label="Message to the assistant"
-          rows={3}
-          value={text}
-          placeholder="Ask about your work, or how to do something in Saturn"
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-              event.preventDefault();
-              void send();
-            }
-          }}
-        />
-        <div className="lab-composer-actions">
-          <button type="button" className="lab-button quiet" aria-pressed={picking} onClick={() => setPicking((open) => !open)}>
-            @ File
-          </button>
-          <div className="lab-rail-space" />
-          {conversation.busy && conversation.latest ? (
-            <button type="button" className="lab-button" onClick={() => void conversation.stop(conversation.latest!)}>
-              Stop
+        <div className="lab-message-box">
+          <textarea
+            ref={box}
+            aria-label="Message to the assistant"
+            rows={2}
+            value={text}
+            placeholder={mode === "delegate" ? "Describe the task" : "Message the assistant"}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                void send();
+              }
+            }}
+          />
+          <div className="lab-message-actions">
+            <button type="button" className="lab-button quiet lab-message-attach" aria-label="Attach a file" title="Attach a file" aria-pressed={picking} onClick={() => setPicking((open) => !open)}>
+              @
             </button>
-          ) : (
-            <button type="button" className="lab-button primary" disabled={!text.trim()} onClick={() => void send()}>
-              {mode === "delegate" ? "Start a task" : "Send"}
-            </button>
-          )}
+            <select className="lab-chat-select" aria-label="How much the assistant may do in this chat" data-tour="assistant-mode" value={mode} onChange={(event) => void chooseMode(event.target.value as ChatMode)}>
+              {CHAT_MODES.map((item) => (
+                <option key={item.id} value={item.id} title={item.hint}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+            <select className="lab-chat-select" aria-label="Model" value={agent?.modelConnectionId ?? ""} onChange={(event) => void chooseModel(event.target.value)}>
+              {models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+            <div className="lab-rail-space" />
+            {conversation.busy && conversation.latest ? (
+              <button type="button" className="lab-button" onClick={() => void conversation.stop(conversation.latest!)}>
+                Stop
+              </button>
+            ) : (
+              <button type="button" className="lab-button primary" disabled={!text.trim()} onClick={() => void send()}>
+                {mode === "delegate" ? "Start a task" : "Send"}
+              </button>
+            )}
+          </div>
         </div>
+        <div className="lab-muted lab-assistant-role" role="status">{assistantRole(mode, models.find((model) => model.id === agent?.modelConnectionId)?.provider)}</div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../src/domain/chat-mode.ts";
+import { shownSources } from "../src/domain/slash.ts";
 import { assistantInstructions, GUIDE_PLACES, guideIn, guidePlace, HELP_REQUESTS, isWorkScreen, SCREENS, statusText, TOUR_STEPS, windowTitle, workbenchState } from "../src/domain/workbench.ts";
 
 const presentation = new URL("../src/presentation", import.meta.url).pathname;
@@ -67,4 +68,10 @@ test("a chat's mode says what the assistant may do, and a chat nobody has set on
   assert.match(assistantRole("pair", "codex"), /cannot ask/);
   assert.match(assistantRole("pair", "claude-code"), /approval/);
   assert.match(assistantRole("delegate"), /task/);
+});
+
+test("a message says what went with it, leaving out the screen that goes with every message", () => {
+  const block = (name) => `<saturn_context sources="${name}">x</saturn_context>`;
+  assert.equal(shownSources(`hi${block("the screen you are on")}`), "");
+  assert.equal(shownSources(`hi${block("a.py; b.py")}${block("the screen you are on")}${block("sample s1")}`), "a.py; b.py, sample s1");
 });

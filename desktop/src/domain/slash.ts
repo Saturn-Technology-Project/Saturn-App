@@ -30,3 +30,11 @@ export function shownInput(input: string): string {
 export function contextSources(input: string): string {
   return /<saturn_context sources="([^"]*)">/.exec(input)?.[1] ?? "";
 }
+
+/** What went with a message that is worth saying: not the screen, which goes with every message. */
+export function shownSources(input: string): string {
+  return [...input.matchAll(/<saturn_context sources="([^"]*)">/g)]
+    .map((match) => match[1])
+    .filter((source) => source !== "the screen you are on")
+    .join(", ");
+}
