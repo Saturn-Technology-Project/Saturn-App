@@ -2,6 +2,7 @@
 // with the run, and refuses when it cannot. A stand-in "python" plays the environment. docs/research-contract.md is
 // the contract.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -32,6 +33,19 @@ if [ "$1" = "-" ]; then
     if (request.action === "prompts") {
       if (request.clean === "boom") { console.error("different lengths"); process.exit(1); }
       process.stdout.write(JSON.stringify({ modelId: request.modelId, tokens: ["a", "b"], corruptedTokens: ["a", "c"], expected: request.expected, alternative: request.alternative, cleanMargin: 2, corruptedMargin: -1, cleanTop: "x", corruptedTop: "y", layers: [0], recovery: [[0, 0.8]], control: [[0, 0.1]], first: process.argv[2] }));
+      process.exit(0);
+    }
+    if (request.action === "features") {
+      if (request.prompt === "no-kit") { process.stdout.write(JSON.stringify({ refused: "sae_lens is not installed in the project Python." })); process.exit(0); }
+      if (request.prompt === "boom") { console.error("a traceback"); process.exit(3); }
+      process.stdout.write(JSON.stringify({ modelId: request.modelId, layer: request.layer, tokens: ["a", "b"], top: "x",
+        sae: { release: request.sae.release ?? null, id: request.sae.id ?? null, path: request.sae.path ?? null, hookName: "blocks.1.hook_resid_post", width: 8, trainedOn: "org", startTokenAdded: false, centered: false },
+        reconstruction: { varianceExplained: 0.9, relativeError: 0.1, meanActiveFeatures: 2, tokensLeftOut: 0 },
+        features: [[{ feature: 3, activation: 5 }], [{ feature: 4, activation: 2 }]],
+        expected: request.expected ?? null, alternative: request.alternative ?? null,
+        margins: request.expected ? { plain: 2, spliced: 1.5, spliceChange: -0.5 } : null,
+        ablation: request.ablate === null || request.ablate === undefined ? null : { feature: request.ablate, activation: 5, margin: 0.5, change: -1, control: { feature: 4, activation: 4, margin: 1.4, change: -0.1 }, controlSeed: 0 },
+        first: process.argv[2] }));
       process.exit(0);
     }
     if (request.sweep) {
@@ -182,6 +196,129 @@ test("a look at prompts that cannot mean anything is refused, and a helper's ref
   const failed = await saturn.call("POST", place, { ...good, clean: "boom" });
   assert.equal(failed.status, 422);
   assert.match(JSON.stringify(failed.body), /different lengths/);
+});
+
+/** The helper's whole program for features, as the runtime composes it. */
+async function featuresHelper() {
+  const folder = new URL("../crates/saturn-core/src/research/", import.meta.url);
+  const functions = (await readFile(new URL("inside.py", folder), "utf8")).split("\nif __name__")[0];
+  return `${functions}\n${await readFile(new URL("inside_features.py", folder), "utf8")}`;
+}
+
+test("features are read through an SAE with a run's python and weights, saved with it, and listed", posixOnly, async () => {
+  const { folder, route, run, tuned } = await project();
+  const place = `${route}/runs/${run.id}/inspections`;
+  const asked = { action: "features", modelId: tuned.id, prompt: "When Mary", layer: 1, saeRelease: "some-release", saeId: "blocks.1.hook_resid_post", expected: " Mary", alternative: " John", ablate: 3 };
+  const first = await saturn.api("POST", place, asked);
+  assert.equal(first.action, "features");
+  assert.deepEqual(first.features[0], [{ feature: 3, activation: 5 }]);
+  assert.equal(first.ablation.control.feature, 4);
+  assert.equal(first.margins.spliceChange, -0.5, "what splicing alone did is in the answer");
+  assert.equal(first.helperSha256, sha(await featuresHelper()));
+  const heard = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
+  assert.deepEqual(heard.target, { source: "org/tuned", revision: "v1" });
+  assert.deepEqual(heard.sae, { release: "some-release", id: "blocks.1.hook_resid_post" });
+  assert.equal(heard.layer, 1);
+  assert.equal(heard.ablate, 3);
+  await writeFile(path.join(folder, "asked.json"), "untouched");
+  const again = await saturn.api("POST", place, asked);
+  assert.equal(again.recordedAt, first.recordedAt, "answered from what was saved");
+  assert.equal(await readFile(path.join(folder, "asked.json"), "utf8"), "untouched");
+  const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id, "inside"));
+  assert.equal(saved.filter((name) => name.startsWith("inspect-")).length, 1);
+
+  // Without two words there is no margin, and asking without an ablation is another question.
+  const plain = await saturn.api("POST", place, { action: "features", modelId: tuned.id, prompt: "When Mary", layer: 1, saeRelease: "some-release", saeId: "blocks.1.hook_resid_post" });
+  assert.equal(plain.margins, null);
+  assert.equal(plain.ablation, null);
+  assert.notEqual(plain.key, first.key);
+
+  await saturn.api("POST", place, { action: "prompts", modelId: tuned.id, clean: "a", corrupted: "b", expected: " x", alternative: " y" });
+  const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
+  assert.deepEqual(listed.items.map((item) => item.kind).sort(), ["features", "features", "prompts"]);
+  assert.ok(listed.items.every((item) => item.current === true), "each is judged by the helper that makes its own kind");
+});
+
+test("a request for features that cannot mean anything is refused, and a helper's reason is passed on and not saved", posixOnly, async () => {
+  const { folder, route, run, tuned } = await project();
+  const place = `${route}/runs/${run.id}/inspections`;
+  const good = { action: "features", modelId: tuned.id, prompt: "a", layer: 1, saeRelease: "r", saeId: "i" };
+  for (const [change, why] of [
+    [{ prompt: "" }, /prompt/],
+    [{ prompt: "z".repeat(4001) }, /longer/],
+    [{ layer: undefined }, /layer/],
+    [{ layer: -1 }, /layer/],
+    [{ layer: "one" }, /layer/],
+    [{ saeRelease: "" }, /names an SAE/],
+    [{ saeId: "" }, /names an SAE/],
+    [{ saePath: "folder" }, /twice/],
+    [{ expected: " x" }, /both/],
+    [{ alternative: " y" }, /both/],
+    [{ expected: " x", alternative: " x" }, /same/],
+    [{ ablate: 3 }, /margin/],
+    [{ ablate: "three", expected: " x", alternative: " y" }, /whole number/],
+  ]) {
+    const refused = await saturn.call("POST", place, { ...good, ...change });
+    assert.equal(refused.status, 400, JSON.stringify(change).slice(0, 60));
+    assert.match(JSON.stringify(refused.body), why);
+  }
+  assert.equal((await saturn.call("POST", `${route}/runs/run_0000000000000000/inspections`, good)).status, 404);
+
+  const missing = await saturn.call("POST", place, { ...good, prompt: "no-kit" });
+  assert.equal(missing.status, 422);
+  assert.match(missing.body.error, /^sae_lens is not installed/, "the reason itself, not a failure around it");
+  const failed = await saturn.call("POST", place, { ...good, prompt: "boom" });
+  assert.equal(failed.status, 422);
+  assert.match(failed.body.error, /a traceback/);
+  const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id)).then((names) => names.includes("inside"));
+  assert.equal(saved, false, "neither is kept, so asking again after installing runs");
+});
+
+test("an SAE in a local folder is asked about afresh when its files change", posixOnly, async () => {
+  const { folder, route, run, tuned } = await project();
+  const place = `${route}/runs/${run.id}/inspections`;
+  const asked = { action: "features", modelId: tuned.id, prompt: "a", layer: 1, saePath: "saes/one" };
+  const absent = await saturn.call("POST", place, asked);
+  assert.equal(absent.status, 422);
+  assert.match(absent.body.error, /no SAE folder at saes\/one/);
+  await mkdir(path.join(folder, "saes/one"), { recursive: true });
+  await writeFile(path.join(folder, "saes/one/cfg.json"), "{}");
+  const first = await saturn.api("POST", place, asked);
+  assert.equal(first.sae.path, "saes/one");
+  assert.equal(JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8")).sae.path, "saes/one");
+  assert.equal((await saturn.api("POST", place, asked)).recordedAt, first.recordedAt);
+  await writeFile(path.join(folder, "saes/one/weights.safetensors"), "trained again");
+  const fresh = await saturn.api("POST", place, asked);
+  assert.notEqual(fresh.key, first.key);
+});
+
+test("the real helper says when sae_lens is missing or an SAE reads another layer", { ...posixOnly, skip: posixOnly.skip || spawnSync("python3", ["--version"]).error ? "needs python3" : false }, async () => {
+  const { folder, route, run, tuned } = await project();
+  const place = `${route}/runs/${run.id}/inspections`;
+  // A real interpreter runs the helper, with just enough of torch and transformers to reach what is being tested.
+  await writeFile(path.join(folder, "python"), `#!/bin/sh\nexec python3 "$@"\n`);
+  await writeFile(path.join(folder, "torch.py"), `float32 = "float32"\ndef no_grad():\n    return lambda function: function\n`);
+  await writeFile(path.join(folder, "transformers.py"), `class Config:\n    num_hidden_layers = 4\nclass Model:\n    config = Config()\n    def eval(self):\n        return self\nclass AutoModelForCausalLM:\n    @staticmethod\n    def from_pretrained(*args, **kwargs):\n        return Model()\nclass AutoTokenizer:\n    @staticmethod\n    def from_pretrained(*args, **kwargs):\n        return object()\n`);
+  await writeFile(path.join(folder, "sae_lens.py"), `raise ModuleNotFoundError("No module named 'sae_lens'", name="sae_lens")\n`);
+  const good = { action: "features", modelId: tuned.id, prompt: "a", layer: 1, saeRelease: "r", saeId: "blocks.1.hook_resid_post" };
+  const missing = await saturn.call("POST", place, good);
+  assert.equal(missing.status, 422, JSON.stringify(missing.body));
+  assert.match(missing.body.error, /^sae_lens is not installed in this project's Python\. Install the Interpretability kit on the Environment screen\.$/);
+
+  await writeFile(path.join(folder, "sae_lens.py"), `class Config:\n    def __init__(self, hook_name):\n        self.hook_name = hook_name\nclass SAE:\n    def __init__(self, hook_name):\n        self.cfg = Config(hook_name)\n    @staticmethod\n    def from_pretrained(release, sae_id, device):\n        if release == "bad":\n            raise ValueError("no such release")\n        return SAE(sae_id)\n`);
+  for (const [change, why] of [
+    [{ layer: 2 }, /reads blocks\.1\.hook_resid_post, the residual stream leaving layer 1, but layer 2 was asked for/],
+    [{ layer: 9 }, /has layers 0 to 3/],
+    [{ layer: 7, saeId: "blocks.8.hook_resid_pre" }, /has layers 0 to 3/],
+    [{ layer: 2, saeId: "blocks.2.hook_resid_pre" }, /leaving layer 1, but layer 2/],
+    [{ saeId: "blocks.1.attn.hook_z" }, /not a residual stream between blocks/],
+    [{ layer: 0, saeId: "blocks.0.hook_resid_pre" }, /embeddings before the first block/],
+    [{ saeRelease: "bad" }, /could not be loaded: no such release/],
+  ]) {
+    const refused = await saturn.call("POST", place, { ...good, ...change });
+    assert.equal(refused.status, 422, JSON.stringify(change));
+    assert.match(refused.body.error, why);
+  }
 });
 
 test("a sweep patches every layer on several samples in one helper process, and is saved with the run", posixOnly, async () => {

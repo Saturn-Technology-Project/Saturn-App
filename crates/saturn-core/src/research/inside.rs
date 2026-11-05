@@ -1,7 +1,7 @@
-//! Looking inside a model on one sample: activations read through the unembedding, and one layer patched in from
-//! another model. The work is done by a Python helper in the project's own environment, and the answer is saved with
+//! Looking inside a model on one sample: activations read through the unembedding, one layer patched in from another
+//! model, and one layer read through a sparse autoencoder. The work is done by a Python helper in the project's own environment, and the answer is saved with
 //! the run. `docs/research-contract.md` says the shapes.
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use saturn_domain::research::{SCHEMA_VERSION, is_id, sha256_hex};
@@ -20,6 +20,8 @@ const HELPER: &str = include_str!("inside.py");
 /// What prompts of the person's own are looked at with. It goes after the helper's functions, without its start, and apart
 /// from it so that this does not mark results of the helper as made by an earlier one.
 const PROMPTS_HELPER: &str = include_str!("inside_prompts.py");
+/// What sparse-autoencoder features are read with, composed the same way, so that neither marks the other's results.
+const FEATURES_HELPER: &str = include_str!("inside_features.py");
 /// The longest prompt a request may carry, in characters. The helper limits its tokens.
 const MAX_PROMPT: usize = 4000;
 /// The folder in a run's directory where its answers are kept.
@@ -36,10 +38,28 @@ fn asked_model(request: &Value) -> Option<&str> {
         .filter(|id| !id.is_empty())
 }
 
+/// The helper's functions without its start, for what is composed with them.
+fn helper_functions() -> &'static str {
+    HELPER.split("\nif __name__").next().unwrap_or(HELPER)
+}
+
 /// The whole program for prompts of the person's own.
 fn prompts_helper() -> String {
-    let functions = HELPER.split("\nif __name__").next().unwrap_or(HELPER);
-    format!("{functions}\n{PROMPTS_HELPER}")
+    format!("{}\n{PROMPTS_HELPER}", helper_functions())
+}
+
+/// The whole program for sparse-autoencoder features.
+fn features_helper() -> String {
+    format!("{}\n{FEATURES_HELPER}", helper_functions())
+}
+
+/// The program that answers an inspection of a given action.
+fn inspection_helper(action: &str) -> String {
+    if action == "features" {
+        features_helper()
+    } else {
+        prompts_helper()
+    }
 }
 
 /// A required text of a request, with its length checked.
@@ -55,6 +75,81 @@ fn prompt_field<'a>(request: &'a Value, name: &str) -> Result<&'a str, CoreError
         ));
     }
     Ok(value)
+}
+
+/// Which SAE a request names: a release of SAELens and an id in it, or a folder of the project's or the person's own.
+fn asked_sae(request: &Value) -> Result<Value, CoreError> {
+    let (release, id, path) = (
+        text(request, "saeRelease"),
+        text(request, "saeId"),
+        text(request, "saePath"),
+    );
+    if !path.is_empty() {
+        if !release.is_empty() || !id.is_empty() {
+            return Err(CoreError::new(
+                400,
+                "This names an SAE twice: a saeRelease and saeId, or a saePath, not both.",
+            ));
+        }
+        return Ok(json!({ "path": prompt_field(request, "saePath")? }));
+    }
+    if release.is_empty() || id.is_empty() {
+        return Err(CoreError::new(
+            400,
+            "This names an SAE: a saeRelease and saeId, or a saePath.",
+        ));
+    }
+    Ok(json!({
+        "release": prompt_field(request, "saeRelease")?,
+        "id": prompt_field(request, "saeId")?,
+    }))
+}
+
+/// What a request for features asks the helper, once it is known to make sense, without the weights.
+fn features_question(request: &Value, model: &str) -> Result<Value, CoreError> {
+    let layer = request
+        .get("layer")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| CoreError::new(400, "This names a \"layer\", a whole number."))?;
+    let (expected, alternative) = (text(request, "expected"), text(request, "alternative"));
+    if expected.is_empty() != alternative.is_empty() {
+        return Err(CoreError::new(
+            400,
+            "A margin takes two words: name both expected and alternative, or neither.",
+        ));
+    }
+    if !expected.is_empty() {
+        prompt_field(request, "expected")?;
+        prompt_field(request, "alternative")?;
+        if expected == alternative {
+            return Err(CoreError::new(
+                400,
+                "The expected word and its alternative are the same.",
+            ));
+        }
+    }
+    let ablate = match request.get("ablate") {
+        None | Some(Value::Null) => None,
+        Some(feature) => Some(feature.as_u64().ok_or_else(|| {
+            CoreError::new(400, "\"ablate\" names a feature by its whole number.")
+        })?),
+    };
+    if ablate.is_some() && expected.is_empty() {
+        return Err(CoreError::new(
+            400,
+            "Ablating a feature is read by the margin between two words: name expected and alternative.",
+        ));
+    }
+    Ok(json!({
+        "action": "features",
+        "modelId": model,
+        "prompt": prompt_field(request, "prompt")?,
+        "layer": layer,
+        "sae": asked_sae(request)?,
+        "expected": Some(expected).filter(|word| !word.is_empty()),
+        "alternative": Some(alternative).filter(|word| !word.is_empty()),
+        "ablate": ablate,
+    }))
 }
 
 /// What a request about prompts asks the helper, once it is known to make sense, without the weights.
@@ -102,6 +197,7 @@ fn prompts_question(request: &Value) -> Result<Value, CoreError> {
                 "layers": request.get("layers"),
             }))
         }
+        "features" => features_question(request, model),
         other => Err(CoreError::new(
             400,
             format!("There is nothing to do called \"{other}\"."),
@@ -124,6 +220,31 @@ fn weights(version: &Value, model_id: &str) -> Option<Value> {
         .flatten()
         .find(|model| text(model, "modelId") == model_id)
         .map(weights_of)
+}
+
+/// The files in an SAE's folder by name, size and time, so that an SAE trained again under the same path is asked about
+/// afresh rather than answered from what the old one said.
+async fn sae_files(folder: &Path, asked: &str) -> Result<Value, CoreError> {
+    let missing = || CoreError::new(422, format!("There is no SAE folder at {asked}."));
+    let mut entries = tokio::fs::read_dir(folder).await.map_err(|_| missing())?;
+    let mut files = Vec::new();
+    while let Some(entry) = entries.next_entry().await? {
+        let details = tokio::fs::metadata(entry.path()).await?;
+        if details.is_file() {
+            let changed = details
+                .modified()
+                .ok()
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|since| since.as_millis() as u64);
+            files.push((
+                entry.file_name().to_string_lossy().into_owned(),
+                details.len(),
+                changed,
+            ));
+        }
+    }
+    files.sort();
+    Ok(json!(files))
 }
 
 impl Kernel {
@@ -257,9 +378,9 @@ impl Kernel {
         Ok(answer)
     }
 
-    /// Looks at prompts of the person's own rather than a run's samples: two models read on one prompt, or a clean prompt
-    /// patched into a corrupted one at every layer and position. The run says which Python and weights; the answer is saved
-    /// with it, and given again without running when asked the same thing.
+    /// Looks at prompts of the person's own rather than a run's samples: two models read on one prompt, a clean prompt
+    /// patched into a corrupted one at every layer and position, or one layer read through a sparse autoencoder. The run
+    /// says which Python and weights; the answer is saved with it, and given again without running when asked the same thing.
     pub async fn research_inspection(
         &self,
         project: &str,
@@ -276,7 +397,19 @@ impl Kernel {
             return Err(CoreError::new(404, "No such run"));
         }
         let mut ask = prompts_question(request)?;
-        let helper = prompts_helper();
+        if let Some(path) = ask.pointer("/sae/path").and_then(Value::as_str) {
+            let path = path.to_owned();
+            let run = self.research_run(project, run_id).await?;
+            let version = self
+                .research_record(project, "versions", text(&run, "versionId"))
+                .await?;
+            let folder = self
+                .research_source(project, None)?
+                .join(text(&version, "cwd"))
+                .join(&path);
+            ask["sae"]["files"] = sae_files(&folder, &path).await?;
+        }
+        let helper = inspection_helper(text(&ask, "action"));
         let helper_sha = sha256_hex(helper.as_bytes());
         let key = sha256_hex(
             json!({ "helper": helper_sha, "ask": ask })
@@ -315,6 +448,10 @@ impl Kernel {
         let mut answer = self
             .run_helper(project, &version, &python, &ask, &helper)
             .await?;
+        // A reason it cannot be answered yet, such as a package to install: nothing to keep.
+        if let Some(reason) = answer.get("refused").and_then(Value::as_str) {
+            return Err(CoreError::new(422, reason));
+        }
         answer["action"] = ask["action"].clone();
         answer["helperSha256"] = json!(helper_sha);
         answer["schemaVersion"] = json!(SCHEMA_VERSION);
@@ -339,6 +476,7 @@ impl Kernel {
         let folder = records.join("runs").join(run).join(FOLDER);
         let helper = sha256_hex(HELPER.as_bytes());
         let prompts = sha256_hex(prompts_helper().as_bytes());
+        let features = sha256_hex(features_helper().as_bytes());
         let mut items = Vec::new();
         let mut entries = match tokio::fs::read_dir(&folder).await {
             Ok(entries) => entries,
@@ -361,7 +499,13 @@ impl Kernel {
                 } else {
                     json!("reading")
                 };
-                let made_by = if inspection { &prompts } else { &helper };
+                let made_by = if !inspection {
+                    &helper
+                } else if text(&saved, "action") == "features" {
+                    &features
+                } else {
+                    &prompts
+                };
                 saved["current"] = json!(text(&saved, "helperSha256") == made_by);
                 items.push(saved);
             }

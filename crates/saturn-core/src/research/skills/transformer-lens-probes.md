@@ -4,7 +4,7 @@ description: Write custom interpretability experiments with hooks when the built
 ---
 # Custom probes
 
-`research_inspect` covers reading, patching between models, and patching between two prompts. For anything else, write an experiment. The `interpretability` kit has `transformer_lens`, `sae_lens` and `einops`.
+`research_inspect` covers reading, patching between models, patching between two prompts, and reading a prompt through a sparse autoencoder. For anything else, write an experiment. The `interpretability` kit has `transformer_lens`, `sae_lens` and `einops`.
 
 ## Loading
 ```python
