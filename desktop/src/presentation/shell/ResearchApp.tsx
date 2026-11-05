@@ -5,7 +5,7 @@ import type { Model, Profile, Project } from "../../domain/model.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
 import { AccessDialog, chooseFolder } from "../ProjectAccess.js";
-import { AssistantIcon, BoxIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, InspectIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
+import { AssistantIcon, BoxIcon, CodeIcon, DataIcon, FlaskIcon, GearIcon, HomeIcon, InspectIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
 import { Badge } from "../ui/base/Badge.js";
 import { Button } from "../ui/base/Button.js";
 import { Choice } from "../ui/base/Field.js";
@@ -29,6 +29,7 @@ const SCREEN_ICONS: Record<Screen, ReactNode> = {
   Lineage: <LineageIcon />,
   Experiments: <FlaskIcon />,
   Samples: <SamplesIcon />,
+  Data: <DataIcon />,
   Inspect: <InspectIcon />,
   Tasks: <TasksIcon />,
   Protection: <ShieldIcon />,
@@ -130,7 +131,7 @@ export function ResearchApp() {
       } else if (command && event.key.toLowerCase() === "j") {
         event.preventDefault();
         toggleAssistant();
-      } else if (command && /^[1-8]$/.test(event.key)) {
+      } else if (command && /^[1-9]$/.test(event.key)) {
         event.preventDefault();
         go(SCREENS[Number(event.key) - 1]);
       }
@@ -168,7 +169,7 @@ export function ResearchApp() {
 
   const commands = useMemo<PaletteCommand[]>(
     () => [
-      ...SCREENS.map((item, index) => ({ id: `go-${item}`, label: `Go to ${item}`, hint: `⌘${index + 1}`, run: () => go(item) })),
+      ...SCREENS.map((item, index) => ({ id: `go-${item}`, label: `Go to ${item}`, hint: index < 9 ? `⌘${index + 1}` : "", run: () => go(item) })),
       ...projects.filter((item) => item.id !== projectId).map((item) => ({ id: `project-${item.id}`, label: `Switch to ${item.name}`, run: () => void chooseProject(item.id) })),
       { id: "add-project", label: "Add a project folder", run: () => void addProject() },
       { id: "assistant", label: assistant ? "Hide the research assistant" : "Show the research assistant", hint: "⌘J", run: toggleAssistant },
@@ -218,7 +219,7 @@ export function ResearchApp() {
       <nav className="flex w-[148px] flex-none flex-col gap-0.5 border-r border-border bg-panel px-2 pt-1.5 pb-2 max-[1080px]:w-[72px]" aria-label="Screens" data-tour="rail">
         <div className="h-[34px] flex-none [--app-region:drag]" />
         {SCREENS.map((item, index) => (
-          <button type="button" key={item} className={RAIL_ITEM} title={item} data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={`Meta+${index + 1}`} onClick={() => go(item)}>
+          <button type="button" key={item} className={RAIL_ITEM} title={item} data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={index < 9 ? `Meta+${index + 1}` : undefined} onClick={() => go(item)}>
             {SCREEN_ICONS[item]}
             <span className="max-[1080px]:sr-only">{item}</span>
           </button>
