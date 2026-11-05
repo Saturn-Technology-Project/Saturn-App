@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { controlCeiling, promptPatchText, readingDifference, restoredByLayer, strongestPatch, type ExperimentRun, type InsideItem, type ModelCompareView, type ModelNode, type PromptPatchView } from "../../domain/research.js";
+import { ablationText, controlCeiling, featurePeaks, featuresText, promptPatchText, readingDifference, reconstructionIsPoor, restoredByLayer, signedText, strongestPatch, type ExperimentRun, type FeaturesView, type InsideItem, type ModelCompareView, type ModelNode, type PromptPatchView } from "../../domain/research.js";
 import { ActivationGrid } from "../samples/LookInside.js";
 import { Button } from "../ui/base/Button.js";
 import { Input } from "../ui/base/Input.js";
@@ -13,9 +13,9 @@ import { Empty, messageOf, Page } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
 
 const service = desktop.research;
-const VIEWS = ["Two prompts", "Two models", "Recorded"] as const;
+const VIEWS = ["Two prompts", "Two models", "Features", "Recorded"] as const;
 type View = (typeof VIEWS)[number];
-const KIND_LABELS: Record<InsideItem["kind"], string> = { reading: "Activations", sweep: "Layer sweep", compare: "Two models", prompts: "Two prompts" };
+const KIND_LABELS: Record<InsideItem["kind"], string> = { reading: "Activations", sweep: "Layer sweep", compare: "Two models", prompts: "Two prompts", features: "Features" };
 
 /** A recorded look inside, with the run it is kept with. */
 type Recorded = InsideItem & { runId: string };
@@ -79,6 +79,7 @@ export function Inspect(props: ScreenProps) {
       </div>
       {view === "Two prompts" && chosenRun ? <TwoPrompts projectId={projectId} run={chosenRun} models={models} sent={sent} notify={props.notify} onDone={refresh} onRecord={record} /> : null}
       {view === "Two models" && chosenRun ? <TwoModels projectId={projectId} run={chosenRun} models={models} sent={sent} notify={props.notify} onDone={refresh} /> : null}
+      {view === "Features" && chosenRun ? <Features projectId={projectId} run={chosenRun} models={models} sent={sent} onDone={refresh} onRecord={record} /> : null}
       {view === "Recorded" ? <RecordedList items={value?.recorded ?? []} models={models} /> : null}
     </Page>
   );
@@ -238,6 +239,173 @@ function CompareResult(props: { view: ModelCompareView; models: ModelNode[] }) {
   );
 }
 
+/** Where an SAE comes from: a release of SAELens, or a folder. */
+const SAE_SOURCES = [{ value: "release", label: "SAELens release" }, { value: "path", label: "Local folder" }];
+
+/** One layer on one prompt read through a sparse autoencoder, with one feature set to zero if asked. */
+function Features(props: { projectId: string; run: ExperimentRun; models: ModelNode[]; sent: Sent; onDone: () => Promise<void> | void; onRecord: (text: string, run: string) => Promise<void> }) {
+  const [modelId, setModelId] = useState(props.sent?.modelId ?? "");
+  const [prompt, setPrompt] = useState(props.sent?.input ?? "");
+  const [layer, setLayer] = useState("");
+  const [source, setSource] = useState("release");
+  const [release, setRelease] = useState("");
+  const [saeId, setSaeId] = useState("");
+  const [path, setPath] = useState("");
+  const [expected, setExpected] = useState(props.sent?.expected ?? "");
+  const [alternative, setAlternative] = useState(props.sent?.alternative ?? "");
+  const [ablate, setAblate] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [answer, setAnswer] = useState<FeaturesView | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const named = source === "path" ? Boolean(path.trim()) : Boolean(release.trim() && saeId.trim());
+  const margin = Boolean(expected && alternative);
+
+  async function run() {
+    setBusy(true);
+    setProblem(null);
+    try {
+      setAnswer(await service.readFeatures(props.projectId, props.run.id, {
+        modelId,
+        prompt,
+        layer: Number(layer),
+        ...(source === "path" ? { saePath: path.trim() } : { saeRelease: release.trim(), saeId: saeId.trim() }),
+        ...(margin ? { expected, alternative } : {}),
+        ...(margin && ablate ? { ablate: Number(ablate) } : {}),
+      }));
+      await props.onDone();
+    } catch (error) {
+      setAnswer(null);
+      setProblem(messageOf(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mt-3 flex flex-col gap-3 rounded-lg bg-card p-4">
+      <h2 className="mt-0! text-sm font-semibold">What does a sparse autoencoder find at this layer?</h2>
+      <div className="text-xs text-muted-foreground">The SAE must have been made for this model's residual stream. Layer counts as in a patch: layer 7 is the stream leaving block 7, which SAELens calls blocks.8.hook_resid_pre or blocks.7.hook_resid_post.</div>
+      <Field label="Prompt"><Textarea value={prompt} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setPrompt(event.target.value)} /></Field>
+      <div className="flex flex-wrap items-end gap-3">
+        <ModelChoice label="Model" models={props.models} value={modelId} onChange={setModelId} />
+        <Field label="Layer" className="w-20"><Input value={layer} inputMode="numeric" placeholder="7" onChange={(event) => setLayer(event.target.value.replace(/\D/g, ""))} /></Field>
+        <Choice label="SAE from" className="w-40" value={source} options={SAE_SOURCES} onChange={setSource} />
+        {source === "path" ? (
+          <Field label="Folder" className="w-72"><Input value={path} placeholder="saes/layer-7" onChange={(event) => setPath(event.target.value)} /></Field>
+        ) : (
+          <>
+            <Field label="Release" className="w-44"><Input value={release} placeholder="gpt2-small-res-jb" onChange={(event) => setRelease(event.target.value)} /></Field>
+            <Field label="SAE id" className="w-52"><Input value={saeId} placeholder="blocks.8.hook_resid_pre" onChange={(event) => setSaeId(event.target.value)} /></Field>
+          </>
+        )}
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="Expected word, if any" className="w-40"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
+        <Field label="Against" className="w-32"><Input value={alternative} placeholder=" John" onChange={(event) => setAlternative(event.target.value)} /></Field>
+        <Field label="Feature to ablate, if any" className="w-44"><Input value={ablate} inputMode="numeric" disabled={!margin} placeholder={margin ? "a feature's id" : "needs both words"} onChange={(event) => setAblate(event.target.value.replace(/\D/g, ""))} /></Field>
+        <Button disabled={busy || !modelId || !prompt.trim() || !layer || !named || Boolean(expected) !== Boolean(alternative)} onClick={() => void run()}>
+          {busy ? "Reading…" : ablate && margin ? `Read and ablate feature ${ablate}` : "Read features"}
+        </Button>
+      </div>
+      {problem ? <Notice tone="bad">{problem}</Notice> : null}
+      {answer ? <FeaturesResult view={answer} models={props.models} onPick={margin ? (feature) => setAblate(String(feature)) : undefined} onRecord={(text) => props.onRecord(text, props.run.id)} /> : null}
+    </section>
+  );
+}
+
+const CELL = "border-t border-border px-2 py-1 text-left align-top";
+const HEAD = "px-2 py-1 text-left font-medium whitespace-nowrap text-muted-foreground";
+
+/** How well a prompt was rebuilt, the features found by id with what activates them here, and an ablation read against its control. */
+function FeaturesResult(props: { view: FeaturesView; models: ModelNode[]; onPick?: (feature: number) => void; onRecord?: (text: string) => Promise<void> }) {
+  const { view, models } = props;
+  const { reconstruction, sae } = view;
+  const name = modelName(models, view.modelId);
+  const peaks = featurePeaks(view);
+  const explained = reconstruction.varianceExplained;
+  return (
+    <>
+      <div>
+        {explained === null ? "One token has no variance to explain." : `The SAE explains ${(explained * 100).toFixed(1)}% of the variance on this prompt.`}{" "}
+        <span className="text-xs text-muted-foreground">Relative error {reconstruction.relativeError}, {reconstruction.meanActiveFeatures} features active per token. {name} ends on {JSON.stringify(view.top)}.</span>
+      </div>
+      {reconstructionIsPoor(view) ? <Notice tone="wait">This SAE rebuilds the prompt poorly, so its features say little here. It may have been made for other weights.</Notice> : null}
+      <div className="text-xs text-muted-foreground">
+        {sae.path ?? `${sae.release} / ${sae.id}`}: reads {sae.hookName}, {sae.width} features{sae.trainedOn ? `, trained on ${sae.trainedOn}` : ""}.
+        {sae.startTokenAdded ? " A start token was added, as it was trained with." : ""}
+        {sae.centered ? " The stream's mean over dimensions was removed, as it was trained without; the model's LayerNorms ignore it." : ""}
+        {reconstruction.tokensLeftOut ? ` ${reconstruction.tokensLeftOut} special token${reconstruction.tokensLeftOut === 1 ? " is" : "s are"} left out and left as they were.` : ""}
+      </div>
+      <FeatureEffects view={view} />
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-xs" aria-label="The strongest features at each token">
+          <thead><tr><th scope="col" className={HEAD}>Token</th><th scope="col" className={HEAD}>Strongest features, with activation</th></tr></thead>
+          <tbody>
+            {view.tokens.map((token, position) => (
+              <tr key={`${position}-${token}`}>
+                <th scope="row" className={`${CELL} font-medium whitespace-nowrap`}><code>{token}</code></th>
+                <td className={CELL}>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {view.features[position]?.length ? view.features[position].map(({ feature, activation }) => (
+                      <span key={feature} className="whitespace-nowrap">
+                        {props.onPick ? <button type="button" className="text-foreground underline underline-offset-2" aria-label={`Choose feature ${feature} to ablate`} onClick={() => props.onPick?.(feature)}>{feature}</button> : feature}{" "}
+                        <span className="text-muted-foreground">{activation.toFixed(1)}</span>
+                      </span>
+                    )) : <span className="text-muted-foreground">Not read</span>}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <details>
+        <summary className="text-xs text-muted-foreground">Each feature, and what activates it here</summary>
+        <div className="mt-1 flex flex-col gap-0.5 text-xs">
+          {peaks.map((item) => <div key={item.feature}>{item.feature} <span className="text-muted-foreground">peaks at {item.peak.toFixed(1)}, at {item.tokens.map((token) => JSON.stringify(token)).join(", ")}</span></div>)}
+        </div>
+      </details>
+      <div className="text-xs text-muted-foreground">A feature here is its number and the tokens above, not a name: a label would be a guess until it is tested. Numbers belong to this SAE on these weights, so features are not compared across models. One prompt is one case, not a measurement.</div>
+      {props.onRecord ? <Button variant="outline" className="w-fit" onClick={() => void props.onRecord?.(featuresText(view, name))}>Record as an observation</Button> : null}
+    </>
+  );
+}
+
+/** What splicing the reconstruction did to the margin, and a feature set to zero beside its control. */
+function FeatureEffects(props: { view: FeaturesView }) {
+  const { margins, ablation, expected, alternative } = props.view;
+  if (!margins) return null;
+  const row = (what: string, margin: number, change: number) => (
+    <tr>
+      <th scope="row" className={`${CELL} font-medium`}>{what}</th>
+      <td className={CELL}>{margin}</td>
+      <td className={CELL}>{signedText(change)}</td>
+    </tr>
+  );
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-xs" aria-label={`The margin of ${expected} over ${alternative}`}>
+          <thead>
+            <tr>
+              <th scope="col" className={HEAD}>Margin of {JSON.stringify(expected)} over {JSON.stringify(alternative)}</th>
+              <th scope="col" className={HEAD}>Margin</th>
+              <th scope="col" className={HEAD}>Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row" className={`${CELL} font-medium`}>The model as it is</th><td className={CELL}>{margins.plain}</td><td className={CELL} /></tr>
+            {row("Unmodified reconstruction spliced in, from the model as it is", margins.spliced, margins.spliceChange)}
+            {ablation ? row(`Feature ${ablation.feature} set to zero (activation up to ${ablation.activation}), from the reconstruction`, ablation.margin, ablation.change) : null}
+            {ablation?.control ? row(`Control: random feature ${ablation.control.feature} set to zero (activation up to ${ablation.control.activation}), from the reconstruction`, ablation.control.margin, ablation.control.change) : null}
+          </tbody>
+        </table>
+      </div>
+      {ablation ? <div>{ablationText(props.view)}</div> : null}
+    </>
+  );
+}
+
 /** Everything looked at in this project, newest first, wherever it was asked. */
 function RecordedList(props: { items: Recorded[]; models: ModelNode[] }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -265,6 +433,7 @@ function describe(item: Recorded, models: ModelNode[]): string {
   if (item.kind === "sweep") return `${modelName(models, item.sourceModelId)} into ${modelName(models, item.targetModelId)}, ${item.samples.length} samples`;
   if (item.kind === "compare") return `${modelName(models, item.modelId)} against ${modelName(models, item.otherModelId)}`;
   if (item.kind === "prompts") return modelName(models, item.modelId);
+  if (item.kind === "features") return `${modelName(models, item.modelId)}, layer ${item.layer}, ${item.sae.path ?? `${item.sae.release} / ${item.sae.id}`}`;
   return `${modelName(models, item.modelId)} on ${item.sampleId}`;
 }
 
@@ -273,6 +442,7 @@ function RecordedItem(props: { item: Recorded; models: ModelNode[] }) {
   const { item, models } = props;
   if (item.kind === "prompts") return <PatchResult view={item} models={models} />;
   if (item.kind === "compare") return <CompareResult view={item} models={models} />;
+  if (item.kind === "features") return <FeaturesResult view={item} models={models} />;
   if (item.kind === "sweep") {
     const totals = restoredByLayer(item);
     return <div className="text-xs text-muted-foreground">Restored of {item.samples.length}, by layer {item.layers.join(", ")}: {totals.join(" ")}. The Experiments screen shows it sample by sample.</div>;

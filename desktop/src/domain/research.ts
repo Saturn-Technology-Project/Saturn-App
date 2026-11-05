@@ -446,6 +446,103 @@ export function strongestPatch(view: PromptPatchView): { layer: number; token: s
   return best;
 }
 
+/** One layer on one prompt read through a sparse autoencoder: its strongest features per token, by id, and how well it rebuilt the prompt. */
+export interface FeaturesView {
+  modelId: string;
+  layer: number;
+  tokens: string[];
+  top: string;
+  sae: { release: string | null; id: string | null; path: string | null; hookName: string; width: number; trainedOn: string | null; startTokenAdded: boolean; centered: boolean };
+  reconstruction: { varianceExplained: number | null; relativeError: number; meanActiveFeatures: number; tokensLeftOut: number };
+  /** The strongest firing features at each token. A special token has none: an SAE is not read there. */
+  features: { feature: number; activation: number }[][];
+  expected: string | null;
+  alternative: string | null;
+  /** The margin as the model has it, and with the unmodified reconstruction spliced in. */
+  margins: { plain: number; spliced: number; spliceChange: number } | null;
+  ablation: (FeatureEffect & { control: FeatureEffect | null; controlSeed: number }) | null;
+  recordedAt?: string;
+}
+
+/** A feature set to zero at every token: its strongest activation, the margin, and how far that is from the reconstruction's. */
+export interface FeatureEffect {
+  feature: number;
+  activation: number;
+  margin: number;
+  change: number;
+}
+
+/** Below this share of variance explained, a prompt's features say little. A rule of thumb, shown as one. */
+export const POOR_RECONSTRUCTION = 0.5;
+
+/** Whether an SAE rebuilt a prompt too poorly for its features to say much. */
+export function reconstructionIsPoor(view: FeaturesView): boolean {
+  const explained = view.reconstruction.varianceExplained;
+  return explained === null ? view.reconstruction.relativeError > 0.5 : explained < POOR_RECONSTRUCTION;
+}
+
+/** Every feature seen on a prompt, strongest first: its peak, and the tokens it is among the strongest at. That is all that is known of it here. */
+export function featurePeaks(view: FeaturesView): { feature: number; peak: number; tokens: string[] }[] {
+  const found = new Map<number, { feature: number; peak: number; tokens: string[] }>();
+  view.features.forEach((row, position) => {
+    for (const { feature, activation } of row) {
+      const entry = found.get(feature) ?? { feature, peak: 0, tokens: [] };
+      entry.peak = Math.max(entry.peak, activation);
+      entry.tokens.push(view.tokens[position] ?? String(position));
+      found.set(feature, entry);
+    }
+  });
+  return [...found.values()].sort((left, right) => right.peak - left.peak);
+}
+
+/** How an ablation reads: beyond both the control and the error of splicing, or lost in one of them. No verdict on what the feature is. */
+export type AblationStanding = "beyond" | "control" | "splice" | "no-control";
+
+export function ablationStanding(view: FeaturesView): AblationStanding | null {
+  const { ablation, margins } = view;
+  if (!ablation || !margins) return null;
+  if (!ablation.control) return "no-control";
+  const size = Math.abs(ablation.change);
+  if (size <= Math.abs(ablation.control.change)) return "control";
+  if (size <= Math.abs(margins.spliceChange)) return "splice";
+  return "beyond";
+}
+
+const ABLATION_TEXT: Record<AblationStanding, string> = {
+  beyond: "That is further than both the control and the error of splicing.",
+  control: "That is no further than the control went, so it says nothing about this feature.",
+  splice: "It is further than the control, but no further than splicing alone moved the margin, so the error of the reconstruction could account for it.",
+  "no-control": "No other feature fires on this prompt, so there is no control to read it against.",
+};
+
+/** What an ablation came to, in a sentence, against what it must be read with. */
+export function ablationText(view: FeaturesView): string {
+  const standing = ablationStanding(view);
+  return standing ? ABLATION_TEXT[standing] : "";
+}
+
+/** What reading features found, in words fit to keep as an observation. Ids only, since a name would be a guess. */
+export function featuresText(view: FeaturesView, modelName: string): string {
+  const { reconstruction, sae, ablation, margins } = view;
+  const which = sae.path ?? `${sae.release} / ${sae.id}`;
+  const explained = reconstruction.varianceExplained === null ? "no variance to explain on one token" : `${percentText(reconstruction.varianceExplained)} of variance explained`;
+  const parts = [`SAE ${which} (${sae.hookName}) on ${modelName}, layer ${view.layer}: ${explained}, relative error ${reconstruction.relativeError}, ${reconstruction.meanActiveFeatures} features active per token.`];
+  if (reconstructionIsPoor(view)) parts.push("The reconstruction is poor, so the features say little.");
+  const strongest = featurePeaks(view).slice(0, 3).map((item) => `${item.feature} (${item.peak} at ${item.tokens.map((token) => JSON.stringify(token)).join(", ")})`);
+  if (strongest.length) parts.push(`Strongest features: ${strongest.join("; ")}.`);
+  if (ablation && margins) {
+    const control = ablation.control ? ` A random feature of similar activation, ${ablation.control.feature}, moved it ${signedText(ablation.control.change)}.` : "";
+    parts.push(`Margin of ${JSON.stringify(view.expected)} over ${JSON.stringify(view.alternative)}: ${margins.plain}, and ${margins.spliced} with the reconstruction spliced in, a change of ${signedText(margins.spliceChange)}. Ablating feature ${ablation.feature} moved it ${signedText(ablation.change)} from there.${control} ${ablationText(view)}`);
+  }
+  parts.push("A prompt typed by hand, one case: not a measurement of the model in general.");
+  return parts.join(" ");
+}
+
+/** A change with its sign, so a fall and a rise read apart. */
+export function signedText(value: number): string {
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
 /** What a patch across prompts found, in words fit to keep as an observation. */
 export function promptPatchText(view: PromptPatchView, modelName: string): string {
   const best = strongestPatch(view);
@@ -472,7 +569,7 @@ export function sweepMeasure(view: SweepView): RestoreMeasure {
 export const RESTORE_MEASURE_TEXT: Record<RestoreMeasure, string> = { margin: "by logit margin", top: "by top token" };
 
 /** One thing saved under a run's inside folder: a reading of one sample, or a sweep. */
-export type InsideItem = (({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView) | ({ kind: "compare" } & ModelCompareView) | ({ kind: "prompts" } & PromptPatchView)) & {
+export type InsideItem = (({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView) | ({ kind: "compare" } & ModelCompareView) | ({ kind: "prompts" } & PromptPatchView) | ({ kind: "features" } & FeaturesView)) & {
   /** Whether this runtime's helper made it; a corrected helper leaves earlier results in place. */
   current?: boolean;
   /** What names it among a run's records. */

@@ -81,7 +81,7 @@ To change one for a project, put a skill of the same name in `.saturn/skills/<na
 | `activation-patching` | Test causally by moving a layer's state between models, within what a residual transplant can show. Read before making a mechanism claim. |
 | `layer-sweeps` | Patch every layer on a set of samples to see where behavior returns. Read when asking where in the model a difference lives. |
 | `transformer-lens-probes` | Write custom interpretability experiments with hooks when the built-in inspection is not enough. Read for attention, neuron or input-pair patching. |
-| `sparse-autoencoders` | Train or use sparse autoencoders on activations and judge them honestly. Read when decomposing a layer into features. |
+| `sparse-autoencoders` | Train or use sparse autoencoders on activations, read a prompt's features with research_inspect, and judge them honestly. Read when decomposing a layer into features. |
 
 ## Reporting
 

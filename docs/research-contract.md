@@ -188,6 +188,16 @@ environment that ran the experiment; a command that starts with anything else is
   "alternative","layers"?}` it restores each layer and position of the corrupted prompt from the clean one, and answers with
   `recovery`, the share of the margin between the prompts brought back, 0 none and 1 all, and `control`, the same for a random vector
   of the size of the difference at that place. It refuses prompts of different token counts, more than 64 tokens, and prompts with the same margin. These prompts are not samples: an answer is one case, not a measurement.
+  With `{"action":"features","modelId","prompt","layer", "saeRelease","saeId" or "saePath", "expected"?,"alternative"?,"ablate"?}` it
+  runs the residual stream leaving `layer` through a sparse autoencoder with `sae_lens`, and answers with `tokens`, `top`, `sae`
+  (`release`, `id`, `path`, `hookName`, `width`, `trainedOn`, `startTokenAdded`, `centered`), `reconstruction` (`varianceExplained`,
+  `relativeError`, `meanActiveFeatures`, `tokensLeftOut`) and `features`, up to 8 per token as `{"feature","activation"}`, by id with no
+  names. A local `saePath` is relative to the experiment's folder, and a change to its files makes it a new question. Special tokens are
+  not read and are left as they were. With both words it adds `margins` (`plain`, `spliced`, `spliceChange`, what splicing the unmodified
+  reconstruction in did), and with `ablate`, a feature's id, it adds `ablation` (`feature`, `activation`, `margin`, `change` from the spliced
+  margin, and `control`, the same for a random feature firing within a factor of two, or else the closest, with `controlSeed`). A change is
+  read only against both the control and `spliceChange`. A missing `sae_lens`, an SAE made for another hook point or width, a feature that
+  does not fire, and a prompt of more than 64 tokens are refused with 422 and the reason, and nothing is saved. Features are not compared across models.
 - `POST /projects/{id}/research/interventions/sweep` with `{"runId","sampleIds":[...],"sourceModelId",
   "targetModelId","layers"?}` does the patch at every layer (or the ones named) on up to 32 samples in one helper
   process, both models loaded once, and answers `{"sourceModelId","targetModelId","layers":[...],"samples":[{"sampleId",
@@ -304,7 +314,7 @@ An agent with the built-in `research` server, which an agent has only when its l
 | `research_write` | Writes | Makes questions, hypotheses, experiments, models, findings and counterexamples, and changes them with `expectedRevision` |
 | `research_run` | Writes | Freezes an experiment from the chat's own folder, starts a version, stops a run |
 | `research_environment_action` | Writes | Checks, makes, fills and chooses the project's Python |
-| `research_inspect` | Writes | Activations, a patch, a sweep, two models on a prompt, and two prompts on a model |
+| `research_inspect` | Writes | Activations, a patch, a sweep, two models on a prompt, two prompts on a model, and a prompt's sparse-autoencoder features |
 | `research_task_start` | Writes | Starts a task: another agent on its own, in a separate worktree |
 | `research_task_read` | Reads | Lists tasks, reports on one, or waits until one ends or needs the person, for up to 600 seconds at a time |
 

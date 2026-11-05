@@ -334,6 +334,8 @@ test("the assistant can look at prompts of its own, under the same rules", posix
   const setup = await bed();
   assert.match(await refused(setup, "research_inspect", { action: "prompts", runId: "run_0000000000000000", modelId: "m", clean: "a", corrupted: "a", expected: " x", alternative: " y" }), /same/);
   assert.match(await refused(setup, "research_inspect", { action: "compare", runId: "run_0000000000000000", modelId: "m", otherModelId: "m", input: "a" }), /different models/);
+  assert.match(await refused(setup, "research_inspect", { action: "features", runId: "run_0000000000000000", modelId: "m", prompt: "a", layer: 1 }), /names an SAE/);
+  assert.match(await refused(setup, "research_inspect", { action: "features", runId: "run_0000000000000000", modelId: "m", prompt: "a", layer: 1, saeRelease: "r", saeId: "i", ablate: 3 }), /margin/);
 });
 
 test("a turn with the research tools goes on past the usual limit on tool steps", async () => {

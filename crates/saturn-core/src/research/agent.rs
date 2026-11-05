@@ -578,7 +578,9 @@ impl Kernel {
                 self.research_look_inside(project, run, arguments).await
             }
             "sweep" => self.research_sweep(project, arguments).await,
-            "compare" | "prompts" => self.research_inspection(project, run, arguments).await,
+            "compare" | "prompts" | "features" => {
+                self.research_inspection(project, run, arguments).await
+            }
             other => return Err(format!("research_inspect has no action \"{other}\".")),
         }
         .map_err(said)

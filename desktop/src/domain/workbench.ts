@@ -82,7 +82,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: "rail-Inspect",
     screen: "Inspect",
     title: "Inspect: inside a model",
-    text: "Type two prompts to see which layer and position carries the answer, read against a random control, or read two models on one prompt to see where they part. Everything already looked at in the project is listed here. A prompt typed here is one case, not a measurement.",
+    text: "Type two prompts to see which layer and position carries the answer, read against a random control, read two models on one prompt to see where they part, or read a layer through a sparse autoencoder. Everything already looked at in the project is listed here. A prompt typed here is one case, not a measurement.",
   },
   {
     id: "tasks",
