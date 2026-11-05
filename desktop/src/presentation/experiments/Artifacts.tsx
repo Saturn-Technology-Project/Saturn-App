@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import type { ArtifactContent, ResearchArtifact } from "../../domain/research.js";
+import { artifactsInContext } from "../../domain/research.js";
 import type { Screen } from "../shell/navigation.js";
 import { Button } from "../ui/base/Button.js";
 import { Choice, Field } from "../ui/base/Field.js";
@@ -18,7 +19,8 @@ export function Artifacts(props: { projectId: string; runId?: string; inspection
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<ResearchArtifact | null>(null);
   const [content, setContent] = useState<ArtifactContent | null>(null);
-  const items = (value?.items ?? []).filter((item) => (!props.runId || item.runId === props.runId) && (!props.inspectionId || item.inspectionId === props.inspectionId));
+  const [all, setAll] = useState(false);
+  const items = artifactsInContext(value?.items ?? [], props.runId, props.inspectionId, all);
   async function register(manifest: boolean) {
     setBusy(true);
     try {
@@ -41,6 +43,7 @@ export function Artifacts(props: { projectId: string; runId?: string; inspection
   }
   return <details className="my-3 rounded-lg border border-border p-3"><summary className="cursor-pointer text-sm font-medium">Analysis outputs ({items.length})</summary>
     <p className="my-2 text-xs text-muted-foreground">Keep figures, JSON from TransformerLens/NNsight/SAELens, or notebooks with a content hash. Snapshots are limited to 16 MiB; large activation stores and weights remain references. Previews do not run code or HTML.</p>
+    {props.runId || props.inspectionId ? <div className="mb-2"><Choice label="Browse outputs" value={all ? "all" : "context"} options={[{ value: "context", label: "This run or session" }, { value: "all", label: "All project outputs" }]} onChange={(value) => { setAll(value === "all"); setSelected(null); setContent(null); }} />{all ? <p className="mt-1 text-xs text-muted-foreground">New outputs are still linked to the current run or session.</p> : null}</div> : null}
     <div className="flex flex-wrap items-end gap-2"><Choice label="Output kind" value={kind} options={[{ value: "json", label: "Analysis JSON" }, { value: "figure", label: "PNG / JPEG / WebP" }, { value: "notebook", label: "Notebook snapshot" }, { value: "reference", label: "External or large-file reference" }]} onChange={(value) => setKind(value as ResearchArtifact["kind"])} />
       <Field label="Project file" className="min-w-48 flex-1"><Input value={path} placeholder="analysis/results.json" onChange={(event) => setPath(event.target.value)} /></Field>
       {kind === "reference" ? <Field label="External URI instead of a file" className="min-w-48 flex-1"><Input value={uri} placeholder="s3://bucket/activations" onChange={(event) => setUri(event.target.value)} /></Field> : null}

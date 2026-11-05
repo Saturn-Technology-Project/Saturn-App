@@ -61,6 +61,11 @@ export interface ResearchArtifact extends ResearchRecord {
 
 export interface ArtifactContent { data: string; encoding: "base64"; mime: string; sha256: string; sourceChanged: boolean }
 
+/** A selected run/session narrows evidence until the person asks to browse every analysis output in this project. */
+export function artifactsInContext<T extends { runId?: string | null; inspectionId?: string | null }>(items: T[], runId?: string, inspectionId?: string, all = false): T[] {
+  return items.filter((item) => all || ((!runId || item.runId === runId) && (!inspectionId || item.inspectionId === inspectionId)));
+}
+
 /** Evidence manifests describe what is portable and what remains external; no execution authority is restored. */
 export interface ResearchBundlePreview { sha256: string; files: number; activeRuns: number; external: unknown[]; unavailable: unknown[]; note: string }
 export interface ResearchBundleExport { path: string; markdownPath: string; htmlPath: string; files: number; external: unknown[]; unavailable: unknown[]; sha256: string; note: string }

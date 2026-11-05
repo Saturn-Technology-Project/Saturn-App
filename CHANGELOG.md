@@ -18,6 +18,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **Project analysis outputs stay reachable.** An analysis panel can browse all project outputs while a run or session is selected, including snapshots that have no run link.
+
 - **Behavior slices read imported metadata.** A default category can come from `metadata.category`; nested fields such as `metadata.group.language` can be selected explicitly, while a top-level category keeps precedence.
 
 - **Screens open fast on large runs.** A finished run's samples are read once and remembered, instead of again every time Lineage, Experiments, Samples or Home opened, which took seconds on a large run.

@@ -2,6 +2,15 @@
 // out, and how a comparison is said. Everything else is checked over HTTP in contract/.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { artifactsInContext } from "../src/domain/research.ts";
+
+test("project-wide analysis outputs remain reachable when a run or inspection session is selected", () => {
+  const items = [{ id: "project" }, { id: "run", runId: "r" }, { id: "session", inspectionId: "s" }, { id: "other", runId: "other" }];
+  assert.deepEqual(artifactsInContext(items, "r").map((item) => item.id), ["run"]);
+  assert.deepEqual(artifactsInContext(items, undefined, "s").map((item) => item.id), ["session"]);
+  assert.deepEqual(artifactsInContext(items, "r", undefined, true).map((item) => item.id), ["project", "run", "session", "other"]);
+  assert.deepEqual(artifactsInContext(items).map((item) => item.id), ["project", "run", "session", "other"]);
+});
 import { ablationStanding, ablationText, comparisonText, controlCeiling, featurePeaks, featuresText, lineageOrder, lineageRows, promptPatchText, readingDifference, reconstructionIsPoor, runHasResults, sampleIdParts, scoreText, signedText, strongestPatch } from "../src/domain/research.ts";
 
 const model = (id, parentId) => ({ id, parentId, source: id, floating: false, revision: 1, createdAt: "", updatedAt: "" });
