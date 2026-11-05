@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
+import { isWorkScreen, statusText, windowTitle } from "../../domain/workbench.js";
 import type { Model, Profile, Project } from "../../domain/model.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
@@ -7,6 +8,7 @@ import { AccessDialog, chooseFolder } from "../ProjectAccess.js";
 import { AssistantIcon, BoxIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette.js";
+import { Guide } from "./Guide.js";
 import { rememberScreen, rememberedScreen, SCREENS, type Screen } from "./navigation.js";
 import { RuntimeGate } from "./RuntimeGate.js";
 import { ScreenSwitch } from "./ScreenSwitch.js";
@@ -43,7 +45,9 @@ export function ResearchApp() {
   const [theme, setTheme] = useState(storedTheme);
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
-  const [assistant, setAssistant] = useState(true);
+  // Beside the screens where work is read and written unless closed; on the others, opened when wanted.
+  const [assistantAtWork, setAssistantAtWork] = useState(true);
+  const [assistantElsewhere, setAssistantElsewhere] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   // The tour runs over the live interface on the first launch, and again whenever it is asked for.
@@ -57,6 +61,17 @@ export function ResearchApp() {
   const runtimeReady = runtime.status.state === "ready";
 
   const project = projects.find((item) => item.id === projectId) ?? null;
+  const assistant = isWorkScreen(screen) ? assistantAtWork : assistantElsewhere;
+  const toggleAssistant = useCallback(() => {
+    (isWorkScreen(screen) ? setAssistantAtWork : setAssistantElsewhere)((open) => !open);
+  }, [screen]);
+
+  // The window's own title, which is what computer use and assistive technology find it by.
+  const title = windowTitle(screen, project?.name ?? null);
+  useEffect(() => {
+    document.title = title;
+    void window.saturnDesktop?.setTitle?.(title);
+  }, [title]);
 
   const syncProjects = useCallback(async () => {
     const list = await desktop.projects.list();
@@ -106,7 +121,7 @@ export function ResearchApp() {
         setSettings((open) => !open);
       } else if (command && event.key.toLowerCase() === "j") {
         event.preventDefault();
-        setAssistant((open) => !open);
+        toggleAssistant();
       } else if (command && /^[1-8]$/.test(event.key)) {
         event.preventDefault();
         go(SCREENS[Number(event.key) - 1]);
@@ -114,7 +129,7 @@ export function ResearchApp() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [go]);
+  }, [go, toggleAssistant]);
 
   // A notification about a task opens Tasks.
   useEffect(() => window.saturnDesktop?.onOpenThread?.(() => go("Tasks")), [go]);
@@ -148,7 +163,7 @@ export function ResearchApp() {
       ...SCREENS.map((item, index) => ({ id: `go-${item}`, label: `Go to ${item}`, hint: `⌘${index + 1}`, run: () => go(item) })),
       ...projects.filter((item) => item.id !== projectId).map((item) => ({ id: `project-${item.id}`, label: `Switch to ${item.name}`, run: () => void chooseProject(item.id) })),
       { id: "add-project", label: "Add a project folder", run: () => void addProject() },
-      { id: "assistant", label: assistant ? "Hide the research assistant" : "Show the research assistant", hint: "⌘J", run: () => setAssistant((open) => !open) },
+      { id: "assistant", label: assistant ? "Hide the research assistant" : "Show the research assistant", hint: "⌘J", run: toggleAssistant },
       { id: "theme", label: theme === "dark" ? "Use the light theme" : "Use the dark theme", run: () => setTheme(theme === "dark" ? "light" : "dark") },
       { id: "settings", label: "Open Settings", hint: "⌘,", run: () => setSettings(true) },
       { id: "tour", label: "Take the tour", run: () => setTour(true) },
@@ -156,7 +171,7 @@ export function ResearchApp() {
     ],
     // The commands close over the latest state each time they are rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assistant, go, projectId, projects, runtime.restart, theme],
+    [assistant, go, projectId, projects, runtime.restart, theme, toggleAssistant],
   );
 
   let body: ReactNode;
@@ -194,14 +209,14 @@ export function ResearchApp() {
     <div className="lab-app">
       <nav className="lab-rail" aria-label="Screens" data-tour="rail">
         <div className="lab-rail-drag" />
-        {SCREENS.map((item) => (
-          <button type="button" key={item} className="lab-rail-item" data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} onClick={() => go(item)}>
+        {SCREENS.map((item, index) => (
+          <button type="button" key={item} className="lab-rail-item" data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={`Meta+${index + 1}`} onClick={() => go(item)}>
             {SCREEN_ICONS[item]}
             <span>{item}</span>
           </button>
         ))}
         <div className="lab-rail-space" />
-        <button type="button" className="lab-rail-item" onClick={() => setSettings(true)}>
+        <button type="button" className="lab-rail-item" data-tour="settings" aria-keyshortcuts="Meta+," onClick={() => setSettings(true)}>
           <GearIcon />
           <span>Settings</span>
         </button>
@@ -221,10 +236,10 @@ export function ResearchApp() {
           <span className={runtimeReady ? "lab-runtime" : "lab-runtime off"} title={runtime.status.state === "ready" ? `Runtime ${runtime.status.version}` : "Runtime not answering"}>
             {runtimeReady ? "Runtime" : "Runtime off"}
           </span>
-          <button type="button" className="lab-button quiet" onClick={() => setPalette(true)}>
+          <button type="button" className="lab-button quiet" data-tour="commands" aria-keyshortcuts="Meta+K" onClick={() => setPalette(true)}>
             Commands <span className="lab-muted">⌘K</span>
           </button>
-          <button type="button" className="lab-button quiet" data-tour="assistant" aria-pressed={assistant} onClick={() => setAssistant((open) => !open)}>
+          <button type="button" className="lab-button quiet" data-tour="assistant" aria-pressed={assistant} aria-keyshortcuts="Meta+J" onClick={toggleAssistant}>
             <AssistantIcon /> Assistant
           </button>
         </header>
@@ -236,13 +251,20 @@ export function ResearchApp() {
             </button>
           </div>
         ) : null}
-        <div className="lab-screen">{body}</div>
+        <div className="lab-unseen" role="status">{statusText({ screen, project: project?.name ?? null, runtime: runtimeReady ? "ready" : "not answering" })}</div>
+        <main className="lab-screen" aria-label={screen}>{body}</main>
         <RuntimeGate status={runtime.status} restart={runtime.restart} />
       </div>
+      <Guide go={go} />
       {palette ? <CommandPalette commands={commands} onClose={() => setPalette(false)} /> : null}
       {accessRequest ? <AccessDialog path={accessRequest.path} name={accessRequest.name} onClose={() => setAccessRequest(null)} onAllow={() => allowAccess(accessRequest)} /> : null}
       {settings ? <SettingsHost projects={projects} theme={theme} onSetTheme={setTheme} onClose={() => setSettings(false)} onProfile={setProfile} notify={setNotice} /> : null}
-      {touring && !settings && !accessRequest ? <Tour project={project?.access ? project : null} models={models} go={go} onAddProject={addProject} onOpenSettings={() => setSettings(true)} onFinish={finishTour} /> : null}
+      {touring ? (
+        // Out of sight, not gone, under what its last step opens: it picks up where it was when that closes.
+        <div hidden={settings || Boolean(accessRequest)}>
+          <Tour covered={settings || Boolean(accessRequest)} project={project?.access ? project : null} models={models} go={go} onAddProject={addProject} onOpenSettings={() => setSettings(true)} onFinish={finishTour} />
+        </div>
+      ) : null}
     </div>
   );
 }

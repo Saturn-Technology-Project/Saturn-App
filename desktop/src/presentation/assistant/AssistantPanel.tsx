@@ -3,6 +3,8 @@ import { desktop } from "../../application/desktop.js";
 import { assistantRole, assistantRunMode, errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
 import { GUARDRAIL_MODES, normalizeGuardrailMode, type GuardrailModeId } from "../../domain/conversation.js";
 import type { Agent, ContextItem, Model } from "../../domain/model.js";
+import { HELP_REQUESTS, workbenchState, type Screen } from "../../domain/workbench.js";
+import { hiddenContext } from "../../domain/slash.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import type { WorkspaceFocus } from "../workspace/Workspace.js";
@@ -12,8 +14,8 @@ import { useConversation } from "./useConversation.js";
 type Attachment = "file" | "selection" | "error" | "sample";
 
 /** The assistant beside the work. What it may do follows the open file's mode, and it says so. */
-export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | null; onOpenSettings: () => void }) {
-  const { project, focus, notify } = props;
+export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: WorkspaceFocus | null; onOpenSettings: () => void }) {
+  const { project, screen, focus, notify } = props;
   const [agent, setAgent] = useState<Agent | null>(null);
   const [models, setModels] = useState<Model[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
     if (attached("selection") && focus?.selection && focus.file) input += selectionContext(focus.file, focus.selection.line, focus.selection.text);
     if (attached("error") && focus?.errorOutput) input += errorContext(focus.errorOutput);
     if (attached("sample") && focus?.sample) input += sampleContext(focus.sample);
+    input += hiddenContext("the screen you are on", workbenchState({ screen, project: project.name, file: focus?.file, mode: focus?.file ? focus.mode : null, run: focus?.run, sampleId: focus?.sample?.sample?.sampleId }));
     return input;
   }
 
@@ -157,7 +160,7 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
         <div className="lab-muted lab-assistant-role">{assistantRole(mode)}</div>
       </div>
 
-      <div className="lab-conversation">
+      <div className="lab-conversation" role="log" aria-label="Conversation with the research assistant">
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(comment) => void ask(comment)} />
         ))}
@@ -165,15 +168,13 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
       </div>
 
       <div className="lab-composer">
-        {mode !== "pair" ? (
-          <div className="lab-requests">
-            {(reviewing ? REVIEW_REQUESTS : MANUAL_REQUESTS).map((request) => (
-              <button type="button" key={request.label} className="lab-request" disabled={conversation.busy} onClick={() => void ask(request.prompt, request.label === "Explain the error" && focus?.errorOutput && !attached("error") ? errorContext(focus.errorOutput) : undefined)}>
-                {request.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
+        <div className="lab-requests">
+          {[...(!focus || mode === "pair" ? [] : reviewing ? REVIEW_REQUESTS : MANUAL_REQUESTS), ...HELP_REQUESTS].map((request) => (
+            <button type="button" key={request.label} className="lab-request" disabled={conversation.busy} onClick={() => void ask(request.prompt, request.label === "Explain the error" && focus?.errorOutput && !attached("error") ? errorContext(focus.errorOutput) : undefined)}>
+              {request.label}
+            </button>
+          ))}
+        </div>
         {available.length || extraFiles.length || picking ? (
           <div className="lab-attachments" role="group" aria-label="What goes with your message">
             {extraFiles.map((path) => (
@@ -219,7 +220,7 @@ export function AssistantPanel(props: ScreenProps & { focus: WorkspaceFocus | nu
           aria-label="Message to the assistant"
           rows={3}
           value={text}
-          placeholder="Ask about what you are working on"
+          placeholder="Ask about your work, or how to do something in Saturn"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {

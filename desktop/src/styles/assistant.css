@@ -215,3 +215,7 @@
 .lab-task .lab-card.attention {
   margin: 10px 14px;
 }
+
+.lab-turn-guide {
+  margin-top: 8px;
+}

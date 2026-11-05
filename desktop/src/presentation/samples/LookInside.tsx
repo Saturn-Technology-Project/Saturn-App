@@ -116,7 +116,7 @@ function ActivationGrid(props: { caption: string; tokens: string[]; layers: Acti
     <figure className="lab-activations">
       <figcaption className="lab-muted">{props.caption}</figcaption>
       <div className="lab-table-wrap">
-        <table className="lab-table lab-activation-table">
+        <table className="lab-table lab-activation-table" aria-label={props.caption}>
           <thead>
             <tr>
               <th scope="col">Layer</th>
@@ -133,7 +133,7 @@ function ActivationGrid(props: { caption: string; tokens: string[]; layers: Acti
                 <th scope="row">{row.layer}</th>
                 {row.values.map((value, index) => (
                   <td key={index} title={`layer ${row.layer}, ${view.tokens[index] ?? index}: ${value.toFixed(3)}`}>
-                    <span className="lab-activation-cell" style={{ opacity: 0.15 + (Math.abs(value) / widest) * 0.85 }} />
+                    <span className="lab-activation-cell" role="img" aria-label={value.toFixed(3)} style={{ opacity: 0.15 + (Math.abs(value) / widest) * 0.85 }} />
                   </td>
                 ))}
               </tr>

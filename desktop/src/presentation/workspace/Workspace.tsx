@@ -339,6 +339,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
       type="button"
       key={entry.path}
       className={open?.path === entry.path ? "lab-file active" : "lab-file"}
+      aria-current={open?.path === entry.path ? "true" : undefined}
       onClick={() => void (entry.kind === "directory" ? showFolder(entry.path).catch((error: unknown) => notify(messageOf(error))) : openFile(entry.path))}
     >
       <span>{entry.kind === "directory" ? `${entry.name}/` : entry.name}</span>
@@ -346,7 +347,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     </button>
   );
   const files = (
-    <nav className="lab-files" aria-label="Project">
+    <nav className="lab-files" aria-label="Project" data-tour="workspace-files">
       {sidebar.questions.length ? (
         <section className="lab-files-section">
           <div className="lab-pane-title">Questions</div>
@@ -392,9 +393,9 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   );
 
   const lower = (
-    <div className="lab-lower">
+    <div className="lab-lower" data-tour="workspace-panels">
       <Tabs label="Results" tabs={PANELS} current={panel} onChoose={setPanel} />
-      <div className="lab-lower-body">
+      <div className="lab-lower-body" role="tabpanel" aria-label={panel}>
         {panel === "Run" ? (
           run ? (
             <div className="lab-run">
@@ -493,12 +494,13 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
 
   return (
     <div className="lab-workspace">
+      <h1 className="lab-unseen">Workspace{open ? `: ${open.path}` : ""}</h1>
       <Split id="files" side="left" size={210} minimum={140} label="Files" pane={files}>
         <div className="lab-toolbar">
           <code className="lab-toolbar-file">{open?.path ?? "No file open"}</code>
           {open ? <span className="lab-muted">{saving ? "Saving…" : dirty ? "Not saved" : "Saved"}</span> : null}
           {policy && open ? (
-            <div className="lab-segments" role="group" aria-label="AI involvement in this file" title={MODE_HINTS[mode]}>
+            <div className="lab-segments" role="group" aria-label="AI involvement in this file" data-tour="workspace-mode" title={MODE_HINTS[mode]}>
               {MODES.map((item) => (
                 <button type="button" key={item} aria-pressed={mode === item} className={mode === item ? "lab-segment active" : "lab-segment"} onClick={() => void chooseMode(item)}>
                   {MODE_LABELS[item]}
@@ -506,13 +508,13 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               ))}
             </div>
           ) : null}
-          <input className="lab-input lab-toolbar-command" aria-label="Command that runs the experiment" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} />
+          <input className="lab-input lab-toolbar-command" aria-label="Command that runs the experiment" data-tour="workspace-command" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} />
           {run && isRunActive(run.status) ? (
             <button type="button" className="lab-button" onClick={() => void stopRun()}>
               Stop
             </button>
           ) : (
-            <button type="button" className="lab-button primary" disabled={busy} onClick={() => void startRun()}>
+            <button type="button" className="lab-button primary" data-tour="workspace-run" disabled={busy} onClick={() => void startRun()}>
               {busy ? "Starting…" : "Run"}
             </button>
           )}

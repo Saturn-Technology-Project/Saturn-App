@@ -1,5 +1,6 @@
 import { ASSISTANT_NAME, ASSISTANT_THREAD, TASK_PREFIX } from "../domain/assistant.js";
 import type { Agent, Conversation, Model, RunMode } from "../domain/model.js";
+import { assistantInstructions } from "../domain/workbench.js";
 import type { CatalogService } from "./catalog.js";
 import type { RunService } from "./runs.js";
 
@@ -15,13 +16,16 @@ export class AssistantService {
     const [agents, models] = await Promise.all([this.catalog.listAgents(), this.catalog.listModels()]);
     const found = agents.find((item) => item.name === ASSISTANT_NAME);
     if (!models.length) return { agent: null, models };
+    const instructions = assistantInstructions();
     if (found) {
-      if (models.some((model) => model.id === found.modelConnectionId)) return { agent: found, models };
-      // Its model was removed with nothing to take over, and now one is connected. Nothing else can set it: it has no screen.
-      await this.catalog.updateAgent(found.id, { modelConnectionId: models[0].id });
-      return { agent: { ...found, modelConnectionId: models[0].id }, models };
+      // Its model may have been removed with nothing to take over, and what it knows of Saturn changes with Saturn. Nothing
+      // else can set either: it has no screen.
+      const modelConnectionId = models.some((model) => model.id === found.modelConnectionId) ? found.modelConnectionId : models[0].id;
+      if (modelConnectionId === found.modelConnectionId && found.instructions === instructions) return { agent: found, models };
+      await this.catalog.updateAgent(found.id, { modelConnectionId, instructions });
+      return { agent: { ...found, modelConnectionId, instructions }, models };
     }
-    const agent = await this.catalog.createAgent({ name: ASSISTANT_NAME, modelConnectionId: models[0].id });
+    const agent = await this.catalog.createAgent({ name: ASSISTANT_NAME, modelConnectionId: models[0].id, instructions });
     return { agent, models };
   }
 

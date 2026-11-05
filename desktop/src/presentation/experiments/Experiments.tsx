@@ -177,8 +177,8 @@ export function Experiments(props: ScreenProps) {
         <h1>Experiments</h1>
         {draft ? (
           <div className="lab-page-actions">
-            <button type="button" className="lab-button" onClick={() => void exportRecord()}>Export</button>
-            <button type="button" className="lab-button primary" onClick={() => void freeze()}>New version</button>
+            <button type="button" className="lab-button" data-tour="experiments-export" onClick={() => void exportRecord()}>Export</button>
+            <button type="button" className="lab-button primary" data-tour="experiments-freeze" onClick={() => void freeze()}>New version</button>
           </div>
         ) : null}
       </div>
@@ -191,7 +191,7 @@ export function Experiments(props: ScreenProps) {
       )) : null}
       {draft ? (
         <>
-          <div className="lab-stats">
+          <div className="lab-stats" data-tour="experiments-links">
             <label className="lab-stat">
               <span className="lab-muted">Question</span>
               <select value={draft.questionId ?? ""} onChange={(event) => void change({ questionId: event.target.value || undefined })}>
@@ -241,7 +241,7 @@ export function Experiments(props: ScreenProps) {
 
           {sources && newest ? (
             <>
-              <h2>Where the score comes from</h2>
+              <h2 data-tour="experiments-sources">Where the score comes from</h2>
               <p className="lab-lead">The newest run with results, {newest.id}.</p>
               <div className="lab-cards">
                 <button type="button" className="lab-card lab-card-button" onClick={() => toSamples("all")}>
@@ -299,14 +299,14 @@ export function Experiments(props: ScreenProps) {
               void conclude();
             }}
           >
-            <label className="lab-field" style={{ flex: "1 1 320px" }}>
+            <label className="lab-field" data-tour="experiments-conclusion" style={{ flex: "1 1 320px" }}>
               Conclusion
               <textarea rows={2} value={conclusion} placeholder={newest ? `Saved with run ${newest.id} and its exact conditions.` : "Saved with this experiment."} onChange={(event) => setConclusion(event.target.value)} />
             </label>
             <button type="submit" className="lab-button" disabled={!conclusion.trim()}>Save conclusion</button>
           </form>
 
-          <h2>How it measures</h2>
+          <h2 data-tour="experiments-measures">How it measures</h2>
           <p className="lab-lead">Two runs compare only when all of this matches. Training data is not part of it.</p>
           <div className="lab-form">
             {EVALUATION_FIELD_NAMES.map((key) => (
@@ -365,7 +365,7 @@ export function Experiments(props: ScreenProps) {
 
           <h2>Frozen versions</h2>
           <div className="lab-table-wrap">
-            <table className="lab-table">
+            <table className="lab-table" aria-label="Frozen versions">
               <thead>
                 <tr><th scope="col">Compare</th><th scope="col">Version</th><th scope="col">Runs</th><th scope="col">Created</th></tr>
               </thead>
@@ -385,7 +385,7 @@ export function Experiments(props: ScreenProps) {
 
           <h2>Runs</h2>
           <div className="lab-table-wrap">
-            <table className="lab-table">
+            <table className="lab-table" aria-label="Runs">
               <thead>
                 <tr><th scope="col">Run</th><th scope="col">Version</th><th scope="col">Models</th><th scope="col">Execution</th><th scope="col">Samples</th></tr>
               </thead>

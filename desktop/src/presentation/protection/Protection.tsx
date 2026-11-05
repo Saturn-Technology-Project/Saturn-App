@@ -30,7 +30,7 @@ export function Protection(props: ScreenProps) {
           Released until the next version is frozen: {released.join(", ")}. Freezing a version, as a run does, locks what it uses again.
         </div>
       ) : null}
-      <h2>What has happened</h2>
+      <h2 data-tour="protection-events">What has happened</h2>
       {events.length === 0 ? <p className="lab-muted">Nothing yet.</p> : null}
       {events.map((event, index) => {
         const locked = lockedPathOf(event);
@@ -53,7 +53,7 @@ export function Protection(props: ScreenProps) {
 
       <h2>What each backend can enforce</h2>
       <div className="lab-table-wrap">
-        <table className="lab-table">
+        <table className="lab-table" aria-label="What each backend can enforce">
           <thead>
             <tr>
               <th scope="col">Backend</th>

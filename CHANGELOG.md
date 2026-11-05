@@ -6,6 +6,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **The window stays put.** The whole interface could be dragged up and down; now only the panes inside it scroll.
+- **The tour keeps its place.** Connecting a model or choosing a folder in its last step sent it back to the start, and its card could stay hidden in a window behind others.
 - **A model or MCP server in use can be removed again.** Removing one said "Connection is still used by an agent", with no screen left to change that agent on. Saturn now says who uses it and, once you agree, moves them to another model (or leaves them with none) or takes the server off their lists. The research assistant picks up a model again when one is connected.
 - **A model's mechanism no longer shows a result from a corrected helper.** Sweeps made before a helper changed stay with the run and are counted apart, so an old number cannot stand for the model.
 - **"Restored" follows the scorer.** A program that writes `alternative` on its sample lines gets a layer sweep counted by the logit margin a two-way scorer judges, with the top token shown beside it; without one the sweep says it counts the top token.
@@ -28,6 +30,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **The research assistant knows Saturn.** It is on every screen (⌘J), knows what each one is for and which screen you are on, and can walk you through something: a button opens each screen in turn and boxes each place while you do the work. It shows and opens; it never presses anything for you.
+- **Saturn reads well to assistive technology and computer use.** The window's title says the screen and project, the screens have landmarks and headings, what changes is announced, and tables and readings have names.
 - **A research workbench.** Under Research, open a project's file, write it yourself, run an experiment and read its samples next to the code, then write down what you understood. Everything is kept as plain files in the project's `.saturn/research` folder, and reopening picks up where you stopped. A run records exactly what it computed, including uncommitted code, and a crash leaves its samples readable. Experiment runs work on macOS and Linux; on Windows they say they are not supported yet.
 - **A model's lineage and fair comparisons.** Connect checkpoints to their fine-tuned branches, and compare one sample across runs. Two runs that measured differently say which setting differs instead of showing a misleading comparison.
 - **Your labels and counterexamples.** Label a sample without touching its score, see how far you agree with the scorer, and keep the samples that matter.

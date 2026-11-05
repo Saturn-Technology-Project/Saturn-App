@@ -76,7 +76,7 @@ export function Mechanism(props: { projectId: string; run: ExperimentRun | null;
                 {measured.filter((id) => id !== chosenTarget).map((id) => <option key={id} value={id}>{nameOf(id)}</option>)}
               </select>
             </label>
-            <button type="button" className="lab-button" disabled={Boolean(busy) || !chosenSource} onClick={() => void sweep()}>
+            <button type="button" className="lab-button" data-tour="experiments-sweep" disabled={Boolean(busy) || !chosenSource} onClick={() => void sweep()}>
               Sweep every layer on what the scorer marked wrong
             </button>
           </div>
@@ -85,7 +85,7 @@ export function Mechanism(props: { projectId: string; run: ExperimentRun | null;
           {view ? (
             <>
               <div className="lab-table-wrap">
-                <table className="lab-table lab-activation-table">
+                <table className="lab-table lab-activation-table" aria-label="Which layer brings each sample back">
                   <thead>
                     <tr>
                       <th scope="col">Sample</th>
@@ -102,7 +102,7 @@ export function Mechanism(props: { projectId: string; run: ExperimentRun | null;
                           const at = sample.byLayer.find((item) => item.layer === layer);
                           return (
                             <td key={layer} title={at ? `layer ${layer}: ends on ${JSON.stringify(at.top)}, log-prob of expected ${at.expectedLogProb ?? "?"}${typeof at.margin === "number" ? `, margin ${at.margin}` : ""}` : ""}>
-                              {restores(sample, layer, measure) ? <span className="lab-tag good">✓</span> : <span className="lab-muted">·</span>}
+                              {restores(sample, layer, measure) ? <span className="lab-tag good" role="img" aria-label="restored">✓</span> : <span className="lab-muted" role="img" aria-label="not restored">·</span>}
                             </td>
                           );
                         })}

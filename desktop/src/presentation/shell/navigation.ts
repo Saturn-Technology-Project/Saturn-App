@@ -1,6 +1,6 @@
-/** The screens of the workbench. */
-export const SCREENS = ["Home", "Workspace", "Lineage", "Experiments", "Samples", "Tasks", "Protection", "Environment"] as const;
-export type Screen = (typeof SCREENS)[number];
+import { SCREENS, type Screen } from "../../domain/workbench.js";
+
+export { SCREENS, type Screen };
 
 /** Where the app reopens; losing this loses no research. */
 export function rememberedScreen(): Screen {

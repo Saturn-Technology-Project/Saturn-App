@@ -78,6 +78,7 @@ export function Split(props: {
       aria-label={`Resize ${props.label}`}
       aria-orientation={vertical ? "horizontal" : "vertical"}
       aria-valuenow={size}
+      aria-valuemin={minimum}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={() => {

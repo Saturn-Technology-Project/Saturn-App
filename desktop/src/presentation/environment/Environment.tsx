@@ -74,7 +74,7 @@ export function Environment(props: ScreenProps) {
 
   return (
     <Page title="Environment" lead="Experiments and looking inside run with this Python. Saturn can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.">
-      <h2>Managed environment</h2>
+      <h2 data-tour="environment-managed">Managed environment</h2>
       <label className="lab-field" style={{ maxWidth: 240 }}>
         Job timeout (minutes)
         <input type="number" min={1} max={1440} step={1} value={timeoutMinutes} onChange={(event) => setTimeoutMinutes(event.target.value)} />
@@ -168,7 +168,7 @@ export function Environment(props: ScreenProps) {
         </div>
       ) : null}
 
-      <h2>Kits</h2>
+      <h2 data-tour="environment-kits">Kits</h2>
       <p className="lab-lead">Packages for one kind of work. Which are installed is read from the last check of the managed environment.</p>
       {record?.kits.map((kit: EnvironmentKit) => {
         const state = managed?.exists ? kitState(kit) : "missing";
@@ -197,7 +197,7 @@ export function Environment(props: ScreenProps) {
         );
       })}
 
-      <h2>Interpreter</h2>
+      <h2 data-tour="environment-interpreter">Interpreter</h2>
       <form
         className="lab-form"
         onSubmit={(event) => {
@@ -228,7 +228,7 @@ export function Environment(props: ScreenProps) {
             <div className="lab-stat"><span className="lab-muted">Checked</span><strong>{record?.checkedAt ? new Date(record.checkedAt).toLocaleString() : ""}</strong><span className="lab-muted">with {record?.checkedWith}</span></div>
           </div>
           <div className="lab-table-wrap">
-            <table className="lab-table">
+            <table className="lab-table" aria-label="Packages and their versions">
               <thead>
                 <tr><th scope="col">Package</th><th scope="col">Version</th></tr>
               </thead>
@@ -247,7 +247,7 @@ export function Environment(props: ScreenProps) {
         <p className="lab-muted">Not checked yet. Check asks the interpreter for its version, the packages research code leans on, and the devices torch can see.</p>
       )}
 
-      <h2>What pins it</h2>
+      <h2 data-tour="environment-locks">What pins it</h2>
       {record && record.lockFiles.length === 0 ? <p className="lab-muted">No lock file at the project's root. A uv.lock, requirements.txt or pyproject.toml here would be listed with its hash, and can be made part of what a version freezes.</p> : null}
       {record?.lockFiles.map((file) => {
         const pinned = newest?.inputs?.environment?.includes(file.path);

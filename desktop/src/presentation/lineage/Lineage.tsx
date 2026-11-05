@@ -118,7 +118,7 @@ export function Lineage(props: ScreenProps) {
   }
 
   const details = current ? (
-    <div className="lab-lineage-detail">
+    <div className="lab-lineage-detail" data-tour="lineage-details">
       <div className="lab-muted">{current.parentId ? (current.referenceId ? "Policy" : "Branch") : "Base model"}{current.floating ? "" : " · pinned weights"}</div>
       <h2>{nameOf(current)}</h2>
       <div className="lab-detail-row"><span className="lab-muted">Source</span><code>{current.source}</code></div>
@@ -218,7 +218,7 @@ export function Lineage(props: ScreenProps) {
           <h1>Model lineage</h1>
           <p className="lab-lead">From checkpoints to fine-tuned and preference-trained branches. Saturn records where weights are, and does not copy them.</p>
           {value && models.length === 0 && !adding ? (
-            <Empty title="No models yet" action={<button type="button" className="lab-button primary" onClick={() => setAdding(true)}>Add the first model</button>}>
+            <Empty title="No models yet" action={<button type="button" className="lab-button primary" data-tour="lineage-add" onClick={() => setAdding(true)}>Add the first model</button>}>
               Add a checkpoint to start a lineage.
             </Empty>
           ) : null}
@@ -255,7 +255,7 @@ export function Lineage(props: ScreenProps) {
             </div>
           ) : null}
           {models.length > 0 && !adding ? (
-            <button type="button" className="lab-button" style={{ marginTop: 16 }} onClick={() => setAdding(true)}>
+            <button type="button" className="lab-button" data-tour="lineage-add" style={{ marginTop: 16 }} onClick={() => setAdding(true)}>
               Add a model
             </button>
           ) : null}

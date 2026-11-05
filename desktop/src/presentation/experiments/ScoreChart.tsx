@@ -47,7 +47,7 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
   return (
     <>
       <h2>Mean score</h2>
-      <figure className="lab-chart">
+      <figure className="lab-chart" data-tour="experiments-score" aria-label={`Mean ${chosen} of each model`}>
         {scorers.length > 1 ? (
           <label className="lab-field" style={{ maxWidth: 220 }}>
             Scorer

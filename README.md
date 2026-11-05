@@ -91,7 +91,7 @@ The macOS app is not signed with an Apple Developer ID yet: approve the first la
 
 **Updates.** Saturn looks for a new version at startup, downloads it in the background and installs it when you quit. A version from before the rewrite in Rust and Tauri cannot update to this one: install it by hand once. Your data in `~/.saturn-app` keeps working, and later versions update themselves.
 
-On first launch, a tour boxes each part of the interface over the live app and says what it is for, then helps you choose a project folder, connect a model and write your first question. It is in Commands (⌘K) as "Take the tour" afterwards. Claude Code and Codex are not in the installer: Saturn uses your own installation if it finds one, or downloads the official program when you first need it (see [Models](#models)).
+On first launch, a tour boxes each part of the interface over the live app and says what it is for, then helps you choose a project folder, connect a model and write your first question. It is in Commands (⌘K) as "Take the tour" afterwards. The research assistant (⌘J) knows the workbench too: ask it what a screen is for or how to do something, and it can walk you through it, boxing each place while you do the work. Claude Code and Codex are not in the installer: Saturn uses your own installation if it finds one, or downloads the official program when you first need it (see [Models](#models)).
 
 ## Build from source
 

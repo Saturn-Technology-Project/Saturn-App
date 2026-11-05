@@ -20,15 +20,14 @@ export interface ScreenProps {
   notify: (message: string) => void;
 }
 
-/** The current screen, with the assistant beside the screens where work is read and written. The workspace stays mounted so its editor keeps undo history and unsaved text. */
+/** The current screen, with the assistant beside it when open. The workspace stays mounted so its editor keeps undo history and unsaved text. */
 export function ScreenSwitch(props: ScreenProps & { screen: Screen; assistant: boolean; onOpenSettings: () => void }) {
   const { screen, assistant, onOpenSettings, ...shared } = props;
   const [workspaceFocus, setWorkspaceFocus] = useState<WorkspaceFocus | null>(null);
   const [reviewed, setReviewed] = useState<SampleItem | null>(null);
-  const beside = screen === "Workspace" || screen === "Samples";
-  const focus: WorkspaceFocus | null = screen === "Samples" ? { file: null, mode: "manual", selection: null, run: null, errorOutput: "", sample: reviewed } : workspaceFocus;
+  const focus: WorkspaceFocus | null = screen === "Samples" ? { file: null, mode: "manual", selection: null, run: null, errorOutput: "", sample: reviewed } : screen === "Workspace" ? workspaceFocus : null;
   return (
-    <Split id="assistant" side="right" size={340} minimum={260} open={assistant && beside} label="Research assistant" pane={<AssistantPanel {...shared} focus={focus} onOpenSettings={onOpenSettings} />}>
+    <Split id="assistant" side="right" size={340} minimum={260} open={assistant} label="Research assistant" pane={<AssistantPanel {...shared} screen={screen} focus={focus} onOpenSettings={onOpenSettings} />}>
       <div className="lab-screen" hidden={screen !== "Workspace"}>
         <Workspace {...shared} onFocus={setWorkspaceFocus} />
       </div>

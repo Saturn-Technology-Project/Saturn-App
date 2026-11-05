@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import type { Model, Project } from "../../domain/model.js";
 import { messageOf } from "../ui/Parts.js";
 import type { Screen } from "./navigation.js";
-import { TOUR_STEPS } from "./tour-steps.js";
+import { TOUR_STEPS } from "../../domain/workbench.js";
 import { followTourTarget, type TourBox } from "./tour-focus.js";
 
 /** Where the boxed element is on screen. */
@@ -22,8 +22,9 @@ function placeCard(box: Box | null, cardHeight: number): { top: number; left: nu
     left = Math.max(16, Math.min(box.left, room.width - CARD_WIDTH - 16));
     top = box.top + box.height + GAP;
   }
-  if (top + cardHeight > room.height - 16) top = Math.max(16, room.height - cardHeight - 16);
-  return { top, left };
+  if (top + cardHeight > room.height - 16) top = room.height - cardHeight - 16;
+  // A box as tall as the window, like the rail's, starts above it: the card stays clear of the window's edge.
+  return { top: Math.max(16, top), left };
 }
 
 /**
@@ -38,8 +39,12 @@ export function Tour(props: {
   onAddProject: () => Promise<void>;
   onOpenSettings: () => void;
   onFinish: () => Promise<void>;
+  /** Something its last step opened is over it: Escape belongs to that. */
+  covered: boolean;
 }) {
-  const { project, go } = props;
+  const { project, go, covered } = props;
+  const coveredNow = useRef(covered);
+  coveredNow.current = covered;
   const [at, setAt] = useState(0);
   const [focus, setFocus] = useState<{ stepId: string; box: Box | null } | null>(null);
   const [cardHeight, setCardHeight] = useState(260);
@@ -61,7 +66,7 @@ export function Tour(props: {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !coveredNow.current) {
         event.preventDefault();
         void props.onFinish();
       }

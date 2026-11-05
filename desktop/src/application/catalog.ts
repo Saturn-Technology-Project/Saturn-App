@@ -51,7 +51,7 @@ export class CatalogService {
     ]).then(([agents, models, mcp, rag, profile, tasks]) => ({ agents, models, mcp, rag, profile, tasks }));
   }
 
-  createAgent(input: { name: string; modelConnectionId: string | null }): Promise<Agent> {
+  createAgent(input: { name: string; modelConnectionId: string | null; instructions?: string }): Promise<Agent> {
     return this.runtime.request<Agent>("/agents", { method: "POST", body: JSON.stringify(input) });
   }
 

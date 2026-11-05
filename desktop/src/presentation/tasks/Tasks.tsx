@@ -79,6 +79,7 @@ export function Tasks(props: ScreenProps & { onOpenSettings: () => void }) {
     <div className="lab-task-list">
       <form
         className="lab-task-new"
+        data-tour="tasks-new"
         onSubmit={(event) => {
           event.preventDefault();
           void start();
@@ -113,6 +114,7 @@ export function Tasks(props: ScreenProps & { onOpenSettings: () => void }) {
 
   return (
     <Split id="tasks" side="left" size={300} minimum={220} label="Tasks" pane={list}>
+      <h1 className="lab-unseen">Tasks</h1>
       {current && agent ? (
         <TaskDetail
           key={current.id}
@@ -269,7 +271,7 @@ function TaskDetail(props: {
         </div>
       ) : null}
 
-      <div className="lab-conversation" hidden={!log && conversation.runs.length === 0}>
+      <div className="lab-conversation" role="log" aria-label="What this task did" hidden={!log && conversation.runs.length === 0}>
         {(log ? conversation.runs : conversation.runs.slice(-1)).map((run) => (
           <Turn key={run.id} run={run} onComment={(text) => void conversation.send(text, "agent")} />
         ))}

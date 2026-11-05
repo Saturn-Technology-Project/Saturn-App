@@ -134,7 +134,7 @@ export function Home(props: ScreenProps) {
         </div>
       </div>
 
-      <h2>Questions</h2>
+      <h2 data-tour="home-questions">Questions</h2>
       {value?.questions.map((item) => (
         <div className="lab-row" key={item.id}>
           <span>{item.title}</span>
@@ -162,7 +162,7 @@ export function Home(props: ScreenProps) {
         </button>
       </form>
 
-      <h2>Hypotheses</h2>
+      <h2 data-tour="home-hypotheses">Hypotheses</h2>
       <p className="lab-lead">A verdict is yours to set. A run that completes says only that it executed.</p>
       {value?.hypotheses.map((item: Hypothesis) => (
         <div className="lab-row" key={item.id}>

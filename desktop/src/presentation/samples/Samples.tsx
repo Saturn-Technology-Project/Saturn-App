@@ -231,8 +231,8 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
   const factors = comparisonFactors(runVersion?.evaluation, rows.find((row) => row.runId !== runId)?.comparison ?? null);
 
   const list = (
-    <nav className="lab-sample-nav" aria-label="Samples">
-      <label className="lab-field">
+    <nav className="lab-sample-nav" aria-label="Samples" data-tour="samples-list">
+      <label className="lab-field" data-tour="samples-run">
         Run
         <select value={runId ?? ""} onChange={(event) => { setRunId(event.target.value); setSampleId(null); }}>
           {runs.map((item: ExperimentRun) => (
@@ -242,7 +242,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
           ))}
         </select>
       </label>
-      <div className="lab-segments" role="group" aria-label="Which samples">
+      <div className="lab-segments" role="group" aria-label="Which samples" data-tour="samples-filter">
         {ONLY.map((item) => (
           <button type="button" key={item.id} aria-pressed={only === item.id} className={only === item.id ? "lab-segment active" : "lab-segment"} onClick={() => setOnly(item.id)}>
             {item.label}
@@ -254,7 +254,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
         const labeled = Object.values(labels?.labels ?? {}).filter((entry) => entry.sampleId === line.sampleId).length;
         const errors = own.filter((other) => other.error).length;
         return (
-          <button type="button" key={line.sampleId} aria-pressed={line.sampleId === sampleId} className={line.sampleId === sampleId ? "lab-file active" : "lab-file"} onClick={() => setSampleId(line.sampleId)}>
+          <button type="button" key={line.sampleId} aria-current={line.sampleId === sampleId ? "true" : undefined} className={line.sampleId === sampleId ? "lab-file active" : "lab-file"} onClick={() => setSampleId(line.sampleId)}>
             <span className="lab-sample-id">{line.sampleId}</span>
             <span className="lab-muted">
               {labeled ? `${labeled} ${labeled === 1 ? "label" : "labels"}` : "To review"}
@@ -303,7 +303,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
       {current && sampleId ? (
         <>
           <section>
-          <h2>Look inside</h2>
+          <h2 data-tour="samples-inside">Look inside</h2>
           {inside ? (
             <LookInside projectId={projectId} runId={run.id} sampleId={sampleId} modelId={current.modelId ?? null} candidates={rows.filter((row) => row.runId === run.id).flatMap((row) => row.samples.map((line) => line.modelId ?? null))} models={value?.models ?? []} notify={notify} />
           ) : (
@@ -312,7 +312,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
           </section>
 
           <section>
-          <h2>Keep it</h2>
+          <h2 data-tour="samples-keep">Keep it</h2>
           <div className="lab-muted">The assistant runs apart from the model under test. A sample shared with it is marked as data.</div>
           <label className="lab-field">
             Why keep this sample
@@ -365,8 +365,8 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                   {allRuns ? "This run only" : `Every run that saw it (${runs.length})`}
                 </button>
               </div>
-              <div className="lab-table-wrap" role="region" aria-label="Sample comparisons" tabIndex={0}>
-                <table className="lab-table lab-sample-table">
+              <div className="lab-table-wrap" role="region" aria-label="Sample comparisons" data-tour="samples-labels" tabIndex={0}>
+                <table className="lab-table lab-sample-table" aria-label={`${current.sampleId} in each model`}>
                   <thead>
                     <tr><th scope="col">Model</th>{allRuns ? <th scope="col">Run</th> : null}<th scope="col">Output</th><th scope="col">Scores</th><th scope="col">Scorer</th><th scope="col">Your label</th></tr>
                   </thead>
