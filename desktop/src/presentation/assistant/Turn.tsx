@@ -4,7 +4,7 @@ import { shownInput, shownSources } from "../../domain/slash.js";
 import { guideIn } from "../../domain/workbench.js";
 import { FormattedOutput } from "../FormattedOutput.js";
 import { RunChangesCard } from "../RunChanges.js";
-import { RunSteps } from "../RunSteps.js";
+import { RunSteps, WaitingSteps } from "../RunSteps.js";
 import { startGuide } from "../shell/Guide.js";
 
 /** One message and what came of it: its steps and approvals, its changes, and the answer. */
@@ -32,6 +32,7 @@ export function Turn(props: { run: Run; onComment?: (text: string) => void }) {
       ) : isBusy(run) || run.status === "waiting_approval" ? null : (
         <div className={run.status === "failed" ? "lab-warning" : "lab-muted"}>{run.status === "cancelled" ? "Stopped" : run.error || run.status}</div>
       )}
+      <WaitingSteps run={run} />
     </article>
   );
 }

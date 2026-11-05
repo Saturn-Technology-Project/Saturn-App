@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf, startsTask } from "../src/domain/chat-mode.ts";
+import { isWaitingStep, runSteps } from "../src/domain/conversation.ts";
 import { isAtEnd } from "../src/domain/follow.ts";
 import { shownSources } from "../src/domain/slash.ts";
 import { assistantInstructions, GUIDE_PLACES, guideIn, guidePlace, HELP_REQUESTS, isWorkScreen, SCREENS, statusText, TOUR_STEPS, windowTitle, workbenchState } from "../src/domain/workbench.ts";
@@ -84,4 +85,9 @@ test("a chat keeps up only while the person is reading its end", () => {
   assert.equal(isAtEnd({ scrollTop: 560, clientHeight: 400, scrollHeight: 1000 }), true, "a few pixels short still counts");
   assert.equal(isAtEnd({ scrollTop: 300, clientHeight: 400, scrollHeight: 1000 }), false, "scrolled up to read");
   assert.equal(isAtEnd({ scrollTop: 0, clientHeight: 400, scrollHeight: 300 }), true, "nothing to scroll");
+});
+
+test("a step waiting for an answer can be told apart, however much the turn has said", () => {
+  const run = { id: "r", status: "waiting_approval", output: "A lot was said.", actions: [{ id: "a", toolId: "code", status: "completed" }, { id: "b", toolId: "code", status: "waiting_approval" }, { toolId: "code", status: "waiting_approval" }] };
+  assert.deepEqual(runSteps(run).filter(isWaitingStep).map((step) => step.action.id), ["b"]);
 });

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
   actionLine,
+  isWaitingStep,
   formatDuration,
   formatPayload,
   runSteps,
@@ -21,8 +22,10 @@ import type { PermissionScope } from "../domain/model";
  */
 export function RunSteps(props: { run: Run; busy: boolean; nested?: boolean }) {
   const { run, busy } = props;
-  const steps = runSteps(run);
+  // What waits for an answer is shown apart, so that it is never folded away; see WaitingSteps.
+  const steps = runSteps(run).filter((step) => props.nested || !isWaitingStep(step));
   const [override, setOverride] = useState<boolean | null>(null);
+  const childWaiting = Boolean(run.children?.some((child) => child.status === "waiting_approval"));
   if (!steps.length && !busy) return null;
   if (!steps.length) {
     return (
@@ -31,7 +34,7 @@ export function RunSteps(props: { run: Run; busy: boolean; nested?: boolean }) {
       </div>
     );
   }
-  const open = override ?? (busy || !run.output);
+  const open = override ?? (busy || !run.output || childWaiting);
 
   return (
     <div className={props.nested ? "run-steps nested" : "run-steps"}>
@@ -53,6 +56,17 @@ export function RunSteps(props: { run: Run; busy: boolean; nested?: boolean }) {
           {busy ? <WorkingRow /> : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The steps waiting for the person's answer, open, at the end of the turn where they will be seen. */
+export function WaitingSteps(props: { run: Run }) {
+  const waiting = runSteps(props.run).filter(isWaitingStep);
+  if (!waiting.length) return null;
+  return (
+    <div className="run-steps-waiting" role="group" aria-label="Waiting for your decision">
+      {waiting.map((step) => (step.kind === "thought" ? null : <ActionRow key={step.key} runId={props.run.id} action={step.action} />))}
     </div>
   );
 }

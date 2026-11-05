@@ -283,6 +283,11 @@ export type RunStep =
  * The run as one ordered list: each model call's reasoning sits right before the tool calls it made.
  * Runs saved before per-call thoughts existed show their whole reasoning as a single thought up front.
  */
+/** Whether a step is waiting for the person to answer. Only an action with an id can be answered. */
+export function isWaitingStep(step: RunStep): boolean {
+  return step.kind !== "thought" && step.action.status === "waiting_approval" && Boolean(step.action.id);
+}
+
 export function runSteps(run: Run): RunStep[] {
   const thoughts: RunThought[] = run.thoughts?.length
     ? [...run.thoughts].sort((a, b) => a.at - b.at)

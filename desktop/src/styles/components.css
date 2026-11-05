@@ -3857,3 +3857,10 @@ button.trace-row:hover {
   padding-bottom: 5px;
 }
 
+/* A step waiting for an answer comes last in its turn, whatever is folded above it. */
+.run-steps-waiting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
