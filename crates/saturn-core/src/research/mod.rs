@@ -4,6 +4,7 @@ mod environment;
 mod freeze;
 mod inside;
 mod labels;
+mod manage;
 mod policy;
 mod resources;
 mod runs;
@@ -39,6 +40,8 @@ pub struct ResearchState {
     baselines: Mutex<HashMap<String, policy::Signatures>>,
     /// Set once the runtime is stopping: its runs end as interrupted, whatever their exit says.
     ending: AtomicBool,
+    /// The projects whose managed environment has a job running.
+    environment_jobs: Mutex<manage::RunningJobs>,
 }
 
 impl Default for ResearchState {
@@ -49,6 +52,7 @@ impl Default for ResearchState {
             active: Mutex::default(),
             baselines: Mutex::default(),
             ending: AtomicBool::new(false),
+            environment_jobs: Mutex::default(),
         }
     }
 }

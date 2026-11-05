@@ -56,6 +56,9 @@ impl Kernel {
         if record.get("python").and_then(Value::as_str).is_none() {
             record["suggestedPython"] = json!(self.suggested_python(project).await);
         }
+        record["tools"] = self.environment_tools(&source);
+        record["kits"] = Self::environment_kits(&record);
+        record["job"] = self.environment_job(&records).await?;
         Ok(record)
     }
 
@@ -84,8 +87,18 @@ impl Kernel {
         })
     }
 
-    /// The Python the newest experiment's command starts with, if any.
+    /// The managed interpreter when it exists, else the Python the newest experiment's command starts with.
     async fn suggested_python(&self, project: &str) -> Option<String> {
+        if let Ok(source) = self.research_source(project, None)
+            && self.environment_tools(&source).pointer("/managed/exists")
+                == Some(&Value::Bool(true))
+        {
+            return Some(if cfg!(windows) {
+                format!("{}/Scripts/python.exe", super::manage::VENV)
+            } else {
+                format!("{}/bin/python", super::manage::VENV)
+            });
+        }
         let drafts = self.research_list(project, "experiments").await.ok()?;
         drafts
             .get("items")

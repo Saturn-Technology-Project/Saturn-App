@@ -229,6 +229,30 @@ async fn check_environment(State(kernel): Shared, Path(project): Path<String>) -
     ok(kernel.research_check_environment(&project).await?)
 }
 
+async fn create_environment(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_create_environment(&project, &body_of(body))
+        .await?)
+}
+
+async fn install_packages(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_install_packages(&project, &body_of(body))
+        .await?)
+}
+
+async fn stop_environment_job(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_stop_environment_job(&project).await?)
+}
+
 async fn policy(State(kernel): Shared, Path(project): Path<String>) -> Answer {
     ok(kernel.research_policy(&project).await?)
 }
@@ -260,6 +284,18 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
         .route(
             "/projects/{id}/research/environment/check",
             post(check_environment),
+        )
+        .route(
+            "/projects/{id}/research/environment/create",
+            post(create_environment),
+        )
+        .route(
+            "/projects/{id}/research/environment/install",
+            post(install_packages),
+        )
+        .route(
+            "/projects/{id}/research/environment/job/stop",
+            post(stop_environment_job),
         )
         .route(
             "/projects/{id}/research/policy",

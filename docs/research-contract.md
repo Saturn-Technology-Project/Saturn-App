@@ -193,6 +193,29 @@ see (CUDA names, MPS), and keeps the report. No interpreter, one that cannot sta
 answers 422 with what to do. Looking inside uses this interpreter when an experiment's command does not start with
 one. The record lives in `.saturn/research/environment.json`, and the lock files are not changed by Saturn.
 
+### The managed environment
+
+Saturn can make a Python environment in the project, at `.venv`, with `uv` when it is on PATH and `python3 -m venv`
+otherwise, and fill it with kits of packages. The record carries `tools` (`uv` and `python3` as found on PATH, and
+`managed`: the path, its python, and whether it exists), `kits`, and `job`.
+
+- Kits: `core` (torch, transformers, numpy: what Saturn's own helpers load models with, `bundled`, so it goes in
+  with the environment unless declined), `interpretability` (transformer_lens, sae_lens, einops), `training` (trl,
+  peft, datasets, accelerate), `analysis` (pandas, matplotlib), `notebooks` (jupyter, ipykernel). Each package carries
+  the version the last check of the managed interpreter reported, or null.
+- `POST .../environment/create` with `{"python"?: "3.12", "withCore"?: true}` makes the environment (a version needs
+  uv) and installs the bundled kit, then sets the record's `python` to the managed one. `POST .../environment/install`
+  with `{"kit"}`, `{"packages": [...]}` (plain names with an optional pin; nothing starting with `-`) or
+  `{"sync": true}` (`uv sync` with a `uv.lock` or `pyproject.toml`, else pip against `requirements.lock` or
+  `requirements.txt`) installs into it. Both answer with the record at once and run as a job.
+- A job runs the commands one after another in the project's folder, writes their output to
+  `.saturn/research/environment-job.log`, and records itself in `environment-job.json`: `kind`, `commands`, `status`
+  (`running`, `completed`, `failed`, or `interrupted` when the runtime that started it is gone), `exitCode`,
+  `startedAt`, `endedAt`. The record's `job` adds `logTail` and `logLines`. One job at a time per project (409).
+  `POST .../environment/job/stop` ends it; `.saturn/research` changes as it starts and ends.
+- The installs are made by uv or pip, which reach the package index on their own; Saturn's network log does not see
+  them. Not on Windows.
+
 ## What is enforced, and what is not
 
 **Participation modes and locks are a workflow constraint, not a security boundary.** The HTTP API has one bearer token and
