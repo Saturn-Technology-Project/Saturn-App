@@ -465,6 +465,30 @@ async fn metrics(
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
         .route(
+            "/projects/{id}/research/inspection-sessions",
+            get(inspection_sessions).post(create_inspection_session),
+        )
+        .route(
+            "/projects/{id}/research/inspection-sessions/{session}/actions",
+            post(session_action),
+        )
+        .route(
+            "/projects/{id}/research/inspection-sessions/{session}/inside",
+            get(session_inside),
+        )
+        .route(
+            "/projects/{id}/research/artifacts/register",
+            post(register_artifact),
+        )
+        .route(
+            "/projects/{id}/research/artifacts/from-run",
+            post(artifact_manifest),
+        )
+        .route(
+            "/projects/{id}/research/artifacts/{artifact}/content",
+            get(artifact_content),
+        )
+        .route(
             "/projects/{id}/research/remote",
             get(remote_target).put(set_remote_target),
         )
@@ -588,6 +612,69 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             post(freeze),
         )
         .with_state(kernel)
+}
+
+/// Standalone inspection sessions do not require a scored experiment run.
+async fn inspection_sessions(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel
+        .research_list(&project, "inspection_sessions")
+        .await?)
+}
+async fn create_inspection_session(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    created(
+        kernel
+            .research_inspection_session(&project, &body_of(body))
+            .await?,
+    )
+}
+async fn session_action(
+    State(kernel): Shared,
+    Path((project, session)): Path<(String, String)>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_inspection(&project, &session, &body_of(body))
+        .await?)
+}
+async fn session_inside(
+    State(kernel): Shared,
+    Path((project, session)): Path<(String, String)>,
+) -> Answer {
+    ok(kernel.research_inside_list(&project, &session).await?)
+}
+
+/// Artifact registration and previews never execute model or notebook output.
+async fn register_artifact(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    created(
+        kernel
+            .research_artifact_register(&project, &body_of(body))
+            .await?,
+    )
+}
+async fn artifact_manifest(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_artifact_manifest(&project, given(&body_of(body), "runId").unwrap_or(""))
+        .await?)
+}
+async fn artifact_content(
+    State(kernel): Shared,
+    Path((project, artifact)): Path<(String, String)>,
+) -> Answer {
+    ok(kernel
+        .research_artifact_content(&project, &artifact)
+        .await?)
 }
 
 /// The user-configured SSH target, with no credentials stored by Saturn.

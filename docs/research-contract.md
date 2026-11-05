@@ -285,6 +285,34 @@ environment that ran the experiment; a command that starts with anything else is
   counts only current results as findings and says how many earlier ones are kept. `GET .../activations?sample=&model=` reads what was saved, or 404.
 - A helper that fails answers 422 with the end of its error output. The runtime never interprets the values.
 
+### Standalone inspection sessions and analysis artifacts
+
+`POST .../research/inspection-sessions` takes `modelIds` (1..32) and optional `title`/`cwd`. It snapshots the project's
+configured Python path, model sources/revisions, known lock hashes and last environment report in an immutable
+`inspection_sessions/<id>.json`. It creates no experiment or scored run and starts no model. Its `.../{id}/actions`
+accept the same compare/prompts/features actions as a run's inspections, with evidence in
+`inspection_sessions/<id>/inside/`. A model absent from the snapshot is refused. Changing the interpreter or model
+record later does not change a session. Floating weights, mutable local model contents and changes inside an installed
+Python environment remain limitations. Session observations use `inspectionIds`, not fictitious run IDs.
+
+`POST .../research/artifacts/register` takes a project `path`, `kind` (`figure`, `json`, `notebook`, `reference`), optional
+`runId`/`inspectionId` and metadata. A snapshot saves at most 16 MiB in content-addressed `artifact_data/<sha256>`;
+its immutable record retains the original path/hash/size. JSON and nbformat 4 notebooks are validated; figures need a
+PNG/JPEG/WebP signature. HTML and SVG are not rendered. The content endpoint verifies the saved hash and reports when
+the source changed or cannot be checked. Opening a notebook explicitly opens its original editable project file.
+
+A reference copies no contents. A project file reference records its measured hash/size; an external https/s3/hf/ssh URI
+has unverified contents and must not contain passwords, tokens, query strings or fragments. Nothing is downloaded merely
+to register an external URI. Large activation stores and SAE weights can remain references with framework/hook metadata.
+
+Programs may append ordinary JSON objects to `SATURN_RUN_ARTIFACTS`, e.g.
+`{"path":"figure.png","kind":"figure","metadata":{"framework":"TransformerLens"}}`. Paths are relative to
+`SATURN_RUN_DIRECTORY`. `POST .../artifacts/from-run` explicitly validates every entry before saving any; repeated
+imports are idempotent. The manifest is bounded to 1 MiB/100 entries. For remote runs, explicitly importing a small
+output fetches it in bounded SSH chunks and checks its hash; it cannot read outside the job or read worker control files.
+Archived remote references are never automatically reconnected. The optional `scripts/research/analysis_artifacts.py`
+example writes plain files/JSONL and needs no Saturn SDK. Existing Notebook cells and kernels are reused.
+
 ## The data experiments read
 
 Routes under `/projects/{id}/research/data` read a project's data files for the Data screen and the assistant. They read

@@ -11,6 +11,8 @@ import { Textarea } from "../ui/base/Textarea.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf, Page } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
+import { InspectionSessionBuilder } from "./InspectionSession.js";
+import { Artifacts } from "../experiments/Artifacts.js";
 
 const service = desktop.research;
 const VIEWS = ["Two prompts", "Two models", "Features", "Recorded"] as const;
@@ -19,18 +21,23 @@ const KIND_LABELS: Record<InsideItem["kind"], string> = { reading: "Activations"
 
 /** A recorded look inside, with the run it is kept with. */
 type Recorded = InsideItem & { runId: string };
+/** A run or a standalone session supplies immutable model references to the same analysis controls. */
+type InspectionSource = Pick<ExperimentRun, "id" | "createdAt"> & { title?: string };
 
 /** Inside a model on prompts of your own, and everything already looked at in this project. A run supplies the Python and weights. */
 export function Inspect(props: ScreenProps) {
   const projectId = props.project.id;
   const { value, refresh } = useRecords(
     async () => {
-      const runs = (await service.runs(projectId)).items.filter((run) => run.status === "completed").sort((left, right) => (left.createdAt < right.createdAt ? 1 : -1));
+      const completed = (await service.runs(projectId)).items.filter((run) => run.status === "completed");
+      const sessions = (await service.inspectionSessions(projectId)).items;
+      const runs: InspectionSource[] = [...completed, ...sessions].sort((left, right) => left.createdAt < right.createdAt ? 1 : -1);
+      const findings = (await service.findings(projectId)).items;
       const models = (await service.models(projectId)).items;
       const recorded: Recorded[] = [];
       for (const run of runs) for (const item of (await service.insideList(projectId, run.id)).items) recorded.push({ ...item, runId: run.id });
       recorded.sort((left, right) => ((left.recordedAt ?? "") < (right.recordedAt ?? "") ? 1 : -1));
-      return { runs, models, recorded };
+      return { runs, models, recorded, sessions, findings };
     },
     props.notify,
   );
@@ -46,17 +53,16 @@ export function Inspect(props: ScreenProps) {
   const models = value?.models ?? [];
   const chosenRun = runs.find((run) => run.id === runId) ?? runs[0] ?? null;
 
-  if (value && !runs.length) {
-    return (
-      <Page title="Inspect" lead="Look inside a model on prompts of your own.">
-        <Empty title="No finished run yet">A run says which Python and which weights to use. Run an experiment first.</Empty>
-      </Page>
-    );
-  }
+  const session = value?.sessions.find((item) => item.id === chosenRun?.id);
+  const availableModels = session ? models.filter((model) => session.models.some((snapshot) => snapshot.modelId === model.id)).map((model) => {
+    const snapshot = session.models.find((item) => item.modelId === model.id)!;
+    return { ...model, source: snapshot.source, weightsRevision: snapshot.weightsRevision ?? undefined, name: snapshot.name || model.name };
+  }) : models;
 
   const record = async (text: string, run: string) => {
     try {
-      await service.addFinding(projectId, text, "observation", [run]);
+      await service.addFinding(projectId, text, "observation", run.startsWith("inspection_") ? [] : [run], run.startsWith("inspection_") ? [run] : undefined);
+      await refresh();
       props.notify("Recorded as an observation.");
     } catch (error) {
       props.notify(messageOf(error));
@@ -65,6 +71,9 @@ export function Inspect(props: ScreenProps) {
 
   return (
     <Page title="Inspect" lead="Look inside a model on prompts of your own. Prompts typed here are one case each, not a measurement: an experiment is what measures.">
+      <InspectionSessionBuilder projectId={projectId} models={models} notify={props.notify} go={props.go} onCreated={(id) => { setRunId(id); void refresh(); }} />
+      {session ? <p className="my-2 text-xs text-muted-foreground">Session Python: {session.python}. Models: {session.models.map((model) => `${model.name || model.source} @ ${model.weightsRevision || "floating"}`).join(", ")}. {session.note}</p> : null}
+      {!runs.length ? <p className="my-2 text-sm text-muted-foreground">Start an inspection session above, or use a completed experiment's Python and model references.</p> : null}
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <Tabs value={view} onValueChange={(item) => setView(item as View)}>
           <TabsList aria-label="What to look at">
@@ -77,17 +86,19 @@ export function Inspect(props: ScreenProps) {
         </Tabs>
         {view !== "Recorded" ? <Choice label="Python and weights from" className="w-56" value={chosenRun?.id ?? ""} options={runs.map((run) => ({ value: run.id, label: runName(run) }))} onChange={setRunId} /> : null}
       </div>
-      {view === "Two prompts" && chosenRun ? <TwoPrompts projectId={projectId} run={chosenRun} models={models} sent={sent} notify={props.notify} onDone={refresh} onRecord={record} /> : null}
-      {view === "Two models" && chosenRun ? <TwoModels projectId={projectId} run={chosenRun} models={models} sent={sent} notify={props.notify} onDone={refresh} /> : null}
-      {view === "Features" && chosenRun ? <Features projectId={projectId} run={chosenRun} models={models} sent={sent} onDone={refresh} onRecord={record} /> : null}
+      {view === "Two prompts" && chosenRun ? <TwoPrompts projectId={projectId} run={chosenRun} models={availableModels} sent={sent} notify={props.notify} onDone={refresh} onRecord={record} /> : null}
+      {view === "Two models" && chosenRun ? <TwoModels projectId={projectId} run={chosenRun} models={availableModels} sent={sent} notify={props.notify} onDone={refresh} /> : null}
+      {view === "Features" && chosenRun ? <Features projectId={projectId} run={chosenRun} models={availableModels} sent={sent} onDone={refresh} onRecord={record} /> : null}
       {view === "Recorded" ? <RecordedList items={value?.recorded ?? []} models={models} /> : null}
+      {session ? <Artifacts key={session.id} projectId={projectId} inspectionId={session.id} notify={props.notify} go={props.go} /> : null}
+      {session ? value?.findings.filter((finding) => finding.inspectionIds?.includes(session.id)).map((finding) => <div key={finding.id} className="my-2 rounded-lg bg-panel p-3 text-sm"><span className="text-xs text-muted-foreground">{finding.kind}: </span>{finding.text}</div>) : null}
     </Page>
   );
 }
 
 /** A run as a choice: when it began and its id's end. */
-function runName(run: ExperimentRun): string {
-  return `${new Date(run.createdAt).toLocaleString()} · ${run.id.slice(-8)}`;
+function runName(run: InspectionSource): string {
+  return `${run.title ? "Session: " + run.title : "Run"} · ${new Date(run.createdAt).toLocaleString()} · ${run.id.slice(-8)}`;
 }
 
 /** A model's name, or its id when the project no longer has it. */
@@ -105,7 +116,7 @@ function ModelChoice(props: { label: string; models: ModelNode[]; value: string;
 type Sent = { modelId: string | null; input: string; expected?: string; alternative?: string } | null;
 
 /** A clean prompt patched into a corrupted one, at every layer and position. */
-function TwoPrompts(props: { projectId: string; run: ExperimentRun; models: ModelNode[]; sent: Sent; notify: (message: string) => void; onDone: () => Promise<void> | void; onRecord: (text: string, run: string) => Promise<void> }) {
+function TwoPrompts(props: { projectId: string; run: InspectionSource; models: ModelNode[]; sent: Sent; notify: (message: string) => void; onDone: () => Promise<void> | void; onRecord: (text: string, run: string) => Promise<void> }) {
   const [modelId, setModelId] = useState(props.sent?.modelId ?? "");
   const [clean, setClean] = useState(props.sent?.input ?? "");
   const [corrupted, setCorrupted] = useState("");
@@ -176,7 +187,7 @@ function PatchResult(props: { view: PromptPatchView; models: ModelNode[]; onReco
 }
 
 /** Two models read on one prompt, and where they differ. */
-function TwoModels(props: { projectId: string; run: ExperimentRun; models: ModelNode[]; sent: Sent; notify: (message: string) => void; onDone: () => Promise<void> | void }) {
+function TwoModels(props: { projectId: string; run: InspectionSource; models: ModelNode[]; sent: Sent; notify: (message: string) => void; onDone: () => Promise<void> | void }) {
   const parentOf = (id: string | null | undefined) => props.models.find((model) => model.id === id)?.parentId ?? "";
   const [modelId, setModelId] = useState(props.sent?.modelId ?? "");
   const [otherModelId, setOtherModelId] = useState(parentOf(props.sent?.modelId));
@@ -243,7 +254,7 @@ function CompareResult(props: { view: ModelCompareView; models: ModelNode[] }) {
 const SAE_SOURCES = [{ value: "release", label: "SAELens release" }, { value: "path", label: "Local folder" }];
 
 /** One layer on one prompt read through a sparse autoencoder, with one feature set to zero if asked. */
-function Features(props: { projectId: string; run: ExperimentRun; models: ModelNode[]; sent: Sent; onDone: () => Promise<void> | void; onRecord: (text: string, run: string) => Promise<void> }) {
+function Features(props: { projectId: string; run: InspectionSource; models: ModelNode[]; sent: Sent; onDone: () => Promise<void> | void; onRecord: (text: string, run: string) => Promise<void> }) {
   const [modelId, setModelId] = useState(props.sent?.modelId ?? "");
   const [prompt, setPrompt] = useState(props.sent?.input ?? "");
   const [layer, setLayer] = useState("");

@@ -96,6 +96,12 @@ closes and reconnects on restart. Stop and the wall-clock deadline end its proce
 pending. Code/data are not uploaded, remote source identity is explicitly qualified, and checkpoint resume is handled by
 the original training program through `SATURN_RESUME_FROM`. Explicit training runs may finish with metrics alone.
 
+**Explore directly and keep analysis outputs.** Inspect can start from selected models and the project's Python, without
+a completed experiment. A session preserves its model references and interpreter choice. Keep PNG/JPEG/WebP figures,
+analysis JSON or notebook snapshots with hashes; large activation/SAE stores remain explicit references. Workspace,
+Experiments and Inspect expose these outputs. Scripts can write a plain `artifacts.jsonl` manifest; importing a remote
+run's small outputs checks them over SSH. No Python SDK is required, and previews execute neither code nor HTML.
+
 ## Install
 
 Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) for macOS on Apple Silicon, and a setup `.exe` for Windows x64. Releases are pre-releases while Saturn is in preview; [`CHANGELOG.md`](CHANGELOG.md) summarizes what changed in each. Each file ships with a SHA-256 checksum and a signed build provenance attestation ([verify a download](#5-verify-the-release-provenance)).

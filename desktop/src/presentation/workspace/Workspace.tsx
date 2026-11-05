@@ -29,10 +29,11 @@ import { NotebookEditor } from "./NotebookEditor.js";
 import { Resources } from "./Resources.js";
 import { SourceEditor } from "./SourceEditor.js";
 import { Terminal } from "./Terminal.js";
+import { Artifacts } from "../experiments/Artifacts.js";
 
 const service = desktop.research;
 const FINDING_LABELS: Record<FindingKind, string> = { observation: "Observation", ai_suggestion: "AI suggestion", conclusion: "Conclusion" };
-const PANELS = ["Run", "Resources", "Samples", "Findings", "Activations", "Terminal"] as const;
+const PANELS = ["Run", "Resources", "Samples", "Findings", "Activations", "Artifacts", "Terminal"] as const;
 const NOTE_FILES = /\.(md|txt|pdf|ipynb)$/i;
 type Panel = (typeof PANELS)[number];
 /** A file or a list entry in the sidebar and the sample list: monospaced, left aligned, and it wraps rather than cuts. */
@@ -469,6 +470,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           </div>
         ) : null}
         {panel === "Resources" ? (run ? <Resources key={run.id} projectId={projectId} run={run} notify={notify} /> : <p className={MUTED}>Run the experiment to see what it costs.</p>) : null}
+        {panel === "Artifacts" ? <Artifacts key={run?.id ?? projectId} projectId={projectId} runId={run?.id} notify={notify} go={props.go} /> : null}
         {panel === "Activations" ? (
           run && selected?.sample ? (
             <LookInside key={`${run.id}:${selected.sample.sampleId}`} projectId={projectId} runId={run.id} sampleId={selected.sample.sampleId} modelId={selected.sample.modelId ?? null} models={sidebar.models} notify={notify} />

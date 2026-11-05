@@ -42,7 +42,23 @@ export interface Finding extends ResearchRecord {
   text: string;
   kind: FindingKind;
   runIds?: string[];
+  inspectionIds?: string[];
 }
+
+/** A standalone exploration pins model references and the Python path without creating evaluation samples. */
+export interface InspectionSession extends ResearchRecord {
+  title: string; kind: "inspection"; python: string; cwd: string; note: string;
+  models: { modelId: string; source: string; name?: string; weightsRevision: string | null; floating: boolean }[];
+}
+
+/** An immutable analysis output, or an explicitly unpackaged reference to a larger store. */
+export interface ResearchArtifact extends ResearchRecord {
+  title: string; kind: "figure" | "json" | "notebook" | "reference"; packaged: boolean;
+  sha256: string | null; size?: number; mime?: string; sourcePath?: string; sourceScope?: string; uri?: string;
+  runId?: string | null; inspectionId?: string | null; metadata?: unknown; hashVerified: boolean;
+}
+
+export interface ArtifactContent { data: string; encoding: "base64"; mime: string; sha256: string; sourceChanged: boolean }
 
 export interface FrozenVersion extends ResearchRecord {
   imported?: boolean;

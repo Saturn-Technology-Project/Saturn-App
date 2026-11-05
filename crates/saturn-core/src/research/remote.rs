@@ -36,6 +36,63 @@ fn finished(status: &str) -> bool {
     matches!(status, "completed" | "failed" | "stopped" | "timed_out")
 }
 
+/// Fetches an explicitly requested small analysis output, never a credential or an arbitrary remote path.
+pub(super) async fn artifact_bytes(run: &Value, path: &str) -> Result<Vec<u8>, CoreError> {
+    if run["archived"] == true {
+        return Err(CoreError::new(
+            409,
+            "Archived remote references are not automatically reconnected.",
+        ));
+    }
+    let mut bytes = Vec::new();
+    let mut expected = None;
+    loop {
+        let response = rpc(&run["remote"], &json!({ "action": "artifact", "workdir": run["remote"]["workdir"], "id": run["id"], "path": path, "cursor": bytes.len() })).await?;
+        if response["size"]
+            .as_u64()
+            .is_none_or(|size| size > 16 * 1024 * 1024)
+        {
+            return Err(CoreError::new(
+                413,
+                "Remote artifact snapshots are limited to 16 MiB.",
+            ));
+        }
+        if bytes.is_empty() {
+            expected = response
+                .get("sha256")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+        }
+        let chunk = STANDARD
+            .decode(text(&response, "data"))
+            .map_err(|_| CoreError::new(502, "Invalid artifact encoding."))?;
+        if chunk.len() as u64 > CHUNK || (chunk.is_empty() && response["next"].is_number()) {
+            return Err(CoreError::new(502, "Invalid artifact chunk."));
+        }
+        bytes.extend(chunk);
+        if bytes.len() > 16 * 1024 * 1024 {
+            return Err(CoreError::new(
+                413,
+                "Remote artifact snapshot is too large.",
+            ));
+        }
+        if response["next"].is_null() {
+            if expected.as_deref() != Some(sha256_hex(&bytes).as_str())
+                || response["sha256"].as_str() != expected.as_deref()
+            {
+                return Err(CoreError::new(
+                    409,
+                    "The remote artifact changed during transfer.",
+                ));
+            }
+            return Ok(bytes);
+        }
+        if response["next"].as_u64() != Some(bytes.len() as u64) {
+            return Err(CoreError::new(502, "Invalid artifact cursor."));
+        }
+    }
+}
+
 /// A shell argument on the remote side; command contents themselves travel as JSON on stdin.
 fn quoted(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
@@ -457,6 +514,68 @@ async fn worker_rpc(request: &Value) -> Result<Value, CoreError> {
     tokio::fs::create_dir_all(&jobs).await?;
     let folder = safe_child(&jobs, id).await?;
     tokio::fs::create_dir_all(&folder).await?;
+    if text(request, "action") == "artifact" {
+        let requested = text(request, "path");
+        if [
+            "start.json",
+            "state.json",
+            "launch.claim",
+            "execute.claim",
+            "cancel.request",
+        ]
+        .contains(&requested)
+        {
+            return Err(CoreError::new(
+                403,
+                "Worker control files are not analysis artifacts.",
+            ));
+        }
+        let path = saturn_tools::file::inside_workspace(
+            &saturn_domain::skills::workspace::Workspace::new(&folder),
+            requested,
+        )
+        .await
+        .map_err(|message| CoreError::new(403, message))?;
+        if [
+            "start.json",
+            "state.json",
+            "launch.claim",
+            "execute.claim",
+            "cancel.request",
+        ]
+        .iter()
+        .any(|name| path == folder.join(name))
+        {
+            return Err(CoreError::new(
+                403,
+                "Worker control files are not analysis artifacts.",
+            ));
+        }
+        let mut file = std::fs::File::open(&path)?;
+        let size = file.metadata()?.len();
+        if size > 16 * 1024 * 1024 {
+            return Err(CoreError::new(
+                413,
+                "Remote artifact snapshots are limited to 16 MiB.",
+            ));
+        }
+        let cursor = request["cursor"].as_u64().unwrap_or(0);
+        if cursor > size {
+            return Err(CoreError::new(409, "The artifact was truncated."));
+        }
+        file.seek(SeekFrom::Start(cursor))?;
+        let mut bytes = Vec::new();
+        file.take(CHUNK).read_to_end(&mut bytes)?;
+        let end = cursor + bytes.len() as u64;
+        let hash = if cursor == 0 || end == size {
+            Some(super::freeze::hash_file(&path).await?.0)
+        } else {
+            None
+        };
+        return Ok(
+            json!({ "data": STANDARD.encode(bytes), "size": size, "sha256": hash, "next": if end < size { json!(end) } else { Value::Null } }),
+        );
+    }
     let state_file = safe_child(&folder, "state.json").await?;
     if !tokio::fs::try_exists(&state_file).await? {
         let claim = safe_child(&folder, "launch.claim").await?;

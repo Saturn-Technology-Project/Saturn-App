@@ -91,6 +91,10 @@ Trainer state JSON 的 `log_history` 會另存為訓練指標。來源檔不變�
 Experiments 可啟動凍結版本；獨立 Rust worker 在 Saturn 關閉後繼續運作，重開時重連。Stop 與執行期限會結束行程群組；斷線時的取消維持待確認。
 程式與資料不會自動上傳，遠端來源是否等同本機會明確標示；原訓練程式透過 `SATURN_RESUME_FROM` 負責恢復 checkpoint。明確標為 training 的 run 可只產出訓練指標。
 
+**直接探索與保存分析產物。** Inspect 可從選定模型與專案 Python 建立 session，不必先完成實驗；session 保留當時的模型參考與直譯器選擇。
+PNG／JPEG／WebP 圖表、分析 JSON 與 Notebook 可保存帶雜湊的快照，大型 activation／SAE 儲存則保留為明確參照。
+Workspace、Experiments、Inspect 都可查看；腳本只需寫一般 `artifacts.jsonl`，匯入遠端小型產物時會透過 SSH 檢查內容。不必安裝 Saturn Python SDK，預覽不執行程式或 HTML。
+
 ## 安裝
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。

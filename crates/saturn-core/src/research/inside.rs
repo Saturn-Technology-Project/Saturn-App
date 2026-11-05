@@ -396,13 +396,16 @@ impl Kernel {
         if !is_id(run_id) {
             return Err(CoreError::new(404, "No such run"));
         }
+        let version = self.inspection_basis(project, run_id).await?;
         let mut ask = prompts_question(request)?;
+        self.model_weights(project, &version, text(&ask, "modelId"))
+            .await?;
+        if text(&ask, "action") == "compare" {
+            self.model_weights(project, &version, text(&ask, "otherModelId"))
+                .await?;
+        }
         if let Some(path) = ask.pointer("/sae/path").and_then(Value::as_str) {
             let path = path.to_owned();
-            let run = self.research_run(project, run_id).await?;
-            let version = self
-                .research_record(project, "versions", text(&run, "versionId"))
-                .await?;
             let folder = self
                 .research_source(project, None)?
                 .join(text(&version, "cwd"))
@@ -417,11 +420,8 @@ impl Kernel {
                 .as_bytes(),
         );
         let file = self
-            .records_folder(project)
+            .inspection_folder(project, run_id)
             .await?
-            .join("runs")
-            .join(run_id)
-            .join(FOLDER)
             .join(format!("inspect-{}.json", &key[..16]));
         if let Some(saved) = read_record(&file)
             .await
@@ -429,13 +429,13 @@ impl Kernel {
         {
             return Ok(saved);
         }
-        let run = self.research_run(project, run_id).await?;
-        let version = self
-            .research_record(project, "versions", text(&run, "versionId"))
-            .await?;
-        let python = match super::environment::python_of(text(&version, "command")) {
-            Some(python) => python.to_owned(),
-            None => self.research_python(project).await?,
+        let python = if let Some(python) = version.get("python").and_then(Value::as_str) {
+            python.to_owned()
+        } else {
+            match super::environment::python_of(text(&version, "command")) {
+                Some(python) => python.to_owned(),
+                None => self.research_python(project).await?,
+            }
         };
         ask["target"] = self
             .model_weights(project, &version, text(&ask, "modelId"))
@@ -472,8 +472,7 @@ impl Kernel {
         if !is_id(run) {
             return Err(CoreError::new(404, "No such run"));
         }
-        let records = self.records_folder(project).await?;
-        let folder = records.join("runs").join(run).join(FOLDER);
+        let folder = self.inspection_folder(project, run).await?;
         let helper = sha256_hex(HELPER.as_bytes());
         let prompts = sha256_hex(prompts_helper().as_bytes());
         let features = sha256_hex(features_helper().as_bytes());
@@ -675,6 +674,12 @@ impl Kernel {
     ) -> Result<Value, CoreError> {
         if let Some(found) = weights(version, model_id) {
             return Ok(found);
+        }
+        if version["kind"] == "inspection" {
+            return Err(CoreError::new(
+                422,
+                "This model is not in the session snapshot. Start a new session to include it.",
+            ));
         }
         if !is_id(model_id) {
             return Err(CoreError::new(422, "The request names no model."));

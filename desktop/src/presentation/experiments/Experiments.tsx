@@ -41,6 +41,7 @@ import { ImportResults } from "./ImportResults.js";
 import { TrainingMetrics } from "./TrainingMetrics.js";
 import { ComparisonPanel } from "./ComparisonPanel.js";
 import { RemoteRun } from "../environment/RemoteExecution.js";
+import { Artifacts } from "./Artifacts.js";
 
 const service = desktop.research;
 const FIELD_LABELS: Record<(typeof EVALUATION_FIELD_NAMES)[number], string> = {
@@ -222,6 +223,7 @@ export function Experiments(props: ScreenProps) {
       <ImportResults projectId={projectId} onImported={(id) => { setSelected(id); void refresh(); }} notify={props.notify} />
       <ComparisonPanel projectId={projectId} runs={value?.runs ?? []} notify={props.notify} go={props.go} />
       {draft ? <RemoteRun projectId={projectId} versions={versions} notify={props.notify} onStarted={() => void refresh()} /> : null}
+      <Artifacts key={newest?.id ?? projectId} projectId={projectId} runId={newest?.id} notify={props.notify} go={props.go} />
       {draft ? <Choice label="Output contract for the next version" className="my-3 max-w-72" value={draft.kind ?? "evaluation"} options={[{ value: "evaluation", label: "Scored evaluation samples" }, { value: "training", label: "Training metrics (samples optional)" }]} onChange={(kind) => void change({ kind: kind as "evaluation" | "training" })} /> : null}
       {!value ? <Loading /> : null}
       {value && drafts.length === 0 ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Running a command in the workspace creates the first experiment.</p> : null}

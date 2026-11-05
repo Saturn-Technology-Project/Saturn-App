@@ -34,6 +34,7 @@ import type { ResearchImportRequest, ResearchImportPreview, TrainingMetric } fro
 import type { PairedComparison, PairedComparisonRequest } from "../domain/research.js";
 import type { CounterexampleSet } from "../domain/research.js";
 import type { RemoteTarget } from "../domain/research.js";
+import type { InspectionSession, ResearchArtifact, ArtifactContent } from "../domain/research.js";
 
 /** A list of records, and those that could not be read. */
 interface RecordList<T> {
@@ -47,6 +48,35 @@ export class ResearchService {
 
   private route(project: string): string {
     return `/projects/${encodeURIComponent(project)}/research`;
+  }
+
+  /** An exploration has its own evidence namespace instead of masquerading as a scored run. */
+  private inspectionRoute(project: string, source: string): string {
+    return source.startsWith("inspection_") ? `${this.route(project)}/inspection-sessions/${source}/actions` : `${this.route(project)}/runs/${source}/inspections`;
+  }
+
+  inspectionSessions(project: string): Promise<RecordList<InspectionSession>> {
+    return this.runtime.request(`${this.route(project)}/inspection-sessions`);
+  }
+
+  createInspectionSession(project: string, modelIds: string[], title?: string): Promise<InspectionSession> {
+    return this.send(`${this.route(project)}/inspection-sessions`, "POST", { modelIds, title });
+  }
+
+  artifacts(project: string): Promise<RecordList<ResearchArtifact>> {
+    return this.runtime.request(`${this.route(project)}/artifacts`);
+  }
+
+  registerArtifact(project: string, request: { path?: string; uri?: string; kind: ResearchArtifact["kind"]; runId?: string; inspectionId?: string; metadata?: unknown }): Promise<ResearchArtifact> {
+    return this.send(`${this.route(project)}/artifacts/register`, "POST", request);
+  }
+
+  importArtifactManifest(project: string, runId: string): Promise<{ items: ResearchArtifact[] }> {
+    return this.send(`${this.route(project)}/artifacts/from-run`, "POST", { runId });
+  }
+
+  artifactContent(project: string, id: string): Promise<ArtifactContent> {
+    return this.runtime.request(`${this.route(project)}/artifacts/${id}/content`);
   }
 
   /** Reads old results without creating an experiment or changing their source. */
@@ -149,8 +179,8 @@ export class ResearchService {
     return this.runtime.request(`${this.route(project)}/findings`);
   }
 
-  addFinding(project: string, text: string, kind: FindingKind, runIds: string[]): Promise<Finding> {
-    return this.send(`${this.route(project)}/findings`, "POST", { text, kind, runIds });
+  addFinding(project: string, text: string, kind: FindingKind, runIds: string[], inspectionIds?: string[]): Promise<Finding> {
+    return this.send(`${this.route(project)}/findings`, "POST", { text, kind, runIds, ...(inspectionIds ? { inspectionIds } : {}) });
   }
 
   questions(project: string): Promise<RecordList<Question>> {
@@ -242,17 +272,17 @@ export class ResearchService {
 
   /** Two models read on a prompt of your own, with a run's Python and weights; saved with the run. */
   compareModels(project: string, run: string, request: { modelId: string; otherModelId: string; input: string; expected?: string }): Promise<ModelCompareView> {
-    return this.send(`${this.route(project)}/runs/${run}/inspections`, "POST", { action: "compare", ...request });
+    return this.send(this.inspectionRoute(project, run), "POST", { action: "compare", ...request });
   }
 
   /** A clean prompt patched into a corrupted one at every layer and position, beside a random control; saved with the run. */
   patchPrompts(project: string, run: string, request: { modelId: string; clean: string; corrupted: string; expected: string; alternative: string }): Promise<PromptPatchView> {
-    return this.send(`${this.route(project)}/runs/${run}/inspections`, "POST", { action: "prompts", ...request });
+    return this.send(this.inspectionRoute(project, run), "POST", { action: "prompts", ...request });
   }
 
   /** One layer on a prompt of your own read through a sparse autoencoder, with one feature set to zero if asked; saved with the run. */
   readFeatures(project: string, run: string, request: { modelId: string; prompt: string; layer: number; saeRelease?: string; saeId?: string; saePath?: string; expected?: string; alternative?: string; ablate?: number }): Promise<FeaturesView> {
-    return this.send(`${this.route(project)}/runs/${run}/inspections`, "POST", { action: "features", ...request });
+    return this.send(this.inspectionRoute(project, run), "POST", { action: "features", ...request });
   }
 
   /** Every file named as a data input, with who used it. Slow only while a changed file is hashed. */
@@ -280,7 +310,7 @@ export class ResearchService {
 
   /** What was saved under a run's inside folder: readings and sweeps, newest first. */
   insideList(project: string, run: string): Promise<{ runId: string; items: InsideItem[] }> {
-    return this.runtime.request(`${this.route(project)}/runs/${run}/inside`);
+    return this.runtime.request((run.startsWith("inspection_") ? `${this.route(project)}/inspection-sessions/${run}/inside` : `${this.route(project)}/runs/${run}/inside`));
   }
 
   /** Every sample line of a run, page by page, up to a limit. */

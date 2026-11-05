@@ -32,6 +32,8 @@ pub fn id_prefix(collection: &str) -> Option<&'static str> {
         "models" => Some("model"),
         "counterexamples" => Some("counterexample"),
         "counterexample_sets" => Some("counterexample_set"),
+        "inspection_sessions" => Some("inspection"),
+        "artifacts" => Some("artifact"),
         "versions" => Some("version"),
         _ => None,
     }
@@ -39,7 +41,8 @@ pub fn id_prefix(collection: &str) -> Option<&'static str> {
 
 /// Whether requests can create and change a collection's records; frozen versions they cannot.
 pub fn writable(collection: &str) -> bool {
-    id_prefix(collection).is_some() && collection != "versions"
+    id_prefix(collection).is_some()
+        && !matches!(collection, "versions" | "inspection_sessions" | "artifacts")
 }
 
 /// Whether a text can be a record's id, and so a file's name: no separators, no dots.

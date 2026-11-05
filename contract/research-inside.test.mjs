@@ -71,6 +71,30 @@ appendFileSync(process.env.SATURN_RUN_SAMPLES, line("a", process.argv[2], "When 
 appendFileSync(process.env.SATURN_RUN_SAMPLES, line("b", process.argv[3], "boom", null));
 `;
 
+test("Inspect can start from model and Python snapshots without any experiment or completed run", posixOnly, async () => {
+  const folder = await saturn.folder();
+  const made = await saturn.api("POST", "/projects", { path: folder, grant: true });
+  const route = `/projects/${made.id}/research`;
+  await writeFile(path.join(folder, "python"), PYTHON); await chmod(path.join(folder, "python"), 0o755);
+  await saturn.api("PUT", `${route}/environment`, { python: path.join(folder, "python") });
+  const base = await saturn.api("POST", `${route}/models`, { source: "org/base", weightsRevision: "step1" });
+  const other = await saturn.api("POST", `${route}/models`, { source: "org/other", weightsRevision: "step2" });
+  const session = await saturn.api("POST", `${route}/inspection-sessions`, { title: "Explore", modelIds: [base.id, other.id] });
+  assert.deepEqual((await saturn.api("GET", `${route}/runs`)).items, []);
+  assert.deepEqual((await saturn.api("GET", `${route}/experiments`)).items, []);
+  await saturn.api("PATCH", `${route}/models/${base.id}`, { expectedRevision: base.revision, weightsRevision: "changed" });
+  await saturn.api("PUT", `${route}/environment`, { python: "does-not-exist" });
+  const answer = await saturn.api("POST", `${route}/inspection-sessions/${session.id}/actions`, { action: "compare", modelId: base.id, otherModelId: other.id, input: "a b" });
+  assert.equal(answer.modelId, base.id);
+  const asked = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
+  assert.deepEqual(asked.target, { source: "org/base", revision: "step1" });
+  const recorded = await saturn.api("GET", `${route}/inspection-sessions/${session.id}/inside`);
+  assert.equal(recorded.items.length, 1);
+  assert.equal((await saturn.call("PATCH", `${route}/inspection_sessions/${session.id}`, { expectedRevision: session.revision, python: "changed" })).status, 405);
+  const stranger = await saturn.api("POST", `${route}/models`, { source: "org/stranger", weightsRevision: "x" });
+  assert.equal((await saturn.call("POST", `${route}/inspection-sessions/${session.id}/actions`, { action: "compare", modelId: stranger.id, otherModelId: base.id, input: "a b" })).status, 422);
+});
+
 /** A project with two models bound to an experiment, run once with the stand-in python. */
 async function project() {
   const folder = await saturn.folder();

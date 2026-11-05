@@ -41,7 +41,7 @@ async function experiment(command, kind = "evaluation") {
 }
 
 test("a detached worker survives the runtime, reconnects, and does not submit twice", { skip: process.platform === "win32" }, async () => {
-  await writeFile(path.join(remote, "probe.mjs"), `import { appendFileSync } from 'node:fs'; let n=0; setInterval(()=>{ appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({schemaVersion:1,sampleId:String(n++),input:'a',scores:{s:1}})+'\\n'); if(n===12) process.exit(0); },250);`);
+  await writeFile(path.join(remote, "probe.mjs"), `import { appendFileSync, writeFileSync } from 'node:fs'; let n=0; setInterval(()=>{ appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({schemaVersion:1,sampleId:String(n++),input:'a',scores:{s:1}})+'\\n'); if(n===12) { writeFileSync(process.env.SATURN_RUN_DIRECTORY+'/analysis.json', JSON.stringify({framework:'NNsight',result:[1,2]})); writeFileSync(process.env.SATURN_RUN_ARTIFACTS, JSON.stringify({path:'analysis.json',kind:'json'})+'\\n'); process.exit(0); } },250);`);
   const { route, version } = await experiment("node probe.mjs");
   const start = { versionId: version.id, clientId: "same-client", timeoutSeconds: 30 };
   const run = await api("POST", `${route}/remote/runs`, start);
@@ -56,6 +56,10 @@ test("a detached worker survives the runtime, reconnects, and does not submit tw
   const ended = await until("remote finish after reconnect", () => api("GET", `${route}/runs/${run.id}`), (item) => item.status === "completed", 30);
   assert.equal(ended.samples, 12);
   assert.equal((await api("GET", `${route}/runs/${run.id}/samples`)).items.length, 12);
+  const outputs = await api("POST", `${route}/artifacts/from-run`, { runId: run.id });
+  assert.equal(outputs.items.length, 1);
+  const content = await api("GET", `${route}/artifacts/${outputs.items[0].id}/content`);
+  assert.deepEqual(JSON.parse(Buffer.from(content.data, "base64").toString()), { framework: "NNsight", result: [1, 2] });
   assert.match((await api("GET", `${route}/remote`)).note, /SSH/);
 });
 
