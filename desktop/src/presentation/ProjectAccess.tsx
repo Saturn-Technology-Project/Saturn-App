@@ -13,6 +13,7 @@ declare global {
       setWindowControls?(colors: { color: string; symbolColor: string }): void;
       runtimeStatus?(): Promise<RuntimeStatus>;
       restartRuntime?(): Promise<void>;
+      setTitle?(title: string): Promise<void>;
     };
   }
 }

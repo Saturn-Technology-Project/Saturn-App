@@ -54,6 +54,8 @@
     runtimeStatus: () => invoke("runtime_status"),
     /** Starts the runtime again, after it failed or when it is stuck. */
     restartRuntime: () => invoke("restart_runtime"),
+    /** Sets the window's title. */
+    setTitle: (title) => invoke("set_window_title", { title }),
     /** Recolors the minimize, maximize and close buttons (Windows only). */
     setWindowControls: (colors) => paintWindowButtons(colors ?? {}),
     /** Called with { agentId, threadId } when a notification is clicked. */

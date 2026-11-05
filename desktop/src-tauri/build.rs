@@ -13,6 +13,7 @@ const COMMANDS: &[&str] = &[
     "request_permission",
     "runtime_status",
     "restart_runtime",
+    "set_window_title",
 ];
 
 fn main() {

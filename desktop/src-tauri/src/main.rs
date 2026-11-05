@@ -125,6 +125,17 @@ fn request_permission(which: String) -> permissions::Answer {
     permissions::request(&which)
 }
 
+/// The window's title, which says the screen and project: it is what the system and computer use find the window by.
+#[tauri::command]
+fn set_window_title(window: WebviewWindow, title: String) -> tauri::Result<()> {
+    let plain: String = title
+        .chars()
+        .filter(|item| !item.is_control())
+        .take(200)
+        .collect();
+    window.set_title(&plain)
+}
+
 /// Where the runtime stands, for the interface's start-up screen and status line.
 #[tauri::command]
 fn runtime_status(app: AppHandle) -> Status {
@@ -205,7 +216,7 @@ fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
         "remote": { "urls": [format!("http://127.0.0.1:{port}/*")] },
         "permissions": [
             "allow-pick-folders", "allow-confirm-action", "allow-start-dragging", "allow-toggle-maximize", "allow-minimize-window",
-            "allow-close-window", "allow-notify", "allow-request-permission", "allow-runtime-status", "allow-restart-runtime",
+            "allow-close-window", "allow-notify", "allow-request-permission", "allow-runtime-status", "allow-restart-runtime", "allow-set-window-title",
         ],
     });
     app.add_capability(capability.to_string())
@@ -274,7 +285,8 @@ fn main() {
             notify,
             request_permission,
             runtime_status,
-            restart_runtime
+            restart_runtime,
+            set_window_title
         ])
         .setup(move |app| {
             let layout = if cfg!(debug_assertions) {
