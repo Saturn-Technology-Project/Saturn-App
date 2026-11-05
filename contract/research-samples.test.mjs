@@ -133,6 +133,30 @@ test("pages read while a run writes never show half a line, and reach every samp
   assert.deepEqual(seen, Array.from({ length: 40 }, (_, index) => `s${index}`));
 });
 
+test("disputed samples are filtered across the whole run, with the same explicit label aliases as agreement", posixOnly, async () => {
+  const { route, run } = await project();
+  const done = await run(Array.from({ length: 5103 }, (_, index) => line(`s${index}`, { scorerLabel: "Wrong", ...(index === 5102 ? { error: { kind: "model" } } : {}) })));
+  const draft = await saturn.api("GET", `${route}/experiments/${done.experimentId}`);
+  await saturn.api("PATCH", `${route}/experiments/${draft.id}`, { expectedRevision: draft.revision, labels: ["Wrong name", "Correct name"], labelAliases: { "Wrong name": "Wrong", "Correct name": "Correct" } });
+  for (const [sampleId, label] of [["s0", " wrong "], ["s5100", "Wrong name"], ["s5101", "Correct name"], ["s5102", "Not wrong"]]) {
+    await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId, label });
+  }
+  const labels = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.deepEqual(labels.agreement, { labeled: 4, compared: 4, agreed: 2 });
+  assert.equal(Object.values(labels.labels).find((item) => item.sampleId === "s5100").agreesWithScorer, true);
+  const first = await saturn.api("GET", `${route}/runs/${done.id}/samples?only=disputed&limit=1`);
+  assert.deepEqual(first.items.map((item) => item.sample.sampleId), ["s5101"]);
+  assert.notEqual(first.next, null);
+  const second = await saturn.api("GET", `${route}/runs/${done.id}/samples?only=disputed&limit=1&cursor=${first.next}`);
+  assert.deepEqual(second.items.map((item) => item.sample.sampleId), ["s5102"]);
+  assert.equal(second.next, null);
+  const errors = await saturn.api("GET", `${route}/runs/${done.id}/samples?only=errors`);
+  assert.deepEqual(errors.items.map((item) => item.sample.sampleId), ["s5102"]);
+  assert.equal((await saturn.call("GET", `${route}/runs/${done.id}/samples?only=unknown`)).status, 400);
+  const bad = await saturn.call("PATCH", `${route}/experiments/${draft.id}`, { expectedRevision: draft.revision + 1, labelAliases: { Bad: 5 } });
+  assert.equal(bad.status, 400);
+});
+
 test("a summary adds up each model's samples, without letting infrastructure errors count as scores", posixOnly, async () => {
   const { route, folder, run } = await project();
   const done = await run([

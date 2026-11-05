@@ -1,10 +1,10 @@
 //! A person's labels on a run's samples, kept apart from its scores, and one sample across runs.
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
 use saturn_domain::research::{
-    MAX_SAMPLE_LINE, SCHEMA_VERSION, compare_versions, is_id, sample_identity,
+    MAX_SAMPLE_LINE, SCHEMA_VERSION, compare_versions, is_id, labels_agree, sample_identity,
 };
 use saturn_domain::time::{iso_time, now_millis};
 use serde_json::{Value, json};
@@ -65,12 +65,36 @@ impl Kernel {
         let labels = saved.get("labels").cloned().unwrap_or_else(|| json!({}));
         let path = records.join("runs").join(run).join("samples.jsonl");
         let end = found.get("samplesSize").and_then(Value::as_u64);
-        let wanted = labels.clone();
-        let agreement =
-            tokio::task::spawn_blocking(move || agreement_with_scorer(&path, end, &wanted))
-                .await
-                .map_err(|error| CoreError::new(500, error.to_string()))??;
+        let aliases = self.research_label_aliases(project, &found).await?;
+        let (labels, agreement) = tokio::task::spawn_blocking(move || {
+            agreement_with_scorer(&path, end, labels, &aliases)
+        })
+        .await
+        .map_err(|error| CoreError::new(500, error.to_string()))??;
         Ok(json!({ "runId": run, "labels": labels, "agreement": agreement }))
+    }
+
+    /// The experiment's current annotation vocabulary; it changes the comparison of labels, never the scorer's output.
+    pub(super) async fn research_label_aliases(
+        &self,
+        project: &str,
+        run: &Value,
+    ) -> Result<Value, CoreError> {
+        let records = self.records_folder(project).await?;
+        let experiment = text(run, "experimentId");
+        if !is_id(experiment) {
+            return Ok(json!({}));
+        }
+        let record = read_record(
+            &records
+                .join("experiments")
+                .join(format!("{experiment}.json")),
+        )
+        .await
+        .map_err(|reason| super::cannot_use(experiment, &reason))?;
+        Ok(record
+            .and_then(|record| record.get("labelAliases").cloned())
+            .unwrap_or_else(|| json!({})))
     }
 
     /// Saves a person's label on one sample. It never touches the sample's score.
@@ -266,7 +290,7 @@ impl ModelTally {
 }
 
 /// A run's labels file, or an empty one.
-async fn read_labels(records: &Path, run: &str) -> Result<Value, CoreError> {
+pub(super) async fn read_labels(records: &Path, run: &str) -> Result<Value, CoreError> {
     if !is_id(run) {
         return Err(CoreError::new(404, "No such run"));
     }
@@ -283,25 +307,37 @@ async fn read_labels(records: &Path, run: &str) -> Result<Value, CoreError> {
 fn agreement_with_scorer(
     path: &Path,
     end: Option<u64>,
-    labels: &Value,
-) -> Result<Value, CoreError> {
-    let wanted: HashMap<&String, &str> = labels
-        .as_object()
+    mut labels: Value,
+    aliases: &Value,
+) -> Result<(Value, Value), CoreError> {
+    let labeled = labels.as_object().map_or(0, |labels| labels.len());
+    for entry in labels
+        .as_object_mut()
         .into_iter()
-        .flatten()
-        .map(|(identity, entry)| (identity, text(entry, "label")))
-        .collect();
+        .flat_map(|labels| labels.values_mut())
+    {
+        if let Some(fields) = entry.as_object_mut() {
+            fields.insert("agreesWithScorer".to_owned(), Value::Null);
+        }
+    }
     let mut compared = 0;
     let mut agreed = 0;
     each_sample(path, end, |value, identity| {
-        if let Some(label) = wanted.get(&identity.to_owned())
+        if let Some(entry) = labels.get_mut(identity)
             && let Some(scored) = value.get("scorerLabel").and_then(Value::as_str)
+            && !scored.trim().is_empty()
+            && entry.is_object()
         {
             compared += 1;
-            if *label == scored {
+            let same = labels_agree(text(entry, "label"), scored, aliases);
+            entry["agreesWithScorer"] = json!(same);
+            if same {
                 agreed += 1;
             }
         }
     })?;
-    Ok(json!({ "labeled": wanted.len(), "compared": compared, "agreed": agreed }))
+    Ok((
+        labels,
+        json!({ "labeled": labeled, "compared": compared, "agreed": agreed }),
+    ))
 }

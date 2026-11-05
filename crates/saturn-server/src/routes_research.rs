@@ -133,6 +133,7 @@ async fn samples(
             &id,
             number("cursor").unwrap_or(0),
             number("limit").map(|limit| limit as usize),
+            query.get("only").map(String::as_str),
         )
         .await?)
 }

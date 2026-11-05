@@ -7,6 +7,7 @@ import {
   runHasResults,
   runStatusLabel,
   scoreSources,
+  labelsOf,
   type Comparison,
   type ExperimentDraft,
   type ExperimentRun,
@@ -70,7 +71,7 @@ export function Experiments(props: ScreenProps) {
   const question = value?.questions.find((item) => item.id === draft?.questionId);
   const hypothesis = value?.hypotheses.find((item) => item.id === draft?.hypothesisId);
   const findings = (value?.findings ?? []).filter((item) => item.runIds?.some((id) => runs.some((run) => run.id === id)));
-  const results = useResults(projectId, finished, newest, props.notify);
+  const results = useResults(projectId, finished, newest, props.notify, draft?.revision);
 
   async function change(fields: Partial<ExperimentDraft>) {
     if (!draft) return;
@@ -89,7 +90,13 @@ export function Experiments(props: ScreenProps) {
       if (key in edits) evaluation[key] = edits[key] === "" && key === "chatTemplate" ? null : edits[key];
     }
     const labels = "labels" in edits ? edits.labels.split(",").map((item) => item.trim()).filter(Boolean) : undefined;
-    await change({ evaluation, models: bound, ...(labels === undefined ? {} : { labels }) });
+    const labelAliases = { ...draft?.labelAliases };
+    for (const [key, value] of Object.entries(edits)) {
+      if (!key.startsWith("alias:")) continue;
+      if (value.trim()) labelAliases[key.slice(6)] = value.trim();
+      else delete labelAliases[key.slice(6)];
+    }
+    await change({ evaluation, models: bound, labelAliases, ...(labels === undefined ? {} : { labels }) });
     setEdits({});
   }
 
@@ -312,6 +319,13 @@ export function Experiments(props: ScreenProps) {
               <span>Label names, comma separated</span>
               <input value={edits.labels ?? (draft.labels ?? []).join(", ")} placeholder={DEFAULT_LABELS.join(", ")} onChange={(event) => setEdits({ ...edits, labels: event.target.value })} />
             </label>
+            {labelsOf({ ...draft, labels: (edits.labels ?? (draft.labels ?? []).join(",")).split(",") }).map((name) => (
+              <label className="lab-field" key={`alias:${name}`}>
+                <span>Scorer word for “{name}”</span>
+                <input value={edits[`alias:${name}`] ?? draft.labelAliases?.[name] ?? ""} placeholder={name} onChange={(event) => setEdits({ ...edits, [`alias:${name}`]: event.target.value })} />
+              </label>
+            ))}
+            <div className="lab-muted">Optional wording matches, such as “Wrong name” → “Wrong”. Applies to this experiment's review comparisons, including earlier labels; original labels and scores stay unchanged.</div>
             <button type="button" className="lab-button" onClick={() => void saveEvaluation()}>
               Save
             </button>
@@ -401,7 +415,7 @@ export function Experiments(props: ScreenProps) {
 }
 
 /** Each finished run's summary, how each version compares with the newest, and the newest run's labels. */
-function useResults(projectId: string, runs: ExperimentRun[], newest: ExperimentRun | null, notify: (message: string) => void) {
+function useResults(projectId: string, runs: ExperimentRun[], newest: ExperimentRun | null, notify: (message: string) => void, labelRevision?: number) {
   const [summaries, setSummaries] = useState<RunSummary[]>([]);
   const [comparisons, setComparisons] = useState<Record<string, Comparison>>({});
   const [labels, setLabels] = useState<RunLabels | null>(null);
@@ -430,7 +444,7 @@ function useResults(projectId: string, runs: ExperimentRun[], newest: Experiment
     };
     // `runKey` says when the runs changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notify, projectId, runKey, newest?.id]);
+  }, [labelRevision, notify, projectId, runKey, newest?.id]);
 
   return { summaries, comparisons, labels };
 }

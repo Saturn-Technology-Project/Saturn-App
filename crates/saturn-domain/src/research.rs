@@ -134,7 +134,26 @@ fn check(collection: &str, fields: &Map<String, Value>) -> Result<(), String> {
         }
     };
     match collection {
-        "questions" | "experiments" => needs("title"),
+        "questions" => needs("title"),
+        "experiments" => {
+            needs("title")?;
+            if let Some(aliases) = fields.get("labelAliases") {
+                let valid = aliases.as_object().is_some_and(|aliases| {
+                    aliases.iter().all(|(name, target)| {
+                        !name.trim().is_empty()
+                            && target
+                                .as_str()
+                                .is_some_and(|target| !target.trim().is_empty())
+                    })
+                });
+                if !valid {
+                    return Err(
+                        "labelAliases maps each label to a non-empty scorer word.".to_owned()
+                    );
+                }
+            }
+            Ok(())
+        }
         "hypotheses" => {
             needs("title")?;
             one_of("verdict", &VERDICTS)
@@ -150,6 +169,19 @@ fn check(collection: &str, fields: &Map<String, Value>) -> Result<(), String> {
         }
         _ => Ok(()),
     }
+}
+
+/// Compares a person's label with the scorer's word, using only explicit aliases, whitespace and case normalization.
+pub fn labels_agree(label: &str, scorer: &str, aliases: &Value) -> bool {
+    let normalized = label.trim().to_lowercase();
+    let mapped = aliases
+        .as_object()
+        .into_iter()
+        .flatten()
+        .find(|(name, _)| name.trim().to_lowercase() == normalized)
+        .and_then(|(_, target)| target.as_str())
+        .unwrap_or(label);
+    mapped.trim().to_lowercase() == scorer.trim().to_lowercase()
 }
 
 /// A value's bytes with its object keys in order, so the same content always hashes the same.
@@ -482,6 +514,15 @@ mod tests {
         for bad in ["", "..", "a/b", "a\\b", "a.json", "a b"] {
             assert!(!is_id(bad), "{bad}");
         }
+    }
+
+    #[test]
+    fn review_words_match_only_by_case_whitespace_and_explicit_aliases() {
+        let aliases = json!({"Wrong name": "Wrong"});
+        assert!(labels_agree(" wrong NAME ", " Wrong ", &aliases));
+        assert!(labels_agree(" refused ", "REFUSED", &json!({})));
+        assert!(!labels_agree("Not wrong", "Wrong", &aliases));
+        assert!(!labels_agree("Wrong name", "Wrong", &json!({})));
     }
 
     #[test]

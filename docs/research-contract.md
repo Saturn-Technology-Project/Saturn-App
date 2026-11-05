@@ -124,6 +124,14 @@ One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`.
   apart and are not model failures.
 - `scorerLabel`, optional, is the scorer's verdict in the words a person would label it with. Agreement with a person's
   labels counts only samples that have it, in the same run, so with the same version of the scorer.
+- An experiment's optional `labelAliases` explicitly maps a person's words to the scorer's, for example
+  `{"Wrong name":"Wrong"}`. Comparisons trim whitespace and ignore case; Saturn does not guess that differently
+  worded labels mean the same thing. Editing the map updates review comparisons for that experiment, including
+  earlier labels, without changing the saved labels or scores. The labels response adds `agreesWithScorer` to each
+  entry: true, false, or null when no matching sample with a scorer word was found.
+- `GET .../runs/{id}/samples` accepts `only=all|disputed|errors` before paging, so a dispute anywhere in the run is
+  reachable, including beyond 5,000 lines. `cursor` and `next` remain absolute byte positions in the samples file.
+  Disputed filtering and agreement use the same Rust rule and experiment vocabulary; error filtering uses `error`.
 - `expected`, optional, is what the scorer compared the output with: the right name, the reference answer. It is shown
   with the sample and never used by the runtime.
 - `usage`, optional, is what the sample cost as the program measured it: `inputTokens`, `outputTokens`, and

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import {
   comparisonFactors,
@@ -36,9 +36,7 @@ function labelOf(labels: RunLabels | null, line: SampleLine): string | undefined
 
 /** Whether a person's label and the scorer's own word disagree. */
 function disputed(labels: RunLabels | null, line: SampleLine): boolean {
-  const label = labelOf(labels, line);
-  const scorer = line.scorerLabel;
-  return Boolean(label && scorer && label.toLowerCase() !== scorer.toLowerCase());
+  return Object.values(labels?.labels ?? {}).some((item) => item.sampleId === line.sampleId && item.trial === (line.trial ?? 0) && (item.modelId ?? null) === (line.modelId ?? null) && item.agreesWithScorer === false);
 }
 
 /** One run's samples, each one across the models and runs that saw it, and a person's label on it, which never overwrites a score. */
@@ -65,10 +63,13 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState<string | null>(null);
   const [inside, setInside] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const generation = useRef(0);
 
   const runs = value?.runs ?? [];
   const run = runs.find((item) => item.id === runId) ?? null;
-  const LABELS = labelsOf(value?.drafts.find((draft) => draft.id === run?.experimentId));
+  const choicesFor = (id: string) => labelsOf(value?.drafts.find((draft) => draft.id === runs.find((item) => item.id === id)?.experimentId));
   const modelName = (id: string | null | undefined) => {
     const model = value?.models.find((item) => item.id === id);
     return model ? model.name || model.source : "Unnamed model";
@@ -89,24 +90,31 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
 
   useEffect(() => service.onOpen((asked) => asked.kind === "sample" && setTarget(asked)), []);
 
-  const loadRun = useCallback(
-    async (id: string) => {
+  // The runtime filters before paging, so a dispute past the first pages is still found. Old requests cannot replace a new run/filter.
+  useEffect(() => {
+    const current = ++generation.current;
+    setItems([]);
+    setNextCursor(null);
+    setLabels(null);
+    setSummary(null);
+    setLoadingMore(false);
+    if (!runId) return undefined;
+    void (async () => {
       try {
-        const [lines, labeled, summed] = await Promise.all([service.allSamples(projectId, id), service.labels(projectId, id), service.summary(projectId, id)]);
-        setItems(lines.map((sample, offset) => ({ offset, sample })));
-        setNextCursor(null);
+        const [page, labeled, summed] = await Promise.all([service.samples(projectId, runId, 0, only), service.labels(projectId, runId), service.summary(projectId, runId)]);
+        if (generation.current !== current) return;
+        setItems(page.items);
+        setNextCursor(page.next);
         setLabels(labeled);
         setSummary(summed);
       } catch (error) {
-        notify(messageOf(error));
+        if (generation.current === current) notify(messageOf(error));
       }
-    },
-    [notify, projectId],
-  );
+    })();
+    return () => { generation.current += 1; };
+  }, [notify, only, projectId, refresh, runId]);
 
-  useEffect(() => {
-    if (runId) void loadRun(runId);
-  }, [loadRun, runId]);
+  useEffect(() => desktop.live.onResearchChange(() => setRefresh((current) => current + 1)), []);
 
   // The chosen sample across the models of this run, and across every other run that saw it when asked.
   useEffect(() => {
@@ -135,23 +143,30 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
     };
     // `runs` changes identity with every refresh; its ids are what matter and they are in `allRuns`' choice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRuns, notify, onReview, projectId, runId, sampleId]);
+  }, [allRuns, notify, onReview, projectId, refresh, runId, sampleId]);
 
   async function moreSamples() {
-    if (!runId || nextCursor === null) return;
+    if (!runId || nextCursor === null || loadingMore) return;
+    const current = generation.current;
+    setLoadingMore(true);
     try {
-      const page = await service.samples(projectId, runId, nextCursor);
+      const page = await service.samples(projectId, runId, nextCursor, only);
+      if (generation.current !== current) return;
       setItems((current) => [...current, ...page.items]);
       setNextCursor(page.next);
     } catch (error) {
-      notify(messageOf(error));
+      if (generation.current === current) notify(messageOf(error));
+    } finally {
+      if (generation.current === current) setLoadingMore(false);
     }
   }
 
   async function label(forRun: string, line: SampleLine, chosen: string) {
+    const current = generation.current;
     try {
       await service.setLabel(projectId, forRun, line, chosen);
       const fresh = await service.labels(projectId, forRun);
+      if (generation.current !== current) return;
       if (forRun === runId) setLabels(fresh);
       else setOtherLabels((current) => ({ ...current, [forRun]: fresh }));
     } catch (error) {
@@ -165,8 +180,6 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
   const listed = lines.filter((line) => {
     if (seen.has(line.sampleId)) return false;
     seen.add(line.sampleId);
-    if (only === "errors") return lines.some((other) => other.sampleId === line.sampleId && other.error);
-    if (only === "disputed") return lines.some((other) => other.sampleId === line.sampleId && disputed(labels, other));
     return true;
   });
   const current = rows.find((row) => row.runId === runId)?.samples[0] ?? lines.find((line) => line.sampleId === sampleId) ?? null;
@@ -196,21 +209,21 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
       </div>
       {listed.map((line) => {
         const own = lines.filter((other) => other.sampleId === line.sampleId);
-        const labeled = own.filter((other) => labelOf(labels, other)).length;
+        const labeled = Object.values(labels?.labels ?? {}).filter((entry) => entry.sampleId === line.sampleId).length;
         const errors = own.filter((other) => other.error).length;
         return (
           <button type="button" key={line.sampleId} aria-pressed={line.sampleId === sampleId} className={line.sampleId === sampleId ? "lab-file active" : "lab-file"} onClick={() => setSampleId(line.sampleId)}>
             <span className="lab-sample-id">{line.sampleId}</span>
             <span className="lab-muted">
-              {labeled ? `Labeled ${labeled} of ${own.length}` : "To review"}
+              {labeled ? `${labeled} ${labeled === 1 ? "label" : "labels"}` : "To review"}
               {errors ? `, ${errors} errors` : ""}
             </span>
           </button>
         );
       })}
       {nextCursor !== null ? (
-        <button type="button" className="lab-link" onClick={() => void moreSamples()}>
-          More
+        <button type="button" className="lab-link" disabled={loadingMore} onClick={() => void moreSamples()}>
+          {loadingMore ? "Loading…" : "More"}
         </button>
       ) : null}
       {runs.length === 0 && value ? <p className="lab-muted">No run has results yet.</p> : null}
@@ -331,7 +344,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                             </td>
                             <td>
                               <div className="lab-segments" role="group" aria-label={`Your label for ${modelName(line.modelId)} in ${row.runId}`}>
-                                {LABELS.map((item) => {
+                                {choicesFor(row.runId).map((item) => {
                                   const chosen = labelOf(labelsFor(row.runId), line) === item;
                                   return (
                                     <button type="button" key={item} aria-pressed={chosen} className={chosen ? "lab-segment active" : "lab-segment"} onClick={() => void label(row.runId, line, item)}>

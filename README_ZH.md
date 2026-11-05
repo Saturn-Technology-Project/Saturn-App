@@ -75,6 +75,8 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 | 💸 **用量與成本** | 依模型與 Agent 統計任意期間的 token 數與牌價成本。 |
 | 📈 **可觀測性** | OpenTelemetry trace、metric 與 log，對外網路請求紀錄，並可選擇以 OTLP（HTTP 上的 JSON）匯出到自己的 collector。 |
 
+**審查樣本。** Disputed 與 Errors 先篩選整個 run，再分頁顯示。在 Experiments 可設定自訂標籤與 scorer 用詞的對應（例如「Wrong name → Wrong」）；一致度統計、爭議篩選與警示共用同一套規則，原始標籤與分數不變。
+
 ## 安裝
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。

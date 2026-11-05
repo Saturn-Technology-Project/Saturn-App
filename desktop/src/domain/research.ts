@@ -18,6 +18,8 @@ export interface ExperimentDraft extends ResearchRecord {
   hypothesisId?: string;
   /** The words a person labels this experiment's samples with; the default set when not said. */
   labels?: string[];
+  /** Explicit wording matches for comparing personal labels with a scorer, without guessing their meaning. */
+  labelAliases?: Record<string, string>;
 }
 
 /** The labels a person can put on a sample: the experiment's own, or the plain set. */
@@ -157,7 +159,7 @@ export interface AcrossRow {
 }
 
 export interface RunLabels {
-  labels: Record<string, { sampleId: string; trial: number; modelId?: string | null; label: string; note?: string }>;
+  labels: Record<string, { sampleId: string; trial: number; modelId?: string | null; label: string; note?: string; agreesWithScorer?: boolean | null }>;
   agreement: { labeled: number; compared: number; agreed: number };
 }
 

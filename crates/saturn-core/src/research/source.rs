@@ -3,7 +3,7 @@
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
-use saturn_domain::research::{MAX_SAMPLE_LINE, is_id, sample_identity, sha256_hex};
+use saturn_domain::research::{MAX_SAMPLE_LINE, is_id, labels_agree, sample_identity, sha256_hex};
 use saturn_domain::skills::workspace::Workspace;
 use saturn_tools::file::inside_workspace;
 use serde_json::{Value, json};
@@ -120,15 +120,31 @@ impl Kernel {
         id: &str,
         cursor: u64,
         limit: Option<usize>,
+        only: Option<&str>,
     ) -> Result<Value, CoreError> {
+        let only = only.unwrap_or("all");
+        if !matches!(only, "all" | "disputed" | "errors") {
+            return Err(CoreError::new(400, "only must be all, disputed or errors."));
+        }
         let run = self.research_run(project, id).await?;
         let records = self.records_folder(project).await?;
+        let (labels, aliases) = if only == "disputed" {
+            (
+                super::labels::read_labels(&records, id).await?["labels"].clone(),
+                self.research_label_aliases(project, &run).await?,
+            )
+        } else {
+            (Value::Null, Value::Null)
+        };
+        let only = only.to_owned();
         let path = records.join("runs").join(id).join("samples.jsonl");
         let end = run.get("samplesSize").and_then(Value::as_u64);
         let limit = limit.unwrap_or(DEFAULT_PAGE).clamp(1, LARGEST_PAGE);
-        tokio::task::spawn_blocking(move || read_page(&path, cursor, end, limit))
-            .await
-            .map_err(|error| CoreError::new(500, error.to_string()))?
+        tokio::task::spawn_blocking(move || {
+            read_page(&path, cursor, end, limit, &only, &labels, &aliases)
+        })
+        .await
+        .map_err(|error| CoreError::new(500, error.to_string()))?
     }
 
     /// The end of a run's log.
@@ -193,7 +209,15 @@ async fn read_folder_entries(target: &Path, relative: &str) -> Result<Value, Cor
 }
 
 /// Reads lines from `cursor`, up to `end` if the run was sealed. Never reads the file from its start.
-fn read_page(path: &Path, cursor: u64, end: Option<u64>, limit: usize) -> Result<Value, CoreError> {
+fn read_page(
+    path: &Path,
+    cursor: u64,
+    end: Option<u64>,
+    limit: usize,
+    only: &str,
+    labels: &Value,
+    aliases: &Value,
+) -> Result<Value, CoreError> {
     let mut file = match std::fs::File::open(path) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -234,6 +258,26 @@ fn read_page(path: &Path, cursor: u64, end: Option<u64>, limit: usize) -> Result
         let parsed = serde_json::from_slice::<Value>(&line)
             .map_err(|error| format!("It is not JSON: {error}."))
             .and_then(|value| sample_identity(&value).map(|_| value));
+        let matches = match (&parsed, only) {
+            (_, "all") => true,
+            (Ok(value), "errors") => value.get("error").is_some_and(Value::is_object),
+            (Ok(value), "disputed") => sample_identity(value)
+                .ok()
+                .and_then(|identity| labels.get(identity))
+                .and_then(|label| {
+                    value
+                        .get("scorerLabel")
+                        .and_then(Value::as_str)
+                        .filter(|scored| !scored.trim().is_empty())
+                        .map(|scored| !labels_agree(text(label, "label"), scored, aliases))
+                })
+                .unwrap_or(false),
+            _ => false,
+        };
+        if !matches {
+            offset += read;
+            continue;
+        }
         items.push(match parsed {
             Ok(sample) => json!({ "offset": offset, "sample": sample }),
             Err(problem) => json!({
