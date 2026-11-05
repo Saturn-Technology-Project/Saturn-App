@@ -404,50 +404,104 @@
   gap: 2px;
 }
 
-.lab-track {
-  margin-top: 16px;
-}
-
-.lab-track-nodes {
+/* The models as one tree: a line each, under the one they came from, with their scores in a column. */
+.lab-tree {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.lab-node {
-  display: flex;
-  flex: 0 1 150px;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-height: 72px;
-  padding: 8px 10px;
+  margin-top: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.lab-tree-head,
+.lab-tree-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px minmax(96px, 150px);
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.lab-tree-head {
+  min-height: 30px;
+  border-bottom: 1px solid var(--line);
   background: var(--panel);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.lab-tree-row {
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
   color: var(--fg);
   text-align: left;
 }
 
-.lab-node:hover {
-  border-color: var(--line-strong);
+.lab-tree-row:last-child {
+  border-bottom: 0;
 }
 
-.lab-node.active {
-  border-color: var(--fg);
+.lab-tree-row:hover {
   background: var(--hover);
 }
 
-.lab-node-name {
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  overflow-wrap: anywhere;
+.lab-tree-row.active {
+  background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--blue);
 }
 
-.lab-node-score {
-  font-size: var(--text-title);
-  font-weight: 600;
+.lab-tree-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* The corner joining a model to the one above it. */
+.lab-tree-link {
+  flex: none;
+  width: 10px;
+  height: 14px;
+  margin-top: -9px;
+  border-bottom: 1px solid var(--line-strong);
+  border-left: 1px solid var(--line-strong);
+  border-bottom-left-radius: 3px;
+}
+
+/* The next checkpoint on a line that is itself a branch: straight on from the one above. */
+.lab-tree-link.continues {
+  height: 34px;
+  margin-top: 0;
+  border-bottom: 0;
+  border-bottom-left-radius: 0;
+}
+
+.lab-tree-label {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lab-tree-score {
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lab-tree-status {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .lab-lineage-detail {

@@ -233,6 +233,26 @@ export function lineageOrder(models: ModelNode[]): { model: ModelNode; depth: nu
   return ordered;
 }
 
+/**
+ * Models as rows of a tree, parents before their children. A line of checkpoints stays at one depth, however long it gets; only a
+ * model with several children goes in a level, and those children are `branch`es.
+ */
+export function lineageRows(models: ModelNode[]): { model: ModelNode; depth: number; branch: boolean }[] {
+  const known = new Set(models.map((model) => model.id));
+  const children = new Map<string, ModelNode[]>();
+  for (const model of models) {
+    if (model.parentId && known.has(model.parentId)) children.set(model.parentId, [...(children.get(model.parentId) ?? []), model]);
+  }
+  const rows: { model: ModelNode; depth: number; branch: boolean }[] = [];
+  const visit = (model: ModelNode, depth: number, branch: boolean) => {
+    rows.push({ model, depth, branch });
+    const own = children.get(model.id) ?? [];
+    for (const child of own) visit(child, own.length > 1 ? depth + 1 : depth, own.length > 1);
+  };
+  for (const model of models) if (!model.parentId || !known.has(model.parentId)) visit(model, 0, false);
+  return rows;
+}
+
 /** One model's samples in a run, added up. */
 export interface ModelSummary {
   modelId: string | null;
@@ -249,37 +269,6 @@ export interface RunSummary {
   versionId: string;
   status: RunStatus;
   models: ModelSummary[];
-}
-
-/** A line of models: each continues its parent's line, and any other child starts a new one. */
-export interface LineageTrack {
-  from: ModelNode | null;
-  nodes: ModelNode[];
-}
-
-/** Lays models out as lines, so checkpoints read as a line and a branch as a line of its own. */
-export function lineageTracks(models: ModelNode[]): LineageTrack[] {
-  const known = new Map(models.map((model) => [model.id, model]));
-  const children = new Map<string, ModelNode[]>();
-  for (const model of models) {
-    if (model.parentId && known.has(model.parentId)) children.set(model.parentId, [...(children.get(model.parentId) ?? []), model]);
-  }
-  const tracks: LineageTrack[] = [];
-  const follow = (start: ModelNode, from: ModelNode | null) => {
-    const track: LineageTrack = { from, nodes: [] };
-    tracks.push(track);
-    let current: ModelNode | undefined = start;
-    const branches: [ModelNode, ModelNode][] = [];
-    while (current) {
-      track.nodes.push(current);
-      const [next, ...others]: ModelNode[] = children.get(current.id) ?? [];
-      for (const other of others) branches.push([other, current]);
-      current = next;
-    }
-    for (const [branch, parent] of branches) follow(branch, parent);
-  };
-  for (const model of models) if (!model.parentId || !known.has(model.parentId)) follow(model, null);
-  return tracks;
 }
 
 /** Whether a run has samples worth adding up. */

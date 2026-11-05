@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { comparisonText, earlierSweeps, heldFixed, lineageTracks, mechanismOf, RESTORE_MEASURE_TEXT, runHasResults, scoreText, type Comparison, type EvaluationSpec, type InsideItem, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
+import { comparisonText, earlierSweeps, heldFixed, lineageRows, mechanismOf, RESTORE_MEASURE_TEXT, runHasResults, scoreText, type Comparison, type EvaluationSpec, type InsideItem, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
@@ -104,6 +104,9 @@ export function Lineage(props: ScreenProps) {
   );
 
   const nameOf = (model: ModelNode) => model.name || model.source;
+  // The one score the list shows, named above it when the models agree on which.
+  const scoreNames = new Set(models.map((model) => firstScore(value?.latest[model.id])?.name).filter(Boolean));
+  const scoreName = scoreNames.size === 1 ? [...scoreNames][0] : null;
   const measured = current ? value?.latest[current.id] : undefined;
 
   async function saveNote() {
@@ -222,24 +225,29 @@ export function Lineage(props: ScreenProps) {
               Add a checkpoint to start a lineage.
             </Empty>
           ) : null}
-          {lineageTracks(models).map((track) => (
-            <section className="lab-track" key={track.nodes[0].id}>
-              <div className="lab-muted">{track.from ? `Branched from ${nameOf(track.from)}` : "Line"}</div>
-              <div className="lab-track-nodes">
-                {track.nodes.map((model) => {
-                  const score = firstScore(value?.latest[model.id]);
-                  const compared = value?.compared[model.id];
-                  return (
-                    <button type="button" key={model.id} aria-pressed={model.id === current?.id} className={model.id === current?.id ? "lab-node active" : "lab-node"} onClick={() => setSelected(model.id)}>
-                      <span className="lab-node-name">{nameOf(model)}</span>
-                      <span className="lab-node-score">{score ? scoreText(score.mean) : "Not measured"}</span>
-                      {compared && compared.result === "not_comparable" ? <span className="lab-tag warn">Not comparable</span> : compared && compared.result === "unknown" ? <span className="lab-tag">Cannot tell</span> : model.floating ? <span className="lab-tag warn">Revision not fixed</span> : value?.latest[model.id]?.toReview ? <span className="lab-tag warn">{value.latest[model.id].toReview} to review</span> : score ? <span className="lab-tag good">Evaluated</span> : null}
-                    </button>
-                  );
-                })}
+          {models.length ? (
+            <div className="lab-tree" role="group" aria-label="Models, each under the one it came from">
+              <div className="lab-tree-head" aria-hidden="true">
+                <span>Model</span>
+                <span className="lab-tree-score">{scoreName ?? "Score"}</span>
+                <span>Status</span>
               </div>
-            </section>
-          ))}
+              {lineageRows(models).map(({ model, depth, branch }) => {
+                const score = firstScore(value?.latest[model.id]);
+                const compared = value?.compared[model.id];
+                return (
+                  <button type="button" key={model.id} aria-pressed={model.id === current?.id} className={model.id === current?.id ? "lab-tree-row active" : "lab-tree-row"} title={nameOf(model)} onClick={() => setSelected(model.id)}>
+                    <span className="lab-tree-name" style={{ paddingLeft: `${Math.min(depth, 6) * 18}px` }}>
+                      {depth ? <span className={branch ? "lab-tree-link" : "lab-tree-link continues"} aria-hidden="true" /> : null}
+                      <span className="lab-tree-label">{nameOf(model)}</span>
+                    </span>
+                    <span className="lab-tree-score" title={score ? score.name : undefined}>{score ? scoreText(score.mean) : "–"}</span>
+                    <span className="lab-tree-status">{compared && compared.result === "not_comparable" ? <span className="lab-tag warn">Not comparable</span> : compared && compared.result === "unknown" ? <span className="lab-tag">Cannot tell</span> : model.floating ? <span className="lab-tag warn">Revision not fixed</span> : value?.latest[model.id]?.toReview ? <span className="lab-muted">{value.latest[model.id].toReview} to review</span> : score ? <span className="lab-tag good">Evaluated</span> : null}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
 
           {value?.fixed.length ? (
             <div className="lab-card" style={{ marginTop: 16 }}>

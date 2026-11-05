@@ -2,24 +2,22 @@
 // out, and how a comparison is said. Everything else is checked over HTTP in contract/.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { comparisonText, lineageOrder, lineageTracks, runHasResults, sampleIdParts, scoreText } from "../src/domain/research.ts";
+import { comparisonText, lineageOrder, lineageRows, runHasResults, sampleIdParts, scoreText } from "../src/domain/research.ts";
 
 const model = (id, parentId) => ({ id, parentId, source: id, floating: false, revision: 1, createdAt: "", updatedAt: "" });
 
-test("a line of checkpoints stays one line, and each other child starts its own", () => {
+test("a line of checkpoints stays at one depth, and only a real branch goes in a level", () => {
   const models = [model("a"), model("b", "a"), model("c", "b"), model("sft", "c"), model("sft2", "c"), model("dpo", "sft"), model("other")];
   assert.deepEqual(
-    lineageTracks(models).map((track) => [track.from?.id ?? null, track.nodes.map((node) => node.id)]),
-    [
-      [null, ["a", "b", "c", "sft", "dpo"]],
-      ["c", ["sft2"]],
-      [null, ["other"]],
-    ],
+    lineageRows(models).map((row) => [row.model.id, row.depth, row.branch]),
+    [["a", 0, false], ["b", 0, false], ["c", 0, false], ["sft", 1, true], ["dpo", 1, false], ["sft2", 1, true], ["other", 0, false]],
   );
+  const long = Array.from({ length: 200 }, (_, index) => model(`step${index}`, index ? `step${index - 1}` : undefined));
+  assert.ok(lineageRows(long).every((row) => row.depth === 0));
 });
 
 test("a model whose parent is gone starts a line rather than disappearing", () => {
-  assert.deepEqual(lineageTracks([model("orphan", "gone")]).map((track) => track.nodes.map((node) => node.id)), [["orphan"]]);
+  assert.deepEqual(lineageRows([model("orphan", "gone")]).map((row) => [row.model.id, row.depth]), [["orphan", 0]]);
   assert.deepEqual(lineageOrder([model("orphan", "gone"), model("child", "orphan")]).map((item) => item.depth), [0, 1]);
 });
 
