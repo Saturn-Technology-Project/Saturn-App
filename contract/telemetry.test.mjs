@@ -328,7 +328,9 @@ test("with an endpoint set, telemetry goes to the collector, with its headers", 
     const sent = collector.seen.find((request) => request.url === "/v1/traces");
     assert.match(sent.headers["content-type"], /application\/json/);
     const body = JSON.parse(sent.raw);
-    assert.ok(body.resourceSpans[0].scopeSpans.flatMap((scope) => scope.spans).some((span) => span.name === "GET /runs/:id"));
+    // A request's span may come in a later batch than the first.
+    const spans = () => collector.seen.filter((request) => request.url === "/v1/traces").flatMap((request) => JSON.parse(request.raw).resourceSpans.flatMap((resource) => resource.scopeSpans.flatMap((scope) => scope.spans)));
+    await until("the request's span", spans, (found) => found.some((span) => span.name === "GET /runs/:id"));
     assert.equal(body.resourceSpans[0].resource.attributes.find((item) => item.key === "service.name").value.stringValue, "my-saturn");
   }
   assert.ok(!(await readFile(path.join(runtime.dataDir, "network.log"), "utf8")).includes("made-up-value"));
