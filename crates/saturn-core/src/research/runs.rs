@@ -459,9 +459,7 @@ impl Kernel {
         }
         let changed = self.inputs_changed(&records, &source, &version).await;
         let sealed = seal(&directory).await;
-        let (per_model, warnings) = self
-            .drift_check(&project, &records, &version, &directory)
-            .await;
+        let (per_model, warnings) = self.drift_check(&project, &version, &directory).await;
         let saved = self
             .settle_run(&records, &id, |run| {
                 if !is_active_status(text(run, "status")) {
@@ -486,7 +484,12 @@ impl Kernel {
                 run["endedAt"] = json!(iso_time(now_millis()));
                 run["inputsChanged"] = json!(changed);
                 run["samplesPerModel"] = json!(per_model);
-                run["warnings"] = json!(warnings);
+                // Only a whole run is compared; a partial one would warn about its own stopping.
+                run["warnings"] = if text(run, "status") == "completed" {
+                    json!(warnings)
+                } else {
+                    json!([])
+                };
             })
             .await;
         if let Err(error) = saved {

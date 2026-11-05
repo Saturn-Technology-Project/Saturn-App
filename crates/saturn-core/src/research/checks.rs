@@ -1,5 +1,5 @@
-//! What a run is checked for when it ends: whether it measured as much as the last run its version compares with,
-//! since a stated evaluation can go stale while the program changes.
+//! What a run is checked for when it ends: whether it measured as much as the last completed run its version compares
+//! with, since a stated evaluation can go stale while the program changes.
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -11,12 +11,12 @@ use crate::Kernel;
 use crate::records::text;
 
 impl Kernel {
-    /// The most samples any one model got in a run's file, and a warning when the last comparable run of the same
-    /// experiment got a different number: two runs that "measured the same way" should measure as much.
+    /// The most samples any one model got in a run's file, and a warning when the last completed comparable run of the
+    /// same experiment got a different number: two whole runs that "measured the same way" should measure as much. A run
+    /// that failed or was stopped says nothing about how much the evaluation holds.
     pub(super) async fn drift_check(
         &self,
         project: &str,
-        records: &Path,
         version: &Value,
         directory: &Path,
     ) -> (u64, Vec<String>) {
@@ -44,10 +44,7 @@ impl Kernel {
         let experiment = text(version, "experimentId");
         let mut earlier = Vec::new();
         for run in runs.iter().rev() {
-            if text(run, "experimentId") != experiment
-                || text(run, "versionId") == text(version, "id")
-                    && run.get("samplesPerModel").is_none()
-            {
+            if text(run, "experimentId") != experiment || text(run, "status") != "completed" {
                 continue;
             }
             let Some(before) = run.get("samplesPerModel").and_then(Value::as_u64) else {
@@ -77,7 +74,6 @@ impl Kernel {
                 "Measured {per_model} samples per model where {run_id}, whose version compares as the same evaluation, measured {before}. Say what changed in the evaluation (its sample set, for one) before comparing them."
             ));
         }
-        let _ = records;
         (per_model, warnings)
     }
 }

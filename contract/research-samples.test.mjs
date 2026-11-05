@@ -214,3 +214,22 @@ test("a run that measures a different number of samples than the last comparable
   const apart = await run([line("a")]);
   assert.deepEqual(apart.warnings, []);
 });
+
+test("a failed run is neither warned about nor compared with", posixOnly, async () => {
+  const { folder, route } = await project();
+  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", evaluation });
+  const run = async (lines, exit = 0) => {
+    await writeFile(path.join(folder, "probe.mjs"), `${script(lines)}\nprocess.exit(${exit});\n`);
+    const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+    const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: crypto.randomUUID() });
+    return until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  };
+  const whole = await run([line("a"), line("b"), line("c")]);
+  assert.equal(whole.status, "completed");
+  const partial = await run([line("a")], 1);
+  assert.equal(partial.status, "failed");
+  assert.equal(partial.samplesPerModel, 1);
+  assert.deepEqual(partial.warnings, [], "a partial run is not a different evaluation");
+  const after = await run([line("a"), line("b"), line("c")]);
+  assert.deepEqual(after.warnings, [], "compared with the last whole run, not the failed one");
+});
