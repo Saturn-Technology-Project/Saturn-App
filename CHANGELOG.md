@@ -33,6 +33,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Changed
 
+- **A new look.** On macOS the window lets the desktop show through, blurred, and menus, dialogs and the command palette float on frosted glass. Each screen has its own color, the rail and code in the editor are in color, and menus, dialogs and buttons look the same across screens. Keyboard focus now stays inside a dialog and returns where it was when the dialog closes.
 - **Saturn's interface is rebuilt for research.** Instead of agents and chats, it is organized around your questions, code, experiments, models, samples and findings. A research assistant sits beside your work and does what you allow in that chat, and long work goes to Tasks, each in its own worktree.
 - **The first launch is a tour, not a setup form.** It boxes each part of the live interface in turn and says what it is for, then helps you choose a project folder, connect a model and write your first question. Commands (⌘K) has "Take the tour" for later.
 - **Groups, Automations, the Agents board, pull request follow-up and the marketplace no longer have screens.** Their data stays, and the runtime still offers them. Earlier chats are kept in your data folder and are not shown. Schedules and follow-up you already set going keep running until you turn them off in **Settings → Still running**.

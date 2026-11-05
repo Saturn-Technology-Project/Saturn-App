@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { python } from "@codemirror/lang-python";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
 
@@ -12,6 +14,17 @@ const editorTheme = EditorView.theme({
   ".cm-activeLineGutter": { backgroundColor: "var(--hover)" },
   ".cm-scroller": { overflow: "auto" },
 });
+
+/** Code's colors, from the theme's own, so that they read in both light and dark. */
+const codeColors = HighlightStyle.define([
+  { tag: [tags.keyword, tags.modifier, tags.operatorKeyword, tags.controlKeyword], color: "var(--violet)" },
+  { tag: [tags.string, tags.special(tags.string)], color: "var(--ok)" },
+  { tag: [tags.number, tags.bool, tags.null], color: "var(--hue-experiments)" },
+  { tag: [tags.comment, tags.lineComment, tags.blockComment], color: "var(--muted)", fontStyle: "italic" },
+  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.definition(tags.variableName)], color: "var(--hue-inspect)" },
+  { tag: [tags.className, tags.typeName, tags.namespace], color: "var(--hue-samples)" },
+  { tag: tags.invalid, color: "var(--off)" },
+]);
 
 /** A code editor. The undo history and selection live here; a new `documentKey` starts a new document. */
 export function SourceEditor(props: {
@@ -45,6 +58,7 @@ export function SourceEditor(props: {
         ]),
         basicSetup,
         editorTheme,
+        syntaxHighlighting(codeColors),
         ...(props.language === "python" ? [python()] : []),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) handlers.current.onChange(update.state.doc.toString());

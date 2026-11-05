@@ -33,6 +33,9 @@ export function CommandPalette(props: { commands: PaletteCommand[]; onClose: () 
     <Dialog open onOpenChange={(open) => { if (!open) props.onClose(); }}>
       <DialogContent aria-label="Commands" initialFocus={input} className="top-[12vh] flex max-h-[60vh] w-[min(560px,calc(100vw-2rem))] max-w-none translate-y-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
         <Input
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
           ref={input}
           className="h-11 rounded-none border-0 border-b border-border px-3.5 shadow-none focus-visible:ring-0"
           value={query}
