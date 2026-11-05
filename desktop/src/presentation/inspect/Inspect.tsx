@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
 import { controlCeiling, promptPatchText, readingDifference, restoredByLayer, strongestPatch, type ExperimentRun, type InsideItem, type ModelCompareView, type ModelNode, type PromptPatchView } from "../../domain/research.js";
 import { ActivationGrid } from "../samples/LookInside.js";
+import { Button } from "../ui/base/Button.js";
+import { Input } from "../ui/base/Input.js";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "../ui/base/Select.js";
+import { Tabs, TabsList, TabsTrigger } from "../ui/base/Tabs.js";
+import { Textarea } from "../ui/base/Textarea.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf, Page } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
@@ -59,22 +64,17 @@ export function Inspect(props: ScreenProps) {
 
   return (
     <Page title="Inspect" lead="Look inside a model on prompts of your own. Prompts typed here are one case each, not a measurement: an experiment is what measures.">
-      <div className="lab-inside-patch">
-        <div className="lab-segments" role="tablist" aria-label="What to look at">
-          {VIEWS.map((item) => (
-            <button key={item} type="button" role="tab" aria-selected={view === item} className={view === item ? "lab-segment active" : "lab-segment"} onClick={() => setView(item)}>
-              {item}{item === "Recorded" && value?.recorded.length ? ` ${value.recorded.length}` : ""}
-            </button>
-          ))}
-        </div>
-        {view !== "Recorded" ? (
-          <label className="lab-field">
-            Python and weights from
-            <select value={chosenRun?.id ?? ""} onChange={(event) => setRunId(event.target.value)}>
-              {runs.map((run) => <option key={run.id} value={run.id}>{runName(run)}</option>)}
-            </select>
-          </label>
-        ) : null}
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <Tabs value={view} onValueChange={(item) => setView(item as View)}>
+          <TabsList aria-label="What to look at">
+            {VIEWS.map((item) => (
+              <TabsTrigger key={item} value={item}>
+                {item}{item === "Recorded" && value?.recorded.length ? ` ${value.recorded.length}` : ""}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        {view !== "Recorded" ? <Choice label="Python and weights from" className="w-56" value={chosenRun?.id ?? ""} options={runs.map((run) => ({ value: run.id, label: runName(run) }))} onChange={setRunId} /> : null}
       </div>
       {view === "Two prompts" && chosenRun ? <TwoPrompts projectId={projectId} run={chosenRun} models={models} sent={sent} notify={props.notify} onDone={refresh} onRecord={record} /> : null}
       {view === "Two models" && chosenRun ? <TwoModels projectId={projectId} run={chosenRun} models={models} sent={sent} notify={props.notify} onDone={refresh} /> : null}
@@ -94,17 +94,36 @@ function modelName(models: ModelNode[], id: string | null | undefined): string {
   return model ? model.name || model.source : (id ?? "the run's model");
 }
 
-/** Chooses a model of the project. */
-function ModelChoice(props: { label: string; models: ModelNode[]; value: string; onChange: (id: string) => void }) {
+/** A form's field: its name above what fills it in. */
+function Field(props: { label: string; className?: string; children: ReactNode }) {
   return (
-    <label className="lab-field">
+    <label className={`flex min-w-0 flex-col gap-1 text-xs text-muted-foreground ${props.className ?? ""}`}>
       {props.label}
-      <select value={props.value} onChange={(event) => props.onChange(event.target.value)}>
-        <option value="">Choose a model</option>
-        {props.models.map((model) => <option key={model.id} value={model.id}>{model.name || model.source}</option>)}
-      </select>
+      {props.children}
     </label>
   );
+}
+
+/** One of several values, with its name above. The name is tied to the trigger by id, since the list renders a hidden input too. */
+function Choice(props: { label: string; value: string; options: { value: string; label: string }[]; placeholder?: string; className?: string; onChange: (value: string) => void }) {
+  const id = useId();
+  return (
+    <div className={`flex min-w-0 flex-col gap-1 text-xs text-muted-foreground ${props.className ?? ""}`}>
+      <span id={id}>{props.label}</span>
+      <Select value={props.value || null} items={props.options} onValueChange={(value) => props.onChange(String(value ?? ""))}>
+        <SelectTrigger aria-labelledby={id} placeholder={props.placeholder} className="w-full text-foreground" />
+        <SelectContent>
+          {props.options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+/** Chooses a model of the project. */
+function ModelChoice(props: { label: string; models: ModelNode[]; value: string; onChange: (id: string) => void }) {
+  const options = props.models.map((model) => ({ value: model.id, label: model.name || model.source }));
+  return <Choice label={props.label} className="w-44" placeholder="Choose a model" value={props.value} options={options} onChange={props.onChange} />;
 }
 
 type Sent = { modelId: string | null; input: string; expected?: string; alternative?: string } | null;
@@ -135,23 +154,23 @@ function TwoPrompts(props: { projectId: string; run: ExperimentRun; models: Mode
   }
 
   return (
-    <section className="lab-card lab-inspect-card">
-      <h2>Where does the answer come from?</h2>
-      <div className="lab-muted">The corrupted prompt runs with one layer and position restored from the clean prompt at a time. Both need the same number of tokens, so change a word for a word.</div>
-      <div className="lab-inspect-prompts">
-        <label className="lab-field">Clean prompt<textarea value={clean} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setClean(event.target.value)} /></label>
-        <label className="lab-field">Corrupted prompt<textarea value={corrupted} placeholder="When Mary and John went to the store, Mary gave a drink to" onChange={(event) => setCorrupted(event.target.value)} /></label>
+    <section className="mt-3 flex flex-col gap-3 rounded-lg bg-card p-4">
+      <h2 className="mt-0! text-sm font-semibold">Where does the answer come from?</h2>
+      <div className="text-xs text-muted-foreground">The corrupted prompt runs with one layer and position restored from the clean prompt at a time. Both need the same number of tokens, so change a word for a word.</div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3">
+        <Field label="Clean prompt"><Textarea value={clean} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setClean(event.target.value)} /></Field>
+        <Field label="Corrupted prompt"><Textarea value={corrupted} placeholder="When Mary and John went to the store, Mary gave a drink to" onChange={(event) => setCorrupted(event.target.value)} /></Field>
       </div>
-      <div className="lab-inside-patch">
+      <div className="flex flex-wrap items-end gap-3">
         <ModelChoice label="Model" models={props.models} value={modelId} onChange={setModelId} />
-        <label className="lab-field">Expected word<input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></label>
-        <label className="lab-field">Against<input value={alternative} placeholder=" John" onChange={(event) => setAlternative(event.target.value)} /></label>
-        <button type="button" className="lab-button" disabled={busy || !modelId || !clean.trim() || !corrupted.trim() || !expected || !alternative} onClick={() => void run()}>
+        <Field label="Expected word" className="w-32"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
+        <Field label="Against" className="w-32"><Input value={alternative} placeholder=" John" onChange={(event) => setAlternative(event.target.value)} /></Field>
+        <Button disabled={busy || !modelId || !clean.trim() || !corrupted.trim() || !expected || !alternative} onClick={() => void run()}>
           {busy ? "Patching…" : "Patch every layer and position"}
-        </button>
+        </Button>
       </div>
-      <div className="lab-muted">Spaces count: a name in the middle of a sentence usually starts with one.</div>
-      {problem ? <div className="lab-notice">{problem}</div> : null}
+      <div className="text-xs text-muted-foreground">Spaces count: a name in the middle of a sentence usually starts with one.</div>
+      {problem ? <div role="alert" className="whitespace-pre-wrap rounded-md border border-border p-2 text-xs">{problem}</div> : null}
       {answer ? <PatchResult view={answer} models={props.models} onRecord={(text) => props.onRecord(text, props.run.id)} /> : null}
     </section>
   );
@@ -167,15 +186,15 @@ function PatchResult(props: { view: PromptPatchView; models: ModelNode[]; onReco
     <>
       <div>
         {best ? `Layer ${best.layer} at ${JSON.stringify(best.token)} brings back ${(best.recovery * 100).toFixed(1)}%.` : "No layer and position brought back more than the control."}{" "}
-        <span className="lab-muted">A random change of the same size moved at most {(ceiling * 100).toFixed(1)}%.</span>
+        <span className="text-xs text-muted-foreground">A random change of the same size moved at most {(ceiling * 100).toFixed(1)}%.</span>
       </div>
-      <div className="lab-muted">Clean ends on {JSON.stringify(view.cleanTop)}, margin {view.cleanMargin}. Corrupted ends on {JSON.stringify(view.corruptedTop)}, margin {view.corruptedMargin}.</div>
+      <div className="text-xs text-muted-foreground">Clean ends on {JSON.stringify(view.cleanTop)}, margin {view.cleanMargin}. Corrupted ends on {JSON.stringify(view.corruptedTop)}, margin {view.corruptedMargin}.</div>
       <ActivationGrid signed quietAtOrBelow={ceiling} caption="How much of the margin comes back, layer by token. Blue brings it back, red pushes it away, an outline is no further than the control went." tokens={view.tokens} layers={toRows(view.recovery)} />
       <details>
-        <summary className="lab-muted">The control</summary>
+        <summary className="text-xs text-muted-foreground">The control</summary>
         <ActivationGrid signed caption="The same places given a random change of the same size as the difference between the prompts." tokens={view.tokens} layers={toRows(view.control)} />
       </details>
-      {props.onRecord ? <button type="button" className="lab-button" onClick={() => void props.onRecord?.(promptPatchText(view, modelName(props.models, view.modelId)))}>Record as an observation</button> : null}
+      {props.onRecord ? <Button variant="outline" className="w-fit" onClick={() => void props.onRecord?.(promptPatchText(view, modelName(props.models, view.modelId)))}>Record as an observation</Button> : null}
     </>
   );
 }
@@ -212,18 +231,18 @@ function TwoModels(props: { projectId: string; run: ExperimentRun; models: Model
   }
 
   return (
-    <section className="lab-card lab-inspect-card">
-      <h2>Where do two models part?</h2>
-      <label className="lab-field">Prompt<textarea value={input} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setInput(event.target.value)} /></label>
-      <div className="lab-inside-patch">
+    <section className="mt-3 flex flex-col gap-3 rounded-lg bg-card p-4">
+      <h2 className="mt-0! text-sm font-semibold">Where do two models part?</h2>
+      <Field label="Prompt"><Textarea value={input} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setInput(event.target.value)} /></Field>
+      <div className="flex flex-wrap items-end gap-3">
         <ModelChoice label="Model" models={props.models} value={modelId} onChange={setModelId} />
         <ModelChoice label="Against" models={props.models.filter((model) => model.id !== modelId)} value={otherModelId} onChange={setOtherModelId} />
-        <label className="lab-field">Expected word, if any<input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></label>
-        <button type="button" className="lab-button" disabled={busy || !modelId || !otherModelId || !input.trim()} onClick={() => void run()}>
+        <Field label="Expected word, if any" className="w-40"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
+        <Button disabled={busy || !modelId || !otherModelId || !input.trim()} onClick={() => void run()}>
           {busy ? "Reading…" : "Read both"}
-        </button>
+        </Button>
       </div>
-      {problem ? <div className="lab-notice">{problem}</div> : null}
+      {problem ? <div role="alert" className="whitespace-pre-wrap rounded-md border border-border p-2 text-xs">{problem}</div> : null}
       {answer ? <CompareResult view={answer} models={props.models} /> : null}
     </section>
   );
@@ -236,7 +255,7 @@ function CompareResult(props: { view: ModelCompareView; models: ModelNode[] }) {
   const other = modelName(models, view.otherModelId);
   return (
     <>
-      <div className="lab-muted">{view.measure}. {name} ends on {JSON.stringify(view.top)}, {other} on {JSON.stringify(view.otherTop)}.</div>
+      <div className="text-xs text-muted-foreground">{view.measure}. {name} ends on {JSON.stringify(view.top)}, {other} on {JSON.stringify(view.otherTop)}.</div>
       <ActivationGrid signed caption={`${name} less ${other}. Blue is higher in ${name}, red in ${other}.`} tokens={view.tokens} layers={readingDifference(view.layers, view.otherLayers)} />
       <ActivationGrid caption={name} tokens={view.tokens} layers={view.layers} />
       <ActivationGrid caption={other} tokens={view.tokens} layers={view.otherLayers} />
@@ -250,13 +269,13 @@ function RecordedList(props: { items: Recorded[]; models: ModelNode[] }) {
   const keyOf = (item: Recorded) => `${item.runId}:${item.key ?? item.recordedAt}`;
   if (!props.items.length) return <Empty title="Nothing recorded yet">What you and the assistant look at inside a model is kept here, with the run it used.</Empty>;
   return (
-    <section className="lab-card lab-inspect-card lab-inspect-history">
+    <section className="mt-3 flex flex-col gap-3 rounded-lg bg-card p-4 gap-0.5">
       {props.items.map((item) => {
         const key = keyOf(item);
         return (
           <details key={key} open={open === key} onToggle={(event) => { if (event.currentTarget.open) setOpen(key); else if (open === key) setOpen(null); }}>
             <summary>
-              {KIND_LABELS[item.kind]} <span className="lab-muted">{describe(item, props.models)} · {item.recordedAt ? new Date(item.recordedAt).toLocaleString() : ""}{item.current === false ? " · by an earlier helper" : ""}</span>
+              {KIND_LABELS[item.kind]} <span className="text-xs text-muted-foreground">{describe(item, props.models)} · {item.recordedAt ? new Date(item.recordedAt).toLocaleString() : ""}{item.current === false ? " · by an earlier helper" : ""}</span>
             </summary>
             {open === key ? <RecordedItem item={item} models={props.models} /> : null}
           </details>
@@ -281,7 +300,7 @@ function RecordedItem(props: { item: Recorded; models: ModelNode[] }) {
   if (item.kind === "compare") return <CompareResult view={item} models={models} />;
   if (item.kind === "sweep") {
     const totals = restoredByLayer(item);
-    return <div className="lab-muted">Restored of {item.samples.length}, by layer {item.layers.join(", ")}: {totals.join(" ")}. The Experiments screen shows it sample by sample.</div>;
+    return <div className="text-xs text-muted-foreground">Restored of {item.samples.length}, by layer {item.layers.join(", ")}: {totals.join(" ")}. The Experiments screen shows it sample by sample.</div>;
   }
   return <ActivationGrid caption={item.measure} tokens={item.tokens} layers={item.layers} />;
 }

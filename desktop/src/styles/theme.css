@@ -1,0 +1,53 @@
+/*
+ * Tailwind, for the components in presentation/ui/base and the screens moved onto them. Only those files are scanned, so a
+ * class name an older screen happens to share with a utility changes nothing. There is no preflight: the older styles keep
+ * their reset. Tailwind's theme stays in a layer, so that Saturn's tokens win over its variables of the same name.
+ */
+@layer theme, base;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" source(none);
+@source "../presentation/ui/base";
+@source "../presentation/inspect";
+@source "../presentation/ProjectAccess.tsx";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* The names shadcn's components use, as Saturn's own tokens. */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--card);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--elevated);
+  --color-popover-foreground: var(--fg);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--on-accent);
+  --color-muted: var(--hover);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--hover);
+  --color-accent-foreground: var(--fg);
+  --color-destructive: var(--off);
+  --color-border: var(--line);
+  --color-input: var(--line-strong);
+  --color-ring: var(--subtle);
+  --radius-md: var(--radius);
+  --text-sm: var(--text-body);
+  --text-xs: var(--text-small);
+}
+
+/* What preflight would have done for these elements. In a layer, so any utility wins. */
+@layer base {
+  [data-slot="button"],
+  [data-slot="select-trigger"],
+  [data-slot="tabs-trigger"],
+  [data-slot="input"],
+  [data-slot="textarea"] {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+  }
+}

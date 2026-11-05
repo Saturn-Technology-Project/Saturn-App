@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { Button } from "./ui/base/Button.js";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/base/Dialog.js";
 import type { Project } from "../domain/model";
 import type { RuntimeStatus } from "../infrastructure/runtime-status";
 
@@ -41,14 +43,7 @@ export function AccessDialog(props: { path: string; name?: string; onAllow: () =
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const name = props.name || folderName(props.path);
-
-  useEffect(() => {
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") props.onClose();
-    };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, [props.onClose]);
+  const allowButton = useRef<HTMLButtonElement>(null);
 
   async function allow() {
     setBusy(true);
@@ -62,15 +57,13 @@ export function AccessDialog(props: { path: string; name?: string; onAllow: () =
   }
 
   return (
-    <div className="modal-overlay" onMouseDown={props.onClose}>
-      <div className="modal-dialog workspace-modal" role="dialog" aria-modal="true" aria-labelledby="access-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="workspace-modal-head">
-          <div>
-            <h3 id="access-title">Allow access to “{name}”?</h3>
-            <p>Agents in this project work inside this folder.</p>
-          </div>
-        </div>
-        <div className="workspace-modal-body">
+    <Dialog open onOpenChange={(open) => { if (!open) props.onClose(); }}>
+      <DialogContent initialFocus={allowButton} className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Allow access to “{name}”?</DialogTitle>
+          <DialogDescription>Agents in this project work inside this folder.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
           <div className="workspace-folders">
             <div className="workspace-folder">
               <FolderIcon />
@@ -88,14 +81,14 @@ export function AccessDialog(props: { path: string; name?: string; onAllow: () =
           <p className="access-note">You can revoke access any time from the project's menu. macOS may also ask once to let Saturn read this location.</p>
           {error ? <p className="workspace-error" role="alert">{error}</p> : null}
         </div>
-        <div className="workspace-modal-foot">
-          <button type="button" className="btn ghost" onClick={props.onClose}>Cancel</button>
-          <button type="button" className="btn primary-btn" disabled={busy} autoFocus onClick={() => void allow()}>
+        <DialogFooter>
+          <Button variant="ghost" onClick={props.onClose}>Cancel</Button>
+          <Button ref={allowButton} disabled={busy} onClick={() => void allow()}>
             {busy ? "Opening…" : "Allow Access"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -7,6 +7,7 @@ import "./styles/ui.css";
 import "./styles/shell.css";
 import "./styles/workspace.css";
 import "./styles/assistant.css";
+import "./styles/theme.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
