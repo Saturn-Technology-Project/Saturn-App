@@ -165,6 +165,28 @@ environment that ran the experiment; a command that starts with anything else is
   there without running again. `GET .../activations?sample=&model=` reads what was saved, or 404.
 - A helper that fails answers 422 with the end of its error output. The runtime never interprets the values.
 
+## What a run costs
+
+While a run lives the runtime samples its process group every two seconds into `runs/{id}/resources.jsonl`, one
+object per line: `at`, `elapsedMs`, `cpuPercent` and `memoryBytes` (every process in the group, added up, from `ps`),
+`processes`, `samplesBytes` and `samplesLines` (the samples file so far), and `gpus` (each GPU's name, utilization
+and memory from `nvidia-smi`, or null where there is none). `GET /projects/{id}/research/runs/{run}/resources` answers
+with `{"runId","status","system":{"cpus","platform"},"points":[...]}`, the newest 900 points. The readings are what
+the system said; nothing is derived from them.
+
+## The environment
+
+`GET /projects/{id}/research/environment` is the project's Python: `python` (the interpreter the user set, or null),
+`suggestedPython` (the one the newest experiment's command starts with, when none is set), `report` (what the
+interpreter last said about itself), `checkedAt`, and `lockFiles`, the pinning files found at the project's root
+(`uv.lock`, `poetry.lock`, `Pipfile.lock`, `requirements.txt`, `requirements.lock`, `pyproject.toml`,
+`environment.yml`) with their `sha256` and `size`, looked up at the time of asking. `PUT` with `{"python"}` sets the
+interpreter; empty forgets it. `POST .../environment/check` runs a script with the interpreter that reports its
+version, platform, processor count, the versions of the packages research code leans on, and the devices torch can
+see (CUDA names, MPS), and keeps the report. No interpreter, one that cannot start, or one whose report cannot be read
+answers 422 with what to do. Looking inside uses this interpreter when an experiment's command does not start with
+one. The record lives in `.saturn/research/environment.json`, and the lock files are not changed by Saturn.
+
 ## What is enforced, and what is not
 
 **Participation modes and locks are a workflow constraint, not a security boundary.** The HTTP API has one bearer token and

@@ -1,7 +1,7 @@
 //! Looking inside a model on one sample: activations read through the unembedding, and one layer patched in from
 //! another model. The work is done by a Python helper in the project's own environment, and the answer is saved with
 //! the run. `docs/research-contract.md` says the shapes.
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Stdio;
 
 use saturn_domain::research::{SCHEMA_VERSION, is_id, sha256_hex};
@@ -19,24 +19,6 @@ use crate::{CoreError, Kernel};
 const HELPER: &str = include_str!("inside.py");
 /// The folder in a run's directory where its answers are kept.
 const FOLDER: &str = "inside";
-
-/// The interpreter a version's command runs: its first word when that is a Python, which is the environment the
-/// experiment itself uses.
-fn interpreter(command: &str) -> Result<String, CoreError> {
-    let first = command.split_whitespace().next().unwrap_or("");
-    let name = Path::new(first)
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    if name.starts_with("python") {
-        Ok(first.to_owned())
-    } else {
-        Err(CoreError::new(
-            422,
-            "Looking inside needs the experiment's command to start with the Python that runs it, such as \".venv/bin/python probe.py\", so the model loads in the same environment.",
-        ))
-    }
-}
 
 /// The model a request is about: `modelId`, or an intervention's `targetModelId`.
 fn asked_model(request: &Value) -> Option<&str> {
@@ -104,7 +86,11 @@ impl Kernel {
         let version = self
             .research_record(project, "versions", text(&run, "versionId"))
             .await?;
-        let python = interpreter(text(&version, "command"))?;
+        // The Python the experiment itself runs with, so the model loads in the same environment.
+        let python = match super::environment::python_of(text(&version, "command")) {
+            Some(python) => python.to_owned(),
+            None => self.research_python(project).await?,
+        };
         let sample = self.inside_sample(project, &run, request).await?;
         let model_id = asked_model(request)
             .map(str::to_owned)

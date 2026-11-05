@@ -211,6 +211,24 @@ async fn intervene(State(kernel): Shared, Path(project): Path<String>, body: Bod
     ok(kernel.research_look_inside(&project, run, &body).await?)
 }
 
+async fn resources(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
+    ok(kernel.research_resources(&project, &run).await?)
+}
+
+async fn environment(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_environment(&project).await?)
+}
+
+async fn set_environment(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    ok(kernel
+        .research_set_environment(&project, &body_of(body))
+        .await?)
+}
+
+async fn check_environment(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_check_environment(&project).await?)
+}
+
 async fn policy(State(kernel): Shared, Path(project): Path<String>) -> Answer {
     ok(kernel.research_policy(&project).await?)
 }
@@ -231,6 +249,18 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             get(inside_saved).post(look_inside),
         )
         .route("/projects/{id}/research/interventions", post(intervene))
+        .route(
+            "/projects/{id}/research/runs/{run}/resources",
+            get(resources),
+        )
+        .route(
+            "/projects/{id}/research/environment",
+            get(environment).put(set_environment),
+        )
+        .route(
+            "/projects/{id}/research/environment/check",
+            post(check_environment),
+        )
         .route(
             "/projects/{id}/research/policy",
             get(policy).put(set_policy),
