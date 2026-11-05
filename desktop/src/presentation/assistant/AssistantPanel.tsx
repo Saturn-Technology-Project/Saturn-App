@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
-import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../../domain/chat-mode.js";
-import { GUARDRAIL_MODES, normalizeGuardrailMode, type GuardrailModeId } from "../../domain/conversation.js";
+import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf, startsTask } from "../../domain/chat-mode.js";
 import type { Agent, ChatMode, ContextItem, Model } from "../../domain/model.js";
 import { HELP_REQUESTS, workbenchState, type Screen } from "../../domain/workbench.js";
 import { hiddenContext } from "../../domain/slash.js";
@@ -113,7 +112,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   async function handToTask() {
     if (!agent || !text.trim()) return;
     try {
-      await desktop.assistant.startTask(agent, project.id, await withContext(text.trim()));
+      await desktop.assistant.startTask(agent, project.id, await withContext(text.trim()), mode);
       setText("");
       props.go("Tasks");
     } catch (error) {
@@ -123,7 +122,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
 
   /** What sending does: a Delegate chat starts a task, the others answer here. */
   function send() {
-    return mode === "delegate" ? handToTask() : ask(text);
+    return startsTask(mode) ? handToTask() : ask(text);
   }
 
   async function chooseMode(next: ChatMode) {
@@ -145,16 +144,6 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     }
   }
 
-  async function chooseApprovals(approvals: GuardrailModeId) {
-    if (!agent) return;
-    try {
-      await desktop.catalog.updateAgent(agent.id, { autonomy: approvals });
-      await load();
-    } catch (error) {
-      notify(messageOf(error));
-    }
-  }
-
   if (ready && !agent) {
     return (
       <div className="lab-assistant">
@@ -169,16 +158,6 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     <div className="lab-assistant">
       <div className="lab-assistant-head">
         <strong>Research assistant</strong>
-        <label className="lab-assistant-setting">
-          Approvals
-          <select className="lab-chat-select" value={normalizeGuardrailMode(agent?.autonomy)} onChange={(event) => void chooseApprovals(event.target.value as GuardrailModeId)}>
-            {GUARDRAIL_MODES.map((item) => (
-              <option key={item.id} value={item.id} title={item.description}>
-                {item.title}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
       <div className="lab-conversation" ref={log} role="log" aria-label="Conversation with the research assistant">
@@ -243,7 +222,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
             aria-label="Message to the assistant"
             rows={2}
             value={text}
-            placeholder={mode === "delegate" ? "Describe the task" : "Message the assistant"}
+            placeholder={startsTask(mode) ? "Describe the task" : "Message the assistant"}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -263,7 +242,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
                 </option>
               ))}
             </select>
-            <select className="lab-chat-select" aria-label="Model" value={agent?.modelConnectionId ?? ""} onChange={(event) => void chooseModel(event.target.value)}>
+            <select className="lab-chat-select" aria-label="Model" title={models.find((model) => model.id === agent?.modelConnectionId)?.name} value={agent?.modelConnectionId ?? ""} onChange={(event) => void chooseModel(event.target.value)}>
               {models.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.name}
@@ -277,7 +256,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
               </button>
             ) : (
               <button type="button" className="lab-button primary" disabled={!text.trim()} onClick={() => void send()}>
-                {mode === "delegate" ? "Start a task" : "Send"}
+                {startsTask(mode) ? "Start" : "Send"}
               </button>
             )}
           </div>

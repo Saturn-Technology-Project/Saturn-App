@@ -507,7 +507,7 @@ impl Kernel {
         let append = append.join("\n\n");
 
         let group = self.group_of(&run);
-        let approval = approval_mode(agent, group.as_ref());
+        let approval = approval_mode(agent, group.as_ref(), self.chat_mode_of(&run).as_deref());
         let thread = self.find_thread(text(&run, "threadId"));
         let checkpointing = thread.is_some_and(|thread| !text(&thread, "projectId").is_empty());
         let turn = Turn::new(self, run_id, at);

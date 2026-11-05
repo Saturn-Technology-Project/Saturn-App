@@ -1,5 +1,5 @@
 import { ASSISTANT_NAME, ASSISTANT_THREAD, RESEARCH_TOOLS, TASK_PREFIX } from "../domain/assistant.js";
-import type { Agent, Conversation, Model, RunMode } from "../domain/model.js";
+import type { Agent, ChatMode, Conversation, Model, RunMode } from "../domain/model.js";
 import { assistantInstructions } from "../domain/workbench.js";
 import type { CatalogService } from "./catalog.js";
 import type { RunService } from "./runs.js";
@@ -50,9 +50,10 @@ export class AssistantService {
   }
 
   /** Hands work to an agent in its own worktree, so nothing reaches the project until it is merged. */
-  async startTask(agent: Agent, projectId: string, prompt: string): Promise<Conversation> {
+  async startTask(agent: Agent, projectId: string, prompt: string, mode: ChatMode = "delegate"): Promise<Conversation> {
     const title = TASK_PREFIX + prompt.split("\n")[0].slice(0, 80);
     const thread = await this.catalog.createThread(agent.id, title, projectId);
+    await this.catalog.setChatMode(thread.id, mode);
     await this.catalog.isolateThread(thread.id);
     await this.runs.start(agent.id, prompt, thread.id, { mode: "agent" satisfies RunMode });
     return thread;

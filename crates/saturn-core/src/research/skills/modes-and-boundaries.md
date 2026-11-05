@@ -9,7 +9,8 @@ description: What Manual, Pair and Delegate allow, what is always the person's, 
 |---|---|---|
 | Manual | Read and explain | Anything that changes something is refused |
 | Pair | Propose; each change or command waits for approval | On Codex, Pair only reads: it cannot ask before it writes |
-| Delegate | The person's message becomes a task, in its own worktree | What you do reaches the project when the person merges it |
+| Delegate | The person's message becomes a task, in its own worktree. It asks before anything sensitive | What you do reaches the project when the person merges it |
+| Delegate (auto) | The same, and nothing waits for approval | Locks and the person's decisions still hold |
 
 Each message tells you the chat's mode. The person sets it. If the mode blocks what was asked, say what you would do and which mode allows it. Do not look for a way around.
 

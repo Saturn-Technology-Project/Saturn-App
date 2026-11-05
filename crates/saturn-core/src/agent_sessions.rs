@@ -34,12 +34,20 @@ const MCP_VERSIONS: [&str; 5] = [
 ];
 
 /// How much a Claude Code or Codex agent may do without asking: its own setting, unless the group it works in sets one.
-pub(crate) fn approval_mode(agent: &Value, group: Option<&Value>) -> GuardrailMode {
+pub(crate) fn approval_mode(
+    agent: &Value,
+    group: Option<&Value>,
+    chat_mode: Option<&str>,
+) -> GuardrailMode {
     let autonomy = group
         .and_then(|group| group.get("autonomy"))
         .and_then(Value::as_str);
     if let Some(autonomy) = autonomy {
         return autonomy_of(Some(autonomy));
+    }
+    // A chat's mode says how much it asks; the agent's own setting is for a chat with none.
+    if let Some(approvals) = chat_mode.and_then(saturn_domain::research::chat_approvals) {
+        return autonomy_of(Some(approvals));
     }
     autonomy_of(agent.get("autonomy").and_then(Value::as_str))
 }

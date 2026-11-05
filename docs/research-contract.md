@@ -271,11 +271,12 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
 | Codex | Not possible per file: its sandbox is read-only or writable, so a Pair chat runs read-only | Compared afterwards; a task runs in a worktree |
 | MCP tools | Saturn cannot tell what they write | Compared afterwards |
 
-- A chat's mode is `manual`, `pair` or `delegate` (`chatMode`, set with `PATCH /threads/{id}`), kept on the chat rather than
-  in the project's records. `manual` makes every run of the chat read-only. `pair` makes a file tool, a command or any other
+- A chat's mode is `manual`, `pair`, `delegate` or `delegate_auto` (`chatMode`, set with `PATCH /threads/{id}`), kept on the
+  chat rather than in the project's records. It also decides how much the chat asks, in place of the agent's own approval
+  setting: `delegate` asks before what is sensitive, and `delegate_auto` asks nothing. A chat with no mode goes by the agent's. `manual` makes every run of the chat read-only. `pair` makes a file tool, a command or any other
   call that changes something wait for the user even with approvals off, and an accepted file change is recorded with its
-  content and the policy's revision. `delegate` puts no limit on the chat; the interface starts a task for each message. A
-  chat with no mode, such as a task's, is the agent's to change. A mode that changes while a call waits applies to that call.
+  content and the policy's revision. `delegate` and `delegate_auto` put no limit on what the chat changes; the interface starts a task for each message, and the
+  task keeps the mode it was started in. A chat with no mode is the agent's to change. A mode that changes while a call waits applies to that call.
 - Locked for agents: what the policy names, and the `data` and `scorer` inputs of each experiment's newest version. The
   user can release a lock (`released` in the policy) when an agent asks to change such a file: it may then change it,
   and the next frozen version locks what it uses again and ends every release, so older versions keep their results.

@@ -117,8 +117,8 @@ export type Project = {
   isDefault?: boolean;
 };
 
-/** How much a chat's agent may change: Manual only reads, Pair asks about each change, Delegate hands work to a task. */
-export type ChatMode = "manual" | "pair" | "delegate";
+/** How much a chat's agent may do: Manual only reads, Pair asks about each change, and Delegate hands work to a task, which asks before what is sensitive or, on auto, asks nothing. */
+export type ChatMode = "manual" | "pair" | "delegate" | "delegate_auto";
 
 export type Conversation = {
   id: string;

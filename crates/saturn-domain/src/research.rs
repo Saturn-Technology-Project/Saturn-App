@@ -384,9 +384,19 @@ pub fn agent_change(collection: &str, current: &Value, fields: &Value) -> Result
     agent_record(collection, fields)
 }
 
-/// How much a chat's agent may change: `manual` only reads, `pair` asks about each change, `delegate` works on its own.
+/// How much a chat's agent may change: `manual` only reads, `pair` asks about each change, `delegate` works on its own and asks
+/// before what is sensitive, and `delegate_auto` works on its own and asks nothing.
 pub fn is_chat_mode(mode: &str) -> bool {
-    matches!(mode, "manual" | "pair" | "delegate")
+    matches!(mode, "manual" | "pair" | "delegate" | "delegate_auto")
+}
+
+/// The approval setting that goes with a chat's mode, which then decides over the agent's own.
+pub fn chat_approvals(mode: &str) -> Option<&'static str> {
+    match mode {
+        "manual" | "pair" | "delegate" => Some("execute_when_allowed"),
+        "delegate_auto" => Some("bypass"),
+        _ => None,
+    }
 }
 
 /// What applies to an agent writing a path. The records and locks always hold; after them, the mode of the chat it works in.
@@ -560,6 +570,17 @@ mod tests {
             policy_verdict(&locks, "probe.py", Some("delegate")),
             PolicyVerdict::Allowed
         );
+        assert_eq!(
+            policy_verdict(&locks, "probe.py", Some("delegate_auto")),
+            PolicyVerdict::Allowed
+        );
+        assert_eq!(
+            policy_verdict(&locks, "set.jsonl", Some("delegate_auto")),
+            PolicyVerdict::Locked
+        );
+        assert_eq!(chat_approvals("delegate_auto"), Some("bypass"));
+        assert_eq!(chat_approvals("delegate"), Some("execute_when_allowed"));
+        assert_eq!(chat_approvals("anything else"), None);
         assert_eq!(
             policy_verdict(&locks, "probe.py", None),
             PolicyVerdict::Allowed

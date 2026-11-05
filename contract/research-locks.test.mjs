@@ -152,6 +152,37 @@ test("a Pair chat waits for the user even with approvals off, and an accepted ch
   assert.equal(await text(folder, `.saturn/research/objects/${sha("changed\n")}`), "changed\n");
 });
 
+test("a chat's mode decides how much it asks, over the agent's own setting", posixOnly, async () => {
+  const folder = await saturn.folder();
+  const asks = await saturn.chat(folder, { autonomy: "bypass" });
+  await saturn.api("PATCH", `/threads/${asks.thread.id}`, { chatMode: "delegate" });
+  const started = await asks.start([command("rm -rf nothing-here")]);
+  const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
+  assert.equal(waiting.actions[0].toolId, "code", "delegate asks before what is sensitive, though the agent says bypass");
+  await saturn.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: false });
+  await saturn.finished(started.id);
+
+  const free = await saturn.chat(await saturn.folder(), { autonomy: "review" });
+  await saturn.api("PATCH", `/threads/${free.thread.id}`, { chatMode: "delegate_auto" });
+  const run = await free.turn([command("rm -rf nothing-here")]);
+  assert.equal(run.actions[0].status, "completed", "auto asks nothing, though the agent says review");
+
+  const unset = await saturn.chat(await saturn.folder(), { autonomy: "review" });
+  const started2 = await unset.start([command("true")]);
+  await until("the approval", () => saturn.api("GET", `/runs/${started2.id}`), (item) => item.status === "waiting_approval");
+  await saturn.api("POST", `/runs/${started2.id}/stop`, {});
+});
+
+test("auto still cannot write a locked file", async () => {
+  const { folder, lock, chatMode, turn } = await bed();
+  await lock("probe.py");
+  await chatMode("delegate_auto");
+  const run = await turn([write("probe.py", "agent\n")]);
+  assert.equal(run.actions[0].status, "failed");
+  assert.match(run.actions[0].reason, /locked/);
+  assert.equal(await text(folder, "probe.py"), "mine\n");
+});
+
 test("a Pair chat asks before a command too, and not before a read", posixOnly, async () => {
   const { folder, chatMode, agent, thread, model } = await bed();
   await chatMode("pair");

@@ -1294,6 +1294,10 @@ impl Kernel {
         let mode = autonomy_of(
             autonomy
                 .as_deref()
+                .or_else(|| {
+                    self.chat_mode_of(&run)
+                        .and_then(|mode| saturn_domain::research::chat_approvals(&mode))
+                })
                 .or_else(|| agent.get("autonomy").and_then(Value::as_str)),
         );
         let turn_mode = RunMode::parse(run.get("mode").and_then(Value::as_str));

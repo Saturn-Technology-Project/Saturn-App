@@ -647,7 +647,7 @@ impl Kernel {
                 turn: Arc::clone(&turn),
                 agent: agent.clone(),
                 mode,
-                approval: approval_mode(agent, group.as_ref()),
+                approval: approval_mode(agent, group.as_ref(), self.chat_mode_of(&run).as_deref()),
                 tools,
                 orphans: Mutex::default(),
                 asked: Mutex::default(),
