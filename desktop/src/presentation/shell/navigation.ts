@@ -1,5 +1,5 @@
 /** The screens of the workbench. */
-export const SCREENS = ["Home", "Workspace", "Lineage", "Experiments", "Samples", "Tasks", "Protection"] as const;
+export const SCREENS = ["Home", "Workspace", "Lineage", "Experiments", "Samples", "Tasks", "Protection", "Environment"] as const;
 export type Screen = (typeof SCREENS)[number];
 
 /** Where the app reopens; losing this loses no research. */

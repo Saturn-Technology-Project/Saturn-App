@@ -691,3 +691,34 @@
 .lab-table .lab-segment {
   white-space: nowrap;
 }
+
+/* What a run costs, as lines over time. */
+.lab-resources {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.lab-sparklines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.lab-sparkline {
+  margin: 0;
+  color: var(--accent);
+}
+
+.lab-sparkline figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-small);
+}
+
+.lab-sparkline-value {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}

@@ -2,6 +2,7 @@ import type {
   AcrossRow,
   ActivationView,
   Comparison,
+  EnvironmentRecord,
   InterventionRequest,
   OpenTarget,
   ExperimentDraft,
@@ -16,6 +17,7 @@ import type {
   ResearchEvent,
   ResearchPolicy,
   RunLabels,
+  RunResources,
   RunSummary,
   ResearchSession,
   SampleItem,
@@ -193,6 +195,25 @@ export class ResearchService {
   /** One layer patched from one model into another on a sample, in the same way. */
   intervene(project: string, request: InterventionRequest): Promise<ActivationView> {
     return this.send(`${this.route(project)}/interventions`, "POST", request);
+  }
+
+  /** What a run's processes cost, sampled while it lives. */
+  resources(project: string, run: string): Promise<RunResources> {
+    return this.runtime.request(`${this.route(project)}/runs/${run}/resources`);
+  }
+
+  environment(project: string): Promise<EnvironmentRecord> {
+    return this.runtime.request(`${this.route(project)}/environment`);
+  }
+
+  /** Sets the project's Python; an empty path forgets it. */
+  setEnvironment(project: string, python: string): Promise<EnvironmentRecord> {
+    return this.send(`${this.route(project)}/environment`, "PUT", { python });
+  }
+
+  /** Asks the project's Python what it is and has. */
+  checkEnvironment(project: string): Promise<EnvironmentRecord> {
+    return this.send(`${this.route(project)}/environment/check`, "POST");
   }
 
   /** Writes a file into the project, for taking an experiment's record elsewhere. */

@@ -23,6 +23,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **Home picks up where you stopped.** When the project was last active, what the workspace restores, what changed since this device last looked, and what is still open: undecided hypotheses, runs that failed or were interrupted, refusals to decide on.
 - **Tasks say what they may touch.** Each task is grouped by whether it needs a decision, is running or is ready for review, shows what it can change, what is locked and where it is sandboxed, and when it was refused a locked file you can release the file for the next version, keep it, or edit it yourself.
 - **The workspace sidebar lists the project's questions, models, notes, code with each file's mode, and experiments.**
+- **What a run costs.** While an experiment runs, the Resources tab shows how long it has been going, its processor share and memory, its GPUs where `nvidia-smi` can say, and how fast its samples come, sampled every two seconds from the run's own processes and kept with the run.
+- **The project's environment.** The Environment screen names the Python the experiments run with, asks it for its version, the packages research code leans on and the devices torch can see, and lists the lock files at the project's root with their hashes, each of which can be frozen with the experiment's versions so a changed environment is a new version.
 - **How much AI each file gets.** Set a file or folder to Manual, Pair or Delegate. An agent's file tools cannot write a Manual or locked file, and a Pair file always asks you. Modes are a workflow constraint rather than a security boundary: a shell or Codex can still write a file, which Saturn notices afterwards and records under Protection.
 
 ### Security

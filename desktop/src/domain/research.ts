@@ -392,6 +392,86 @@ export interface InterventionRequest {
   layer: number;
 }
 
+/** One reading of what a run's processes cost, as the runtime sampled it. */
+export interface ResourcePoint {
+  at: string;
+  elapsedMs: number;
+  cpuPercent: number | null;
+  memoryBytes: number | null;
+  processes: number | null;
+  samplesBytes: number;
+  samplesLines: number;
+  gpus: { name: string; utilizationPercent: number | null; memoryUsedBytes: number | null; memoryTotalBytes: number | null }[] | null;
+}
+
+export interface RunResources {
+  runId: string;
+  status: RunStatus;
+  system: { cpus: number; platform: string };
+  points: ResourcePoint[];
+}
+
+/** Samples per second over the newest readings, from how the line count grew. Null until two readings differ in time. */
+export function throughput(points: ResourcePoint[], window = 10): number | null {
+  const recent = points.slice(-window);
+  const first = recent[0];
+  const last = recent.at(-1);
+  if (!first || !last || last.elapsedMs <= first.elapsedMs) return null;
+  return ((last.samplesLines - first.samplesLines) * 1000) / (last.elapsedMs - first.elapsedMs);
+}
+
+/** Bytes in the unit that reads best. */
+export function bytesText(bytes: number | null | undefined): string {
+  if (bytes === null || bytes === undefined) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${unit === 0 ? value : value.toFixed(value >= 100 ? 0 : 1)} ${units[unit]}`;
+}
+
+/** A length of time in words, for how long a run has been going. */
+export function durationText(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+/** The Python a project's experiments run in, as the runtime keeps it. */
+export interface EnvironmentRecord {
+  revision: number;
+  python: string | null;
+  suggestedPython?: string | null;
+  checkedAt?: string;
+  checkedWith?: string;
+  report: EnvironmentReport | null;
+  lockFiles: { path: string; sha256: string; size: number }[];
+}
+
+export interface EnvironmentReport {
+  executable: string;
+  version: string;
+  platform: string;
+  cpus: number | null;
+  packages: Record<string, string | null>;
+  devices: { torch: string | null; reason?: string; cuda?: boolean; cudaDevices?: string[]; mps?: boolean };
+}
+
+/** The compute an environment can offer, in words. */
+export function devicesText(report: EnvironmentReport | null): string {
+  if (!report) return "Not checked yet";
+  const devices = report.devices;
+  if (!devices.torch) return devices.reason ?? "torch is not installed";
+  if (devices.cuda) return `CUDA: ${(devices.cudaDevices ?? []).join(", ") || "available"}`;
+  if (devices.mps) return "Apple MPS";
+  return "CPU only";
+}
+
 /** Where a screen was asked to open: a sample in a run, or a file. */
 export type OpenTarget = { kind: "sample"; runId: string; sampleId?: string; only?: "disputed" | "errors" | "all" } | { kind: "file"; path: string };
 

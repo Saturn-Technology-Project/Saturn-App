@@ -17,3 +17,4 @@ export const TasksIcon = () => <Icon><path d="M3 5l1.5 1.5L7 4M3 12l1.5 1.5L7 11
 export const ShieldIcon = () => <Icon><path d="M9 2.5l5.5 2v4c0 3.5-2.3 5.8-5.5 7-3.2-1.2-5.5-3.5-5.5-7v-4z" /></Icon>;
 export const GearIcon = () => <Icon><circle cx="9" cy="9" r="2.2" /><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2M4.4 4.4l1.4 1.4M12.2 12.2l1.4 1.4M4.4 13.6l1.4-1.4M12.2 5.8l1.4-1.4" /></Icon>;
 export const AssistantIcon = () => <Icon><path d="M3 4.5h12v8H8l-3 2.5v-2.5H3z" /></Icon>;
+export const BoxIcon = () => <Icon><path d="M9 2.5l6 3v7l-6 3-6-3v-7zM3 5.5l6 3 6-3M9 8.5v7" /></Icon>;

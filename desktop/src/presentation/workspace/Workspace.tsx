@@ -20,6 +20,7 @@ import { LookInside } from "../samples/LookInside.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { messageOf, Tabs } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
+import { Resources } from "./Resources.js";
 import { SourceEditor } from "./SourceEditor.js";
 import { Terminal } from "./Terminal.js";
 
@@ -32,7 +33,7 @@ const MODE_HINTS: Record<ParticipationMode, string> = {
   delegate: "An agent may change this file, with every change recorded.",
 };
 const FINDING_LABELS: Record<FindingKind, string> = { observation: "Observation", ai_suggestion: "AI suggestion", conclusion: "Conclusion" };
-const PANELS = ["Run", "Samples", "Findings", "Activations", "Terminal"] as const;
+const PANELS = ["Run", "Resources", "Samples", "Findings", "Activations", "Terminal"] as const;
 const NOTE_FILES = /\.(md|txt|pdf|ipynb)$/i;
 type Panel = (typeof PANELS)[number];
 
@@ -474,6 +475,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
             ))}
           </div>
         ) : null}
+        {panel === "Resources" ? (run ? <Resources key={run.id} projectId={projectId} run={run} notify={notify} /> : <p className="lab-muted">Run the experiment to see what it costs.</p>) : null}
         {panel === "Activations" ? (
           run && selected?.sample ? (
             <LookInside key={`${run.id}:${selected.sample.sampleId}`} projectId={projectId} runId={run.id} sampleId={selected.sample.sampleId} modelId={selected.sample.modelId ?? null} models={sidebar.models} notify={notify} />

@@ -4,7 +4,7 @@ import type { Model, Profile, Project } from "../../domain/model.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
 import { AccessDialog, chooseFolder } from "../ProjectAccess.js";
-import { AssistantIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
+import { AssistantIcon, BoxIcon, CodeIcon, FlaskIcon, GearIcon, HomeIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette.js";
 import { rememberScreen, rememberedScreen, SCREENS, type Screen } from "./navigation.js";
@@ -22,6 +22,7 @@ const SCREEN_ICONS: Record<Screen, ReactNode> = {
   Samples: <SamplesIcon />,
   Tasks: <TasksIcon />,
   Protection: <ShieldIcon />,
+  Environment: <BoxIcon />,
 };
 
 function storedTheme(): "light" | "dark" {
@@ -104,7 +105,7 @@ export function ResearchApp() {
       } else if (command && event.key.toLowerCase() === "j") {
         event.preventDefault();
         setAssistant((open) => !open);
-      } else if (command && /^[1-7]$/.test(event.key)) {
+      } else if (command && /^[1-8]$/.test(event.key)) {
         event.preventDefault();
         go(SCREENS[Number(event.key) - 1]);
       }

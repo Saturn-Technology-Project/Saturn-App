@@ -2,7 +2,31 @@
 // changed since a visit. Node runs the domain file as it is, so only a module without imports can be tested here.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { changedSince, comparisonFactors, heldFixed, lastActive, reviewProgress, scoreSources } from "../src/domain/research.ts";
+import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, lastActive, reviewProgress, scoreSources, throughput } from "../src/domain/research.ts";
+
+const point = (elapsedMs, samplesLines) => ({ at: "", elapsedMs, cpuPercent: 1, memoryBytes: 1, processes: 1, samplesBytes: 0, samplesLines, gpus: null });
+
+test("throughput is samples per second over the newest readings, and nothing until time has passed", () => {
+  assert.equal(throughput([]), null);
+  assert.equal(throughput([point(0, 0)]), null);
+  assert.equal(throughput([point(0, 0), point(2000, 4)]), 2);
+  assert.equal(throughput([point(0, 0), point(2000, 100), point(4000, 104)], 2), 2);
+  assert.equal(bytesText(512), "512 B");
+  assert.equal(bytesText(1536), "1.5 KB");
+  assert.equal(bytesText(200 * 1024 * 1024), "200 MB");
+  assert.equal(bytesText(null), "—");
+  assert.equal(durationText(42_000), "42s");
+  assert.equal(durationText(3_725_000), "1h 2m");
+});
+
+test("what an environment can compute on is said from what torch reported", () => {
+  const report = (devices) => ({ executable: "", version: "", platform: "", cpus: 1, packages: {}, devices });
+  assert.equal(devicesText(null), "Not checked yet");
+  assert.equal(devicesText(report({ torch: null, reason: "torch could not be imported: no module" })), "torch could not be imported: no module");
+  assert.equal(devicesText(report({ torch: "2.5", cuda: true, cudaDevices: ["A100"], mps: false })), "CUDA: A100");
+  assert.equal(devicesText(report({ torch: "2.5", cuda: false, mps: true })), "Apple MPS");
+  assert.equal(devicesText(report({ torch: "2.5", cuda: false, mps: false })), "CPU only");
+});
 
 const summary = {
   runId: "run_1",
