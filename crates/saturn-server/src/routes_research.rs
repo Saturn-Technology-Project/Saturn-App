@@ -465,6 +465,18 @@ async fn metrics(
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
         .route(
+            "/projects/{id}/research/remote",
+            get(remote_target).put(set_remote_target),
+        )
+        .route(
+            "/projects/{id}/research/remote/check",
+            post(check_remote_target),
+        )
+        .route(
+            "/projects/{id}/research/remote/runs",
+            post(start_remote_run),
+        )
+        .route(
             "/projects/{id}/research/comparisons",
             post(paired_comparison),
         )
@@ -576,6 +588,40 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             post(freeze),
         )
         .with_state(kernel)
+}
+
+/// The user-configured SSH target, with no credentials stored by Saturn.
+async fn remote_target(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_remote(&project, None).await?)
+}
+
+/// Setting a target does not connect or start compute.
+async fn set_remote_target(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_remote(&project, Some(&body_of(body)))
+        .await?)
+}
+
+/// Checks the installed worker and working directory over SSH.
+async fn check_remote_target(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_remote_check(&project).await?)
+}
+
+/// Records a persistent remote launch intent before starting its detached worker.
+async fn start_remote_run(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    created(
+        kernel
+            .research_remote_start(&project, &body_of(body))
+            .await?,
+    )
 }
 
 /// Compares fixed samples across runs or selected models, and optionally keeps their regressions as a set.

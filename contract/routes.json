@@ -70,6 +70,7 @@
   "GET /projects/:id/research/notebook",
   "GET /projects/:id/research/notebook/events",
   "GET /projects/:id/research/policy",
+  "GET /projects/:id/research/remote",
   "GET /projects/:id/research/runs",
   "GET /projects/:id/research/runs/:run",
   "GET /projects/:id/research/runs/:run/activations",
@@ -175,6 +176,8 @@
   "POST /projects/:id/research/notebook/run",
   "POST /projects/:id/research/notebook/start",
   "POST /projects/:id/research/notebook/stop",
+  "POST /projects/:id/research/remote/check",
+  "POST /projects/:id/research/remote/runs",
   "POST /projects/:id/research/runs/:run/activations",
   "POST /projects/:id/research/runs/:run/inspections",
   "POST /projects/:id/research/runs/:run/labels",
@@ -205,6 +208,7 @@
   "PUT /memory/:scope",
   "PUT /projects/:id/research/environment",
   "PUT /projects/:id/research/policy",
+  "PUT /projects/:id/research/remote",
   "PUT /projects/:id/research/source",
   "PUT /projects/:id/rules"
 ]

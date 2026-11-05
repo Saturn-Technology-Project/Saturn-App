@@ -139,6 +139,9 @@ fn check(collection: &str, fields: &Map<String, Value>) -> Result<(), String> {
         "questions" => needs("title"),
         "experiments" => {
             needs("title")?;
+            if fields.contains_key("kind") {
+                one_of("kind", &["evaluation", "training"])?;
+            }
             if let Some(aliases) = fields.get("labelAliases") {
                 let valid = aliases.as_object().is_some_and(|aliases| {
                     aliases.iter().all(|(name, target)| {

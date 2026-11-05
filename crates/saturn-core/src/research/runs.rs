@@ -43,15 +43,15 @@ fn is_active_status(status: &str) -> bool {
 
 /// What a samples file holds once its process has ended.
 #[derive(Debug)]
-struct Scan {
-    samples: u64,
+pub(super) struct Scan {
+    pub(super) samples: u64,
     infrastructure_errors: u64,
-    problems: Vec<Value>,
+    pub(super) problems: Vec<Value>,
     partial_line: bool,
 }
 
 /// Reads a samples file line by line, without holding it in memory.
-fn scan_samples(path: &Path) -> std::io::Result<Scan> {
+pub(super) fn scan_samples(path: &Path) -> std::io::Result<Scan> {
     let mut scan = Scan {
         samples: 0,
         infrastructure_errors: 0,
@@ -281,6 +281,7 @@ impl Kernel {
             "clientId": client_id,
             "threadId": thread,
             "status": "starting",
+            "kind": version.get("kind").cloned().unwrap_or(json!("evaluation")),
             "createdAt": now,
             "updatedAt": now,
         });
@@ -390,6 +391,9 @@ impl Kernel {
         id: &str,
     ) -> Result<Value, CoreError> {
         let current = self.research_run(project, id).await?;
+        if current.get("remote").is_some() {
+            return self.research_remote_stop(project, id).await;
+        }
         let records = self.records_folder(project).await?;
         let pid = locked(&self.research.active).get(id).map(|run| run.pid);
         let Some(pid) = pid else {
@@ -466,6 +470,14 @@ impl Kernel {
             return;
         }
         let changed = self.inputs_changed(&records, &source, &version).await;
+        let metric_path = directory.join("metrics.jsonl");
+        let metrics =
+            tokio::task::spawn_blocking(move || super::imports::metric_output(&metric_path))
+                .await
+                .ok()
+                .and_then(Result::ok)
+                .unwrap_or((0, false));
+        let training = version["kind"] == "training";
         let sealed = seal(&directory).await;
         let (per_model, warnings) = self.drift_check(&project, &version, &directory).await;
         let saved = self
@@ -478,9 +490,21 @@ impl Kernel {
                     Ok((scan, fields)) => {
                         run["status"] = json!(if stopped {
                             "stopped"
+                        } else if exit == Some(0) && !metrics.1 {
+                            "protocol_error"
+                        } else if exit == Some(0)
+                            && training
+                            && scan.problems.is_empty()
+                            && metrics.0 > 0
+                        {
+                            "completed"
                         } else {
                             status_after(exit, scan)
                         });
+                        if !metrics.1 {
+                            run["error"] =
+                                json!("The training metrics stream is malformed or incomplete.");
+                        }
                         merge(run, fields);
                     }
                     Err(error) => {
@@ -554,7 +578,7 @@ impl Kernel {
 
     /// Runs a runtime that died left behind: those still on record as active become interrupted. A process is ended
     /// only when it is confirmed to be the same one.
-    pub async fn research_recover(&self) {
+    pub async fn research_recover(self: &Arc<Self>) {
         let projects: Vec<String> = self.store.read(|state| {
             state
                 .projects
@@ -574,6 +598,10 @@ impl Kernel {
                 .filter(|run| is_active_status(text(run, "status")))
             {
                 let id = text(run, "id");
+                if run.get("remote").is_some() {
+                    self.follow_remote(project.clone(), id.to_owned());
+                    continue;
+                }
                 let directory = records.join("runs").join(id);
                 let process = match recorded_identity(&directory).await {
                     None => "none",

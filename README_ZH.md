@@ -87,6 +87,10 @@ Trainer state JSON 的 `log_history` 會另存為訓練指標。來源檔不變�
 **行為變化。** Experiments 可比較 run 或指定模型的封存樣本，分開顯示改善、退步、缺失、錯誤與分類切片。
 不確定性按樣本 ID 合併重複 trial，評估條件未知或不同時不提供推論區間。可保存整個退步集合，之後重新查看其成員。
 
+**持久遠端作業。** 在 Environment 設定已有的 SSH 主機與專案資料夾，遠端需先安裝同版本 `saturn-server`。
+Experiments 可啟動凍結版本；獨立 Rust worker 在 Saturn 關閉後繼續運作，重開時重連。Stop 與執行期限會結束行程群組；斷線時的取消維持待確認。
+程式與資料不會自動上傳，遠端來源是否等同本機會明確標示；原訓練程式透過 `SATURN_RESUME_FROM` 負責恢復 checkpoint。明確標為 training 的 run 可只產出訓練指標。
+
 ## 安裝
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。

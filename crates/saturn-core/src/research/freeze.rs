@@ -339,7 +339,7 @@ impl Kernel {
             used: 0,
         };
         let (git, changed_files) = self.source_state(source, &mut copies, &code).await?;
-        Ok(json!({
+        let mut content = json!({
             "command": command,
             "cwd": working_folder,
             "seeds": draft.get("seeds").cloned().unwrap_or_else(|| json!([])),
@@ -350,7 +350,11 @@ impl Kernel {
             "changedFiles": changed_files,
             "inputs": inputs,
             "declaredInputs": declared,
-        }))
+        });
+        if let Some(kind) = draft.get("kind") {
+            content["kind"] = kind.clone();
+        }
+        Ok(content)
     }
 
     /// The version holding an experiment's content now, made if it is new, and whether it was.

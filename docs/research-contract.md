@@ -147,6 +147,35 @@ Trainer `log_history` is saved as `metrics.jsonl`, not as scored samples. `GET .
 The process environment now names `SATURN_RUN_METRICS` and `SATURN_RUN_ARTIFACTS` alongside `SATURN_RUN_SAMPLES`; writing
 samples remains the execution contract for evaluation runs. The UI reads metrics separately and plots their source steps.
 
+### Persistent SSH jobs
+
+`GET/PUT .../research/remote` reads or saves `host`, absolute remote `workdir`, and `program` (the same version of
+`saturn-server`, installed on that host). `POST .../remote/check` checks the worker without starting compute.
+Saturn invokes OpenSSH with no terminal, no agent forwarding, BatchMode and a connection deadline. It keeps host-key
+verification and uses the user's SSH configuration; it neither stores keys nor provisions or pays for a machine.
+
+`POST .../remote/runs` takes an executable `versionId`, `clientId`, `timeoutSeconds` (1..604800, default 3600), and optional
+`resumeFrom`. The launch intent is stored before SSH. A detached Rust worker, started with nohup in its own group,
+owns the command, output streams, cancellation and wall-clock limit. Closing the desktop/runtime only detaches.
+Restarting reconnects active remote runs instead of interrupting them. Retrying a client ID cannot submit another job.
+An explicit stop persists a cancellation request even while disconnected; only the worker's acknowledgement ends it.
+A stale heartbeat is unresponsive, not proof the computation stopped. A dead remote machine/worker is not resubmitted.
+
+Code and data are not uploaded. The worker records its working directory and observed git commit, with an explicit
+warning that these are not certified identical to the local frozen source. `resumeFrom` is passed as
+`SATURN_RESUME_FROM`; the user's framework must restore weights, optimizer, scheduler and RNG state. A resumed attempt
+is a new run. The wall-clock limit stops the process group; it is not a guarantee about a provider's GPU bill.
+
+Samples, metrics, artifact manifest and stdout/stderr are pulled in bounded chunks, at most 64 MiB per stream.
+Completion waits for every chunk and verifies the remote hashes. A transfer failure keeps the run pending/disconnected,
+with a warning that computation may continue. Large weights remain external artifacts. Neither source nor outputs may
+escape the configured job's state directory through symlinks. The worker's state lives under the remote project's
+`.saturn/remote-jobs/<run>` and does not load Saturn settings or credentials or expose an HTTP server.
+
+An experiment can explicitly set `kind: "training"` before freezing. Local and remote training runs can complete with
+valid metrics alone; evaluation runs still require scored samples. Malformed metrics are protocol errors. Windows has
+not been run; the detached worker is POSIX-only.
+
 ## Samples: JSONL version 1
 
 One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`. The process also gets `SATURN_RUN_ID`,

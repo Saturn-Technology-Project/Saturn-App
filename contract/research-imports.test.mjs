@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile, symlink } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, sha } from "./files-support.mjs";
+import { bench, sha, posixOnly, until } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -76,4 +76,17 @@ test("invalid, duplicate, changed and escaped inputs fail before writing records
     assert.equal((await saturn.call("POST", `${route}/imports`, { path: "linked.jsonl" })).status, 403);
   }
   assert.deepEqual((await saturn.api("GET", `${route}/experiments`)).items, []);
+});
+
+test("an explicit training command can finish with metrics alone, while malformed metrics remain protocol errors", posixOnly, async () => {
+  const { folder, route } = await setup("train.mjs", `import {writeFileSync} from 'node:fs'; writeFileSync(process.env.SATURN_RUN_METRICS,JSON.stringify({schemaVersion:1,step:1,values:{loss:2}})+'\\n');`);
+  const draft = await saturn.api("POST", `${route}/experiments`, { title: "Train", kind: "training", command: "node train.mjs" });
+  const version = await saturn.api("POST", `${route}/experiments/${draft.id}/versions`, {});
+  const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: "metrics-only" });
+  const done = await until("training complete", () => saturn.api("GET", `${route}/runs/${started.id}`), (run) => !["starting", "running"].includes(run.status));
+  assert.equal(done.status, "completed"); assert.equal(done.samples, 0);
+  await writeFile(path.join(folder, "train.mjs"), `import {writeFileSync} from 'node:fs'; writeFileSync(process.env.SATURN_RUN_METRICS,'bad\\n');`);
+  const next = await saturn.api("POST", `${route}/experiments/${draft.id}/versions`, {});
+  const bad = await saturn.api("POST", `${route}/versions/${next.id}/runs`, { clientId: "bad-metrics" });
+  assert.equal((await until("invalid metrics", () => saturn.api("GET", `${route}/runs/${bad.id}`), (run) => !["starting", "running"].includes(run.status))).status, "protocol_error");
 });

@@ -33,6 +33,7 @@ import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import type { ResearchImportRequest, ResearchImportPreview, TrainingMetric } from "../domain/research.js";
 import type { PairedComparison, PairedComparisonRequest } from "../domain/research.js";
 import type { CounterexampleSet } from "../domain/research.js";
+import type { RemoteTarget } from "../domain/research.js";
 
 /** A list of records, and those that could not be read. */
 interface RecordList<T> {
@@ -71,6 +72,24 @@ export class ResearchService {
   /** Lists saved regression cohorts, including their original requests and full memberships. */
   counterexampleSets(project: string): Promise<RecordList<CounterexampleSet>> {
     return this.runtime.request(`${this.route(project)}/counterexample_sets`);
+  }
+
+  /** SSH keeps credentials; Saturn saves only the configured host and working tree. */
+  remoteTarget(project: string): Promise<{ target: RemoteTarget | null; note: string }> {
+    return this.runtime.request(`${this.route(project)}/remote`);
+  }
+
+  setRemoteTarget(project: string, target: RemoteTarget): Promise<{ target: RemoteTarget; note: string }> {
+    return this.send(`${this.route(project)}/remote`, "PUT", target);
+  }
+
+  checkRemoteTarget(project: string): Promise<{ protocol: number; platform: string; workdir: string }> {
+    return this.send(`${this.route(project)}/remote/check`, "POST");
+  }
+
+  /** Records a launch intent; the remote worker persists independently of the desktop and runtime. */
+  startRemote(project: string, request: { versionId: string; clientId: string; timeoutSeconds: number; resumeFrom?: string }): Promise<ExperimentRun> {
+    return this.send(`${this.route(project)}/remote/runs`, "POST", request);
   }
 
   private send<T>(path: string, method: string, body?: unknown): Promise<T> {

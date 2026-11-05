@@ -17,6 +17,42 @@ use crate::{CoreError, Kernel};
 const IMPORT_BYTES: u64 = 64 * 1024 * 1024;
 const IMPORT_ROWS: usize = 100_000;
 
+/// Validates a completed metrics stream, separately from evaluation samples and without keeping its events in memory.
+pub(super) fn metric_output(path: &std::path::Path) -> std::io::Result<(u64, bool)> {
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok((0, true)),
+        Err(error) => return Err(error),
+    };
+    let mut reader = BufReader::new(file);
+    let mut count = 0;
+    let mut line = Vec::new();
+    loop {
+        line.clear();
+        let read =
+            std::io::Read::take(&mut reader, 1024 * 1024 + 1).read_until(b'\n', &mut line)?;
+        if read == 0 {
+            return Ok((count, true));
+        }
+        let valid = read <= 1024 * 1024
+            && line.last() == Some(&b'\n')
+            && serde_json::from_slice::<Value>(&line).is_ok_and(|value| {
+                value["schemaVersion"] == 1
+                    && value["step"].is_u64()
+                    && value["values"].as_object().is_some_and(|values| {
+                        !values.is_empty()
+                            && values
+                                .values()
+                                .all(|number| number.as_f64().is_some_and(f64::is_finite))
+                    })
+            });
+        if !valid {
+            return Ok((count, false));
+        }
+        count += 1;
+    }
+}
+
 /// A validated import, ready either to preview or to save.
 struct Imported {
     samples: Vec<Value>,

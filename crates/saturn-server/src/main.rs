@@ -98,6 +98,17 @@ fn start_wakeups(kernel: Arc<Kernel>) {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let arguments: Vec<String> = env::args().collect();
+    if arguments.get(1).is_some_and(|argument| {
+        argument == "--research-worker" || argument == "--research-worker-execute"
+    }) {
+        saturn_core::research::worker_entry(
+            arguments[1].as_str(),
+            arguments.get(2).map(String::as_str),
+        )
+        .await?;
+        return Ok(());
+    }
     // An address or a name, as the TypeScript runtime takes it.
     let host = env::var("SATURN_RUNTIME_HOST").unwrap_or_else(|_| "127.0.0.1".to_owned());
     let port: u16 = env::var("SATURN_RUNTIME_PORT")

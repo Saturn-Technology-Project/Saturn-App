@@ -12,6 +12,7 @@ mod labels;
 mod manage;
 mod notebooks;
 mod policy;
+mod remote;
 mod resources;
 mod runs;
 mod skills;
@@ -20,6 +21,7 @@ mod tables;
 
 pub use data::DataOverlapRequest;
 pub use labels::RunDigest;
+pub use remote::worker_entry;
 
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -57,6 +59,8 @@ pub struct ResearchState {
     data: data::DataMemory,
     /// The kernels of notebooks open in the Workspace.
     notebooks: notebooks::Notebooks,
+    /// Remote jobs are polled independently of their detached workers.
+    remote: Mutex<std::collections::HashSet<String>>,
 }
 
 impl Default for ResearchState {
@@ -70,6 +74,7 @@ impl Default for ResearchState {
             environment_jobs: Mutex::default(),
             data: data::DataMemory::default(),
             notebooks: notebooks::Notebooks::default(),
+            remote: Mutex::default(),
         }
     }
 }

@@ -12,6 +12,7 @@ import { Field } from "../ui/base/Field.js";
 import { Input } from "../ui/base/Input.js";
 import { messageOf, Page } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
+import { RemoteTargetEditor } from "./RemoteExecution.js";
 
 const service = desktop.research;
 const PANEL = "gap-0 border-0 bg-panel px-3.5 py-3";
@@ -83,6 +84,7 @@ export function Environment(props: ScreenProps) {
 
   return (
     <Page title="Environment" lead="Experiments and looking inside run with this Python. Saturn can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.">
+      <RemoteTargetEditor projectId={projectId} notify={props.notify} />
       <Heading data-tour="environment-managed">Managed environment</Heading>
       <Field label="Job timeout (minutes)" className="max-w-60">
         <Input type="number" min={1} max={1440} step={1} value={timeoutMinutes} onChange={(event) => setTimeoutMinutes(event.target.value)} />

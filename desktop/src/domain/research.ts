@@ -8,6 +8,7 @@ export interface ResearchRecord {
 
 /** An experiment's draft. It keeps changing; running it freezes a version. */
 export interface ExperimentDraft extends ResearchRecord {
+  kind?: "evaluation" | "training";
   title: string;
   command?: string;
   inputs?: { code?: string[]; data?: string[]; scorer?: string[]; environment?: string[] };
@@ -44,6 +45,9 @@ export interface Finding extends ResearchRecord {
 }
 
 export interface FrozenVersion extends ResearchRecord {
+  imported?: boolean;
+  command?: string;
+  kind?: "evaluation" | "training";
   experimentId: string;
   number: number;
   evaluation?: EvaluationSpec | null;
@@ -53,6 +57,12 @@ export interface FrozenVersion extends ResearchRecord {
 export type RunStatus = "starting" | "running" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
 
 export interface ExperimentRun extends ResearchRecord {
+  remote?: RemoteTarget;
+  remoteConnection?: "connecting" | "connected" | "disconnected" | "unresponsive";
+  remoteStatus?: string;
+  remoteError?: string | null;
+  resumeFrom?: string | null;
+  timeoutSeconds?: number;
   imported?: boolean;
   kind?: "evaluation" | "training";
   provenance?: { kind: string; path: string; sha256: string; identity?: string; note?: string };
@@ -71,6 +81,9 @@ export interface ExperimentRun extends ResearchRecord {
   /** What the runtime noticed at the end: a sample count unlike the last comparable run's, for one. */
   warnings?: string[];
 }
+
+/** An SSH target names a machine and existing working tree, never keys or passwords. */
+export interface RemoteTarget { host: string; workdir: string; program: string }
 
 /** A file of old results and the column names the person explicitly mapped. */
 export interface ResearchImportRequest {
