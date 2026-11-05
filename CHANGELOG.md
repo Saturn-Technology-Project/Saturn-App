@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **An assistant on Claude Code now hears new instructions in a chat it already has.** Claude Code kept the instructions from a chat's first message, so an existing chat never learned about Saturn, and edits to memory or project rules did not reach it either. It now gets the current ones on every message, and the conversation stays as it was.
 - **An assistant on Codex now hears new instructions in a chat it already has.** Codex was told an agent's instructions only when a thread opened, so an existing chat never learned about Saturn, and answered that it had no guide to the interface. A resumed thread now hears them when they change, and an existing one hears them once.
 - **The window stays put.** The whole interface could be dragged up and down; now only the panes inside it scroll.
 - **The tour keeps its place.** Connecting a model or choosing a folder in its last step sent it back to the start, and its card could stay hidden in a window behind others.

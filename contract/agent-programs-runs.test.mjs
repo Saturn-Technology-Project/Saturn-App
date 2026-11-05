@@ -468,6 +468,8 @@ test("A resumed Claude Code session gets instructions that changed", async () =>
     assert.ok(programs[1].args.includes("--resume=session-1"), programs[1].args.join(" "));
     const initialize = (await received(saturn)).filter((message) => message.request?.subtype === "initialize").at(-1);
     assert.match(initialize.request.appendSystemPrompt, /You know the workbench\./);
+    // The real program ignores new text on a resume unless its snapshot is off, whatever is sent; this stand-in does not keep one.
+    assert.equal(initialize.request.systemPromptSnapshot, false);
   } finally {
     await saturn.stop();
   }

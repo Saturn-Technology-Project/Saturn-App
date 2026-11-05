@@ -489,7 +489,7 @@ impl Kernel {
         let context = self.turn_context(agent, &run, &[]).await;
         let mode = RunMode::parse(run.get("mode").and_then(Value::as_str));
         // Memory and the agent's instructions go after Claude Code's own prompt on every turn, so edits to either reach a resumed
-        // session too.
+        // session too. That needs the program's snapshot turned off below.
         let instructions = js::trim(text(agent, "instructions"));
         let append: Vec<&str> = [
             context.memory.as_str(),
@@ -517,7 +517,8 @@ impl Kernel {
             tools,
             orphans: Mutex::default(),
         });
-        let mut initialize = json!({ "subtype": "initialize" });
+        // By default the program records a session's system prompt on its first request and ignores any other text on a resume.
+        let mut initialize = json!({ "subtype": "initialize", "systemPromptSnapshot": false });
         if let Some(bridge) = &bridge {
             initialize["sdkMcpServers"] = json!([SKILLS_SERVER]);
             initialize["sdkMcpServerManifests"] = json!({ SKILLS_SERVER: bridge.manifest() });
