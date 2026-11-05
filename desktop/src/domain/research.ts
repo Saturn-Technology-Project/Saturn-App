@@ -376,6 +376,11 @@ export interface ActivationView {
   measure: string;
   tokens: string[];
   layers: { layer: number; values: number[] }[];
+  /** The model's top token at the end, as text. */
+  top?: string;
+  /** The same reading after one layer was patched in from another model. */
+  patched?: { layer: number; sourceModelId: string | null; layers: { layer: number; values: number[] }[]; top: string } | null;
+  recordedAt?: string;
 }
 
 /** An intervention the runtime will carry out: weights of one layer patched from a source model into a target, on one sample. */

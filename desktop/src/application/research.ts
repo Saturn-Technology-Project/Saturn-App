@@ -185,13 +185,12 @@ export class ResearchService {
     return this.runtime.request(`${this.route(project)}/events`);
   }
 
-  /** Activations a run captured for a sample. Declared ahead of the runtime, which answers 404 until it records them. */
+  /** A model's activations on a sample, read in the project's own Python and saved with the run; the same request again is answered from what was saved. */
   activations(project: string, run: string, sampleId: string, modelId: string | null): Promise<ActivationView> {
-    const model = modelId ? `&model=${encodeURIComponent(modelId)}` : "";
-    return this.runtime.request<ActivationView>(`${this.route(project)}/runs/${run}/activations?sample=${encodeURIComponent(sampleId)}${model}`);
+    return this.send(`${this.route(project)}/runs/${run}/activations`, "POST", { sampleId, modelId });
   }
 
-  /** Asks the runtime to patch one layer from one model into another on a sample. Declared ahead of the runtime. */
+  /** One layer patched from one model into another on a sample, in the same way. */
   intervene(project: string, request: InterventionRequest): Promise<ActivationView> {
     return this.send(`${this.route(project)}/interventions`, "POST", request);
   }

@@ -247,7 +247,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
           <section>
           <h2>Look inside</h2>
           {inside ? (
-            <LookInside projectId={projectId} runId={run.id} sampleId={sampleId} modelId={current.modelId ?? null} models={value?.models ?? []} notify={notify} />
+            <LookInside projectId={projectId} runId={run.id} sampleId={sampleId} modelId={current.modelId ?? null} candidates={rows.filter((row) => row.runId === run.id).flatMap((row) => row.samples.map((line) => line.modelId ?? null))} models={value?.models ?? []} notify={notify} />
           ) : (
             <button type="button" className="lab-button" onClick={() => setInside(true)}>Compare activations or patch a layer</button>
           )}

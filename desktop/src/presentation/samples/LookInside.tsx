@@ -10,15 +10,18 @@ type Answer = { kind: "view"; view: ActivationView } | { kind: "unavailable"; re
 
 function unavailable(error: unknown): Answer {
   const message = messageOf(error);
-  return { kind: "unavailable", reason: /404|not found/i.test(message) ? "This runtime does not record activations yet. When it does, the result lands here, beside the sample." : message };
+  return { kind: "unavailable", reason: message };
 }
 
 /**
  * Inside a sample: the activations a run captured at each layer, and a patch of one layer from one model into another. Both
  * are asked of the runtime, which runs them in the project's own Python environment and keeps the result with the sample.
  */
-export function LookInside(props: { projectId: string; runId: string; sampleId: string; modelId: string | null; models: ModelNode[]; notify: (message: string) => void }) {
-  const { projectId, runId, sampleId, modelId, models } = props;
+export function LookInside(props: { projectId: string; runId: string; sampleId: string; modelId: string | null; candidates?: (string | null)[]; models: ModelNode[]; notify: (message: string) => void }) {
+  const { projectId, runId, sampleId, models } = props;
+  // The models this sample was run on, when the caller knows them; the one the caller named is first.
+  const candidates = [...new Set([props.modelId, ...(props.candidates ?? [])])].filter((id): id is string => Boolean(id));
+  const [modelId, setModelId] = useState<string | null>(props.modelId);
   const [answer, setAnswer] = useState<Answer>(null);
   const [busy, setBusy] = useState(false);
   const [source, setSource] = useState("");
@@ -53,10 +56,24 @@ export function LookInside(props: { projectId: string; runId: string; sampleId: 
 
   return (
     <div className="lab-inside">
-      <div className="lab-muted">Runs in the project's Python environment. The result is saved with this sample.</div>
-      <button type="button" className="lab-button" disabled={busy} onClick={() => void compare()}>
-        Compare activations at the last token
-      </button>
+      <div className="lab-muted">Runs with the Python the experiment's command names, in float32. The result is saved with the run and answered from there when asked again.</div>
+      <div className="lab-inside-patch">
+        {candidates.length > 1 ? (
+          <label className="lab-field">
+            Model
+            <select value={modelId ?? ""} onChange={(event) => { setModelId(event.target.value || null); setAnswer(null); }}>
+              {candidates.map((id) => (
+                <option key={id} value={id}>
+                  {nameOf(id)}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <button type="button" className="lab-button" disabled={busy} onClick={() => void compare()}>
+          {busy ? "Running…" : "Read activations at every layer"}
+        </button>
+      </div>
       <div className="lab-inside-patch">
         <label className="lab-field">
           Patch layer
@@ -78,18 +95,26 @@ export function LookInside(props: { projectId: string; runId: string; sampleId: 
         </button>
       </div>
       {answer?.kind === "unavailable" ? <div className="lab-notice">{answer.reason}</div> : null}
-      {answer?.kind === "view" ? <ActivationGrid view={answer.view} /> : null}
+      {answer?.kind === "view" ? (
+        <>
+          <ActivationGrid caption={`${answer.view.measure}, layer by token${answer.view.top !== undefined ? `; the model ends on ${JSON.stringify(answer.view.top)}` : ""}`} tokens={answer.view.tokens} layers={answer.view.layers} />
+          {answer.view.patched ? (
+            <ActivationGrid caption={`The same with the residual stream after layer ${answer.view.patched.layer} taken from ${nameOf(answer.view.patched.sourceModelId)}, so layers up to ${answer.view.patched.layer} are its and the rest stay; it then ends on ${JSON.stringify(answer.view.patched.top)}`} tokens={answer.view.tokens} layers={answer.view.patched.layers} />
+          ) : null}
+          {answer.view.recordedAt ? <div className="lab-muted">Recorded {new Date(answer.view.recordedAt).toLocaleString()} and kept with the run.</div> : null}
+        </>
+      ) : null}
     </div>
   );
 }
 
 /** Layers down, tokens across, each cell as dark as its value is large. Numbers are in the title, so nothing rests on color. */
-function ActivationGrid(props: { view: ActivationView }) {
-  const { view } = props;
+function ActivationGrid(props: { caption: string; tokens: string[]; layers: ActivationView["layers"] }) {
+  const view = props;
   const widest = Math.max(...view.layers.flatMap((row) => row.values.map(Math.abs)), Number.EPSILON);
   return (
     <figure className="lab-activations">
-      <figcaption className="lab-muted">{view.measure}, layer by token</figcaption>
+      <figcaption className="lab-muted">{props.caption}</figcaption>
       <div className="lab-table-wrap">
         <table className="lab-table lab-activation-table">
           <thead>
