@@ -87,6 +87,8 @@ export interface SampleLine {
   output?: unknown;
   /** What the scorer compared the output with, when the program wrote it down. */
   expected?: unknown;
+  /** The word `expected` is scored against, for a scorer that compares two. */
+  alternative?: unknown;
   scores?: Record<string, number | string | boolean> | null;
   /** The scorer's own word for its result, when the program wrote one. */
   scorerLabel?: string;
@@ -406,33 +408,65 @@ export interface SweepView {
   sourceModelId: string | null;
   targetModelId: string | null;
   layers: number[];
-  samples: { sampleId: string; expected: string | null; top: string; expectedLogProb: number | null; byLayer: { layer: number; top: string; expectedLogProb: number | null }[] }[];
+  samples: {
+    sampleId: string;
+    expected: string | null;
+    /** What the expected word is scored against, when the program said. */
+    alternative?: string | null;
+    top: string;
+    expectedLogProb: number | null;
+    margin?: number | null;
+    byLayer: { layer: number; top: string; expectedLogProb: number | null; margin?: number | null }[];
+  }[];
   recordedAt?: string;
 }
 
-/** One thing saved under a run's inside folder: a reading of one sample, or a sweep. */
-export type InsideItem = ({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView);
+/** What counts as brought back: the logit margin when every sample has one, since a two-way scorer judges that, else the top token. */
+export type RestoreMeasure = "margin" | "top";
 
-/** The sweeps into a model, with every tied best layer; zero recoveries do not identify a best layer. */
-export function mechanismOf(items: InsideItem[], modelId: string): { sourceModelId: string | null; layers: number[]; restored: number; of: number; recordedAt?: string }[] {
+export function sweepMeasure(view: SweepView): RestoreMeasure {
+  const hasMargins = view.samples.length > 0 && view.samples.every((sample) => sample.byLayer.length > 0 && sample.byLayer.every((item) => typeof item.margin === "number"));
+  return hasMargins ? "margin" : "top";
+}
+
+/** How a measure reads after a count, in words. */
+export const RESTORE_MEASURE_TEXT: Record<RestoreMeasure, string> = { margin: "by logit margin", top: "by top token" };
+
+/** One thing saved under a run's inside folder: a reading of one sample, or a sweep. */
+export type InsideItem = (({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView)) & {
+  /** Whether this runtime's helper made it; a corrected helper leaves earlier results in place. */
+  current?: boolean;
+};
+
+/**
+ * The sweeps into a model by this runtime's helper, with every tied best layer; zero recoveries do not identify a best
+ * layer. An earlier helper's sweep can be wrong, so it never speaks for the model here. `earlierSweeps` counts them.
+ */
+export function mechanismOf(items: InsideItem[], modelId: string): { sourceModelId: string | null; layers: number[]; restored: number; of: number; measure: RestoreMeasure; recordedAt?: string }[] {
   return items.flatMap((item) => {
-    if (item.kind !== "sweep" || item.targetModelId !== modelId || !item.layers.length) return [];
+    if (item.kind !== "sweep" || item.current === false || item.targetModelId !== modelId || !item.layers.length) return [];
     const totals = restoredByLayer(item);
     const restored = Math.max(...totals);
     const layers = restored > 0 ? item.layers.filter((_, index) => totals[index] === restored) : [];
-    return [{ sourceModelId: item.sourceModelId, layers, restored, of: item.samples.length, recordedAt: item.recordedAt }];
+    return [{ sourceModelId: item.sourceModelId, layers, restored, of: item.samples.length, measure: sweepMeasure(item), recordedAt: item.recordedAt }];
   });
 }
 
-/** Whether the patched model ends on the expected token: what "restored" means here, said once. */
-export function restores(sample: SweepView["samples"][number], layer: number): boolean {
-  const at = sample.byLayer.find((item) => item.layer === layer);
-  return Boolean(sample.expected && at && at.top === sample.expected);
+/** How many sweeps into a model came from a helper that has since changed. They stay with the run. */
+export function earlierSweeps(items: InsideItem[], modelId: string): number {
+  return items.filter((item) => item.kind === "sweep" && item.current === false && item.targetModelId === modelId).length;
 }
 
-/** How many samples each layer restores, in the sweep's layer order. */
-export function restoredByLayer(view: SweepView): number[] {
-  return view.layers.map((layer) => view.samples.filter((sample) => restores(sample, layer)).length);
+/** Whether a layer's patch brings a sample back, by this measure: what "restored" means here, said once. */
+export function restores(sample: SweepView["samples"][number], layer: number, measure: RestoreMeasure = "top"): boolean {
+  const at = sample.byLayer.find((item) => item.layer === layer);
+  if (!at) return false;
+  return measure === "margin" ? typeof at.margin === "number" && at.margin > 0 : Boolean(sample.expected && at.top === sample.expected);
+}
+
+/** How many samples each layer restores, in the sweep's layer order, by its own measure unless another is asked for. */
+export function restoredByLayer(view: SweepView, measure: RestoreMeasure = sweepMeasure(view)): number[] {
+  return view.layers.map((layer) => view.samples.filter((sample) => restores(sample, layer, measure)).length);
 }
 
 /** Whether a sample line is one the scorer marked wrong: a false score, or a scorer word that says so. */
@@ -571,6 +605,35 @@ export function devicesText(report: EnvironmentReport | null): string {
   if (devices.cuda) return `CUDA: ${(devices.cudaDevices ?? []).join(", ") || "available"}`;
   if (devices.mps) return "Apple MPS";
   return "CPU only";
+}
+
+/** A page of a run's samples. */
+export interface SamplePage {
+  items: SampleItem[];
+  next: number | null;
+}
+
+/** How many lines the Samples list loads by itself; a larger run goes on with More. */
+export const MOST_LISTED_LINES = 20_000;
+
+/** Reads pages from a cursor until the end, or until `most` lines. Stops early, keeping nothing further, when `live` turns false. */
+export async function readSamplePages(read: (cursor: number) => Promise<SamplePage>, options: { from?: number; most?: number; live?: () => boolean; onPage?: (page: SamplePage) => void } = {}): Promise<SamplePage> {
+  const { from = 0, most = MOST_LISTED_LINES, live = () => true, onPage } = options;
+  const items: SampleItem[] = [];
+  let cursor: number | null = from;
+  while (cursor !== null && items.length < most) {
+    const page: SamplePage = await read(cursor);
+    if (!live()) break;
+    items.push(...page.items);
+    cursor = page.next;
+    onPage?.(page);
+  }
+  return { items, next: cursor };
+}
+
+/** Whether a change to the records changes which lines a filter holds. Scores are sealed; only labels move, and only disputes depend on them. */
+export function changeRereadsList(only: "all" | "disputed" | "errors"): boolean {
+  return only === "disputed";
 }
 
 /** Where a screen was asked to open: a sample in a run, or a file. */

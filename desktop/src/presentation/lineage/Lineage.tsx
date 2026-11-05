@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { comparisonText, heldFixed, lineageTracks, mechanismOf, runHasResults, scoreText, type Comparison, type EvaluationSpec, type InsideItem, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
+import { comparisonText, earlierSweeps, heldFixed, lineageTracks, mechanismOf, RESTORE_MEASURE_TEXT, runHasResults, scoreText, type Comparison, type EvaluationSpec, type InsideItem, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
@@ -152,16 +152,24 @@ export function Lineage(props: ScreenProps) {
       <h2>Mechanism</h2>
       {(() => {
         const known = measured ? mechanismOf(value?.inside[measured.runId] ?? [], current.id) : [];
-        const readings = measured ? (value?.inside[measured.runId] ?? []).filter((item) => item.kind === "reading" && item.modelId === current.id).length : 0;
+        const readings = measured ? (value?.inside[measured.runId] ?? []).filter((item) => item.kind === "reading" && item.current !== false && item.modelId === current.id).length : 0;
+        const earlier = measured ? earlierSweeps(value?.inside[measured.runId] ?? [], current.id) : 0;
+        const earlierNote = earlier ? <p className="lab-muted">{earlier === 1 ? "1 earlier sweep" : `${earlier} earlier sweeps`} came from a helper that has since changed. Kept with the run, not counted here; sweep again under Experiments.</p> : null;
         return known.length ? (
-          known.map((item, index) => (
+          <>
+          {known.map((item, index) => (
             <div className="lab-detail-row" key={index}>
               <span className="lab-muted">From {nameOf(models.find((model) => model.id === item.sourceModelId) ?? { source: item.sourceModelId ?? "?" } as ModelNode)}</span>
-              <span>{item.layers.length ? `${item.layers.length === 1 ? "Layer" : "Layers"} ${item.layers.join(", ")} ${item.layers.length === 1 ? "restores" : "restore"} ${item.restored} of ${item.of}${item.layers.length > 1 ? " (tied)" : ""}` : `No layer restores any of ${item.of}`}</span>
+              <span>{item.layers.length ? `${item.layers.length === 1 ? "Layer" : "Layers"} ${item.layers.join(", ")} ${item.layers.length === 1 ? "restores" : "restore"} ${item.restored} of ${item.of} ${RESTORE_MEASURE_TEXT[item.measure]}${item.layers.length > 1 ? " (tied)" : ""}` : `No layer restores any of ${item.of} ${RESTORE_MEASURE_TEXT[item.measure]}`}</span>
             </div>
-          ))
+          ))}
+          {earlierNote}
+          </>
         ) : (
+          <>
           <p className="lab-muted">{readings ? `${readings} activation readings, no patch yet.` : "No intervention is recorded at this node. Under Experiments, sweep every layer into it from another node; a sample's Look inside does one layer."}</p>
+          {earlierNote}
+          </>
         );
       })()}
       <div className="lab-card">

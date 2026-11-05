@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { restoredByLayer, restores, scorerSaysWrong, type ExperimentRun, type ModelNode, type RunSummary, type SweepView } from "../../domain/research.js";
+import { RESTORE_MEASURE_TEXT, restoredByLayer, restores, scorerSaysWrong, sweepMeasure, type ExperimentRun, type ModelNode, type RunSummary, type SweepView } from "../../domain/research.js";
 import { messageOf } from "../ui/Parts.js";
 
 const service = desktop.research;
@@ -51,9 +51,11 @@ export function Mechanism(props: { projectId: string; run: ExperimentRun | null;
     }
   }
 
-  const totals = view ? restoredByLayer(view) : [];
+  const measure = view ? sweepMeasure(view) : "top";
+  const totals = view ? restoredByLayer(view, measure) : [];
+  const topTotals = view && measure === "margin" ? restoredByLayer(view, "top") : null;
   const best = totals.length ? totals.indexOf(Math.max(...totals)) : -1;
-  const summaryText = view && best >= 0 ? `Patching the residual stream after layer ${view.layers[best]} from ${nameOf(view.sourceModelId)} into ${nameOf(view.targetModelId)} restores ${totals[best]} of ${view.samples.length} samples the scorer marked wrong; by layer ${view.layers.join(", ")}: ${totals.join(" ")}.` : "";
+  const summaryText = view && best >= 0 ? `Patching the residual stream after layer ${view.layers[best]} from ${nameOf(view.sourceModelId)} into ${nameOf(view.targetModelId)} restores ${totals[best]} of ${view.samples.length} samples the scorer marked wrong ${RESTORE_MEASURE_TEXT[measure]}; by layer ${view.layers.join(", ")}: ${totals.join(" ")}.${topTotals ? ` By top token: ${topTotals.join(" ")}.` : ""}` : "";
 
   return (
     <div className="lab-card">
@@ -99,8 +101,8 @@ export function Mechanism(props: { projectId: string; run: ExperimentRun | null;
                         {view.layers.map((layer) => {
                           const at = sample.byLayer.find((item) => item.layer === layer);
                           return (
-                            <td key={layer} title={at ? `layer ${layer}: ends on ${JSON.stringify(at.top)}, log-prob of expected ${at.expectedLogProb ?? "?"}` : ""}>
-                              {restores(sample, layer) ? <span className="lab-tag good">✓</span> : <span className="lab-muted">·</span>}
+                            <td key={layer} title={at ? `layer ${layer}: ends on ${JSON.stringify(at.top)}, log-prob of expected ${at.expectedLogProb ?? "?"}${typeof at.margin === "number" ? `, margin ${at.margin}` : ""}` : ""}>
+                              {restores(sample, layer, measure) ? <span className="lab-tag good">✓</span> : <span className="lab-muted">·</span>}
                             </td>
                           );
                         })}
@@ -108,13 +110,20 @@ export function Mechanism(props: { projectId: string; run: ExperimentRun | null;
                     ))}
                     <tr>
                       <th scope="row">Restored</th>
-                      <td className="lab-muted">of {view.samples.length}</td>
+                      <td className="lab-muted">of {view.samples.length}, {RESTORE_MEASURE_TEXT[measure]}</td>
                       {totals.map((count, index) => <td key={view.layers[index]}><strong>{count}</strong></td>)}
                     </tr>
+                    {topTotals ? (
+                      <tr>
+                        <th scope="row">Top token</th>
+                        <td className="lab-muted">of {view.samples.length}</td>
+                        {topTotals.map((count, index) => <td key={view.layers[index]}>{count}</td>)}
+                      </tr>
+                    ) : null}
                   </tbody>
                 </table>
               </div>
-              <div className="lab-muted">A ✓ means the patched model ends on the expected token. Each column takes the residual stream after that layer from the source, so layers up to it are the source's and the rest stay. {view.recordedAt ? `Recorded ${new Date(view.recordedAt).toLocaleString()} and kept with the run.` : ""}</div>
+              <div className="lab-muted">{measure === "margin" ? "A ✓ means the patched model puts the expected word ahead of its alternative, which is what a two-way scorer judges; it may still end on another word." : "A ✓ means the patched model ends on the expected token. Have the program write alternative on each line to count the margin a two-way scorer judges."} Each column takes the residual stream after that layer from the source, so layers up to it are the source's and the rest stay. {view.recordedAt ? `Recorded ${new Date(view.recordedAt).toLocaleString()} and kept with the run.` : ""}</div>
               <button type="button" className="lab-button" onClick={() => void props.onRecord(summaryText)}>
                 Record as an observation
               </button>

@@ -2,7 +2,7 @@
 // changed since a visit. Node runs the domain file as it is, so only a module without imports can be tested here.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, kitState, labelsOf, lastActive, mechanismOf, restoredByLayer, reviewProgress, scoreSources, scorerSaysWrong, throughput } from "../src/domain/research.ts";
+import { bytesText, changedSince, changeRereadsList, comparisonFactors, devicesText, durationText, earlierSweeps, heldFixed, kitState, labelsOf, lastActive, mechanismOf, readSamplePages, restoredByLayer, reviewProgress, scoreSources, scorerSaysWrong, sweepMeasure, throughput } from "../src/domain/research.ts";
 
 const point = (elapsedMs, samplesLines, outputTokens = 0) => ({ at: "", elapsedMs, cpuPercent: 1, memoryBytes: 1, processes: 1, samplesBytes: 0, samplesLines, inputTokens: 0, outputTokens, deviceMemoryBytes: null, gpus: null });
 
@@ -93,7 +93,7 @@ test("a layer restores a sample when the patched model ends on the expected toke
 test("a node's mechanism is each sweep into it with its best layer, and label names fall back to the plain set", () => {
   const sweep = (target, tops) => ({ kind: "sweep", sourceModelId: "a", targetModelId: target, layers: [0, 1], samples: [{ sampleId: "s", expected: " x", top: "y", expectedLogProb: null, byLayer: tops.map((top, layer) => ({ layer, top, expectedLogProb: null })) }], recordedAt: "t" });
   const items = [sweep("b", ["y", " x"]), sweep("c", [" x", " x"]), { kind: "reading", sampleId: "s", modelId: "b", measure: "", tokens: [], layers: [] }];
-  assert.deepEqual(mechanismOf(items, "b"), [{ sourceModelId: "a", layers: [1], restored: 1, of: 1, recordedAt: "t" }]);
+  assert.deepEqual(mechanismOf(items, "b"), [{ sourceModelId: "a", layers: [1], restored: 1, of: 1, measure: "top", recordedAt: "t" }]);
   assert.deepEqual(mechanismOf(items, "z"), []);
   assert.deepEqual(labelsOf(null), ["Correct", "Wrong", "Invalid", "Unsure"]);
   assert.deepEqual(labelsOf({ labels: [" Correct name ", "", "Wrong name"] }), ["Correct name", "Wrong name"]);
@@ -103,6 +103,38 @@ test("a mechanism reports every tied best layer, and no best layer when none res
   const sweep = { kind: "sweep", sourceModelId: "a", targetModelId: "b", layers: [2, 5, 8], samples: [
     { sampleId: "s", expected: " x", top: "y", expectedLogProb: null, byLayer: [{ layer: 2, top: " x" }, { layer: 5, top: "y" }, { layer: 8, top: " x" }] },
   ] };
-  assert.deepEqual(mechanismOf([sweep], "b"), [{ sourceModelId: "a", layers: [2, 8], restored: 1, of: 1, recordedAt: undefined }]);
+  assert.deepEqual(mechanismOf([sweep], "b"), [{ sourceModelId: "a", layers: [2, 8], restored: 1, of: 1, measure: "top", recordedAt: undefined }]);
   assert.deepEqual(mechanismOf([{ ...sweep, samples: [{ ...sweep.samples[0], expected: " z" }] }], "b")[0].layers, []);
+});
+
+test("a sweep counts the margin when every sample has one, and only a current helper's sweep speaks for a model", () => {
+  const at = (layer, top, margin) => ({ layer, top, expectedLogProb: null, margin });
+  const margins = { kind: "sweep", current: true, sourceModelId: "a", targetModelId: "b", layers: [0, 1], samples: [{ sampleId: "s", expected: " x", alternative: " y", top: "the", expectedLogProb: null, margin: -1, byLayer: [at(0, "the", 0.5), at(1, " x", -0.2)] }] };
+  assert.equal(sweepMeasure(margins), "margin");
+  assert.deepEqual(restoredByLayer(margins), [1, 0], "ahead of the alternative counts, even when another word is on top");
+  assert.deepEqual(restoredByLayer(margins, "top"), [0, 1]);
+  const partly = { ...margins, samples: [...margins.samples, { sampleId: "t", expected: " x", top: "the", expectedLogProb: null, byLayer: [at(0, " x", null), at(1, "the", null)] }] };
+  assert.equal(sweepMeasure(partly), "top", "a mix is not counted two ways");
+  const stale = { ...margins, current: false, sourceModelId: "old" };
+  assert.deepEqual(mechanismOf([stale, margins], "b").map((item) => [item.sourceModelId, item.layers, item.measure]), [["a", [0], "margin"]]);
+  assert.equal(earlierSweeps([stale, margins], "b"), 1);
+  assert.equal(earlierSweeps([stale, margins], "z"), 0);
+});
+
+test("the sample list reads every page, stops at its limit or when no longer wanted, and only disputes move with labels", async () => {
+  const pages = { 0: { items: [{ offset: 0 }, { offset: 1 }], next: 2 }, 2: { items: [{ offset: 2 }, { offset: 3 }], next: 4 }, 4: { items: [{ offset: 4 }], next: null } };
+  const read = async (cursor) => pages[cursor];
+  const all = await readSamplePages(read);
+  assert.deepEqual([all.items.length, all.next], [5, null]);
+  const seen = [];
+  await readSamplePages(read, { onPage: (page) => seen.push(page.next) });
+  assert.deepEqual(seen, [2, 4, null]);
+  const capped = await readSamplePages(read, { most: 2 });
+  assert.deepEqual([capped.items.length, capped.next], [2, 2], "More goes on from here");
+  const resumed = await readSamplePages(read, { from: capped.next });
+  assert.equal(resumed.items.length, 3);
+  let wanted = true;
+  const stopped = await readSamplePages(async (cursor) => { wanted = false; return pages[cursor]; }, { live: () => wanted });
+  assert.equal(stopped.items.length, 0, "a page for a list no longer shown is dropped");
+  assert.deepEqual(["all", "errors", "disputed"].map(changeRereadsList), [false, false, true]);
 });
