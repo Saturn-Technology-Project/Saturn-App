@@ -215,7 +215,7 @@ export function ResearchApp() {
 
   return (
     <div className="fixed inset-0 flex min-w-0 overflow-hidden">
-      <nav className="flex w-[148px] flex-none flex-col gap-0.5 frost border-r border-border bg-panel px-2 pt-1.5 pb-2 max-[1080px]:w-[72px]" aria-label="Screens" data-tour="rail">
+      <nav className="flex w-[148px] flex-none flex-col gap-0.5 border-r border-border bg-panel px-2 pt-1.5 pb-2 max-[1080px]:w-[72px]" aria-label="Screens" data-tour="rail">
         <div className="h-[34px] flex-none [--app-region:drag]" />
         {SCREENS.map((item, index) => (
           <button type="button" key={item} className={RAIL_ITEM} title={item} data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={`Meta+${index + 1}`} onClick={() => go(item)}>

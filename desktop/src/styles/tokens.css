@@ -161,7 +161,6 @@ body,
 body {
   margin: 0;
   background: var(--backdrop), var(--bg);
-  background-attachment: fixed;
   color: var(--fg);
   font: var(--text-body) / 1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;

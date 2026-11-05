@@ -12,8 +12,8 @@ export const Dialog = DialogPrimitive.Root;
 export function DialogContent({ className, children, ...props }: DialogPrimitive.Popup.Props) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Backdrop data-slot="dialog-overlay" className="fixed inset-0 isolate z-50 bg-black/25 supports-backdrop-filter:backdrop-blur-xs" />
-      <DialogPrimitive.Popup data-slot="dialog-content" className={classes("fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl glass p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-md", className)} {...props}>
+      <DialogPrimitive.Backdrop data-slot="dialog-overlay" className="fixed inset-0 isolate z-50 bg-black/25" />
+      <DialogPrimitive.Popup data-slot="dialog-content" className={classes("fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-md", className)} {...props}>
         {children}
       </DialogPrimitive.Popup>
     </DialogPrimitive.Portal>

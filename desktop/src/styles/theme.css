@@ -66,15 +66,9 @@
   }
 }
 
-/* Floats over the page and blurs what is behind it: menus, dialogs, the command palette. */
+/* Floats over the page and blurs what is behind it. For small things that come and go: a blur costs every frame under it, so nothing large or scrolling wears it. */
 @utility glass {
   background: var(--glass);
   -webkit-backdrop-filter: blur(24px) saturate(1.3);
   backdrop-filter: blur(24px) saturate(1.3);
-}
-
-/* A pane fixed to the window, in front of the soft light behind everything. */
-@utility frost {
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  backdrop-filter: blur(20px) saturate(1.2);
 }
