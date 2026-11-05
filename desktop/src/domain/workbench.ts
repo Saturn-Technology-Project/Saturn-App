@@ -54,7 +54,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "assistant",
     target: "assistant",
     title: "The research assistant",
-    text: "A panel beside your work, on every screen (⌘J). Ask it what a screen is for or how to do something, and it can walk you through it, boxing each place while you do the work. Beside the message box you choose how much it may do: in Manual it only reads and explains; in Pair it proposes changes you approve; in Delegate each message starts a task, which on auto asks nothing. Samples it is given are marked as data, never as instructions.",
+    text: "A panel beside your work, on every screen (⌘J). Ask it what a screen is for or how to do something, and it can walk you through it, boxing each place while you do the work. Beside the message box you choose how much it may do: in Manual it only reads and explains; in Pair it proposes changes you approve; in Delegate it works here on the project itself, and on auto asks nothing. Samples it is given are marked as data, never as instructions.",
   },
   {
     id: "lineage",
