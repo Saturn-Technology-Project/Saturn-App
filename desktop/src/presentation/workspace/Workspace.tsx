@@ -9,11 +9,14 @@ import {
   type ExperimentRun,
   type Finding,
   type FindingKind,
+  type ModelNode,
   type ParticipationMode,
+  type Question,
   type ResearchPolicy,
   type SampleItem,
   type SourceEntry,
 } from "../../domain/research.js";
+import { LookInside } from "../samples/LookInside.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { messageOf, Tabs } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
@@ -29,7 +32,8 @@ const MODE_HINTS: Record<ParticipationMode, string> = {
   delegate: "An agent may change this file, with every change recorded.",
 };
 const FINDING_LABELS: Record<FindingKind, string> = { observation: "Observation", ai_suggestion: "AI suggestion", conclusion: "Conclusion" };
-const PANELS = ["Run", "Samples", "Findings", "Terminal"] as const;
+const PANELS = ["Run", "Samples", "Findings", "Activations", "Terminal"] as const;
+const NOTE_FILES = /\.(md|txt|pdf|ipynb)$/i;
 type Panel = (typeof PANELS)[number];
 
 /** The file open in the editor. `revision` is null for a file not saved yet. */
@@ -81,6 +85,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const [busy, setBusy] = useState(false);
   const [policy, setPolicy] = useState<ResearchPolicy | null>(null);
   const [panel, setPanel] = useState<Panel>("Run");
+  const [sidebar, setSidebar] = useState<{ questions: Question[]; models: ModelNode[]; drafts: ExperimentDraft[] }>({ questions: [], models: [], drafts: [] });
 
   const remember = useCallback(
     (changes: Partial<typeof session.current>) => {
@@ -138,6 +143,19 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const refreshFindings = useCallback(async () => {
     setFindings((await service.findings(projectId)).items);
   }, [projectId]);
+
+  // What the sidebar lists beside the files: the project's questions, models and experiments, kept current with the records.
+  const refreshSidebar = useCallback(async () => {
+    const [questions, models, drafts] = await Promise.all([service.questions(projectId), service.models(projectId), service.experiments(projectId)]);
+    setSidebar({ questions: questions.items, models: models.items, drafts: drafts.items });
+  }, [projectId]);
+  useEffect(() => {
+    void refreshSidebar().catch(() => {});
+    return desktop.live.onResearchChange(() => void refreshSidebar().catch(() => {}));
+  }, [refreshSidebar]);
+
+  // Another screen may ask for a file to be opened here.
+  useEffect(() => service.onOpen((target) => target.kind === "file" && void openFile(target.path)), [openFile]);
 
   // Reopens what was open: records come from the project, the rest from this device.
   useEffect(() => {
@@ -313,24 +331,62 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     onFocus({ file: open?.path ?? null, mode, selection, run, errorOutput, sample: selected });
   }, [errorOutput, mode, onFocus, open?.path, run, selected, selection]);
 
+  const notes = entries.filter((entry) => entry.kind === "file" && NOTE_FILES.test(entry.name));
+  const code = entries.filter((entry) => !notes.includes(entry));
+  const fileButton = (entry: SourceEntry) => (
+    <button
+      type="button"
+      key={entry.path}
+      className={open?.path === entry.path ? "lab-file active" : "lab-file"}
+      onClick={() => void (entry.kind === "directory" ? showFolder(entry.path).catch((error: unknown) => notify(messageOf(error))) : openFile(entry.path))}
+    >
+      <span>{entry.kind === "directory" ? `${entry.name}/` : entry.name}</span>
+      {entry.kind === "file" && policy ? <span className="lab-file-mode">{MODE_LABELS[modeOf(policy, entry.path)]}</span> : null}
+    </button>
+  );
   const files = (
-    <nav className="lab-files" aria-label="Project files">
-      <div className="lab-pane-title">{folder === "." ? "Files" : folder}</div>
-      {parentFolder ? (
-        <button type="button" className="lab-file" onClick={() => void showFolder(parentFolder).catch((error: unknown) => notify(messageOf(error)))}>
-          ..
-        </button>
+    <nav className="lab-files" aria-label="Project">
+      {sidebar.questions.length ? (
+        <section className="lab-files-section">
+          <div className="lab-pane-title">Questions</div>
+          {[...sidebar.questions].reverse().slice(0, 3).map((item) => (
+            <button type="button" key={item.id} className="lab-file" title={item.title} onClick={() => props.go("Home")}>
+              {item.title}
+            </button>
+          ))}
+        </section>
       ) : null}
-      {entries.map((entry) => (
-        <button
-          type="button"
-          key={entry.path}
-          className={open?.path === entry.path ? "lab-file active" : "lab-file"}
-          onClick={() => void (entry.kind === "directory" ? showFolder(entry.path).catch((error: unknown) => notify(messageOf(error))) : openFile(entry.path))}
-        >
-          {entry.kind === "directory" ? `${entry.name}/` : entry.name}
+      <section className="lab-files-section">
+        <div className="lab-pane-title">Models</div>
+        <button type="button" className="lab-file" onClick={() => props.go("Lineage")}>
+          Lineage · {sidebar.models.length} {sidebar.models.length === 1 ? "node" : "nodes"}
         </button>
-      ))}
+      </section>
+      {notes.length ? (
+        <section className="lab-files-section">
+          <div className="lab-pane-title">Library</div>
+          {notes.map(fileButton)}
+        </section>
+      ) : null}
+      <section className="lab-files-section">
+        <div className="lab-pane-title">{folder === "." ? "Code" : folder}</div>
+        {parentFolder ? (
+          <button type="button" className="lab-file" onClick={() => void showFolder(parentFolder).catch((error: unknown) => notify(messageOf(error)))}>
+            ..
+          </button>
+        ) : null}
+        {code.map(fileButton)}
+      </section>
+      {sidebar.drafts.length ? (
+        <section className="lab-files-section">
+          <div className="lab-pane-title">Experiments</div>
+          {[...sidebar.drafts].reverse().slice(0, 4).map((item) => (
+            <button type="button" key={item.id} className={item.id === experiment?.id ? "lab-file active" : "lab-file"} title={item.title} onClick={() => props.go("Experiments")}>
+              {item.title}
+            </button>
+          ))}
+        </section>
+      ) : null}
     </nav>
   );
 
@@ -417,6 +473,13 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               </article>
             ))}
           </div>
+        ) : null}
+        {panel === "Activations" ? (
+          run && selected?.sample ? (
+            <LookInside key={`${run.id}:${selected.sample.sampleId}`} projectId={projectId} runId={run.id} sampleId={selected.sample.sampleId} modelId={selected.sample.modelId ?? null} models={sidebar.models} notify={notify} />
+          ) : (
+            <p className="lab-muted">Choose a sample under Samples, then look inside it here.</p>
+          )
         ) : null}
         <div hidden={panel !== "Terminal"} style={{ height: "100%" }}>
           <Terminal folder={props.project.path} />

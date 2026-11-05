@@ -213,3 +213,24 @@
   font-family: var(--font-mono);
   font-size: var(--text-small);
 }
+
+/* The sidebar's sections: questions, models, library, code and experiments. */
+.lab-files-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 12px;
+}
+
+.lab-file {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+}
+
+.lab-file-mode {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--muted);
+}

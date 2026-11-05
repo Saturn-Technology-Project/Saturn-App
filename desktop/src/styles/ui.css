@@ -476,3 +476,218 @@
 .lab-lineage-detail .lab-button {
   margin-top: 6px;
 }
+
+/* A screen's heading with its actions beside it. */
+.lab-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.lab-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* A row of small facts across the top of a record. */
+.lab-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.lab-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: var(--text-small);
+}
+
+.lab-stat.current {
+  outline: 1px solid var(--line-strong);
+}
+
+.lab-stat select {
+  max-width: 100%;
+}
+
+/* Cards side by side, each the same height. */
+.lab-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+
+.lab-card.attention {
+  outline: 1px solid var(--wait);
+}
+
+.lab-card-headline {
+  display: block;
+  margin: 2px 0;
+  font-size: 18px;
+}
+
+.lab-card-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  border: 0;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+}
+
+.lab-card-button:hover {
+  background: var(--hover);
+}
+
+/* Labels on findings: what kind, and whose. */
+.lab-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.lab-chip {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--hover);
+  font-size: var(--text-small);
+}
+
+.lab-chip.marked {
+  background: var(--blue-bg);
+  color: var(--blue-hover);
+}
+
+/* What a lineage holds fixed, two columns of facts. */
+.lab-fixed {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px 16px;
+  font-size: var(--text-small);
+}
+
+/* How far a review is. */
+.lab-progress {
+  height: 6px;
+  margin-top: 4px;
+  border-radius: 3px;
+  background: var(--hover);
+  overflow: hidden;
+}
+
+.lab-progress-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* The samples screen's list. */
+.lab-sample-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  overflow: auto;
+  background: var(--panel);
+}
+
+.lab-sample-nav .lab-file {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+}
+
+.lab-sample-nav .lab-segments {
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.lab-sample-id {
+  font-family: var(--font-mono);
+}
+
+/* Looking inside a sample. */
+.lab-inside {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.lab-inside-patch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.lab-inside-patch .lab-field {
+  flex: 0 1 160px;
+}
+
+.lab-activation-table th,
+.lab-activation-table td {
+  padding: 2px 4px;
+  text-align: center;
+}
+
+.lab-activation-cell {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+/* What is known about a sample, after its rows: comparison, progress, looking inside, keeping it. */
+.lab-sample-about {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px 24px;
+  margin-top: 16px;
+}
+
+.lab-sample-about section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.lab-sample-about h2 {
+  margin: 0 0 4px;
+  font-size: var(--text-body);
+}
+
+.lab-sample-nav .lab-file {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  height: auto;
+}
+
+.lab-table .lab-segments {
+  flex-wrap: wrap;
+  width: fit-content;
+}
+
+.lab-table .lab-segment {
+  white-space: nowrap;
+}
