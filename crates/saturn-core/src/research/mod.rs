@@ -2,6 +2,7 @@
 //! `docs/research-contract.md` is the contract, and `contract/research-*.test.mjs` hold the runtime to it.
 mod agent;
 mod checks;
+mod data;
 mod environment;
 mod freeze;
 mod inside;
@@ -12,7 +13,9 @@ mod resources;
 mod runs;
 mod skills;
 mod source;
+mod tables;
 
+pub use data::DataOverlapRequest;
 pub use labels::RunDigest;
 
 use std::collections::HashMap;
@@ -47,6 +50,8 @@ pub struct ResearchState {
     ending: AtomicBool,
     /// The projects whose managed environment has a job running.
     environment_jobs: Mutex<manage::RunningJobs>,
+    /// What has been worked out about data files.
+    data: data::DataMemory,
 }
 
 impl Default for ResearchState {
@@ -58,6 +63,7 @@ impl Default for ResearchState {
             baselines: Mutex::default(),
             ending: AtomicBool::new(false),
             environment_jobs: Mutex::default(),
+            data: data::DataMemory::default(),
         }
     }
 }

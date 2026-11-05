@@ -3254,7 +3254,7 @@
     "toolId": "research_read",
     "serverId": "research",
     "category": "read",
-    "description": "Read a project's research: what=status (everything at a glance), list or record (collection, id), runs, run, summary, samples (run, cursor, limit, only=all|disputed|errors), log (run, stream=stdout|stderr), resources, labels, compare (left and right are version ids), sample_across (sample, runs), events, environment, policy, inside_list, inside (run, sample, model).",
+    "description": "Read a project's research: what=status (everything at a glance), list or record (collection, id), runs, run, summary, samples (run, cursor, limit, only=all|disputed|errors), log (run, stream=stdout|stderr), resources, labels, compare (left and right are version ids), sample_across (sample, runs), events, environment, policy, inside_list, inside (run, sample, model), data_list (every data input, its hash, whether it changed, who read it), data_profile (path, split: rows, columns, missing, common values), data_overlap (left and right are data files, columns, leftSplit, rightSplit: identical rows between two files, exact duplicates only).",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3277,7 +3277,10 @@
         "environment",
         "policy",
         "inside_list",
-        "inside"
+        "inside",
+        "data_list",
+        "data_profile",
+        "data_overlap"
        ]
       },
       "collection": {
@@ -3335,6 +3338,24 @@
        }
       },
       "model": {
+       "type": "string"
+      },
+      "path": {
+       "type": "string"
+      },
+      "split": {
+       "type": "string"
+      },
+      "columns": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "leftSplit": {
+       "type": "string"
+      },
+      "rightSplit": {
        "type": "string"
       }
      },

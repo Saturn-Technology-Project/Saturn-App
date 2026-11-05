@@ -6,7 +6,7 @@ description: Build fixed, hashed train, validation and test splits. Read before 
 
 ## Steps
 1. **Check the license and contents.** Note the source and license in a finding. Do not use data you may not, or personal data without a reason.
-2. **Look at it.** Read 20 examples, and count lengths, duplicates and labels. Most surprises show here.
+2. **Look at it.** Read 20 examples, and count lengths, duplicates and labels. Most surprises show here. `research_read` with `what: "data_profile"` gives the counts for a declared file.
 3. **Clean with a script.** A script in the project, never by hand, so the steps can be repeated.
 4. **Deduplicate before splitting**, on normalized text. See `data-leakage-audit`.
 5. **Split once, by a stable rule**, usually a hash of a stable id, so that adding data does not move examples between splits:

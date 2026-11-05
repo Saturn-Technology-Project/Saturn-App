@@ -20,6 +20,7 @@ They live in `.saturn/research` in the project. Your file tools refuse to write 
 - `what: "compare"`, `left`, `right`: version ids. Answers `comparable`, `not_comparable` or `unknown`.
 - `what: "sample_across"`, `sample`, `runs`: one sample in several runs.
 - `what: "labels"`, `"events"`, `"environment"`, `"policy"`, `"inside_list"`, `"inside"`.
+- `what: "data_list"`: every declared data file, its hash, whether it changed, and which runs read it. `what: "data_profile"`, `path`, `split`: its rows and columns. `what: "data_overlap"`, `left`, `right` (files, here), `columns`, `leftSplit`, `rightSplit`: exact duplicates between two files. See `data-leakage-audit`.
 
 ## Writing: `research_write`
 Leave out `id` to make a record. To change one, pass `id` and `expectedRevision` from your read; a stale revision is refused, so read again.

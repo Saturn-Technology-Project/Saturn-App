@@ -10,6 +10,7 @@ use saturn_domain::research::{
 use saturn_domain::skill_files::parse_skill;
 use serde_json::{Value, json};
 
+use super::data::DataOverlapRequest;
 use super::skills::{bundled_skill, bundled_skills};
 use crate::records::{strings, text};
 use crate::skill_files::{list_skills, load_skill};
@@ -205,6 +206,26 @@ impl Kernel {
             "inside" => {
                 let request = json!({ "sampleId": text(arguments, "sample"), "modelId": arguments.get("model") });
                 self.research_inside_saved(project, run()?, &request)
+                    .await
+                    .map_err(said)
+            }
+            "data_list" => self.research_data_list(project).await.map_err(said),
+            "data_profile" => {
+                let split = Some(text(arguments, "split")).filter(|split| !split.is_empty());
+                self.research_data_profile(project, needed(arguments, "path")?, split)
+                    .await
+                    .map_err(said)
+            }
+            "data_overlap" => {
+                let split_of = |key| Some(text(arguments, key)).filter(|split| !split.is_empty());
+                let request = DataOverlapRequest {
+                    left: needed(arguments, "left")?,
+                    right: needed(arguments, "right")?,
+                    columns: strings(arguments, "columns"),
+                    left_split: split_of("leftSplit"),
+                    right_split: split_of("rightSplit"),
+                };
+                self.research_data_overlap(project, &request)
                     .await
                     .map_err(said)
             }

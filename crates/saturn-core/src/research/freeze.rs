@@ -52,7 +52,7 @@ pub(super) fn is_bookkeeping(relative: &str) -> bool {
 }
 
 /// The files at a path from `source`, without following links: itself, or everything under a folder, in order.
-async fn files_under(source: &Path, relative: &str) -> std::io::Result<Vec<String>> {
+pub(super) async fn files_under(source: &Path, relative: &str) -> std::io::Result<Vec<String>> {
     let mut found = Vec::new();
     let mut waiting = vec![relative.trim_end_matches('/').to_owned()];
     while let Some(next) = waiting.pop() {
