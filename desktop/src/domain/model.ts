@@ -474,3 +474,13 @@ export type RunSummary = {
   updatedAt?: string;
 };
 
+
+/** What removing a connection means for the agents using it, in words, for asking first. `replacement` is null when nothing takes over. */
+export function removalQuestion(name: string, users: string[], kind: "model" | "server", replacement: string | null): string {
+  if (!users.length) return `Remove ${name}?`;
+  const who = users.length === 1 ? users[0] : users.length === 2 ? `${users[0]} and ${users[1]}` : `${users[0]} and ${users.length - 1} other agents`;
+  if (kind === "server") return `Remove ${name}? ${who} ${users.length === 1 ? "uses" : "use"} it and will no longer have its tools.`;
+  return replacement
+    ? `Remove ${name}? ${who} ${users.length === 1 ? "uses" : "use"} it and will move to ${replacement}.`
+    : `Remove ${name}? ${who} ${users.length === 1 ? "uses" : "use"} it and will have no model until you connect another.`;
+}

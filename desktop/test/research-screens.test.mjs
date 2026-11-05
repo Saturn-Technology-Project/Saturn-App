@@ -2,7 +2,16 @@
 // changed since a visit. Node runs the domain file as it is, so only a module without imports can be tested here.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { removalQuestion } from "../src/domain/model.ts";
 import { bytesText, changedSince, changeRereadsList, comparisonFactors, devicesText, durationText, earlierSweeps, heldFixed, kitState, labelsOf, lastActive, mechanismOf, readSamplePages, restoredByLayer, reviewProgress, scoreSources, scorerSaysWrong, sweepMeasure, throughput } from "../src/domain/research.ts";
+
+test("removing a connection says who uses it and what becomes of them", () => {
+  assert.equal(removalQuestion("A", [], "model", "B"), "Remove A?");
+  assert.equal(removalQuestion("A", ["Research assistant"], "model", "B"), "Remove A? Research assistant uses it and will move to B.");
+  assert.equal(removalQuestion("A", ["Research assistant", "Old"], "model", null), "Remove A? Research assistant and Old use it and will have no model until you connect another.");
+  assert.equal(removalQuestion("A", ["One", "Two", "Three"], "model", "B"), "Remove A? One and 2 other agents use it and will move to B.");
+  assert.equal(removalQuestion("S", ["One"], "server", null), "Remove S? One uses it and will no longer have its tools.");
+});
 
 const point = (elapsedMs, samplesLines, outputTokens = 0) => ({ at: "", elapsedMs, cpuPercent: 1, memoryBytes: 1, processes: 1, samplesBytes: 0, samplesLines, inputTokens: 0, outputTokens, deviceMemoryBytes: null, gpus: null });
 

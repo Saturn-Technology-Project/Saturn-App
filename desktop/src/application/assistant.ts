@@ -14,8 +14,13 @@ export class AssistantService {
   async agent(): Promise<{ agent: Agent | null; models: Model[] }> {
     const [agents, models] = await Promise.all([this.catalog.listAgents(), this.catalog.listModels()]);
     const found = agents.find((item) => item.name === ASSISTANT_NAME);
-    if (found) return { agent: found, models };
     if (!models.length) return { agent: null, models };
+    if (found) {
+      if (models.some((model) => model.id === found.modelConnectionId)) return { agent: found, models };
+      // Its model was removed with nothing to take over, and now one is connected. Nothing else can set it: it has no screen.
+      await this.catalog.updateAgent(found.id, { modelConnectionId: models[0].id });
+      return { agent: { ...found, modelConnectionId: models[0].id }, models };
+    }
     const agent = await this.catalog.createAgent({ name: ASSISTANT_NAME, modelConnectionId: models[0].id });
     return { agent, models };
   }

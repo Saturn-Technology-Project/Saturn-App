@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **A model or MCP server in use can be removed again.** Removing one said "Connection is still used by an agent", with no screen left to change that agent on. Saturn now says who uses it and, once you agree, moves them to another model (or leaves them with none) or takes the server off their lists. The research assistant picks up a model again when one is connected.
 - **A model's mechanism no longer shows a result from a corrected helper.** Sweeps made before a helper changed stay with the run and are counted apart, so an old number cannot stand for the model.
 - **"Restored" follows the scorer.** A program that writes `alternative` on its sample lines gets a layer sweep counted by the logit margin a two-way scorer judges, with the top token shown beside it; without one the sweep says it counts the top token.
 - **The Samples list keeps your place.** Labeling a sample, or any other change to the records, no longer sends the list back to its first page, and the list loads the whole run by itself up to 20,000 lines.

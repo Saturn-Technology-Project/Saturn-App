@@ -6,7 +6,7 @@ import { desktop } from "../../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
-import { EFFORT_LABELS, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
+import { EFFORT_LABELS, removalQuestion, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
 import type { CodexStatus, ProgramStatus } from "../../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -405,7 +405,10 @@ function McpPage(props: {
 
   async function removeServer(id: string) {
     try {
-      await desktop.admin.deleteMcp(id);
+      const users = (await desktop.catalog.listAgents()).filter((agent) => agent.mcpConnectionIds?.includes(id)).map((agent) => agent.name);
+      const name = props.mcp.find((item) => item.id === id)?.name ?? "this server";
+      if (users.length && !await askToConfirm(removalQuestion(name, users, "server", null))) return;
+      await desktop.admin.deleteMcp(id, users.length > 0);
       setConfirming(null);
       props.onError("");
       await props.onChanged();
@@ -822,9 +825,11 @@ export function LlmPage(props: {
                     title="Remove model"
                     onClick={async (e) => {
                       e.stopPropagation();
-                      if (!await askToConfirm(`Remove ${item.name}? Agents using it will need another model.`)) return;
                       try {
-                        await desktop.admin.deleteModel(item.id);
+                        const users = (await desktop.catalog.listAgents()).filter((agent) => agent.modelConnectionId === item.id).map((agent) => agent.name);
+                        const replacement = props.models.find((model) => model.id !== item.id) ?? null;
+                        if (!await askToConfirm(removalQuestion(item.name, users, "model", replacement?.name ?? null))) return;
+                        await desktop.admin.deleteModel(item.id, users.length ? (replacement?.id ?? "none") : undefined);
                         await props.onChanged();
                       } catch (err) {
                         props.onError(err instanceof Error ? err.message : "Failed to remove model");
