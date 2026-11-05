@@ -10,6 +10,7 @@ use std::time::Duration;
 use regex::Regex;
 use saturn_domain::js;
 use saturn_domain::prompt::{RunMode, mode_instructions};
+use saturn_domain::research::sha256_hex;
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
@@ -77,6 +78,9 @@ fn parse_sign_in(printed: &str, device: bool) -> (Option<String>, Option<String>
         .flatten();
     (link, code)
 }
+
+/// Where a chat records which instructions its Codex thread last heard, by hash.
+const INSTRUCTIONS_HEARD: &str = "codexInstructionsHeard";
 
 /// What Codex is told about its skills server, as `--config` values the way the SDK writes them.
 fn skills_settings(origin: &str) -> Vec<String> {
@@ -656,12 +660,23 @@ impl Kernel {
         };
 
         let resume = self.saved_session(&run, "codexThreadId");
-        // Memory and the agent's instructions open a new Codex thread; a resumed thread already has them. What the knowledge sources
+        // Memory and the agent's instructions open a new Codex thread, and a resumed thread already has them, unless the
+        // instructions changed since it last heard them or it has no record of what it heard. What the knowledge sources
         // return goes with every message. Codex reads AGENTS.md from its working folder itself.
         let context = self.turn_context(agent, &run, &["AGENTS.md"]).await;
         let instructions = js::trim(text(agent, "instructions"));
+        let instructions_hash = sha256_hex(instructions.as_bytes());
+        let heard = self.saved_session(&run, INSTRUCTIONS_HEARD);
         let opening: Vec<String> = if resume.is_some() {
-            Vec::new()
+            if heard.as_deref() == Some(instructions_hash.as_str()) {
+                Vec::new()
+            } else {
+                [("instructions", instructions)]
+                    .into_iter()
+                    .filter(|(_, content)| !content.is_empty())
+                    .map(|(tag, content)| format!("<{tag}>\n{content}\n</{tag}>"))
+                    .collect()
+            }
         } else {
             [
                 ("memory", context.memory.as_str()),
@@ -742,6 +757,14 @@ impl Kernel {
 
         if let Some(thread) = thread.as_deref().filter(|_| thread != resume) {
             self.save_session(&run, "codexThreadId", thread).await?;
+        }
+        // Only a turn that went through has told the thread; a failed one says it again next time.
+        if thread.is_some()
+            && failure.is_none()
+            && heard.as_deref() != Some(instructions_hash.as_str())
+        {
+            self.save_session(&run, INSTRUCTIONS_HEARD, &instructions_hash)
+                .await?;
         }
         if !self.alive(run_id, at) {
             return Ok(());

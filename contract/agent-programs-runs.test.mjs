@@ -401,6 +401,78 @@ test("A Codex thread is resumed, a resumed one is not told again what it knows, 
   }
 });
 
+test("A resumed Codex thread is told instructions that changed since it last heard them, once", async () => {
+  const saturn = await startWithPrograms();
+  try {
+    const agent = await coder(saturn, "codex", { model: "default", instructions: "Be brief." });
+    await saturn.scenario({
+      steps: [
+        { send: { type: "thread.started", thread_id: "thread-A" } },
+        { send: { type: "item.completed", item: { id: "m1", type: "agent_message", text: "ok" } } },
+        { send: { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } } },
+      ],
+    });
+    const prompts = async () => (await saturn.journal()).filter((entry) => entry.prompt !== undefined).map((entry) => entry.prompt);
+    const first = await runToEnd(saturn, agent.id, { input: "one" });
+    await runToEnd(saturn, agent.id, { input: "two", threadId: first.threadId });
+    assert.doesNotMatch((await prompts())[1], /<instructions>/, "nothing changed");
+    await saturn.api("PATCH", `/agents/${agent.id}`, { instructions: "You know the workbench." });
+    await runToEnd(saturn, agent.id, { input: "three", threadId: first.threadId });
+    await runToEnd(saturn, agent.id, { input: "four", threadId: first.threadId });
+    const said = await prompts();
+    assert.match(said[2], /<instructions>\nYou know the workbench\.\n<\/instructions>/, "the thread hears what changed");
+    assert.doesNotMatch(said[2], /<memory>|Be brief/);
+    assert.doesNotMatch(said[3], /<instructions>/, "and only once");
+    assert.ok((await started(saturn)).slice(1).every((program) => program.args.join(" ").includes("resume thread-A")), "the same thread throughout");
+  } finally {
+    await saturn.stop();
+  }
+});
+
+test("A thread with no record of what it heard is told the instructions: an existing chat, or a turn that failed", async () => {
+  const saturn = await startWithPrograms();
+  try {
+    const agent = await coder(saturn, "codex", { model: "default", instructions: "You know the workbench." });
+    await saturn.scenario({ steps: [{ send: { type: "thread.started", thread_id: "thread-A" } }, { exit: 1, stderr: "it broke" }] });
+    const first = await runToEnd(saturn, agent.id, { input: "one" });
+    assert.equal(first.status, "failed");
+    await saturn.scenario({
+      steps: [
+        { send: { type: "item.completed", item: { id: "m1", type: "agent_message", text: "ok" } } },
+        { send: { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } } },
+      ],
+    });
+    await runToEnd(saturn, agent.id, { input: "two", threadId: first.threadId });
+    await runToEnd(saturn, agent.id, { input: "three", threadId: first.threadId });
+    const programs = await started(saturn);
+    assert.ok(programs[1].args.join(" ").includes("resume thread-A"), programs[1].args.join(" "));
+    const prompts = (await saturn.journal()).filter((entry) => entry.prompt !== undefined).map((entry) => entry.prompt);
+    assert.match(prompts[1], /<instructions>\nYou know the workbench\.\n<\/instructions>/);
+    assert.doesNotMatch(prompts[2], /<instructions>/, "once it has gone through, not again");
+  } finally {
+    await saturn.stop();
+  }
+});
+
+test("A resumed Claude Code session gets instructions that changed", async () => {
+  const saturn = await startWithPrograms();
+  try {
+    const agent = await coder(saturn, "claude-code", { instructions: "Be brief.", autonomy: "bypass" });
+    await saturn.scenario({ steps: [{ send: { type: "system", subtype: "init", session_id: "session-1" } }, { send: { type: "result", subtype: "success", is_error: false, result: "ok", session_id: "session-1", usage: { input_tokens: 1, output_tokens: 1 } } }] });
+    const first = await runToEnd(saturn, agent.id, { input: "one" });
+    assert.equal(first.status, "completed", first.error);
+    await saturn.api("PATCH", `/agents/${agent.id}`, { instructions: "You know the workbench." });
+    const second = await runToEnd(saturn, agent.id, { input: "two", threadId: first.threadId });
+    assert.equal(second.status, "completed", second.error);
+    const programs = await started(saturn);
+    assert.ok(programs[1].args.includes("--resume=session-1"), programs[1].args.join(" "));
+    const initialize = (await received(saturn)).filter((message) => message.request?.subtype === "initialize").at(-1);
+    assert.match(initialize.request.appendSystemPrompt, /You know the workbench\./);
+  } finally {
+    await saturn.stop();
+  }
+});
+
 test("Ask and Plan turns run in Codex's read-only sandbox, with the mode's note and images as files", async () => {
   const saturn = await startWithPrograms();
   try {
