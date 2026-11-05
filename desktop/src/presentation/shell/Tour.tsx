@@ -1,17 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import type { Model, Project } from "../../domain/model.js";
 import { messageOf } from "../ui/Parts.js";
 import type { Screen } from "./navigation.js";
 import { TOUR_STEPS } from "./tour-steps.js";
+import { followTourTarget, type TourBox } from "./tour-focus.js";
 
 /** Where the boxed element is on screen. */
-interface Box {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
+type Box = TourBox;
 
 const CARD_WIDTH = 340;
 const GAP = 14;
@@ -45,7 +41,7 @@ export function Tour(props: {
 }) {
   const { project, go } = props;
   const [at, setAt] = useState(0);
-  const [box, setBox] = useState<Box | null>(null);
+  const [focus, setFocus] = useState<{ stepId: string; box: Box | null } | null>(null);
   const [cardHeight, setCardHeight] = useState(260);
   const [question, setQuestion] = useState("");
   const [error, setError] = useState("");
@@ -53,33 +49,15 @@ export function Tour(props: {
   const step = TOUR_STEPS[at];
   const last = at === TOUR_STEPS.length - 1;
 
-  // Each step shows its screen, then the box follows the element once the screen has drawn.
-  useEffect(() => {
-    if (step.screen) go(step.screen);
-  }, [go, step.screen]);
-
-  const measure = useCallback(() => {
-    const element = step.target ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`) : null;
-    if (!element) {
-      setBox(null);
-      return;
-    }
-    const rect = element.getBoundingClientRect();
-    setBox({ top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 });
-  }, [step.target]);
-
+  // A new step never reuses the preceding rectangle. Follow actual layout frames, including delayed panels and resize.
   useLayoutEffect(() => {
-    measure();
-    // A screen that has just been switched to draws a moment later, and its panels a moment after that.
-    const soon = window.setTimeout(measure, 120);
-    const later = window.setTimeout(measure, 500);
-    window.addEventListener("resize", measure);
-    return () => {
-      window.clearTimeout(soon);
-      window.clearTimeout(later);
-      window.removeEventListener("resize", measure);
-    };
-  }, [measure, at]);
+    if (step.screen) go(step.screen);
+    return followTourTarget(() => {
+      const element = step.target ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`) : null;
+      const rect = element?.getBoundingClientRect();
+      return rect && rect.width > 0 && rect.height > 0 ? { top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 } : null;
+    }, (box) => setFocus({ stepId: step.id, box }), (callback) => window.requestAnimationFrame(callback), (frame) => window.cancelAnimationFrame(frame));
+  }, [go, step.id, step.screen, step.target]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -107,13 +85,15 @@ export function Tour(props: {
     }
   }
 
+  const measuring = focus?.stepId !== step.id;
+  const box = measuring ? null : focus.box;
   const place = placeCard(box, cardHeight);
   return (
     <div className="lab-tour" role="dialog" aria-modal="true" aria-labelledby="lab-tour-title">
-      {box ? <div className="lab-tour-box" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : <div className="lab-tour-dim" />}
+      {box ? <div key={step.id} className="lab-tour-box" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : <div className="lab-tour-dim" />}
       <div
         className="lab-tour-card"
-        style={{ top: place.top, left: place.left, width: CARD_WIDTH }}
+        style={{ top: place.top, left: place.left, width: CARD_WIDTH, visibility: measuring ? "hidden" : undefined }}
         ref={(element) => {
           if (element && element.offsetHeight !== cardHeight) setCardHeight(element.offsetHeight);
         }}
