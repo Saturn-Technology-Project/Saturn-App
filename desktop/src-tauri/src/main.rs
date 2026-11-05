@@ -17,7 +17,7 @@ use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, Webvie
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 pub(crate) const MAIN_WINDOW: &str = "main";
-const BACKGROUND: tauri::window::Color = tauri::window::Color(0x1f, 0x1f, 0x1d, 0xff);
+const BACKGROUND: tauri::window::Color = tauri::window::Color(0x13, 0x13, 0x12, 0xff);
 
 /// Where the interface is served, known once it is up.
 static INTERFACE: OnceLock<u16> = OnceLock::new();

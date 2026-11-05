@@ -65,19 +65,19 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #1a1a18;
-  --stage: rgba(255, 255, 255, 0.022);
-  --panel: rgba(255, 255, 255, 0.045);
+  --bg: #131312;
+  --stage: rgba(0, 0, 0, 0.38);
+  --panel: rgba(255, 255, 255, 0.028);
   --fg: #f4f3ef;
   --muted: #a3a29c;
   --subtle: #75746e;
   --line: rgba(255, 255, 255, 0.09);
   --line-strong: rgba(255, 255, 255, 0.16);
-  --card: rgba(255, 255, 255, 0.045);
-  --elevated: #2d2d2b;
+  --card: rgba(255, 255, 255, 0.04);
+  --elevated: #232321;
   --hover: rgba(255, 255, 255, 0.075);
-  --input: rgba(0, 0, 0, 0.18);
-  --code-bg: rgba(0, 0, 0, 0.22);
+  --input: rgba(0, 0, 0, 0.3);
+  --code-bg: rgba(0, 0, 0, 0.3);
   --accent: #f4f3ef;
   --on-accent: #1f1e1c;
   --ok: #4ade80;
@@ -116,8 +116,8 @@
   --code-number: #e9b872;
   --code-function: #7fb0f5;
   --code-type: #ef9dc2;
-  --glass: rgba(45, 45, 43, 0.72);
-  --backdrop: radial-gradient(1100px 700px at 12% -10%, rgba(255, 255, 255, 0.07), transparent 70%), radial-gradient(900px 700px at 100% 110%, rgba(255, 255, 255, 0.035), transparent 70%);
+  --glass: rgba(35, 35, 33, 0.74);
+  --backdrop: radial-gradient(1100px 700px at 12% -10%, rgba(255, 255, 255, 0.035), transparent 70%);
   color-scheme: dark;
 }
 
