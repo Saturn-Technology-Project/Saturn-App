@@ -459,6 +459,38 @@ export interface EnvironmentRecord {
   checkedWith?: string;
   report: EnvironmentReport | null;
   lockFiles: { path: string; sha256: string; size: number }[];
+  /** What this computer can make environments with, and whether the project's managed one exists. */
+  tools: { uv: string | null; python3: string | null; managed: { path: string; python: string; exists: boolean } };
+  kits: EnvironmentKit[];
+  job: EnvironmentJob | null;
+}
+
+/** A set of packages for one kind of work; `bundled` goes in with the environment unless declined. */
+export interface EnvironmentKit {
+  id: string;
+  title: string;
+  what: string;
+  bundled: boolean;
+  packages: { name: string; installed: string | null }[];
+}
+
+/** One change to the managed environment: what ran, and how it went. */
+export interface EnvironmentJob {
+  id: string;
+  kind: "create" | "install" | "sync";
+  commands: string[];
+  status: "running" | "completed" | "failed" | "interrupted";
+  startedAt: string;
+  endedAt: string | null;
+  exitCode: number | null;
+  logTail: string;
+  logLines: number;
+}
+
+/** How a kit stands: all of it installed, some, or none, by the last check of the managed interpreter. */
+export function kitState(kit: EnvironmentKit): "installed" | "partly" | "missing" {
+  const have = kit.packages.filter((item) => item.installed).length;
+  return have === kit.packages.length ? "installed" : have ? "partly" : "missing";
 }
 
 export interface EnvironmentReport {

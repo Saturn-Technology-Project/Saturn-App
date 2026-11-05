@@ -2,7 +2,7 @@
 // changed since a visit. Node runs the domain file as it is, so only a module without imports can be tested here.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, lastActive, reviewProgress, scoreSources, throughput } from "../src/domain/research.ts";
+import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, kitState, lastActive, reviewProgress, scoreSources, throughput } from "../src/domain/research.ts";
 
 const point = (elapsedMs, samplesLines, outputTokens = 0) => ({ at: "", elapsedMs, cpuPercent: 1, memoryBytes: 1, processes: 1, samplesBytes: 0, samplesLines, inputTokens: 0, outputTokens, deviceMemoryBytes: null, gpus: null });
 
@@ -18,6 +18,13 @@ test("throughput is a count per second over the newest readings, and nothing unt
   assert.equal(bytesText(null), "—");
   assert.equal(durationText(42_000), "42s");
   assert.equal(durationText(3_725_000), "1h 2m");
+});
+
+test("a kit is installed, partly installed or missing by what the last check saw", () => {
+  const kit = (installed) => ({ id: "k", title: "", what: "", bundled: false, packages: installed.map((version, index) => ({ name: `p${index}`, installed: version })) });
+  assert.equal(kitState(kit(["1", "2"])), "installed");
+  assert.equal(kitState(kit(["1", null])), "partly");
+  assert.equal(kitState(kit([null, null])), "missing");
 });
 
 test("what an environment can compute on is said from what torch reported", () => {

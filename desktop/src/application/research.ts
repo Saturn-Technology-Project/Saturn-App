@@ -216,6 +216,20 @@ export class ResearchService {
     return this.send(`${this.route(project)}/environment/check`, "POST");
   }
 
+  /** Makes the managed environment in the project, with the bundled kit unless declined. A job; the record says how it goes. */
+  createEnvironment(project: string, options: { python?: string; withCore: boolean }): Promise<EnvironmentRecord> {
+    return this.send(`${this.route(project)}/environment/create`, "POST", options);
+  }
+
+  /** Installs a kit, named packages, or what the lock file says, into the managed environment. */
+  installPackages(project: string, request: { kit?: string; packages?: string[]; sync?: boolean }): Promise<EnvironmentRecord> {
+    return this.send(`${this.route(project)}/environment/install`, "POST", request);
+  }
+
+  stopEnvironmentJob(project: string): Promise<unknown> {
+    return this.send(`${this.route(project)}/environment/job/stop`, "POST");
+  }
+
   /** Writes a file into the project, for taking an experiment's record elsewhere. */
   async exportFile(project: string, path: string, content: string): Promise<void> {
     await this.writeSource(project, path, content, null);
