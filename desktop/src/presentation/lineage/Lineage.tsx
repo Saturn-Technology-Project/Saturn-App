@@ -251,10 +251,10 @@ export function Lineage(props: ScreenProps) {
                 const score = firstScore(value?.latest[model.id]);
                 const compared = value?.compared[model.id];
                 return (
-                  <button type="button" key={model.id} aria-pressed={model.id === current?.id} className={classes(TREE_ROW, "min-h-[34px] w-full border-0 border-b border-border text-left text-foreground last:border-b-0 hover:bg-muted", model.id === current?.id && "bg-muted shadow-[inset_2px_0_0_var(--hue-lineage)]")} title={nameOf(model)} onClick={() => setSelected(model.id)}>
+                  <button type="button" key={model.id} aria-pressed={model.id === current?.id} className={classes(TREE_ROW, "min-h-[34px] w-full border-0 border-b border-border text-left text-foreground last:border-b-0 hover:bg-muted", model.id === current?.id && "bg-muted ")} title={nameOf(model)} onClick={() => setSelected(model.id)}>
                     <span className="flex min-w-0 items-center gap-1.5" style={{ paddingLeft: `${Math.min(depth, 6) * 18}px` }}>
                       {/* The corner joining a model to the one above it, or straight on from it when the line is itself a branch. */}
-                      {depth ? <span className={classes("-mt-[9px] h-3.5 w-2.5 flex-none rounded-bl-[3px] border-b border-l border-hue-lineage", !branch && "mt-0 h-[34px] rounded-bl-none border-b-0")} aria-hidden="true" /> : null}
+                      {depth ? <span className={classes("-mt-[9px] h-3.5 w-2.5 flex-none rounded-bl-[3px] border-b border-l border-input", !branch && "mt-0 h-[34px] rounded-bl-none border-b-0")} aria-hidden="true" /> : null}
                       <span className="min-w-0 truncate font-mono text-xs">{nameOf(model)}</span>
                     </span>
                     <span className="truncate text-right text-sm tabular-nums" title={score ? score.name : undefined}>{score ? scoreText(score.mean) : "–"}</span>

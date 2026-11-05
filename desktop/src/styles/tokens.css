@@ -1,19 +1,19 @@
 /* Saturn's colors, type and sizes, in light and dark. Every screen's style uses these names. */
 :root {
-  --bg: #f5f4f8;
-  --stage: #fbfafd;
-  --panel: #f1eff6;
-  --fg: #1a1825;
-  --muted: #6b6880;
-  --subtle: #a09db3;
-  --line: #e6e3ee;
-  --line-strong: #d5d1e0;
-  --card: #ffffff;
+  --bg: #f1f0ec;
+  --stage: rgba(255, 255, 255, 0.3);
+  --panel: rgba(250, 249, 245, 0.55);
+  --fg: #1f1e1c;
+  --muted: #6f6d67;
+  --subtle: #a3a19a;
+  --line: rgba(31, 30, 28, 0.1);
+  --line-strong: rgba(31, 30, 28, 0.17);
+  --card: rgba(255, 255, 255, 0.85);
   --elevated: #ffffff;
-  --hover: #ebe8f3;
-  --input: #ffffff;
-  --code-bg: #f1eff6;
-  --accent: #6650f0;
+  --hover: rgba(31, 30, 28, 0.06);
+  --input: rgba(255, 255, 255, 0.6);
+  --code-bg: rgba(31, 30, 28, 0.05);
+  --accent: #1f1e1c;
   --on-accent: #ffffff;
   --ok: #15803d;
   --ok-bg: rgba(21, 128, 61, 0.1);
@@ -23,7 +23,7 @@
   --off-bg: rgba(185, 28, 28, 0.1);
   --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.05);
   --shadow-md: 0 8px 24px rgba(24, 24, 27, 0.07);
-  --focus: rgba(102, 80, 240, 0.18);
+  --focus: rgba(31, 30, 28, 0.12);
   --blue: #2563eb;
   --blue-hover: #1d4ed8;
   --on-blue: #ffffff;
@@ -42,38 +42,44 @@
   --term-running: #9a6700;
   --term-caret: #0969da;
   --term-selection: rgba(9, 105, 218, 0.2);
-  /* A color for each screen, for its icon and what marks it. */
-  --hue-home: #3b6ff0;
-  --hue-workspace: #0e9f8e;
-  --hue-lineage: #8b4ff0;
-  --hue-experiments: #e0820b;
-  --hue-samples: #de3f8d;
-  --hue-inspect: #0a93d1;
-  --hue-tasks: #2f9e44;
-  --hue-protection: #e0483f;
-  --hue-environment: #b7791f;
-  --hue-settings: #6b6880;
-  /* What lets the blur through, where the window has one, and what holds its own over the page. */
-  --glass: rgba(255, 255, 255, 0.78);
+  /*
+   * Color says what something is, never how it should feel: states, what the assistant wrote, kinds of data in a chart or
+   * a list, and code. Everything else is neutral.
+   */
+  --series-1: #2f6fdc;
+  --series-2: #0e8f80;
+  --series-3: #7c3aed;
+  --series-4: #c9730a;
+  --series-5: #cf3d82;
+  --series-6: #6f6d67;
+  --code-keyword: #7c3aed;
+  --code-string: #15803d;
+  --code-number: #b45309;
+  --code-function: #1d63c9;
+  --code-type: #b83280;
+  /* Floats over the page, and blurs what is behind it. */
+  --glass: rgba(255, 255, 255, 0.76);
+  /* The soft light behind the translucent surfaces, which is what makes them read as frosted. */
+  --backdrop: radial-gradient(1100px 700px at 12% -10%, rgba(255, 255, 255, 0.95), transparent 70%), radial-gradient(900px 700px at 100% 110%, rgba(31, 30, 28, 0.05), transparent 70%);
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --bg: #14131b;
-  --stage: #1a1923;
-  --panel: #16151e;
-  --fg: #f3f2f8;
-  --muted: #a5a2b8;
-  --subtle: #75728a;
-  --line: #2d2b3a;
-  --line-strong: #3e3b4e;
-  --card: #23212e;
-  --elevated: #292735;
-  --hover: #2a2836;
-  --input: #1f1d29;
-  --code-bg: #14131b;
-  --accent: #8f80ff;
-  --on-accent: #100d26;
+  --bg: #1a1a18;
+  --stage: rgba(255, 255, 255, 0.022);
+  --panel: rgba(255, 255, 255, 0.045);
+  --fg: #f4f3ef;
+  --muted: #a3a29c;
+  --subtle: #75746e;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --card: rgba(255, 255, 255, 0.045);
+  --elevated: #2d2d2b;
+  --hover: rgba(255, 255, 255, 0.075);
+  --input: rgba(0, 0, 0, 0.18);
+  --code-bg: rgba(0, 0, 0, 0.22);
+  --accent: #f4f3ef;
+  --on-accent: #1f1e1c;
   --ok: #4ade80;
   --ok-bg: rgba(74, 222, 128, 0.12);
   --wait: #fbbf24;
@@ -82,8 +88,8 @@
   --off-bg: rgba(248, 113, 113, 0.14);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
-  --focus: rgba(143, 128, 255, 0.24);
-  --blue: #3b82f6;
+  --focus: rgba(244, 243, 239, 0.14);
+  --blue: #4d8ff5;
   --blue-hover: #2f6fdc;
   --on-blue: #f3f7ff;
   --violet: #a78bfa;
@@ -99,51 +105,22 @@
   --term-running: #d29922;
   --term-caret: #58a6ff;
   --term-selection: rgba(88, 166, 255, 0.25);
-  --hue-home: #7ea2ff;
-  --hue-workspace: #3fd4c0;
-  --hue-lineage: #b794ff;
-  --hue-experiments: #ffb454;
-  --hue-samples: #ff7fb9;
-  --hue-inspect: #5cc4f5;
-  --hue-tasks: #6fd98a;
-  --hue-protection: #ff8a80;
-  --hue-environment: #e6b866;
-  --hue-settings: #a5a2b8;
-  --glass: rgba(38, 36, 50, 0.72);
+  --series-1: #6ea3f7;
+  --series-2: #4cc7b5;
+  --series-3: #b294fb;
+  --series-4: #eda84e;
+  --series-5: #f283b4;
+  --series-6: #a3a29c;
+  --code-keyword: #b9a1fb;
+  --code-string: #7ed39a;
+  --code-number: #e9b872;
+  --code-function: #7fb0f5;
+  --code-type: #ef9dc2;
+  --glass: rgba(45, 45, 43, 0.72);
+  --backdrop: radial-gradient(1100px 700px at 12% -10%, rgba(255, 255, 255, 0.07), transparent 70%), radial-gradient(900px 700px at 100% 110%, rgba(255, 255, 255, 0.035), transparent 70%);
   color-scheme: dark;
 }
 
-/*
- * With the window's own blur behind the page: the rail stays nearly clear, the work a little more opaque so that text
- * reads over any wallpaper, and lines and hovers are see-through too.
- */
-:root[data-vibrant] {
-  --bg: rgba(245, 244, 250, 0.5);
-  --stage: rgba(252, 251, 254, 0.72);
-  --panel: rgba(241, 239, 247, 0.28);
-  --card: rgba(255, 255, 255, 0.66);
-  --hover: rgba(40, 30, 90, 0.07);
-  --line: rgba(40, 30, 90, 0.1);
-  --line-strong: rgba(40, 30, 90, 0.18);
-  --input: rgba(255, 255, 255, 0.6);
-  --code-bg: rgba(40, 30, 90, 0.05);
-}
-
-:root[data-vibrant][data-theme="dark"] {
-  --bg: rgba(20, 19, 27, 0.45);
-  --stage: rgba(24, 23, 33, 0.68);
-  --panel: rgba(22, 21, 30, 0.22);
-  --card: rgba(255, 255, 255, 0.06);
-  --hover: rgba(255, 255, 255, 0.08);
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --input: rgba(0, 0, 0, 0.2);
-  --code-bg: rgba(0, 0, 0, 0.24);
-}
-
-:root[data-vibrant] body {
-  background: transparent;
-}
 
 * {
   box-sizing: border-box;
@@ -183,7 +160,8 @@ body,
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--backdrop), var(--bg);
+  background-attachment: fixed;
   color: var(--fg);
   font: var(--text-body) / 1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;

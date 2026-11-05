@@ -206,7 +206,7 @@ export function Experiments(props: ScreenProps) {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-[920px] px-6 py-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h1 className="flex items-center gap-2 text-(length:--text-title) font-semibold before:size-2 before:rounded-full before:bg-(--screen-hue)">Experiments</h1>
+        <h1 className="text-(length:--text-title) font-semibold">Experiments</h1>
         {draft ? (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" data-tour="experiments-export" onClick={() => void exportRecord()}>Export</Button>

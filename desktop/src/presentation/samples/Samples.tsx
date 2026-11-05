@@ -40,7 +40,7 @@ const ONLY: { id: "all" | "disputed" | "errors"; label: string }[] = [
 const MUTED = "text-xs text-muted-foreground";
 const WARNING = "text-xs text-wait";
 /** A screen's title, marked with the screen's color, and a section's heading inside the page. */
-const TITLE = "flex items-center gap-2 text-(length:--text-title) font-semibold before:size-2 before:rounded-full before:bg-(--screen-hue)";
+const TITLE = "text-(length:--text-title) font-semibold";
 const SECTION = "mt-5! mb-2 text-sm font-semibold";
 /** A heading with what belongs beside it. */
 const HEAD_ROW = "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2";
@@ -283,7 +283,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
         const note = [labeled ? `${labeled} ${labeled === 1 ? "label" : "labels"}` : "", errors ? `${errors} ${errors === 1 ? "error" : "errors"}` : ""].filter(Boolean).join(", ");
         const state = note || "To review";
         return (
-          <button type="button" key={line.sampleId} aria-current={line.sampleId === sampleId ? "true" : undefined} className={classes("flex min-h-7 w-full flex-none items-center gap-2 rounded-md border-0 px-1.5 py-0.5 text-left text-foreground hover:bg-muted", line.sampleId === sampleId && "bg-muted shadow-[inset_2px_0_0_var(--screen-hue)]")} title={`${line.sampleId}: ${state}`} onClick={() => setSampleId(line.sampleId)}>
+          <button type="button" key={line.sampleId} aria-current={line.sampleId === sampleId ? "true" : undefined} className={classes("flex min-h-7 w-full flex-none items-center gap-2 rounded-md border-0 px-1.5 py-0.5 text-left text-foreground hover:bg-muted", line.sampleId === sampleId && "bg-muted ")} title={`${line.sampleId}: ${state}`} onClick={() => setSampleId(line.sampleId)}>
             {/* Hollow until someone has looked at it. */}
             <span className={classes("size-[7px] flex-none rounded-full border border-muted-foreground", errors ? "border-destructive bg-destructive" : labeled ? "border-good bg-good" : "")} aria-hidden="true" />
             {/* The start gives way to keep the end, where ids tend to differ. */}

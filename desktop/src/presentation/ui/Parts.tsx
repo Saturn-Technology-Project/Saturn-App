@@ -22,7 +22,7 @@ export function Page(props: { title: string; lead?: ReactNode; children: ReactNo
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-[920px] flex-col px-6 py-5">
-        <h1 className="flex items-center gap-2 text-(length:--text-title) font-semibold before:size-2 before:rounded-full before:bg-(--screen-hue)">{props.title}</h1>
+        <h1 className="text-(length:--text-title) font-semibold">{props.title}</h1>
         {props.lead ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{props.lead}</p> : null}
         {props.children}
       </div>

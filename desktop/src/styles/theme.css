@@ -31,16 +31,12 @@
   --color-glass: var(--glass);
   --color-stage: var(--stage);
   --color-panel: var(--panel);
-  --color-hue-home: var(--hue-home);
-  --color-hue-workspace: var(--hue-workspace);
-  --color-hue-lineage: var(--hue-lineage);
-  --color-hue-experiments: var(--hue-experiments);
-  --color-hue-samples: var(--hue-samples);
-  --color-hue-inspect: var(--hue-inspect);
-  --color-hue-tasks: var(--hue-tasks);
-  --color-hue-protection: var(--hue-protection);
-  --color-hue-environment: var(--hue-environment);
-  --color-hue-settings: var(--hue-settings);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-6: var(--series-6);
   --color-border: var(--line);
   --color-input: var(--line-strong);
   --color-ring: var(--subtle);
@@ -51,6 +47,7 @@
 
 /* What preflight would have done for these elements. In a layer, so any utility wins. */
 @layer base {
+  button,
   [data-slot="button"],
   [data-slot="select-trigger"],
   [data-slot="tabs-trigger"],
@@ -72,6 +69,12 @@
 /* Floats over the page and blurs what is behind it: menus, dialogs, the command palette. */
 @utility glass {
   background: var(--glass);
-  -webkit-backdrop-filter: blur(28px) saturate(1.7);
-  backdrop-filter: blur(28px) saturate(1.7);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  backdrop-filter: blur(24px) saturate(1.3);
+}
+
+/* A pane fixed to the window, in front of the soft light behind everything. */
+@utility frost {
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
 }

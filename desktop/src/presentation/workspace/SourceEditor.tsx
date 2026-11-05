@@ -17,12 +17,12 @@ const editorTheme = EditorView.theme({
 
 /** Code's colors, from the theme's own, so that they read in both light and dark. */
 const codeColors = HighlightStyle.define([
-  { tag: [tags.keyword, tags.modifier, tags.operatorKeyword, tags.controlKeyword], color: "var(--violet)" },
-  { tag: [tags.string, tags.special(tags.string)], color: "var(--ok)" },
-  { tag: [tags.number, tags.bool, tags.null], color: "var(--hue-experiments)" },
+  { tag: [tags.keyword, tags.modifier, tags.operatorKeyword, tags.controlKeyword], color: "var(--code-keyword)" },
+  { tag: [tags.string, tags.special(tags.string)], color: "var(--code-string)" },
+  { tag: [tags.number, tags.bool, tags.null], color: "var(--code-number)" },
   { tag: [tags.comment, tags.lineComment, tags.blockComment], color: "var(--muted)", fontStyle: "italic" },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.definition(tags.variableName)], color: "var(--hue-inspect)" },
-  { tag: [tags.className, tags.typeName, tags.namespace], color: "var(--hue-samples)" },
+  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.definition(tags.variableName)], color: "var(--code-function)" },
+  { tag: [tags.className, tags.typeName, tags.namespace], color: "var(--code-type)" },
   { tag: tags.invalid, color: "var(--off)" },
 ]);
 

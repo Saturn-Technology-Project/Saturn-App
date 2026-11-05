@@ -6,7 +6,7 @@ export const Menu = MenuPrimitive.Root;
 
 /** What opens the menu. */
 export function MenuTrigger({ className, ...props }: MenuPrimitive.Trigger.Props) {
-  return <MenuPrimitive.Trigger data-slot="menu-trigger" className={classes("cursor-pointer outline-none focus-visible:ring-3 focus-visible:ring-primary/40", className)} {...props} />;
+  return <MenuPrimitive.Trigger data-slot="menu-trigger" className={classes("cursor-pointer outline-none focus-visible:ring-3 focus-visible:ring-ring/50", className)} {...props} />;
 }
 
 /** The list. */

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
 import { isWorkScreen, statusText, windowTitle } from "../../domain/workbench.js";
 import type { Model, Profile, Project } from "../../domain/model.js";
@@ -20,8 +20,8 @@ import { SettingsHost } from "./SettingsHost.js";
 import { Tour } from "./Tour.js";
 import { useNotifications } from "./useNotifications.js";
 
-/** A screen's row in the rail: its icon in the screen's own color, and a tint of that color where you are. */
-const RAIL_ITEM = "flex h-[34px] w-full flex-none cursor-pointer appearance-none items-center gap-2.5 rounded-[7px] border-0 bg-transparent px-2.5 text-[12.5px] font-medium whitespace-nowrap text-muted-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--item-hue)_10%,transparent)] hover:text-foreground aria-[current=page]:bg-[color-mix(in_srgb,var(--item-hue)_18%,transparent)] aria-[current=page]:font-semibold aria-[current=page]:text-foreground max-[1080px]:h-[38px] max-[1080px]:justify-center max-[1080px]:px-0 [&>svg]:flex-none [&>svg]:text-(--item-hue)";
+/** A screen's row in the rail. Its icon is the same color as its name; where you are is marked by a lighter row. */
+const RAIL_ITEM = "flex h-[34px] w-full flex-none cursor-pointer appearance-none items-center gap-2.5 rounded-[7px] border-0 bg-transparent px-2.5 text-[12.5px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-muted aria-[current=page]:bg-muted aria-[current=page]:font-semibold max-[1080px]:h-[38px] max-[1080px]:justify-center max-[1080px]:px-0 [&>svg]:flex-none";
 
 const SCREEN_ICONS: Record<Screen, ReactNode> = {
   Home: <HomeIcon />,
@@ -107,12 +107,10 @@ export function ResearchApp() {
       // Only remembers the choice.
     }
     syncWindowControls("--stage");
-    window.saturnDesktop?.setWindowTheme?.(theme === "dark");
   }, [theme]);
 
   useEffect(() => {
     if (/Mac/.test(navigator.platform)) document.documentElement.dataset.platform = "darwin";
-    if (window.saturnDesktop && /Mac/.test(navigator.platform)) document.documentElement.dataset.vibrant = "";
   }, []);
 
   const go = useCallback((next: Screen) => {
@@ -217,26 +215,26 @@ export function ResearchApp() {
 
   return (
     <div className="fixed inset-0 flex min-w-0 overflow-hidden">
-      <nav className="flex w-[148px] flex-none flex-col gap-0.5 border-r border-border bg-panel px-2 pt-1.5 pb-2 max-[1080px]:w-[72px]" aria-label="Screens" data-tour="rail">
+      <nav className="flex w-[148px] flex-none flex-col gap-0.5 frost border-r border-border bg-panel px-2 pt-1.5 pb-2 max-[1080px]:w-[72px]" aria-label="Screens" data-tour="rail">
         <div className="h-[34px] flex-none [--app-region:drag]" />
         {SCREENS.map((item, index) => (
-          <button type="button" key={item} className={RAIL_ITEM} style={{ "--item-hue": `var(--hue-${item.toLowerCase()})` } as CSSProperties} title={item} data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={`Meta+${index + 1}`} onClick={() => go(item)}>
+          <button type="button" key={item} className={RAIL_ITEM} title={item} data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={`Meta+${index + 1}`} onClick={() => go(item)}>
             {SCREEN_ICONS[item]}
             <span className="max-[1080px]:sr-only">{item}</span>
           </button>
         ))}
         <div className="flex-1" />
-        <button type="button" className={RAIL_ITEM} style={{ "--item-hue": "var(--hue-settings)" } as CSSProperties} title="Settings" data-tour="settings" aria-keyshortcuts="Meta+," onClick={() => setSettings(true)}>
+        <button type="button" className={RAIL_ITEM} title="Settings" data-tour="settings" aria-keyshortcuts="Meta+," onClick={() => setSettings(true)}>
           <GearIcon />
           <span className="max-[1080px]:sr-only">Settings</span>
         </button>
       </nav>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-stage" style={{ "--screen-hue": `var(--hue-${screen.toLowerCase()})` } as CSSProperties}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-stage">
         <header className="flex min-h-(--bar-height) flex-none items-center gap-2.5 border-b border-border py-1 pr-[calc(12px+var(--window-buttons))] pl-3 [--app-region:drag] [&_button]:[--app-region:no-drag]">
           <div data-tour="project" className="w-52 flex-none">
             <Choice ariaLabel="Project" placeholder="No project" value={projectId ?? ""} triggerClassName="border-transparent bg-transparent font-semibold shadow-none hover:bg-muted" options={[...projects.map((item) => ({ value: item.id, label: item.name })), { value: "+", label: "Add a project folder…" }]} onChange={(value) => void (value === "+" ? addProject() : chooseProject(value))} />
           </div>
-          <span className="rounded-full bg-[color-mix(in_srgb,var(--screen-hue)_14%,transparent)] px-2 py-0.5 text-xs font-medium text-(--screen-hue)">{screen}</span>
+          <span className="text-xs text-muted-foreground">{screen}</span>
           <div className="min-w-0 flex-1" />
           <Badge tone={runtimeReady ? "good" : "wait"} title={runtime.status.state === "ready" ? `Runtime ${runtime.status.version}` : "Runtime not answering"}>
             <span className="size-1.5 rounded-full bg-current" />
