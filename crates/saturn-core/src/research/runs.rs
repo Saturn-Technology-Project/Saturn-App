@@ -166,7 +166,7 @@ async fn end_group(pid: u32) {
 }
 
 /// Whether any process of the group is still there.
-fn group_exists(pid: u32) -> bool {
+pub(super) fn group_exists(pid: u32) -> bool {
     std::process::Command::new("/bin/kill")
         .args(["-0", &format!("-{pid}")])
         .stdin(Stdio::null())
@@ -309,6 +309,7 @@ impl Kernel {
                 project: project.to_owned(),
             },
         );
+        self.sample_resources(pid, directory.clone());
         test_hold("after-process").await;
         let running = self
             .settle_run(&records, &id, |run| {
