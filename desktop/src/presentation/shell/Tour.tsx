@@ -1,6 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import type { Model, Project } from "../../domain/model.js";
+import { Button } from "../ui/base/Button.js";
+import { Field } from "../ui/base/Field.js";
+import { Notice } from "../ui/base/Notice.js";
+import { Textarea } from "../ui/base/Textarea.js";
 import { messageOf } from "../ui/Parts.js";
 import type { Screen } from "./navigation.js";
 import { TOUR_STEPS } from "../../domain/workbench.js";
@@ -94,59 +98,58 @@ export function Tour(props: {
   const box = measuring ? null : focus.box;
   const place = placeCard(box, cardHeight);
   return (
-    <div className="lab-tour" role="dialog" aria-modal="true" aria-labelledby="lab-tour-title">
-      {box ? <div key={step.id} className="lab-tour-box" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : <div className="lab-tour-dim" />}
+    <div className="fixed inset-0 z-40" role="dialog" aria-modal="true" aria-labelledby="lab-tour-title">
+      {box ? <div key={step.id} className="absolute rounded-lg border-2 border-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : <div className="absolute inset-0 bg-black/45" />}
       <div
-        className="lab-tour-card"
+        className="glass absolute flex max-w-[calc(100vw-32px)] flex-col gap-2 rounded-xl px-[18px] py-4 text-foreground shadow-lg ring-1 ring-foreground/10"
         style={{ top: place.top, left: place.left, width: CARD_WIDTH, visibility: measuring ? "hidden" : undefined }}
         ref={(element) => {
           if (element && element.offsetHeight !== cardHeight) setCardHeight(element.offsetHeight);
         }}
       >
-        <div className="lab-muted lab-tour-count">
+        <div className="text-[11px] text-muted-foreground">
           {at + 1} of {TOUR_STEPS.length}
         </div>
-        <h2 id="lab-tour-title">{step.title}</h2>
-        <p>{step.text}</p>
+        <h2 id="lab-tour-title" className="m-0! text-[15px] font-semibold">{step.title}</h2>
+        <p className="text-xs leading-normal text-muted-foreground">{step.text}</p>
         {last ? (
-          <div className="lab-tour-start">
-            {error ? <div className="lab-notice bad" role="alert">{error}</div> : null}
-            <div className="lab-row">
-              <span>{project ? <code>{project.path}</code> : <span className="lab-muted">No project folder yet</span>}</span>
-              <button type="button" className="lab-button" onClick={() => void props.onAddProject().catch((reason: unknown) => setError(messageOf(reason)))}>
+          <div className="mt-1 flex flex-col gap-1">
+            {error ? <Notice tone="bad">{error}</Notice> : null}
+            <div className="flex flex-wrap items-center gap-2 py-1 *:first:min-w-0 *:first:flex-[1_1_220px] *:first:[overflow-wrap:anywhere]">
+              <span>{project ? <code>{project.path}</code> : <span className="text-xs text-muted-foreground">No project folder yet</span>}</span>
+              <Button variant="outline" onClick={() => void props.onAddProject().catch((reason: unknown) => setError(messageOf(reason)))}>
                 {project ? "Another folder" : "Choose a folder"}
-              </button>
+              </Button>
             </div>
-            <div className="lab-row">
-              <span>{props.models.length ? `${props.models.length === 1 ? "1 model" : `${props.models.length} models`} connected for the assistant` : <span className="lab-muted">No model yet; code and experiments work without one</span>}</span>
-              <button type="button" className="lab-button" onClick={props.onOpenSettings}>
+            <div className="flex flex-wrap items-center gap-2 py-1 *:first:min-w-0 *:first:flex-[1_1_220px] *:first:[overflow-wrap:anywhere]">
+              <span>{props.models.length ? `${props.models.length === 1 ? "1 model" : `${props.models.length} models`} connected for the assistant` : <span className="text-xs text-muted-foreground">No model yet; code and experiments work without one</span>}</span>
+              <Button variant="outline" onClick={props.onOpenSettings}>
                 {props.models.length ? "Settings" : "Connect a model"}
-              </button>
+              </Button>
             </div>
-            <label className="lab-field">
-              Your first question
-              <textarea rows={3} value={question} disabled={!project} placeholder="When does this behavior appear during training?" onChange={(event) => setQuestion(event.target.value)} />
-            </label>
+            <Field label="Your first question">
+              <Textarea rows={3} value={question} disabled={!project} placeholder="When does this behavior appear during training?" onChange={(event) => setQuestion(event.target.value)} />
+            </Field>
           </div>
         ) : null}
-        <div className="lab-tour-actions">
-          <button type="button" className="lab-button quiet" onClick={() => void props.onFinish()}>
+        <div className="mt-2 flex items-center gap-2">
+          <Button variant="ghost" onClick={() => void props.onFinish()}>
             Skip
-          </button>
-          <div className="lab-rail-space" />
+          </Button>
+          <div className="flex-1" />
           {at > 0 ? (
-            <button type="button" className="lab-button" onClick={() => setAt(at - 1)}>
+            <Button variant="outline" onClick={() => setAt(at - 1)}>
               Back
-            </button>
+            </Button>
           ) : null}
           {last ? (
-            <button type="button" className="lab-button primary" disabled={busy} onClick={() => void start()}>
+            <Button disabled={busy} onClick={() => void start()}>
               {project ? (question.trim() ? "Save the question and start" : "Start") : "Finish"}
-            </button>
+            </Button>
           ) : (
-            <button type="button" className="lab-button primary" autoFocus onClick={() => setAt(at + 1)}>
+            <Button autoFocus onClick={() => setAt(at + 1)}>
               Next
-            </button>
+            </Button>
           )}
         </div>
       </div>

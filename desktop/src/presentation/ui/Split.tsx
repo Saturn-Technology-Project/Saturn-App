@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { classes } from "./base/classes.js";
 
 /** Reads a remembered size; it only sets where a splitter starts. */
 function rememberedSize(key: string, fallback: number): number {
@@ -66,13 +67,13 @@ export function Split(props: {
 
   const open = props.open ?? true;
   const pane = open ? (
-    <section className="lab-split-side" aria-label={props.label} style={vertical ? { height: size } : { width: size }}>
+    <section className="flex min-h-0 min-w-0 flex-none flex-col overflow-hidden" aria-label={props.label} style={vertical ? { height: size } : { width: size }}>
       {props.pane}
     </section>
   ) : null;
   const splitter = open ? (
     <div
-      className="lab-splitter"
+      className={classes("z-2 flex-none touch-none bg-[linear-gradient(var(--line),var(--line))] bg-no-repeat hover:bg-info/15 focus-visible:bg-info/15", vertical ? "-my-0.5 h-[5px] cursor-row-resize bg-[length:100%_1px] bg-center" : "-mx-0.5 w-[5px] cursor-col-resize bg-[length:1px_100%] bg-center")}
       role="separator"
       tabIndex={0}
       aria-label={`Resize ${props.label}`}
@@ -89,10 +90,10 @@ export function Split(props: {
   ) : null;
 
   return (
-    <div className={vertical ? "lab-split vertical" : "lab-split"}>
+    <div className={classes("flex min-h-0 min-w-0 flex-1", vertical && "flex-col")}>
       {side === "left" ? pane : null}
       {side === "left" ? splitter : null}
-      <div className="lab-split-main">{props.children}</div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{props.children}</div>
       {side !== "left" ? splitter : null}
       {side !== "left" ? pane : null}
     </div>

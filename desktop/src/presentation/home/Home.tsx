@@ -2,11 +2,18 @@ import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { changedSince, lastActive, reviewProgress, runHasResults, runStatusLabel, type Hypothesis, type Verdict } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { Choice, Field } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
 import { messageOf, Page } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
+import { Heading, Row } from "./Row.js";
 
 const service = desktop.research;
 const VERDICTS: Verdict[] = ["undecided", "supported", "refuted", "inconclusive"];
+const VERDICT_OPTIONS = VERDICTS.map((verdict) => ({ value: verdict, label: verdict[0].toUpperCase() + verdict.slice(1) }));
+const MUTED = "text-xs text-muted-foreground";
 
 /** A moment in words, for saying when the work stopped. */
 function when(iso: string | null | undefined): string {
@@ -70,79 +77,78 @@ export function Home(props: ScreenProps) {
 
   return (
     <Page title={lastQuestion ? lastQuestion.title : `Start ${props.project.name}`} lead={lastFinding ? `Latest note: ${lastFinding.text}` : "Write down the question this project is trying to answer, then work on it."}>
-      {active ? <div className="lab-muted">Last active {when(active)}</div> : null}
-      <div className="lab-form" style={{ marginTop: 14 }}>
-        <button type="button" className="lab-button primary" onClick={() => props.go("Workspace")}>
+      {active ? <div className={MUTED}>Last active {when(active)}</div> : null}
+      <div className="mt-3.5 flex flex-wrap items-end gap-2">
+        <Button onClick={() => props.go("Workspace")}>
           {restored.length ? "Restore last layout" : "Continue in the workspace"}
-        </button>
+        </Button>
         {value?.lastWithResults ? (
-          <button type="button" className="lab-button" onClick={() => { service.open(projectId, { kind: "sample", runId: value.lastWithResults!.id }); props.go("Samples"); }}>
+          <Button variant="outline" onClick={() => { service.open(projectId, { kind: "sample", runId: value.lastWithResults!.id }); props.go("Samples"); }}>
             Continue sample review{value.review ? ` (${value.review.labeled} of ${value.review.total})` : ""}
-          </button>
+          </Button>
         ) : null}
       </div>
 
       {restored.length ? (
         <>
-          <h2>Restored as it was</h2>
-          <div className="lab-card">
+          <Heading>Restored as it was</Heading>
+          <Card className="gap-1 border-0 bg-panel px-3.5 py-3">
             <div>The workspace reopens with {restored.join(", ")}.</div>
-            <div className="lab-muted">Records come from the project folder; what was open comes from this device.</div>
-          </div>
+            <div className={MUTED}>Records come from the project folder; what was open comes from this device.</div>
+          </Card>
         </>
       ) : null}
 
-      <h2>Since your last visit</h2>
-      {visited ? <div className="lab-muted">On this device, {when(visited)}.</div> : <div className="lab-muted">First visit on this device, so everything is new.</div>}
-      {since.length === 0 ? <p className="lab-muted">Nothing changed.</p> : null}
+      <Heading>Since your last visit</Heading>
+      {visited ? <div className={MUTED}>On this device, {when(visited)}.</div> : <div className={MUTED}>First visit on this device, so everything is new.</div>}
+      {since.length === 0 ? <p className={MUTED}>Nothing changed.</p> : null}
       {since.slice(0, 8).map((item) => (
-        <div className="lab-row" key={item.key}>
+        <Row key={item.key}>
           <span>{item.text}</span>
-          <button type="button" className="lab-link" onClick={() => props.go(item.screen)}>
+          <Button variant="ghost" size="small" className="text-info" onClick={() => props.go(item.screen)}>
             {item.screen === "Protection" ? "Decide" : "See"}
-          </button>
-        </div>
+          </Button>
+        </Row>
       ))}
 
-      <h2>Open</h2>
-      <div className="lab-card">
-        <div className="lab-row">
+      <Heading>Open</Heading>
+      <Card className="gap-0 border-0 bg-panel px-3.5 py-3">
+        <Row>
           <span>Latest run</span>
-          <span className="lab-muted">{lastRun ? `${runStatusLabel(lastRun.status)}, ${lastRun.samples ?? 0} samples, ${when(lastRun.updatedAt)}` : "None yet"}</span>
-        </div>
+          <span className={MUTED}>{lastRun ? `${runStatusLabel(lastRun.status)}, ${lastRun.samples ?? 0} samples, ${when(lastRun.updatedAt)}` : "None yet"}</span>
+        </Row>
         {undecided.map((item) => (
-          <div className="lab-row" key={item.id}>
+          <Row key={item.id}>
             <span>{item.title}</span>
-            <span className="lab-muted">Undecided</span>
-          </div>
+            <span className={MUTED}>Undecided</span>
+          </Row>
         ))}
         {troubled.map((run) => (
-          <div className="lab-row" key={run.id}>
+          <Row key={run.id}>
             <span>Run {run.id}</span>
-            <span className="lab-muted">{runStatusLabel(run.status)}</span>
-          </div>
+            <span className={MUTED}>{runStatusLabel(run.status)}</span>
+          </Row>
         ))}
-        <div className="lab-row">
+        <Row>
           <span>Refusals and unexplained changes</span>
           {alerts.length ? (
-            <button type="button" className="lab-link" onClick={() => props.go("Protection")}>
+            <Button variant="ghost" size="small" className="text-info" onClick={() => props.go("Protection")}>
               {alerts.length} to look at
-            </button>
+            </Button>
           ) : (
-            <span className="lab-muted">None</span>
+            <span className={MUTED}>None</span>
           )}
-        </div>
-      </div>
+        </Row>
+      </Card>
 
-      <h2 data-tour="home-questions">Questions</h2>
+      <Heading data-tour="home-questions">Questions</Heading>
       {value?.questions.map((item) => (
-        <div className="lab-row" key={item.id}>
+        <Row key={item.id}>
           <span>{item.title}</span>
-        </div>
+        </Row>
       ))}
       <form
-        className="lab-form"
-        style={{ marginTop: 8 }}
+        className="mt-2 flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           if (question.trim()) {
@@ -153,35 +159,24 @@ export function Home(props: ScreenProps) {
           }
         }}
       >
-        <label className="lab-field">
-          New question
-          <input value={question} onChange={(event) => setQuestion(event.target.value)} />
-        </label>
-        <button type="submit" className="lab-button" disabled={!question.trim()}>
+        <Field label="New question" className="flex-[1_1_160px]">
+          <Input value={question} onChange={(event) => setQuestion(event.target.value)} />
+        </Field>
+        <Button type="submit" variant="outline" disabled={!question.trim()}>
           Add
-        </button>
+        </Button>
       </form>
 
-      <h2 data-tour="home-hypotheses">Hypotheses</h2>
-      <p className="lab-lead">A verdict is yours to set. A run that completes says only that it executed.</p>
+      <Heading data-tour="home-hypotheses">Hypotheses</Heading>
+      <p className="max-w-[680px] text-muted-foreground">A verdict is yours to set. A run that completes says only that it executed.</p>
       {value?.hypotheses.map((item: Hypothesis) => (
-        <div className="lab-row" key={item.id}>
+        <Row key={item.id}>
           <span>{item.title}</span>
-          <label className="lab-field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            Verdict
-            <select value={item.verdict} onChange={(event) => void act(() => service.setVerdict(projectId, item, event.target.value as Verdict))}>
-              {VERDICTS.map((verdict) => (
-                <option key={verdict} value={verdict}>
-                  {verdict[0].toUpperCase() + verdict.slice(1)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+          <Choice label="Verdict" className="flex-row items-center gap-2" triggerClassName="w-36" value={item.verdict} options={VERDICT_OPTIONS} onChange={(verdict) => void act(() => service.setVerdict(projectId, item, verdict as Verdict))} />
+        </Row>
       ))}
       <form
-        className="lab-form"
-        style={{ marginTop: 8 }}
+        className="mt-2 flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           if (hypothesis.trim()) {
@@ -192,13 +187,12 @@ export function Home(props: ScreenProps) {
           }
         }}
       >
-        <label className="lab-field">
-          New hypothesis
-          <input value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} />
-        </label>
-        <button type="submit" className="lab-button" disabled={!hypothesis.trim()}>
+        <Field label="New hypothesis" className="flex-[1_1_160px]">
+          <Input value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} />
+        </Field>
+        <Button type="submit" variant="outline" disabled={!hypothesis.trim()}>
           Add
-        </button>
+        </Button>
       </form>
     </Page>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GuidePlace, Screen } from "../../domain/workbench.js";
+import { Button } from "../ui/base/Button.js";
 import { followTourTarget, type TourBox } from "./tour-focus.js";
 
 const EVENT = "saturn-guide";
@@ -73,29 +74,29 @@ export function Guide(props: { go: (screen: Screen) => void }) {
   const top = box ? Math.max(16, Math.min(beside ? box.top : below > room.height - 200 ? box.top - 190 : below, room.height - 200)) : 80;
 
   return (
-    <div className="lab-guide">
-      {box ? <div className="lab-guide-box" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : null}
-      <section className="lab-guide-card" aria-label="Walking you through it" style={{ top, left, width: CARD_WIDTH }}>
-        <div className="lab-muted lab-tour-count">
+    <div className="pointer-events-none fixed inset-0 z-30">
+      {box ? <div className="absolute rounded-lg border-2 border-primary shadow-[0_0_0_3px_var(--stage),0_0_0_5px_var(--accent)]" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : null}
+      <section className="glass pointer-events-auto absolute flex max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-xl px-3.5 py-3 text-foreground shadow-lg ring-1 ring-foreground/10" aria-label="Walking you through it" style={{ top, left, width: CARD_WIDTH }}>
+        <div className="text-[11px] text-muted-foreground">
           {at + 1} of {places.length}
         </div>
-        <h2 aria-live="polite">{place.title}</h2>
-        <p>{place.hint}</p>
-        {box ? null : <p className="lab-warning">Not on this screen yet{place.when ? `: it appears once ${place.when}` : ""}.</p>}
-        <div className="lab-tour-actions">
-          <button type="button" className="lab-button quiet" onClick={() => setPlaces([])}>
+        <h2 aria-live="polite" className="m-0! text-sm font-semibold">{place.title}</h2>
+        <p className="text-xs text-muted-foreground">{place.hint}</p>
+        {box ? null : <p className="text-xs text-wait">Not on this screen yet{place.when ? `: it appears once ${place.when}` : ""}.</p>}
+        <div className="mt-2 flex items-center gap-2">
+          <Button variant="ghost" onClick={() => setPlaces([])}>
             Done
-          </button>
-          <div className="lab-rail-space" />
+          </Button>
+          <div className="flex-1" />
           {at > 0 ? (
-            <button type="button" className="lab-button" onClick={() => setAt(at - 1)}>
+            <Button variant="outline" onClick={() => setAt(at - 1)}>
               Back
-            </button>
+            </Button>
           ) : null}
           {last ? null : (
-            <button type="button" className="lab-button primary" onClick={() => setAt(at + 1)}>
+            <Button onClick={() => setAt(at + 1)}>
               Next
-            </button>
+            </Button>
           )}
         </div>
       </section>

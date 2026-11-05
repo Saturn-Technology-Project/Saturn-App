@@ -2,10 +2,19 @@ import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { bytesText, devicesText, kitState, type EnvironmentKit, type ExperimentDraft } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
+import { Heading, Row, Table } from "../home/Row.js";
+import { Badge } from "../ui/base/Badge.js";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { Checkbox } from "../ui/base/Checkbox.js";
+import { classes } from "../ui/base/classes.js";
+import { Field } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
 import { messageOf, Page } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
 
 const service = desktop.research;
+const PANEL = "gap-0 border-0 bg-panel px-3.5 py-3";
 const JOB_LABELS = { create: "Making the environment", install: "Installing", sync: "Syncing from the lock file" } as const;
 
 /** The Python the project's experiments run in: a managed one Saturn makes and fills, or any other, what it has, and the files that pin it. */
@@ -74,199 +83,193 @@ export function Environment(props: ScreenProps) {
 
   return (
     <Page title="Environment" lead="Experiments and looking inside run with this Python. Saturn can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.">
-      <h2 data-tour="environment-managed">Managed environment</h2>
-      <label className="lab-field" style={{ maxWidth: 240 }}>
-        Job timeout (minutes)
-        <input type="number" min={1} max={1440} step={1} value={timeoutMinutes} onChange={(event) => setTimeoutMinutes(event.target.value)} />
-        {!timeoutValid ? <span className="lab-warning">Choose 1 to 1440 whole minutes.</span> : null}
-      </label>
+      <Heading data-tour="environment-managed">Managed environment</Heading>
+      <Field label="Job timeout (minutes)" className="max-w-60">
+        <Input type="number" min={1} max={1440} step={1} value={timeoutMinutes} onChange={(event) => setTimeoutMinutes(event.target.value)} />
+        {!timeoutValid ? <span className="text-xs text-wait">Choose 1 to 1440 whole minutes.</span> : null}
+      </Field>
       {record ? (
         managed?.exists ? (
-          <div className="lab-card">
-            <div className="lab-row">
+          <Card className={PANEL}>
+            <Row>
               <span>
                 <code>{managed.path}</code> in the project{record.python === managed.python ? ", in use" : ""}
               </span>
               {record.python !== managed.python ? (
-                <button type="button" className="lab-button" onClick={() => void act(() => service.setEnvironment(projectId, managed.python))}>
+                <Button variant="outline" onClick={() => void act(() => service.setEnvironment(projectId, managed.python))}>
                   Use it
-                </button>
+                </Button>
               ) : null}
-              <button type="button" className="lab-button" disabled={running || !timeoutValid || !record.lockFiles.length} title={record.lockFiles.length ? "Brings it to what the lock file says" : "No lock file at the project's root"} onClick={() => void act(() => service.installPackages(projectId, { sync: true, timeoutSeconds }))}>
+              <Button variant="outline" disabled={running || !timeoutValid || !record.lockFiles.length} title={record.lockFiles.length ? "Brings it to what the lock file says" : "No lock file at the project's root"} onClick={() => void act(() => service.installPackages(projectId, { sync: true, timeoutSeconds }))}>
                 Sync from lock file
-              </button>
-            </div>
+              </Button>
+            </Row>
             <form
-              className="lab-form"
+              className="flex flex-wrap items-end gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 const names = extra.split(/[\s,]+/).filter(Boolean);
                 if (names.length) void act(() => service.installPackages(projectId, { packages: names, timeoutSeconds })).then(() => setExtra(""));
               }}
             >
-              <label className="lab-field" style={{ flex: "1 1 280px" }}>
-                Other packages
-                <input value={extra} placeholder="rich scipy>=1.10" spellCheck={false} onChange={(event) => setExtra(event.target.value)} />
-              </label>
-              <button type="submit" className="lab-button" disabled={running || !timeoutValid || !extra.trim()}>
+              <Field label="Other packages" className="flex-[1_1_280px]">
+                <Input value={extra} placeholder="rich scipy>=1.10" spellCheck={false} onChange={(event) => setExtra(event.target.value)} />
+              </Field>
+              <Button type="submit" variant="outline" disabled={running || !timeoutValid || !extra.trim()}>
                 Install
-              </button>
+              </Button>
             </form>
-          </div>
+          </Card>
         ) : (
-          <div className="lab-card">
+          <Card className={PANEL}>
             {tool ? (
               <>
                 <div>No managed environment yet. Saturn can make <code>{managed?.path}</code> in the project with {tool}{record.tools.uv ? "" : " (install uv to pick a Python version and for faster installs)"}.</div>
                 <form
-                  className="lab-form"
+                  className="flex flex-wrap items-end gap-2"
                   onSubmit={(event) => {
                     event.preventDefault();
                     void act(() => service.createEnvironment(projectId, { python: version.trim() || undefined, withCore, timeoutSeconds }));
                   }}
                 >
                   {record.tools.uv ? (
-                    <label className="lab-field" style={{ maxWidth: 160 }}>
-                      Python version
-                      <input value={version} placeholder="3.12" onChange={(event) => setVersion(event.target.value)} />
-                    </label>
+                    <Field label="Python version" className="max-w-40 flex-[1_1_160px]">
+                      <Input value={version} placeholder="3.12" onChange={(event) => setVersion(event.target.value)} />
+                    </Field>
                   ) : null}
-                  <label className="lab-field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <input type="checkbox" checked={withCore} onChange={(event) => setWithCore(event.target.checked)} />
+                  <label className="flex min-w-0 flex-[1_1_160px] items-center gap-2 text-xs text-muted-foreground">
+                    <Checkbox checked={withCore} onCheckedChange={setWithCore} />
                     Also install what Saturn's helpers need (torch, transformers, numpy)
                   </label>
-                  <button type="submit" className="lab-button primary" disabled={running || !timeoutValid}>
+                  <Button type="submit" disabled={running || !timeoutValid}>
                     Create
-                  </button>
+                  </Button>
                 </form>
               </>
             ) : (
-              <div className="lab-warning">Neither uv nor python3 is on this computer's PATH. Install uv (astral.sh/uv) or Python, then come back.</div>
+              <div className="text-xs text-wait">Neither uv nor python3 is on this computer's PATH. Install uv (astral.sh/uv) or Python, then come back.</div>
             )}
-          </div>
+          </Card>
         )
       ) : null}
 
       {job ? (
-        <div className={job.status === "failed" || job.status === "timed_out" ? "lab-card attention" : "lab-card"} style={{ marginTop: 8 }}>
-          <div className="lab-row">
+        <Card className={classes(PANEL, "mt-2", (job.status === "failed" || job.status === "timed_out") && "border border-wait")}>
+          <Row>
             <span>
-              <strong>{JOB_LABELS[job.kind]}</strong> <span className="lab-muted">{job.status === "running" ? "running" : job.status === "completed" ? "done" : job.status === "timed_out" ? "timed out; processes stopped" : job.status === "failed" ? `failed (exit ${job.exitCode ?? "?"})` : "interrupted: the runtime that started it is gone"}</span>
+              <strong>{JOB_LABELS[job.kind]}</strong> <span className="text-xs text-muted-foreground">{job.status === "running" ? "running" : job.status === "completed" ? "done" : job.status === "timed_out" ? "timed out; processes stopped" : job.status === "failed" ? `failed (exit ${job.exitCode ?? "?"})` : "interrupted: the runtime that started it is gone"}</span>
             </span>
             {running ? (
-              <button type="button" className="lab-button" onClick={() => void act(() => service.stopEnvironmentJob(projectId))}>
+              <Button variant="outline" onClick={() => void act(() => service.stopEnvironmentJob(projectId))}>
                 Stop
-              </button>
+              </Button>
             ) : (
-              <span className="lab-muted">{new Date(job.endedAt ?? job.startedAt).toLocaleString()}</span>
+              <span className="text-xs text-muted-foreground">{new Date(job.endedAt ?? job.startedAt).toLocaleString()}</span>
             )}
-          </div>
-          {job.error ? <div className="lab-warning">{job.error}</div> : null}
-          {job.status === "running" && job.timeoutSeconds ? <div className="lab-muted">Stops after {job.timeoutSeconds / 60} minutes. You can stop it sooner.</div> : null}
-          <pre className="lab-text lab-terminal-log">{job.logTail || "Nothing written yet."}</pre>
-          {job.logLines > 40 ? <div className="lab-muted">The last 40 of {job.logLines} lines; the whole log is in .saturn/research/environment-job.log.</div> : null}
-        </div>
+          </Row>
+          {job.error ? <div className="text-xs text-wait">{job.error}</div> : null}
+          {job.status === "running" && job.timeoutSeconds ? <div className="text-xs text-muted-foreground">Stops after {job.timeoutSeconds / 60} minutes. You can stop it sooner.</div> : null}
+          <pre className="overflow-auto px-2.5 py-2 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap">{job.logTail || "Nothing written yet."}</pre>
+          {job.logLines > 40 ? <div className="text-xs text-muted-foreground">The last 40 of {job.logLines} lines; the whole log is in .saturn/research/environment-job.log.</div> : null}
+        </Card>
       ) : null}
 
-      <h2 data-tour="environment-kits">Kits</h2>
-      <p className="lab-lead">Packages for one kind of work. Which are installed is read from the last check of the managed environment.</p>
+      <Heading data-tour="environment-kits">Kits</Heading>
+      <p className="max-w-[680px] text-muted-foreground">Packages for one kind of work. Which are installed is read from the last check of the managed environment.</p>
       {record?.kits.map((kit: EnvironmentKit) => {
         const state = managed?.exists ? kitState(kit) : "missing";
         return (
-          <div className="lab-row" key={kit.id}>
+          <Row key={kit.id}>
             <span>
               <strong>{kit.title}</strong>
-              {kit.bundled ? <span className="lab-tag" style={{ marginLeft: 8 }}>Bundled</span> : null}
-              <div className="lab-muted">{kit.what}</div>
-              <div className="lab-muted">
+              {kit.bundled ? <Badge className="ml-2">Bundled</Badge> : null}
+              <div className="text-xs text-muted-foreground">{kit.what}</div>
+              <div className="text-xs text-muted-foreground">
                 {kit.packages.map((item) => (
                   <span key={item.name} style={{ marginRight: 10 }}>
-                    <code>{item.name}</code> {item.installed ? item.installed : <span className="lab-warning">not installed</span>}
+                    <code>{item.name}</code> {item.installed ? item.installed : <span className="text-xs text-wait">not installed</span>}
                   </span>
                 ))}
               </div>
             </span>
             {state === "installed" ? (
-              <span className="lab-tag good">Installed</span>
+              <Badge tone="good">Installed</Badge>
             ) : (
-              <button type="button" className="lab-button" disabled={running || !timeoutValid || !managed?.exists} title={managed?.exists ? undefined : "Create the managed environment first"} onClick={() => void act(() => service.installPackages(projectId, { kit: kit.id, timeoutSeconds }))}>
+              <Button variant="outline" disabled={running || !timeoutValid || !managed?.exists} title={managed?.exists ? undefined : "Create the managed environment first"} onClick={() => void act(() => service.installPackages(projectId, { kit: kit.id, timeoutSeconds }))}>
                 {state === "partly" ? "Install the rest" : "Install"}
-              </button>
+              </Button>
             )}
-          </div>
+          </Row>
         );
       })}
 
-      <h2 data-tour="environment-interpreter">Interpreter</h2>
+      <Heading data-tour="environment-interpreter">Interpreter</Heading>
       <form
-        className="lab-form"
+        className="flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           void save();
         }}
       >
-        <label className="lab-field" style={{ flex: "1 1 360px" }}>
-          Python
-          <input value={shown} placeholder=".venv/bin/python" spellCheck={false} onChange={(event) => setPython(event.target.value)} />
-        </label>
-        <button type="submit" className="lab-button" disabled={python === null}>
+        <Field label="Python" className="flex-[1_1_360px]">
+          <Input value={shown} placeholder=".venv/bin/python" spellCheck={false} onChange={(event) => setPython(event.target.value)} />
+        </Field>
+        <Button type="submit" variant="outline" disabled={python === null}>
           Save
-        </button>
-        <button type="button" className="lab-button primary" disabled={checking || running || !shown.trim()} onClick={() => void check()}>
+        </Button>
+        <Button disabled={checking || running || !shown.trim()} onClick={() => void check()}>
           {checking ? "Asking…" : "Check"}
-        </button>
+        </Button>
       </form>
-      {!record?.python && record?.suggestedPython ? <p className="lab-muted">{managed?.exists && record.suggestedPython === managed.python ? "The managed environment." : "Taken from the newest experiment's command."} Save it to keep it.</p> : null}
-      {record && !record.python && !record.suggestedPython ? <p className="lab-muted">Give the path of the Python that runs your experiments, start an experiment's command with it, or create the managed environment above.</p> : null}
+      {!record?.python && record?.suggestedPython ? <p className="text-xs text-muted-foreground">{managed?.exists && record.suggestedPython === managed.python ? "The managed environment." : "Taken from the newest experiment's command."} Save it to keep it.</p> : null}
+      {record && !record.python && !record.suggestedPython ? <p className="text-xs text-muted-foreground">Give the path of the Python that runs your experiments, start an experiment's command with it, or create the managed environment above.</p> : null}
 
-      <h2>What it has</h2>
+      <Heading>What it has</Heading>
       {report ? (
         <>
-          <div className="lab-stats">
-            <div className="lab-stat"><span className="lab-muted">Python</span><strong>{report.version}</strong><span className="lab-muted">{report.executable}</span></div>
-            <div className="lab-stat"><span className="lab-muted">Compute</span><strong>{devicesText(report)}</strong><span className="lab-muted">{report.cpus ?? "?"} CPUs · {report.platform}</span></div>
-            <div className="lab-stat"><span className="lab-muted">Checked</span><strong>{record?.checkedAt ? new Date(record.checkedAt).toLocaleString() : ""}</strong><span className="lab-muted">with {record?.checkedWith}</span></div>
+          <div className="mt-3 mb-4 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
+            <div className="flex flex-col gap-0.5 rounded-md bg-panel px-3 py-2.5 text-xs"><span className="text-xs text-muted-foreground">Python</span><strong>{report.version}</strong><span className="text-xs text-muted-foreground">{report.executable}</span></div>
+            <div className="flex flex-col gap-0.5 rounded-md bg-panel px-3 py-2.5 text-xs"><span className="text-xs text-muted-foreground">Compute</span><strong>{devicesText(report)}</strong><span className="text-xs text-muted-foreground">{report.cpus ?? "?"} CPUs · {report.platform}</span></div>
+            <div className="flex flex-col gap-0.5 rounded-md bg-panel px-3 py-2.5 text-xs"><span className="text-xs text-muted-foreground">Checked</span><strong>{record?.checkedAt ? new Date(record.checkedAt).toLocaleString() : ""}</strong><span className="text-xs text-muted-foreground">with {record?.checkedWith}</span></div>
           </div>
-          <div className="lab-table-wrap">
-            <table className="lab-table" aria-label="Packages and their versions">
-              <thead>
-                <tr><th scope="col">Package</th><th scope="col">Version</th></tr>
-              </thead>
-              <tbody>
-                {Object.entries(report.packages).map(([name, installed]) => (
-                  <tr key={name}>
-                    <td><code>{name}</code></td>
-                    <td>{installed ?? <span className="lab-muted">Not installed</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table label="Packages and their versions">
+            <thead>
+              <tr><th scope="col">Package</th><th scope="col">Version</th></tr>
+            </thead>
+            <tbody>
+              {Object.entries(report.packages).map(([name, installed]) => (
+                <tr key={name}>
+                  <td><code>{name}</code></td>
+                  <td>{installed ?? <span className="text-xs text-muted-foreground">Not installed</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
         </>
       ) : (
-        <p className="lab-muted">Not checked yet. Check asks the interpreter for its version, the packages research code leans on, and the devices torch can see.</p>
+        <p className="text-xs text-muted-foreground">Not checked yet. Check asks the interpreter for its version, the packages research code leans on, and the devices torch can see.</p>
       )}
 
-      <h2 data-tour="environment-locks">What pins it</h2>
-      {record && record.lockFiles.length === 0 ? <p className="lab-muted">No lock file at the project's root. A uv.lock, requirements.txt or pyproject.toml here would be listed with its hash, and can be made part of what a version freezes.</p> : null}
+      <Heading data-tour="environment-locks">What pins it</Heading>
+      {record && record.lockFiles.length === 0 ? <p className="text-xs text-muted-foreground">No lock file at the project's root. A uv.lock, requirements.txt or pyproject.toml here would be listed with its hash, and can be made part of what a version freezes.</p> : null}
       {record?.lockFiles.map((file) => {
         const pinned = newest?.inputs?.environment?.includes(file.path);
         return (
-          <div className="lab-row" key={file.path}>
-            <span><code>{file.path}</code> <span className="lab-muted">{bytesText(file.size)} · {file.sha256.slice(0, 12)}</span></span>
+          <Row key={file.path}>
+            <span><code>{file.path}</code> <span className="text-xs text-muted-foreground">{bytesText(file.size)} · {file.sha256.slice(0, 12)}</span></span>
             {newest ? (
               pinned ? (
-                <span className="lab-tag good">Frozen with each version</span>
+                <Badge tone="good">Frozen with each version</Badge>
               ) : (
-                <button type="button" className="lab-button" onClick={() => void pin(newest, file.path)}>
+                <Button variant="outline" onClick={() => void pin(newest, file.path)}>
                   Freeze with versions of {newest.title}
-                </button>
+                </Button>
               )
             ) : null}
-          </div>
+          </Row>
         );
       })}
-      <p className="lab-muted">A lock file frozen with a version makes a change to it a new version, so two runs with different environments never read as the same.</p>
+      <p className="text-xs text-muted-foreground">A lock file frozen with a version makes a change to it a new version, so two runs with different environments never read as the same.</p>
     </Page>
   );
 }

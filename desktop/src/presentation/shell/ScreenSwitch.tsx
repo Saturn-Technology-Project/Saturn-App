@@ -29,7 +29,7 @@ export function ScreenSwitch(props: ScreenProps & { screen: Screen; assistant: b
   const focus: WorkspaceFocus | null = screen === "Samples" ? { file: null, selection: null, run: null, errorOutput: "", sample: reviewed } : screen === "Workspace" ? workspaceFocus : null;
   return (
     <Split id="assistant" side="right" size={340} minimum={260} open={assistant} label="Research assistant" pane={<AssistantPanel {...shared} screen={screen} focus={focus} onOpenSettings={onOpenSettings} />}>
-      <div className="lab-screen" hidden={screen !== "Workspace"}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col [&[hidden]]:hidden" hidden={screen !== "Workspace"}>
         <Workspace {...shared} onFocus={setWorkspaceFocus} />
       </div>
       {screen === "Home" ? <Home {...shared} /> : null}

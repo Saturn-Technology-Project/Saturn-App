@@ -1,5 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import { Button } from "./ui/base/Button.js";
+import { classes } from "./ui/base/classes.js";
+import { Input } from "./ui/base/Input.js";
+import { Notice } from "./ui/base/Notice.js";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/base/Dialog.js";
 import type { Project } from "../domain/model";
 import type { RuntimeStatus } from "../infrastructure/runtime-status";
@@ -36,6 +39,24 @@ export async function chooseFolder(): Promise<string | undefined> {
   return typed?.trim() || undefined;
 }
 
+/** What each folder in a list looks like: its icon, its name, and under that its path. */
+const FOLDER_ROW = "flex w-full items-center gap-3 px-3 py-[11px] text-left text-[13.5px] text-foreground [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
+
+/** A list of folders with a line between them. */
+function FolderList(props: { children: ReactNode }) {
+  return <div className="divide-y divide-border overflow-hidden rounded-[10px] border border-input">{props.children}</div>;
+}
+
+/** A folder's name and path, side by side with its icon and whatever follows. */
+function FolderText(props: { name: ReactNode; path: string }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-px">
+      <span className="flex items-center gap-2">{props.name}</span>
+      <span className="truncate text-xs text-muted-foreground">{props.path}</span>
+    </div>
+  );
+}
+
 /**
  * The consent step before agents may touch a folder: what they will be able to do there, and an explicit
  * Allow. Nothing in the folder is read by an agent until this is confirmed.
@@ -65,22 +86,19 @@ export function AccessDialog(props: { path: string; name?: string; onAllow: () =
           <DialogDescription>Agents in this project work inside this folder.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          <div className="workspace-folders">
-            <div className="workspace-folder">
+          <FolderList>
+            <div className={FOLDER_ROW}>
               <FolderIcon />
-              <div className="workspace-folder-text">
-                <span className="workspace-folder-name">{name}</span>
-                <span className="workspace-folder-path">{props.path}</span>
-              </div>
+              <FolderText name={name} path={props.path} />
             </div>
-          </div>
-          <ul className="access-list">
+          </FolderList>
+          <ul className="m-0 flex flex-col gap-1 pl-[18px] text-[13px] text-foreground">
             <li>Read the files in this folder and its subfolders</li>
             <li>Create, change and delete files there</li>
             <li>Run commands with this folder as the working directory</li>
           </ul>
-          <p className="access-note">You can revoke access any time from the project's menu. macOS may also ask once to let Saturn read this location.</p>
-          {error ? <p className="workspace-error" role="alert">{error}</p> : null}
+          <p className="text-xs text-muted-foreground">You can revoke access any time from the project's menu. macOS may also ask once to let Saturn read this location.</p>
+          {error ? <Notice tone="bad">{error}</Notice> : null}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={props.onClose}>Cancel</Button>
@@ -121,14 +139,7 @@ export function EditWorkspaceDialog(props: {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") props.onClose();
-    };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, [props.onClose]);
+  const nameInput = useRef<HTMLInputElement>(null);
 
   async function save() {
     if (!name.trim()) {
@@ -151,60 +162,53 @@ export function EditWorkspaceDialog(props: {
   }
 
   return (
-    <div className="modal-overlay" onMouseDown={props.onClose}>
-      <div
-        className="modal-dialog workspace-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="edit-workspace-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="workspace-modal-head">
-          <div>
-            <h3 id="edit-workspace-title">Edit Workspace</h3>
-            <p>Configure project name and folder paths.</p>
-          </div>
-        </div>
-        <div className="workspace-modal-body">
-          <div className="workspace-label">Workspace name</div>
-          <input
+    <Dialog open onOpenChange={(open) => { if (!open) props.onClose(); }}>
+      <DialogContent initialFocus={nameInput} className="max-h-[calc(100vh-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-[560px]">
+        <DialogHeader className="px-4 pt-5 pb-1.5 sm:px-[22px]">
+          <DialogTitle>Edit Workspace</DialogTitle>
+          <DialogDescription>Configure project name and folder paths.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 px-4 pt-3.5 pb-5 sm:px-[22px]">
+          <div className="mt-1.5 text-xs text-muted-foreground">Workspace name</div>
+          <Input
+            ref={nameInput}
             type="text"
-            className="workspace-input"
             aria-label="Workspace name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Workspace name"
-            autoFocus
           />
 
-          <div className="workspace-label">Folders</div>
-          <div className="workspace-folders">
+          <div className="mt-1.5 text-xs text-muted-foreground">Folders</div>
+          <FolderList>
             {folders.map((folder, idx) => (
-              <div key={folder} className="workspace-folder">
+              <div key={folder} className={FOLDER_ROW}>
                 <FolderIcon />
-                <div className="workspace-folder-text">
-                  <span className="workspace-folder-name">
-                    {folderName(folder)}
-                    {idx === 0 ? <span className="workspace-primary">Primary</span> : null}
-                  </span>
-                  <span className="workspace-folder-path">{folder}</span>
-                </div>
+                <FolderText
+                  name={
+                    <>
+                      {folderName(folder)}
+                      {idx === 0 ? <span className="rounded-full border border-input px-1.5 text-[10.5px] text-muted-foreground">Primary</span> : null}
+                    </>
+                  }
+                  path={folder}
+                />
                 {folders.length > 1 ? (
-                  <button
-                    type="button"
-                    className="workspace-folder-remove"
+                  <Button
+                    variant="ghost"
+                    className="size-[26px] shrink-0 p-0 text-muted-foreground"
                     title="Remove folder"
                     aria-label="Remove folder"
                     onClick={() => setFolders((prev) => prev.filter((_, i) => i !== idx))}
                   >
                     <TrashIcon />
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             ))}
-            <button
-              type="button"
-              className="workspace-folder workspace-add"
+            <Button
+              variant="ghost"
+              className={classes(FOLDER_ROW, "h-auto justify-start rounded-none font-normal")}
               onClick={async () => {
                 const added = await chooseFolder();
                 if (added && !folders.includes(added)) {
@@ -213,27 +217,25 @@ export function EditWorkspaceDialog(props: {
               }}
             >
               <PlusSmallIcon />
-              <div className="workspace-folder-text">
-                <span className="workspace-folder-name">Add Folder…</span>
+              <div className="flex min-w-0 flex-1 flex-col gap-px">
+                <span className="flex items-center gap-2">Add Folder…</span>
               </div>
-            </button>
-          </div>
+            </Button>
+          </FolderList>
 
-          {error ? <p className="workspace-error" role="alert">{error}</p> : null}
+          {error ? <Notice tone="bad">{error}</Notice> : null}
         </div>
-        <div className="workspace-modal-foot">
-          <button type="button" className="btn ghost" onClick={props.onClose}>Cancel</button>
-          <button
-            type="button"
-            className="btn primary-btn"
+        <DialogFooter className="border-t border-border px-4 py-3 sm:px-[22px]">
+          <Button variant="ghost" onClick={props.onClose}>Cancel</Button>
+          <Button
             disabled={busy || !name.trim() || folders.length === 0}
             onClick={() => void save()}
           >
             {busy ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
