@@ -35,7 +35,9 @@ export function Resources(props: { projectId: string; run: ExperimentRun; notify
   if (!read) return <p className="lab-muted">Reading…</p>;
   if (!last) return <p className="lab-muted">{active ? "The first reading comes within two seconds." : "Nothing was sampled for this run."}</p>;
   const rate = throughput(points);
+  const tokenRate = throughput(points, 10, (point) => point.outputTokens);
   const peakMemory = Math.max(...points.map((point) => point.memoryBytes ?? 0));
+  const peakDevice = Math.max(...points.map((point) => point.deviceMemoryBytes ?? 0));
   const gpu = last.gpus?.[0];
 
   return (
@@ -45,12 +47,18 @@ export function Resources(props: { projectId: string; run: ExperimentRun; notify
         <Stat label="Processor" value={last.cpuPercent === null ? "—" : `${last.cpuPercent.toFixed(0)}%`} hint={`of ${read.system.cpus * 100}% on ${read.system.cpus} cores, ${last.processes ?? 0} processes`} />
         <Stat label="Memory" value={bytesText(last.memoryBytes)} hint={`peak ${bytesText(peakMemory)}`} />
         <Stat label="Samples" value={String(last.samplesLines)} hint={rate === null ? bytesText(last.samplesBytes) : `${rate.toFixed(rate < 1 ? 2 : 1)} per second, ${bytesText(last.samplesBytes)}`} />
+        {last.inputTokens || last.outputTokens ? (
+          <Stat label="Tokens" value={`${last.outputTokens.toLocaleString()} out`} hint={`${last.inputTokens.toLocaleString()} in${tokenRate === null ? "" : `, ${tokenRate.toFixed(tokenRate < 10 ? 1 : 0)} out per second`}, as the program reported`} />
+        ) : null}
+        {last.deviceMemoryBytes !== null ? <Stat label="Device memory" value={bytesText(last.deviceMemoryBytes)} hint={`peak ${bytesText(peakDevice)}, as the program reported`} /> : null}
         {gpu ? <Stat label={gpu.name} value={gpu.utilizationPercent === null ? "—" : `${gpu.utilizationPercent.toFixed(0)}%`} hint={`${bytesText(gpu.memoryUsedBytes)} of ${bytesText(gpu.memoryTotalBytes)}`} /> : <Stat label="GPU" value="None seen" hint={read.system.platform === "macos" ? "Apple GPUs are not reported by the system" : "nvidia-smi is not on this computer"} />}
       </div>
       <div className="lab-sparklines">
         <Sparkline label="Processor %" points={points} pick={(point) => point.cpuPercent} />
         <Sparkline label="Memory" points={points} pick={(point) => point.memoryBytes} format={bytesText} />
         <Sparkline label="Samples" points={points} pick={(point) => point.samplesLines} />
+        {last.outputTokens ? <Sparkline label="Output tokens" points={points} pick={(point) => point.outputTokens} /> : null}
+        {last.deviceMemoryBytes !== null ? <Sparkline label="Device memory" points={points} pick={(point) => point.deviceMemoryBytes} format={bytesText} /> : null}
         {gpu ? <Sparkline label="GPU %" points={points} pick={(point) => point.gpus?.[0]?.utilizationPercent ?? null} /> : null}
       </div>
       <div className="lab-muted">Sampled every two seconds from the run's own processes. Nothing here is derived; a number the system did not give is left out.</div>

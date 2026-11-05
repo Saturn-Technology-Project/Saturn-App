@@ -239,6 +239,9 @@ export interface ModelSummary {
   samples: number;
   errors: Record<string, number>;
   scores: Record<string, { mean: number | null; count: number; notNumbers: number }>;
+  /** Tokens the program reported, added up, and how many samples reported any. */
+  tokens?: { input: number; output: number; samplesReporting: number };
+  deviceMemoryPeakBytes?: number | null;
 }
 
 export interface RunSummary {
@@ -401,6 +404,11 @@ export interface ResourcePoint {
   processes: number | null;
   samplesBytes: number;
   samplesLines: number;
+  /** Tokens the program reported under each sample's `usage`, added up so far. */
+  inputTokens: number;
+  outputTokens: number;
+  /** The device memory the program last said it held, or null when it never said. */
+  deviceMemoryBytes: number | null;
   gpus: { name: string; utilizationPercent: number | null; memoryUsedBytes: number | null; memoryTotalBytes: number | null }[] | null;
 }
 
@@ -411,13 +419,13 @@ export interface RunResources {
   points: ResourcePoint[];
 }
 
-/** Samples per second over the newest readings, from how the line count grew. Null until two readings differ in time. */
-export function throughput(points: ResourcePoint[], window = 10): number | null {
+/** How fast a count grew per second over the newest readings. Null until two readings differ in time. */
+export function throughput(points: ResourcePoint[], window = 10, of: (point: ResourcePoint) => number = (point) => point.samplesLines): number | null {
   const recent = points.slice(-window);
   const first = recent[0];
   const last = recent.at(-1);
   if (!first || !last || last.elapsedMs <= first.elapsedMs) return null;
-  return ((last.samplesLines - first.samplesLines) * 1000) / (last.elapsedMs - first.elapsedMs);
+  return ((of(last) - of(first)) * 1000) / (last.elapsedMs - first.elapsedMs);
 }
 
 /** Bytes in the unit that reads best. */

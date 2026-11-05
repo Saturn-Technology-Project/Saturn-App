@@ -4,13 +4,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, lastActive, reviewProgress, scoreSources, throughput } from "../src/domain/research.ts";
 
-const point = (elapsedMs, samplesLines) => ({ at: "", elapsedMs, cpuPercent: 1, memoryBytes: 1, processes: 1, samplesBytes: 0, samplesLines, gpus: null });
+const point = (elapsedMs, samplesLines, outputTokens = 0) => ({ at: "", elapsedMs, cpuPercent: 1, memoryBytes: 1, processes: 1, samplesBytes: 0, samplesLines, inputTokens: 0, outputTokens, deviceMemoryBytes: null, gpus: null });
 
-test("throughput is samples per second over the newest readings, and nothing until time has passed", () => {
+test("throughput is a count per second over the newest readings, and nothing until time has passed", () => {
   assert.equal(throughput([]), null);
   assert.equal(throughput([point(0, 0)]), null);
   assert.equal(throughput([point(0, 0), point(2000, 4)]), 2);
   assert.equal(throughput([point(0, 0), point(2000, 100), point(4000, 104)], 2), 2);
+  assert.equal(throughput([point(0, 0, 0), point(4000, 1, 200)], 10, (item) => item.outputTokens), 50);
   assert.equal(bytesText(512), "512 B");
   assert.equal(bytesText(1536), "1.5 KB");
   assert.equal(bytesText(200 * 1024 * 1024), "200 MB");
