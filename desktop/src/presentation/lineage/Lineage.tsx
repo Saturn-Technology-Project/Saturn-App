@@ -157,7 +157,7 @@ export function Lineage(props: ScreenProps) {
           known.map((item, index) => (
             <div className="lab-detail-row" key={index}>
               <span className="lab-muted">From {nameOf(models.find((model) => model.id === item.sourceModelId) ?? { source: item.sourceModelId ?? "?" } as ModelNode)}</span>
-              <span>Layer {item.layer} restores {item.restored} of {item.of}</span>
+              <span>{item.layers.length ? `${item.layers.length === 1 ? "Layer" : "Layers"} ${item.layers.join(", ")} ${item.layers.length === 1 ? "restores" : "restore"} ${item.restored} of ${item.of}${item.layers.length > 1 ? " (tied)" : ""}` : `No layer restores any of ${item.of}`}</span>
             </div>
           ))
         ) : (

@@ -87,8 +87,16 @@ test("a layer restores a sample when the patched model ends on the expected toke
 test("a node's mechanism is each sweep into it with its best layer, and label names fall back to the plain set", () => {
   const sweep = (target, tops) => ({ kind: "sweep", sourceModelId: "a", targetModelId: target, layers: [0, 1], samples: [{ sampleId: "s", expected: " x", top: "y", expectedLogProb: null, byLayer: tops.map((top, layer) => ({ layer, top, expectedLogProb: null })) }], recordedAt: "t" });
   const items = [sweep("b", ["y", " x"]), sweep("c", [" x", " x"]), { kind: "reading", sampleId: "s", modelId: "b", measure: "", tokens: [], layers: [] }];
-  assert.deepEqual(mechanismOf(items, "b"), [{ sourceModelId: "a", layer: 1, restored: 1, of: 1, recordedAt: "t" }]);
+  assert.deepEqual(mechanismOf(items, "b"), [{ sourceModelId: "a", layers: [1], restored: 1, of: 1, recordedAt: "t" }]);
   assert.deepEqual(mechanismOf(items, "z"), []);
   assert.deepEqual(labelsOf(null), ["Correct", "Wrong", "Invalid", "Unsure"]);
   assert.deepEqual(labelsOf({ labels: [" Correct name ", "", "Wrong name"] }), ["Correct name", "Wrong name"]);
+});
+
+test("a mechanism reports every tied best layer, and no best layer when none restores a sample", () => {
+  const sweep = { kind: "sweep", sourceModelId: "a", targetModelId: "b", layers: [2, 5, 8], samples: [
+    { sampleId: "s", expected: " x", top: "y", expectedLogProb: null, byLayer: [{ layer: 2, top: " x" }, { layer: 5, top: "y" }, { layer: 8, top: " x" }] },
+  ] };
+  assert.deepEqual(mechanismOf([sweep], "b"), [{ sourceModelId: "a", layers: [2, 8], restored: 1, of: 1, recordedAt: undefined }]);
+  assert.deepEqual(mechanismOf([{ ...sweep, samples: [{ ...sweep.samples[0], expected: " z" }] }], "b")[0].layers, []);
 });

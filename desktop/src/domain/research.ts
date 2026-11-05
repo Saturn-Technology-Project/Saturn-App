@@ -411,13 +411,14 @@ export interface SweepView {
 /** One thing saved under a run's inside folder: a reading of one sample, or a sweep. */
 export type InsideItem = ({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView);
 
-/** The sweeps that patched into a model, each with its best layer, for saying what is known of its mechanism. */
-export function mechanismOf(items: InsideItem[], modelId: string): { sourceModelId: string | null; layer: number; restored: number; of: number; recordedAt?: string }[] {
+/** The sweeps into a model, with every tied best layer; zero recoveries do not identify a best layer. */
+export function mechanismOf(items: InsideItem[], modelId: string): { sourceModelId: string | null; layers: number[]; restored: number; of: number; recordedAt?: string }[] {
   return items.flatMap((item) => {
     if (item.kind !== "sweep" || item.targetModelId !== modelId || !item.layers.length) return [];
     const totals = restoredByLayer(item);
-    const best = totals.indexOf(Math.max(...totals));
-    return [{ sourceModelId: item.sourceModelId, layer: item.layers[best], restored: totals[best], of: item.samples.length, recordedAt: item.recordedAt }];
+    const restored = Math.max(...totals);
+    const layers = restored > 0 ? item.layers.filter((_, index) => totals[index] === restored) : [];
+    return [{ sourceModelId: item.sourceModelId, layers, restored, of: item.samples.length, recordedAt: item.recordedAt }];
   });
 }
 
