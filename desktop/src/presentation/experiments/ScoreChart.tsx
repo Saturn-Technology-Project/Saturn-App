@@ -1,9 +1,5 @@
-import { useEffect, useState } from "react";
-import { desktop } from "../../application/desktop.js";
+import { useState } from "react";
 import { comparisonText, lineageOrder, scoreText, type Comparison, type ExperimentRun, type FrozenVersion, type ModelNode, type RunSummary } from "../../domain/research.js";
-import { messageOf } from "../ui/Parts.js";
-
-const service = desktop.research;
 
 /** One bar: a model in a run, and whether it measured the same way as the first bar. */
 interface Bar {
@@ -20,36 +16,9 @@ interface Bar {
  * Each model's mean score, in the order the runs happened. Only what measured like the newest run shares the axis: anything else
  * is listed under it with what differs, so a difference in method never reads as a difference in the model.
  */
-export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; versions: FrozenVersion[]; models: ModelNode[]; notify: (message: string) => void }) {
-  const { projectId, runs, versions, models, notify } = props;
-  const [summaries, setSummaries] = useState<RunSummary[]>([]);
-  const [comparisons, setComparisons] = useState<Record<string, Comparison>>({});
+export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; versions: FrozenVersion[]; models: ModelNode[]; summaries: RunSummary[]; comparisons: Record<string, Comparison> }) {
+  const { versions, models, summaries, comparisons } = props;
   const [scorer, setScorer] = useState<string | null>(null);
-  const runKey = runs.map((run) => `${run.id}:${run.status}`).join(",");
-
-  useEffect(() => {
-    let live = true;
-    void (async () => {
-      try {
-        const loaded = await Promise.all(runs.map((run) => service.summary(projectId, run.id)));
-        const newest = loaded.at(-1)?.versionId;
-        if (!newest) return;
-        const distinct = [...new Set(loaded.map((item) => item.versionId))];
-        const compared = await Promise.all(distinct.map(async (version) => [version, await service.compare(projectId, newest, version)] as const));
-        if (live) {
-          setSummaries(loaded);
-          setComparisons(Object.fromEntries(compared));
-        }
-      } catch (error) {
-        if (live) notify(messageOf(error));
-      }
-    })();
-    return () => {
-      live = false;
-    };
-    // `runKey` says when the runs changed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notify, projectId, runKey]);
 
   const scorers = [...new Set(summaries.flatMap((summary) => summary.models.flatMap((model) => Object.keys(model.scores))))];
   const chosen = scorer && scorers.includes(scorer) ? scorer : scorers[0];
