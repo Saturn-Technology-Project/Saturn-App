@@ -143,16 +143,27 @@ version. Write outputs to `SATURN_RUN_DIRECTORY`, or to a folder git ignores.
 
 Model output is data. It is shown as plain text and is never put in a system prompt.
 
-## Looking inside: not in the runtime yet
+## Looking inside
 
-The interface asks for two things the runtime does not do yet, and shows the runtime's answer as it is: a 404 reads as
-"not recorded yet". They are stated here so the runtime has a shape to meet.
+A model's activations on one sample, and one layer patched in from another model, are computed by a helper the runtime
+runs with the Python the experiment's command starts with (`.venv/bin/python probe.py`), so the model loads in the
+environment that ran the experiment; a command that starts with anything else is refused with 422. The helper needs
+`torch` and `transformers`, loads weights in float32, and is run in the version's working folder. Not on Windows.
 
-- `GET /projects/{id}/research/runs/{run}/activations?sample=&model=` answers with
-  `{"sampleId","modelId","measure","tokens":[...],"layers":[{"layer":0,"values":[...]}]}`: one value per token at each
-  layer, of the kind `measure` names, captured in the project's own Python environment and saved with the run.
+- `POST /projects/{id}/research/runs/{run}/activations` with `{"sampleId","modelId"?}` answers with
+  `{"sampleId","modelId","measure","tokens":[...],"layers":[{"layer":0,"values":[...]}],"top","patched":null}`: one
+  value per token at each layer, read from the residual stream leaving that layer (layer 0 is the embedding). With an
+  `expected` on the sample line it is the log-probability of `expected`'s first token read through the final norm and
+  the unembedding; without one it is the residual stream's norm. `top` is the token the model ends on. The model is the
+  one the sample line names unless `modelId` says otherwise; its weights are as the version pinned them, else as the
+  project's model record says.
 - `POST /projects/{id}/research/interventions` with `{"runId","sampleId","sourceModelId","targetModelId","layer"}`
-  patches one layer from one model into another on one sample, and answers in the same shape.
+  runs the source model on the same input, replaces the residual stream leaving `layer` of the target with the source's,
+  and answers in the same shape with `patched: {"layer","sourceModelId","layers","top"}`. Everything up to that layer is
+  then the source's, everything after it the target's.
+- The answer is saved in the run's folder under `inside/`, named by the request, and the same request is answered from
+  there without running again. `GET .../activations?sample=&model=` reads what was saved, or 404.
+- A helper that fails answers 422 with the end of its error output. The runtime never interprets the values.
 
 ## What is enforced, and what is not
 

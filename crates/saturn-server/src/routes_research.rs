@@ -6,7 +6,7 @@ use axum::Router;
 use axum::extract::{Path, Query, State};
 use axum::routing::{get, post};
 use saturn_core::Kernel;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::routes::{Answer, Body, Shared, body_of, created, given, ok};
 
@@ -180,6 +180,37 @@ async fn sample_across(
         .await?)
 }
 
+async fn inside_saved(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let request = json!({ "sampleId": query.get("sample"), "modelId": query.get("model") });
+    ok(kernel
+        .research_inside_saved(&project, &run, &request)
+        .await?)
+}
+
+async fn look_inside(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+    body: Body,
+) -> Answer {
+    ok(kernel
+        .research_look_inside(&project, &run, &body_of(body))
+        .await?)
+}
+
+/// A patch of one layer from one model into another, on a sample of a run.
+async fn intervene(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    let run = given(&body, "runId").unwrap_or("");
+    if body.get("layer").and_then(Value::as_u64).is_none() {
+        return Err(saturn_core::CoreError::new(400, "An intervention names a \"layer\".").into());
+    }
+    ok(kernel.research_look_inside(&project, run, &body).await?)
+}
+
 async fn policy(State(kernel): Shared, Path(project): Path<String>) -> Answer {
     ok(kernel.research_policy(&project).await?)
 }
@@ -195,6 +226,11 @@ async fn events(State(kernel): Shared, Path(project): Path<String>) -> Answer {
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
         .route("/projects/{id}/research/runs/{run}/summary", get(summary))
+        .route(
+            "/projects/{id}/research/runs/{run}/activations",
+            get(inside_saved).post(look_inside),
+        )
+        .route("/projects/{id}/research/interventions", post(intervene))
         .route(
             "/projects/{id}/research/policy",
             get(policy).put(set_policy),

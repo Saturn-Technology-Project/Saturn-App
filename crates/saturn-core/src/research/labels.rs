@@ -14,7 +14,7 @@ use crate::records::text;
 use crate::{CoreError, Kernel};
 
 /// Calls `visit` with each valid sample a sealed or running file holds, without holding the file in memory.
-fn each_sample(
+pub(super) fn each_sample(
     path: &Path,
     end: Option<u64>,
     mut visit: impl FnMut(&Value, &str),
