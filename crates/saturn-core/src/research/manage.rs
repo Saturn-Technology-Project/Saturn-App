@@ -441,6 +441,14 @@ impl Kernel {
         let owned_project = project.to_owned();
         tokio::spawn(async move {
             let exit = child.wait().await.ok().and_then(|status| status.code());
+            // The interpreter is named before the job reads as done, so whoever sees it done sees the python too.
+            if exit == Some(0)
+                && let Some(python) = set_python_after
+            {
+                let _ = kernel
+                    .research_set_environment(&owned_project, &json!({ "python": python }))
+                    .await;
+            }
             let mut done = job;
             done["status"] = json!(if exit == Some(0) {
                 "completed"
@@ -451,13 +459,6 @@ impl Kernel {
             done["endedAt"] = json!(iso_time(now_millis()));
             if let Ok(bytes) = pretty(&done) {
                 let _ = write_whole(&records.join(JOB_FILE), &bytes).await;
-            }
-            if exit == Some(0)
-                && let Some(python) = set_python_after
-            {
-                let _ = kernel
-                    .research_set_environment(&owned_project, &json!({ "python": python }))
-                    .await;
             }
             locked(&kernel.research.environment_jobs).remove(&records);
             kernel.research_changed();
