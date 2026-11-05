@@ -3,6 +3,7 @@ import type {
   ActivationView,
   Comparison,
   EnvironmentRecord,
+  InsideItem,
   InterventionRequest,
   OpenTarget,
   ExperimentDraft,
@@ -197,6 +198,11 @@ export class ResearchService {
   /** Every layer patched from one model into another on several samples, in one helper process; saved with the run. */
   sweep(project: string, request: { runId: string; sampleIds: string[]; sourceModelId: string; targetModelId: string; layers?: number[] }): Promise<SweepView> {
     return this.send(`${this.route(project)}/interventions/sweep`, "POST", request);
+  }
+
+  /** What was saved under a run's inside folder: readings and sweeps, newest first. */
+  insideList(project: string, run: string): Promise<{ runId: string; items: InsideItem[] }> {
+    return this.runtime.request(`${this.route(project)}/runs/${run}/inside`);
   }
 
   /** Every sample line of a run, page by page, up to a limit. */

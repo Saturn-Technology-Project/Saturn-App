@@ -16,6 +16,15 @@ export interface ExperimentDraft extends ResearchRecord {
   /** The question and hypothesis this experiment is for, when the person said. */
   questionId?: string;
   hypothesisId?: string;
+  /** The words a person labels this experiment's samples with; the default set when not said. */
+  labels?: string[];
+}
+
+/** The labels a person can put on a sample: the experiment's own, or the plain set. */
+export const DEFAULT_LABELS = ["Correct", "Wrong", "Invalid", "Unsure"];
+export function labelsOf(draft: ExperimentDraft | null | undefined): string[] {
+  const own = (draft?.labels ?? []).map((item) => item.trim()).filter(Boolean);
+  return own.length ? own : DEFAULT_LABELS;
 }
 
 /** A model an experiment measures, and what it stands for in it. */
@@ -52,6 +61,10 @@ export interface ExperimentRun extends ResearchRecord {
   process?: string;
   problems?: { line: number; reason: string }[];
   inputsChanged?: string[];
+  /** The most samples any one model got. */
+  samplesPerModel?: number;
+  /** What the runtime noticed at the end: a sample count unlike the last comparable run's, for one. */
+  warnings?: string[];
 }
 
 export interface SourceEntry {
@@ -393,6 +406,19 @@ export interface SweepView {
   layers: number[];
   samples: { sampleId: string; expected: string | null; top: string; expectedLogProb: number | null; byLayer: { layer: number; top: string; expectedLogProb: number | null }[] }[];
   recordedAt?: string;
+}
+
+/** One thing saved under a run's inside folder: a reading of one sample, or a sweep. */
+export type InsideItem = ({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView);
+
+/** The sweeps that patched into a model, each with its best layer, for saying what is known of its mechanism. */
+export function mechanismOf(items: InsideItem[], modelId: string): { sourceModelId: string | null; layer: number; restored: number; of: number; recordedAt?: string }[] {
+  return items.flatMap((item) => {
+    if (item.kind !== "sweep" || item.targetModelId !== modelId || !item.layers.length) return [];
+    const totals = restoredByLayer(item);
+    const best = totals.indexOf(Math.max(...totals));
+    return [{ sourceModelId: item.sourceModelId, layer: item.layers[best], restored: totals[best], of: item.samples.length, recordedAt: item.recordedAt }];
+  });
 }
 
 /** Whether the patched model ends on the expected token: what "restored" means here, said once. */

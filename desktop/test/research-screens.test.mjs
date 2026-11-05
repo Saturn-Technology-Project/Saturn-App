@@ -2,7 +2,7 @@
 // changed since a visit. Node runs the domain file as it is, so only a module without imports can be tested here.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, kitState, lastActive, restoredByLayer, reviewProgress, scoreSources, scorerSaysWrong, throughput } from "../src/domain/research.ts";
+import { bytesText, changedSince, comparisonFactors, devicesText, durationText, heldFixed, kitState, labelsOf, lastActive, mechanismOf, restoredByLayer, reviewProgress, scoreSources, scorerSaysWrong, throughput } from "../src/domain/research.ts";
 
 const point = (elapsedMs, samplesLines, outputTokens = 0) => ({ at: "", elapsedMs, cpuPercent: 1, memoryBytes: 1, processes: 1, samplesBytes: 0, samplesLines, inputTokens: 0, outputTokens, deviceMemoryBytes: null, gpus: null });
 
@@ -82,4 +82,13 @@ test("a layer restores a sample when the patched model ends on the expected toke
   assert.equal(scorerSaysWrong({ sampleId: "s", scores: { correct: true } }), false);
   assert.equal(scorerSaysWrong({ sampleId: "s", scores: { score: 0.1 }, scorerLabel: "Wrong name" }), true);
   assert.equal(scorerSaysWrong({ sampleId: "s", scores: { correct: false }, error: { kind: "scorer" } }), false);
+});
+
+test("a node's mechanism is each sweep into it with its best layer, and label names fall back to the plain set", () => {
+  const sweep = (target, tops) => ({ kind: "sweep", sourceModelId: "a", targetModelId: target, layers: [0, 1], samples: [{ sampleId: "s", expected: " x", top: "y", expectedLogProb: null, byLayer: tops.map((top, layer) => ({ layer, top, expectedLogProb: null })) }], recordedAt: "t" });
+  const items = [sweep("b", ["y", " x"]), sweep("c", [" x", " x"]), { kind: "reading", sampleId: "s", modelId: "b", measure: "", tokens: [], layers: [] }];
+  assert.deepEqual(mechanismOf(items, "b"), [{ sourceModelId: "a", layer: 1, restored: 1, of: 1, recordedAt: "t" }]);
+  assert.deepEqual(mechanismOf(items, "z"), []);
+  assert.deepEqual(labelsOf(null), ["Correct", "Wrong", "Invalid", "Unsure"]);
+  assert.deepEqual(labelsOf({ labels: [" Correct name ", "", "Wrong name"] }), ["Correct name", "Wrong name"]);
 });

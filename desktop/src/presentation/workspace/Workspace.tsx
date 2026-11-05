@@ -405,6 +405,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
                 {run.exitCode !== undefined && run.exitCode !== null ? `, exit code ${run.exitCode}` : ""}
               </div>
               {run.inputsChanged?.length ? <div className="lab-warning">Changed during the run: {run.inputsChanged.join(", ")}</div> : null}
+              {run.warnings?.map((warning) => <div key={warning} className="lab-warning">{warning}</div>)}
               {run.status === "interrupted" && run.process === "unconfirmed" ? <div className="lab-warning">Its process could not be confirmed, so it was not ended.</div> : null}
               {run.error ? <div className="lab-warning">{run.error}</div> : null}
               {run.problems?.slice(0, 5).map((item) => (

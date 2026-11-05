@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import {
   comparisonText,
+  DEFAULT_LABELS,
   EVALUATION_FIELD_NAMES,
   runHasResults,
   runStatusLabel,
@@ -87,7 +88,8 @@ export function Experiments(props: ScreenProps) {
     for (const key of EVALUATION_FIELD_NAMES) {
       if (key in edits) evaluation[key] = edits[key] === "" && key === "chatTemplate" ? null : edits[key];
     }
-    await change({ evaluation, models: bound });
+    const labels = "labels" in edits ? edits.labels.split(",").map((item) => item.trim()).filter(Boolean) : undefined;
+    await change({ evaluation, models: bound, ...(labels === undefined ? {} : { labels }) });
     setEdits({});
   }
 
@@ -306,6 +308,10 @@ export function Experiments(props: ScreenProps) {
                 <input value={edits[key] ?? String(spec[key] ?? "")} onChange={(event) => setEdits({ ...edits, [key]: event.target.value })} />
               </label>
             ))}
+            <label className="lab-field">
+              <span>Label names, comma separated</span>
+              <input value={edits.labels ?? (draft.labels ?? []).join(", ")} placeholder={DEFAULT_LABELS.join(", ")} onChange={(event) => setEdits({ ...edits, labels: event.target.value })} />
+            </label>
             <button type="button" className="lab-button" onClick={() => void saveEvaluation()}>
               Save
             </button>
@@ -377,7 +383,10 @@ export function Experiments(props: ScreenProps) {
                       <td><button type="button" className="lab-link" onClick={() => { service.open(projectId, { kind: "sample", runId: run.id }); props.go("Samples"); }}><code>{run.id}</code></button></td>
                       <td>v{versions.find((version) => version.id === run.versionId)?.number ?? "?"}</td>
                       <td>{named.length > 3 ? `${named.length} models` : named.join(", ") || "—"}</td>
-                      <td>{runStatusLabel(run.status)}{run.inputsChanged?.length ? `, ${run.inputsChanged.length} inputs changed during it` : ""}</td>
+                      <td>
+                        {runStatusLabel(run.status)}{run.inputsChanged?.length ? `, ${run.inputsChanged.length} inputs changed during it` : ""}
+                        {run.warnings?.map((warning) => <div key={warning} className="lab-warning">{warning}</div>)}
+                      </td>
                       <td>{run.samples ?? 0}</td>
                     </tr>
                   );

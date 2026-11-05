@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { comparisonText, heldFixed, lineageTracks, runHasResults, scoreText, type Comparison, type EvaluationSpec, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
+import { comparisonText, heldFixed, lineageTracks, mechanismOf, runHasResults, scoreText, type Comparison, type EvaluationSpec, type InsideItem, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
@@ -50,6 +50,9 @@ export function Lineage(props: ScreenProps) {
       const models = (await service.models(projectId)).items;
       const latest = await latestResults(projectId);
       const versions = (await service.versions(projectId)).items;
+      // What was looked at inside each model's newest run.
+      const inside: Record<string, InsideItem[]> = {};
+      for (const runId of new Set(Object.values(latest).map((item) => item.runId))) inside[runId] = (await service.insideList(projectId, runId)).items;
       // A node compares with its parent only if both were measured the same way.
       const compared: Record<string, Comparison> = {};
       for (const model of models) {
@@ -62,7 +65,7 @@ export function Lineage(props: ScreenProps) {
       // What the newest measurements hold fixed: the fields every compared pair shares.
       const specs = Object.values(latest).map((item) => versions.find((version) => version.id === item.versionId)?.evaluation ?? null);
       const fixed = specs.length ? heldFixed(specs[0], { result: "comparable", differs: [], missing: [] }).filter((field) => specs.every((spec) => JSON.stringify(spec?.[field.field as keyof EvaluationSpec]) === JSON.stringify(specs[0]?.[field.field as keyof EvaluationSpec]))) : [];
-      return { models, latest, compared, fixed };
+      return { models, latest, compared, fixed, inside };
     },
     props.notify,
   );
@@ -147,7 +150,20 @@ export function Lineage(props: ScreenProps) {
       )}
 
       <h2>Mechanism</h2>
-      <p className="lab-muted">No intervention is recorded at this node. Open a sample and look inside to compare activations or patch a layer.</p>
+      {(() => {
+        const known = measured ? mechanismOf(value?.inside[measured.runId] ?? [], current.id) : [];
+        const readings = measured ? (value?.inside[measured.runId] ?? []).filter((item) => item.kind === "reading" && item.modelId === current.id).length : 0;
+        return known.length ? (
+          known.map((item, index) => (
+            <div className="lab-detail-row" key={index}>
+              <span className="lab-muted">From {nameOf(models.find((model) => model.id === item.sourceModelId) ?? { source: item.sourceModelId ?? "?" } as ModelNode)}</span>
+              <span>Layer {item.layer} restores {item.restored} of {item.of}</span>
+            </div>
+          ))
+        ) : (
+          <p className="lab-muted">{readings ? `${readings} activation readings, no patch yet.` : "No intervention is recorded at this node. Under Experiments, sweep every layer into it from another node; a sample's Look inside does one layer."}</p>
+        );
+      })()}
       <div className="lab-card">
         <div className="lab-muted">Feature alignment across nodes</div>
         Not set. Features from different models are not treated as the same until you record how they were aligned and test them with an intervention.

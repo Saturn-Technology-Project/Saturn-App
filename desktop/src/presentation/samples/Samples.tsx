@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import {
   comparisonFactors,
+  labelsOf,
   reviewProgress,
   runHasResults,
   runStatusLabel,
@@ -21,7 +22,6 @@ import { useRecords } from "../ui/useRecords.js";
 import { LookInside } from "./LookInside.js";
 
 const service = desktop.research;
-const LABELS = ["Correct", "Wrong", "Invalid", "Unsure"];
 const ONLY: { id: "all" | "disputed" | "errors"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "disputed", label: "Disputed" },
@@ -49,6 +49,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
     runs: (await service.runs(projectId)).items.filter((run) => runHasResults(run.status)),
     versions: (await service.versions(projectId)).items,
     models: (await service.models(projectId)).items,
+    drafts: (await service.experiments(projectId)).items,
   }), notify);
   const [target, setTarget] = useState<Extract<OpenTarget, { kind: "sample" }> | null>(() => service.loadSession(projectId).review ?? null);
   const [runId, setRunId] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
 
   const runs = value?.runs ?? [];
   const run = runs.find((item) => item.id === runId) ?? null;
+  const LABELS = labelsOf(value?.drafts.find((draft) => draft.id === run?.experimentId));
   const modelName = (id: string | null | undefined) => {
     const model = value?.models.find((item) => item.id === id);
     return model ? model.name || model.source : "Unnamed model";
@@ -90,9 +92,9 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
   const loadRun = useCallback(
     async (id: string) => {
       try {
-        const [page, labeled, summed] = await Promise.all([service.samples(projectId, id), service.labels(projectId, id), service.summary(projectId, id)]);
-        setItems(page.items);
-        setNextCursor(page.next);
+        const [lines, labeled, summed] = await Promise.all([service.allSamples(projectId, id), service.labels(projectId, id), service.summary(projectId, id)]);
+        setItems(lines.map((sample, offset) => ({ offset, sample })));
+        setNextCursor(null);
         setLabels(labeled);
         setSummary(summed);
       } catch (error) {
