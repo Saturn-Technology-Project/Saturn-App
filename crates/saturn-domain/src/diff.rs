@@ -1,8 +1,9 @@
-//! Line diffs for reviewing agent edits: Myers' algorithm, printed as a unified diff.
+//! Line diffs for reviewing agent edits: Myers' algorithm (from `similar`), printed as a unified diff.
+use similar::{Algorithm, DiffOp, DiffTag, capture_diff_slices};
 
 /// Above this many changed lines on both sides together, the file is shown as replaced instead of diffed line by line.
 const MAX_LINES: usize = 40_000;
-/// Myers' edit distance cap; past it the trace would cost too much memory.
+/// Past this many inserted and deleted lines together, the file is shown as replaced too.
 const MAX_EDITS: usize = 4_000;
 
 /// A file's diff and its counts.
@@ -14,7 +15,7 @@ pub struct DiffResult {
     pub binary: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct Line<'a> {
     text: &'a str,
     /// The line has no trailing newline (end of file).
@@ -166,7 +167,7 @@ fn lines_of(text: Option<&str>) -> Vec<Line<'_>> {
     parts
 }
 
-/// The shortest edit script from a to b (Myers 1986), with a whole-file replace when that gets too costly.
+/// The shortest edit script from a to b, with a whole-file replace when that gets too costly.
 fn diff_lines<'a>(a: &[Line<'a>], b: &[Line<'a>]) -> Vec<(Kind, Line<'a>)> {
     let mut prefix = 0;
     while prefix < a.len() && prefix < b.len() && a[prefix] == b[prefix] {
@@ -196,83 +197,89 @@ fn replaced<'a>(a: &[Line<'a>], b: &[Line<'a>]) -> Vec<(Kind, Line<'a>)> {
         .collect()
 }
 
+/// The shortest edit script between two runs of lines, from `similar`'s Myers; a whole-file replace when a side is empty or either
+/// side is too long, or the script has more edits than `MAX_EDITS`.
 fn myers<'a>(a: &[Line<'a>], b: &[Line<'a>]) -> Vec<(Kind, Line<'a>)> {
-    let (n, m) = (a.len() as i64, b.len() as i64);
-    if n == 0 || m == 0 || a.len() + b.len() > MAX_LINES {
+    if a.is_empty() || b.is_empty() || a.len() + b.len() > MAX_LINES {
         return replaced(a, b);
     }
-    let max = (n + m).min(MAX_EDITS as i64);
-    let offset = max + 1;
-    let slot = |k: i64| (offset + k) as usize;
-    let mut v = vec![0_i64; (2 * max + 3) as usize];
-    // trace[d] is v as it was before step d.
-    let mut trace: Vec<Vec<i64>> = Vec::new();
-    let mut found = false;
-    let mut d = 0;
-    while d <= max && !found {
-        trace.push(v.clone());
-        let mut k = -d;
-        while k <= d {
-            let mut x = if k == -d || (k != d && v[slot(k - 1)] < v[slot(k + 1)]) {
-                v[slot(k + 1)]
-            } else {
-                v[slot(k - 1)] + 1
-            };
-            let mut y = x - k;
-            while x < n && y < m && a[x as usize] == b[y as usize] {
-                x += 1;
-                y += 1;
-            }
-            v[slot(k)] = x;
-            if x >= n && y >= m {
-                found = true;
-                break;
-            }
-            k += 2;
-        }
-        d += 1;
-    }
-    if !found {
+    let script = capture_diff_slices(Algorithm::Myers, a, b);
+    let edits: usize = script
+        .iter()
+        .map(|op| match op {
+            DiffOp::Equal { .. } => 0,
+            DiffOp::Delete { old_len, .. } => *old_len,
+            DiffOp::Insert { new_len, .. } => *new_len,
+            DiffOp::Replace {
+                old_len, new_len, ..
+            } => old_len + new_len,
+        })
+        .sum();
+    if edits > MAX_EDITS {
         return replaced(a, b);
     }
     let mut ops = Vec::new();
-    let (mut x, mut y) = (n, m);
-    for d in (0..trace.len() as i64).rev() {
-        let prev = &trace[d as usize];
-        let k = x - y;
-        let prev_k = if d == 0 {
-            0
-        } else if k == -d || (k != d && prev[slot(k - 1)] < prev[slot(k + 1)]) {
-            k + 1
-        } else {
-            k - 1
-        };
-        let prev_x = if d == 0 { 0 } else { prev[slot(prev_k)] };
-        let prev_y = prev_x - prev_k;
-        // The snake: equal lines after the step's single edit.
-        let start_x = if d == 0 {
-            0
-        } else if prev_k == k + 1 {
-            prev_x
-        } else {
-            prev_x + 1
-        };
-        let start_y = start_x - k;
-        while x > start_x && y > start_y {
-            ops.push((Kind::Same, a[(x - 1) as usize]));
-            x -= 1;
-            y -= 1;
-        }
-        if d > 0 {
-            if prev_k == k + 1 {
-                ops.push((Kind::Added, b[(y - 1) as usize]));
-            } else {
-                ops.push((Kind::Removed, a[(x - 1) as usize]));
+    for op in script {
+        let (old, new) = (op.old_range(), op.new_range());
+        match op.tag() {
+            DiffTag::Equal => ops.extend(a[old].iter().map(|line| (Kind::Same, *line))),
+            DiffTag::Delete => ops.extend(a[old].iter().map(|line| (Kind::Removed, *line))),
+            DiffTag::Insert => ops.extend(b[new].iter().map(|line| (Kind::Added, *line))),
+            DiffTag::Replace => {
+                ops.extend(a[old].iter().map(|line| (Kind::Removed, *line)));
+                ops.extend(b[new].iter().map(|line| (Kind::Added, *line)));
             }
         }
-        x = prev_x;
-        y = prev_y;
     }
-    ops.reverse();
     ops
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_change_is_a_hunk_with_context_and_the_missing_newline_is_marked() {
+        let result = unified_diff(
+            "a.txt",
+            Some(b"one\ntwo\nthree"),
+            Some(b"one\n2\nthree\n"),
+            1,
+        );
+        assert_eq!(
+            result.diff,
+            "--- a/a.txt\n+++ b/a.txt\n@@ -1,3 +1,3 @@\n one\n-two\n-three\n\\ No newline at end of file\n+2\n+three\n"
+        );
+        assert_eq!((result.additions, result.deletions), (2, 2));
+    }
+
+    #[test]
+    fn too_many_edits_show_the_file_as_replaced() {
+        let lines = |prefix: &str| -> Vec<u8> {
+            (0..MAX_EDITS)
+                .flat_map(|number| format!("{prefix}{number}\n").into_bytes())
+                .collect()
+        };
+        let result = unified_diff("big.txt", Some(&lines("a")), Some(&lines("b")), 3);
+        assert_eq!((result.additions, result.deletions), (MAX_EDITS, MAX_EDITS));
+        assert!(
+            result
+                .diff
+                .contains(&format!("@@ -1,{MAX_EDITS} +1,{MAX_EDITS} @@\n-a0\n-a1\n"))
+        );
+    }
+
+    #[test]
+    fn a_missing_side_is_all_added_or_all_removed() {
+        let added = unified_diff("new.txt", None, Some(b"x\ny\n"), 3);
+        assert_eq!(
+            added.diff,
+            "--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1,2 @@\n+x\n+y\n"
+        );
+        let gone = unified_diff("old.txt", Some(b"x\n"), None, 3);
+        assert_eq!(
+            gone.diff,
+            "--- a/old.txt\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n"
+        );
+    }
 }

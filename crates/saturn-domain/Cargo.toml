@@ -17,4 +17,6 @@ regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
+# The line diff behind the reviews of agent edits.
+similar = { version = "3", default-features = false }
 url = "2"
