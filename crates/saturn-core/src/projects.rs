@@ -347,6 +347,9 @@ impl Kernel {
             })
             .await?
             .ok_or_else(|| CoreError::new(404, format!("Project {id} not found")))?;
+        if !granted {
+            self.research_notebooks_stop_project(id).await;
+        }
         log(
             "projects",
             "info",
@@ -417,6 +420,7 @@ impl Kernel {
 
     /// Removes the project and its chats from Saturn. The folder and its files are never touched.
     pub async fn delete_project(&self, id: &str) -> Result<(), CoreError> {
+        self.research_notebooks_stop_project(id).await;
         let stopped: Vec<String> = self
             .store
             .update(|state| {

@@ -2,6 +2,7 @@ import { AdminService } from "./admin.js";
 import { AssistantService } from "./assistant.js";
 import { AutomationService } from "./automations.js";
 import { CatalogService } from "./catalog.js";
+import { NotebookService } from "./notebooks.js";
 import { ProjectService } from "./projects.js";
 import { ResearchService } from "./research.js";
 import { RunService } from "./runs.js";
@@ -20,6 +21,7 @@ export class DesktopApp {
   readonly telemetry: TelemetryService;
   readonly projects: ProjectService;
   readonly research: ResearchService;
+  readonly notebooks: NotebookService;
   readonly assistant: AssistantService;
   readonly live: LiveService;
 
@@ -32,6 +34,7 @@ export class DesktopApp {
     this.telemetry = new TelemetryService(runtime);
     this.projects = new ProjectService(runtime);
     this.research = new ResearchService(runtime);
+    this.notebooks = new NotebookService(runtime);
     this.assistant = new AssistantService(this.catalog, this.runs);
     this.live = new LiveService(runtime);
   }

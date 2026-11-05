@@ -13,6 +13,7 @@ import {
   type SampleItem,
   type SourceEntry,
 } from "../../domain/research.js";
+import { isNotebookPath, NOTEBOOK_SIZE_LIMIT } from "../../domain/notebook.js";
 import { LookInside } from "../samples/LookInside.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Button } from "../ui/base/Button.js";
@@ -24,6 +25,7 @@ import { Notice } from "../ui/base/Notice.js";
 import { Textarea } from "../ui/base/Textarea.js";
 import { messageOf, Tabs } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
+import { NotebookEditor } from "./NotebookEditor.js";
 import { Resources } from "./Resources.js";
 import { SourceEditor } from "./SourceEditor.js";
 import { Terminal } from "./Terminal.js";
@@ -41,6 +43,8 @@ const OUTPUT_TEXT = "font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhe
 const MUTED = "text-xs text-muted-foreground";
 /** A line of small text about something that needs care. */
 const WARNING = "text-xs text-wait";
+/** Unsaved text is kept on this device up to this size: a notebook's images would not fit, and writing them on every change is slow. */
+const LARGEST_DRAFT = 1024 * 1024;
 
 /** The file open in the editor. `revision` is null for a file not saved yet. */
 interface OpenFile {
@@ -218,6 +222,10 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const save = useCallback(
     async (force = false) => {
       if (!open) return true;
+      if (isNotebookPath(open.path) && new TextEncoder().encode(content.current).length > NOTEBOOK_SIZE_LIMIT) {
+        notify("This notebook is over 8 MB with its outputs, so it would not open again. Clear its outputs, then save.");
+        return false;
+      }
       setSaving(true);
       try {
         let revision = open.revision;
@@ -246,7 +254,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     (next: string) => {
       content.current = next;
       setDirty(true);
-      if (open) remember({ draft: { file: open.path, content: next, revision: open.revision } });
+      if (open) remember({ draft: next.length <= LARGEST_DRAFT ? { file: open.path, content: next, revision: open.revision } : undefined });
     },
     [open, remember],
   );
@@ -505,7 +513,20 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           </Notice>
         ) : null}
         <Split id="lower" side="bottom" size={220} minimum={100} label="Results" pane={lower}>
-          {open ? (
+          {open && isNotebookPath(open.path) ? (
+            <NotebookEditor
+              key={open.path}
+              projectId={projectId}
+              path={open.path}
+              generation={open.generation}
+              initialContent={open.initial}
+              onChange={handleEdit}
+              onSave={() => void save()}
+              onSelection={setSelection}
+              notify={notify}
+              go={props.go}
+            />
+          ) : open ? (
             <SourceEditor
               documentKey={`${open.path}:${open.generation}`}
               initialContent={open.initial}

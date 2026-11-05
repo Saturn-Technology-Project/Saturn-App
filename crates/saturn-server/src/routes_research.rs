@@ -4,12 +4,16 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::{Path, Query, State};
+use axum::response::IntoResponse;
+use axum::response::sse::Event;
 use axum::routing::{get, post};
 use saturn_core::Kernel;
 use saturn_core::research::DataOverlapRequest;
 use serde_json::{Value, json};
 
-use crate::routes::{Answer, Body, Shared, body_of, created, given, ok};
+use tokio::sync::mpsc;
+
+use crate::routes::{Answer, Body, Shared, body_of, created, given, ok, stream_of};
 
 async fn list(
     State(kernel): Shared,
@@ -348,8 +352,103 @@ async fn data_overlap(
     ok(kernel.research_data_overlap(&project, &request).await?)
 }
 
+async fn notebook_status(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let path = query.get("path").map_or("", String::as_str);
+    ok(kernel.research_notebook_status(&project, path).await?)
+}
+
+async fn notebook_start(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    let path = given(&body, "path").unwrap_or("");
+    ok(kernel.research_notebook_start(&project, path).await?)
+}
+
+async fn notebook_run(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    let path = given(&body, "path").unwrap_or("");
+    let cells = body.get("cells").cloned().unwrap_or(Value::Null);
+    ok(kernel.research_notebook_run(&project, path, &cells).await?)
+}
+
+async fn notebook_interrupt(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    let body = body_of(body);
+    let path = given(&body, "path").unwrap_or("");
+    ok(kernel.research_notebook_interrupt(&project, path).await?)
+}
+
+async fn notebook_restart(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    body: Body,
+) -> Answer {
+    let body = body_of(body);
+    let path = given(&body, "path").unwrap_or("");
+    ok(kernel.research_notebook_restart(&project, path).await?)
+}
+
+async fn notebook_stop(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    let path = given(&body, "path").unwrap_or("");
+    ok(kernel.research_notebook_stop(&project, path).await?)
+}
+
+/// A notebook's kernel as it goes: each event is a line of JSON from the runtime, sent on as it is.
+async fn notebook_events(
+    State(kernel): Shared,
+    Path(project): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let path = query.get("path").map_or("", String::as_str);
+    let after = query.get("after").and_then(|value| value.parse().ok());
+    let mut lines = kernel
+        .research_notebook_events(
+            &project,
+            path,
+            query.get("kernel").map(String::as_str),
+            after,
+        )
+        .await?;
+    let (sender, receiver) = mpsc::channel(32);
+    tokio::spawn(async move {
+        while let Some(line) = lines.recv().await {
+            let event = Event::default().event("notebook").data(line);
+            if sender.send(event).await.is_err() {
+                return;
+            }
+        }
+    });
+    Ok(stream_of(receiver).into_response())
+}
+
 pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
     Router::new()
+        .route("/projects/{id}/research/notebook", get(notebook_status))
+        .route(
+            "/projects/{id}/research/notebook/events",
+            get(notebook_events),
+        )
+        .route(
+            "/projects/{id}/research/notebook/start",
+            post(notebook_start),
+        )
+        .route("/projects/{id}/research/notebook/run", post(notebook_run))
+        .route(
+            "/projects/{id}/research/notebook/interrupt",
+            post(notebook_interrupt),
+        )
+        .route(
+            "/projects/{id}/research/notebook/restart",
+            post(notebook_restart),
+        )
+        .route("/projects/{id}/research/notebook/stop", post(notebook_stop))
         .route("/projects/{id}/research/data", get(data_list))
         .route("/projects/{id}/research/data/preview", get(data_preview))
         .route("/projects/{id}/research/data/profile", get(data_profile))

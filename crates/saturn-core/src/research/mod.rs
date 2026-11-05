@@ -8,6 +8,7 @@ mod freeze;
 mod inside;
 mod labels;
 mod manage;
+mod notebooks;
 mod policy;
 mod resources;
 mod runs;
@@ -52,6 +53,8 @@ pub struct ResearchState {
     environment_jobs: Mutex<manage::RunningJobs>,
     /// What has been worked out about data files.
     data: data::DataMemory,
+    /// The kernels of notebooks open in the Workspace.
+    notebooks: notebooks::Notebooks,
 }
 
 impl Default for ResearchState {
@@ -64,6 +67,7 @@ impl Default for ResearchState {
             ending: AtomicBool::new(false),
             environment_jobs: Mutex::default(),
             data: data::DataMemory::default(),
+            notebooks: notebooks::Notebooks::default(),
         }
     }
 }

@@ -577,7 +577,7 @@ Before opening a pull request:
 
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
-- For the research workbench: a PDF reader, notebooks, a debugger, language servers and a real terminal
+- For the research workbench: a PDF reader, a debugger, language servers and a real terminal
 
 How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 

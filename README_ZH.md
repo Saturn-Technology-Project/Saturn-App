@@ -576,7 +576,7 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
-- 研究工作台的 PDF 閱讀器、notebook、debugger、語言伺服器與真實終端機
+- 研究工作台的 PDF 閱讀器、debugger、語言伺服器與真實終端機
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。
 

@@ -35,10 +35,16 @@ export function SourceEditor(props: {
   onSave: () => void;
   /** The selected text and the line it starts on, or nothing. */
   onSelection?: (selection: { text: string; line: number } | null) => void;
+  /** Shift-Enter does this, where the code can be run from the editor. */
+  onRun?: () => void;
+  /** What assistive technology calls the editor. */
+  label?: string;
+  /** Grows with its text, for a notebook's cell, rather than filling its pane. */
+  fit?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const handlers = useRef({ onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection });
-  handlers.current = { onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection };
+  const handlers = useRef({ onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection, onRun: props.onRun });
+  handlers.current = { onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection, onRun: props.onRun };
 
   useEffect(() => {
     if (!host.current) return undefined;
@@ -52,6 +58,14 @@ export function SourceEditor(props: {
             preventDefault: true,
             run: () => {
               handlers.current.onSave();
+              return true;
+            },
+          },
+          {
+            key: "Shift-Enter",
+            run: () => {
+              if (!handlers.current.onRun) return false;
+              handlers.current.onRun();
               return true;
             },
           },
@@ -69,7 +83,7 @@ export function SourceEditor(props: {
             );
           }
         }),
-        EditorView.contentAttributes.of({ "aria-label": "Source file" }),
+        EditorView.contentAttributes.of({ "aria-label": props.label ?? "Source file" }),
       ],
     });
     return () => view.destroy();
@@ -77,5 +91,5 @@ export function SourceEditor(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.documentKey]);
 
-  return <div ref={host} className="min-h-0 flex-1 overflow-hidden [&_.cm-editor]:h-full" />;
+  return <div ref={host} className={props.fit ? "min-w-0 overflow-hidden rounded-sm border border-border [&_.cm-editor]:h-auto" : "min-h-0 flex-1 overflow-hidden [&_.cm-editor]:h-full"} />;
 }

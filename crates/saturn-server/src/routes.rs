@@ -510,12 +510,14 @@ async fn remove_rule(State(kernel): Shared, body: Body) -> Answer {
 }
 
 /// An event for a stream.
-fn event(name: &str, data: &Value) -> Event {
+pub(crate) fn event(name: &str, data: &Value) -> Event {
     Event::default().event(name).data(data.to_string())
 }
 
 /// A server-sent event stream fed by a task. The task ends when the client goes, since its sends then fail.
-fn stream_of(rx: mpsc::Receiver<Event>) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+pub(crate) fn stream_of(
+    rx: mpsc::Receiver<Event>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     use futures_util::StreamExt;
     Sse::new(ReceiverStream::new(rx).map(Ok)).keep_alive(
         KeepAlive::new()
