@@ -585,7 +585,10 @@ test("In a group, a Claude Code member keeps one session of its own, and the gro
     await saturn.api("POST", `/groups/${group.id}/messages`, { text: "second task" });
     const programs = await saturn.until("a second turn", () => started(saturn), (list) => list.length === 2);
     assert.ok(programs[1].args.includes("--resume=session-G"), programs[1].args.join(" "));
-    assert.doesNotMatch(JSON.stringify((await received(saturn)).at(-1)), /first task/, "what the session already saw is not sent again");
+    // The program is on record as started before it has read anything, so wait for the turn's own message.
+    const messages = await saturn.until("the second turn's message", () => received(saturn), (list) => list.some((message) => message.type === "user" && JSON.stringify(message).includes("second task")));
+    const second = messages.find((message) => message.type === "user" && JSON.stringify(message).includes("second task"));
+    assert.doesNotMatch(JSON.stringify(second), /first task/, "what the session already saw is not sent again");
   } finally {
     await saturn.stop();
   }
