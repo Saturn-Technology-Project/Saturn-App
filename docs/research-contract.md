@@ -282,8 +282,7 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
   chat rather than in the project's records. It also decides how much the chat asks, in place of the agent's own approval
   setting: `delegate` asks before what is sensitive, and `delegate_auto` asks nothing. A chat with no mode goes by the agent's. `manual` makes every run of the chat read-only. `pair` makes a file tool, a command or any other
   call that changes something wait for the user even with approvals off, and an accepted file change is recorded with its
-  content and the policy's revision. `delegate` and `delegate_auto` put no limit on what the chat changes; the interface starts a task for each message, and the
-  task keeps the mode it was started in. A chat with no mode is the agent's to change. A mode that changes while a call waits applies to that call.
+  content and the policy's revision. `delegate` and `delegate_auto` put no limit on what the chat changes, and the chat goes on in place, on the project itself unless it has a worktree. A task, started on the Tasks screen or with `research_task_start`, has its own worktree and keeps the mode it was started in. A chat with no mode is the agent's to change. A mode that changes while a call waits applies to that call.
 - Locked for agents: what the policy names, and the `data` and `scorer` inputs of each experiment's newest version. The
   user can release a lock (`released` in the policy) when an agent asks to change such a file: it may then change it,
   and the next frozen version locks what it uses again and ends every release, so older versions keep their results.

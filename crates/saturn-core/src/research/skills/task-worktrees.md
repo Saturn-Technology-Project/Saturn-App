@@ -4,7 +4,7 @@ description: How a task's git worktree relates to the project's records, runs an
 ---
 # Working as a task
 
-A Delegate message runs as a task, in its own git worktree and branch.
+A task runs in its own git worktree and branch. A Delegate chat that is not a task works on the project itself.
 
 ## What is where
 - **Code**: your edits are in the worktree. The project's checkout does not see them until the person merges.

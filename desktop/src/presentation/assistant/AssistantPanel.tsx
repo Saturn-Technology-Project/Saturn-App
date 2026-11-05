@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
-import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf, startsTask } from "../../domain/chat-mode.js";
+import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../../domain/chat-mode.js";
 import type { Agent, ChatMode, ContextItem, Model } from "../../domain/model.js";
 import { HELP_REQUESTS, workbenchState, type Screen } from "../../domain/workbench.js";
 import { hiddenContext } from "../../domain/slash.js";
@@ -109,22 +109,6 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     }
   }
 
-  async function handToTask() {
-    if (!agent || !text.trim()) return;
-    try {
-      await desktop.assistant.startTask(agent, project.id, await withContext(text.trim()), mode);
-      setText("");
-      props.go("Tasks");
-    } catch (error) {
-      notify(messageOf(error));
-    }
-  }
-
-  /** What sending does: a Delegate chat starts a task, the others answer here. */
-  function send() {
-    return startsTask(mode) ? handToTask() : ask(text);
-  }
-
   async function chooseMode(next: ChatMode) {
     if (!threadId) return;
     try {
@@ -169,7 +153,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
 
       <div className="lab-composer">
         <div className="lab-requests">
-          {[...(!focus || mode === "pair" ? [] : reviewing ? REVIEW_REQUESTS : MANUAL_REQUESTS), ...HELP_REQUESTS].map((request) => (
+          {[...(!focus || mode !== "manual" ? [] : reviewing ? REVIEW_REQUESTS : MANUAL_REQUESTS), ...HELP_REQUESTS].map((request) => (
             <button type="button" key={request.label} className="lab-request" disabled={conversation.busy} onClick={() => void ask(request.prompt, request.label === "Explain the error" && focus?.errorOutput && !attached("error") ? errorContext(focus.errorOutput) : undefined)}>
               {request.label}
             </button>
@@ -222,12 +206,12 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
             aria-label="Message to the assistant"
             rows={2}
             value={text}
-            placeholder={startsTask(mode) ? "Describe the task" : "Message the assistant"}
+            placeholder="Message the assistant"
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault();
-                void send();
+                void ask(text);
               }
             }}
           />
@@ -255,8 +239,8 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
                 Stop
               </button>
             ) : (
-              <button type="button" className="lab-button primary" disabled={!text.trim()} onClick={() => void send()}>
-                {startsTask(mode) ? "Start" : "Send"}
+              <button type="button" className="lab-button primary" disabled={!text.trim()} onClick={() => void ask(text)}>
+                Send
               </button>
             )}
           </div>

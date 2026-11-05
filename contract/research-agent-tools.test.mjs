@@ -317,6 +317,19 @@ test("a task cannot start a task, and one that cannot begin leaves nothing behin
   assert.match(await refused(setup, "research_task_read", { what: "status", task: "thread_none" }), /No task/);
 });
 
+test("a chat that moves from Manual to Delegate goes on in the same chat, and no task starts", async () => {
+  const setup = await bed();
+  await saturn.api("PATCH", `/threads/${setup.thread.id}`, { chatMode: "manual" });
+  const read = await setup.turn([["research_read", { what: "questions" }]]);
+  assert.equal(read.threadId, setup.thread.id);
+  await saturn.api("PATCH", `/threads/${setup.thread.id}`, { chatMode: "delegate_auto" });
+  const wrote = await setup.turn([["research_write", { collection: "questions", fields: { title: "Why?" } }]]);
+  assert.equal(wrote.threadId, setup.thread.id);
+  assert.equal(wrote.actions.at(-1).status, "completed", wrote.actions.at(-1).reason);
+  const threads = await saturn.api("GET", `/agents/${setup.agent.id}/threads`);
+  assert.deepEqual(threads.map((item) => item.id), [setup.thread.id]);
+});
+
 test("the assistant can look at prompts of its own, under the same rules", posixOnly, async () => {
   const setup = await bed();
   assert.match(await refused(setup, "research_inspect", { action: "prompts", runId: "run_0000000000000000", modelId: "m", clean: "a", corrupted: "a", expected: " x", alternative: " y" }), /same/);

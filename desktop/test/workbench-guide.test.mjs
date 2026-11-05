@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf, startsTask } from "../src/domain/chat-mode.ts";
+import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../src/domain/chat-mode.ts";
 import { isWaitingStep, runSteps } from "../src/domain/conversation.ts";
 import { isAtEnd } from "../src/domain/follow.ts";
 import { shownSources } from "../src/domain/slash.ts";
@@ -66,12 +66,15 @@ test("the state sent with a message and the names read from outside say where th
 test("a chat's mode says what the assistant may do, and a chat nobody has set only reads", () => {
   assert.equal(chatModeOf({}), "manual");
   assert.equal(chatModeOf({ chatMode: "pair" }), "pair");
-  assert.deepEqual(CHAT_MODES.map((mode) => assistantRunMode(mode.id)), ["ask", "agent", "ask", "ask"]);
-  assert.deepEqual(CHAT_MODES.map((mode) => startsTask(mode.id)), [false, false, true, true]);
+  // Every mode goes on in the same chat, so choosing another one partway keeps the conversation.
+  assert.deepEqual(CHAT_MODES.map((mode) => assistantRunMode(mode.id)), ["ask", "agent", "agent", "agent"]);
   assert.match(assistantRole("delegate_auto"), /asks nothing/);
   assert.match(assistantRole("pair", "codex"), /cannot ask/);
   assert.match(assistantRole("pair", "claude-code"), /approval/);
-  assert.match(assistantRole("delegate"), /task/);
+  for (const mode of ["delegate", "delegate_auto"]) {
+    assert.match(assistantRole(mode), /on the project itself/, "it says plainly that nothing keeps this work apart");
+    assert.doesNotMatch(assistantRole(mode), /each message|until you merge/i);
+  }
 });
 
 test("a message says what went with it, leaving out the screen that goes with every message", () => {
