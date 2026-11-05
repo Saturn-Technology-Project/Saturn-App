@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop";
+import { Badge } from "../ui/base/Badge.js";
+import { Button } from "../ui/base/Button.js";
+import { classes } from "../ui/base/classes.js";
 
 type Which = "accessibility" | "screenRecording";
 type Status = { platform: string; required: boolean; accessibility: boolean; screenRecording: boolean; error?: string };
@@ -37,22 +40,28 @@ export function ComputerPermissions(props: { compact?: boolean }) {
   }, [asked]);
 
   if (status && !status.required) {
-    return <p className="hint">Nothing to grant on {status.platform === "win32" ? "Windows" : "this system"}: agents can take screenshots and control apps already.</p>;
+    return <p className="text-[12.5px] text-muted-foreground">Nothing to grant on {status.platform === "win32" ? "Windows" : "this system"}: agents can take screenshots and control apps already.</p>;
   }
   return (
-    <ul className={props.compact ? "onboarding-list" : "permission-list"}>
+    <ul className={classes("m-0 flex list-none flex-col p-0", props.compact && "gap-2")}>
       {ROWS.map((row) => {
         const granted = status?.[row.which] ?? false;
         return (
-          <li key={row.which}>
-            <strong>{row.label}</strong>
-            <span className="hint">{row.detail}</span>
+          <li
+            key={row.which}
+            className={classes(
+              "grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5",
+              props.compact ? "rounded-[10px] border border-border bg-card px-3.5 py-2.5" : "px-4 py-3 not-first:border-t not-first:border-border",
+            )}
+          >
+            <strong className={classes("col-start-1 text-[13px]", !props.compact && "font-medium")}>{row.label}</strong>
+            <span className="col-start-1 row-start-2 text-xs text-muted-foreground">{row.detail}</span>
             {granted ? (
-              <span className="onboarding-ok">✓ allowed</span>
+              <Badge tone="good" className="col-start-2 row-span-2 row-start-1 text-[13px] font-semibold">✓ allowed</Badge>
             ) : (
-              <span className="permission-actions">
-                <button type="button" className="btn ghost tiny" onClick={() => { setAsked(true); void requestPermission(row.which); }}>Request</button>
-                <button type="button" className="btn ghost tiny" onClick={() => void desktop.admin.openPermissionPane(row.which)}>Open System Settings</button>
+              <span className="col-start-2 row-span-2 row-start-1 inline-flex flex-wrap justify-end gap-1.5">
+                <Button type="button" variant="outline" size="small" onClick={() => { setAsked(true); void requestPermission(row.which); }}>Request</Button>
+                <Button type="button" variant="outline" size="small" onClick={() => void desktop.admin.openPermissionPane(row.which)}>Open System Settings</Button>
               </span>
             )}
           </li>

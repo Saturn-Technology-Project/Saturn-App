@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop";
 import { askToConfirm } from "../../infrastructure/confirm";
+import { Button } from "../ui/base/Button.js";
+import { RowDescription, RowLabel, RowText, SettingsRow } from "./Parts";
 
 type Storage = { folders: { id: string; folder: string | null; bytes: number }[]; bytes: number };
 
@@ -46,26 +48,26 @@ export function SnapshotStorage(props: { onError: (message: string) => void }) {
 
   return (
     <>
-      <div className="settings-card-row">
-        <div className="settings-row-text">
-          <span className="settings-row-label">Folder snapshots</span>
-          <span className="settings-row-desc">
+      <SettingsRow>
+        <RowText>
+          <RowLabel>Folder snapshots</RowLabel>
+          <RowDescription>
             For project folders outside git, Saturn keeps a private snapshot in its own data folder, so what a shell command
             changes can be reviewed and reverted. {storage ? `${storage.folders.length} ${storage.folders.length === 1 ? "folder" : "folders"}, ${formatBytes(storage.bytes)} in all.` : "Reading…"}
-          </span>
-        </div>
+          </RowDescription>
+        </RowText>
         {storage?.folders.length ? (
-          <button type="button" className="btn ghost tiny" disabled={busy} onClick={() => void remove()}>Delete all</button>
+          <Button type="button" variant="outline" size="small" disabled={busy} onClick={() => void remove()}>Delete all</Button>
         ) : null}
-      </div>
+      </SettingsRow>
       {storage?.folders.map((item) => (
-        <div className="settings-card-row" key={item.id}>
-          <div className="settings-row-text">
-            <span className="settings-row-label snapshot-folder" title={item.folder ?? item.id}>{item.folder ?? `Unknown folder (${item.id})`}</span>
-            <span className="settings-row-desc">{formatBytes(item.bytes)}</span>
-          </div>
-          <button type="button" className="btn ghost tiny" disabled={busy} onClick={() => void remove(item.id, item.folder)}>Delete</button>
-        </div>
+        <SettingsRow key={item.id}>
+          <RowText>
+            <RowLabel className="font-mono text-xs break-words" title={item.folder ?? item.id}>{item.folder ?? `Unknown folder (${item.id})`}</RowLabel>
+            <RowDescription>{formatBytes(item.bytes)}</RowDescription>
+          </RowText>
+          <Button type="button" variant="outline" size="small" disabled={busy} onClick={() => void remove(item.id, item.folder)}>Delete</Button>
+        </SettingsRow>
       ))}
     </>
   );

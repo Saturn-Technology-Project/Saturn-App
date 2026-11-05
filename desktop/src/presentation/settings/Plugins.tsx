@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop";
 import type { Plugin } from "../../domain/model";
 import { askToConfirm } from "../../infrastructure/confirm";
+import { Badge } from "../ui/base/Badge.js";
+import { Button } from "../ui/base/Button.js";
+import { Input } from "../ui/base/Input.js";
+import { RowDescription, RowLabel, RuleCode, RuleEffect, RuleForm, RuleItem, RuleList, SectionTitle, SettingsCard, SettingsRow } from "./Parts";
 
 /** Settings → Plugins: install from a folder or a git URL, turn on or off, allow a plugin's hooks, remove it. */
 export function PluginsPage(props: { onError: (message: string) => void; onChanged?: () => void }) {
@@ -42,47 +46,49 @@ export function PluginsPage(props: { onError: (message: string) => void; onChang
   }
 
   return (
-    <div className="settings-section-list">
-      <div className="settings-section">
-        <div className="settings-section-title">Install a plugin</div>
-        <div className="settings-card">
-          <p className="settings-row-desc">
+    <div className="flex max-w-[760px] flex-col gap-5">
+      <div>
+        <SectionTitle>Install a plugin</SectionTitle>
+        <SettingsCard className="flex flex-col gap-2.5">
+          <p className="m-0 text-xs text-muted-foreground">
             A plugin bundles skills, <code>/</code> commands, hooks and MCP servers in one folder with a <code>plugin.json</code>; Claude Code plugins (<code>.claude-plugin/plugin.json</code>) install as they are. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.
           </p>
-          <form className="permission-form plugin-install" onSubmit={(event) => { event.preventDefault(); if (source.trim()) void act("install", async () => { await desktop.admin.installPlugin(source.trim()); setSource(""); }); }}>
-            <input className="input tiny permission-pattern-input plugin-source" aria-label="Plugin folder or git URL" placeholder="/path/to/plugin or https://github.com/owner/plugin" value={source} onChange={(event) => setSource(event.target.value)} />
-            <button type="button" className="btn ghost tiny" onClick={() => void pickFolder()}>Choose Folder…</button>
-            <button type="submit" className="btn tiny" disabled={busy !== null || !source.trim()}>{busy === "install" ? "Installing…" : "Install"}</button>
-          </form>
-        </div>
+          <RuleForm onSubmit={(event) => { event.preventDefault(); if (source.trim()) void act("install", async () => { await desktop.admin.installPlugin(source.trim()); setSource(""); }); }}>
+            <Input className="w-auto flex-[1_1_260px] font-mono" aria-label="Plugin folder or git URL" placeholder="/path/to/plugin or https://github.com/owner/plugin" value={source} onChange={(event) => setSource(event.target.value)} />
+            <Button type="button" variant="outline" onClick={() => void pickFolder()}>Choose Folder…</Button>
+            <Button type="submit" disabled={busy !== null || !source.trim()}>{busy === "install" ? "Installing…" : "Install"}</Button>
+          </RuleForm>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Installed</div>
-        <div className="settings-card">
+      <div>
+        <SectionTitle>Installed</SectionTitle>
+        <SettingsCard>
           {plugins.length ? plugins.map((plugin) => (
-            <div className="settings-card-row settings-card-stack" key={plugin.name}>
-              <div className="hook-set-head">
-                <span className="settings-row-label">
+            <SettingsRow stacked key={plugin.name}>
+              <div className="flex flex-wrap items-center gap-2">
+                <RowLabel className="min-w-0 flex-1">
                   {plugin.name}
-                  {plugin.version ? <span className="plugin-version"> {plugin.version}</span> : null}
-                </span>
-                <button type="button" className="btn ghost tiny" disabled={busy !== null} onClick={() => void act(`toggle:${plugin.name}`, () => desktop.admin.setPluginEnabled(plugin.name, !plugin.enabled))}>
+                  {plugin.version ? <span className="text-xs font-normal text-muted-foreground"> {plugin.version}</span> : null}
+                </RowLabel>
+                <Button type="button" variant="outline" size="small" disabled={busy !== null} onClick={() => void act(`toggle:${plugin.name}`, () => desktop.admin.setPluginEnabled(plugin.name, !plugin.enabled))}>
                   {plugin.enabled ? "Turn Off" : "Turn On"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn ghost tiny danger"
+                  variant="ghost"
+                  size="small"
+                  className="text-muted-foreground hover:bg-destructive/12 hover:text-destructive"
                   disabled={busy !== null}
                   onClick={async () => {
                     if (await askToConfirm(`Remove ${plugin.name}? Its files and its MCP servers are removed.`)) void act(`remove:${plugin.name}`, () => desktop.admin.removePlugin(plugin.name));
                   }}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
-              {plugin.description ? <span className="settings-row-desc">{plugin.description}</span> : null}
-              <span className="settings-row-desc plugin-parts">
+              {plugin.description ? <RowDescription>{plugin.description}</RowDescription> : null}
+              <RowDescription>
                 {plugin.enabled ? "" : "Off · "}
                 {[
                   plugin.skills.length ? `${plugin.skills.length} skill${plugin.skills.length === 1 ? "" : "s"} (${plugin.skills.join(", ")})` : "",
@@ -90,32 +96,32 @@ export function PluginsPage(props: { onError: (message: string) => void; onChang
                   plugin.mcpServers.length ? `${plugin.mcpServers.length} MCP server${plugin.mcpServers.length === 1 ? "" : "s"} (allow each under MCP & Skills)` : "",
                 ].filter(Boolean).join(" · ") || "Nothing Saturn can use yet"}
                 {` · from ${plugin.source}`}
-              </span>
+              </RowDescription>
               {plugin.hooks.length ? (
-                <div className="plugin-hooks">
-                  <div className="hook-set-head">
-                    <span className="settings-row-desc">{plugin.hooks.length} hook{plugin.hooks.length === 1 ? "" : "s"}</span>
-                    <span className={plugin.hooksApproved ? "hook-state allowed" : "hook-state waiting"}>{plugin.hooksApproved ? "Allowed" : "Not running: needs your approval"}</span>
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <RowDescription>{plugin.hooks.length} hook{plugin.hooks.length === 1 ? "" : "s"}</RowDescription>
+                    <Badge tone={plugin.hooksApproved ? "good" : "wait"}>{plugin.hooksApproved ? "Allowed" : "Not running: needs your approval"}</Badge>
                     {!plugin.hooksApproved && plugin.enabled ? (
-                      <button type="button" className="btn primary-btn tiny" disabled={busy !== null} onClick={() => void act(`hooks:${plugin.name}`, () => desktop.admin.approvePluginHooks(plugin.name, plugin.hooksFingerprint!))}>
+                      <Button type="button" size="small" disabled={busy !== null} onClick={() => void act(`hooks:${plugin.name}`, () => desktop.admin.approvePluginHooks(plugin.name, plugin.hooksFingerprint!))}>
                         Allow These Hooks
-                      </button>
+                      </Button>
                     ) : null}
                   </div>
-                  <ul className="permission-rules">
+                  <RuleList>
                     {plugin.hooks.map((hook, index) => (
-                      <li key={index} className="permission-rule">
-                        <span className="permission-effect hook">{hook.event.replace("_", " ")}</span>
-                        {hook.event !== "stop" ? <code className="permission-tool">{hook.matcher || "any tool"}</code> : null}
-                        <code className="permission-pattern" title={hook.command}>{hook.command}</code>
-                      </li>
+                      <RuleItem key={index}>
+                        <RuleEffect kind="hook">{hook.event.replace("_", " ")}</RuleEffect>
+                        {hook.event !== "stop" ? <RuleCode>{hook.matcher || "any tool"}</RuleCode> : null}
+                        <RuleCode pattern title={hook.command}>{hook.command}</RuleCode>
+                      </RuleItem>
                     ))}
-                  </ul>
+                  </RuleList>
                 </div>
               ) : null}
-            </div>
-          )) : <p className="settings-row-desc">No plugins installed.</p>}
-        </div>
+            </SettingsRow>
+          )) : <RowDescription>No plugins installed.</RowDescription>}
+        </SettingsCard>
       </div>
     </div>
   );

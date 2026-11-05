@@ -1,5 +1,9 @@
 import saturnIcon from "../../assets/saturn-icon.png";
 import type { RuntimeInfo } from "../../domain/model";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { classes } from "../ui/base/classes.js";
+import { SectionTitle } from "./Parts";
 
 const PARTS: { name: string; role: string; body: string }[] = [
   {
@@ -45,56 +49,56 @@ const FEATURES: { title: string; body: string }[] = [
 export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboarding?: () => void }) {
   const listen = props.info.listen.replace(/^https?:\/\//, "");
   return (
-    <div className="about">
-      <header className="about-hero">
-        <img className="about-icon" src={saturnIcon} alt="" width={64} height={64} />
+    <div className="flex max-w-[760px] flex-col gap-5.5">
+      <header className="flex items-center gap-4">
+        <img className="size-16 shrink-0 rounded-[15px] shadow-md" src={saturnIcon} alt="" width={64} height={64} />
         <div>
-          <h3 className="about-name">Saturn</h3>
-          <p className="about-tagline">A workbench for AI research, on your own computer.</p>
+          <h3 className="m-0 text-[22px] font-semibold tracking-tight text-foreground">Saturn</h3>
+          <p className="mt-0.5 mb-0 text-[13.5px] text-muted-foreground">A workbench for AI research, on your own computer.</p>
         </div>
         {props.onRerunOnboarding ? (
-          <button type="button" className="btn ghost tiny about-rerun" onClick={props.onRerunOnboarding} title="Show the tour again">
+          <Button type="button" variant="outline" size="small" className="ml-auto self-center" onClick={props.onRerunOnboarding} title="Show the tour again">
             Take the tour again
-          </button>
+          </Button>
         ) : null}
       </header>
 
-      <p className="about-lead">
+      <p className="m-0 text-[13.5px] leading-relaxed text-foreground">
         Saturn is a desktop workbench for AI research. Read the method, write the code yourself, run the experiment and inspect
         every sample, with as much help from AI as you choose. The app and its runtime run locally, and your records stay in your
         project.
       </p>
 
-      <section className="about-section">
-        <div className="settings-section-title">How it fits together</div>
-        <div className="about-parts">
+      <section className="flex flex-col">
+        <SectionTitle>How it fits together</SectionTitle>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5">
           {PARTS.map((part) => (
-            <div className="about-part" key={part.name}>
-              <div className="about-part-head">
-                <span className="about-part-name">{part.name}</span>
-                <span className="about-part-role">{part.role}</span>
+            <Card className="gap-0 px-3.5 py-3" key={part.name}>
+              <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                <span className="text-[13px] font-semibold text-foreground">{part.name}</span>
+                <span className="text-[11px] whitespace-nowrap text-muted-foreground">{part.role}</span>
               </div>
-              <p>{part.body}</p>
-            </div>
+              <p className="m-0 text-xs leading-relaxed text-muted-foreground">{part.body}</p>
+            </Card>
           ))}
         </div>
       </section>
 
-      <section className="about-section">
-        <div className="settings-section-title">What it does</div>
-        <div className="about-features">
+      <section className="flex flex-col">
+        <SectionTitle>What it does</SectionTitle>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5">
           {FEATURES.map((feature) => (
-            <div className="about-feature" key={feature.title}>
-              <span className="about-feature-title">{feature.title}</span>
-              <p>{feature.body}</p>
-            </div>
+            <Card className="gap-0 px-3.5 py-3" key={feature.title}>
+              <span className="mb-1 block text-[13px] font-semibold text-foreground">{feature.title}</span>
+              <p className="m-0 text-xs leading-relaxed text-muted-foreground">{feature.body}</p>
+            </Card>
           ))}
         </div>
       </section>
 
-      <section className="about-section">
-        <div className="settings-section-title">This installation</div>
-        <div className="settings-card about-facts">
+      <section className="flex flex-col">
+        <SectionTitle>This installation</SectionTitle>
+        <Card className="gap-0 px-4.5 py-1">
           <Fact label="Version" value={props.version ?? props.info.version} />
           <Fact label="Runtime" value={listen} />
           <Fact label="Workspace" value={props.info.name} />
@@ -103,7 +107,7 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
             <Fact label="API keys" value={props.info.secrets.encrypted ? `Encrypted (AES-256-GCM), key in the ${props.info.secrets.label}` : "Not encrypted"} />
           ) : null}
           <Fact label="Runtime ID" value={props.info.runtimeId} mono />
-        </div>
+        </Card>
       </section>
     </div>
   );
@@ -111,9 +115,9 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
 
 function Fact(props: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="about-fact">
-      <span>{props.label}</span>
-      <span className={props.mono ? "about-fact-value mono" : "about-fact-value"} title={props.value}>
+    <div className="flex justify-between gap-4 py-2.25 text-[12.5px] not-first:border-t not-first:border-border">
+      <span className="text-muted-foreground">{props.label}</span>
+      <span className={classes("min-w-0 truncate text-foreground", props.mono && "font-mono text-[11.5px]")} title={props.value}>
         {props.value}
       </span>
     </div>

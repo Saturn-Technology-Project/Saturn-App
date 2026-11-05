@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop";
 import type { Hook, HookEvent, HookSet, Project } from "../../domain/model";
+import { Badge } from "../ui/base/Badge.js";
+import { Button } from "../ui/base/Button.js";
+import { Input } from "../ui/base/Input.js";
+import { Choice } from "../ui/base/Field.js";
 import { Explained } from "./Explained";
+import { FormHint, RowDescription, RowLabel, RuleCode, RuleEffect, RuleForm, RuleItem, RuleList, SectionTitle, SettingsCard, SettingsRow } from "./Parts";
 
 const EVENTS: { id: HookEvent; label: string; hint: string }[] = [
   { id: "pre_tool", label: "Before a tool", hint: "Exit 2 blocks the call (stderr goes to the agent). Print {\"decision\": \"allow\" | \"ask\" | \"deny\"} to skip the card, ask, or refuse." },
@@ -10,20 +15,20 @@ const EVENTS: { id: HookEvent; label: string; hint: string }[] = [
 ];
 
 function HookList(props: { hooks: Hook[]; onRemove?: (index: number) => void }) {
-  if (!props.hooks.length) return <p className="settings-row-desc">No hooks.</p>;
+  if (!props.hooks.length) return <p className="text-xs text-muted-foreground">No hooks.</p>;
   return (
-    <ul className="permission-rules">
+    <RuleList>
       {props.hooks.map((hook, index) => (
-        <li key={`${hook.event}:${hook.command}:${index}`} className="permission-rule">
-          <span className="permission-effect hook">{hook.event.replace("_", " ")}</span>
-          {hook.event !== "stop" ? <code className="permission-tool">{hook.matcher || "any tool"}</code> : null}
-          <code className="permission-pattern" title={hook.command}>{hook.command}</code>
+        <RuleItem key={`${hook.event}:${hook.command}:${index}`}>
+          <RuleEffect kind="hook">{hook.event.replace("_", " ")}</RuleEffect>
+          {hook.event !== "stop" ? <RuleCode>{hook.matcher || "any tool"}</RuleCode> : null}
+          <RuleCode pattern title={hook.command}>{hook.command}</RuleCode>
           {props.onRemove ? (
-            <button type="button" className="btn ghost tiny danger" onClick={() => props.onRemove!(index)} aria-label={`Remove ${hook.command}`}>Remove</button>
+            <Button type="button" variant="ghost" size="small" className="text-muted-foreground hover:bg-destructive/12 hover:text-destructive" onClick={() => props.onRemove!(index)} aria-label={`Remove ${hook.command}`}>Remove</Button>
           ) : null}
-        </li>
+        </RuleItem>
       ))}
-    </ul>
+    </RuleList>
   );
 }
 
@@ -70,55 +75,52 @@ export function HooksPage(props: { projects: Project[]; onError: (message: strin
 
   const withFiles = props.projects.filter((project) => (projectSets[project.id] ?? []).length);
   return (
-    <div className="settings-section-list">
+    <div className="flex max-w-[760px] flex-col gap-5">
       <Explained summary="A hook is a shell command that runs around an agent's tool calls, or when its turn ends.">
         <li>It runs in the chat's project folder, and gets the event as JSON on stdin: the tool, its arguments and result, and the turn's answer.</li>
         <li>Your hooks below run in every project.</li>
         <li>A project can bring its own in <code>.saturn/hooks.json</code>, and the hooks of its <code>.claude/settings.json</code> are read too (PreToolUse, PostToolUse and Stop). Those run only after you allow them here, and any change to the file asks again.</li>
       </Explained>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Your hooks</div>
-        <div className="settings-card">
-          <div className="settings-card-row settings-card-stack">
+      <div>
+        <SectionTitle>Your hooks</SectionTitle>
+        <SettingsCard>
+          <SettingsRow stacked>
             <HookList hooks={userHooks} onRemove={(index) => void save(userHooks.filter((_, at) => at !== index))} />
-            <form
-              className="permission-form"
+            <RuleForm
               onSubmit={(formEvent) => {
                 formEvent.preventDefault();
                 if (!command.trim()) return;
                 void save([...userHooks, { event, ...(event !== "stop" && matcher.trim() ? { matcher: matcher.trim() } : {}), command: command.trim() }]).then(() => { setCommand(""); setMatcher(""); });
               }}
             >
-              <select className="input tiny settings-select-fit" aria-label="Hook event" value={event} onChange={(changeEvent) => setEvent(changeEvent.target.value as HookEvent)}>
-                {EVENTS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-              </select>
-              {event !== "stop" ? <input className="input tiny hook-matcher-input" aria-label="Tools" placeholder="tools: code, files, github_* (empty: all)" value={matcher} onChange={(changeEvent) => setMatcher(changeEvent.target.value)} /> : null}
-              <input className="input tiny permission-pattern-input" aria-label="Command" placeholder="./scripts/check.sh" value={command} onChange={(changeEvent) => setCommand(changeEvent.target.value)} />
-              <button type="submit" className="btn tiny" disabled={busy || !command.trim()}>Add hook</button>
-              <span className="permission-hint">{EVENTS.find((item) => item.id === event)?.hint}</span>
-            </form>
-          </div>
-        </div>
+              <Choice ariaLabel="Hook event" value={event} options={EVENTS.map((item) => ({ value: item.id, label: item.label }))} onChange={(next) => setEvent(next as HookEvent)} />
+              {event !== "stop" ? <Input className="w-55 flex-none" aria-label="Tools" placeholder="tools: code, files, github_* (empty: all)" value={matcher} onChange={(changeEvent) => setMatcher(changeEvent.target.value)} /> : null}
+              <Input className="w-55 flex-none font-mono" aria-label="Command" placeholder="./scripts/check.sh" value={command} onChange={(changeEvent) => setCommand(changeEvent.target.value)} />
+              <Button type="submit" disabled={busy || !command.trim()}>Add hook</Button>
+              <FormHint>{EVENTS.find((item) => item.id === event)?.hint}</FormHint>
+            </RuleForm>
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Project hooks</div>
-        <div className="settings-card">
+      <div>
+        <SectionTitle>Project hooks</SectionTitle>
+        <SettingsCard>
           {withFiles.length ? withFiles.map((project) => (projectSets[project.id] ?? []).map((set) => (
-            <div className="settings-card-row settings-card-stack" key={`${project.id}:${set.path}`}>
-              <div className="hook-set-head">
-                <span className="settings-row-label">{project.name} · <code>{set.path}</code></span>
-                <span className={set.approved ? "hook-state allowed" : "hook-state waiting"}>{set.approved ? "Allowed" : "Not running: needs your approval"}</span>
-                <button type="button" className={set.approved ? "btn ghost tiny" : "btn primary-btn tiny"} onClick={() => void allow(project.id, set, !set.approved)}>
+            <SettingsRow stacked key={`${project.id}:${set.path}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <RowLabel className="min-w-0 flex-1">{project.name} · <code>{set.path}</code></RowLabel>
+                <Badge tone={set.approved ? "good" : "wait"}>{set.approved ? "Allowed" : "Not running: needs your approval"}</Badge>
+                <Button type="button" variant={set.approved ? "outline" : "default"} size="small" onClick={() => void allow(project.id, set, !set.approved)}>
                   {set.approved ? "Stop allowing" : "Allow these hooks"}
-                </button>
+                </Button>
               </div>
               <HookList hooks={set.hooks} />
-              {!set.approved ? <p className="settings-row-desc">These commands come with the folder and run with your permissions. Read them before allowing.</p> : null}
-            </div>
-          ))) : <p className="settings-row-desc">No project has a <code>.saturn/hooks.json</code> or hooks in <code>.claude/settings.json</code>.</p>}
-        </div>
+              {!set.approved ? <RowDescription>These commands come with the folder and run with your permissions. Read them before allowing.</RowDescription> : null}
+            </SettingsRow>
+          ))) : <RowDescription>No project has a <code>.saturn/hooks.json</code> or hooks in <code>.claude/settings.json</code>.</RowDescription>}
+        </SettingsCard>
       </div>
     </div>
   );

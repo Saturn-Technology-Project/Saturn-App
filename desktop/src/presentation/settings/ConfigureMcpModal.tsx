@@ -1,5 +1,9 @@
 import { useState } from "react";
 import type { Mcp, McpTool } from "../../domain/model.js";
+import { Button } from "../ui/base/Button.js";
+import { Checkbox } from "../ui/base/Checkbox.js";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/base/Dialog.js";
+import { Choice } from "../ui/base/Field.js";
 
 interface Props {
   server: Mcp;
@@ -100,39 +104,30 @@ export function ConfigureMcpModal({ server, onClose, onSave, onReload }: Props) 
     const status = getSectionStatus(tools);
 
     return (
-      <div className="configure-mcp-section">
-        <div className="configure-mcp-section-header">
-          <span className="configure-mcp-section-title">{title}</span>
-          <div className="configure-mcp-dropdown-wrap">
-            <select
-              className="configure-mcp-dropdown"
-              value={status}
-              onChange={(e) => {
-                if (e.target.value === "Allow all") handleBatchSelect(tools, "allow");
-                else if (e.target.value === "Block all") handleBatchSelect(tools, "block");
-              }}
-            >
-              <option value="Allow all">Allow all</option>
-              <option value="Block all">Block all</option>
-              {status === "Custom" && <option value="Custom">Custom</option>}
-            </select>
-          </div>
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <span className="text-sm font-semibold text-foreground">{title}</span>
+          <Choice
+            ariaLabel={`${title} tools`}
+            value={status}
+            options={[
+              { value: "Allow all", label: "Allow all" },
+              { value: "Block all", label: "Block all" },
+              ...(status === "Custom" ? [{ value: "Custom", label: "Custom" }] : []),
+            ]}
+            onChange={(next) => {
+              if (next === "Allow all") handleBatchSelect(tools, "allow");
+              else if (next === "Block all") handleBatchSelect(tools, "block");
+            }}
+          />
         </div>
-        <div className="configure-mcp-tool-list">
+        <div className="flex flex-col">
           {tools.map((tool) => {
             const isEnabled = !disabled.has(tool.toolId);
             return (
-              <div key={tool.toolId} className="configure-mcp-tool-row">
-                <span className="configure-mcp-tool-name">{tool.toolId}</span>
-                <label className="cursor-switch">
-                  <input
-                    type="checkbox"
-                    aria-label={tool.toolId}
-                    checked={isEnabled}
-                    onChange={() => toggleTool(tool.toolId)}
-                  />
-                  <span className="cursor-slider round"></span>
-                </label>
+              <div key={tool.toolId} className="flex items-center justify-between border-b border-border py-2 last:border-b-0">
+                <span className="font-mono text-[13px] text-foreground">{tool.toolId}</span>
+                <Checkbox aria-label={tool.toolId} checked={isEnabled} onCheckedChange={() => toggleTool(tool.toolId)} />
               </div>
             );
           })}
@@ -142,46 +137,28 @@ export function ConfigureMcpModal({ server, onClose, onSave, onReload }: Props) 
   };
 
   return (
-    <div className="modal-backdrop configure-mcp-overlay" onClick={onClose}>
-      <div className="configure-mcp-dialog" role="dialog" aria-modal="true" aria-label={`Configure ${server.name}`} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="configure-mcp-header">
-          <div className="configure-mcp-title-wrap">
-            <h2 className="configure-mcp-title">Configure {server.name}</h2>
-            <span className="configure-mcp-source-badge">1 source</span>
-          </div>
-          <button className="configure-mcp-close-btn" type="button" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-h-[84vh] max-w-[92vw] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-[580px]" aria-label={`Configure ${server.name}`}>
+        <DialogHeader className="border-b border-border px-5.5 pt-4.5 pb-3.5">
+          <DialogTitle className="text-[17px] font-semibold tracking-tight">Configure {server.name}</DialogTitle>
+          <DialogDescription>1 source</DialogDescription>
+        </DialogHeader>
 
-        {/* Body */}
-        <div className="configure-mcp-body">
+        <div className="flex min-h-0 flex-col gap-5.5 overflow-y-auto px-5.5 py-4">
           {renderSection("Reads", reads)}
           {renderSection("Writes", writes)}
         </div>
 
-        {/* Footer */}
-        <div className="configure-mcp-footer">
-          <button
-            className="configure-mcp-reload-btn"
-            type="button"
-            onClick={() => void handleReload()}
-            disabled={reloading}
-          >
-            <span className={`reload-icon ${reloading ? "spinning" : ""}`}>↻</span>
+        <DialogFooter className="items-center justify-between border-t border-border px-5.5 py-3.5">
+          <Button type="button" variant="outline" onClick={() => void handleReload()} disabled={reloading}>
+            <span className={reloading ? "inline-block animate-spin" : undefined}>↻</span>
             <span>Reload</span>
-          </button>
-          <button
-            className="configure-mcp-done-btn"
-            type="button"
-            onClick={() => void handleDone()}
-            disabled={saving}
-          >
+          </Button>
+          <Button type="button" onClick={() => void handleDone()} disabled={saving}>
             {saving ? "Saving..." : "Done"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

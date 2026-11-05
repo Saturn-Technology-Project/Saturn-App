@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop";
 import type { TelemetryExportFormat, NetworkView } from "../../application/telemetry";
 import type {
@@ -11,6 +11,17 @@ import type {
   TelemetryStatus,
   TraceSummary,
 } from "../../domain/model";
+import { Badge } from "../ui/base/Badge.js";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { Checkbox } from "../ui/base/Checkbox.js";
+import { classes } from "../ui/base/classes.js";
+import { Choice } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/base/Menu.js";
+import { Notice } from "../ui/base/Notice.js";
+import { Tabs, TabsList, TabsTrigger } from "../ui/base/Tabs.js";
+import { SubTitle } from "./Parts";
 
 type Tab = "traces" | "metrics" | "logs" | "network";
 
@@ -26,6 +37,32 @@ const SEVERITY_FLOORS: { label: string; value: number }[] = [
   { label: "Warnings and up", value: 13 },
   { label: "Errors", value: 17 },
 ];
+
+/** How a line of a table is set; the traces list and the waterfall share it. */
+const TRACE_ROW = "grid min-h-[34px] w-full grid-cols-[minmax(120px,1fr)_48px_minmax(84px,180px)_64px] items-center gap-3.5 border-0 border-t border-border bg-transparent px-3.5 py-1.25 text-left text-[12.5px] text-foreground";
+const HINT = "text-[12.5px] text-muted-foreground";
+const SECTION_LABEL = "text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase";
+const TABLE = "w-full border-collapse text-xs [&_code]:text-[11.5px] [&_code]:break-all [&_td]:border-t [&_td]:border-border [&_td]:px-2 [&_td]:py-1.25 [&_td]:text-left [&_th]:border-t [&_th]:border-border [&_th]:px-2 [&_th]:py-1.25 [&_th]:text-left [&_th]:text-[11px] [&_th]:font-semibold [&_th]:text-muted-foreground";
+
+/** A small round mark that says whether something went well. */
+function Dot(props: { tone: "good" | "bad" | "idle"; pulse?: boolean; title?: string }) {
+  return <span className={classes("inline-block size-[7px] shrink-0 rounded-full", props.tone === "good" ? "bg-good" : props.tone === "bad" ? "bg-destructive" : "bg-muted-foreground", props.pulse && "animate-pulse")} title={props.title} />;
+}
+
+/** A short word that labels a record, such as the service it came from. */
+function Tag(props: { children: ReactNode }) {
+  return <Badge className="h-auto border border-border px-1.75 py-px text-[11px]">{props.children}</Badge>;
+}
+
+/** What a list shows when there is nothing in it yet, and what to do about it. */
+function Nothing(props: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-[10px] border border-dashed border-input px-4 py-10 text-center">
+      <strong>{props.title}</strong>
+      <p className={classes("m-0", HINT)}>{props.children}</p>
+    </div>
+  );
+}
 
 /* ─── Formatting ─── */
 
@@ -153,48 +190,44 @@ export function Telemetry() {
   }
 
   return (
-    <div className="telemetry">
-      <div className="telemetry-bar">
-        <div className="telemetry-tabs" role="tablist">
-          {(["traces", "metrics", "logs", "network"] as Tab[]).map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              className={tab === id ? "telemetry-tab active" : "telemetry-tab"}
-              onClick={() => setTab(id)}
-            >
-              {id === "traces" ? "Traces" : id === "metrics" ? "Metrics" : id === "logs" ? "Logs" : "Network"}
-            </button>
-          ))}
-        </div>
-        <div className="telemetry-actions">
-          <button
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <Tabs value={tab} onValueChange={(id) => setTab(id as Tab)}>
+          <TabsList>
+            {(["traces", "metrics", "logs", "network"] as Tab[]).map((id) => (
+              <TabsTrigger key={id} value={id} className="px-3.5">
+                {id === "traces" ? "Traces" : id === "metrics" ? "Metrics" : id === "logs" ? "Logs" : "Network"}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <div className="flex items-center gap-1.5">
+          <Button
             type="button"
-            className={live ? "btn ghost tiny active-toggle" : "btn ghost tiny"}
+            variant={live ? "soft" : "outline"}
+            size="small"
             onClick={() => setLive((value) => !value)}
             title="Refresh every 3 seconds"
           >
-            <span className={live ? "dot ok pulse" : "dot"} />
+            <Dot tone={live ? "good" : "idle"} pulse={live} />
             Live
-          </button>
-          <button type="button" className="btn ghost tiny" onClick={() => setTick((value) => value + 1)}>Refresh</button>
+          </Button>
+          <Button type="button" variant="outline" size="small" onClick={() => setTick((value) => value + 1)}>Refresh</Button>
           <DownloadMenu
             disabled={!status || status.mode === "disabled"}
             busy={downloading}
             savedTo={status?.file ? homeRelative(status.file) : null}
             onPick={(format) => void download(format)}
           />
-          <button type="button" className="btn ghost tiny" onClick={() => void clear()} title="Empties the page and telemetry.json">Clear</button>
+          <Button type="button" variant="outline" size="small" onClick={() => void clear()} title="Empties the page and telemetry.json">Clear</Button>
         </div>
       </div>
 
       {status?.mode === "disabled" ? (
-        <p className="hint">Telemetry is off (OTEL_SDK_DISABLED=true), so nothing is recorded or saved.</p>
+        <p className={HINT}>Telemetry is off (OTEL_SDK_DISABLED=true), so nothing is recorded or saved.</p>
       ) : null}
 
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <Notice tone="bad">{error}</Notice> : null}
 
       {tab === "traces" ? (
         openTrace ? (
@@ -224,62 +257,35 @@ function DownloadMenu(props: {
   savedTo: string | null;
   onPick: (format: TelemetryExportFormat) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent | KeyboardEvent) => {
-      if (event instanceof KeyboardEvent ? event.key === "Escape" : !root.current?.contains(event.target as Node)) setOpen(false);
-    };
-    window.addEventListener("mousedown", close);
-    window.addEventListener("keydown", close);
-    return () => {
-      window.removeEventListener("mousedown", close);
-      window.removeEventListener("keydown", close);
-    };
-  }, [open]);
-
   return (
-    <div className="download-menu" ref={root}>
-      <button
-        type="button"
-        className={open ? "btn ghost tiny active-toggle" : "btn ghost tiny"}
+    <Menu>
+      <MenuTrigger
         disabled={props.disabled || props.busy}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
         title={props.savedTo ? `Saved to ${props.savedTo}` : undefined}
+        render={<Button type="button" variant="outline" size="small" />}
       >
         {props.busy ? "Saving…" : "Download"}
         <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-      </button>
-      {open ? (
-        <div className="download-menu-list" role="menu">
-          {EXPORTS.map((item) => (
-            <button
-              key={item.format}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                props.onPick(item.format);
-              }}
-            >
-              <strong>{item.label}</strong>
-              <span>{item.detail}</span>
-            </button>
-          ))}
-          {props.savedTo ? <div className="download-menu-foot">Saved to {props.savedTo}</div> : null}
-        </div>
-      ) : null}
-    </div>
+      </MenuTrigger>
+      <MenuContent className="w-72">
+        {EXPORTS.map((item) => (
+          <MenuItem key={item.format} className="flex-col items-start gap-px px-2.5 py-1.75" onClick={() => props.onPick(item.format)}>
+            <strong className="text-[12.5px] font-medium">{item.label}</strong>
+            <span className="text-[11.5px] text-muted-foreground">{item.detail}</span>
+          </MenuItem>
+        ))}
+        {props.savedTo ? <div className="mt-1 border-t border-border px-2.5 pt-1.5 pb-1 text-[11px] text-muted-foreground">Saved to {props.savedTo}</div> : null}
+      </MenuContent>
+    </Menu>
   );
 }
 
 /* ─── Traces ─── */
+
+/** The way a checkbox and its words sit side by side. */
+const CHECK = "inline-flex items-center gap-1.5 text-[12.5px] whitespace-nowrap text-muted-foreground";
 
 /** How many rows a long list shows at a time, so that a page stays short enough to find its way around. */
 const PAGE = 25;
@@ -288,9 +294,9 @@ const PAGE = 25;
 function ShowMore(props: { left: number; onMore: () => void }) {
   if (props.left <= 0) return null;
   return (
-    <button type="button" className="btn ghost tiny telemetry-more" onClick={props.onMore}>
+    <Button type="button" variant="outline" size="small" className="mx-auto my-2.5 self-center" onClick={props.onMore}>
       Show {Math.min(PAGE, props.left)} more ({props.left} left)
-    </button>
+    </Button>
   );
 }
 
@@ -310,25 +316,22 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
 
   return (
     <>
-      <div className="telemetry-toolbar">
-        <input aria-label="Filter traces" placeholder="Filter by span name or trace id…" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <label className="telemetry-check">
-          <input type="checkbox" checked={hideRoutine} onChange={(event) => setHideRoutine(event.target.checked)} />
+      <div className="flex flex-wrap items-center gap-3">
+        <Input className="min-w-50 flex-1" aria-label="Filter traces" placeholder="Filter by span name or trace id…" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <label className={CHECK}>
+          <Checkbox checked={hideRoutine} onCheckedChange={setHideRoutine} />
           Hide polling ({routine})
         </label>
-        <label className="telemetry-check">
-          <input type="checkbox" checked={errorsOnly} onChange={(event) => setErrorsOnly(event.target.checked)} />
+        <label className={CHECK}>
+          <Checkbox checked={errorsOnly} onCheckedChange={setErrorsOnly} />
           Errors only
         </label>
       </div>
       {shown.length === 0 ? (
-        <div className="telemetry-empty">
-          <strong>No traces yet</strong>
-          <p className="hint">Send a message to an agent or run an automation, then come back.</p>
-        </div>
+        <Nothing title="No traces yet">Send a message to an agent or run an automation, then come back.</Nothing>
       ) : (
-        <section className="card telemetry-table">
-          <div className="trace-row head">
+        <Card className="gap-0 overflow-hidden p-0">
+          <div className={classes(TRACE_ROW, "border-t-0 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase")}>
             <span>Trace</span>
             <span>Spans</span>
             <span>Duration</span>
@@ -338,27 +341,27 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
             <button
               key={trace.traceId}
               type="button"
-              className="trace-row"
+              className={classes(TRACE_ROW, "cursor-pointer hover:bg-muted")}
               title={`${trace.rootName}\ntrace ${trace.traceId}`}
               onClick={() => props.onOpen(trace.traceId)}
             >
-              <span className="trace-name">
-                {trace.errorCount ? <span className="dot off" title={`${trace.errorCount} failed spans`} /> : <span className="dot ok" />}
-                <strong>{trace.rootName}</strong>
+              <span className="flex min-w-0 items-center gap-2">
+                {trace.errorCount ? <Dot tone="bad" title={`${trace.errorCount} failed spans`} /> : <Dot tone="good" />}
+                <strong className="truncate font-medium">{trace.rootName}</strong>
               </span>
-              <span className="trace-spans">
+              <span className="flex items-baseline gap-1.5 tabular-nums">
                 {trace.spanCount}
-                {trace.errorCount ? <em>{trace.errorCount} err</em> : null}
+                {trace.errorCount ? <span className="text-[11px] text-destructive">{trace.errorCount} err</span> : null}
               </span>
-              <span className="trace-duration">
-                <span className="trace-duration-bar" style={{ width: `${Math.max(2, (trace.durationMs / longest) * 100)}%` }} />
+              <span className="relative flex items-center gap-2 tabular-nums">
+                <span className="h-1.5 max-w-[60%] flex-none rounded-[3px] bg-info/55" style={{ width: `${Math.max(2, (trace.durationMs / longest) * 100)}%` }} />
                 <span>{formatDuration(trace.durationMs)}</span>
               </span>
-              <span className="hint" title={new Date(trace.startMs).toLocaleString()}>{formatAgo(trace.startMs)}</span>
+              <span className={HINT} title={new Date(trace.startMs).toLocaleString()}>{formatAgo(trace.startMs)}</span>
             </button>
           ))}
           <ShowMore left={shown.length - limit} onMore={() => setLimit((current) => current + PAGE)} />
-        </section>
+        </Card>
       )}
     </>
   );
@@ -389,6 +392,9 @@ function flatten(spans: SpanRecord[]): SpanNode[] {
   return out;
 }
 
+/** A line of the waterfall: the span's name on the left, where it sits in time on the right. */
+const WATERFALL_ROW = "grid grid-cols-[minmax(220px,38%)_minmax(0,1fr)] items-center";
+
 function TraceDetail(props: { traceId: string; tick: number; onBack: () => void }) {
   const [spans, setSpans] = useState<SpanRecord[]>([]);
   const [logs, setLogs] = useState<TelemetryLog[]>([]);
@@ -414,23 +420,23 @@ function TraceDetail(props: { traceId: string; tick: number; onBack: () => void 
 
   return (
     <>
-      <div className="trace-detail-head">
-        <button type="button" className="btn ghost tiny" onClick={props.onBack}>← All traces</button>
-        <div>
-          <strong>{root?.name ?? "Trace"}</strong>
-          <span className="hint">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" variant="outline" size="small" onClick={props.onBack}>← All traces</Button>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <strong className="text-sm">{root?.name ?? "Trace"}</strong>
+          <span className={HINT}>
             {formatDuration(total)} · {spans.length} spans{errors ? ` · ${errors} failed` : ""}
             {spans.length ? ` · ${new Date(start).toLocaleString()}` : ""}
           </span>
         </div>
-        <code className="trace-id" title="Trace id">{props.traceId}</code>
+        <code className="text-[11px] text-muted-foreground" title="Trace id">{props.traceId}</code>
       </div>
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <Notice tone="bad">{error}</Notice> : null}
 
-      <section className="card waterfall">
-        <div className="waterfall-scale">
+      <Card className="gap-0.5 overflow-hidden px-0 py-1.5">
+        <div className={classes(WATERFALL_ROW, "border-b border-border pr-3.5 pb-1.5")}>
           <span />
-          <div className="waterfall-ticks">
+          <div className="relative h-4 text-[10.5px] text-muted-foreground tabular-nums [&>span]:absolute [&>span]:top-0 [&>span]:-translate-x-1/2 [&>span]:whitespace-nowrap [&>span:first-child]:translate-x-0 [&>span:last-child]:-translate-x-full">
             {[0, 0.25, 0.5, 0.75, 1].map((step) => (
               <span key={step} style={{ left: `${step * 100}%` }}>{formatDuration(total * step)}</span>
             ))}
@@ -444,20 +450,20 @@ function TraceDetail(props: { traceId: string; tick: number; onBack: () => void 
             <Fragment key={span.spanId}>
               <button
                 type="button"
-                className={selected ? "waterfall-row selected" : "waterfall-row"}
+                className={classes(WATERFALL_ROW, "w-full cursor-pointer border-0 bg-transparent py-[3px] pr-3.5 text-left text-foreground hover:bg-muted", selected && "bg-muted")}
                 onClick={() => setOpen(selected ? null : span.spanId)}
               >
-                <span className="waterfall-label" style={{ paddingLeft: 8 + span.depth * 14 }}>
-                  <span className={`kind-chip ${span.kind}`}>{span.kind}</span>
-                  <span className={span.status === "error" ? "waterfall-name failed" : "waterfall-name"}>{span.name}</span>
+                <span className="flex min-w-0 items-center gap-[7px] text-[12.5px]" style={{ paddingLeft: 8 + span.depth * 14 }}>
+                  <Badge tone={span.kind === "server" ? "info" : span.kind === "client" ? "violet" : "neutral"} className="h-auto w-13 flex-none rounded px-0 py-px text-[10px] font-semibold tracking-wide uppercase">{span.kind}</Badge>
+                  <span className={classes("truncate", span.status === "error" && "font-medium text-destructive")}>{span.name}</span>
                 </span>
-                <span className="waterfall-track">
+                <span className="relative h-5 bg-[linear-gradient(to_right,var(--line)_1px,transparent_1px)] bg-[length:25%_100%]">
                   <span
-                    className={`waterfall-bar ${span.kind}${span.status === "error" ? " failed" : ""}`}
+                    className={classes("absolute top-[5px] h-2.5 rounded-[3px]", span.status === "error" ? "bg-destructive" : span.kind === "server" ? "bg-info" : span.kind === "client" ? "bg-violet" : "bg-muted-foreground")}
                     style={{ left: `${left}%`, width: `${width}%` }}
                   />
                   <span
-                    className={left + width > 82 && width > 18 ? "waterfall-time inside" : "waterfall-time"}
+                    className={classes("absolute text-[10.5px] whitespace-nowrap tabular-nums", left + width > 82 && width > 18 ? "top-1 text-[9.5px] font-semibold text-white" : "top-0.5 text-muted-foreground")}
                     style={
                       left + width <= 82
                         ? { left: `calc(${left + width}% + 6px)` }
@@ -474,14 +480,14 @@ function TraceDetail(props: { traceId: string; tick: number; onBack: () => void 
             </Fragment>
           );
         })}
-      </section>
+      </Card>
 
       {logs.length ? (
         <>
-          <div className="section-subtitle">Logs in this trace</div>
-          <section className="card telemetry-logs">
+          <SubTitle>Logs in this trace</SubTitle>
+          <Card className="gap-0 px-0 py-1 text-xs">
             {logs.map((line, index) => <LogRow key={`${line.timeMs}-${index}`} line={line} />)}
-          </section>
+          </Card>
         </>
       ) : null}
     </>
@@ -492,8 +498,8 @@ function SpanDetail(props: { span: SpanRecord; traceStart: number }) {
   const { span } = props;
   const attributes = Object.entries(span.attributes).sort(([a], [b]) => a.localeCompare(b));
   return (
-    <div className="span-detail">
-      <div className="span-facts">
+    <div className="mx-3.5 mt-0.5 mb-2 flex flex-col gap-3 rounded-lg border border-border bg-stage px-3.5 py-3">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
         <Fact label="Duration" value={formatDuration(span.durationMs)} />
         <Fact label="Starts at" value={`+${formatDuration(span.startMs - props.traceStart)}`} />
         <Fact label="Kind" value={span.kind} />
@@ -501,21 +507,21 @@ function SpanDetail(props: { span: SpanRecord; traceStart: number }) {
         <Fact label="Scope" value={span.scope} />
         <Fact label="Span id" value={span.spanId} mono />
       </div>
-      {attributes.length ? <AttributeTable attributes={span.attributes} /> : <p className="hint">No attributes.</p>}
+      {attributes.length ? <AttributeTable attributes={span.attributes} /> : <p className={HINT}>No attributes.</p>}
       {span.events.length ? (
-        <div className="span-events">
-          <div className="detail-label">Events</div>
+        <div className="flex flex-col gap-2">
+          <div className={SECTION_LABEL}>Events</div>
           {span.events.map((event, index) => (
-            <div key={`${event.name}-${index}`} className={event.name === "exception" ? "span-event exception" : "span-event"}>
-              <div className="span-event-head">
+            <div key={`${event.name}-${index}`} className={classes("flex flex-col gap-1 border-l-2 pl-2.5 text-[12.5px]", event.name === "exception" ? "border-destructive" : "border-input")}>
+              <div className="flex items-baseline gap-2">
                 <strong>{event.name}</strong>
-                <span className="hint">+{formatDuration(event.timeMs - props.traceStart)}</span>
+                <span className={HINT}>+{formatDuration(event.timeMs - props.traceStart)}</span>
               </div>
-              {event.attributes["exception.message"] ? <p>{formatValue(event.attributes["exception.message"])}</p> : null}
+              {event.attributes["exception.message"] ? <p className="m-0 text-destructive">{formatValue(event.attributes["exception.message"])}</p> : null}
               {event.attributes["exception.stacktrace"] ? (
                 <details>
                   <summary>Stack trace</summary>
-                  <pre>{formatValue(event.attributes["exception.stacktrace"])}</pre>
+                  <pre className="max-h-55 overflow-auto rounded-md bg-muted p-2 text-[11px]">{formatValue(event.attributes["exception.stacktrace"])}</pre>
                 </details>
               ) : null}
               {Object.keys(event.attributes).some((key) => !key.startsWith("exception.")) ? (
@@ -533,9 +539,9 @@ function SpanDetail(props: { span: SpanRecord; traceStart: number }) {
 
 function Fact(props: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="span-fact">
-      <span>{props.label}</span>
-      {props.mono ? <code>{props.value}</code> : <strong>{props.value}</strong>}
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-[11px] text-muted-foreground">{props.label}</span>
+      {props.mono ? <code className="text-[12.5px] [overflow-wrap:anywhere]">{props.value}</code> : <strong className="text-[12.5px] [overflow-wrap:anywhere]">{props.value}</strong>}
     </div>
   );
 }
@@ -543,11 +549,11 @@ function Fact(props: { label: string; value: string; mono?: boolean }) {
 function AttributeTable(props: { attributes: Attributes }) {
   const rows = Object.entries(props.attributes).sort(([a], [b]) => a.localeCompare(b));
   return (
-    <div className="attr-table">
+    <div className="grid grid-cols-[minmax(160px,max-content)_minmax(0,1fr)] overflow-hidden rounded-md border border-border text-xs">
       {rows.map(([key, value]) => (
         <Fragment key={key}>
-          <code className="attr-key">{key}</code>
-          <code className={typeof value === "number" ? "attr-value number" : "attr-value"}>{formatValue(value)}</code>
+          <code className="border-t border-border bg-muted px-2.5 py-1.25 text-muted-foreground [overflow-wrap:anywhere] first:border-t-0">{key}</code>
+          <code className={classes("border-t border-border px-2.5 py-1.25 [overflow-wrap:anywhere] nth-2:border-t-0", typeof value === "number" && "text-info")}>{formatValue(value)}</code>
         </Fragment>
       ))}
     </div>
@@ -569,10 +575,7 @@ const GROUPS: { prefix: string; title: string }[] = [
 function Metrics(props: { metrics: MetricView[] }) {
   if (props.metrics.length === 0) {
     return (
-      <div className="telemetry-empty">
-        <strong>No metrics recorded yet</strong>
-        <p className="hint">Metrics appear once the runtime has handled requests or runs.</p>
-      </div>
+      <Nothing title="No metrics recorded yet">Metrics appear once the runtime has handled requests or runs.</Nothing>
     );
   }
   const used = new Set<string>();
@@ -586,7 +589,7 @@ function Metrics(props: { metrics: MetricView[] }) {
     <>
       {sections.map((section) => (
         <Fragment key={section.title}>
-          <div className="section-subtitle">{section.title}</div>
+          <SubTitle>{section.title}</SubTitle>
           {section.items.map((metric) => <MetricCard key={metric.name} metric={metric} />)}
         </Fragment>
       ))}
@@ -602,25 +605,25 @@ function MetricCard(props: { metric: MetricView }) {
       ? metric.points.reduce((sum, point) => sum + (point.value ?? 0), 0)
       : null;
   return (
-    <section className="card metric-view">
-      <div className="metric-view-head">
+    <Card className="gap-2.5">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <code className="metric-name">{metric.name}</code>
-          {metric.description ? <p className="hint">{metric.description}</p> : null}
+          <code className="text-[13px] font-semibold text-foreground">{metric.name}</code>
+          {metric.description ? <p className={classes("mt-0.5", HINT)}>{metric.description}</p> : null}
         </div>
-        <div className="metric-tags">
-          <span className="tag">{metric.type === "sum" ? (metric.monotonic ? "counter" : "up-down") : metric.type}</span>
-          {metric.unit ? <span className="tag">{metric.unit}</span> : null}
+        <div className="flex flex-none items-center gap-1.5">
+          <Tag>{metric.type === "sum" ? (metric.monotonic ? "counter" : "up-down") : metric.type}</Tag>
+          {metric.unit ? <Tag>{metric.unit}</Tag> : null}
           {total !== null ? (
-            <strong>
+            <strong className="ml-1 text-[13px] tabular-nums">
               {metric.type === "histogram" ? `${formatNumber(total)} recorded` : formatUnit(total, metric.unit)}
             </strong>
           ) : null}
         </div>
       </div>
-      <div className={metric.type === "histogram" ? "metric-points histogram" : "metric-points"}>
+      <div className="flex flex-col border-t border-border">
         {metric.type === "histogram" ? (
-          <div className="metric-point head">
+          <div className={classes(POINT, HISTOGRAM_POINT, "text-[11px] font-semibold tracking-wider text-muted-foreground uppercase")}>
             <span>Count</span>
             <span>Avg</span>
             <span>Min / Max</span>
@@ -631,37 +634,41 @@ function MetricCard(props: { metric: MetricView }) {
           <MetricRow key={index} point={point} metric={metric} />
         ))}
       </div>
-    </section>
+    </Card>
   );
 }
+
+/** A line of a metric: what it was measured on, and the figure. A histogram's has more columns. */
+const POINT = "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3.5 border-b border-border py-1.5 text-[12.5px] tabular-nums last:border-b-0";
+const HISTOGRAM_POINT = "grid-cols-[minmax(50px,0.7fr)_minmax(70px,1fr)_minmax(110px,1.4fr)_minmax(80px,1.2fr)] gap-y-1";
 
 function MetricRow(props: { point: MetricPoint; metric: MetricView }) {
   const { point, metric } = props;
   const chips = Object.entries(point.attributes);
   const labels = chips.length ? (
-    <span className="attr-chips">
+    <span className="flex min-w-0 flex-wrap gap-1">
       {chips.map(([key, value]) => (
-        <span key={key} className="attr-chip" title={key}>
-          <em>{key.split(".").pop()}</em>
+        <span key={key} className="inline-flex max-w-full gap-1.25 overflow-hidden rounded-[5px] bg-muted px-1.75 py-px font-mono text-[11px] text-ellipsis whitespace-nowrap" title={key}>
+          <em className="text-muted-foreground not-italic">{key.split(".").pop()}</em>
           {formatValue(value)}
         </span>
       ))}
     </span>
   ) : (
-    <span className="hint">(no attributes)</span>
+    <span className={HINT}>(no attributes)</span>
   );
   if (point.histogram) {
     const { count, sum, min, max, counts } = point.histogram;
     const peak = Math.max(1, ...counts);
     return (
-      <div className="metric-point">
+      <div className={classes(POINT, HISTOGRAM_POINT, "[&>:first-child]:col-span-full")}>
         {labels}
         <strong>{formatNumber(count)}</strong>
         <span>{count ? formatUnit(sum / count, metric.unit) : "—"}</span>
-        <span className="hint">
+        <span className={HINT}>
           {min !== undefined ? formatUnit(min, metric.unit) : "—"} / {max !== undefined ? formatUnit(max, metric.unit) : "—"}
         </span>
-        <span className="buckets" title="Bucket counts, low to high">
+        <span className="flex h-5.5 items-end gap-px [&>span]:min-w-0.5 [&>span]:flex-1 [&>span]:rounded-t-[1px] [&>span]:bg-info/70" title="Bucket counts, low to high">
           {counts.map((value, index) => (
             <span key={index} style={{ height: `${value ? Math.max(12, (value / peak) * 100) : 0}%` }} />
           ))}
@@ -670,7 +677,7 @@ function MetricRow(props: { point: MetricPoint; metric: MetricView }) {
     );
   }
   return (
-    <div className="metric-point">
+    <div className={POINT}>
       {labels}
       <strong>{formatUnit(point.value ?? 0, metric.unit)}</strong>
     </div>
@@ -690,30 +697,28 @@ function Logs(props: { logs: TelemetryLog[]; onOpenTrace: (traceId: string) => v
     .reverse();
   return (
     <>
-      <div className="telemetry-toolbar">
-        <input placeholder="Search log messages…" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <select value={floor} onChange={(event) => setFloor(Number(event.target.value))} aria-label="Minimum severity">
-          {SEVERITY_FLOORS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-        </select>
+      <div className="flex flex-wrap items-center gap-3">
+        <Input className="min-w-50 flex-1" placeholder="Search log messages…" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Choice ariaLabel="Minimum severity" value={String(floor)} options={SEVERITY_FLOORS.map((item) => ({ value: String(item.value), label: item.label }))} onChange={(next) => setFloor(Number(next))} />
       </div>
       {shown.length === 0 ? (
-        <div className="telemetry-empty">
-          <strong>No log records</strong>
-          <p className="hint">Runtime log lines show up here as OpenTelemetry log records.</p>
-        </div>
+        <Nothing title="No log records">Runtime log lines show up here as OpenTelemetry log records.</Nothing>
       ) : (
-        <section className="card telemetry-logs">
+        <Card className="gap-0 px-0 py-1 text-xs">
           {shown.slice(0, limit).map((line, index) => (
             <LogRow key={`${line.timeMs}-${index}`} line={line} onOpenTrace={props.onOpenTrace} />
           ))}
           <ShowMore left={shown.length - limit} onMore={() => setLimit((current) => current + PAGE)} />
-        </section>
+        </Card>
       )}
     </>
   );
 }
 
-function severityClass(severity: number): string {
+/** How loud a log record is, as the tone of its label. */
+const SEVERITY_TONES = { error: "bad", warn: "wait", info: "info", debug: "neutral" } as const;
+
+function severityClass(severity: number): keyof typeof SEVERITY_TONES {
   if (severity >= 17) return "error";
   if (severity >= 13) return "warn";
   if (severity >= 9) return "info";
@@ -724,13 +729,13 @@ function LogRow(props: { line: TelemetryLog; onOpenTrace?: (traceId: string) => 
   const { line } = props;
   const service = line.attributes["saturn.service"];
   return (
-    <div className="log-record">
-      <span className="log-time">{formatClock(line.timeMs)}</span>
-      <span className={`severity ${severityClass(line.severityNumber)}`}>{line.severity}</span>
-      {service ? <span className="tag">{formatValue(service)}</span> : <span />}
-      <span className="log-body">{line.body}</span>
+    <div className="grid grid-cols-[96px_58px_max-content_minmax(0,1fr)_max-content] items-baseline gap-2.5 border-b border-border px-3.5 py-1.25 last:border-b-0">
+      <span className="font-mono text-[11px] text-muted-foreground">{formatClock(line.timeMs)}</span>
+      <Badge tone={SEVERITY_TONES[severityClass(line.severityNumber)]} className="h-auto w-full rounded px-0 py-px text-[10px] font-semibold tracking-wide">{line.severity}</Badge>
+      {service ? <Tag>{formatValue(service)}</Tag> : <span />}
+      <span className="[overflow-wrap:anywhere]">{line.body}</span>
       {line.traceId && props.onOpenTrace ? (
-        <button type="button" className="trace-link" onClick={() => props.onOpenTrace?.(line.traceId!)} title={line.traceId}>
+        <button type="button" className="cursor-pointer border-0 bg-transparent p-0 font-mono text-[11px] text-info hover:underline" onClick={() => props.onOpenTrace?.(line.traceId!)} title={line.traceId}>
           trace {shortId(line.traceId)}
         </button>
       ) : <span />}
@@ -744,22 +749,22 @@ function LogRow(props: { line: TelemetryLog; onOpenTrace?: (traceId: string) => 
  */
 function Network(props: { view: NetworkView | null }) {
   const view = props.view;
-  if (!view) return <p className="hint">Loading…</p>;
+  if (!view) return <p className={HINT}>Loading…</p>;
   const remote = view.hosts.filter((host) => !host.local);
   return (
-    <div className="network-view">
-      <p className="hint">
+    <div className="flex flex-col gap-3">
+      <p className={HINT}>
         Every HTTP(S) request the Saturn runtime has sent since {new Date(view.since).toLocaleString()}: hosts and paths only, never
         query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your
         system's firewall or network monitor.{view.file ? <> Also written to <code>{view.file}</code>.</> : null}
       </p>
-      <section className="card telemetry-table">
-        <div className="network-head">
+      <Card className="gap-0 overflow-hidden p-0">
+        <div className="flex items-baseline gap-2.5 p-2">
           <strong>{remote.length} outside host{remote.length === 1 ? "" : "s"}</strong>
-          <span className="hint">{view.hosts.length - remote.length} on this computer</span>
+          <span className={HINT}>{view.hosts.length - remote.length} on this computer</span>
         </div>
-        {view.hosts.length === 0 ? <p className="hint">No requests yet.</p> : null}
-        <table>
+        {view.hosts.length === 0 ? <p className={classes("px-2 pb-2", HINT)}>No requests yet.</p> : null}
+        <table className={TABLE}>
           <thead>
             <tr><th>Host</th><th>Where</th><th>Requests</th><th>Methods</th><th>Last</th></tr>
           </thead>
@@ -775,10 +780,10 @@ function Network(props: { view: NetworkView | null }) {
             ))}
           </tbody>
         </table>
-      </section>
-      <section className="card telemetry-table">
-        <div className="network-head"><strong>Latest requests</strong></div>
-        <table>
+      </Card>
+      <Card className="gap-0 overflow-hidden p-0">
+        <div className="flex items-baseline gap-2.5 p-2"><strong>Latest requests</strong></div>
+        <table className={TABLE}>
           <tbody>
             {view.recent.slice(0, 100).map((entry, index) => (
               <tr key={`${entry.at}-${index}`}>
@@ -789,7 +794,7 @@ function Network(props: { view: NetworkView | null }) {
             ))}
           </tbody>
         </table>
-      </section>
+      </Card>
     </div>
   );
 }

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import type { Automation, Conversation } from "../../domain/model.js";
+import { Button } from "../ui/base/Button.js";
 import { messageOf } from "../ui/Parts.js";
+
+/** A feature that is still running: what it is on the left, the button that turns it off on the right. */
+const OLDER_ROW = "mt-1 flex min-h-10 flex-wrap items-center gap-2 border-b border-border px-2.5 py-1.5";
+const OLDER_TEXT = "min-w-0 flex-[1_1_220px] [overflow-wrap:anywhere]";
 
 /**
  * What the earlier interface set going and the runtime still does: nothing else shows it now, so it is listed here to
@@ -41,14 +46,14 @@ export function OlderFeatures(props: { onError: (message: string) => void }) {
 
   const count = automations.length + watched.length;
   return (
-    <div className="lab-older">
-      <p className="lab-lead">Scheduled runs and pull request follow-up came from the earlier interface. The runtime keeps doing them until they are turned off here. They can use your models and your GitHub token.</p>
-      {loaded && count === 0 ? <p className="lab-muted" style={{ marginTop: 12 }}>Nothing is still running.</p> : null}
+    <div>
+      <p className="max-w-[680px] text-muted-foreground">Scheduled runs and pull request follow-up came from the earlier interface. The runtime keeps doing them until they are turned off here. They can use your models and your GitHub token.</p>
+      {loaded && count === 0 ? <p className="mt-3 text-xs text-muted-foreground">Nothing is still running.</p> : null}
       {count > 1 ? (
-        <button
+        <Button
           type="button"
-          className="lab-button"
-          style={{ marginTop: 12 }}
+          variant="outline"
+          className="mt-3"
           onClick={() =>
             void act(() =>
               Promise.all([
@@ -59,26 +64,26 @@ export function OlderFeatures(props: { onError: (message: string) => void }) {
           }
         >
           Turn them all off
-        </button>
+        </Button>
       ) : null}
       {automations.map((item) => (
-        <div className="lab-row" key={item.id}>
-          <span>
-            {item.name} <span className="lab-muted">scheduled, on {item.agentName}</span>
+        <div className={OLDER_ROW} key={item.id}>
+          <span className={OLDER_TEXT}>
+            {item.name} <span className="text-xs text-muted-foreground">scheduled, on {item.agentName}</span>
           </span>
-          <button type="button" className="lab-button" onClick={() => void act(() => desktop.automations.update(item.id, { enabled: false }))}>
+          <Button type="button" variant="outline" onClick={() => void act(() => desktop.automations.update(item.id, { enabled: false }))}>
             Turn off
-          </button>
+          </Button>
         </div>
       ))}
       {watched.map((thread) => (
-        <div className="lab-row" key={thread.id}>
-          <span>
-            {thread.title} <span className="lab-muted">pull request {thread.pullRequest?.url}</span>
+        <div className={OLDER_ROW} key={thread.id}>
+          <span className={OLDER_TEXT}>
+            {thread.title} <span className="text-xs text-muted-foreground">pull request {thread.pullRequest?.url}</span>
           </span>
-          <button type="button" className="lab-button" onClick={() => void act(() => desktop.catalog.watchPullRequest(thread.id, false))}>
+          <Button type="button" variant="outline" onClick={() => void act(() => desktop.catalog.watchPullRequest(thread.id, false))}>
             Stop following
-          </button>
+          </Button>
         </div>
       ))}
     </div>

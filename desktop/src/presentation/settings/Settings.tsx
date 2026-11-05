@@ -13,6 +13,17 @@ import { Telemetry } from "./Telemetry";
 import { ConfigureMcpModal } from "./ConfigureMcpModal";
 import { About } from "./About";
 import { askToConfirm } from "../../infrastructure/confirm";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { classes } from "../ui/base/classes.js";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/base/Dialog.js";
+import { Choice, Field } from "../ui/base/Field.js";
+import { Input } from "../ui/base/Input.js";
+import { Notice } from "../ui/base/Notice.js";
+import { Switch } from "../ui/base/Switch.js";
+import { Tabs, TabsList, TabsTrigger } from "../ui/base/Tabs.js";
+import { Textarea } from "../ui/base/Textarea.js";
+import { CardRow, InlineForm, LinkButton, Pills, RowActions, RowDescription, RowError, RowLabel, RowText, SectionTitle, SettingsCard, SettingsRow, Status, SubTitle } from "./Parts";
 
 export type SettingsPage =
   | "settings"
@@ -91,16 +102,6 @@ export function Settings(props: {
     paneRef.current?.scrollTo({ top: 0 });
   }, [page, selectedProjectId]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        props.onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [props.onClose]);
-
   async function load() {
     const next = await desktop.admin.console();
     setProfile(next.profile);
@@ -123,90 +124,81 @@ export function Settings(props: {
       : GROUPS.flatMap((group) => group.items).find(([id]) => id === page);
 
   return (
-    <div className="settings-modal-overlay" onMouseDown={props.onClose}>
-      <div
-        className="settings-modal-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-dialog-title"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <button
-          className="settings-modal-close"
+    <Dialog open onOpenChange={(open) => { if (!open) props.onClose(); }}>
+      <DialogContent className="h-[min(690px,88vh)] w-[min(980px,94vw)] max-w-[min(980px,94vw)] grid-cols-[210px_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-[min(980px,94vw)] max-[760px]:grid-cols-[168px_minmax(0,1fr)]">
+        <Button
+          variant="ghost"
+          className="absolute top-3.5 right-4 z-20 size-7 px-0 text-muted-foreground"
           type="button"
           onClick={props.onClose}
           title="Close (Esc)"
           aria-label="Close settings"
         >
           <CloseIcon />
-        </button>
+        </Button>
 
-        <aside className="settings-rail">
-          <div className="settings-rail-scroll">
+        <aside className="flex h-full flex-col justify-between overflow-hidden border-r border-border bg-muted/40 px-2.5 pt-4 pb-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pr-0.5">
             {GROUPS.map((group) => (
-              <div className="settings-group" key={group.title}>
-                <div className="settings-group-label">{group.title}</div>
+              <div className="flex flex-col gap-0.5" key={group.title}>
+                <div className={RAIL_GROUP}>{group.title}</div>
                 {group.items.map(([id, label]) => (
-                  <button
+                  <RailLink
                     key={id}
-                    type="button"
-                    className={page === id && !selectedProjectId ? "settings-link active" : "settings-link"}
+                    active={page === id && !selectedProjectId}
                     onClick={() => { setPage(id); setSelectedProjectId(null); setError(""); }}
                   >
                     <span>{label}</span>
-                    {id === "llm" ? <small className="rail-count">{props.models.length}</small> : null}
-                    {id === "mcp" ? <small className="rail-count">{props.mcp.length}</small> : null}
-                  </button>
+                    {id === "llm" ? <small className="text-[11px] text-muted-foreground">{props.models.length}</small> : null}
+                    {id === "mcp" ? <small className="text-[11px] text-muted-foreground">{props.mcp.length}</small> : null}
+                  </RailLink>
                 ))}
               </div>
             ))}
 
             {props.projects && props.projects.length > 0 ? (
-              <div className="settings-group">
-                <div className="settings-group-label">Projects</div>
+              <div className="flex flex-col gap-0.5">
+                <div className={RAIL_GROUP}>Projects</div>
                 {props.projects.map((proj) => (
-                  <button
+                  <RailLink
                     key={proj.id}
-                    type="button"
-                    className={selectedProjectId === proj.id ? "settings-link active" : "settings-link"}
+                    active={selectedProjectId === proj.id}
                     onClick={() => { setSelectedProjectId(proj.id); setError(""); }}
                   >
                     <span>{proj.name}</span>
-                  </button>
+                  </RailLink>
                 ))}
               </div>
             ) : null}
           </div>
 
-          <div className="settings-rail-foot">
-            <button
-              type="button"
-              className={page === "shortcuts" && !selectedProjectId ? "settings-link active" : "settings-link"}
+          <div className="mt-1.5 flex shrink-0 flex-col gap-1.5 border-t border-border pt-2.5">
+            <RailLink
+              active={page === "shortcuts" && !selectedProjectId}
               onClick={() => { setPage("shortcuts"); setSelectedProjectId(null); setError(""); }}
             >
               <span>Shortcuts</span>
-            </button>
-            <button
-              type="button"
-              className={page === "older" && !selectedProjectId ? "settings-link active" : "settings-link"}
+            </RailLink>
+            <RailLink
+              active={page === "older" && !selectedProjectId}
               onClick={() => { setPage("older"); setSelectedProjectId(null); setError(""); }}
             >
               <span>Still running</span>
-            </button>
+            </RailLink>
           </div>
         </aside>
 
-        <div className="settings-Pane" ref={paneRef}>
-          <header className="settings-pane-head">
+        <div className="min-h-0 overflow-y-auto px-8.5 pb-12 max-[760px]:px-5 max-[760px]:pb-9" ref={paneRef}>
+          <header className="sticky top-0 z-5 -mx-8.5 mb-5 flex items-start justify-between gap-4 border-b border-border bg-popover py-5.5 pr-16 pb-3.5 pl-8.5 max-[760px]:-mx-5 max-[760px]:mb-4 max-[760px]:pl-5">
             <div>
-              <h2 id="settings-dialog-title">{currentMeta?.[1] ?? "Settings"}</h2>
-              {currentMeta?.[2] ? <p className="hint">{currentMeta[2]}</p> : null}
+              <DialogTitle id="settings-dialog-title" className="text-xl font-semibold tracking-tight">{currentMeta?.[1] ?? "Settings"}</DialogTitle>
+              {currentMeta?.[2] ? <DialogDescription className="mt-0.5 text-[12.5px]">{currentMeta[2]}</DialogDescription> : null}
             </div>
           </header>
 
-          {error ? <p className="error">{error}</p> : null}
+          {error ? <Notice tone="bad" className="mb-3">{error}</Notice> : null}
 
-          <div className={page === "telemetry" ? "settings-body wide" : "settings-body"}>
+          <div className={classes("flex flex-col gap-3", page === "telemetry" ? "max-w-[1180px]" : "max-w-[820px]")}>
             {selectedProject ? (
               <ProjectSettingsTab
                 project={selectedProject}
@@ -262,8 +254,25 @@ export function Settings(props: {
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** A group's name in the rail. */
+const RAIL_GROUP = "px-2 pt-1 pb-0.5 text-[11px] font-semibold text-muted-foreground";
+
+/** A page of settings in the rail. */
+function RailLink(props: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      className={classes("w-full justify-between px-2.25 text-[13px] font-normal text-muted-foreground", props.active && "bg-card font-medium text-foreground")}
+      onClick={props.onClick}
+    >
+      {props.children}
+    </Button>
   );
 }
 
@@ -296,34 +305,29 @@ function CommandLine(props: { onError: (message: string) => void }) {
     }
   }
   return (
-    <div className="settings-section">
-      <div className="settings-section-title">Command Line</div>
-      <div className="settings-card">
-        <div className="settings-card-row">
-          <div className="settings-row-text">
-            <span className="settings-row-label">The saturn command</span>
-            <span className="settings-row-desc">
+    <div>
+      <SectionTitle>Command Line</SectionTitle>
+      <SettingsCard>
+        <SettingsRow>
+          <RowText>
+            <RowLabel>The saturn command</RowLabel>
+            <RowDescription>
               Run agents from a terminal or a script while Saturn is open: <code>saturn run "fix the failing test" --agent Saturn --project .</code>, <code>saturn runs</code>, <code>saturn approve</code>. It uses this app's own runtime, so it never goes out of date.
               {status?.installed ? (status.current ? ` Installed at ${status.path}.` : ` Installed at ${status.path}, for another copy of Saturn: reinstall to point it here.`) : ""}
               {status?.installed && !status.onPath ? ` Add ${status.folder} to your PATH to type just "saturn".` : ""}
-            </span>
-          </div>
-          <button type="button" className="btn tiny" disabled={busy || status?.current === true} onClick={() => void install()}>
+            </RowDescription>
+          </RowText>
+          <Button type="button" variant="default" size="small" disabled={busy || status?.current === true} onClick={() => void install()}>
             {status?.current ? "Installed" : status?.installed ? "Reinstall" : busy ? "Installing…" : "Install"}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </SettingsRow>
+      </SettingsCard>
     </div>
   );
 }
 
-function Toggle(props: { on: boolean; label: string; onChange: (next: boolean) => void }) {
-  return (
-    <button type="button" role="switch" aria-checked={props.on} aria-label={props.label} className={props.on ? "toggle on" : "toggle"} onClick={() => props.onChange(!props.on)}>
-      <span className="toggle-knob" />
-    </button>
-  );
-}
+/** The box that shows a command or a code to copy. */
+const COMMAND_BOX = "my-1.5 mb-1 flex items-center gap-2 rounded-lg border border-border bg-muted px-2.5 py-2";
 
 /** Settings → Memory: the notes Saturn keeps, global and per project, as text the user can edit. */
 function Memory(props: { projects: Project[] }) {
@@ -360,38 +364,26 @@ function Memory(props: { projects: Project[] }) {
   }
 
   return (
-    <div className="settings-section">
-      <div className="settings-section-title">Memory</div>
-      <div className="settings-card">
-        <div className="settings-card-row">
-          <div className="settings-row-text">
-            <span className="settings-row-label">Notes</span>
-            <span className="settings-row-desc">One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Saturn forget it.</span>
-          </div>
-          <select className="input tiny settings-select" aria-label="Memory scope" value={scope} onChange={(event) => setScope(event.target.value)}>
-            <option value="global">About you (every chat)</option>
-            {props.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-          </select>
-        </div>
-        <div className="settings-card-row settings-card-stack">
-          <textarea className="input memory-editor" aria-label="Memory notes" value={content} rows={14} placeholder={scope === "global" ? "Nothing remembered yet. Notes appear after a few turns of chat, or write your own: \"- Prefers short answers\"." : "Nothing remembered about this project yet."} onChange={(event) => setContent(event.target.value)} />
-          <div className="settings-row-actions">
-            <button type="button" className="btn tiny" disabled={content === saved} onClick={() => void save()}>Save</button>
-            {content !== saved ? <button type="button" className="btn ghost tiny" onClick={() => setContent(saved)}>Discard</button> : null}
-          </div>
-        </div>
-        {error ? <p className="settings-row-error">{error}</p> : null}
-      </div>
+    <div>
+      <SectionTitle>Memory</SectionTitle>
+      <SettingsCard>
+        <SettingsRow>
+          <RowText>
+            <RowLabel>Notes</RowLabel>
+            <RowDescription>One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Saturn forget it.</RowDescription>
+          </RowText>
+          <Choice className="w-45" ariaLabel="Memory scope" value={scope} options={[{ value: "global", label: "About you (every chat)" }, ...props.projects.map((project) => ({ value: project.id, label: project.name }))]} onChange={setScope} />
+        </SettingsRow>
+        <SettingsRow stacked>
+          <Textarea className="min-h-55 w-full resize-y font-mono text-[12.5px] leading-normal field-sizing-fixed" aria-label="Memory notes" value={content} rows={14} placeholder={scope === "global" ? "Nothing remembered yet. Notes appear after a few turns of chat, or write your own: \"- Prefers short answers\"." : "Nothing remembered about this project yet."} onChange={(event) => setContent(event.target.value)} />
+          <RowActions>
+            <Button type="button" variant="default" size="small" disabled={content === saved} onClick={() => void save()}>Save</Button>
+            {content !== saved ? <Button type="button" variant="outline" size="small" onClick={() => setContent(saved)}>Discard</Button> : null}
+          </RowActions>
+        </SettingsRow>
+        {error ? <RowError>{error}</RowError> : null}
+      </SettingsCard>
     </div>
-  );
-}
-
-function Status({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <span className={`status-pill ${ok ? "ok" : "off"}`}>
-      <span className={`dot ${ok ? "ok" : "off"}`} />
-      {label}
-    </span>
   );
 }
 
@@ -498,46 +490,46 @@ function McpPage(props: {
     const removable = !builtin;
     const expanded = open[item.id] ?? false;
     return (
-      <section className="card mcp-card" key={item.id}>
-        <div className="row">
+      <Card key={item.id}>
+        <CardRow>
           <button
-            className="fold"
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left text-foreground"
             type="button"
             aria-expanded={expanded}
             onClick={() => setOpen((current) => ({ ...current, [item.id]: !current[item.id] }))}
           >
             <Chevron open={expanded} />
-            <span>
-              <strong>{item.name}</strong>
-              <span className="hint">
+            <span className="min-w-0">
+              <strong className="block truncate">{item.name}</strong>
+              <span className="block truncate text-[12.5px] text-muted-foreground">
                 {item.command
                   ? `${item.approval === "approved" ? `${item.tools.length} tools · ` : ""}Local program · ${item.commandLine ?? item.command.program}`
                   : `${item.tools.length} tools · ${builtin ? (BUILT_IN_SUMMARIES[item.id] ?? "Built in") : item.url}`}
               </span>
             </span>
           </button>
-          <span className="actions">
-            <button
-              className="btn ghost tiny"
+          <RowActions>
+            <Button
+              variant="outline" size="small"
               type="button"
               onClick={() => setConfiguringServer(item)}
               title={`Configure ${item.name}`}
             >
               Configure
-            </button>
+            </Button>
             {removable ? (
               confirming === item.id ? (
                 <>
-                  <button className="btn ghost tiny" type="button" onClick={() => setConfirming(null)}>Cancel</button>
-                  <button className="btn danger tiny" type="button" onClick={() => void removeServer(item.id)}>Remove</button>
+                  <Button variant="outline" size="small" type="button" onClick={() => setConfirming(null)}>Cancel</Button>
+                  <Button variant="danger" size="small" type="button" onClick={() => void removeServer(item.id)}>Remove</Button>
                 </>
               ) : (
-                <button className="btn ghost tiny" type="button" onClick={() => setConfirming(item.id)}>Remove</button>
+                <Button variant="outline" size="small" type="button" onClick={() => setConfirming(item.id)}>Remove</Button>
               )
             ) : null}
             {!builtin ? (
-              <button
-                className={on ? "btn tiny primary-btn" : "btn ghost tiny"}
+              <Button
+                variant={on ? "default" : "outline"} size="small"
                 type="button"
                 disabled={!props.agent}
                 onClick={() =>
@@ -549,81 +541,83 @@ function McpPage(props: {
                 }
               >
                 {on ? "Enabled" : "Disabled"}
-              </button>
+              </Button>
             ) : null}
-          </span>
-        </div>
+          </RowActions>
+        </CardRow>
         {item.command && item.approval !== "approved" ? (
-          <div className="mcp-approval">
-            <p>
+          <Notice tone="wait" className="mt-2.5 grid gap-2 whitespace-normal">
+            <p className="m-0 text-[12.5px] leading-snug">
               <strong>This server runs a program on your computer</strong>, with your user account&apos;s permissions. Allow it only if you
               trust it. It starts with only a minimal environment, not Saturn&apos;s keys.
             </p>
-            <code className="mcp-command-line">{item.commandLine}</code>
-            {item.command.env?.length ? <p className="hint">Environment variables: {item.command.env.join(", ")} (values hidden)</p> : null}
-            <div className="actions">
-              <button className="btn primary-btn tiny" type="button" onClick={() => void allow(item)}>Allow and Start</button>
-              <button className="btn ghost tiny" type="button" onClick={() => void removeServer(item.id)}>Remove</button>
-            </div>
-          </div>
+            <code className="block rounded-md bg-card px-2 py-1.5 text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">{item.commandLine}</code>
+            {item.command.env?.length ? <p className="m-0 text-[12.5px] text-muted-foreground">Environment variables: {item.command.env.join(", ")} (values hidden)</p> : null}
+            <RowActions className="gap-1.5">
+              <Button variant="default" size="small" type="button" onClick={() => void allow(item)}>Allow and Start</Button>
+              <Button variant="outline" size="small" type="button" onClick={() => void removeServer(item.id)}>Remove</Button>
+            </RowActions>
+          </Notice>
         ) : null}
         {expanded ? (
-          <div className="tool-chip-grid">
+          <div className="flex flex-wrap gap-1.5 pt-1">
             {item.tools.map((tool) => (
-              <code className="tool-chip" key={tool.toolId}>{tool.toolId}</code>
+              <code className="rounded-md border border-border bg-muted px-2 py-0.5 text-[11.5px]" key={tool.toolId}>{tool.toolId}</code>
             ))}
           </div>
         ) : null}
-      </section>
+      </Card>
     );
   }
 
   return (
     <>
-      <div className="section-subtitle">Connect an MCP server</div>
-      <section className="card">
-        <div className="segmented mcp-kind">
-          <button type="button" className={kind === "url" ? "seg-btn active" : "seg-btn"} onClick={() => setKind("url")}>URL</button>
-          <button type="button" className={kind === "command" ? "seg-btn active" : "seg-btn"} onClick={() => setKind("command")}>Local Program</button>
-        </div>
+      <SubTitle>Connect an MCP server</SubTitle>
+      <Card>
+        <Tabs value={kind} onValueChange={(next) => setKind(next as "url" | "command")} className="mt-2 mb-1">
+          <TabsList aria-label="Kind of MCP server">
+            <TabsTrigger value="url">URL</TabsTrigger>
+            <TabsTrigger value="command">Local Program</TabsTrigger>
+          </TabsList>
+        </Tabs>
         {kind === "url" ? (
           <>
-            <p className="hint">An MCP server reached over HTTP(S). Tools are discovered automatically.</p>
-            <div className="inline-form">
-              <input value={url} placeholder="https://mcp.example.com/mcp" onChange={(event) => setUrl(event.target.value)} />
-              <button className="btn primary-btn" type="button" disabled={!url.trim()} onClick={() => void addMcp()}>
+            <p className="text-[12.5px] text-muted-foreground">An MCP server reached over HTTP(S). Tools are discovered automatically.</p>
+            <div className="flex gap-2">
+              <Input value={url} placeholder="https://mcp.example.com/mcp" onChange={(event) => setUrl(event.target.value)} />
+              <Button variant="default" type="button" disabled={!url.trim()} onClick={() => void addMcp()}>
                 Connect MCP
-              </button>
+              </Button>
             </div>
           </>
         ) : (
           <>
-            <p className="hint">
+            <p className="text-[12.5px] text-muted-foreground">
               A server Saturn starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is
               used, so ~, $VARIABLES and pipes are not expanded: write full paths.
             </p>
-            <div className="mcp-local-form">
-              <input value={commandName} placeholder="Name (optional)" onChange={(event) => setCommandName(event.target.value)} />
-              <input value={commandText} placeholder="npx -y @modelcontextprotocol/server-filesystem /Users/you/Documents" onChange={(event) => setCommandText(event.target.value)} />
-              <textarea value={envText} rows={2} placeholder={"Environment variables, one per line (optional)\nGITHUB_TOKEN=…"} onChange={(event) => setEnvText(event.target.value)} />
-              <button className="btn primary-btn" type="button" disabled={!commandText.trim()} onClick={() => void addLocal()}>
+            <div className="mt-2 grid gap-2">
+              <Input value={commandName} placeholder="Name (optional)" onChange={(event) => setCommandName(event.target.value)} />
+              <Input value={commandText} placeholder="npx -y @modelcontextprotocol/server-filesystem /Users/you/Documents" onChange={(event) => setCommandText(event.target.value)} />
+              <Textarea className="resize-y font-mono text-xs field-sizing-fixed" value={envText} rows={2} placeholder={"Environment variables, one per line (optional)\nGITHUB_TOKEN=…"} onChange={(event) => setEnvText(event.target.value)} />
+              <Button variant="default" className="justify-self-start" type="button" disabled={!commandText.trim()} onClick={() => void addLocal()}>
                 Add Local Server
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </section>
+      </Card>
 
-      <div className="section-subtitle">Built in</div>
+      <SubTitle>Built in</SubTitle>
       {builtinServers.length === 0 ? (
-        <p className="hint">No built-in skills available.</p>
+        <p className="text-[12.5px] text-muted-foreground">No built-in skills available.</p>
       ) : (
         builtinServers.map(renderMcpCard)
       )}
 
-      <div className="section-subtitle" style={{ marginTop: 24 }}>Installed MCP Servers</div>
+      <SubTitle className="mt-6">Installed MCP Servers</SubTitle>
       {installedServers.length === 0 ? (
-        <p className="hint">No external MCP servers installed yet.</p>
+        <p className="text-[12.5px] text-muted-foreground">No external MCP servers installed yet.</p>
       ) : (
         installedServers.map(renderMcpCard)
       )}
@@ -653,27 +647,27 @@ function McpPage(props: {
         />
       )}
 
-      <div className="section-subtitle" style={{ marginTop: 24 }}>Knowledge & RAG Endpoints</div>
-      <section className="card">
-        <div className="label">Connect Knowledge URL</div>
-        <div className="inline-form">
-          <input value={ragUrl} placeholder="http://127.0.0.1:4200/search" onChange={(event) => setRagUrl(event.target.value)} />
-          <button className="btn primary-btn" type="button" disabled={!ragUrl.trim()} onClick={() => void addRag()}>
+      <SubTitle className="mt-6">Knowledge & RAG Endpoints</SubTitle>
+      <Card>
+        <div className="text-xs font-medium text-muted-foreground">Connect Knowledge URL</div>
+        <div className="flex gap-2">
+          <Input value={ragUrl} placeholder="http://127.0.0.1:4200/search" onChange={(event) => setRagUrl(event.target.value)} />
+          <Button variant="default" type="button" disabled={!ragUrl.trim()} onClick={() => void addRag()}>
             Connect Knowledge
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
       {props.rag.map((item) => {
         const on = props.agent?.ragConnectionIds.includes(item.id) ?? false;
         return (
-          <section className="card" key={item.id}>
-            <div className="row">
+          <Card key={item.id}>
+            <CardRow>
               <div>
                 <strong>{item.name}</strong>
-                <div className="hint">{item.url}</div>
+                <div className="text-[12.5px] text-muted-foreground">{item.url}</div>
               </div>
-              <button
-                className={on ? "btn tiny primary-btn" : "btn ghost tiny"}
+              <Button
+                variant={on ? "default" : "outline"} size="small"
                 type="button"
                 disabled={!props.agent}
                 onClick={() =>
@@ -685,9 +679,9 @@ function McpPage(props: {
                 }
               >
                 {on ? "Enabled" : "Disabled"}
-              </button>
-            </div>
-          </section>
+              </Button>
+            </CardRow>
+          </Card>
         );
       })}
     </>
@@ -775,50 +769,46 @@ export function LlmPage(props: {
 
   return (
     <>
-      <div className="section-subtitle">Connected models</div>
+      <SubTitle>Connected models</SubTitle>
       {props.models.length === 0 ? (
-        <p className="hint" style={{ marginBottom: 14 }}>No models connected yet. Add a cloud or local LM Studio model below.</p>
+        <p className="mb-3.5 text-[12.5px] text-muted-foreground">No models connected yet. Add a cloud or local LM Studio model below.</p>
       ) : (
         props.models.map((item) => {
           return (
-            <div
-              key={item.id}
-              className="card key-card"
-            >
-              <div className="row">
+            <Card key={item.id}>
+              <CardRow>
                 <div>
-                  <div className="model-card-title">
+                  <div className="flex items-center gap-2">
                     <strong>{item.name}</strong>
                   </div>
-                  <div className="hint">{providerLabel(providers, item)}{item.model ? ` · ${item.model}` : ""}</div>
+                  <div className="text-[12.5px] text-muted-foreground">{providerLabel(providers, item)}{item.model ? ` · ${item.model}` : ""}</div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="flex items-center gap-2">
                   {supportsEffort(item.provider) ? (
-                    <select
-                      className="input tiny model-effort"
-                      aria-label={`Effort for ${item.name}`}
-                      title={(item.provider && EFFORT_HINTS[item.provider]) || "How much the model reasons before answering"}
-                      value={item.effort ?? ""}
-                      onChange={async (event) => {
-                        try {
-                          await desktop.admin.updateModelEffort(item.id, event.target.value || null);
-                          await props.onChanged();
-                        } catch (err) {
-                          props.onError(err instanceof Error ? err.message : "Could not change the effort");
-                        }
-                      }}
-                    >
-                      <option value="">Default effort</option>
-                      {Object.entries(EFFORT_LABELS).map(([value, label]) => <option key={value} value={value}>{label} effort</option>)}
-                    </select>
+                    <div title={(item.provider && EFFORT_HINTS[item.provider]) || "How much the model reasons before answering"}>
+                      <Choice
+                        className="min-w-33"
+                        ariaLabel={`Effort for ${item.name}`}
+                        value={item.effort || DEFAULT_EFFORT}
+                        options={[{ value: DEFAULT_EFFORT, label: "Default effort" }, ...Object.entries(EFFORT_LABELS).map(([value, label]) => ({ value, label: `${label} effort` }))]}
+                        onChange={async (next) => {
+                          try {
+                            await desktop.admin.updateModelEffort(item.id, next === DEFAULT_EFFORT ? null : next);
+                            await props.onChanged();
+                          } catch (err) {
+                            props.onError(err instanceof Error ? err.message : "Could not change the effort");
+                          }
+                        }}
+                      />
+                    </div>
                   ) : null}
                   <Status
                     ok={item.provider === "lmstudio" || item.provider === "claude-code" || item.provider === "codex" || item.hasSecret}
                     label={item.provider === "lmstudio" ? "Local Server" : item.provider === "claude-code" ? "Claude plan" : item.provider === "codex" ? "ChatGPT plan" : item.hasSecret ? "Key stored" : "No key"}
                   />
                   {item.provider !== "lmstudio" && item.provider !== "claude-code" && item.provider !== "codex" && editingKey !== item.id ? (
-                    <button
-                      className="btn ghost tiny"
+                    <Button
+                      variant="outline" size="small"
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -827,10 +817,10 @@ export function LlmPage(props: {
                       }}
                     >
                       {item.hasSecret ? "Replace Key" : "Add Key"}
-                    </button>
+                    </Button>
                   ) : null}
-                  <button
-                    className="btn ghost tiny danger"
+                  <Button
+                    variant="ghost" size="small" className="text-muted-foreground hover:bg-destructive/12 hover:text-destructive"
                     type="button"
                     title="Remove model"
                     onClick={async (e) => {
@@ -847,19 +837,19 @@ export function LlmPage(props: {
                     }}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </CardRow>
               {editingKey === item.id ? (
                 <form
-                  className="model-key-row"
+                  className="mt-2.5 flex items-center gap-2 border-t border-border pt-2.5"
                   onClick={(e) => e.stopPropagation()}
                   onSubmit={(e) => {
                     e.preventDefault();
                     void bindKey(item.id);
                   }}
                 >
-                  <input
+                  <Input
                     type="password"
                     autoFocus
                     autoComplete="off"
@@ -871,44 +861,37 @@ export function LlmPage(props: {
                       if (event.key === "Escape") setEditingKey(null);
                     }}
                   />
-                  <button className="btn ghost tiny" type="button" onClick={() => setEditingKey(null)}>Cancel</button>
-                  <button className="btn primary-btn tiny" type="submit" disabled={!keyDraft.trim()}>Save Key</button>
+                  <Button variant="outline" size="small" type="button" onClick={() => setEditingKey(null)}>Cancel</Button>
+                  <Button variant="default" size="small" type="submit" disabled={!keyDraft.trim()}>Save Key</Button>
                 </form>
               ) : null}
-            </div>
+            </Card>
           );
         })
       )}
 
-      <div className="section-subtitle" style={{ marginTop: 20 }}>Connect a model</div>
-      <section className="card">
-        <div className="form-grid-2">
-          <div>
-            <label className="label" htmlFor="llm-provider">Provider</label>
-            <select id="llm-provider" value={providerId} onChange={(event) => chooseProvider(event.target.value)}>
-              {providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label" htmlFor="llm-model">Model</label>
-            {providerId === "lmstudio" && choices.length === 0 ? (
-              <input id="llm-model" value={modelId} placeholder="Model identifier in LM Studio" onChange={(event) => setModelId(event.target.value)} />
-            ) : (
-              <select id="llm-model" value={modelId} onChange={(event) => setModelId(event.target.value)}>
-                {choices.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-              </select>
-            )}
-          </div>
+      <SubTitle className="mt-5">Connect a model</SubTitle>
+      <Card className="gap-3.5">
+        <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
+          <Choice label="Provider" value={providerId} options={providers.map((item) => ({ value: item.id, label: item.label }))} onChange={chooseProvider} />
+          {providerId === "lmstudio" && choices.length === 0 ? (
+            <Field label="Model">
+              <Input id="llm-model" value={modelId} placeholder="Model identifier in LM Studio" onChange={(event) => setModelId(event.target.value)} />
+            </Field>
+          ) : (
+            <Choice label="Model" value={modelId} options={choices.map((item) => ({ value: item.id, label: item.label }))} onChange={setModelId} />
+          )}
         </div>
 
         {supportsEffort(providerId) ? (
-          <div>
-            <label className="label" htmlFor="llm-effort">Effort</label>
-            <select id="llm-effort" value={effort} onChange={(event) => setEffort(event.target.value)}>
-              <option value="">Model default</option>
-              {Object.entries(EFFORT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-            <p className="hint">
+          <div className="flex flex-col gap-1.5">
+            <Choice
+              label="Effort"
+              value={effort || DEFAULT_EFFORT}
+              options={[{ value: DEFAULT_EFFORT, label: "Model default" }, ...Object.entries(EFFORT_LABELS).map(([value, label]) => ({ value, label }))]}
+              onChange={(next) => setEffort(next === DEFAULT_EFFORT ? "" : next)}
+            />
+            <p className="m-0 text-[12.5px] leading-snug text-muted-foreground">
               {EFFORT_HINTS[providerId] ?? "How much the model reasons before answering. Higher is slower and costs more."}
               {providerId === "claude-code" ? " Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Saturn never sends API requests for it, takes no API key, and does not schedule it." : ""}
               {providerId === "codex" ? " Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key." : ""}
@@ -917,16 +900,14 @@ export function LlmPage(props: {
         ) : null}
 
         {providerId === "lmstudio" ? (
-          <div>
-            <label className="label" htmlFor="llm-host">LM Studio Endpoint</label>
-            <input id="llm-host" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-          </div>
+          <Field label="LM Studio Endpoint">
+            <Input id="llm-host" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+          </Field>
         ) : null}
 
         {needsKey ? (
-          <div>
-            <label className="label" htmlFor="llm-key">API Key</label>
-            <input
+          <Field label="API Key">
+            <Input
               id="llm-key"
               type="password"
               value={secret}
@@ -934,23 +915,26 @@ export function LlmPage(props: {
               autoComplete="off"
               onChange={(event) => setSecret(event.target.value)}
             />
-          </div>
+          </Field>
         ) : null}
 
-        <div className="actions">
-          <button
-            className="btn primary-btn"
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
             type="button"
             disabled={!modelId.trim() || (needsKey && !savedKey && !secret.trim())}
             onClick={() => void add()}
           >
             Connect Model
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
     </>
   );
 }
+
+/** The effort choice that stands for the model's own default, which is stored as no effort at all. */
+const DEFAULT_EFFORT = "default";
 
 /** What the effort setting does on each provider. */
 const EFFORT_HINTS: Record<string, string> = {
@@ -965,6 +949,9 @@ function providerLabel(providers: LlmProvider[], model: Model) {
   return providers.find((item) => item.id === model.provider)?.label ?? model.provider ?? "Model";
 }
 
+/** The log filters' choice for everything, since a choice cannot be empty. */
+const ALL_LOGS = "all";
+
 function Logs(props: { lines: LogLine[]; onReload: () => void }) {
   const [service, setService] = useState("");
   const [level, setLevel] = useState("");
@@ -977,32 +964,33 @@ function Logs(props: { lines: LogLine[]; onReload: () => void }) {
   });
   return (
     <>
-      <div className="log-toolbar">
-        <select value={service} onChange={(event) => setService(event.target.value)}>
-          <option value="">All services</option>
-          {services.map((name) => <option key={name} value={name}>{name}</option>)}
-        </select>
-        <select value={level} onChange={(event) => setLevel(event.target.value)}>
-          <option value="">All levels</option>
-          <option value="info">info+</option>
-          <option value="warning">warning+</option>
-          <option value="error">error</option>
-        </select>
-        <button className="btn ghost" type="button" onClick={props.onReload}>Refresh</button>
+      <div className="flex items-center gap-2">
+        <Choice className="min-w-35" ariaLabel="Service" value={service || ALL_LOGS} options={[{ value: ALL_LOGS, label: "All services" }, ...services.map((name) => ({ value: name, label: name }))]} onChange={(next) => setService(next === ALL_LOGS ? "" : next)} />
+        <Choice
+          className="min-w-35"
+          ariaLabel="Level"
+          value={level || ALL_LOGS}
+          options={[{ value: ALL_LOGS, label: "All levels" }, { value: "info", label: "info+" }, { value: "warning", label: "warning+" }, { value: "error", label: "error" }]}
+          onChange={(next) => setLevel(next === ALL_LOGS ? "" : next)}
+        />
+        <Button variant="outline" type="button" onClick={props.onReload}>Refresh</Button>
       </div>
-      <div className="log-stream">
-        {shown.length === 0 ? <div className="hint">No log lines matching filter.</div> : shown.map((item) => (
-          <div className={`log-line ${item.level}`} key={item.seq}>
-            <span className="log-ts">{item.ts.slice(11, 23)}</span>
-            <span className="log-svc">{item.service}</span>
-            <span className="log-lvl">{item.level}</span>
-            <span className="log-msg">{item.message}</span>
+      <div className="h-[54vh] overflow-auto rounded-lg border border-border bg-muted px-3 py-2.5 font-mono text-xs leading-normal">
+        {shown.length === 0 ? <div className="text-[12.5px] text-muted-foreground">No log lines matching filter.</div> : shown.map((item) => (
+          <div className={classes("grid grid-cols-[88px_72px_64px_1fr] gap-2.5 py-0.5", item.level === "debug" && "opacity-60", item.level === "warning" && "text-wait", item.level === "error" && "text-destructive")} key={item.seq}>
+            <span className="text-muted-foreground">{item.ts.slice(11, 23)}</span>
+            <span className="text-muted-foreground">{item.service}</span>
+            <span>{item.level}</span>
+            <span>{item.message}</span>
           </div>
         ))}
       </div>
     </>
   );
 }
+
+/** The background model choice for letting the agent's own model do the work, since a choice cannot be empty. */
+const AUTOMATIC_MODEL = "automatic";
 
 /** The models Saturn runs itself (runtime/src/infrastructure/embeddings.ts); the first ships with the app. */
 const BUILTIN_EMBEDDING_MODELS = [
@@ -1126,166 +1114,147 @@ function General(props: {
   }
 
   const themeButtons = (
-    <div className="segmented-pill" role="radiogroup" aria-label="Theme">
-      {([["light", "Light", <SunIcon key="sun" />], ["dark", "Dark", <MoonIcon key="moon" />]] as const).map(([value, label, icon]) => (
-        <button
-          key={value}
-          type="button"
-          role="radio"
-          aria-checked={props.theme === value}
-          className={props.theme === value ? "active" : ""}
-          onClick={() => {
-            if (props.onSetTheme) props.onSetTheme(value);
-            else if (props.theme !== value) props.onToggleTheme?.();
-          }}
-        >
-          {icon}
-          <span>{label}</span>
-        </button>
-      ))}
-    </div>
+    <Pills
+      label="Theme"
+      value={props.theme}
+      options={[["light", "Light", <SunIcon key="sun" />], ["dark", "Dark", <MoonIcon key="moon" />]] as const}
+      onChoose={(value) => {
+        if (props.onSetTheme) props.onSetTheme(value);
+        else if (props.theme !== value) props.onToggleTheme?.();
+      }}
+    />
   );
 
   return (
-    <div className="settings-section-list">
-      <div className="settings-section">
-        <div className="settings-section-title">General</div>
-        <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Agent browser</span>
-              <span className="settings-row-desc">
+    <div className="flex max-w-[760px] flex-col gap-5">
+      <div>
+        <SectionTitle>General</SectionTitle>
+        <SettingsCard>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Agent browser</RowLabel>
+              <RowDescription>
                 {agentBrowser === "system"
                   ? "Agents browse in a visible window of your Chrome (or Edge, Brave), with Saturn's own profile: your logins and tabs stay out of it. You watch the cursor there."
                   : agentBrowser === "safari"
                     ? "Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second."
                     : "Agents browse in Saturn's own browser, shown live in the chat's Browser tab with the agent's cursor."}
-              </span>
-            </div>
-            <div className="segmented-pill" role="radiogroup" aria-label="Agent browser">
-              {(isMac ? ([["saturn", "Saturn"], ["system", "Chrome"], ["safari", "Safari"]] as const) : ([["saturn", "Saturn"], ["system", "Chrome"]] as const)).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={agentBrowser === value}
-                  className={agentBrowser === value ? "active" : ""}
-                  onClick={() => void chooseAgentBrowser(value)}
-                >
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Theme</span>
-              <span className="settings-row-desc">Light or dark appearance.</span>
-            </div>
+              </RowDescription>
+            </RowText>
+            <Pills
+              label="Agent browser"
+              value={agentBrowser}
+              options={isMac ? ([["saturn", "Saturn"], ["system", "Chrome"], ["safari", "Safari"]] as const) : ([["saturn", "Saturn"], ["system", "Chrome"]] as const)}
+              onChoose={(value) => void chooseAgentBrowser(value)}
+            />
+          </SettingsRow>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Theme</RowLabel>
+              <RowDescription>Light or dark appearance.</RowDescription>
+            </RowText>
             {themeButtons}
-          </div>
-        </div>
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Computer use</div>
-        <div className="settings-card">
+      <div>
+        <SectionTitle>Computer use</SectionTitle>
+        <SettingsCard>
           <ComputerPermissions />
-        </div>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Storage</div>
-        <div className="settings-card">
+      <div>
+        <SectionTitle>Storage</SectionTitle>
+        <SettingsCard>
           <SnapshotStorage onError={props.onError} />
-        </div>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Claude Code</div>
-        <div className="settings-card">
+      <div>
+        <SectionTitle>Claude Code</SectionTitle>
+        <SettingsCard>
           <ProgramGate id="claude-code">
             <ClaudeCodeLogin />
           </ProgramGate>
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Use the project's Claude Code settings</span>
-              <span className="settings-row-desc">Claude Code loads the chat's project <code>.claude/settings.json</code>: its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.</span>
-            </div>
-            <Toggle on={claudeProjectSettings} label="Use the project's Claude Code settings" onChange={(next) => void chooseClaudeProjectSettings(next)} />
-          </div>
-        </div>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Use the project's Claude Code settings</RowLabel>
+              <RowDescription>Claude Code loads the chat's project <code>.claude/settings.json</code>: its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.</RowDescription>
+            </RowText>
+            <Switch checked={claudeProjectSettings} aria-label="Use the project's Claude Code settings" onCheckedChange={(next) => void chooseClaudeProjectSettings(next)} />
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Codex</div>
-        <div className="settings-card">
+      <div>
+        <SectionTitle>Codex</SectionTitle>
+        <SettingsCard>
           <ProgramGate id="codex">
             <CodexLogin />
           </ProgramGate>
-        </div>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Models</div>
-        <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Background Model</span>
-              <span className="settings-row-desc">
+      <div>
+        <SectionTitle>Models</SectionTitle>
+        <SettingsCard>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Background Model</RowLabel>
+              <RowDescription>
                 Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.
-              </span>
-            </div>
-            <select
-              className="input tiny settings-select"
-              aria-label="Background model"
-              value={backgroundModelId}
+              </RowDescription>
+            </RowText>
+            <Choice
+              className="w-45"
+              ariaLabel="Background model"
+              value={backgroundModelId || AUTOMATIC_MODEL}
               disabled={!backgroundChoices.length && !backgroundModelId}
-              onChange={(event) => void chooseBackgroundModel(event.target.value)}
-            >
-              <option value="">Automatic</option>
-              {backgroundChoices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-          </div>
-        </div>
+              options={[{ value: AUTOMATIC_MODEL, label: "Automatic" }, ...backgroundChoices.map((item) => ({ value: item.id, label: item.name }))]}
+              onChange={(next) => void chooseBackgroundModel(next === AUTOMATIC_MODEL ? "" : next)}
+            />
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Agents</div>
-        <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Memory</span>
-              <span className="settings-row-desc">Every few turns, Saturn notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.</span>
-            </div>
-            <Toggle on={memory} label="Memory" onChange={(next) => void chooseFlag("memory", next)} />
-          </div>
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Notifications</span>
-              <span className="settings-row-desc">A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.</span>
-            </div>
-            <Toggle on={notify} label="Notifications" onChange={(next) => { setNotify(next); localStorage.setItem("saturn-notify", next ? "on" : "off"); }} />
-          </div>
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Plan approval</span>
-              <span className="settings-row-desc">Agents write a plan and wait for your go-ahead before changing files or running commands. Reply "go" to proceed, or say what to change.</span>
-            </div>
-            <Toggle on={planApproval} label="Plan approval" onChange={(next) => void chooseFlag("planApproval", next)} />
-          </div>
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Embedding model</span>
-              <span className="settings-row-desc">Builds each project's code index, so agents find code by meaning. The built-in model runs on this Mac with nothing else to install; changing the model rebuilds the index.</span>
-            </div>
-            <div className="settings-inline-form">
-              <select
-                className="input tiny settings-select settings-select-fit"
-                aria-label="Embedding source"
+      <div>
+        <SectionTitle>Agents</SectionTitle>
+        <SettingsCard>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Memory</RowLabel>
+              <RowDescription>Every few turns, Saturn notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.</RowDescription>
+            </RowText>
+            <Switch checked={memory} aria-label="Memory" onCheckedChange={(next) => void chooseFlag("memory", next)} />
+          </SettingsRow>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Notifications</RowLabel>
+              <RowDescription>A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.</RowDescription>
+            </RowText>
+            <Switch checked={notify} aria-label="Notifications" onCheckedChange={(next) => { setNotify(next); localStorage.setItem("saturn-notify", next ? "on" : "off"); }} />
+          </SettingsRow>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Plan approval</RowLabel>
+              <RowDescription>Agents write a plan and wait for your go-ahead before changing files or running commands. Reply "go" to proceed, or say what to change.</RowDescription>
+            </RowText>
+            <Switch checked={planApproval} aria-label="Plan approval" onCheckedChange={(next) => void chooseFlag("planApproval", next)} />
+          </SettingsRow>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Embedding model</RowLabel>
+              <RowDescription>Builds each project's code index, so agents find code by meaning. The built-in model runs on this Mac with nothing else to install; changing the model rebuilds the index.</RowDescription>
+            </RowText>
+            <div className="flex items-center gap-2">
+              <Choice
+                ariaLabel="Embedding source"
                 value={embeddingSource}
-                onChange={(event) => {
-                  const next = event.target.value as EmbeddingSource;
+                options={[{ value: "builtin", label: "Built in" }, { value: "lmstudio", label: "LM Studio" }, { value: "openai", label: "OpenAI-compatible" }]}
+                onChange={(value) => {
+                  const next = value as EmbeddingSource;
                   const model = next === "builtin" ? BUILTIN_EMBEDDING_MODELS[0]!.id : next === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small";
                   const connection = next === "openai" ? embeddingConnectionId || embeddingConnections[0]?.id || "" : embeddingConnectionId;
                   setEmbeddingSource(next);
@@ -1293,131 +1262,109 @@ function General(props: {
                   setEmbeddingConnectionId(connection);
                   void chooseEmbedding({ embeddingSource: next, embeddingModel: model, embeddingConnectionId: connection });
                 }}
-              >
-                <option value="builtin">Built in</option>
-                <option value="lmstudio">LM Studio</option>
-                <option value="openai">OpenAI-compatible</option>
-              </select>
+              />
               {embeddingSource === "builtin" ? (
-                <select
-                  className="input tiny settings-select settings-select-fit"
-                  aria-label="Built-in embedding model"
+                <Choice
+                  ariaLabel="Built-in embedding model"
                   value={BUILTIN_EMBEDDING_MODELS.some((item) => item.id === embeddingModel) ? embeddingModel : BUILTIN_EMBEDDING_MODELS[0]!.id}
-                  onChange={(event) => {
-                    setEmbeddingModel(event.target.value);
-                    void chooseEmbedding({ embeddingModel: event.target.value });
+                  options={BUILTIN_EMBEDDING_MODELS.map((item) => ({ value: item.id, label: item.label }))}
+                  onChange={(next) => {
+                    setEmbeddingModel(next);
+                    void chooseEmbedding({ embeddingModel: next });
                   }}
-                >
-                  {BUILTIN_EMBEDDING_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                </select>
+                />
               ) : (
-                <form className="settings-inline-form" onSubmit={(event) => { event.preventDefault(); void chooseEmbedding(); }}>
+                <InlineForm onSubmit={(event) => { event.preventDefault(); void chooseEmbedding(); }}>
                   {embeddingSource === "openai" && (
-                    <select className="input tiny settings-select" aria-label="Embedding connection" value={embeddingConnectionId} onChange={(event) => setEmbeddingConnectionId(event.target.value)}>
-                      {embeddingConnections.length === 0 && <option value="">Add an OpenAI connection first</option>}
-                      {embeddingConnections.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                    </select>
+                    <Choice className="min-w-45" ariaLabel="Embedding connection" value={embeddingConnectionId} placeholder={embeddingConnections.length === 0 ? "Add an OpenAI connection first" : undefined} options={embeddingConnections.map((item) => ({ value: item.id, label: item.name }))} onChange={setEmbeddingConnectionId} />
                   )}
-                  <input className="input tiny" aria-label="Embedding model" value={embeddingModel} placeholder={embeddingSource === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small"} onChange={(event) => setEmbeddingModel(event.target.value)} />
-                  <button type="submit" className="btn tiny" disabled={(props.profile.embeddingModel ?? "") === embeddingModel.trim() && (props.profile.embeddingConnectionId ?? "") === embeddingConnectionId && props.profile.embeddingSource === embeddingSource}>Save</button>
-                </form>
+                  <Input className="w-45" aria-label="Embedding model" value={embeddingModel} placeholder={embeddingSource === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small"} onChange={(event) => setEmbeddingModel(event.target.value)} />
+                  <Button type="submit" variant="default" size="small" disabled={(props.profile.embeddingModel ?? "") === embeddingModel.trim() && (props.profile.embeddingConnectionId ?? "") === embeddingConnectionId && props.profile.embeddingSource === embeddingSource}>Save</Button>
+                </InlineForm>
               )}
             </div>
-          </div>
-        </div>
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
       <CommandLine onError={props.onError} />
 
-      <div className="settings-section">
-        <div className="settings-section-title">Sandbox</div>
-        <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Commands</span>
-              <span className="settings-row-desc">
+      <div>
+        <SectionTitle>Sandbox</SectionTitle>
+        <SettingsCard>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Commands</RowLabel>
+              <RowDescription>
                 Where a shell command run by an agent may write. <strong>Workspace</strong> confines it to the project folder (plus temp and cache folders) with the operating system's sandbox, so a stray <code>rm</code> or a script cannot touch anything else; <strong>Read-only</strong> lets it write nowhere; <strong>Off</strong> runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows cannot. A project can override this.
-              </span>
-            </div>
-            <select className="input tiny settings-select-fit" aria-label="Sandbox mode" value={sandbox.mode} onChange={(event) => void chooseSandbox({ ...sandbox, mode: event.target.value as SandboxMode })}>
-              <option value="workspace-write">Workspace</option>
-              <option value="read-only">Read-only</option>
-              <option value="off">Off</option>
-            </select>
-          </div>
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Network</span>
-              <span className="settings-row-desc">Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.</span>
-            </div>
-            <Toggle on={sandbox.network} label="Network for commands" onChange={(next) => void chooseSandbox({ ...sandbox, network: next })} />
-          </div>
-        </div>
+              </RowDescription>
+            </RowText>
+            <Choice ariaLabel="Sandbox mode" value={sandbox.mode} options={[{ value: "workspace-write", label: "Workspace" }, { value: "read-only", label: "Read-only" }, { value: "off", label: "Off" }]} onChange={(next) => void chooseSandbox({ ...sandbox, mode: next as SandboxMode })} />
+          </SettingsRow>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Network</RowLabel>
+              <RowDescription>Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.</RowDescription>
+            </RowText>
+            <Switch checked={sandbox.network} aria-label="Network for commands" onCheckedChange={(next) => void chooseSandbox({ ...sandbox, network: next })} />
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Workspace</div>
-        <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Workspace Name</span>
-              <span className="settings-row-desc">Shown in the title bar and settings.</span>
-            </div>
-            <form
-              className="settings-inline-form"
+      <div>
+        <SectionTitle>Workspace</SectionTitle>
+        <SettingsCard>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Workspace Name</RowLabel>
+              <RowDescription>Shown in the title bar and settings.</RowDescription>
+            </RowText>
+            <InlineForm
               onSubmit={(event) => {
                 event.preventDefault();
                 void save();
               }}
             >
-              <input
-                className="input tiny"
+              <Input
+                className="w-45"
                 aria-label="Workspace name"
                 value={name}
                 onChange={(event) => { setName(event.target.value); setSaved(false); }}
               />
-              <button type="submit" className="btn tiny" disabled={!name.trim() || name === props.profile.name}>
+              <Button type="submit" variant="default" size="small" disabled={!name.trim() || name === props.profile.name}>
                 {saved ? "Saved ✓" : "Save"}
-              </button>
-            </form>
-          </div>
+              </Button>
+            </InlineForm>
+          </SettingsRow>
 
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Log Level</span>
-              <span className="settings-row-desc">How much the runtime writes to Logs.</span>
-            </div>
-            <div className="segmented-pill" role="radiogroup" aria-label="Log level">
-              {[["debug", "Debug"], ["info", "Info"], ["warning", "Warning"], ["error", "Error"]].map(([level, label]) => (
-                <button
-                  key={level}
-                  type="button"
-                  role="radio"
-                  aria-checked={logging === level}
-                  className={logging === level ? "active" : ""}
-                  onClick={() => {
-                    const previous = logging;
-                    setLogging(level);
-                    desktop.admin.updateSettings({ logging: level }).then(props.onSaved, (reason: unknown) => {
-                      setLogging(previous);
-                      props.onError(reason instanceof Error ? reason.message : "Could not save");
-                    });
-                  }}
-                >
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Log Level</RowLabel>
+              <RowDescription>How much the runtime writes to Logs.</RowDescription>
+            </RowText>
+            <Pills
+              label="Log level"
+              value={logging}
+              options={[["debug", "Debug"], ["info", "Info"], ["warning", "Warning"], ["error", "Error"]] as const}
+              onChoose={(level) => {
+                const previous = logging;
+                setLogging(level);
+                desktop.admin.updateSettings({ logging: level }).then(props.onSaved, (reason: unknown) => {
+                  setLogging(previous);
+                  props.onError(reason instanceof Error ? reason.message : "Could not save");
+                });
+              }}
+            />
+          </SettingsRow>
 
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">API Keys</span>
-              <span className="settings-row-desc">Kept on this Mac in a file only your user account can read.</span>
-            </div>
-            <code className="settings-path">~/.saturn-app/secrets.json</code>
-          </div>
-        </div>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>API Keys</RowLabel>
+              <RowDescription>Kept on this Mac in a file only your user account can read.</RowDescription>
+            </RowText>
+            <code className="rounded-md bg-muted px-2 py-0.5 text-[11.5px] whitespace-nowrap text-muted-foreground">~/.saturn-app/secrets.json</code>
+          </SettingsRow>
+        </SettingsCard>
       </div>
     </div>
   );
@@ -1488,81 +1435,80 @@ function ProjectSettingsTab(props: {
   }
 
   return (
-    <div className="settings-section-list">
-      <div className="settings-section">
-        <div className="settings-section-title">Project Details</div>
-        <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Project Name</span>
-              <span className="settings-row-desc">{props.project.name}</span>
-            </div>
-          </div>
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Workspace Path</span>
-              <span className="settings-row-desc" style={{ fontFamily: "monospace" }}>{props.project.path}</span>
-            </div>
-          </div>
+    <div className="flex max-w-[760px] flex-col gap-5">
+      <div>
+        <SectionTitle>Project Details</SectionTitle>
+        <SettingsCard>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Project Name</RowLabel>
+              <RowDescription>{props.project.name}</RowDescription>
+            </RowText>
+          </SettingsRow>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Workspace Path</RowLabel>
+              <RowDescription className="font-mono">{props.project.path}</RowDescription>
+            </RowText>
+          </SettingsRow>
           {props.project.gitBranch ? (
-            <div className="settings-card-row">
-              <div className="settings-row-text">
-                <span className="settings-row-label">Git Branch</span>
-                <span className="settings-row-desc" style={{ fontFamily: "monospace" }}>{props.project.gitBranch}</span>
-              </div>
-            </div>
+            <SettingsRow>
+              <RowText>
+                <RowLabel>Git Branch</RowLabel>
+                <RowDescription className="font-mono">{props.project.gitBranch}</RowDescription>
+              </RowText>
+            </SettingsRow>
           ) : null}
-        </div>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Check After Changes</div>
-        <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Verify command</span>
-              <span className="settings-row-desc">Run after an agent changes files here; a failure goes straight back to the agent to fix (at most twice per message). Use "auto" for package.json's typecheck or lint script, or leave empty to skip.</span>
-            </div>
-            <form className="settings-inline-form" onSubmit={(event) => { event.preventDefault(); void saveVerify(); }}>
-              <input className="input tiny" aria-label="Verify command" value={verifyCommand} placeholder="auto, or e.g. npm test" onChange={(event) => setVerifyCommand(event.target.value)} />
-              <button type="submit" className="btn tiny" disabled={(props.project.verifyCommand ?? "") === verifyCommand.trim()}>{verifySaved ? "Saved" : "Save"}</button>
-            </form>
-          </div>
-        </div>
+      <div>
+        <SectionTitle>Check After Changes</SectionTitle>
+        <SettingsCard>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Verify command</RowLabel>
+              <RowDescription>Run after an agent changes files here; a failure goes straight back to the agent to fix (at most twice per message). Use "auto" for package.json's typecheck or lint script, or leave empty to skip.</RowDescription>
+            </RowText>
+            <InlineForm onSubmit={(event) => { event.preventDefault(); void saveVerify(); }}>
+              <Input className="w-45" aria-label="Verify command" value={verifyCommand} placeholder="auto, or e.g. npm test" onChange={(event) => setVerifyCommand(event.target.value)} />
+              <Button type="submit" variant="default" size="small" disabled={(props.project.verifyCommand ?? "") === verifyCommand.trim()}>{verifySaved ? "Saved" : "Save"}</Button>
+            </InlineForm>
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Sandbox</div>
-        <div className="settings-card">
-          <div className="settings-card-row">
-            <div className="settings-row-text">
-              <span className="settings-row-label">Commands in this project</span>
-              <span className="settings-row-desc">Overrides the sandbox under Settings → General for commands run here. Workspace confines writes to this folder; Read-only allows none; Off runs commands as you.</span>
+      <div>
+        <SectionTitle>Sandbox</SectionTitle>
+        <SettingsCard>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>Commands in this project</RowLabel>
+              <RowDescription>Overrides the sandbox under Settings → General for commands run here. Workspace confines writes to this folder; Read-only allows none; Off runs commands as you.</RowDescription>
+            </RowText>
+            <div className="flex items-center gap-2">
+              <Choice
+                ariaLabel="Sandbox for this project"
+                value={sandbox?.mode ?? "inherit"}
+                options={[{ value: "inherit", label: "Same as General" }, { value: "workspace-write", label: "Workspace" }, { value: "read-only", label: "Read-only" }, { value: "off", label: "Off" }]}
+                onChange={(next) => void chooseSandbox(next === "inherit" ? null : { mode: next as SandboxMode, network: sandbox?.network ?? true })}
+              />
+              {sandbox ? <Switch checked={sandbox.network} aria-label="Network for commands" onCheckedChange={(next) => void chooseSandbox({ ...sandbox, network: next })} /> : null}
             </div>
-            <div className="settings-inline-form">
-              <select className="input tiny settings-select-fit" aria-label="Sandbox for this project" value={sandbox?.mode ?? "inherit"} onChange={(event) => void chooseSandbox(event.target.value === "inherit" ? null : { mode: event.target.value as SandboxMode, network: sandbox?.network ?? true })}>
-                <option value="inherit">Same as General</option>
-                <option value="workspace-write">Workspace</option>
-                <option value="read-only">Read-only</option>
-                <option value="off">Off</option>
-              </select>
-              {sandbox ? <Toggle on={sandbox.network} label="Network for commands" onChange={(next) => void chooseSandbox({ ...sandbox, network: next })} /> : null}
-            </div>
-          </div>
-        </div>
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
       <ProjectPermissions project={props.project} onError={props.onError} />
 
-      <div className="settings-section">
-        <div className="settings-section-title">Project Rules & Custom Instructions</div>
-        <div className="settings-card">
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <span className="settings-row-desc">Custom instructions for agents working in this project (.cursorrules / AGENTS.md).</span>
-            <textarea
-              className="input"
+      <div>
+        <SectionTitle>Project Rules & Custom Instructions</SectionTitle>
+        <SettingsCard>
+          <div className="flex flex-col gap-2.5">
+            <RowDescription>Custom instructions for agents working in this project (.cursorrules / AGENTS.md).</RowDescription>
+            <Textarea
+              className="resize-y font-mono text-xs field-sizing-fixed"
               rows={7}
-              style={{ width: "100%", fontFamily: "monospace", fontSize: "12px", resize: "vertical" }}
               value={rules}
               disabled={loading}
               placeholder={loading ? "Loading project rules…" : "Add custom instructions for this project…"}
@@ -1571,25 +1517,25 @@ function ProjectSettingsTab(props: {
                 setSaved(false);
               }}
             />
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button type="button" className="btn primary-btn tiny" disabled={saving || loading} onClick={() => void saveRules()}>
+            <div className="flex justify-end">
+              <Button type="button" variant="default" size="small" disabled={saving || loading} onClick={() => void saveRules()}>
                 {saving ? "Saving…" : saved ? "Saved ✓" : "Save Rules"}
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </SettingsCard>
       </div>
 
-      <div className="settings-section">
-        <div className="settings-section-title">Actions</div>
-        <div className="settings-card" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button type="button" className="btn ghost tiny" onClick={() => void desktop.projects.openInTerminal(props.project.id)}>
+      <div>
+        <SectionTitle>Actions</SectionTitle>
+        <SettingsCard className="flex flex-wrap gap-2.5">
+          <Button type="button" variant="outline" size="small" onClick={() => void desktop.projects.openInTerminal(props.project.id)}>
             Open in Terminal
-          </button>
-          <button type="button" className="btn ghost tiny" onClick={() => void desktop.projects.openInFolder(props.project.id)}>
+          </Button>
+          <Button type="button" variant="outline" size="small" onClick={() => void desktop.projects.openInFolder(props.project.id)}>
             Reveal in Finder
-          </button>
-        </div>
+          </Button>
+        </SettingsCard>
       </div>
     </div>
   );
@@ -1607,30 +1553,21 @@ function ShortcutsTab() {
     ["Esc", "Close popups"],
   ];
   return (
-    <div className="settings-section-list">
-      <div className="settings-section">
-        <div className="settings-section-title">Keyboard Shortcuts</div>
-        <div className="settings-card">
+    <div className="flex max-w-[760px] flex-col gap-5">
+      <div>
+        <SectionTitle>Keyboard Shortcuts</SectionTitle>
+        <SettingsCard>
           {shortcuts.map(([keys, label]) => (
-            <div className="settings-card-row" key={keys}>
-              <div className="settings-row-text">
-                <span className="settings-row-label">{label}</span>
-              </div>
-              <kbd
-                style={{
-                  padding: "3px 8px",
-                  background: "var(--card-active, rgba(255,255,255,0.08))",
-                  border: "1px solid var(--line)",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  fontFamily: "monospace",
-                }}
-              >
+            <SettingsRow key={keys}>
+              <RowText>
+                <RowLabel>{label}</RowLabel>
+              </RowText>
+              <kbd className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono text-xs">
                 {keys}
               </kbd>
-            </div>
+            </SettingsRow>
           ))}
-        </div>
+        </SettingsCard>
       </div>
     </div>
   );
@@ -1663,7 +1600,7 @@ function MoonIcon() {
 
 function Chevron(props: { open: boolean }) {
   return (
-    <svg className={props.open ? "chevron open" : "chevron"} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <svg className={classes("size-4 shrink-0 text-muted-foreground transition-transform", props.open && "rotate-90")} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -1712,12 +1649,12 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
   const megabytes = status?.downloadSize ? `${Math.round(status.downloadSize / 1048576)} MB` : "";
   if (status === null) {
     return (
-      <div className="settings-card-row">
-        <div className="settings-row-text">
-          <span className="settings-row-label">Program</span>
-          <span className="settings-row-desc">{error || "Checking…"}</span>
-        </div>
-      </div>
+      <SettingsRow>
+        <RowText>
+          <RowLabel>Program</RowLabel>
+          <RowDescription>{error || "Checking…"}</RowDescription>
+        </RowText>
+      </SettingsRow>
     );
   }
   if (!status.installed) {
@@ -1725,30 +1662,30 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
     const percent = progress && progress.total ? Math.min(100, Math.round((progress.received / progress.total) * 100)) : 0;
     return (
       <>
-        <div className="settings-card-row">
-          <div className="settings-row-text">
-            <span className="settings-row-label">{label} is not installed</span>
-            <span className="settings-row-desc">
+        <SettingsRow>
+          <RowText>
+            <RowLabel>{label} is not installed</RowLabel>
+            <RowDescription>
               {busy
                 ? progress!.state === "downloading"
                   ? `Downloading… ${Math.round(progress!.received / 1048576)} of ${Math.round(progress!.total / 1048576)} MB`
                   : progress!.state === "verifying" ? "Checking the download against its pinned checksum…" : "Unpacking…"
                 : `Saturn downloads the official ${label} program${status.downloadVersion ? ` (${status.downloadVersion})` : ""} from the npm registry and checks it against a checksum pinned in Saturn, or uses one you have installed yourself.`}
-            </span>
+            </RowDescription>
             {busy ? (
-              <div className="program-progress" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
-                <div style={{ width: `${progress!.state === "downloading" ? percent : 100}%` }} />
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-border" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+                <div className="h-full rounded-[inherit] bg-primary transition-[width] duration-400" style={{ width: `${progress!.state === "downloading" ? percent : 100}%` }} />
               </div>
             ) : null}
-          </div>
-          <div className="settings-row-actions">
+          </RowText>
+          <RowActions>
             <Status ok={false} label="Not installed" />
-            <button type="button" className="btn tiny" disabled={Boolean(busy) || !status.downloadVersion} onClick={() => void install()}>
+            <Button type="button" variant="default" size="small" disabled={Boolean(busy) || !status.downloadVersion} onClick={() => void install()}>
               {busy ? "Downloading…" : progress?.state === "failed" ? "Try Again" : megabytes ? `Download (${megabytes})` : "Download"}
-            </button>
-          </div>
-        </div>
-        {error || progress?.state === "failed" ? <p className="settings-row-error">{error || progress?.error}</p> : null}
+            </Button>
+          </RowActions>
+        </SettingsRow>
+        {error || progress?.state === "failed" ? <RowError>{error || progress?.error}</RowError> : null}
       </>
     );
   }
@@ -1758,19 +1695,19 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
     : `Development copy${status.version ? ` · ${status.version}` : ""}`;
   return (
     <>
-      <div className="settings-card-row">
-        <div className="settings-row-text">
-          <span className="settings-row-label">Program</span>
-          <span className="settings-row-desc" title={status.path ?? ""}>{where}</span>
-        </div>
-        <div className="settings-row-actions">
+      <SettingsRow>
+        <RowText>
+          <RowLabel>Program</RowLabel>
+          <RowDescription title={status.path ?? ""}>{where}</RowDescription>
+        </RowText>
+        <RowActions>
           <Status ok label="Installed" />
           {status.source === "saturn" ? (
-            <button type="button" className="btn ghost tiny" onClick={() => void remove()}>Remove</button>
+            <Button type="button" variant="outline" size="small" onClick={() => void remove()}>Remove</Button>
           ) : null}
-        </div>
-      </div>
-      {error ? <p className="settings-row-error">{error}</p> : null}
+        </RowActions>
+      </SettingsRow>
+      {error ? <RowError>{error}</RowError> : null}
       {props.children}
     </>
   );
@@ -1841,63 +1778,63 @@ export function CodexLogin() {
   const method = status?.authMethod === "chatgpt" ? "ChatGPT plan" : status?.authMethod === "api-key" ? "API key" : "";
   return (
     <>
-      <div className="settings-card-row">
-        <div className="settings-row-text">
-          <span className="settings-row-label">Codex Sign-In</span>
-          <span className="settings-row-desc">
+      <SettingsRow>
+        <RowText>
+          <RowLabel>Codex Sign-In</RowLabel>
+          <RowDescription>
             {status === null
               ? busy ? "Checking…" : "Status unavailable."
               : status.loggedIn
                 ? ["Signed in", method].filter(Boolean).join(" · ")
                 : "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; Saturn never sees your credentials."}
-          </span>
-        </div>
-        <div className="settings-row-actions">
+          </RowDescription>
+        </RowText>
+        <RowActions>
           {status ? <Status ok={status.loggedIn} label={status.loggedIn ? "Signed in" : "Signed out"} /> : null}
           {status?.loggedIn ? (
-            <button type="button" className="btn tiny" disabled={busy !== null} onClick={() => void signOut()}>
+            <Button type="button" variant="default" size="small" disabled={busy !== null} onClick={() => void signOut()}>
               {busy === "signing_out" ? "Signing out…" : "Sign Out"}
-            </button>
+            </Button>
           ) : waiting ? (
-            <button type="button" className="btn ghost tiny" onClick={() => void run("checking", () => desktop.admin.codexCancelSignIn(), "Could not cancel")}>
+            <Button type="button" variant="outline" size="small" onClick={() => void run("checking", () => desktop.admin.codexCancelSignIn(), "Could not cancel")}>
               Cancel
-            </button>
+            </Button>
           ) : (
-            <button type="button" className="btn tiny" disabled={busy !== null || status === null} onClick={() => void run("starting", () => desktop.admin.codexSignIn("device"), "Could not start sign-in")}>
+            <Button type="button" variant="default" size="small" disabled={busy !== null || status === null} onClick={() => void run("starting", () => desktop.admin.codexSignIn("device"), "Could not start sign-in")}>
               {busy === "starting" ? "Starting…" : "Sign In to Codex"}
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
+        </RowActions>
+      </SettingsRow>
       {signIn && waiting ? (
-        <div className="settings-card-row settings-card-stack">
+        <SettingsRow stacked>
           {signIn.mode === "device" ? (
             <>
-              <span className="settings-row-desc">Codex shows this one-time code: open the OpenAI page, sign in, and enter it. It expires in 15 minutes; this card updates once you're done.</span>
-              <div className="claude-login-command">
-                <code className="codex-device-code">{signIn.code ?? "Waiting for a code…"}</code>
-                {signIn.code ? <button type="button" className="btn ghost tiny" onClick={() => void copyCode()}>{copied ? "Copied" : "Copy"}</button> : null}
+              <RowDescription>Codex shows this one-time code: open the OpenAI page, sign in, and enter it. It expires in 15 minutes; this card updates once you're done.</RowDescription>
+              <div className={COMMAND_BOX}>
+                <code className="min-w-0 flex-1 overflow-x-auto text-[15px] font-semibold tracking-widest whitespace-nowrap">{signIn.code ?? "Waiting for a code…"}</code>
+                {signIn.code ? <Button type="button" variant="outline" size="small" onClick={() => void copyCode()}>{copied ? "Copied" : "Copy"}</Button> : null}
                 {signIn.url ? (
-                  <button type="button" className="btn tiny" onClick={() => void openPage()}>Open Page</button>
+                  <Button type="button" variant="default" size="small" onClick={() => void openPage()}>Open Page</Button>
                 ) : null}
               </div>
-              <span className="settings-row-desc">
+              <RowDescription>
                 Device codes must be allowed in your ChatGPT security settings. If they aren't,{" "}
-                <button type="button" className="link-button" onClick={() => void run("starting", () => desktop.admin.codexSignIn("browser"), "Could not start sign-in")}>
+                <LinkButton onClick={() => void run("starting", () => desktop.admin.codexSignIn("browser"), "Could not start sign-in")}>
                   sign in with the browser instead
-                </button>.
-              </span>
+                </LinkButton>.
+              </RowDescription>
             </>
           ) : (
-            <span className="settings-row-desc">
+            <RowDescription>
               Finish signing in on the page that opened in your browser. Saturn keeps Codex listening for it until you're done.
-              {signIn.url ? <> <button type="button" className="link-button" onClick={() => void openPage()}>Open it again</button>.</> : null}
-            </span>
+              {signIn.url ? <> <LinkButton onClick={() => void openPage()}>Open it again</LinkButton>.</> : null}
+            </RowDescription>
           )}
-        </div>
+        </SettingsRow>
       ) : null}
       {error || status?.error || (signIn?.state === "failed" ? signIn.error : "") ? (
-        <p className="settings-row-error">{error || status?.error || signIn?.error}</p>
+        <RowError>{error || status?.error || signIn?.error}</RowError>
       ) : null}
     </>
   );
@@ -1967,43 +1904,43 @@ export function ClaudeCodeLogin() {
   const plan = status?.subscriptionType ? `${status.subscriptionType.charAt(0).toUpperCase()}${status.subscriptionType.slice(1)} plan` : "";
   return (
     <>
-      <div className="settings-card-row">
-        <div className="settings-row-text">
-          <span className="settings-row-label">Claude Account</span>
-          <span className="settings-row-desc">
+      <SettingsRow>
+        <RowText>
+          <RowLabel>Claude Account</RowLabel>
+          <RowDescription>
             {status === null
               ? busy ? "Checking…" : "Status unavailable."
               : status.loggedIn
                 ? [status.email ?? "Signed in", plan].filter(Boolean).join(" · ")
                 : "Not signed in. Claude (via Claude Code) models run on your own Claude login; Saturn never sees your credentials."}
-          </span>
-        </div>
-        <div className="settings-row-actions">
+          </RowDescription>
+        </RowText>
+        <RowActions>
           {status ? <Status ok={status.loggedIn} label={status.loggedIn ? "Signed in" : "Signed out"} /> : null}
           {status?.loggedIn ? (
-            <button type="button" className="btn tiny" disabled={busy !== null} onClick={() => void signOut()}>
+            <Button type="button" variant="default" size="small" disabled={busy !== null} onClick={() => void signOut()}>
               {busy === "signing_out" ? "Signing out…" : "Sign Out"}
-            </button>
+            </Button>
           ) : (
-            <button type="button" className="btn ghost tiny" disabled={busy !== null} onClick={() => void check()}>
+            <Button type="button" variant="outline" size="small" disabled={busy !== null} onClick={() => void check()}>
               {busy === "checking" ? "Checking…" : "Check Again"}
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
+        </RowActions>
+      </SettingsRow>
       {status && !status.loggedIn && status.loginCommand ? (
-        <div className="settings-card-row settings-card-stack">
-          <span className="settings-row-desc">
+        <SettingsRow stacked>
+          <RowDescription>
             To sign in, run this in Terminal and keep that window open until it says you're signed in. This card updates on its own.
             If the browser says it can't connect to localhost, that terminal sign-in had already ended: run the command again and use the new browser page.
-          </span>
-          <div className="claude-login-command">
-            <code>{status.loginCommand}</code>
-            <button type="button" className="btn ghost tiny" onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</button>
+          </RowDescription>
+          <div className={COMMAND_BOX}>
+            <code className="min-w-0 flex-1 overflow-x-auto text-[11.5px] whitespace-nowrap">{status.loginCommand}</code>
+            <Button type="button" variant="outline" size="small" onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</Button>
           </div>
-        </div>
+        </SettingsRow>
       ) : null}
-      {error || status?.error ? <p className="settings-row-error">{error || status?.error}</p> : null}
+      {error || status?.error ? <RowError>{error || status?.error}</RowError> : null}
     </>
   );
 }

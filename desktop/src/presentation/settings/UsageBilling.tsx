@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop";
 import type { AgentUsage, ModelUsage, UsageSummary, UsageTally } from "../../domain/model";
+import { Badge } from "../ui/base/Badge.js";
+import { Button } from "../ui/base/Button.js";
+import { Card } from "../ui/base/Card.js";
+import { classes } from "../ui/base/classes.js";
+import { Input } from "../ui/base/Input.js";
+import { RowError } from "./Parts";
 
 type Period = "today" | "week" | "month" | "30d" | "all" | "custom";
 const PERIODS: [Period, string][] = [
@@ -76,20 +82,46 @@ function total(tally: UsageTally): number {
   return tally.inputTokens + tally.outputTokens;
 }
 
+/** How the figures are set: the page's own width, not the window's, decides how many columns fit. */
+const USAGE = "@container flex flex-col gap-3";
+const STAT = "text-[28px] font-semibold tracking-tight tabular-nums @max-[380px]:text-[22px]";
+const SECTION_HEAD = "mb-2 flex flex-wrap items-baseline justify-between gap-3";
+const EMPTY = "m-0 rounded-lg border border-dashed border-input p-3 text-center text-xs text-muted-foreground";
+const NAME = "flex min-w-0 flex-col gap-0.5";
+const NAME_TITLE = "flex items-center gap-1.5 text-[13px]";
+const NAME_NOTE = "text-[11.5px] text-muted-foreground [overflow-wrap:anywhere]";
+
+/** One line of a usage table; the narrower the page, the fewer columns it keeps. */
+function UsageRow(props: { agent?: boolean; head?: boolean; children: ReactNode }) {
+  return (
+    <div
+      className={classes(
+        "grid items-start gap-3 border-t border-border py-2.5 text-[12.5px] tabular-nums [&>span:not(:first-child)]:text-right",
+        props.agent
+          ? "grid-cols-[minmax(200px,1fr)_52px_96px_104px] @max-[640px]:grid-cols-[minmax(0,1fr)_90px_90px] @max-[640px]:[&>span:nth-child(2)]:hidden"
+          : "grid-cols-[minmax(180px,1fr)_52px_88px_88px_96px_104px] @max-[640px]:grid-cols-[minmax(0,1fr)_80px_90px] @max-[640px]:[&>span:nth-child(-n+4):not(:first-child)]:hidden",
+        props.head && "border-t-0 pt-0 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase",
+      )}
+    >
+      {props.children}
+    </div>
+  );
+}
+
 /** The cost cell: a figure, a figure with unpriced calls noted, or a dash when nothing had a price. */
 function Cost(props: { tally: UsageTally }) {
   const { tally } = props;
   if (tally.unpricedCalls === tally.calls) {
     return (
-      <span className="usage-cost muted" title="No official price for this model, so it is not included in the bill">
+      <span className="flex flex-col items-end text-muted-foreground" title="No official price for this model, so it is not included in the bill">
         —
       </span>
     );
   }
   return (
-    <span className="usage-cost">
+    <span className="flex flex-col items-end">
       <strong>{usd(tally.costUsd)}</strong>
-      {tally.unpricedCalls ? <small>+{tally.unpricedCalls} unpriced</small> : null}
+      {tally.unpricedCalls ? <small className="text-[11px] text-wait">+{tally.unpricedCalls} unpriced</small> : null}
     </span>
   );
 }
@@ -130,19 +162,19 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
 
   const label = PERIODS.find(([id]) => id === period)?.[1] ?? "";
   const filter = (
-    <div className="usage-filter">
-      <div className="usage-periods" role="group" aria-label="Period">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="inline-flex flex-wrap gap-0.5 rounded-lg border border-border p-0.5" role="group" aria-label="Period">
         {PERIODS.map(([id, text]) => (
-          <button key={id} type="button" className={period === id ? "active" : ""} aria-pressed={period === id} onClick={() => choose(id)}>
+          <Button key={id} type="button" variant={period === id ? "soft" : "ghost"} size="small" className={period === id ? undefined : "text-muted-foreground"} aria-pressed={period === id} onClick={() => choose(id)}>
             {text}
-          </button>
+          </Button>
         ))}
       </div>
       {period === "custom" ? (
-        <div className="usage-custom">
-          <input type="date" className="input tiny" aria-label="From" value={custom.from} max={custom.to || undefined} onChange={(event) => setCustom({ ...custom, from: event.target.value })} />
-          <span className="hint">to</span>
-          <input type="date" className="input tiny" aria-label="To" value={custom.to} min={custom.from || undefined} onChange={(event) => setCustom({ ...custom, to: event.target.value })} />
+        <div className="inline-flex items-center gap-1.5">
+          <Input type="date" className="w-auto [color-scheme:light_dark]" aria-label="From" value={custom.from} max={custom.to || undefined} onChange={(event) => setCustom({ ...custom, from: event.target.value })} />
+          <span className="text-[12.5px] text-muted-foreground">to</span>
+          <Input type="date" className="w-auto [color-scheme:light_dark]" aria-label="To" value={custom.to} min={custom.from || undefined} onChange={(event) => setCustom({ ...custom, to: event.target.value })} />
         </div>
       ) : null}
     </div>
@@ -150,9 +182,9 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
 
   if (!summary) {
     return (
-      <div className="usage">
+      <div className={USAGE}>
         {filter}
-        {error ? <p className="settings-row-error">{error}</p> : <p className="hint">Loading usage…</p>}
+        {error ? <RowError className="mt-0">{error}</RowError> : <p className="text-[12.5px] text-muted-foreground">Loading usage…</p>}
       </div>
     );
   }
@@ -161,68 +193,68 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
   const window_ = period === "all" ? (since ? `since ${since}` : "") : period === "custom" ? `${custom.from || "…"} – ${custom.to || "…"}` : label.toLowerCase();
 
   return (
-    <div className="usage">
+    <div className={USAGE}>
       {filter}
-      {error ? <p className="settings-row-error">{error}</p> : null}
-      <div className="usage-hero">
-        <section className="card usage-stat">
-          <span className="label">Total tokens</span>
-          <strong>{tokens(total(totals))}</strong>
-          <small>
+      {error ? <RowError className="mt-0">{error}</RowError> : null}
+      <div className="grid grid-cols-2 gap-3 @max-[380px]:grid-cols-1">
+        <Card className="gap-1">
+          <span className="text-xs font-medium text-muted-foreground">Total tokens</span>
+          <strong className={STAT}>{tokens(total(totals))}</strong>
+          <small className="text-xs text-muted-foreground">
             {tokens(totals.inputTokens)} input{totals.cachedInputTokens ? ` (${tokens(totals.cachedInputTokens)} from cache, ${Math.round((totals.cachedInputTokens / Math.max(1, totals.inputTokens)) * 100)}%)` : ""} · {tokens(totals.outputTokens)} output · {totals.calls} {totals.calls === 1 ? "call" : "calls"}
           </small>
-        </section>
-        <section className="card usage-stat">
-          <span className="label">Total bill</span>
-          <strong>{usd(totals.costUsd)}</strong>
-          <small>
+        </Card>
+        <Card className="gap-1">
+          <span className="text-xs font-medium text-muted-foreground">Total bill</span>
+          <strong className={STAT}>{usd(totals.costUsd)}</strong>
+          <small className="text-xs text-muted-foreground">
             USD at each model's official price{window_ ? ` · ${window_}` : ""}
             {totals.unpricedCalls ? ` · ${totals.unpricedCalls} calls on unpriced models not included` : ""}
           </small>
-        </section>
+        </Card>
       </div>
 
-      <section className="card usage-section">
-        <div className="usage-section-head">
-          <strong>By model</strong>
-          <span className="hint">Priced at the rate in force when each call was made</span>
+      <Card className="gap-0">
+        <div className={SECTION_HEAD}>
+          <strong className="text-sm">By model</strong>
+          <span className="text-[12.5px] text-muted-foreground">Priced at the rate in force when each call was made</span>
         </div>
         {summary.models.length === 0 ? (
-          <p className="empty-box">{period === "all" ? "No model calls recorded yet." : "No model calls in this period."}</p>
+          <p className={EMPTY}>{period === "all" ? "No model calls recorded yet." : "No model calls in this period."}</p>
         ) : (
-          <div className="usage-table">
-            <div className="usage-row head">
+          <div className="flex flex-col">
+            <UsageRow head>
               <span>Model</span>
               <span>Calls</span>
               <span>Input</span>
               <span>Output</span>
               <span>Tokens</span>
               <span>Cost</span>
-            </div>
+            </UsageRow>
             {summary.models.map((model) => <ModelRow key={`${model.provider}/${model.model}`} model={model} totals={totals} />)}
           </div>
         )}
-      </section>
+      </Card>
 
-      <section className="card usage-section">
-        <div className="usage-section-head">
-          <strong>By agent</strong>
-          <span className="hint">Each call counts toward the model the agent was using at that moment</span>
+      <Card className="gap-0">
+        <div className={SECTION_HEAD}>
+          <strong className="text-sm">By agent</strong>
+          <span className="text-[12.5px] text-muted-foreground">Each call counts toward the model the agent was using at that moment</span>
         </div>
         {summary.agents.length === 0 ? (
-          <p className="empty-box">{period === "all" ? "No agent has used a model yet." : "No agent used a model in this period."}</p>
+          <p className={EMPTY}>{period === "all" ? "No agent has used a model yet." : "No agent used a model in this period."}</p>
         ) : (
-          <div className="usage-table">
-            <div className="usage-row agent head">
+          <div className="flex flex-col">
+            <UsageRow agent head>
               <span>Agent</span>
               <span>Calls</span>
               <span>Tokens</span>
               <span>Cost</span>
-            </div>
+            </UsageRow>
             {summary.agents.map((agent) => <AgentRow key={agent.agentId} agent={agent} />)}
           </div>
         )}
-      </section>
+      </Card>
     </div>
   );
 }
@@ -231,37 +263,37 @@ function ModelRow(props: { model: ModelUsage; totals: UsageTally }) {
   const { model, totals } = props;
   const share = totals.costUsd > 0 ? model.costUsd / totals.costUsd : total(totals) ? total(model) / total(totals) : 0;
   return (
-    <div className="usage-row">
-      <span className="usage-name">
-        <strong>{model.label}</strong>
-        <small>{model.provider} · <code>{model.model}</code></small>
-        <small className={model.price ? "usage-price" : "usage-price none"}>{model.price ?? "No official price"}</small>
-        <span className="usage-share" aria-hidden="true"><span style={{ width: `${Math.max(share * 100, 1)}%` }} /></span>
+    <UsageRow>
+      <span className={NAME}>
+        <strong className={NAME_TITLE}>{model.label}</strong>
+        <small className={NAME_NOTE}>{model.provider} · <code className="text-[11px]">{model.model}</code></small>
+        <small className={classes(NAME_NOTE, model.price ? "text-muted-foreground" : "text-wait")}>{model.price ?? "No official price"}</small>
+        <span className="mt-1 block h-[3px] overflow-hidden rounded-sm bg-muted" aria-hidden="true"><span className="block h-full bg-info" style={{ width: `${Math.max(share * 100, 1)}%` }} /></span>
       </span>
       <span>{model.calls}</span>
-      <span title={model.cachedInputTokens ? `${tokens(model.cachedInputTokens)} of these from the cache, billed at its lower rate` : undefined}>{tokens(model.inputTokens)}{model.cachedInputTokens ? <small className="usage-cached"> · {Math.round((model.cachedInputTokens / Math.max(1, model.inputTokens)) * 100)}% cached</small> : null}</span>
+      <span title={model.cachedInputTokens ? `${tokens(model.cachedInputTokens)} of these from the cache, billed at its lower rate` : undefined}>{tokens(model.inputTokens)}{model.cachedInputTokens ? <small className="text-[11px] text-muted-foreground"> · {Math.round((model.cachedInputTokens / Math.max(1, model.inputTokens)) * 100)}% cached</small> : null}</span>
       <span>{tokens(model.outputTokens)}</span>
       <span><strong>{tokens(total(model))}</strong></span>
       <Cost tally={model} />
-    </div>
+    </UsageRow>
   );
 }
 
 function AgentRow(props: { agent: AgentUsage }) {
   const { agent } = props;
   return (
-    <div className="usage-row agent">
-      <span className="usage-name">
-        <strong>
+    <UsageRow agent>
+      <span className={NAME}>
+        <strong className={NAME_TITLE}>
           {agent.name}
-          {agent.exists ? null : <em className="usage-tag">deleted</em>}
+          {agent.exists ? null : <Badge className="h-auto px-1.5 text-[10.5px]">deleted</Badge>}
         </strong>
-        <span className="usage-chips">
+        <span className="mt-1 flex flex-wrap gap-1">
           {agent.models.map((model) => (
-            <span key={`${model.provider}/${model.model}`} className="usage-chip" title={`${model.provider} · ${model.model}`}>
+            <span key={`${model.provider}/${model.model}`} className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 text-[11.5px]" title={`${model.provider} · ${model.model}`}>
               {model.label}
-              <em>{compact(total(model))} tokens</em>
-              <em>{model.unpricedCalls === model.calls ? "unpriced" : usd(model.costUsd)}</em>
+              <span className="text-muted-foreground tabular-nums">{compact(total(model))} tokens</span>
+              <span className="text-muted-foreground tabular-nums">{model.unpricedCalls === model.calls ? "unpriced" : usd(model.costUsd)}</span>
             </span>
           ))}
         </span>
@@ -269,6 +301,6 @@ function AgentRow(props: { agent: AgentUsage }) {
       <span>{agent.calls}</span>
       <span><strong>{tokens(total(agent))}</strong></span>
       <Cost tally={agent} />
-    </div>
+    </UsageRow>
   );
 }
