@@ -12,11 +12,12 @@ pub const COMPUTER_USE_ID: &str = "computer-use";
 pub const ORIGIN_ID: &str = "origin";
 pub const AUTOMATIONS_ID: &str = "automations";
 pub const BROWSER_ID: &str = "browser";
+pub const RESEARCH_ID: &str = "research";
 const SATURN_AGENT_ID: &str = "saturn-agent";
 /// The editor tools of the removed IDE, which an earlier version saved in the state.
 const REMOVED_IDE_SERVER: &str = "ide";
 
-/// General skills, computer use, origin, automations and the browser, in that order.
+/// General skills, computer use, origin, automations, the browser and research, in that order.
 static SERVERS: LazyLock<Vec<Value>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("builtin-servers.json")).expect("this file is valid JSON")
 });
@@ -44,6 +45,7 @@ fn builtin_id(id: &str) -> bool {
             | AUTOMATIONS_ID
             | "antigravity-skills"
             | BROWSER_ID
+            | RESEARCH_ID
     )
 }
 
@@ -72,7 +74,10 @@ pub fn installed(state: &AppState) -> bool {
         let wanted = server(BROWSER_ID);
         text(item, "url") == text(&wanted, "url") && item.get("tools") == wanted.get("tools")
     });
+    let research_current = by_id(&state.mcp, RESEARCH_ID)
+        .is_some_and(|item| item.get("tools") == server(RESEARCH_ID).get("tools"));
     browser_current
+        && research_current
         && !state
             .mcp
             .iter()
@@ -128,6 +133,7 @@ pub fn install(state: &mut AppState) {
         keeping(state, ORIGIN_ID, "cursor-origin"),
         keeping(state, AUTOMATIONS_ID, "antigravity-skills"),
         keeping(state, BROWSER_ID, BROWSER_ID),
+        keeping(state, RESEARCH_ID, RESEARCH_ID),
     ];
     servers.extend(
         state

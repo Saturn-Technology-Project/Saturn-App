@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use url::Url;
 
 use crate::builtins::{
-    AUTOMATIONS_ID, COMPUTER_USE_ID, GENERAL_SKILLS_ID, ORIGIN_ID, builtin_server,
+    AUTOMATIONS_ID, COMPUTER_USE_ID, GENERAL_SKILLS_ID, ORIGIN_ID, RESEARCH_ID, builtin_server,
     with_general_skills,
 };
 use crate::records::{by_id, by_id_mut, remove, strings, text};
@@ -244,7 +244,7 @@ impl Kernel {
         Ok(self.store.read(|state| state.agents.clone()))
     }
 
-    /// Creates an agent. Without a list of its own it gets every server there is.
+    /// Creates an agent. Without a list of its own it gets every server there is, except the research tools, which are asked for.
     pub async fn create_agent(&self, input: &Value) -> Result<Value, CoreError> {
         self.ensure_builtins().await?;
         let servers = if input.get("mcpConnectionIds").is_some_and(Value::is_array) {
@@ -255,7 +255,7 @@ impl Kernel {
                     .mcp
                     .iter()
                     .map(|item| text(item, "id").to_owned())
-                    .filter(|id| id != GENERAL_SKILLS_ID)
+                    .filter(|id| id != GENERAL_SKILLS_ID && id != RESEARCH_ID)
                     .collect()
             })
         };

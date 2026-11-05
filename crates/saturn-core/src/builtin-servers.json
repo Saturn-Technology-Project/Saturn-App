@@ -3228,5 +3228,311 @@
     ]
    }
   ]
+ },
+ {
+  "id": "research",
+  "name": "Research",
+  "url": "builtin://research",
+  "tools": [
+   {
+    "toolId": "research_skill",
+    "serverId": "research",
+    "category": "read",
+    "description": "List the research skills, or read one. With no name, lists them; start with research-autopilot for a whole study. Read a skill before doing what it covers.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string",
+       "description": "The skill to read. Leave out to list them."
+      }
+     },
+     "required": []
+    }
+   },
+   {
+    "toolId": "research_read",
+    "serverId": "research",
+    "category": "read",
+    "description": "Read a project's research: what=status (everything at a glance), list or record (collection, id), runs, run, summary, samples (run, cursor, limit, only=all|disputed|errors), log (run, stream=stdout|stderr), resources, labels, compare (left and right are version ids), sample_across (sample, runs), events, environment, policy, inside_list, inside (run, sample, model).",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "what": {
+       "type": "string",
+       "enum": [
+        "status",
+        "list",
+        "record",
+        "runs",
+        "run",
+        "summary",
+        "samples",
+        "log",
+        "resources",
+        "labels",
+        "compare",
+        "sample_across",
+        "events",
+        "environment",
+        "policy",
+        "inside_list",
+        "inside"
+       ]
+      },
+      "collection": {
+       "type": "string",
+       "enum": [
+        "questions",
+        "hypotheses",
+        "experiments",
+        "versions",
+        "models",
+        "findings",
+        "counterexamples"
+       ]
+      },
+      "id": {
+       "type": "string"
+      },
+      "run": {
+       "type": "string"
+      },
+      "cursor": {
+       "type": "integer"
+      },
+      "limit": {
+       "type": "integer"
+      },
+      "only": {
+       "type": "string",
+       "enum": [
+        "all",
+        "disputed",
+        "errors"
+       ]
+      },
+      "stream": {
+       "type": "string",
+       "enum": [
+        "stdout",
+        "stderr"
+       ]
+      },
+      "left": {
+       "type": "string"
+      },
+      "right": {
+       "type": "string"
+      },
+      "sample": {
+       "type": "string"
+      },
+      "runs": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "model": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "what"
+     ]
+    }
+   },
+   {
+    "toolId": "research_wait",
+    "serverId": "research",
+    "category": "read",
+    "description": "Wait for an experiment run to end, up to 600 seconds at a time, and get its status with its summary, or its newest resource readings if it is still going. Call again to keep waiting.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "run": {
+       "type": "string"
+      },
+      "seconds": {
+       "type": "integer",
+       "description": "At most 600."
+      }
+     },
+     "required": [
+      "run"
+     ]
+    }
+   },
+   {
+    "toolId": "research_write",
+    "serverId": "research",
+    "category": "write",
+    "description": "Make or change a research record. Leave out id to make one. Collections: questions (title), hypotheses (title, questionId, made only, never changed), experiments (title, command, cwd, inputs, evaluation, models, seeds, envNames, questionId, hypothesisId), models (source, weightsRevision, name, parentId, referenceId, trainingData, producedBy), findings (text, runIds), counterexamples (runId, sampleId, note). What you write as a finding is recorded as your suggestion. You cannot set a verdict or a label: those are the person's.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "collection": {
+       "type": "string",
+       "enum": [
+        "questions",
+        "hypotheses",
+        "experiments",
+        "models",
+        "findings",
+        "counterexamples"
+       ]
+      },
+      "id": {
+       "type": "string",
+       "description": "The record to change. Leave out to make a new one."
+      },
+      "expectedRevision": {
+       "type": "integer",
+       "description": "The revision of the record you read, when changing one."
+      },
+      "fields": {
+       "type": "object"
+      }
+     },
+     "required": [
+      "collection",
+      "fields"
+     ]
+    }
+   },
+   {
+    "toolId": "research_run",
+    "serverId": "research",
+    "category": "write",
+    "description": "Run an experiment. action=freeze (experiment) makes or finds the version holding its code, data and settings as they are in this chat's folder. action=start (version, attempt) starts it and returns at once; a new attempt number runs the same version again. action=stop (run) ends a run.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string",
+       "enum": [
+        "freeze",
+        "start",
+        "stop"
+       ]
+      },
+      "experiment": {
+       "type": "string"
+      },
+      "version": {
+       "type": "string"
+      },
+      "attempt": {
+       "type": "integer"
+      },
+      "run": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "action"
+     ]
+    }
+   },
+   {
+    "toolId": "research_environment_action",
+    "serverId": "research",
+    "category": "write",
+    "description": "Set up the project's Python. action=check reports the interpreter, packages and devices. action=create makes .venv (python, withCore, timeoutSeconds). action=install adds a kit (core, interpretability, training, analysis, notebooks), packages, or sync=true from the lock file (timeoutSeconds). action=set chooses an interpreter (python). action=stop ends the job. Create and install run as a job: read what=environment to follow it.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string",
+       "enum": [
+        "check",
+        "create",
+        "install",
+        "set",
+        "stop"
+       ]
+      },
+      "python": {
+       "type": "string"
+      },
+      "withCore": {
+       "type": "boolean"
+      },
+      "kit": {
+       "type": "string"
+      },
+      "packages": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "sync": {
+       "type": "boolean"
+      },
+      "timeoutSeconds": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "action"
+     ]
+    }
+   },
+   {
+    "toolId": "research_inspect",
+    "serverId": "research",
+    "category": "write",
+    "description": "Look inside a model on a run's samples, with the Python the experiment's command starts with. action=activations (runId, sampleId, modelId) reads each layer. action=patch (runId, sampleId, sourceModelId, targetModelId, layer) replaces the residual stream leaving a layer with the source's. action=sweep (runId, sampleIds up to 32, sourceModelId, targetModelId, layers) patches every layer. Results are saved with the run.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string",
+       "enum": [
+        "activations",
+        "patch",
+        "sweep"
+       ]
+      },
+      "runId": {
+       "type": "string"
+      },
+      "sampleId": {
+       "type": "string"
+      },
+      "sampleIds": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "modelId": {
+       "type": "string"
+      },
+      "sourceModelId": {
+       "type": "string"
+      },
+      "targetModelId": {
+       "type": "string"
+      },
+      "layer": {
+       "type": "integer"
+      },
+      "layers": {
+       "type": "array",
+       "items": {
+        "type": "integer"
+       }
+      }
+     },
+     "required": [
+      "action",
+      "runId"
+     ]
+    }
+   }
+  ]
  }
 ]

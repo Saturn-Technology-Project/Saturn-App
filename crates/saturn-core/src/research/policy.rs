@@ -456,6 +456,11 @@ impl Kernel {
         }
     }
 
+    /// Forgets what a run's protected files looked like, after a change the run made through Saturn itself.
+    pub(super) fn research_forget_baseline(&self, run: &Value) {
+        locked(&self.research.baselines).remove(text(run, "id"));
+    }
+
     /// Records what changed among a run's protected files since it was last looked at. Who changed them is not known:
     /// the user may have edited one, so this says only that it changed.
     pub(crate) async fn research_check_run(&self, run: &Value, tool: &str) {

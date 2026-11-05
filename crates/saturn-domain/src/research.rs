@@ -332,6 +332,58 @@ pub fn check_policy(policy: &Value) -> Result<(), String> {
     Ok(())
 }
 
+/// The kinds of record an agent may make.
+const AGENT_COLLECTIONS: [&str; 6] = [
+    "questions",
+    "hypotheses",
+    "experiments",
+    "models",
+    "findings",
+    "counterexamples",
+];
+
+/// What an agent asks to make, as it may make it. A verdict is the person's, and whatever an agent finds is its suggestion.
+pub fn agent_record(collection: &str, fields: &Value) -> Result<Value, String> {
+    if !AGENT_COLLECTIONS.contains(&collection) {
+        return Err(format!("An agent cannot make records in \"{collection}\"."));
+    }
+    let mut fields = fields.clone();
+    let Some(record) = fields.as_object_mut() else {
+        return Err("\"fields\" must be an object.".to_owned());
+    };
+    if record.contains_key("verdict") {
+        return Err(
+            "A verdict is the person's to set. Say what the evidence suggests in a finding."
+                .to_owned(),
+        );
+    }
+    if collection == "findings" {
+        if record
+            .get("kind")
+            .and_then(Value::as_str)
+            .is_some_and(|kind| kind != "ai_suggestion")
+        {
+            return Err("What an agent finds is recorded as a suggestion: leave out \"kind\". A conclusion is the person's.".to_owned());
+        }
+        record.insert("kind".to_owned(), json!("ai_suggestion"));
+    }
+    Ok(fields)
+}
+
+/// What an agent asks to change on a record, as it may change it. A hypothesis does not change under the person's verdict, and
+/// the only findings an agent changes are its own.
+pub fn agent_change(collection: &str, current: &Value, fields: &Value) -> Result<Value, String> {
+    if collection == "hypotheses" {
+        return Err("A hypothesis does not change once made, since a verdict may rest on it. Make a new one.".to_owned());
+    }
+    if collection == "findings"
+        && current.get("kind").and_then(Value::as_str) != Some("ai_suggestion")
+    {
+        return Err("This finding is the person's. Add your own instead.".to_owned());
+    }
+    agent_record(collection, fields)
+}
+
 /// How much a chat's agent may change: `manual` only reads, `pair` asks about each change, `delegate` works on its own.
 pub fn is_chat_mode(mode: &str) -> bool {
     matches!(mode, "manual" | "pair" | "delegate")
@@ -460,6 +512,36 @@ mod tests {
         assert_ne!(
             fingerprint(&json!({"b": {"d": [1, 2]}})),
             fingerprint(&json!({"b": {"d": [2, 1]}}))
+        );
+    }
+
+    #[test]
+    fn an_agent_cannot_set_what_is_the_persons() {
+        assert!(
+            agent_record("hypotheses", &json!({"title": "H", "verdict": "supported"})).is_err()
+        );
+        assert!(agent_record("versions", &json!({})).is_err());
+        assert!(agent_record("findings", &json!({"text": "T", "kind": "conclusion"})).is_err());
+        assert_eq!(
+            agent_record("findings", &json!({"text": "T"})).unwrap()["kind"],
+            "ai_suggestion"
+        );
+        assert!(agent_change("hypotheses", &json!({}), &json!({"title": "H"})).is_err());
+        assert!(
+            agent_change(
+                "findings",
+                &json!({"kind": "conclusion"}),
+                &json!({"text": "T"})
+            )
+            .is_err()
+        );
+        assert!(
+            agent_change(
+                "findings",
+                &json!({"kind": "ai_suggestion"}),
+                &json!({"text": "T"})
+            )
+            .is_ok()
         );
     }
 

@@ -30,6 +30,20 @@ pub const MAX_WAIT_MS: f64 = 3_600_000.0;
 pub const MAX_SLEEPS: u64 = 48;
 /// Tool rounds one turn may take before it stops and says so; long computer-use tasks need a good number.
 pub const MAX_TOOL_ROUNDS: usize = 60;
+/// The tool steps in one turn of an agent with the research tools: a study takes many, and most of them wait on a run.
+pub const MAX_RESEARCH_TOOL_ROUNDS: usize = 400;
+
+/// How many tool steps one of an agent's turns may take.
+fn tool_rounds_of(agent: &Value) -> usize {
+    if strings(agent, "mcpConnectionIds")
+        .iter()
+        .any(|id| id == crate::builtins::RESEARCH_ID)
+    {
+        MAX_RESEARCH_TOOL_ROUNDS
+    } else {
+        MAX_TOOL_ROUNDS
+    }
+}
 /// How many levels a sub-agent may delegate below the chat's own run.
 pub const MAX_DELEGATION_DEPTH: usize = 2;
 /// Tasks one `delegate` call may run at once.
@@ -47,9 +61,9 @@ const SEES_IMAGES: [&str; 6] = [
 ];
 
 /// What the user sees when a turn stops at the step limit.
-pub fn step_limit_note() -> String {
+pub fn step_limit_note(limit: usize) -> String {
     format!(
-        "I stopped after {MAX_TOOL_ROUNDS} tool steps, the limit for one turn, before finishing. Reply \"continue\" and I will pick up from here."
+        "I stopped after {limit} tool steps, the limit for one turn, before finishing. Reply \"continue\" and I will pick up from here."
     )
 }
 
@@ -1538,7 +1552,8 @@ impl Kernel {
         };
         let mut rounds = 0;
         let has_servers = !strings(agent, "mcpConnectionIds").is_empty();
-        while has_servers && rounds < MAX_TOOL_ROUNDS {
+        let limit = tool_rounds_of(agent);
+        while has_servers && rounds < limit {
             if response.tool_calls.is_empty() || !self.alive(run_id, at) {
                 break;
             }
@@ -1558,13 +1573,13 @@ impl Kernel {
             self.note_thinking(run_id, at, &response, started).await?;
         }
         // Still asking for tools after the last round: the step limit ended this turn, not the model.
-        let cut_off = rounds >= MAX_TOOL_ROUNDS && !response.tool_calls.is_empty();
+        let cut_off = rounds >= limit && !response.tool_calls.is_empty();
         if cut_off {
             log(
                 "agent",
                 "warning",
                 &format!(
-                    "{} reached the limit of {MAX_TOOL_ROUNDS} tool rounds in one turn",
+                    "{} reached the limit of {limit} tool rounds in one turn",
                     text(agent, "name")
                 ),
             );
@@ -1572,9 +1587,9 @@ impl Kernel {
         let answer = js::trim(&response.content);
         let output = if cut_off {
             if answer.is_empty() {
-                step_limit_note()
+                step_limit_note(limit)
             } else {
-                format!("{answer}\n\n{}", step_limit_note())
+                format!("{answer}\n\n{}", step_limit_note(limit))
             }
         } else {
             response.content.clone()

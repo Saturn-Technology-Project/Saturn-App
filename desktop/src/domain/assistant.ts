@@ -6,6 +6,8 @@ import { hiddenContext } from "./slash.js";
 export const ASSISTANT_NAME = "Research assistant";
 /** The chat of a project's assistant panel. */
 export const ASSISTANT_THREAD = "Research assistant";
+/** The built-in tools the assistant works with a project's research through. */
+export const RESEARCH_TOOLS = "research";
 /** What a task's chat is called, followed by what it was asked. */
 export const TASK_PREFIX = "Task: ";
 

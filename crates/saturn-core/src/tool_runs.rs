@@ -21,7 +21,9 @@ use saturn_tools::general::{CallFuture, GeneralSkills, ToolCaller};
 use saturn_tools::sandbox::{DEFAULT_SANDBOX, SandboxSettings};
 use serde_json::{Value, json};
 
-use crate::builtins::{AUTOMATIONS_ID, BROWSER_ID, COMPUTER_USE_ID, GENERAL_SKILLS_ID, ORIGIN_ID};
+use crate::builtins::{
+    AUTOMATIONS_ID, BROWSER_ID, COMPUTER_USE_ID, GENERAL_SKILLS_ID, ORIGIN_ID, RESEARCH_ID,
+};
 use crate::checkpoints::{CommandSnapshot, StepCheckpoint};
 use crate::origin::Origin;
 use crate::records::{by_id, by_id_mut, strings, text};
@@ -378,6 +380,15 @@ impl Kernel {
                     .run_agent_tool(tool, arguments, agent_id, &workspace)
                     .await
                 {
+                    Ok(result) => completed(result),
+                    Err(reason) => failed(&reason),
+                },
+            );
+        }
+        if server == RESEARCH_ID {
+            let run = self.get_run(run_id)?;
+            return Ok(
+                match self.research_agent_tool(tool, arguments, &run).await {
                     Ok(result) => completed(result),
                     Err(reason) => failed(&reason),
                 },

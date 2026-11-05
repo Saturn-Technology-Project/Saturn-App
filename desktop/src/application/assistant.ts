@@ -1,4 +1,4 @@
-import { ASSISTANT_NAME, ASSISTANT_THREAD, TASK_PREFIX } from "../domain/assistant.js";
+import { ASSISTANT_NAME, ASSISTANT_THREAD, RESEARCH_TOOLS, TASK_PREFIX } from "../domain/assistant.js";
 import type { Agent, Conversation, Model, RunMode } from "../domain/model.js";
 import { assistantInstructions } from "../domain/workbench.js";
 import type { CatalogService } from "./catalog.js";
@@ -21,12 +21,16 @@ export class AssistantService {
       // Its model may have been removed with nothing to take over, and what it knows of Saturn changes with Saturn. Nothing
       // else can set either: it has no screen.
       const modelConnectionId = models.some((model) => model.id === found.modelConnectionId) ? found.modelConnectionId : models[0].id;
-      if (modelConnectionId === found.modelConnectionId && found.instructions === instructions) return { agent: found, models };
-      await this.catalog.updateAgent(found.id, { modelConnectionId, instructions });
-      return { agent: { ...found, modelConnectionId, instructions }, models };
+      const mcpConnectionIds = found.mcpConnectionIds.includes(RESEARCH_TOOLS) ? found.mcpConnectionIds : [...found.mcpConnectionIds, RESEARCH_TOOLS];
+      if (modelConnectionId === found.modelConnectionId && found.instructions === instructions && mcpConnectionIds === found.mcpConnectionIds) return { agent: found, models };
+      await this.catalog.updateAgent(found.id, { modelConnectionId, instructions, mcpConnectionIds });
+      return { agent: { ...found, modelConnectionId, instructions, mcpConnectionIds }, models };
     }
+    // Made without a list, so that it has every tool an agent gets by default, and then the research tools, which are asked for.
     const agent = await this.catalog.createAgent({ name: ASSISTANT_NAME, modelConnectionId: models[0].id, instructions });
-    return { agent, models };
+    const mcpConnectionIds = [...agent.mcpConnectionIds, RESEARCH_TOOLS];
+    await this.catalog.updateAgent(agent.id, { mcpConnectionIds });
+    return { agent: { ...agent, mcpConnectionIds }, models };
   }
 
   chooseModel(agent: Agent, modelId: string): Promise<void> {
