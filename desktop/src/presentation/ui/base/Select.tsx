@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { classes } from "./classes.js";
 
@@ -29,11 +30,22 @@ export function SelectContent({ className, children, ...props }: SelectPrimitive
   );
 }
 
+/** Values that belong together, under a name. */
+export function SelectGroup(props: { label: string; children: ReactNode }) {
+  return (
+    <SelectPrimitive.Group data-slot="select-group" className="not-first:mt-1">
+      <SelectPrimitive.GroupLabel className="px-2 py-1 text-xs text-muted-foreground">{props.label}</SelectPrimitive.GroupLabel>
+      {props.children}
+    </SelectPrimitive.Group>
+  );
+}
+
 /** One value in the list, with a check when it is the chosen one. */
-export function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Props) {
+export function SelectItem({ className, children, hint, ...props }: SelectPrimitive.Item.Props & { hint?: string }) {
   return (
     <SelectPrimitive.Item data-slot="select-item" className={classes("relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2", className)} {...props}>
       <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">{children}</SelectPrimitive.ItemText>
+      {hint ? <span className="text-xs whitespace-normal text-muted-foreground">{hint}</span> : null}
       <SelectPrimitive.ItemIndicator render={<span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />}>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>
       </SelectPrimitive.ItemIndicator>

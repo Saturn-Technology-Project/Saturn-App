@@ -175,8 +175,8 @@ export function PermissionsPage(props: { projects: Project[]; agents: { id: stri
               value={target}
               options={[
                 { value: "user", label: "Everywhere" },
-                ...props.projects.map((project) => ({ value: `project:${project.id}`, label: `Project · ${project.name}` })),
-                ...props.agents.map((agent) => ({ value: `agent:${agent.id}`, label: `Agent · ${agent.name}` })),
+                ...props.projects.map((project) => ({ value: `project:${project.id}`, label: project.name, group: "Projects" })),
+                ...props.agents.map((agent) => ({ value: `agent:${agent.id}`, label: agent.name, group: "Agents" })),
               ]}
               onChange={setTarget}
             />

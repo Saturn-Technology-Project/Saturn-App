@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { classes } from "./classes.js";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "./Select.js";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "./Select.js";
 
 /** A form's field: its name above what fills it in. */
 export function Field(props: { label: ReactNode; hint?: ReactNode; className?: string; children: ReactNode }) {
@@ -18,6 +18,21 @@ export interface ChoiceOption {
   value: string;
   label: string;
   disabled?: boolean;
+  /** A line under the label in the list, saying what choosing it means. */
+  hint?: string;
+  /** The name of the group it is listed under. Options of one group sit next to each other. */
+  group?: string;
+}
+
+/** Options in runs by their group, in the order they come. */
+function optionGroups(options: ChoiceOption[]): { name?: string; options: ChoiceOption[] }[] {
+  const groups: { name?: string; options: ChoiceOption[] }[] = [];
+  for (const option of options) {
+    const last = groups.at(-1);
+    if (last && last.name === option.group) last.options.push(option);
+    else groups.push({ name: option.group, options: [option] });
+  }
+  return groups;
 }
 
 /**
@@ -30,7 +45,10 @@ export function Choice(props: { label?: ReactNode; ariaLabel?: string; value: st
     <Select value={props.value || null} items={props.options} disabled={props.disabled} onValueChange={(value) => props.onChange(String(value ?? ""))}>
       <SelectTrigger aria-labelledby={props.label ? id : undefined} aria-label={props.ariaLabel} placeholder={props.placeholder} className={classes("w-full text-foreground", props.triggerClassName)} />
       <SelectContent>
-        {props.options.map((option) => <SelectItem key={option.value} value={option.value} disabled={option.disabled}>{option.label}</SelectItem>)}
+        {optionGroups(props.options).map((group, index) => {
+          const items = group.options.map((option) => <SelectItem key={option.value} value={option.value} disabled={option.disabled} hint={option.hint} className={option.hint ? "flex-col items-start gap-0.5" : undefined}>{option.label}</SelectItem>);
+          return group.name ? <SelectGroup key={group.name} label={group.name}>{items}</SelectGroup> : <div key={index}>{items}</div>;
+        })}
       </SelectContent>
     </Select>
   );

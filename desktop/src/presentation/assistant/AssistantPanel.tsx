@@ -232,7 +232,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
               @
             </Button>
             <div className="flex-none" data-tour="assistant-mode">
-              <Choice ariaLabel="How much the assistant may do in this chat" triggerClassName={CHAT_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label }))} onChange={(next) => void chooseMode(next as ChatMode)} />
+              <Choice ariaLabel="How much the assistant may do in this chat" triggerClassName={CHAT_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label, hint: item.hint }))} onChange={(next) => void chooseMode(next as ChatMode)} />
             </div>
             <div className="max-w-[130px] min-w-0" title={models.find((model) => model.id === agent?.modelConnectionId)?.name}>
               <Choice ariaLabel="Model" triggerClassName={CHAT_SELECT} value={agent?.modelConnectionId ?? ""} options={models.map((model) => ({ value: model.id, label: model.name }))} onChange={(next) => void chooseModel(next)} />
