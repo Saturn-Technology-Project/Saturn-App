@@ -204,6 +204,13 @@ and `gpus` (each GPU's name, utilization and memory from `nvidia-smi`, or null w
 with `{"runId","status","system":{"cpus","platform"},"points":[...]}`, the newest 900 points. The readings are what
 the system said; nothing is derived from them.
 
+Resource points also carry `samplesRewrites`, the number of times an already counted prefix was changed or truncated.
+An unchanged file uses a metadata check; when it changes, the consumed prefix is verified by streaming SHA-256 before
+adding new complete lines. A changed prefix restarts line/token counts from the current file and the interface warns
+that the program violated the append protocol. Throughput starts again at that point. Verification can read a large
+prefix, although only appended lines need JSON parsing in the normal case. Rewrites before a prefix was sampled,
+or changes restored between readings, cannot be observed; this does not enforce append-only access to the file.
+
 ## The environment
 
 `GET /projects/{id}/research/environment` is the project's Python: `python` (the interpreter the user set, or null),

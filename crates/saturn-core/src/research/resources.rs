@@ -1,13 +1,14 @@
 //! What a run costs while it lives: its process group's processor time and memory, the GPUs when `nvidia-smi` can
 //! say, and how fast its samples file grows. Sampled every two seconds into the run's folder, never interpreted.
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use saturn_domain::research::is_id;
 use saturn_domain::time::{iso_time, now_millis};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use tokio::process::Command;
 
 use super::runs::group_exists;
@@ -90,21 +91,78 @@ struct Counted {
     input_tokens: u64,
     output_tokens: u64,
     device_memory: Option<u64>,
+    stamp: Option<FileStamp>,
+    prefix: [u8; 32],
+    rewrites: u64,
 }
 
-/// Reads the sample lines written since the last count and adds them to it.
+/// Metadata lets an unchanged file skip reading; a changed file's consumed prefix is verified before reusing counts.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct FileStamp {
+    size: u64,
+    modified: Option<SystemTime>,
+    #[cfg(unix)]
+    identity: (u64, u64, i64, i64),
+}
+
+impl FileStamp {
+    /// The metadata that changes when samples are edited or the file is replaced.
+    fn from(metadata: &std::fs::Metadata) -> Self {
+        #[cfg(unix)]
+        use std::os::unix::fs::MetadataExt;
+        Self {
+            size: metadata.len(),
+            modified: metadata.modified().ok(),
+            #[cfg(unix)]
+            identity: (
+                metadata.dev(),
+                metadata.ino(),
+                metadata.ctime(),
+                metadata.ctime_nsec(),
+            ),
+        }
+    }
+}
+
+/// Counts appended complete lines; truncation or a changed prefix starts fresh and records the protocol violation.
 fn count_lines(path: &Path, mut counted: Counted) -> Counted {
-    let Ok(file) = std::fs::File::open(path) else {
+    let Ok(mut file) = std::fs::File::open(path) else {
         return counted;
     };
-    let size = file.metadata().map(|meta| meta.len()).unwrap_or(0);
-    if size <= counted.read {
+    let Ok(metadata) = file.metadata() else {
         return counted;
+    };
+    let stamp = FileStamp::from(&metadata);
+    if counted.stamp == Some(stamp) {
+        return counted;
+    }
+    let mut hash = Sha256::new();
+    let mut remaining = counted.read;
+    let mut chunk = [0_u8; 64 * 1024];
+    while remaining > 0 {
+        let room = remaining.min(chunk.len() as u64) as usize;
+        let Ok(read) = file.read(&mut chunk[..room]) else {
+            return counted;
+        };
+        if read == 0 {
+            break;
+        }
+        hash.update(&chunk[..read]);
+        remaining -= read as u64;
+    }
+    if counted.stamp.is_some()
+        && (remaining > 0 || <[u8; 32]>::from(hash.clone().finalize()) != counted.prefix)
+    {
+        counted = Counted {
+            rewrites: counted.rewrites + 1,
+            ..Counted::default()
+        };
+        if file.seek(SeekFrom::Start(0)).is_err() {
+            return counted;
+        }
+        hash = Sha256::new();
     }
     let mut reader = BufReader::new(file);
-    if std::io::Seek::seek(&mut reader, std::io::SeekFrom::Start(counted.read)).is_err() {
-        return counted;
-    }
     let mut buffer = Vec::new();
     while let Ok(bytes) = reader.read_until(b'\n', &mut buffer) {
         if bytes == 0 || buffer.last() != Some(&b'\n') {
@@ -112,6 +170,7 @@ fn count_lines(path: &Path, mut counted: Counted) -> Counted {
         }
         counted.lines += 1;
         counted.read += bytes as u64;
+        hash.update(&buffer);
         if let Ok(line) = serde_json::from_slice::<Value>(&buffer)
             && let Some(usage) = line.get("usage").and_then(Value::as_object)
         {
@@ -124,6 +183,8 @@ fn count_lines(path: &Path, mut counted: Counted) -> Counted {
         }
         buffer.clear();
     }
+    counted.stamp = Some(stamp);
+    counted.prefix = hash.finalize().into();
     counted
 }
 
@@ -164,6 +225,7 @@ impl Kernel {
                     "processes": usage.map(|(_, _, count)| count),
                     "samplesBytes": counted.read,
                     "samplesLines": counted.lines,
+                    "samplesRewrites": counted.rewrites,
                     "inputTokens": counted.input_tokens,
                     "outputTokens": counted.output_tokens,
                     "deviceMemoryBytes": counted.device_memory,
@@ -215,5 +277,51 @@ impl Kernel {
             "system": system(),
             "points": points,
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn counts_follow_truncation_same_size_and_larger_rewrites() {
+        let folder = std::env::temp_dir().join(saturn_domain::new_id("research_counts").unwrap());
+        std::fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("samples.jsonl");
+        let line = |name, tokens| {
+            format!(
+                "{}\n",
+                json!({"sampleId": name, "usage": {"inputTokens": tokens, "outputTokens": tokens, "deviceMemoryBytes": tokens}})
+            )
+        };
+        std::fs::write(&path, line("a", 10).repeat(3)).unwrap();
+        let before = count_lines(&path, Counted::default());
+        assert_eq!((before.lines, before.input_tokens), (3, 30));
+        std::fs::write(&path, line("b", 90)).unwrap();
+        let shorter = count_lines(&path, before);
+        assert_eq!(
+            (shorter.lines, shorter.input_tokens, shorter.device_memory),
+            (1, 90, Some(90))
+        );
+        std::fs::write(&path, line("c", 70)).unwrap();
+        let same_size = count_lines(&path, shorter);
+        assert_eq!((same_size.lines, same_size.input_tokens), (1, 70));
+        std::fs::write(&path, line("d", 50).repeat(5)).unwrap();
+        let larger = count_lines(&path, same_size);
+        assert_eq!((larger.lines, larger.input_tokens), (5, 250));
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
+        let last = line("e", 20);
+        file.write_all(&last.as_bytes()[..last.len() - 1]).unwrap();
+        let partial = count_lines(&path, larger);
+        assert_eq!((partial.lines, partial.input_tokens), (5, 250));
+        file.write_all(b"\n").unwrap();
+        let appended = count_lines(&path, partial);
+        assert_eq!((appended.lines, appended.input_tokens), (6, 270));
+        std::fs::remove_dir_all(folder).unwrap();
     }
 }

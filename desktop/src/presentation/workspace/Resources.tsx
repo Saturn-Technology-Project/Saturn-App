@@ -42,6 +42,7 @@ export function Resources(props: { projectId: string; run: ExperimentRun; notify
 
   return (
     <div className="lab-resources">
+      {last.samplesRewrites ? <div className="lab-warning">samples.jsonl was rewritten {last.samplesRewrites} {last.samplesRewrites === 1 ? "time" : "times"}. Counts restarted from the current file. A run must append samples; earlier file contents may have been lost.</div> : null}
       <div className="lab-stats">
         <Stat label={active ? "Running for" : "Ran for"} value={durationText(last.elapsedMs)} />
         <Stat label="Processor" value={last.cpuPercent === null ? "—" : `${last.cpuPercent.toFixed(0)}%`} hint={`of ${read.system.cpus * 100}% on ${read.system.cpus} cores, ${last.processes ?? 0} processes`} />

@@ -27,6 +27,12 @@ test("a kit is installed, partly installed or missing by what the last check saw
   assert.equal(kitState(kit([null, null])), "missing");
 });
 
+test("throughput never crosses a samples file rewrite", () => {
+  const readings = [point(0, 100), { ...point(2000, 2), samplesRewrites: 1 }];
+  assert.equal(throughput(readings), null);
+  assert.equal(throughput([...readings, { ...point(4000, 8), samplesRewrites: 1 }]), 3);
+});
+
 test("what an environment can compute on is said from what torch reported", () => {
   const report = (devices) => ({ executable: "", version: "", platform: "", cpus: 1, packages: {}, devices });
   assert.equal(devicesText(null), "Not checked yet");

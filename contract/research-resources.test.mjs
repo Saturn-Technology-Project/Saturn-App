@@ -46,6 +46,7 @@ for (let index = 0; index < 3; index += 1) {
   assert.ok(last.processes >= 1);
   assert.ok(last.elapsedMs >= 1000);
   assert.ok(last.samplesLines >= 1 && last.samplesLines <= 3);
+  assert.equal(last.samplesRewrites, 0);
   assert.equal(last.inputTokens, 10 * last.samplesLines);
   assert.equal(last.outputTokens, [5, 11, 18][last.samplesLines - 1]);
   assert.equal(last.deviceMemoryBytes, 1000 * last.samplesLines);
@@ -56,6 +57,27 @@ for (let index = 0; index < 3; index += 1) {
   const file = await readFile(path.join(folder, ".saturn/research/runs", started.id, "resources.jsonl"), "utf8");
   assert.equal(file.trim().split("\n").length, read.points.length);
   assert.equal((await saturn.call("GET", `${route}/runs/run_0000000000000000/resources`)).status, 404);
+});
+
+test("a samples rewrite restarts the persisted counts instead of adding to an obsolete prefix", posixOnly, async () => {
+  const { folder, route } = await project();
+  await writeFile(path.join(folder, "probe.mjs"), `
+    import { writeFileSync } from "node:fs";
+    const line = (sampleId, inputTokens) => JSON.stringify({schemaVersion:1,sampleId,usage:{inputTokens}})+"\\n";
+    writeFileSync(process.env.SATURN_RUN_SAMPLES, [0,1,2].map(n => line("old"+n,10)).join(""));
+    await new Promise(resolve => setTimeout(resolve,2500));
+    writeFileSync(process.env.SATURN_RUN_SAMPLES,line("new",90));
+    await new Promise(resolve => setTimeout(resolve,2500));
+  `);
+  const experiment = await saturn.api("POST", `${route}/experiments`, {title:"Rewrite",command:"node probe.mjs",evaluation});
+  const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const run = await saturn.api("POST", `${route}/versions/${version.id}/runs`, {clientId:"rewrite"});
+  const readings = await until("the rewrite to be sampled", () => saturn.api("GET", `${route}/runs/${run.id}/resources`), read => read.points.some(point => point.samplesRewrites > 0));
+  const last = readings.points.at(-1);
+  assert.equal(last.samplesRewrites, 1);
+  assert.equal(last.samplesLines, 1);
+  assert.equal(last.inputTokens, 90);
+  await until("the rewritten run to finish", () => saturn.api("GET", `${route}/runs/${run.id}`), settled);
 });
 
 test("the environment names a python, lists the lock files with their hashes, and keeps what the python reports", posixOnly, async () => {

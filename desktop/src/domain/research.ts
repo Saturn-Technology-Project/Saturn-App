@@ -460,6 +460,8 @@ export interface ResourcePoint {
   processes: number | null;
   samplesBytes: number;
   samplesLines: number;
+  /** A changed/truncated consumed prefix caused the counters to restart. Absent in older resource records. */
+  samplesRewrites?: number;
   /** Tokens the program reported under each sample's `usage`, added up so far. */
   inputTokens: number;
   outputTokens: number;
@@ -477,7 +479,8 @@ export interface RunResources {
 
 /** How fast a count grew per second over the newest readings. Null until two readings differ in time. */
 export function throughput(points: ResourcePoint[], window = 10, of: (point: ResourcePoint) => number = (point) => point.samplesLines): number | null {
-  const recent = points.slice(-window);
+  const generation = points.at(-1)?.samplesRewrites ?? 0;
+  const recent = points.slice(-window).filter((point) => (point.samplesRewrites ?? 0) === generation);
   const first = recent[0];
   const last = recent.at(-1);
   if (!first || !last || last.elapsedMs <= first.elapsedMs) return null;

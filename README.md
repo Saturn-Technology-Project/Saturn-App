@@ -77,6 +77,8 @@ The interface is built around research. Groups, schedules and pull request follo
 
 **Reviewing samples.** Disputed and error views filter the whole run before paging. In Experiments, map custom label names to the scorer's words (for example, “Wrong name” → “Wrong”); the same rule drives agreement statistics and review warnings, while original labels and scores stay intact.
 
+**Run counters.** Resources warns when a program rewrites an already counted samples prefix, recounts the current file, and starts throughput again. Experiment programs should append complete JSONL lines.
+
 ## Install
 
 Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) for macOS on Apple Silicon, and a setup `.exe` for Windows x64. Releases are pre-releases while Saturn is in preview; [`CHANGELOG.md`](CHANGELOG.md) summarizes what changed in each. Each file ships with a SHA-256 checksum and a signed build provenance attestation ([verify a download](#5-verify-the-release-provenance)).
