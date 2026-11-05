@@ -64,6 +64,17 @@ fn summary(rows: &[Value], inference: bool) -> Value {
         "missingLeft": change_count("missing_left"), "missingRight": change_count("missing_right"), "excluded": change_count("excluded") })
 }
 
+/// Reads an explicit nested field; a plain category also accepts preserved metadata when no top-level value exists.
+fn slice_name<'a>(source: &'a Value, field: &str) -> &'a str {
+    let nested = |root: &'a Value| field.split('.').try_fold(root, |value, key| value.get(key));
+    source
+        .get(field)
+        .or_else(|| nested(source))
+        .or_else(|| source.get("metadata").and_then(nested))
+        .and_then(Value::as_str)
+        .unwrap_or("(unclassified)")
+}
+
 /// Compares selected model samples and returns complete rows and descriptive statistics before paging.
 pub fn paired(
     left: &[Value],
@@ -82,7 +93,7 @@ pub fn paired(
         let b = right.get(key).copied();
         let source = a.or(b).unwrap_or(&Value::Null);
         let mut row = json!({ "sampleId": source["sampleId"], "trial": source.get("trial").and_then(Value::as_u64).unwrap_or(0),
-            "slice": source.get(slice).and_then(Value::as_str).unwrap_or("(unclassified)"), "left": a, "right": b, "delta": null });
+            "slice": slice_name(source, slice), "left": a, "right": b, "delta": null });
         let reason = match (a, b) {
             (None, _) => "missing_left",
             (_, None) => "missing_right",

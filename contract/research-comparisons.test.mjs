@@ -42,6 +42,17 @@ test("paired deltas report improvements, regressions, missing/error/input mismat
   assert.equal(lower.items.find((row) => row.sampleId === "a").change, "regressed");
 });
 
+test("slices read preserved metadata, explicit nested fields, and prefer a declared top-level category", async () => {
+  const { route, request } = await pair([
+    { sampleId: "a", metadata: { category: "names", group: { language: "zh" } } },
+    { sampleId: "b", category: "declared", metadata: { category: "other", group: { language: "en" } } },
+  ], [{ sampleId: "a" }, { sampleId: "b" }]);
+  const implicit = await saturn.api("POST", `${route}/comparisons`, request);
+  assert.deepEqual(implicit.items.map((item) => item.slice), ["names", "declared"]);
+  const explicit = await saturn.api("POST", `${route}/comparisons`, { ...request, sliceField: "metadata.group.language" });
+  assert.deepEqual(explicit.items.map((item) => item.slice), ["zh", "en"]);
+});
+
 test("uncertainty uses independent sample IDs, not repeated trials, and unknown methods get no interval", async () => {
   const left = [{ sampleId: "a", trial: 0 }, { sampleId: "a", trial: 1 }, { sampleId: "b" }];
   const right = left.map((row) => ({ ...row, scores: { s: 1 } }));

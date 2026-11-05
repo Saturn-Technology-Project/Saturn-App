@@ -18,6 +18,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **Behavior slices read imported metadata.** A default category can come from `metadata.category`; nested fields such as `metadata.group.language` can be selected explicitly, while a top-level category keeps precedence.
+
 - **Screens open fast on large runs.** A finished run's samples are read once and remembered, instead of again every time Lineage, Experiments, Samples or Home opened, which took seconds on a large run.
 - **The sidebar reads at a glance.** Each screen's icon and name share a line, only the screen you are on is highlighted, and Settings has a gear. In a narrow window the sidebar shrinks to its icons.
 - **A step waiting for your approval can always be seen.** Once a turn had said anything, its steps folded away with the approval card inside them, so a task could sit waiting with nothing to answer in view. The card now comes last in its turn.
