@@ -79,6 +79,8 @@ The interface is built around research. Groups, schedules and pull request follo
 
 **Run counters.** Resources warns when a program rewrites an already counted samples prefix, recounts the current file, and starts throughput again. Experiment programs should append complete JSONL lines.
 
+**Environment jobs.** Creation, package installs and lock-file syncs default to a 30-minute deadline, adjustable in Environment. A timeout stops the whole process group, keeps the output and allows a retry. The API accepts `timeoutSeconds` from 1 to 86400.
+
 ## Install
 
 Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) for macOS on Apple Silicon, and a setup `.exe` for Windows x64. Releases are pre-releases while Saturn is in preview; [`CHANGELOG.md`](CHANGELOG.md) summarizes what changed in each. Each file ships with a SHA-256 checksum and a signed build provenance attestation ([verify a download](#5-verify-the-release-provenance)).

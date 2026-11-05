@@ -242,12 +242,12 @@ export class ResearchService {
   }
 
   /** Makes the managed environment in the project, with the bundled kit unless declined. A job; the record says how it goes. */
-  createEnvironment(project: string, options: { python?: string; withCore: boolean }): Promise<EnvironmentRecord> {
+  createEnvironment(project: string, options: { python?: string; withCore: boolean; timeoutSeconds?: number }): Promise<EnvironmentRecord> {
     return this.send(`${this.route(project)}/environment/create`, "POST", options);
   }
 
   /** Installs a kit, named packages, or what the lock file says, into the managed environment. */
-  installPackages(project: string, request: { kit?: string; packages?: string[]; sync?: boolean }): Promise<EnvironmentRecord> {
+  installPackages(project: string, request: { kit?: string; packages?: string[]; sync?: boolean; timeoutSeconds?: number }): Promise<EnvironmentRecord> {
     return this.send(`${this.route(project)}/environment/install`, "POST", request);
   }
 

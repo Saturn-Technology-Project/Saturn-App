@@ -5,11 +5,12 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::Duration;
 
 use saturn_domain::new_id;
 use saturn_domain::research::SCHEMA_VERSION;
 use saturn_domain::time::{iso_time, now_millis};
-use saturn_tools::{in_own_group, launch_env, terminate};
+use saturn_tools::{EndOnDrop, in_own_group, launch_env};
 use serde_json::{Value, json};
 use tokio::process::Command;
 
@@ -24,6 +25,21 @@ const JOB_FILE: &str = "environment-job.json";
 const LOG_FILE: &str = "environment-job.log";
 /// How many lines of the log a reading gives.
 const LOG_TAIL: usize = 40;
+/// Installs may download large packages, but a stuck job must not hold its project forever.
+const DEFAULT_TIMEOUT_SECONDS: u64 = 30 * 60;
+
+/// The whole job's deadline, including every create/install step, from one second to one day.
+fn timeout_seconds(request: &Value) -> Result<u64, CoreError> {
+    match request.get("timeoutSeconds") {
+        None => Ok(DEFAULT_TIMEOUT_SECONDS),
+        Some(value) => value
+            .as_u64()
+            .filter(|seconds| (1..=86_400).contains(seconds))
+            .ok_or_else(|| {
+                CoreError::new(400, "timeoutSeconds must be an integer from 1 to 86400.")
+            }),
+    }
+}
 
 /// A kit of packages: what it is for, and what it holds.
 pub(super) struct Kit {
@@ -172,6 +188,7 @@ impl Kernel {
         project: &str,
         request: &Value,
     ) -> Result<Value, CoreError> {
+        let timeout = timeout_seconds(request)?;
         let source = self.research_source(project, None)?;
         let tools = self.environment_tools(&source);
         let version = text(request, "python").trim().to_owned();
@@ -219,7 +236,7 @@ impl Kernel {
                 .unwrap_or(&[]);
             commands.push(self.install_command(&tools, core));
         }
-        self.start_environment_job(project, "create", commands, Some(venv_python()))
+        self.start_environment_job(project, "create", commands, Some(venv_python()), timeout)
             .await
     }
 
@@ -229,6 +246,7 @@ impl Kernel {
         project: &str,
         request: &Value,
     ) -> Result<Value, CoreError> {
+        let timeout = timeout_seconds(request)?;
         let source = self.research_source(project, None)?;
         let tools = self.environment_tools(&source);
         if !tools
@@ -275,7 +293,7 @@ impl Kernel {
             let words: Vec<&str> = packages.iter().map(String::as_str).collect();
             commands.push(self.install_command(&tools, &words));
         }
-        self.start_environment_job(project, kind, commands, None)
+        self.start_environment_job(project, kind, commands, None, timeout)
             .await
     }
 
@@ -287,7 +305,7 @@ impl Kernel {
             return Err(CoreError::new(409, "No job is running."));
         }
         if let Some(pid) = job.get("pid").and_then(Value::as_u64) {
-            terminate(pid as u32);
+            super::runs::end_group(pid as u32).await;
         }
         Ok(job)
     }
@@ -357,6 +375,7 @@ impl Kernel {
         kind: &str,
         commands: Vec<String>,
         set_python_after: Option<String>,
+        timeout_seconds: u64,
     ) -> Result<Value, CoreError> {
         if cfg!(windows) {
             return Err(CoreError::new(
@@ -394,7 +413,13 @@ impl Kernel {
                 return Err(error.into());
             }
         };
-        let errors = log.try_clone()?;
+        let errors = match log.try_clone() {
+            Ok(errors) => errors,
+            Err(error) => {
+                locked(&self.research.environment_jobs).remove(&records);
+                return Err(error.into());
+            }
+        };
         let mut command = Command::new("/bin/sh");
         launch_env(&mut command);
         for (name, _) in std::env::vars_os() {
@@ -421,6 +446,7 @@ impl Kernel {
             }
         };
         let pid = child.id().unwrap_or(0);
+        let mut guard = EndOnDrop::new(child.id());
         let id = new_id("job")?;
         let now = iso_time(now_millis());
         let job = json!({
@@ -433,16 +459,33 @@ impl Kernel {
             "startedAt": now,
             "endedAt": null,
             "exitCode": null,
+            "timeoutSeconds": timeout_seconds,
         });
-        write_whole(&records.join(JOB_FILE), &pretty(&job)?).await?;
+        if let Err(error) = write_whole(&records.join(JOB_FILE), &pretty(&job)?).await {
+            locked(&self.research.environment_jobs).remove(&records);
+            return Err(error);
+        }
         self.research_changed();
 
         let kernel = Arc::clone(self);
         let owned_project = project.to_owned();
         tokio::spawn(async move {
-            let exit = child.wait().await.ok().and_then(|status| status.code());
+            let (exit, timed_out) = match tokio::time::timeout(
+                Duration::from_secs(timeout_seconds),
+                child.wait(),
+            )
+            .await
+            {
+                Ok(status) => (status.ok().and_then(|status| status.code()), false),
+                Err(_) => (None, true),
+            };
+            // A finished launcher can still have children. Clear the whole group before announcing completion/retry.
+            super::runs::end_group(pid).await;
+            let _ = child.wait().await;
+            guard.finished();
             // The interpreter is named before the job reads as done, so whoever sees it done sees the python too.
-            if exit == Some(0)
+            if !timed_out
+                && exit == Some(0)
                 && let Some(python) = set_python_after
             {
                 let _ = kernel
@@ -450,13 +493,20 @@ impl Kernel {
                     .await;
             }
             let mut done = job;
-            done["status"] = json!(if exit == Some(0) {
+            done["status"] = json!(if timed_out {
+                "timed_out"
+            } else if exit == Some(0) {
                 "completed"
             } else {
                 "failed"
             });
             done["exitCode"] = json!(exit);
             done["endedAt"] = json!(iso_time(now_millis()));
+            if timed_out {
+                done["error"] = json!(format!(
+                    "The job exceeded {timeout_seconds} seconds; its process group was stopped. You can retry with a longer timeout."
+                ));
+            }
             if let Ok(bytes) = pretty(&done) {
                 let _ = write_whole(&records.join(JOB_FILE), &bytes).await;
             }

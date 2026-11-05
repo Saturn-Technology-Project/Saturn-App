@@ -140,3 +140,29 @@ test("a job can be stopped, and one started by another runtime reads as interrup
   assert.equal(orphan.job.status, "interrupted");
   await writeFile(path.join(tools, "uv"), UV);
 });
+
+test("an environment job times out, stops even uncooperative descendants, and releases the project for retry", posixOnly, async () => {
+  const { folder, route } = await project();
+  for (const timeoutSeconds of [0, -1, 1.5, "1", 86401]) {
+    assert.equal((await saturn.call("POST", `${route}/create`, { withCore: false, timeoutSeconds })).status, 400);
+  }
+  await writeFile(path.join(tools, "uv"), `#!/bin/sh
+trap '' TERM
+node -e 'process.on("SIGTERM", () => {}); setInterval(() => require("node:fs").appendFileSync("late.txt", "tick\\n"), 20)' &
+wait
+`);
+  const started = await saturn.api("POST", `${route}/create`, { withCore: false, timeoutSeconds: 1 });
+  assert.equal(started.job.timeoutSeconds, 1);
+  const done = await until("the deadline and process group cleanup", () => saturn.api("GET", route), settled);
+  assert.equal(done.job.status, "timed_out");
+  assert.match(done.job.error, /1 second/);
+  assert.match(done.job.logTail, /uv venv/);
+  const before = await readFile(path.join(folder, "late.txt"), "utf8");
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.equal(await readFile(path.join(folder, "late.txt"), "utf8"), before);
+  await writeFile(path.join(tools, "uv"), UV);
+  await saturn.api("POST", `${route}/create`, { withCore: false });
+  const retried = await until("the retry", () => saturn.api("GET", route), settled);
+  assert.equal(retried.job.status, "completed");
+  assert.equal(retried.job.timeoutSeconds, 1800);
+});

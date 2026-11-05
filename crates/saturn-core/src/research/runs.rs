@@ -153,7 +153,7 @@ async fn recorded_identity(directory: &Path) -> Option<(u32, String)> {
 }
 
 /// Asks a process group to end, then ends it by force after a moment if it has not, and waits until it is gone.
-async fn end_group(pid: u32) {
+pub(super) async fn end_group(pid: u32) {
     terminate(pid);
     let deadline = tokio::time::Instant::now() + GRACE;
     while tokio::time::Instant::now() < deadline {

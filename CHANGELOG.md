@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **Environment jobs have a deadline**, 30 minutes by default and adjustable before creating, installing or syncing. A timeout stops the whole process group, keeps the output and allows a retry; Stop also clears children that ignore the first signal.
 - **Run counters recover when a script rewrites its samples.** Lines and reported tokens are recounted from the current file, Resources flags the rewrite, and throughput no longer crosses the reset.
 - **Disputed samples are found across the whole run**, including past 5,000 lines. Experiments can map custom label names to scorer words; agreement and review warnings use the same rule, and switching runs or filters cannot show a late response from the preceding choice.
 - **Sample label buttons stay on one row in narrow panes.** Scroll the comparison horizontally, including from the keyboard, while the assistant is open.

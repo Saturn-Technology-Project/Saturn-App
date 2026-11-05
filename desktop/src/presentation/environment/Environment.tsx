@@ -17,6 +17,9 @@ export function Environment(props: ScreenProps) {
   const [withCore, setWithCore] = useState(true);
   const [version, setVersion] = useState("");
   const [extra, setExtra] = useState("");
+  const [timeoutMinutes, setTimeoutMinutes] = useState("30");
+  const timeoutSeconds = Number(timeoutMinutes) * 60;
+  const timeoutValid = Number.isInteger(Number(timeoutMinutes)) && timeoutSeconds >= 60 && timeoutSeconds <= 86_400;
   const record = value?.environment ?? null;
   const shown = python ?? record?.python ?? record?.suggestedPython ?? "";
   const job = record?.job ?? null;
@@ -72,6 +75,11 @@ export function Environment(props: ScreenProps) {
   return (
     <Page title="Environment" lead="Experiments and looking inside run with this Python. Saturn can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.">
       <h2>Managed environment</h2>
+      <label className="lab-field" style={{ maxWidth: 240 }}>
+        Job timeout (minutes)
+        <input type="number" min={1} max={1440} step={1} value={timeoutMinutes} onChange={(event) => setTimeoutMinutes(event.target.value)} />
+        {!timeoutValid ? <span className="lab-warning">Choose 1 to 1440 whole minutes.</span> : null}
+      </label>
       {record ? (
         managed?.exists ? (
           <div className="lab-card">
@@ -84,7 +92,7 @@ export function Environment(props: ScreenProps) {
                   Use it
                 </button>
               ) : null}
-              <button type="button" className="lab-button" disabled={running || !record.lockFiles.length} title={record.lockFiles.length ? "Brings it to what the lock file says" : "No lock file at the project's root"} onClick={() => void act(() => service.installPackages(projectId, { sync: true }))}>
+              <button type="button" className="lab-button" disabled={running || !timeoutValid || !record.lockFiles.length} title={record.lockFiles.length ? "Brings it to what the lock file says" : "No lock file at the project's root"} onClick={() => void act(() => service.installPackages(projectId, { sync: true, timeoutSeconds }))}>
                 Sync from lock file
               </button>
             </div>
@@ -93,14 +101,14 @@ export function Environment(props: ScreenProps) {
               onSubmit={(event) => {
                 event.preventDefault();
                 const names = extra.split(/[\s,]+/).filter(Boolean);
-                if (names.length) void act(() => service.installPackages(projectId, { packages: names })).then(() => setExtra(""));
+                if (names.length) void act(() => service.installPackages(projectId, { packages: names, timeoutSeconds })).then(() => setExtra(""));
               }}
             >
               <label className="lab-field" style={{ flex: "1 1 280px" }}>
                 Other packages
                 <input value={extra} placeholder="rich scipy>=1.10" spellCheck={false} onChange={(event) => setExtra(event.target.value)} />
               </label>
-              <button type="submit" className="lab-button" disabled={running || !extra.trim()}>
+              <button type="submit" className="lab-button" disabled={running || !timeoutValid || !extra.trim()}>
                 Install
               </button>
             </form>
@@ -114,7 +122,7 @@ export function Environment(props: ScreenProps) {
                   className="lab-form"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void act(() => service.createEnvironment(projectId, { python: version.trim() || undefined, withCore }));
+                    void act(() => service.createEnvironment(projectId, { python: version.trim() || undefined, withCore, timeoutSeconds }));
                   }}
                 >
                   {record.tools.uv ? (
@@ -127,7 +135,7 @@ export function Environment(props: ScreenProps) {
                     <input type="checkbox" checked={withCore} onChange={(event) => setWithCore(event.target.checked)} />
                     Also install what Saturn's helpers need (torch, transformers, numpy)
                   </label>
-                  <button type="submit" className="lab-button primary" disabled={running}>
+                  <button type="submit" className="lab-button primary" disabled={running || !timeoutValid}>
                     Create
                   </button>
                 </form>
@@ -140,10 +148,10 @@ export function Environment(props: ScreenProps) {
       ) : null}
 
       {job ? (
-        <div className={job.status === "failed" ? "lab-card attention" : "lab-card"} style={{ marginTop: 8 }}>
+        <div className={job.status === "failed" || job.status === "timed_out" ? "lab-card attention" : "lab-card"} style={{ marginTop: 8 }}>
           <div className="lab-row">
             <span>
-              <strong>{JOB_LABELS[job.kind]}</strong> <span className="lab-muted">{job.status === "running" ? "running" : job.status === "completed" ? "done" : job.status === "failed" ? `failed (exit ${job.exitCode ?? "?"})` : "interrupted: the runtime that started it is gone"}</span>
+              <strong>{JOB_LABELS[job.kind]}</strong> <span className="lab-muted">{job.status === "running" ? "running" : job.status === "completed" ? "done" : job.status === "timed_out" ? "timed out; processes stopped" : job.status === "failed" ? `failed (exit ${job.exitCode ?? "?"})` : "interrupted: the runtime that started it is gone"}</span>
             </span>
             {running ? (
               <button type="button" className="lab-button" onClick={() => void act(() => service.stopEnvironmentJob(projectId))}>
@@ -153,6 +161,8 @@ export function Environment(props: ScreenProps) {
               <span className="lab-muted">{new Date(job.endedAt ?? job.startedAt).toLocaleString()}</span>
             )}
           </div>
+          {job.error ? <div className="lab-warning">{job.error}</div> : null}
+          {job.status === "running" && job.timeoutSeconds ? <div className="lab-muted">Stops after {job.timeoutSeconds / 60} minutes. You can stop it sooner.</div> : null}
           <pre className="lab-text lab-terminal-log">{job.logTail || "Nothing written yet."}</pre>
           {job.logLines > 40 ? <div className="lab-muted">The last 40 of {job.logLines} lines; the whole log is in .saturn/research/environment-job.log.</div> : null}
         </div>
@@ -179,7 +189,7 @@ export function Environment(props: ScreenProps) {
             {state === "installed" ? (
               <span className="lab-tag good">Installed</span>
             ) : (
-              <button type="button" className="lab-button" disabled={running || !managed?.exists} title={managed?.exists ? undefined : "Create the managed environment first"} onClick={() => void act(() => service.installPackages(projectId, { kit: kit.id }))}>
+              <button type="button" className="lab-button" disabled={running || !timeoutValid || !managed?.exists} title={managed?.exists ? undefined : "Create the managed environment first"} onClick={() => void act(() => service.installPackages(projectId, { kit: kit.id, timeoutSeconds }))}>
                 {state === "partly" ? "Install the rest" : "Install"}
               </button>
             )}

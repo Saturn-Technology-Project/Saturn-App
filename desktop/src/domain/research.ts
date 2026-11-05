@@ -538,7 +538,9 @@ export interface EnvironmentJob {
   id: string;
   kind: "create" | "install" | "sync";
   commands: string[];
-  status: "running" | "completed" | "failed" | "interrupted";
+  status: "running" | "completed" | "failed" | "interrupted" | "timed_out";
+  timeoutSeconds?: number;
+  error?: string;
   startedAt: string;
   endedAt: string | null;
   exitCode: number | null;

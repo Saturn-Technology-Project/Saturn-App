@@ -239,11 +239,17 @@ otherwise, and fill it with kits of packages. The record carries `tools` (`uv` a
   with `{"kit"}`, `{"packages": [...]}` (plain names with an optional pin; nothing starting with `-`) or
   `{"sync": true}` (`uv sync` with a `uv.lock` or `pyproject.toml`, else pip against `requirements.lock` or
   `requirements.txt`) installs into it. Both answer with the record at once and run as a job.
+- Both requests accept `timeoutSeconds`, an integer from 1 to 86400, default 1800. This is the wall-clock limit for
+  the whole job, including all its commands. The Environment screen offers 1 to 1440 whole minutes, default 30.
+  A deadline ends the entire process group, forcibly after the grace period if needed, before the job slot is released.
+  It preserves the log and records `status: "timed_out"`, `timeoutSeconds` and `error`, and never switches the project's
+  interpreter to an environment whose creation timed out. The user can retry with a longer limit.
 - A job runs the commands one after another in the project's folder, writes their output to
   `.saturn/research/environment-job.log`, and records itself in `environment-job.json`: `kind`, `commands`, `status`
-  (`running`, `completed`, `failed`, or `interrupted` when the runtime that started it is gone), `exitCode`,
+  (`running`, `completed`, `failed`, `timed_out`, or `interrupted` when the runtime that started it is gone), `exitCode`,
   `startedAt`, `endedAt`. The record's `job` adds `logTail` and `logLines`. One job at a time per project (409).
-  `POST .../environment/job/stop` ends it; `.saturn/research` changes as it starts and ends.
+  `POST .../environment/job/stop` ends the whole group, including children that ignore the initial stop signal;
+  `.saturn/research` changes as it starts and ends.
 - The installs are made by uv or pip, which reach the package index on their own; Saturn's network log does not see
   them. Not on Windows.
 

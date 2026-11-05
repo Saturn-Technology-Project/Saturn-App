@@ -79,6 +79,8 @@ Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它�
 
 **執行統計。** 程式若覆寫已計數的樣本前綴，Resources 會警示、重新計算目前檔案，並重新起算產出速率。實驗程式應以 append 方式寫入完整 JSONL 行。
 
+**環境工作。** 建立環境、安裝套件與同步鎖定檔預設 30 分鐘逾時，可在 Environment 調整。逾時會停止整個行程群組、保留輸出，之後可重試；API 的 `timeoutSeconds` 範圍為 1–86400 秒。
+
 ## 安裝
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。
