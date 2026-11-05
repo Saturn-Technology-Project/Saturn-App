@@ -10,6 +10,7 @@ import { Turn } from "../assistant/Turn.js";
 import { useConversation } from "../assistant/useConversation.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf } from "../ui/Parts.js";
+import { useFollow } from "../ui/useFollow.js";
 import { Split } from "../ui/Split.js";
 
 const research = desktop.research;
@@ -161,6 +162,7 @@ function TaskDetail(props: {
     desktop.catalog.worktreeStatus(task.id).then(setStatus).catch(() => setStatus(null));
   }, [conversation.runs.length, running, task.id, task.worktree]);
 
+  const activity = useFollow<HTMLDivElement>(`${task.id}:${String(log)}`);
   const runIds = new Set(conversation.runs.map((run) => run.id));
   const own = events.filter((event) => runIds.has(event.runId));
   const refusals = own.filter((event) => event.kind === "refused" && lockedPathOf(event) && !(policy?.released ?? []).includes(lockedPathOf(event)!));
@@ -269,7 +271,7 @@ function TaskDetail(props: {
         </div>
       ) : null}
 
-      <div className="lab-conversation" role="log" aria-label="What this task did" hidden={!log && conversation.runs.length === 0}>
+      <div className="lab-conversation" ref={activity} role="log" aria-label="What this task did" hidden={!log && conversation.runs.length === 0}>
         {(log ? conversation.runs : conversation.runs.slice(-1)).map((run) => (
           <Turn key={run.id} run={run} onComment={(text) => void conversation.send(text, "agent")} />
         ))}

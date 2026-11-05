@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../src/domain/chat-mode.ts";
+import { isAtEnd } from "../src/domain/follow.ts";
 import { shownSources } from "../src/domain/slash.ts";
 import { assistantInstructions, GUIDE_PLACES, guideIn, guidePlace, HELP_REQUESTS, isWorkScreen, SCREENS, statusText, TOUR_STEPS, windowTitle, workbenchState } from "../src/domain/workbench.ts";
 
@@ -74,4 +75,11 @@ test("a message says what went with it, leaving out the screen that goes with ev
   const block = (name) => `<saturn_context sources="${name}">x</saturn_context>`;
   assert.equal(shownSources(`hi${block("the screen you are on")}`), "");
   assert.equal(shownSources(`hi${block("a.py; b.py")}${block("the screen you are on")}${block("sample s1")}`), "a.py; b.py, sample s1");
+});
+
+test("a chat keeps up only while the person is reading its end", () => {
+  assert.equal(isAtEnd({ scrollTop: 600, clientHeight: 400, scrollHeight: 1000 }), true);
+  assert.equal(isAtEnd({ scrollTop: 560, clientHeight: 400, scrollHeight: 1000 }), true, "a few pixels short still counts");
+  assert.equal(isAtEnd({ scrollTop: 300, clientHeight: 400, scrollHeight: 1000 }), false, "scrolled up to read");
+  assert.equal(isAtEnd({ scrollTop: 0, clientHeight: 400, scrollHeight: 300 }), true, "nothing to scroll");
 });

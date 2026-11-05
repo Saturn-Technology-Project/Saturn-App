@@ -8,6 +8,7 @@ import { HELP_REQUESTS, workbenchState, type Screen } from "../../domain/workben
 import { hiddenContext } from "../../domain/slash.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Empty, messageOf } from "../ui/Parts.js";
+import { useFollow } from "../ui/useFollow.js";
 import type { WorkspaceFocus } from "../workspace/Workspace.js";
 import { Turn } from "./Turn.js";
 import { useConversation } from "./useConversation.js";
@@ -32,8 +33,8 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   const [fileQuery, setFileQuery] = useState("");
   const [found, setFound] = useState<string[]>([]);
   const reviewing = Boolean(focus?.sample && !focus.file);
-  const end = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const log = useFollow<HTMLDivElement>(threadId);
   const conversation = useConversation(agent?.id ?? null, threadId, notify);
 
   const load = useCallback(async () => {
@@ -67,9 +68,6 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
       stale = true;
     };
   }, [fileQuery, picking, project.id]);
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: "end" });
-  }, [conversation.runs]);
 
   // The message box grows with what is typed, up to the height its style allows, and scrolls after that.
   useEffect(() => {
@@ -183,12 +181,11 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
         </label>
       </div>
 
-      <div className="lab-conversation" role="log" aria-label="Conversation with the research assistant">
+      <div className="lab-conversation" ref={log} role="log" aria-label="Conversation with the research assistant">
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(comment) => void ask(comment)} />
         ))}
         {ready && !conversation.runs.length ? <p className="lab-muted lab-conversation-empty">Ask about your work, or how to do something in Saturn.</p> : null}
-        <div ref={end} />
       </div>
 
       <div className="lab-composer">
