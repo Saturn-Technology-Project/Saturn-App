@@ -190,7 +190,7 @@ test("a Pair chat waits before a change through the tools, and not before a read
   assert.equal((await setup.turn([["research_read", { what: "status" }]])).actions[0].status, "completed");
   const started = await setup.start([["research_write", { collection: "questions", fields: { title: "Q" } }]]);
   const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
-  assert.match(waiting.actions[0].reason, /Pair mode/);
+  assert.match(waiting.actions[0].reason, /Approve mode/);
   assert.equal((await saturn.api("GET", `${setup.route}/questions`)).items.length, 0);
   await saturn.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: true });
   await saturn.finished(started.id);
@@ -297,7 +297,7 @@ test("a Manual chat cannot start a task, and a Pair chat waits for the person fi
   await saturn.api("PATCH", `/threads/${pair.thread.id}`, { chatMode: "pair" });
   const started = await pair.start([["research_task_start", { prompt: "Wait for me" }]]);
   const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
-  assert.match(waiting.actions[0].reason, /Pair mode/);
+  assert.match(waiting.actions[0].reason, /Approve mode/);
   assert.equal((await saturn.api("GET", `/agents/${pair.agent.id}/threads`)).length, 1, "nothing has started");
   await saturn.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: false });
   await saturn.finished(started.id);

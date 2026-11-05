@@ -22,6 +22,8 @@ type Attachment = "file" | "selection" | "error" | "sample";
 /** How an attachment chip is laid out: one line, cut short with an ellipsis when it is too long. */
 const ATTACHMENT = "h-6 max-w-full justify-start font-mono text-[11px]";
 /** The chat's settings sit quietly in the message box until they are pointed at. */
+/** The mode beside the assistant's name: quiet until pointed at, like the panel's other controls. */
+const MODE_SELECT = "h-6 w-auto border-transparent bg-transparent px-1.5 text-xs font-medium text-muted-foreground shadow-none hover:bg-muted hover:text-foreground dark:bg-transparent";
 const CHAT_SELECT = "h-6 w-auto max-w-[130px] border-transparent bg-transparent px-1 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground dark:bg-transparent";
 
 /** The assistant beside the work. What it may do follows the mode chosen here, for this chat, and it says so. */
@@ -152,6 +154,9 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     <div className="flex min-h-0 flex-1 flex-col bg-panel">
       <div className="flex min-h-10 flex-none items-center justify-between gap-2 border-b border-border px-3 py-1">
         <strong className="flex-none">Research assistant</strong>
+        <div className="ml-auto flex-none" data-tour="assistant-mode">
+          <Choice ariaLabel="How much the assistant may do in this chat" triggerClassName={MODE_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label, hint: item.hint }))} onChange={(next) => void chooseMode(next as ChatMode)} />
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5" ref={log} role="log" aria-label="Conversation with the research assistant">
@@ -231,9 +236,6 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
             <Button variant="ghost" size="small" className="min-w-7 flex-none px-1.5" aria-label="Attach a file" title="Attach a file" aria-pressed={picking} onClick={() => setPicking((open) => !open)}>
               @
             </Button>
-            <div className="flex-none" data-tour="assistant-mode">
-              <Choice ariaLabel="How much the assistant may do in this chat" triggerClassName={CHAT_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label, hint: item.hint }))} onChange={(next) => void chooseMode(next as ChatMode)} />
-            </div>
             <div className="max-w-[130px] min-w-0" title={models.find((model) => model.id === agent?.modelConnectionId)?.name}>
               <Choice ariaLabel="Model" triggerClassName={CHAT_SELECT} value={agent?.modelConnectionId ?? ""} options={models.map((model) => ({ value: model.id, label: model.name }))} onChange={(next) => void chooseModel(next)} />
             </div>

@@ -117,7 +117,7 @@ export type Project = {
   isDefault?: boolean;
 };
 
-/** How much a chat's agent may do: Manual only reads, Pair asks about each change, and Delegate hands work to a task, which asks before what is sensitive or, on auto, asks nothing. */
+/** How much a chat's agent may do: Ask only reads, Approve asks about each change, Auto works on the project and asks before what is sensitive, and Agent asks nothing. */
 export type ChatMode = "manual" | "pair" | "delegate" | "delegate_auto";
 
 export type Conversation = {

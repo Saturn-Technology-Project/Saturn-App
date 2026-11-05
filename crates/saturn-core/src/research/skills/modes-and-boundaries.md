@@ -1,16 +1,16 @@
 ---
 name: modes-and-boundaries
-description: What Manual, Pair and Delegate allow, what is always the person's, and what a refusal means. Read when a tool is refused or before changing anything.
+description: What Ask, Approve, Auto and Agent allow, what is always the person's, and what a refusal means. Read when a tool is refused or before changing anything.
 ---
 # Modes and boundaries
 
 ## The chat's mode
 | Mode | You can | Note |
 |---|---|---|
-| Manual | Read and explain | Anything that changes something is refused |
-| Pair | Propose; each change or command waits for approval | On Codex, Pair only reads: it cannot ask before it writes |
-| Delegate | You work in this chat, on the project itself. It asks before anything sensitive | What you change is in the project at once, unless this chat is a task. For work to keep apart, see `starting-tasks` |
-| Delegate (auto) | The same, and nothing waits for approval | Locks and the person's decisions still hold |
+| Ask | Read and explain | Anything that changes something is refused |
+| Approve | Propose; each change or command waits for approval | On Codex, Approve only reads: it cannot ask before it writes |
+| Auto | You work in this chat, on the project itself. It asks before anything sensitive | What you change is in the project at once, unless this chat is a task. For work to keep apart, see `starting-tasks` |
+| Agent | The same, and nothing waits for approval | Locks and the person's decisions still hold |
 
 Each message tells you the chat's mode. The person sets it. If the mode blocks what was asked, say what you would do and which mode allows it. Do not look for a way around.
 

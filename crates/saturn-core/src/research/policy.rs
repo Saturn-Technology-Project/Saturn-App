@@ -270,7 +270,7 @@ impl Kernel {
         let (verdict, path, _) = self.verdict_on(run, targets).await?;
         let reason = match verdict {
             PolicyVerdict::Manual => format!(
-                "This chat is in Manual mode, so {path} stays as it is: the user writes the code. Suggest the change in words instead."
+                "This chat is in Ask mode, so {path} stays as it is: the user writes the code. Suggest the change in words instead."
             ),
             PolicyVerdict::Locked => format!(
                 "{path} is locked for this experiment. Changing it needs the user, and makes a new version."
@@ -306,7 +306,7 @@ impl Kernel {
         let targets = write_targets(tool, arguments);
         match self.verdict_on(run, &targets).await {
             Some((PolicyVerdict::NeedsApproval, path, _)) => Some(format!(
-                "This chat is in Pair mode: changes to {path} need your approval"
+                "This chat is in Approve mode: changes to {path} need your approval"
             )),
             // A refused file is refused when the call runs.
             Some(_) => None,
@@ -320,7 +320,7 @@ impl Kernel {
                     .read(|state| crate::tool_runs::tool_category(state, &agent, tool));
                 let arguments = arguments.as_object().cloned().unwrap_or_default();
                 (!is_read_only_call(tool, &arguments, category.as_deref()))
-                    .then(|| format!("This chat is in Pair mode: {tool} needs your approval"))
+                    .then(|| format!("This chat is in Approve mode: {tool} needs your approval"))
             }
         }
     }

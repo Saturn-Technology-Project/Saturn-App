@@ -18,7 +18,7 @@ findings/<id>.json
 labels/<run id>.json       the user's labels, kept apart from scores
 counterexamples/<id>.json  a run's sample kept for later
 policy.json                the locks
-events.jsonl               refusals, unexplained changes and accepted Pair changes
+events.jsonl               refusals, unexplained changes and accepted Approve changes
 objects/<sha256>           saved copies of source files
 runs/<id>/run.json
 runs/<id>/samples.jsonl    the only output that counts as samples
@@ -373,7 +373,7 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
 |---|---|---|
 | API and local models | Refused before writing | A command is compared by hash afterwards |
 | Claude Code | Refused through `can_use_tool` for the tools it asks about | Compared afterwards |
-| Codex | Not possible per file: its sandbox is read-only or writable, so a Pair chat runs read-only | Compared afterwards; a task runs in a worktree |
+| Codex | Not possible per file: its sandbox is read-only or writable, so an Approve chat runs read-only | Compared afterwards; a task runs in a worktree |
 | MCP tools | Saturn cannot tell what they write | Compared afterwards |
 
 - A chat's mode is `manual`, `pair`, `delegate` or `delegate_auto` (`chatMode`, set with `PATCH /threads/{id}`), kept on the
@@ -406,7 +406,7 @@ An agent with the built-in `research` server, which an agent has only when its l
 | `research_task_start` | Writes | Starts a task: another agent on its own, in a separate worktree |
 | `research_task_read` | Reads | Lists tasks, reports on one, or waits until one ends or needs the person, for up to 600 seconds at a time |
 
-- A Manual chat keeps the tools that read. A Pair chat waits for the user before those that write, even with approvals off.
+- An Ask chat keeps the tools that read. An Approve chat waits for the user before those that write, even with approvals off.
 - What an agent finds is always `ai_suggestion`: `kind` is set for it, and a `conclusion` is refused.
 - A hypothesis it makes has no verdict, and it does not change once made, so that nothing under a person's verdict moves. It changes only its own findings. A record's other changes go through `expectedRevision` as usual.
 - There is no tool for labels, verdicts, modes, the policy, or merging a task.

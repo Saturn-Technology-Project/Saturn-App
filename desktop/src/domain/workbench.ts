@@ -54,7 +54,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "assistant",
     target: "assistant",
     title: "The research assistant",
-    text: "A panel beside your work, on every screen (⌘J). Ask it what a screen is for or how to do something, and it can walk you through it, boxing each place while you do the work. Beside the message box you choose how much it may do: in Manual it only reads and explains; in Pair it proposes changes you approve; in Delegate it works here on the project itself, and on auto asks nothing. Samples it is given are marked as data, never as instructions.",
+    text: "A panel beside your work, on every screen (⌘J). Ask it what a screen is for or how to do something, and it can walk you through it, boxing each place while you do the work. Beside its name you choose how much it may do: in Ask it only reads and explains; in Approve it proposes changes you approve; in Auto it works on the project itself and asks before anything sensitive; in Agent it asks nothing. Samples it is given are marked as data, never as instructions.",
   },
   {
     id: "lineage",
@@ -136,7 +136,7 @@ export const GUIDE_PLACES: GuidePlace[] = [
   ...SCREENS.map((screen) => ({ id: `rail-${screen}`, title: `The ${screen} screen`, hint: `Select ${screen} in the rail to open it.` })),
   { id: "project", title: "The project", hint: "Choose the project here, or add a folder." },
   { id: "assistant", title: "The research assistant", hint: "Show or hide the assistant here, or with ⌘J." },
-  { id: "assistant-mode", title: "How much the assistant may do", hint: "Choose Manual, Pair, Delegate or Delegate (auto) for this chat." },
+  { id: "assistant-mode", title: "How much the assistant may do", hint: "Choose Ask, Approve, Auto or Agent for this chat, beside the assistant's name." },
   { id: "commands", title: "Commands", hint: "Open every command here, or with ⌘K." },
   { id: "settings", title: "Settings", hint: "Connect models, MCP servers and more here." },
   { id: "home-questions", screen: "Home", title: "Questions", hint: "Write down the question this project is trying to answer." },

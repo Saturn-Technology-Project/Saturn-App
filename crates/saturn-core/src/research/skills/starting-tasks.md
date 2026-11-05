@@ -33,6 +33,6 @@ Research records are shared, and so is the machine. Two trainings at once slow e
 
 ## Limits
 - A task cannot start another task, and at most 4 run at once.
-- It starts in Delegate, or Delegate (auto) if this chat is. It never asks less than the person chose.
-- A Manual chat cannot start one, and in a Pair chat the person approves it first.
+- It starts in Auto, or Agent if this chat is. It never asks less than the person chose.
+- An Ask chat cannot start one, and in an Approve chat the person approves it first.
 - Only the person merges or discards a task. Say what each branch holds in your hand-back. See `handing-back`.

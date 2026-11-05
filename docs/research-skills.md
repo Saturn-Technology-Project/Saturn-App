@@ -10,7 +10,7 @@ To change one for a project, put a skill of the same name in `.saturn/skills/<na
 |---|---|
 | `research-autopilot` | Carry out a whole study on your own, from a question to a report. Read this first when asked to do research independently. |
 | `saturn-research-tools` | The research_* tools, the records they work on, and how they fit together. Read when unsure which call does what. |
-| `modes-and-boundaries` | What Manual, Pair and Delegate allow, what is always the person's, and what a refusal means. Read when a tool is refused or before changing anything. |
+| `modes-and-boundaries` | What Ask, Approve, Auto and Agent allow, what is always the person's, and what a refusal means. Read when a tool is refused or before changing anything. |
 | `task-worktrees` | How a task's git worktree relates to the project's records, runs and merging. Read when working as a task. |
 | `starting-tasks` | Hand part of the work to another agent in its own worktree, and follow it. Read before starting a task. |
 

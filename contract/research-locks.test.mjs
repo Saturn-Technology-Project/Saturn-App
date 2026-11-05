@@ -63,7 +63,7 @@ test("a run already going is refused a write once its chat becomes Manual, and t
   await saturn.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: true });
   const run = await saturn.finished(started.id);
   assert.equal(run.actions[0].status, "failed");
-  assert.match(run.actions[0].reason, /Manual mode/);
+  assert.match(run.actions[0].reason, /Ask mode/);
   assert.equal(await text(folder, "probe.py"), "mine\n");
   const [event] = await events();
   assert.equal(event.kind, "refused");
@@ -138,7 +138,7 @@ test("a Pair chat waits for the user even with approvals off, and an accepted ch
   const started = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id });
   const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
   const action = waiting.actions[0];
-  assert.match(action.reason, /Pair mode/);
+  assert.match(action.reason, /Approve mode/);
   assert.equal(await text(folder, "pair.py"), "ours\n");
   await saturn.api("POST", `/runs/${started.id}/actions/${action.id}/decision`, { allow: true });
   const run = await saturn.finished(started.id);
