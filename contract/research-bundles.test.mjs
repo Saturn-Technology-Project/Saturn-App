@@ -102,7 +102,7 @@ test("active jobs import as archived interrupted evidence, never as launch instr
   assert.equal(archived.status, "interrupted"); assert.equal(archived.archived, true);
   assert.equal((await saturn.api("GET", `${target.route}/remote`)).target, null);
   assert.equal((await saturn.call("POST", `${target.route}/versions/${version.id}/runs`, { clientId: "must-not-execute" })).status, 409);
-  assert.equal((await saturn.call("POST", `${target.route}/inspection-sessions/${session.id}/actions`, { action: "features", modelId: model.id, prompt: "a" })).status, 409);
+  assert.equal((await saturn.call("POST", `${target.route}/inspection-sessions/${session.id}/actions`, { action: "prompts", modelId: model.id, clean: "a", corrupted: "b", expected: " x", alternative: " y" })).status, 409);
   const local = await saturn.api("POST", `${target.route}/experiments/${experiment.id}/versions`, {});
   assert.notEqual(local.id, version.id);
   assert.equal(local.archived, undefined);

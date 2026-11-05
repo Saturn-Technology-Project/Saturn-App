@@ -402,6 +402,7 @@ impl Kernel {
         if !is_id(run_id) {
             return Err(CoreError::new(404, "No such run"));
         }
+        let mut ask = prompts_question(request)?;
         let version = self.inspection_basis(project, run_id).await?;
         if version["archived"] == true {
             return Err(CoreError::new(
@@ -409,7 +410,6 @@ impl Kernel {
                 "This is an archived context. Start a new inspection session with local models and Python.",
             ));
         }
-        let mut ask = prompts_question(request)?;
         self.model_weights(project, &version, text(&ask, "modelId"))
             .await?;
         if text(&ask, "action") == "compare" {
