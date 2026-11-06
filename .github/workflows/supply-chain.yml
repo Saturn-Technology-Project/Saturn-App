@@ -83,6 +83,9 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
       - name: The runtime keeps the HTTP contract
+        # The contract takes two or three minutes. A test that hangs fails after two minutes with its name, a file
+        # that leaves something open still ends, and the step as a whole cannot hold the job.
+        timeout-minutes: 12
         run: |
           cargo build --locked -p saturn-server -p saturn-cli
-          node --test --test-timeout=300000 contract/*.test.mjs
+          node --test --test-timeout=120000 --test-force-exit contract/*.test.mjs
