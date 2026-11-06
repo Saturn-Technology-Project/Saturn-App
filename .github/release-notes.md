@@ -1,4 +1,4 @@
-**Saturn** runs AI agents on your own computer: the agent app and its local runtime in one download.
+**Saturn** is a workbench for AI research on your own computer: the app, its research assistant and its local runtime in one download.
 
 > **Preview build.** The macOS app is not signed with an Apple Developer ID (Apple Silicon only), and the Windows installer is signed with Saturn's self-signed certificate, which Windows does not trust, so both systems warn the first time you open them.
 
@@ -15,7 +15,7 @@
 2. If SmartScreen stops it, click **More info → Run anyway**.
 3. Optional: confirm the installer is Saturn's. In PowerShell, `(Get-AuthenticodeSignature .\Saturn-__VERSION__-win-x64-setup.exe).SignerCertificate.Thumbprint` should print `D285DA425077C16A3D115D61F9748AFA574BC786`.
 
-Then open **Settings → Models**, connect a model, create an agent, and give it a task (the first launch walks you through it).
+Then open **Settings → Models** and connect a model, add a project folder, and write your first question (the first launch walks you through it). The interface is in English or Traditional Chinese, following the system or chosen in **Settings → General**.
 
 **Updating:** from a version before the rewrite in Rust and Tauri (0.3.1 or earlier), install this one by hand; your data in `~/.saturn-app` keeps working. Later versions update themselves: the update downloads in the background and installs when you quit Saturn, and it must carry a signature from Saturn's updater key.
 
