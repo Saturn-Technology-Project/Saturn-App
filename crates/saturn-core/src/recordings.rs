@@ -53,6 +53,25 @@ impl Kernel {
         (full.parent() == Some(root.as_path()) && full.is_dir()).then_some(full)
     }
 
+    /// The folders of the recordings a run's completed browser_record_stop results point at.
+    fn recording_folders(&self, run_id: &str) -> Result<Vec<PathBuf>, CoreError> {
+        let run = self.get_run(run_id)?;
+        Ok(run["actions"]
+            .as_array()
+            .map_or(&[][..], Vec::as_slice)
+            .iter()
+            .filter(|action| {
+                text(action, "toolId") == "browser_record_stop"
+                    && text(action, "status") == "completed"
+            })
+            .filter_map(|action| {
+                action["result"]["recording"]
+                    .as_str()
+                    .and_then(|recorded| self.recording_folder(recorded))
+            })
+            .collect())
+    }
+
     /// The recordings a run's browser_record_stop results point at, with their frame counts.
     pub fn recordings(&self, run_id: &str) -> Result<Vec<Value>, CoreError> {
         let run = self.get_run(run_id)?;
@@ -111,18 +130,19 @@ impl Kernel {
     ) -> Result<PathBuf, CoreError> {
         let recording = self.recording(run_id, name)?;
         let total = recording["frames"].as_u64().unwrap_or(0);
-        // The folder's name as found among the run's own recordings, never the name as asked for.
-        let name = text(&recording, "name").to_owned();
+        // The folder as found among the run's own recordings: the name asked for is only compared, never joined.
+        let folder = self
+            .recording_folders(run_id)?
+            .into_iter()
+            .find(|folder| folder.file_name().is_some_and(|found| found == name))
+            .ok_or_else(|| CoreError::new(404, "This run has no such recording"))?;
         let index = index
             .parse::<u64>()
             .ok()
             .filter(|index| (1..=total).contains(index))
             .ok_or_else(|| CoreError::new(404, "No such frame"))?;
         // Chrome records JPEGs, Safari PNGs.
-        let base = self
-            .recordings_root()
-            .join(&name)
-            .join(format!("frame-{index:05}"));
+        let base = folder.join(format!("frame-{index:05}"));
         let jpeg = base.with_extension("jpg");
         Ok(if jpeg.exists() {
             jpeg
