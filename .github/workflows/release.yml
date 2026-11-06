@@ -8,9 +8,12 @@ name: Release
 #   2. version   reads the version from desktop/package.json (Cargo.toml must agree). It releases when that version is
 #                newer than every v* tag; an older one fails, an existing one only packages.
 #   3. macos-test, windows-test   the Rust tests (and on macOS the HTTP contract) on that system, beside the check.
-#   4. macos, windows   package, sign and attest, once the check and that system's tests pass. The files are kept as
-#                workflow artifacts. A failure here is run again on its own with "Re-run failed jobs".
-#   5. release   only for a new version: tags the commit v<version> and publishes the release, with its notes from
+#   4. worker    the SSH worker for Linux hosts (x86-64 and ARM): this version's saturn-server, built on Ubuntu 22.04 so
+#                older systems run it, started once, hashed and attested. worker-pins hands the hashes to the packages.
+#   5. macos, windows   package, sign and attest, once the check and that system's tests pass. The runtime in each is
+#                built with the workers' hashes, so it installs on a host only a worker that matches. The files are
+#                kept as workflow artifacts. A failure here is run again on its own with "Re-run failed jobs".
+#   6. release   only for a new version: tags the commit v<version> and publishes the release, with its notes from
 #                .github/release-notes.md and the CHANGELOG section for the version (or Unreleased).
 #
 # To release: node scripts/set-version.mjs <version> (Cargo.toml, desktop/package.json and their lock files), give the
@@ -127,9 +130,91 @@ jobs:
       - name: Type checks
         run: npm run typecheck
 
+  worker:
+    name: Worker (${{ matrix.target }})
+    needs: [version]
+    strategy:
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-22.04
+          - target: linux-arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      # The runtime reaches HTTPS through the system's OpenSSL, so the host needs libssl 3 (Ubuntu 22.04, Debian 12,
+      # RHEL 9 and later).
+      - name: OpenSSL headers
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libssl-dev pkg-config
+
+      - name: Build the worker
+        run: cargo build --release --locked -p saturn-server
+
+      - name: Name it for the release, and start it once
+        id: named
+        run: |
+          name="saturn-worker-${{ needs.version.outputs.version }}-${{ matrix.target }}"
+          mkdir -p worker
+          cp target/release/saturn-server "worker/$name"
+          (cd worker && sha256sum "$name" > "$name.sha256")
+          printf '%s' "{\"action\":\"check\",\"workdir\":\"$PWD\"}" | "./worker/$name" --research-worker | tee check.json
+          grep -q '"version":"${{ needs.version.outputs.version }}"' check.json
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: worker/${{ steps.named.outputs.name }}
+
+      - name: Keep the signed attestation
+        run: cp "${{ steps.attest.outputs.bundle-path }}" "worker/${{ steps.named.outputs.name }}.sigstore.json"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: saturn-worker-${{ matrix.target }}
+          path: worker/
+          if-no-files-found: error
+
+  worker-pins:
+    name: Worker hashes
+    needs: [worker]
+    runs-on: ubuntu-latest
+    outputs:
+      pins: ${{ steps.pins.outputs.pins }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: saturn-worker-*
+          path: worker
+          merge-multiple: true
+
+      - name: target=sha256 for each worker
+        id: pins
+        run: |
+          pins=""
+          for file in worker/saturn-worker-*.sha256; do
+            hash=$(cut -d' ' -f1 "$file")
+            target=$(basename "$file" .sha256 | sed -E 's/^saturn-worker-.*-(linux-[a-z0-9]+)$/\1/')
+            pins="${pins:+$pins,}$target=$hash"
+          done
+          echo "$pins"
+          test "$(echo "$pins" | tr ',' '\n' | wc -l)" -eq 2
+          echo "pins=$pins" >> "$GITHUB_OUTPUT"
+
   macos:
     name: macOS (arm64) · package
-    needs: [check, version, macos-test]
+    needs: [check, version, macos-test, worker-pins]
     runs-on: macos-15
     permissions:
       contents: read
@@ -160,6 +245,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           UPDATER_PUBKEY: ${{ vars.SATURN_UPDATER_PUBKEY }}
+          # Built into the runtime: the only Linux workers it will install on an SSH host.
+          SATURN_WORKER_SHA256: ${{ needs.worker-pins.outputs.pins }}
         run: |
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
           npm run package -- --bundles app $(node scripts/updater-config.mjs)
@@ -240,7 +327,7 @@ jobs:
 
   windows:
     name: Windows (x64) · package
-    needs: [check, version, windows-test]
+    needs: [check, version, windows-test, worker-pins]
     runs-on: windows-latest
     permissions:
       contents: read
@@ -282,6 +369,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           UPDATER_PUBKEY: ${{ vars.SATURN_UPDATER_PUBKEY }}
+          # Built into the runtime: the only Linux workers it will install on an SSH host.
+          SATURN_WORKER_SHA256: ${{ needs.worker-pins.outputs.pins }}
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
@@ -325,7 +414,7 @@ jobs:
 
   release:
     name: Publish the release
-    needs: [version, macos, windows]
+    needs: [version, worker, macos, windows]
     if: needs.version.outputs.release == 'true' && (github.event_name == 'push' || inputs.publish)
     runs-on: ubuntu-latest
     # Publishing waits for a maintainer's approval (the "release" environment), and only v* tags or main may deploy.

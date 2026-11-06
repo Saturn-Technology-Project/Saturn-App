@@ -30,6 +30,8 @@ The signed attestations are attached too (`*.sigstore.json`); with one, `gh atte
 
 `Saturn-__VERSION__-sbom.cdx.json` lists the crates, npm packages and model this release is built from (CycloneDX 1.5, with their hashes), for your scanner or your security team.
 
+`saturn-worker-__VERSION__-linux-x64` and `-linux-arm64` are the worker Saturn installs on a Linux SSH host when you press **Install worker** in Environment; you do not need to download them. Saturn checks each against the hash built into this release before sending it, and the host needs libssl 3 (Ubuntu 22.04, Debian 12, RHEL 9 or later).
+
 ## Changes
 
 What changed in each version, and whether it affects you, is in [CHANGELOG.md](https://github.com/Saturn-Technology-Project/Saturn-App/blob/main/CHANGELOG.md).
