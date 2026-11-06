@@ -488,24 +488,27 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
 
 ## What an agent does with the records
 
-An agent with the built-in `research` server, which an agent has only when its list names it, has nine tools, on every backend. `docs/research-skills.md` lists the skills that teach them.
+An agent with the built-in `research` server, which an agent has only when its list names it, has twelve tools, on every backend. `docs/research-skills.md` lists the skills that teach them.
 
 | Tool | Reads or writes | What it does |
 |---|---|---|
 | `research_skill` | Reads | Lists or reads a skill. A project's or user's skill of the same name comes first |
-| `research_read` | Reads | Status, records, runs, summaries, samples (50 at most at a time), logs, resources, labels, comparisons, events, the environment, the policy, saved readings, and the project's data: which files were read (`data_list`), what is in one (`data_profile`), and what two share (`data_overlap`) |
+| `research_read` | Reads | Status, records, runs, summaries, samples (50 at most at a time), logs, resources, training metrics, labels, comparisons by condition and sample by sample (`paired`, which saves nothing), events, the environment, the policy, saved readings, the SSH host and remote runs, inspection sessions, kept outputs, a notebook kernel's state, previews of an import or a bundle, and the project's data: which files were read (`data_list`), what is in one (`data_profile`, `data_preview`), and what two share (`data_overlap`) |
 | `research_wait` | Reads | Holds the turn until a run ends, for up to 600 seconds at a time, and ends with the turn |
 | `research_write` | Writes | Makes questions, hypotheses, experiments, models, findings and counterexamples, and changes them with `expectedRevision` |
 | `research_run` | Writes | Freezes an experiment from the chat's own folder, starts a version, stops a run |
 | `research_environment_action` | Writes | Checks, makes, fills and chooses the project's Python |
-| `research_inspect` | Writes | Activations, a patch, a sweep, two models on a prompt, two prompts on a model, and a prompt's sparse-autoencoder features |
+| `research_inspect` | Writes | Activations, a patch, a sweep, two models on a prompt, two prompts on a model, and a prompt's sparse-autoencoder features, on a run or in an inspection session it opens |
+| `research_evidence` | Writes | Imports results made elsewhere, exports and imports bundles, keeps analysis outputs, and saves a paired comparison's samples as a counterexample set |
+| `research_remote` | Writes | Checks the SSH host the person configured, and starts a frozen version there |
+| `research_notebook` | Writes | Starts a notebook's kernel, runs code in its cells, and interrupts, restarts or stops it |
 | `research_task_start` | Writes | Starts a task: another agent on its own, in a separate worktree |
 | `research_task_read` | Reads | Lists tasks, reports on one, or waits until one ends or needs the person, for up to 600 seconds at a time |
 
 - An Ask chat keeps the tools that read. An Approve chat waits for the user before those that write, even with approvals off.
 - What an agent finds is always `ai_suggestion`: `kind` is set for it, and a `conclusion` is refused.
 - A hypothesis it makes has no verdict, and it does not change once made, so that nothing under a person's verdict moves. It changes only its own findings. A record's other changes go through `expectedRevision` as usual.
-- There is no tool for labels, verdicts, modes, the policy, or merging a task.
+- There is no tool for labels, verdicts, modes, the policy, merging a task, or the SSH host: the person configures the host, and an agent only checks it and starts runs there.
 - A task cannot start a task, and at most 4 of an agent's tasks in a project are going at once. A task starts in `delegate`, or `delegate_auto` if the chat that started it is. Only the person answers its approvals, and merges or discards it.
 - A start's `attempt` (default 1) makes its `clientId` with the turn and the version: repeating a call in a turn starts nothing, and a new attempt runs the version again.
 - An answer over 60,000 characters is cut, and says to read less.

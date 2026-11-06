@@ -3254,7 +3254,7 @@
     "toolId": "research_read",
     "serverId": "research",
     "category": "read",
-    "description": "Read a project's research: what=status (everything at a glance), list or record (collection, id), runs, run, summary, samples (run, cursor, limit, only=all|disputed|errors), log (run, stream=stdout|stderr), resources, labels, compare (left and right are version ids), sample_across (sample, runs), events, environment, policy, inside_list, inside (run, sample, model), data_list (every data input, its hash, whether it changed, who read it), data_profile (path, split: rows, columns, missing, common values), data_overlap (left and right are data files, columns, leftSplit, rightSplit: identical rows between two files, exact duplicates only).",
+    "description": "Read a project's research: what=status (everything at a glance), list or record (collection, id), runs, run, summary, samples (run, cursor, limit, only=all|disputed|errors), log (run, stream=stdout|stderr), resources, labels, compare (left and right are version ids), sample_across (sample, runs), events, environment, policy, inside_list, inside (run, sample, model), data_list (every data input, its hash, whether it changed, who read it), data_profile (path, split: rows, columns, missing, common values), data_overlap (left and right are data files, columns, leftSplit, rightSplit: identical rows between two files, exact duplicates only), data_preview (path, split, cursor, limit: the rows themselves), metrics (run, cursor: training metrics a program logged), paired (left and right are {runId, modelId?}, scorer, only=all|improved|regressed|unchanged|missing, sliceField, higherIsBetter: sample by sample, with improvements, regressions, missing samples, slices and an interval only when the two were measured the same way; saves nothing), remote (the SSH host the person configured, and remote runs), session_inside (session: what an inspection session read), artifact (id: a kept output's content, never run), notebook (path: whether its kernel is running and what it ran), import_preview (path, format=jsonl|json|csv|tsv|trainer, columns, scoreColumns: how a JSONL, JSON, CSV or TSV result file would come in, changing nothing), bundle_preview (path: what a project bundle holds and what would conflict, changing nothing).",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3280,7 +3280,16 @@
         "inside",
         "data_list",
         "data_profile",
-        "data_overlap"
+        "data_overlap",
+        "data_preview",
+        "metrics",
+        "paired",
+        "remote",
+        "session_inside",
+        "artifact",
+        "notebook",
+        "import_preview",
+        "bundle_preview"
        ]
       },
       "collection": {
@@ -3292,7 +3301,10 @@
         "versions",
         "models",
         "findings",
-        "counterexamples"
+        "counterexamples",
+        "inspection_sessions",
+        "artifacts",
+        "counterexample_sets"
        ]
       },
       "id": {
@@ -3323,10 +3335,10 @@
        ]
       },
       "left": {
-       "type": "string"
+       "description": "For compare, a version id; for paired, {runId, modelId?}."
       },
       "right": {
-       "type": "string"
+       "description": "For compare, a version id; for paired, {runId, modelId?}."
       },
       "sample": {
        "type": "string"
@@ -3347,16 +3359,43 @@
        "type": "string"
       },
       "columns": {
-       "type": "array",
-       "items": {
-        "type": "string"
-       }
+       "type": "object",
+       "description": "For import_preview: which column holds sampleId, input, output, expected, modelId or category, where it is not named so."
       },
       "leftSplit": {
        "type": "string"
       },
       "rightSplit": {
        "type": "string"
+      },
+      "session": {
+       "type": "string"
+      },
+      "scorer": {
+       "type": "string"
+      },
+      "sliceField": {
+       "type": "string"
+      },
+      "higherIsBetter": {
+       "type": "boolean"
+      },
+      "scoreColumns": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "For import_preview: the columns that are scores."
+      },
+      "format": {
+       "type": "string",
+       "enum": [
+        "jsonl",
+        "json",
+        "csv",
+        "tsv",
+        "trainer"
+       ]
       }
      },
      "required": [
@@ -3505,7 +3544,7 @@
     "toolId": "research_inspect",
     "serverId": "research",
     "category": "write",
-    "description": "Look inside a model on a run's samples or your own prompts, with the Python the experiment's command starts with. action=activations (runId, sampleId, modelId) reads each layer. action=patch (runId, sampleId, sourceModelId, targetModelId, layer) replaces the residual stream leaving a layer with the source's. action=sweep (runId, sampleIds up to 32, sourceModelId, targetModelId, layers) patches every layer. action=compare (runId, modelId, otherModelId, input, expected) reads two models on a prompt of your own. action=prompts (runId, modelId, clean, corrupted, expected, alternative) restores each layer and position of a corrupted prompt from a clean one with the same number of tokens, beside a random control. action=features (runId, modelId, prompt, layer, and saeRelease with saeId, or saePath; optionally expected, alternative and ablate) reads the residual stream leaving a layer through a sparse autoencoder: the strongest features per token and how well it was rebuilt, and with ablate a feature's id, how the margin moves beside a random feature of similar activation and beside splicing the unmodified reconstruction. A feature has an id, not a name. Results are saved with the run.",
+    "description": "Look inside a model on a run's samples or your own prompts, with the Python the experiment's command starts with. action=activations (runId, sampleId, modelId) reads each layer. action=patch (runId, sampleId, sourceModelId, targetModelId, layer) replaces the residual stream leaving a layer with the source's. action=sweep (runId, sampleIds up to 32, sourceModelId, targetModelId, layers) patches every layer. action=compare (runId, modelId, otherModelId, input, expected) reads two models on a prompt of your own. action=prompts (runId, modelId, clean, corrupted, expected, alternative) restores each layer and position of a corrupted prompt from a clean one with the same number of tokens, beside a random control. action=features (runId, modelId, prompt, layer, and saeRelease with saeId, or saePath; optionally expected, alternative and ablate) reads the residual stream leaving a layer through a sparse autoencoder: the strongest features per token and how well it was rebuilt, and with ablate a feature's id, how the margin moves beside a random feature of similar activation and beside splicing the unmodified reconstruction. A feature has an id, not a name. Results are saved with the run. action=session (modelIds, title, cwd) opens an inspection session for exploring models without a scored run; compare, prompts and features then take sessionId in place of runId and keep their readings with the session.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3517,7 +3556,8 @@
         "sweep",
         "compare",
         "prompts",
-        "features"
+        "features",
+        "session"
        ]
       },
       "runId": {
@@ -3582,11 +3622,197 @@
       },
       "alternative": {
        "type": "string"
+      },
+      "sessionId": {
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      },
+      "cwd": {
+       "type": "string"
+      },
+      "modelIds": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "For a session: 1 to 32 project models it looks at."
+      }
+     },
+     "required": [
+      "action"
+     ]
+    }
+   },
+   {
+    "toolId": "research_evidence",
+    "serverId": "research",
+    "category": "write",
+    "description": "Bring evidence in or take it out. action=import (path, format, columns, scoreColumns, evaluation, title, expectedSha256 from the preview) brings a JSONL, JSON, CSV or TSV result file in as a run marked imported: it keeps unknown provenance unknown and never gets an interval of its own; preview it first with research_read what=import_preview. action=bundle_export (path, optional) writes the project's evidence and Markdown and HTML reports as a bundle. action=bundle_import (path) brings a bundle in without overwriting different evidence; preview it with research_read what=bundle_preview. Credentials, permissions and live remote jobs never come with a bundle. action=artifact_register (kind=figure|json|notebook|reference, path or uri, title, runId or inspectionId, metadata) keeps a figure, analysis JSON or notebook snapshot with its hash, or names a large store by reference; nothing in it is run. action=artifacts_from_run (runId) snapshots what the run listed in SATURN_RUN_ARTIFACTS. action=save_counterexamples (the paired fields, only, title) keeps every sample of a paired comparison, regressions by default, as a counterexample set.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string",
+       "enum": [
+        "import",
+        "bundle_export",
+        "bundle_import",
+        "artifact_register",
+        "artifacts_from_run",
+        "save_counterexamples"
+       ]
+      },
+      "path": {
+       "type": "string"
+      },
+      "evaluation": {
+       "type": "object"
+      },
+      "kind": {
+       "type": "string",
+       "enum": [
+        "figure",
+        "json",
+        "notebook",
+        "reference"
+       ]
+      },
+      "uri": {
+       "type": "string"
+      },
+      "title": {
+       "type": "string"
+      },
+      "runId": {
+       "type": "string"
+      },
+      "inspectionId": {
+       "type": "string"
+      },
+      "metadata": {
+       "type": "object"
+      },
+      "left": {
+       "type": "object"
+      },
+      "right": {
+       "type": "object"
+      },
+      "scorer": {
+       "type": "string"
+      },
+      "only": {
+       "type": "string"
+      },
+      "sliceField": {
+       "type": "string"
+      },
+      "higherIsBetter": {
+       "type": "boolean"
+      },
+      "columns": {
+       "type": "object"
+      },
+      "scoreColumns": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "format": {
+       "type": "string",
+       "enum": [
+        "jsonl",
+        "json",
+        "csv",
+        "tsv",
+        "trainer"
+       ]
+      },
+      "expectedSha256": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "action"
+     ]
+    }
+   },
+   {
+    "toolId": "research_remote",
+    "serverId": "research",
+    "category": "write",
+    "description": "Run on the SSH host the person configured in Environment; read it with research_read what=remote. Only the person sets the host. action=check connects and checks Saturn's worker and the working folder there. action=start (version, attempt, timeoutSeconds up to 7 days) runs a frozen version there and returns at once: the job keeps going with Saturn closed, and research_wait follows it as it would a local run. Stop it with research_run action=stop.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string",
+       "enum": [
+        "check",
+        "start"
+       ]
+      },
+      "version": {
+       "type": "string"
+      },
+      "attempt": {
+       "type": "integer"
+      },
+      "timeoutSeconds": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "action"
+     ]
+    }
+   },
+   {
+    "toolId": "research_notebook",
+    "serverId": "research",
+    "category": "write",
+    "description": "Run code in a project notebook's own kernel, with the project's Python. action=start opens the kernel; action=run (cells: each {cell, code}, the cell's id and the code to run, in order) runs them and keeps their outputs; action=interrupt, restart or stop act on the kernel. Read where it stands with research_read what=notebook. Edit the notebook's cells as a file.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string",
+       "enum": [
+        "start",
+        "run",
+        "interrupt",
+        "restart",
+        "stop"
+       ]
+      },
+      "path": {
+       "type": "string"
+      },
+      "cells": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "cell": {
+          "type": "string"
+         },
+         "code": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "cell",
+         "code"
+        ]
+       }
       }
      },
      "required": [
       "action",
-      "runId"
+      "path"
      ]
     }
    },

@@ -20,6 +20,7 @@ Each message tells you the chat's mode. The person sets it. If the mode blocks w
 - A chat's mode, and approvals.
 - Lifting a lock. A frozen version's data and scorer are locked for agents.
 - Merging or discarding a task.
+- The SSH host for remote runs, and anything about SSH keys.
 
 ## When something is refused
 - **Locked file**: the file is the data or scorer of a frozen version. Changing it would change what the results mean. Say why you want to change it and stop that line of work. The person can release it, and the next version locks it again.

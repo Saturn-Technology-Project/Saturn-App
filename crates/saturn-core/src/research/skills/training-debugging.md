@@ -6,6 +6,8 @@ description: Diagnose loss that is NaN, flat, exploding or too good. Read when t
 
 Change one thing at a time. Return to overfitting one batch (`training-smoke-test`), since it separates bugs from tuning.
 
+Read the curve before guessing: a program that appends `{"schemaVersion":1,"step":100,"values":{"loss":2.1}}` lines to `SATURN_RUN_METRICS` can be read with `research_read`, `what: "metrics"`, `run`, 200 events at a time from `cursor`. A Trainer state brought in with `importing-results` reads the same way.
+
 | Sign | Likely causes | Check |
 |---|---|---|
 | NaN or inf | Learning rate too high; fp16 overflow; log of zero; bad data | `torch.autograd.set_detect_anomaly(True)` on a short run; try full precision; lower the rate |

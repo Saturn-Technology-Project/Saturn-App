@@ -3,7 +3,7 @@
 //! them for people.
 
 /// Every skill, by name, in the order a study meets them.
-const SKILLS: [(&str, &str); 42] = [
+const SKILLS: [(&str, &str); 49] = [
     (
         "research-autopilot",
         include_str!("skills/research-autopilot.md"),
@@ -50,6 +50,10 @@ const SKILLS: [(&str, &str); 42] = [
         include_str!("skills/data-leakage-audit.md"),
     ),
     (
+        "importing-results",
+        include_str!("skills/importing-results.md"),
+    ),
+    (
         "tokenizer-and-format",
         include_str!("skills/tokenizer-and-format.md"),
     ),
@@ -61,6 +65,8 @@ const SKILLS: [(&str, &str); 42] = [
     ("scorer-design", include_str!("skills/scorer-design.md")),
     ("freeze-and-run", include_str!("skills/freeze-and-run.md")),
     ("run-failures", include_str!("skills/run-failures.md")),
+    ("remote-runs", include_str!("skills/remote-runs.md")),
+    ("notebooks", include_str!("skills/notebooks.md")),
     (
         "training-smoke-test",
         include_str!("skills/training-smoke-test.md"),
@@ -94,6 +100,10 @@ const SKILLS: [(&str, &str); 42] = [
         include_str!("skills/counterexample-mining.md"),
     ),
     (
+        "paired-comparisons",
+        include_str!("skills/paired-comparisons.md"),
+    ),
+    (
         "comparing-across-lineage",
         include_str!("skills/comparing-across-lineage.md"),
     ),
@@ -102,8 +112,16 @@ const SKILLS: [(&str, &str); 42] = [
         include_str!("skills/plots-and-analysis.md"),
     ),
     (
+        "analysis-outputs",
+        include_str!("skills/analysis-outputs.md"),
+    ),
+    (
         "activation-reading",
         include_str!("skills/activation-reading.md"),
+    ),
+    (
+        "inspection-sessions",
+        include_str!("skills/inspection-sessions.md"),
     ),
     (
         "activation-patching",
@@ -123,6 +141,10 @@ const SKILLS: [(&str, &str); 42] = [
         include_str!("skills/recording-findings.md"),
     ),
     ("study-report", include_str!("skills/study-report.md")),
+    (
+        "research-bundles",
+        include_str!("skills/research-bundles.md"),
+    ),
     ("handing-back", include_str!("skills/handing-back.md")),
 ];
 

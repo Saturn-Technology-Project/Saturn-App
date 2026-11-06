@@ -12,7 +12,7 @@ import json, pandas as pd
 rows = [json.loads(line) for line in open(f".saturn/research/runs/{run}/samples.jsonl")]
 frame = pd.json_normalize(rows)
 ```
-Save figures and tables outside tracked folders, or commit them deliberately. New untracked files make a new version next time. See `checkpoints-and-lineage`.
+Save figures and tables outside tracked folders, or commit them deliberately. New untracked files make a new version next time. See `checkpoints-and-lineage`. To keep a figure or analysis JSON with its hash beside the run that produced it, see `analysis-outputs`.
 
 ## Plots
 - **One axis.** Two scales on one plot mislead. Use two plots.

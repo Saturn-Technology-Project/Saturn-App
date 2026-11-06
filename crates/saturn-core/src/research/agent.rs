@@ -92,6 +92,9 @@ impl Kernel {
                 self.research_environment_action(&project, arguments).await
             }
             "research_inspect" => self.research_inspect(&project, arguments).await,
+            "research_evidence" => self.research_evidence(&project, arguments).await,
+            "research_remote" => self.research_remote_action(&project, arguments, run).await,
+            "research_notebook" => self.research_notebook_action(&project, arguments).await,
             "research_task_start" => self.research_task_start(&project, arguments, run).await,
             "research_task_read" => self.research_task_read(&project, arguments, run).await,
             _ => Err(format!("Unknown research tool: {tool}")),
@@ -229,6 +232,58 @@ impl Kernel {
                     .await
                     .map_err(said)
             }
+            "data_preview" => {
+                let cursor = arguments.get("cursor").and_then(Value::as_u64).unwrap_or(0);
+                let limit = arguments
+                    .get("limit")
+                    .and_then(Value::as_u64)
+                    .map(|limit| limit.clamp(1, SAMPLES_READ) as usize);
+                let split = Some(text(arguments, "split")).filter(|split| !split.is_empty());
+                self.research_data_preview(
+                    project,
+                    needed(arguments, "path")?,
+                    cursor,
+                    limit,
+                    split,
+                )
+                .await
+                .map_err(said)
+            }
+            "metrics" => {
+                let cursor = arguments.get("cursor").and_then(Value::as_u64).unwrap_or(0);
+                self.research_metrics(project, run()?, cursor)
+                    .await
+                    .map_err(said)
+            }
+            "paired" => {
+                // Reading a comparison keeps nothing: a counterexample set is saved through research_evidence.
+                let mut request = arguments.clone();
+                request["save"] = json!(false);
+                self.research_paired_comparison(project, &request)
+                    .await
+                    .map_err(said)
+            }
+            "remote" => self.research_remote(project, None).await.map_err(said),
+            "session_inside" => self
+                .research_inside_list(project, needed(arguments, "session")?)
+                .await
+                .map_err(said),
+            "artifact" => self
+                .research_artifact_content(project, needed(arguments, "id")?)
+                .await
+                .map_err(said),
+            "notebook" => self
+                .research_notebook_status(project, needed(arguments, "path")?)
+                .await
+                .map_err(said),
+            "import_preview" => self
+                .research_import(project, arguments, true)
+                .await
+                .map_err(said),
+            "bundle_preview" => self
+                .research_bundle_import(project, arguments, true)
+                .await
+                .map_err(said),
             other => Err(format!("Nothing to read called \"{other}\".")),
         }
     }
@@ -589,8 +644,23 @@ impl Kernel {
 
     /// Reads a model's activations on a sample, patches a layer in from another model, or sweeps the layers.
     async fn research_inspect(&self, project: &str, arguments: &Value) -> Result<Value, String> {
+        let action = needed(arguments, "action")?;
+        if action == "session" {
+            return self
+                .research_inspection_session(project, arguments)
+                .await
+                .map_err(said);
+        }
+        // A session explores without a scored run; its readings are kept with the session instead.
+        let session = text(arguments, "sessionId");
+        if !session.is_empty() && matches!(action, "compare" | "prompts" | "features") {
+            return self
+                .research_inspection(project, session, arguments)
+                .await
+                .map_err(said);
+        }
         let run = needed(arguments, "runId")?;
-        match needed(arguments, "action")? {
+        match action {
             "activations" => self.research_look_inside(project, run, arguments).await,
             "patch" => {
                 if arguments.get("layer").and_then(Value::as_u64).is_none() {
@@ -603,6 +673,80 @@ impl Kernel {
                 self.research_inspection(project, run, arguments).await
             }
             other => return Err(format!("research_inspect has no action \"{other}\".")),
+        }
+        .map_err(said)
+    }
+
+    /// Brings evidence in and takes it out: imported results, project bundles, kept outputs and counterexample sets.
+    async fn research_evidence(&self, project: &str, arguments: &Value) -> Result<Value, String> {
+        match needed(arguments, "action")? {
+            "import" => self.research_import(project, arguments, false).await,
+            "bundle_export" => self.research_bundle_export(project, arguments).await,
+            "bundle_import" => self.research_bundle_import(project, arguments, false).await,
+            "artifact_register" => self.research_artifact_register(project, arguments).await,
+            "artifacts_from_run" => {
+                self.research_artifact_manifest(project, needed(arguments, "runId")?)
+                    .await
+            }
+            "save_counterexamples" => {
+                let mut request = arguments.clone();
+                request["save"] = json!(true);
+                self.research_paired_comparison(project, &request).await
+            }
+            other => return Err(format!("research_evidence has no action \"{other}\".")),
+        }
+        .map_err(said)
+    }
+
+    /// Checks the SSH host the person configured, or starts a frozen version there. The host itself is the person's to set.
+    async fn research_remote_action(
+        self: &Arc<Self>,
+        project: &str,
+        arguments: &Value,
+        turn: &Value,
+    ) -> Result<Value, String> {
+        match needed(arguments, "action")? {
+            "check" => self.research_remote_check(project).await,
+            "start" => {
+                let version = needed(arguments, "version")?;
+                let attempt = arguments
+                    .get("attempt")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1);
+                let mut request = json!({
+                    "versionId": version,
+                    "clientId": format!("assistant-remote-{}-{version}-{attempt}", text(turn, "id")),
+                });
+                if let Some(seconds) = arguments.get("timeoutSeconds") {
+                    request["timeoutSeconds"] = seconds.clone();
+                }
+                self.research_remote_start(project, &request).await
+            }
+            other => return Err(format!("research_remote has no action \"{other}\".")),
+        }
+        .map_err(said)
+    }
+
+    /// Runs a notebook's cells in its kernel, or interrupts, restarts or stops the kernel.
+    async fn research_notebook_action(
+        &self,
+        project: &str,
+        arguments: &Value,
+    ) -> Result<Value, String> {
+        let path = needed(arguments, "path")?;
+        match needed(arguments, "action")? {
+            "start" => self.research_notebook_start(project, path).await,
+            "run" => {
+                let cells = arguments
+                    .get("cells")
+                    .cloned()
+                    .ok_or("A run names the \"cells\" to run.")?;
+                self.research_notebook_run(project, path, &cells).await
+            }
+            "interrupt" => self.research_notebook_interrupt(project, path).await,
+            "restart" => self.research_notebook_restart(project, path).await,
+            "stop" => self.research_notebook_stop(project, path).await,
+            other => return Err(format!("research_notebook has no action \"{other}\".")),
         }
         .map_err(said)
     }

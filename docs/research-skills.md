@@ -38,6 +38,7 @@ To change one for a project, put a skill of the same name in `.saturn/skills/<na
 |---|---|
 | `dataset-preparation` | Build fixed, hashed train, validation and test splits. Read before training or evaluating on a new dataset. |
 | `data-leakage-audit` | Find ways the test data reaches the model or the choice of model. Read after splitting, and whenever a score looks too good. |
+| `importing-results` | Bring results that were produced elsewhere into the project, marked as imported and never given more weight than they carry. Read when the person already has result files, or a Trainer state. |
 | `tokenizer-and-format` | Avoid tokenizer, padding, chat template and label-masking mistakes. Read before training or evaluating a language model. |
 
 The audit and the tools skill use `research_read` with `data_list`, `data_profile` and `data_overlap`, the same reads the Data screen shows. Rows themselves are for the person, on that screen.
@@ -51,6 +52,8 @@ The audit and the tools skill use `research_read` with `data_list`, `data_profil
 | `scorer-design` | Build and validate a scorer, and connect it to a person's labels. Read before trusting any score. |
 | `freeze-and-run` | Freeze an experiment, start a run and follow it to the end. Read before starting any run. |
 | `run-failures` | Diagnose failed, interrupted and protocol-error runs without repeating the same attempt. Read when a run did not complete. |
+| `remote-runs` | Run a frozen experiment on the SSH host the person configured, leave it going, and follow it. Read when a run needs a machine other than this computer. |
+| `notebooks` | Run a project notebook's cells in its kernel, and know when a notebook should become an experiment. Read before running or changing a notebook. |
 
 ## Training
 
@@ -72,14 +75,17 @@ The audit and the tools skill use `research_read` with `data_list`, `data_profil
 | `statistics-for-comparisons` | Compare models with paired intervals, effect sizes and honest multiple comparisons. Read before saying one model beats another. |
 | `reading-samples` | Read samples systematically to find what scores hide, without labeling on the person's behalf. Read after every evaluation. |
 | `counterexample-mining` | Search a run for cases that break the pattern and keep them. Read when a result looks clean or when testing a claim. |
+| `paired-comparisons` | Compare two runs or models sample by sample, find what improved and what regressed, and keep the regressions. Read before saying one model or version is better, or when looking for what changed. |
 | `comparing-across-lineage` | Measure a family of checkpoints under one evaluation, to see what each training stage changed. Read when comparing pretraining, SFT and preference stages. |
 | `plots-and-analysis` | Analyse run outputs with scripts and make plots that do not mislead. Read when producing figures or tables. |
+| `analysis-outputs` | Keep figures, analysis JSON, notebook snapshots and references to large stores with the run or session they came from. Read when an analysis produces something worth keeping. |
 
 ## Inside a model
 
 | Skill | What it is for |
 |---|---|
 | `activation-reading` | Read what each layer says on a sample with research_inspect, and interpret it within its limits. Read before claiming where something happens in a model. |
+| `inspection-sessions` | Explore a model on prompts of your own without a scored run, and keep what you read. Read when looking inside a model before there is an experiment to run. |
 | `activation-patching` | Test causally by moving a layer's state between models, within what a residual transplant can show. Read before making a mechanism claim. |
 | `layer-sweeps` | Patch every layer on a set of samples to see where behavior returns. Read when asking where in the model a difference lives. |
 | `transformer-lens-probes` | Write custom interpretability experiments with hooks when the built-in inspection is not enough. Read for attention, neuron or input-pair patching. |
@@ -91,4 +97,5 @@ The audit and the tools skill use `research_read` with `data_list`, `data_profil
 |---|---|
 | `recording-findings` | Write findings tied to runs, with evidence and uncertainty. Read whenever you have something worth keeping. |
 | `study-report` | Write the final report as a file a reader can check against the records. Read when a study is done, or at the point of stopping. |
+| `research-bundles` | Take a project's research evidence to another project as a verified bundle, or bring one in. Read when the person wants to share, archive or move evidence. |
 | `handing-back` | End a stage or study with what the person must decide, stated plainly. Read before finishing any autonomous work. |

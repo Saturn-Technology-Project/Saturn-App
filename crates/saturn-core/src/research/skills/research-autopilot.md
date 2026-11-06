@@ -7,7 +7,7 @@ description: Carry out a whole study on your own, from a question to a report. R
 The loop for an independent study. Each stage names the skill to read before doing it; read it, do not work from memory.
 
 ## Before you start
-1. `research_read` with `what: "status"`. Continue what exists rather than duplicating it.
+1. `research_read` with `what: "status"`. Continue what exists rather than duplicating it. If the person already has result files, bring them in first: see `importing-results`.
 2. Check you can act: in an Ask chat you only read, in an Approve chat every change waits for the person. A long study belongs in a task, whose work stays apart until the person merges it: see `starting-tasks`. See `modes-and-boundaries` and `task-worktrees`.
 3. Agree the limits in one message if the person gave none: the question, the compute budget, and how long you may run. If you cannot ask, take the smallest reasonable budget and write it down in your first finding. See `compute-budget`.
 
@@ -21,9 +21,9 @@ The loop for an independent study. Each stage names the skill to read before doi
 | 5. Data | Fixed splits, hashed, audited | `dataset-preparation`, `data-leakage-audit`, `tokenizer-and-format` |
 | 6. Measure the start | An evaluation run on the untrained or base model | `experiment-program`, `evaluation-spec`, `scorer-design`, `freeze-and-run` |
 | 7. Train | Checkpoints, each a model record in the lineage | `training-smoke-test`, then `pretraining`, `fine-tuning` or `preference-training`; `checkpoints-and-lineage`, `gpu-and-memory` |
-| 8. Evaluate | Runs that compare as the same evaluation | `freeze-and-run`, `comparing-across-lineage` |
-| 9. Understand | Sample review, statistics, mechanism | `reading-samples`, `counterexample-mining`, `statistics-for-comparisons`, `activation-patching`, `layer-sweeps` |
-| 10. Report | Findings tied to runs, a report file, a list of what the person decides | `recording-findings`, `study-report`, `handing-back` |
+| 8. Evaluate | Runs that compare as the same evaluation, here or on the configured host | `freeze-and-run`, `remote-runs`, `comparing-across-lineage` |
+| 9. Understand | Sample review, paired comparisons, statistics, mechanism | `reading-samples`, `paired-comparisons`, `counterexample-mining`, `statistics-for-comparisons`, `inspection-sessions`, `activation-patching`, `layer-sweeps` |
+| 10. Report | Findings tied to runs, kept outputs, a report file, a list of what the person decides | `recording-findings`, `analysis-outputs`, `study-report`, `research-bundles`, `handing-back` |
 
 ## Rules that hold throughout
 - **Write the prediction before the result.** A hypothesis made after seeing the number is a description, and you say so.
