@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Choice } from "../ui/base/Field.js";
+import { t } from "../../domain/i18n.js";
 import { comparisonText, lineageOrder, scoreText, type Comparison, type ExperimentRun, type FrozenVersion, type ModelNode, type RunSummary } from "../../domain/research.js";
 
 /** One bar: a model in a run, and whether it measured the same way as the first bar. */
@@ -32,7 +33,7 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
       return {
         key: `${summary.runId}:${model.modelId ?? ""}`,
         // An imported score says so beside its name, so it is never read as one Saturn measured.
-        label: `${node?.name ?? node?.source ?? model.modelId ?? "This run"}${props.runs.find((run) => run.id === summary.runId)?.imported ? " (imported)" : ""}`,
+        label: props.runs.find((run) => run.id === summary.runId)?.imported ? t("{name} (imported)", { name: node?.name ?? node?.source ?? model.modelId ?? t("This run") }) : (node?.name ?? node?.source ?? model.modelId ?? t("This run")),
         version: versions.find((version) => version.id === summary.versionId)?.number ?? 0,
         mean: model.scores[chosen]?.mean ?? null,
         count: model.scores[chosen]?.count ?? 0,
@@ -48,16 +49,16 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
 
   return (
     <>
-      <h2 className="mt-5! mb-2 text-sm font-semibold">Mean score</h2>
-      <figure className="m-0 flex flex-col gap-2.5 rounded-lg bg-panel px-3.5 py-3" data-tour="experiments-score" aria-label={`Mean ${chosen} of each model`}>
+      <h2 className="mt-5! mb-2 text-sm font-semibold">{t("Mean score")}</h2>
+      <figure className="m-0 flex flex-col gap-2.5 rounded-lg bg-panel px-3.5 py-3" data-tour="experiments-score" aria-label={t("Mean {scorer} of each model", { scorer: chosen })}>
         {scorers.length > 1 ? (
-          <Choice label="Scorer" className="max-w-[220px]" value={chosen} options={scorers.map((name) => ({ value: name, label: name }))} onChange={setScorer} />
+          <Choice label={t("Scorer")} className="max-w-[220px]" value={chosen} options={scorers.map((name) => ({ value: name, label: name }))} onChange={setScorer} />
         ) : (
-          <figcaption className="text-xs text-muted-foreground">{chosen}, measured the same way as the newest run</figcaption>
+          <figcaption className="text-xs text-muted-foreground">{t("{scorer}, measured the same way as the newest run", { scorer: chosen })}</figcaption>
         )}
         <div className="flex flex-col gap-1">
           {shared.map((bar) => (
-            <div className="grid min-h-[26px] grid-cols-[minmax(90px,200px)_minmax(60px,1fr)_56px_minmax(60px,110px)] items-center gap-2 text-xs" key={bar.key} title={`${bar.label}, v${bar.version}: ${scoreText(bar.mean)} from ${bar.count} samples`}>
+            <div className="grid min-h-[26px] grid-cols-[minmax(90px,200px)_minmax(60px,1fr)_56px_minmax(60px,110px)] items-center gap-2 text-xs" key={bar.key} title={t("{label}, v{version}: {score} from {count} samples", { label: bar.label, version: bar.version, score: scoreText(bar.mean), count: bar.count })}>
               <span className="truncate">
                 {bar.label} <span className="text-muted-foreground">v{bar.version}</span>
               </span>
@@ -67,14 +68,14 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
               <span className="text-right font-mono">{scoreText(bar.mean)}</span>
               <span className="text-muted-foreground">
                 n = {bar.count}
-                {bar.errors ? `, ${bar.errors} errors` : ""}
+                {bar.errors ? `, ${t("{count} errors", { count: bar.errors })}` : ""}
               </span>
             </div>
           ))}
         </div>
         {apart.length ? (
           <div className="flex flex-col gap-0.5">
-            <div className="text-xs text-wait">Not on this chart, because they were not measured the same way:</div>
+            <div className="text-xs text-wait">{t("Not on this chart, because they were not measured the same way:")}</div>
             {apart.map((bar) => (
               <div key={bar.key} className="text-xs text-muted-foreground">
                 {bar.label} v{bar.version}: {scoreText(bar.mean)}. {bar.comparison ? comparisonText(bar.comparison) : ""}

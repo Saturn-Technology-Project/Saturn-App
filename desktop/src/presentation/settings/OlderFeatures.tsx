@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import type { Automation, Conversation } from "../../domain/model.js";
 import { Button } from "../ui/base/Button.js";
 import { messageOf } from "../ui/Parts.js";
@@ -47,8 +48,8 @@ export function OlderFeatures(props: { onError: (message: string) => void }) {
   const count = automations.length + watched.length;
   return (
     <div>
-      <p className="max-w-[680px] text-muted-foreground">Scheduled runs and pull request follow-up came from the earlier interface. The runtime keeps doing them until they are turned off here. They can use your models and your GitHub token.</p>
-      {loaded && count === 0 ? <p className="mt-3 text-xs text-muted-foreground">Nothing is still running.</p> : null}
+      <p className="max-w-[680px] text-muted-foreground">{t("Scheduled runs and pull request follow-up came from the earlier interface. The runtime keeps doing them until they are turned off here. They can use your models and your GitHub token.")}</p>
+      {loaded && count === 0 ? <p className="mt-3 text-xs text-muted-foreground">{t("Nothing is still running.")}</p> : null}
       {count > 1 ? (
         <Button
           type="button"
@@ -63,26 +64,26 @@ export function OlderFeatures(props: { onError: (message: string) => void }) {
             )
           }
         >
-          Turn them all off
+          {t("Turn them all off")}
         </Button>
       ) : null}
       {automations.map((item) => (
         <div className={OLDER_ROW} key={item.id}>
           <span className={OLDER_TEXT}>
-            {item.name} <span className="text-xs text-muted-foreground">scheduled, on {item.agentName}</span>
+            {item.name} <span className="text-xs text-muted-foreground">{t("scheduled, on {agent}", { agent: item.agentName })}</span>
           </span>
           <Button type="button" variant="outline" onClick={() => void act(() => desktop.automations.update(item.id, { enabled: false }))}>
-            Turn off
+            {t("Turn off")}
           </Button>
         </div>
       ))}
       {watched.map((thread) => (
         <div className={OLDER_ROW} key={thread.id}>
           <span className={OLDER_TEXT}>
-            {thread.title} <span className="text-xs text-muted-foreground">pull request {thread.pullRequest?.url}</span>
+            {thread.title} <span className="text-xs text-muted-foreground">{t("pull request")} {thread.pullRequest?.url}</span>
           </span>
           <Button type="button" variant="outline" onClick={() => void act(() => desktop.catalog.watchPullRequest(thread.id, false))}>
-            Stop following
+            {t("Stop following")}
           </Button>
         </div>
       ))}

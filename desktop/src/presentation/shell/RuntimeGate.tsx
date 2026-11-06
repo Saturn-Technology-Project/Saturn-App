@@ -1,3 +1,4 @@
+import { t } from "../../domain/i18n.js";
 import type { RuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { Button } from "../ui/base/Button.js";
 import { classes } from "../ui/base/classes.js";
@@ -6,8 +7,8 @@ import { classes } from "../ui/base/classes.js";
 export function RuntimeGate(props: { status: RuntimeStatus; restart: (() => Promise<void>) | null }) {
   const { status, restart } = props;
   if (status.state === "ready") return null;
-  const title = status.state === "blocked" ? "Another Saturn is in the way" : status.state === "failed" ? "Saturn's runtime stopped" : status.attempt > 1 ? "Starting Saturn's runtime again" : "Starting Saturn's runtime";
-  const detail = status.state === "blocked" || status.state === "failed" ? status.reason : status.attempt > 1 ? `Attempt ${status.attempt}. Your records are safe in the project folder.` : "This takes a moment.";
+  const title = status.state === "blocked" ? t("Another Saturn is in the way") : status.state === "failed" ? t("Saturn's runtime stopped") : status.attempt > 1 ? t("Starting Saturn's runtime again") : t("Starting Saturn's runtime");
+  const detail = status.state === "blocked" || status.state === "failed" ? status.reason : status.attempt > 1 ? t("Attempt {attempt}. Your records are safe in the project folder.", { attempt: status.attempt }) : t("This takes a moment.");
   const log = status.state === "starting" || status.state === "failed" ? status.log : [];
   const tone = status.state === "failed" ? "bg-destructive" : status.state === "blocked" ? "bg-wait" : "bg-info";
   return (
@@ -20,16 +21,16 @@ export function RuntimeGate(props: { status: RuntimeStatus; restart: (() => Prom
         <p className={classes("max-w-[680px]", status.state === "starting" ? "text-muted-foreground" : "text-foreground")}>{detail}</p>
         {log.length ? (
           <details open={status.state === "failed"}>
-            <summary className="cursor-pointer text-xs text-muted-foreground">Its last output</summary>
+            <summary className="cursor-pointer text-xs text-muted-foreground">{t("Its last output")}</summary>
             <pre className="mt-2! max-h-60 overflow-auto rounded-md bg-panel px-2.5 py-2 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap">{log.join("\n")}</pre>
           </details>
         ) : null}
         {restart && status.state !== "starting" ? (
           <Button className="self-start" onClick={() => void restart()}>
-            Try again
+            {t("Try again")}
           </Button>
         ) : null}
-        {!restart && status.state === "starting" ? <p className="text-xs text-muted-foreground">Start the runtime with `npm run dev`, or open Saturn's app.</p> : null}
+        {!restart && status.state === "starting" ? <p className="text-xs text-muted-foreground">{t("Start the runtime with {command}, or open Saturn's app.", { command: "npm run dev" })}</p> : null}
       </div>
     </div>
   );

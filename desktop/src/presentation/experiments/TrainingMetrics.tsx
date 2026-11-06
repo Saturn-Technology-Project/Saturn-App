@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import type { TrainingMetric } from "../../domain/research.js";
 import { Button } from "../ui/base/Button.js";
 import { Choice } from "../ui/base/Field.js";
@@ -35,14 +36,14 @@ export function TrainingMetrics(props: { projectId: string; runId: string; notif
     finally { setBusy(false); }
   }
   return <section className="my-3 rounded-lg bg-panel p-3">
-    <h2 className="mb-2 text-sm font-semibold">Training metrics</h2>
-    <Choice label="Metric" value={chosen} options={names.map((value) => ({ value, label: value }))} onChange={setMetric} />
-    <figure className="m-0 mt-2"><svg viewBox="0 0 660 180" className="w-full" role="img" aria-label={`${chosen} by training step, ${first} to ${last}`}>
+    <h2 className="mb-2 text-sm font-semibold">{t("Training metrics")}</h2>
+    <Choice label={t("Metric")} value={chosen} options={names.map((value) => ({ value, label: value }))} onChange={setMetric} />
+    <figure className="m-0 mt-2"><svg viewBox="0 0 660 180" className="w-full" role="img" aria-label={t("{metric} by training step, {first} to {last}", { metric: chosen, first, last })}>
       <path d="M48 22V142H628" fill="none" stroke="var(--line-strong)" />
       <path d={path} fill="none" stroke="var(--series-1)" strokeWidth="2" />
       <text x="3" y="30" fill="var(--muted)" fontSize="10">{maximum.toPrecision(4)}</text><text x="3" y="142" fill="var(--muted)" fontSize="10">{minimum.toPrecision(4)}</text>
-      <text x="48" y="160" fill="var(--muted)" fontSize="10">{first}</text><text x="610" y="160" fill="var(--muted)" fontSize="10">{last}</text><text x="310" y="176" fill="var(--muted)" fontSize="11">Training step</text>
-    </svg><figcaption className="text-xs text-muted-foreground">{chosen}, in its source units. {events.length} events loaded{next !== null ? "; more available" : ""}. Missing metrics are omitted; events keep source order.</figcaption></figure>
-    {next !== null ? <Button variant="outline" disabled={busy} onClick={() => void more()}>Load more metrics</Button> : null}
+      <text x="48" y="160" fill="var(--muted)" fontSize="10">{first}</text><text x="610" y="160" fill="var(--muted)" fontSize="10">{last}</text><text x="310" y="176" fill="var(--muted)" fontSize="11">{t("Training step")}</text>
+    </svg><figcaption className="text-xs text-muted-foreground">{next !== null ? t("{metric}, in its source units. {count} events loaded; more available. Missing metrics are omitted; events keep source order.", { metric: chosen, count: events.length }) : t("{metric}, in its source units. {count} events loaded. Missing metrics are omitted; events keep source order.", { metric: chosen, count: events.length })}</figcaption></figure>
+    {next !== null ? <Button variant="outline" disabled={busy} onClick={() => void more()}>{t("Load more metrics")}</Button> : null}
   </section>;
 }

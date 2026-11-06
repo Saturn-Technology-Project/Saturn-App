@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
-import { isWorkScreen, statusText, windowTitle } from "../../domain/workbench.js";
+import { t } from "../../domain/i18n.js";
+import { isWorkScreen, screenLabels, statusText, windowTitle } from "../../domain/workbench.js";
 import type { Model, Profile, Project } from "../../domain/model.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
@@ -35,6 +36,9 @@ const SCREEN_ICONS: Record<Screen, ReactNode> = {
   Protection: <ShieldIcon />,
   Environment: <BoxIcon />,
 };
+
+/** Each screen's name as shown. */
+const SCREEN_LABELS = screenLabels(t);
 
 function storedTheme(): "light" | "dark" {
   try {
@@ -76,7 +80,7 @@ export function ResearchApp() {
   }, [screen]);
 
   // The window's own title, which is what computer use and assistive technology find it by.
-  const title = windowTitle(screen, project?.name ?? null);
+  const title = windowTitle(SCREEN_LABELS[screen], project?.name ?? null);
   useEffect(() => {
     document.title = title;
     void window.saturnDesktop?.setTitle?.(title);
@@ -97,7 +101,7 @@ export function ResearchApp() {
     if (!runtimeReady) return;
     syncProjects()
       .then(() => setNotice(null))
-      .catch((error: unknown) => setNotice(`Saturn's runtime is not answering: ${messageOf(error)}`))
+      .catch((error: unknown) => setNotice(t("Saturn's runtime is not answering: {reason}", { reason: messageOf(error) })))
       .finally(() => setLoaded(true));
   }, [runtimeReady, syncProjects]);
 
@@ -170,14 +174,14 @@ export function ResearchApp() {
 
   const commands = useMemo<PaletteCommand[]>(
     () => [
-      ...SCREENS.map((item, index) => ({ id: `go-${item}`, label: `Go to ${item}`, hint: index < 9 ? `⌘${index + 1}` : "", run: () => go(item) })),
-      ...projects.filter((item) => item.id !== projectId).map((item) => ({ id: `project-${item.id}`, label: `Switch to ${item.name}`, run: () => void chooseProject(item.id) })),
-      { id: "add-project", label: "Add a project folder", run: () => void addProject() },
-      { id: "assistant", label: assistant ? "Hide the research assistant" : "Show the research assistant", hint: "⌘J", run: toggleAssistant },
-      { id: "theme", label: theme === "dark" ? "Use the light theme" : "Use the dark theme", run: () => setTheme(theme === "dark" ? "light" : "dark") },
-      { id: "settings", label: "Open Settings", hint: "⌘,", run: () => setSettings(true) },
-      { id: "tour", label: "Take the tour", run: () => setTour(true) },
-      ...(runtime.restart ? [{ id: "restart-runtime", label: "Restart Saturn's runtime", run: () => void runtime.restart?.() }] : []),
+      ...SCREENS.map((item, index) => ({ id: `go-${item}`, label: t("Go to {screen}", { screen: SCREEN_LABELS[item] }), hint: index < 9 ? `⌘${index + 1}` : "", run: () => go(item) })),
+      ...projects.filter((item) => item.id !== projectId).map((item) => ({ id: `project-${item.id}`, label: t("Switch to {project}", { project: item.name }), run: () => void chooseProject(item.id) })),
+      { id: "add-project", label: t("Add a project folder"), run: () => void addProject() },
+      { id: "assistant", label: assistant ? t("Hide the research assistant") : t("Show the research assistant"), hint: "⌘J", run: toggleAssistant },
+      { id: "theme", label: theme === "dark" ? t("Use the light theme") : t("Use the dark theme"), run: () => setTheme(theme === "dark" ? "light" : "dark") },
+      { id: "settings", label: t("Open Settings"), hint: "⌘,", run: () => setSettings(true) },
+      { id: "tour", label: t("Take the tour"), run: () => setTour(true) },
+      ...(runtime.restart ? [{ id: "restart-runtime", label: t("Restart Saturn's runtime"), run: () => void runtime.restart?.() }] : []),
     ],
     // The commands close over the latest state each time they are rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,14 +193,14 @@ export function ResearchApp() {
     body = null;
   } else if (!project) {
     body = (
-      <Empty title="Choose a project" action={<Button onClick={() => void addProject()}>Add a project folder</Button>}>
-        Research records live in a project's own folder, as plain files you can keep.
+      <Empty title={t("Choose a project")} action={<Button onClick={() => void addProject()}>{t("Add a project folder")}</Button>}>
+        {t("Research records live in a project's own folder, as plain files you can keep.")}
       </Empty>
     );
   } else if (!project.access) {
     body = (
-      <Empty title={`Allow access to ${project.name}`} action={<Button onClick={() => setAccessRequest({ path: project.path, name: project.name, projectId: project.id })}>Review access</Button>}>
-        Saturn reads and writes this folder only after you allow it.
+      <Empty title={t("Allow access to {project}", { project: project.name })} action={<Button onClick={() => setAccessRequest({ path: project.path, name: project.name, projectId: project.id })}>{t("Review access")}</Button>}>
+        {t("Saturn reads and writes this folder only after you allow it.")}
       </Empty>
     );
   } else {
@@ -217,46 +221,46 @@ export function ResearchApp() {
 
   return (
     <div className="fixed inset-0 flex min-w-0 overflow-hidden">
-      <nav className="flex w-[148px] flex-none flex-col gap-0.5 border-r border-border bg-panel px-2 pt-1.5 pb-2 max-[1080px]:w-[72px]" aria-label="Screens" data-tour="rail">
+      <nav className="flex w-[148px] flex-none flex-col gap-0.5 border-r border-border bg-panel px-2 pt-1.5 pb-2 max-[1080px]:w-[72px]" aria-label={t("Screens")} data-tour="rail">
         <div className="h-[34px] flex-none [--app-region:drag]" />
         {SCREENS.map((item, index) => (
-          <button type="button" key={item} className={RAIL_ITEM} title={item} data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={index < 9 ? `Meta+${index + 1}` : undefined} onClick={() => go(item)}>
+          <button type="button" key={item} className={RAIL_ITEM} title={SCREEN_LABELS[item]} data-tour={`rail-${item}`} aria-current={screen === item ? "page" : undefined} aria-keyshortcuts={index < 9 ? `Meta+${index + 1}` : undefined} onClick={() => go(item)}>
             {SCREEN_ICONS[item]}
-            <span className="max-[1080px]:sr-only">{item}</span>
+            <span className="max-[1080px]:sr-only">{SCREEN_LABELS[item]}</span>
           </button>
         ))}
         <div className="flex-1" />
-        <button type="button" className={RAIL_ITEM} title="Settings" data-tour="settings" aria-keyshortcuts="Meta+," onClick={() => setSettings(true)}>
+        <button type="button" className={RAIL_ITEM} title={t("Settings")} data-tour="settings" aria-keyshortcuts="Meta+," onClick={() => setSettings(true)}>
           <GearIcon />
-          <span className="max-[1080px]:sr-only">Settings</span>
+          <span className="max-[1080px]:sr-only">{t("Settings")}</span>
         </button>
       </nav>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-stage">
         <header className="flex min-h-(--bar-height) flex-none items-center gap-2.5 border-b border-border py-1 pr-[calc(12px+var(--window-buttons))] pl-3 [--app-region:drag] [&_button]:[--app-region:no-drag]">
           <div data-tour="project" className="w-52 flex-none">
-            <Choice ariaLabel="Project" placeholder="No project" value={projectId ?? ""} triggerClassName="border-transparent bg-transparent font-semibold shadow-none hover:bg-muted" options={[...projects.map((item) => ({ value: item.id, label: item.name })), { value: "+", label: "Add a project folder…" }]} onChange={(value) => void (value === "+" ? addProject() : chooseProject(value))} />
+            <Choice ariaLabel={t("Project")} placeholder={t("No project")} value={projectId ?? ""} triggerClassName="border-transparent bg-transparent font-semibold shadow-none hover:bg-muted" options={[...projects.map((item) => ({ value: item.id, label: item.name })), { value: "+", label: t("Add a project folder…") }]} onChange={(value) => void (value === "+" ? addProject() : chooseProject(value))} />
           </div>
-          <span className="text-xs text-muted-foreground">{screen}</span>
+          <span className="text-xs text-muted-foreground">{SCREEN_LABELS[screen]}</span>
           <div className="min-w-0 flex-1" />
-          <Badge tone={runtimeReady ? "good" : "wait"} title={runtime.status.state === "ready" ? `Runtime ${runtime.status.version}` : "Runtime not answering"}>
+          <Badge tone={runtimeReady ? "good" : "wait"} title={runtime.status.state === "ready" ? t("Runtime {version}", { version: runtime.status.version }) : t("Runtime not answering")}>
             <span className="size-1.5 rounded-full bg-current" />
-            {runtimeReady ? "Runtime" : "Runtime off"}
+            {runtimeReady ? t("Runtime") : t("Runtime off")}
           </Badge>
           <Button variant="ghost" data-tour="commands" aria-keyshortcuts="Meta+K" onClick={() => setPalette(true)}>
-            Commands <span className="text-xs text-muted-foreground">⌘K</span>
+            {t("Commands")} <span className="text-xs text-muted-foreground">⌘K</span>
           </Button>
           <Button variant={assistant ? "soft" : "ghost"} data-tour="assistant" aria-pressed={assistant} aria-keyshortcuts="Meta+J" onClick={toggleAssistant}>
-            <AssistantIcon /> Assistant
+            <AssistantIcon /> {t("Assistant")}
           </Button>
         </header>
         {notice ? (
           <Notice tone="bad" className="m-2 flex items-start justify-between gap-3">
             {notice}
-            <Button variant="ghost" size="small" onClick={() => setNotice(null)}>Dismiss</Button>
+            <Button variant="ghost" size="small" onClick={() => setNotice(null)}>{t("Dismiss")}</Button>
           </Notice>
         ) : null}
-        <div className="sr-only" role="status">{statusText({ screen, project: project?.name ?? null, runtime: runtimeReady ? "ready" : "not answering" })}</div>
-        <main className="flex min-h-0 flex-1 flex-col" aria-label={screen}>{body}</main>
+        <div className="sr-only" role="status">{statusText({ screen, project: project?.name ?? null, runtime: runtimeReady ? "ready" : "not answering" }, t)}</div>
+        <main className="flex min-h-0 flex-1 flex-col" aria-label={SCREEN_LABELS[screen]}>{body}</main>
         <RuntimeGate status={runtime.status} restart={runtime.restart} />
       </div>
       <Guide go={go} />

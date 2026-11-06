@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop";
 import type { TelemetryExportFormat, NetworkView } from "../../application/telemetry";
+import { t } from "../../domain/i18n";
 import type {
   AttributeValue,
   Attributes,
@@ -26,16 +27,16 @@ import { SubTitle } from "./Parts";
 type Tab = "traces" | "metrics" | "logs" | "network";
 
 const EXPORTS: { format: TelemetryExportFormat; label: string; detail: string }[] = [
-  { format: "saturn", label: "Saturn JSON", detail: "telemetry.json as saved, for this page" },
-  { format: "otlp", label: "OTLP JSON", detail: "JSON Lines for the OpenTelemetry Collector (otlpjsonfile)" },
-  { format: "siem", label: "SIEM · ECS NDJSON", detail: "One event per line for Elastic, Splunk, Sentinel" },
+  { format: "saturn", label: "Saturn JSON", detail: t("telemetry.json as saved, for this page") },
+  { format: "otlp", label: "OTLP JSON", detail: t("JSON Lines for the OpenTelemetry Collector (otlpjsonfile)") },
+  { format: "siem", label: "SIEM · ECS NDJSON", detail: t("One event per line for Elastic, Splunk, Sentinel") },
 ];
 
 const SEVERITY_FLOORS: { label: string; value: number }[] = [
-  { label: "All levels", value: 0 },
-  { label: "Info and up", value: 9 },
-  { label: "Warnings and up", value: 13 },
-  { label: "Errors", value: 17 },
+  { label: t("All levels"), value: 0 },
+  { label: t("Info and up"), value: 9 },
+  { label: t("Warnings and up"), value: 13 },
+  { label: t("Errors"), value: 17 },
 ];
 
 /** How a line of a table is set; the traces list and the waterfall share it. */
@@ -82,10 +83,10 @@ function formatClock(ms: number): string {
 
 function formatAgo(ms: number): string {
   const seconds = Math.round((Date.now() - ms) / 1000);
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
-  return `${Math.round(seconds / 3600)}h ago`;
+  if (seconds < 5) return t("just now");
+  if (seconds < 60) return t("{count}s ago", { count: seconds });
+  if (seconds < 3600) return t("{count}m ago", { count: Math.round(seconds / 60) });
+  return t("{count}h ago", { count: Math.round(seconds / 3600) });
 }
 
 function formatNumber(value: number): string {
@@ -146,8 +147,8 @@ export function Telemetry() {
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "";
       setError(/not found|cannot get/i.test(message) || message.startsWith("<")
-        ? "This runtime does not serve telemetry yet. Restart it to load the new version."
-        : message || "Could not reach the runtime");
+        ? t("This runtime does not serve telemetry yet. Restart it to load the new version.")
+        : message || t("Could not reach the runtime"));
     }
   }
 
@@ -171,7 +172,7 @@ export function Telemetry() {
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setTick((value) => value + 1);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not download telemetry");
+      setError(reason instanceof Error ? reason.message : t("Could not download telemetry"));
     } finally {
       setDownloading(false);
     }
@@ -185,7 +186,7 @@ export function Telemetry() {
       setLogs([]);
       setTick((value) => value + 1);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not clear telemetry");
+      setError(reason instanceof Error ? reason.message : t("Could not clear telemetry"));
     }
   }
 
@@ -196,7 +197,7 @@ export function Telemetry() {
           <TabsList>
             {(["traces", "metrics", "logs", "network"] as Tab[]).map((id) => (
               <TabsTrigger key={id} value={id} className="px-3.5">
-                {id === "traces" ? "Traces" : id === "metrics" ? "Metrics" : id === "logs" ? "Logs" : "Network"}
+                {id === "traces" ? t("Traces") : id === "metrics" ? t("Metrics") : id === "logs" ? t("Logs") : t("Network")}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -207,24 +208,24 @@ export function Telemetry() {
             variant={live ? "soft" : "outline"}
             size="small"
             onClick={() => setLive((value) => !value)}
-            title="Refresh every 3 seconds"
+            title={t("Refresh every 3 seconds")}
           >
             <Dot tone={live ? "good" : "idle"} pulse={live} />
-            Live
+            {t("Live")}
           </Button>
-          <Button type="button" variant="outline" size="small" onClick={() => setTick((value) => value + 1)}>Refresh</Button>
+          <Button type="button" variant="outline" size="small" onClick={() => setTick((value) => value + 1)}>{t("Refresh")}</Button>
           <DownloadMenu
             disabled={!status || status.mode === "disabled"}
             busy={downloading}
             savedTo={status?.file ? homeRelative(status.file) : null}
             onPick={(format) => void download(format)}
           />
-          <Button type="button" variant="outline" size="small" onClick={() => void clear()} title="Empties the page and telemetry.json">Clear</Button>
+          <Button type="button" variant="outline" size="small" onClick={() => void clear()} title={t("Empties the page and telemetry.json")}>{t("Clear")}</Button>
         </div>
       </div>
 
       {status?.mode === "disabled" ? (
-        <p className={HINT}>Telemetry is off (OTEL_SDK_DISABLED=true), so nothing is recorded or saved.</p>
+        <p className={HINT}>{t("Telemetry is off (OTEL_SDK_DISABLED=true), so nothing is recorded or saved.")}</p>
       ) : null}
 
       {error ? <Notice tone="bad">{error}</Notice> : null}
@@ -261,10 +262,10 @@ function DownloadMenu(props: {
     <Menu>
       <MenuTrigger
         disabled={props.disabled || props.busy}
-        title={props.savedTo ? `Saved to ${props.savedTo}` : undefined}
+        title={props.savedTo ? t("Saved to {path}", { path: props.savedTo }) : undefined}
         render={<Button type="button" variant="outline" size="small" />}
       >
-        {props.busy ? "Saving…" : "Download"}
+        {props.busy ? t("Saving…") : t("Download")}
         <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -276,7 +277,7 @@ function DownloadMenu(props: {
             <span className="text-[11.5px] text-muted-foreground">{item.detail}</span>
           </MenuItem>
         ))}
-        {props.savedTo ? <div className="mt-1 border-t border-border px-2.5 pt-1.5 pb-1 text-[11px] text-muted-foreground">Saved to {props.savedTo}</div> : null}
+        {props.savedTo ? <div className="mt-1 border-t border-border px-2.5 pt-1.5 pb-1 text-[11px] text-muted-foreground">{t("Saved to {path}", { path: props.savedTo })}</div> : null}
       </MenuContent>
     </Menu>
   );
@@ -295,7 +296,7 @@ function ShowMore(props: { left: number; onMore: () => void }) {
   if (props.left <= 0) return null;
   return (
     <Button type="button" variant="outline" size="small" className="mx-auto my-2.5 self-center" onClick={props.onMore}>
-      Show {Math.min(PAGE, props.left)} more ({props.left} left)
+      {t("Show {count} more ({left} left)", { count: Math.min(PAGE, props.left), left: props.left })}
     </Button>
   );
 }
@@ -317,25 +318,25 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <Input className="min-w-50 flex-1" aria-label="Filter traces" placeholder="Filter by span name or trace id…" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Input className="min-w-50 flex-1" aria-label={t("Filter traces")} placeholder={t("Filter by span name or trace id…")} value={query} onChange={(event) => setQuery(event.target.value)} />
         <label className={CHECK}>
           <Checkbox checked={hideRoutine} onCheckedChange={setHideRoutine} />
-          Hide polling ({routine})
+          {t("Hide polling ({count})", { count: routine })}
         </label>
         <label className={CHECK}>
           <Checkbox checked={errorsOnly} onCheckedChange={setErrorsOnly} />
-          Errors only
+          {t("Errors only")}
         </label>
       </div>
       {shown.length === 0 ? (
-        <Nothing title="No traces yet">Send a message to an agent or run an automation, then come back.</Nothing>
+        <Nothing title={t("No traces yet")}>{t("Send a message to an agent or run an automation, then come back.")}</Nothing>
       ) : (
         <Card className="gap-0 overflow-hidden p-0">
           <div className={classes(TRACE_ROW, "border-t-0 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase")}>
-            <span>Trace</span>
-            <span>Spans</span>
-            <span>Duration</span>
-            <span>When</span>
+            <span>{t("Trace")}</span>
+            <span>{t("Spans")}</span>
+            <span>{t("Duration")}</span>
+            <span>{t("When")}</span>
           </div>
           {shown.slice(0, limit).map((trace) => (
             <button
@@ -346,12 +347,12 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
               onClick={() => props.onOpen(trace.traceId)}
             >
               <span className="flex min-w-0 items-center gap-2">
-                {trace.errorCount ? <Dot tone="bad" title={`${trace.errorCount} failed spans`} /> : <Dot tone="good" />}
+                {trace.errorCount ? <Dot tone="bad" title={t("{count} failed spans", { count: trace.errorCount })} /> : <Dot tone="good" />}
                 <strong className="truncate font-medium">{trace.rootName}</strong>
               </span>
               <span className="flex items-baseline gap-1.5 tabular-nums">
                 {trace.spanCount}
-                {trace.errorCount ? <span className="text-[11px] text-destructive">{trace.errorCount} err</span> : null}
+                {trace.errorCount ? <span className="text-[11px] text-destructive">{t("{count} err", { count: trace.errorCount })}</span> : null}
               </span>
               <span className="relative flex items-center gap-2 tabular-nums">
                 <span className="h-1.5 max-w-[60%] flex-none rounded-[3px] bg-info/55" style={{ width: `${Math.max(2, (trace.durationMs / longest) * 100)}%` }} />
@@ -408,7 +409,7 @@ function TraceDetail(props: { traceId: string; tick: number; onBack: () => void 
         setLogs(nextLogs);
         setError("");
       })
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not load the trace"));
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : t("Could not load the trace")));
   }, [props.traceId, props.tick]);
 
   const nodes = useMemo(() => flatten(spans), [spans]);
@@ -421,15 +422,15 @@ function TraceDetail(props: { traceId: string; tick: number; onBack: () => void 
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" size="small" onClick={props.onBack}>← All traces</Button>
+        <Button type="button" variant="outline" size="small" onClick={props.onBack}>← {t("All traces")}</Button>
         <div className="flex min-w-0 flex-1 flex-col">
-          <strong className="text-sm">{root?.name ?? "Trace"}</strong>
+          <strong className="text-sm">{root?.name ?? t("Trace")}</strong>
           <span className={HINT}>
-            {formatDuration(total)} · {spans.length} spans{errors ? ` · ${errors} failed` : ""}
+            {formatDuration(total)} · {t("{count} spans", { count: spans.length })}{errors ? ` · ${t("{count} failed", { count: errors })}` : ""}
             {spans.length ? ` · ${new Date(start).toLocaleString()}` : ""}
           </span>
         </div>
-        <code className="text-[11px] text-muted-foreground" title="Trace id">{props.traceId}</code>
+        <code className="text-[11px] text-muted-foreground" title={t("Trace id")}>{props.traceId}</code>
       </div>
       {error ? <Notice tone="bad">{error}</Notice> : null}
 
@@ -484,7 +485,7 @@ function TraceDetail(props: { traceId: string; tick: number; onBack: () => void 
 
       {logs.length ? (
         <>
-          <SubTitle>Logs in this trace</SubTitle>
+          <SubTitle>{t("Logs in this trace")}</SubTitle>
           <Card className="gap-0 px-0 py-1 text-xs">
             {logs.map((line, index) => <LogRow key={`${line.timeMs}-${index}`} line={line} />)}
           </Card>
@@ -500,17 +501,17 @@ function SpanDetail(props: { span: SpanRecord; traceStart: number }) {
   return (
     <div className="mx-3.5 mt-0.5 mb-2 flex flex-col gap-3 rounded-lg border border-border bg-background px-3.5 py-3">
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
-        <Fact label="Duration" value={formatDuration(span.durationMs)} />
-        <Fact label="Starts at" value={`+${formatDuration(span.startMs - props.traceStart)}`} />
-        <Fact label="Kind" value={span.kind} />
-        <Fact label="Status" value={span.status === "error" ? `error${span.statusMessage ? ` — ${span.statusMessage}` : ""}` : span.status} />
-        <Fact label="Scope" value={span.scope} />
-        <Fact label="Span id" value={span.spanId} mono />
+        <Fact label={t("Duration")} value={formatDuration(span.durationMs)} />
+        <Fact label={t("Starts at")} value={`+${formatDuration(span.startMs - props.traceStart)}`} />
+        <Fact label={t("Kind")} value={span.kind} />
+        <Fact label={t("Status")} value={span.status === "error" ? `error${span.statusMessage ? ` — ${span.statusMessage}` : ""}` : span.status} />
+        <Fact label={t("Scope")} value={span.scope} />
+        <Fact label={t("Span id")} value={span.spanId} mono />
       </div>
-      {attributes.length ? <AttributeTable attributes={span.attributes} /> : <p className={HINT}>No attributes.</p>}
+      {attributes.length ? <AttributeTable attributes={span.attributes} /> : <p className={HINT}>{t("No attributes.")}</p>}
       {span.events.length ? (
         <div className="flex flex-col gap-2">
-          <div className={SECTION_LABEL}>Events</div>
+          <div className={SECTION_LABEL}>{t("Events")}</div>
           {span.events.map((event, index) => (
             <div key={`${event.name}-${index}`} className={classes("flex flex-col gap-1 border-l-2 pl-2.5 text-[12.5px]", event.name === "exception" ? "border-destructive" : "border-input")}>
               <div className="flex items-baseline gap-2">
@@ -520,7 +521,7 @@ function SpanDetail(props: { span: SpanRecord; traceStart: number }) {
               {event.attributes["exception.message"] ? <p className="m-0 text-destructive">{formatValue(event.attributes["exception.message"])}</p> : null}
               {event.attributes["exception.stacktrace"] ? (
                 <details>
-                  <summary>Stack trace</summary>
+                  <summary>{t("Stack trace")}</summary>
                   <pre className="max-h-55 overflow-auto rounded-md bg-muted p-2 text-[11px]">{formatValue(event.attributes["exception.stacktrace"])}</pre>
                 </details>
               ) : null}
@@ -564,18 +565,18 @@ function AttributeTable(props: { attributes: Attributes }) {
 
 const GROUPS: { prefix: string; title: string }[] = [
   { prefix: "gen_ai.", title: "LLM" },
-  { prefix: "saturn.agent", title: "Agents" },
-  { prefix: "saturn.tool", title: "Tools" },
+  { prefix: "saturn.agent", title: t("Agents") },
+  { prefix: "saturn.tool", title: t("Tools") },
   { prefix: "saturn.mcp", title: "MCP" },
-  { prefix: "saturn.automation", title: "Automations" },
+  { prefix: "saturn.automation", title: t("Automations") },
   { prefix: "http.", title: "HTTP" },
-  { prefix: "", title: "Runtime" },
+  { prefix: "", title: t("Runtime") },
 ];
 
 function Metrics(props: { metrics: MetricView[] }) {
   if (props.metrics.length === 0) {
     return (
-      <Nothing title="No metrics recorded yet">Metrics appear once the runtime has handled requests or runs.</Nothing>
+      <Nothing title={t("No metrics recorded yet")}>{t("Metrics appear once the runtime has handled requests or runs.")}</Nothing>
     );
   }
   const used = new Set<string>();
@@ -612,11 +613,11 @@ function MetricCard(props: { metric: MetricView }) {
           {metric.description ? <p className={classes("mt-0.5", HINT)}>{metric.description}</p> : null}
         </div>
         <div className="flex flex-none items-center gap-1.5">
-          <Tag>{metric.type === "sum" ? (metric.monotonic ? "counter" : "up-down") : metric.type}</Tag>
+          <Tag>{metric.type === "sum" ? (metric.monotonic ? t("counter") : t("up-down")) : metric.type}</Tag>
           {metric.unit ? <Tag>{metric.unit}</Tag> : null}
           {total !== null ? (
             <strong className="ml-1 text-[13px] tabular-nums">
-              {metric.type === "histogram" ? `${formatNumber(total)} recorded` : formatUnit(total, metric.unit)}
+              {metric.type === "histogram" ? t("{count} recorded", { count: formatNumber(total) }) : formatUnit(total, metric.unit)}
             </strong>
           ) : null}
         </div>
@@ -624,10 +625,10 @@ function MetricCard(props: { metric: MetricView }) {
       <div className="flex flex-col border-t border-border">
         {metric.type === "histogram" ? (
           <div className={classes(POINT, HISTOGRAM_POINT, "text-[11px] font-semibold tracking-wider text-muted-foreground uppercase")}>
-            <span>Count</span>
-            <span>Avg</span>
-            <span>Min / Max</span>
-            <span>Distribution</span>
+            <span>{t("Count")}</span>
+            <span>{t("Avg")}</span>
+            <span>{t("Min / Max")}</span>
+            <span>{t("Distribution")}</span>
           </div>
         ) : null}
         {metric.points.map((point, index) => (
@@ -655,7 +656,7 @@ function MetricRow(props: { point: MetricPoint; metric: MetricView }) {
       ))}
     </span>
   ) : (
-    <span className={HINT}>(no attributes)</span>
+    <span className={HINT}>{t("(no attributes)")}</span>
   );
   if (point.histogram) {
     const { count, sum, min, max, counts } = point.histogram;
@@ -668,7 +669,7 @@ function MetricRow(props: { point: MetricPoint; metric: MetricView }) {
         <span className={HINT}>
           {min !== undefined ? formatUnit(min, metric.unit) : "—"} / {max !== undefined ? formatUnit(max, metric.unit) : "—"}
         </span>
-        <span className="flex h-5.5 items-end gap-px [&>span]:min-w-0.5 [&>span]:flex-1 [&>span]:rounded-t-[1px] [&>span]:bg-info/70" title="Bucket counts, low to high">
+        <span className="flex h-5.5 items-end gap-px [&>span]:min-w-0.5 [&>span]:flex-1 [&>span]:rounded-t-[1px] [&>span]:bg-info/70" title={t("Bucket counts, low to high")}>
           {counts.map((value, index) => (
             <span key={index} style={{ height: `${value ? Math.max(12, (value / peak) * 100) : 0}%` }} />
           ))}
@@ -698,11 +699,11 @@ function Logs(props: { logs: TelemetryLog[]; onOpenTrace: (traceId: string) => v
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <Input className="min-w-50 flex-1" placeholder="Search log messages…" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <Choice ariaLabel="Minimum severity" value={String(floor)} options={SEVERITY_FLOORS.map((item) => ({ value: String(item.value), label: item.label }))} onChange={(next) => setFloor(Number(next))} />
+        <Input className="min-w-50 flex-1" aria-label={t("Search log messages")} placeholder={t("Search log messages…")} value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Choice ariaLabel={t("Minimum severity")} value={String(floor)} options={SEVERITY_FLOORS.map((item) => ({ value: String(item.value), label: item.label }))} onChange={(next) => setFloor(Number(next))} />
       </div>
       {shown.length === 0 ? (
-        <Nothing title="No log records">Runtime log lines show up here as OpenTelemetry log records.</Nothing>
+        <Nothing title={t("No log records")}>{t("Runtime log lines show up here as OpenTelemetry log records.")}</Nothing>
       ) : (
         <Card className="gap-0 px-0 py-1 text-xs">
           {shown.slice(0, limit).map((line, index) => (
@@ -736,7 +737,7 @@ function LogRow(props: { line: TelemetryLog; onOpenTrace?: (traceId: string) => 
       <span className="[overflow-wrap:anywhere]">{line.body}</span>
       {line.traceId && props.onOpenTrace ? (
         <button type="button" className="cursor-pointer border-0 bg-transparent p-0 font-mono text-[11px] text-info hover:underline" onClick={() => props.onOpenTrace?.(line.traceId!)} title={line.traceId}>
-          trace {shortId(line.traceId)}
+          {t("trace {id}", { id: shortId(line.traceId) })}
         </button>
       ) : <span />}
     </div>
@@ -749,30 +750,29 @@ function LogRow(props: { line: TelemetryLog; onOpenTrace?: (traceId: string) => 
  */
 function Network(props: { view: NetworkView | null }) {
   const view = props.view;
-  if (!view) return <p className={HINT}>Loading…</p>;
+  if (!view) return <p className={HINT}>{t("Loading…")}</p>;
   const remote = view.hosts.filter((host) => !host.local);
   return (
     <div className="flex flex-col gap-3">
       <p className={HINT}>
-        Every HTTP(S) request the Saturn runtime has sent since {new Date(view.since).toLocaleString()}: hosts and paths only, never
-        query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your
-        system's firewall or network monitor.{view.file ? <> Also written to <code>{view.file}</code>.</> : null}
+        {t("Every HTTP(S) request the Saturn runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.", { time: new Date(view.since).toLocaleString() })}
+        {view.file ? <> {t("Also written to:")} <code>{view.file}</code></> : null}
       </p>
       <Card className="gap-0 overflow-hidden p-0">
         <div className="flex items-baseline gap-2.5 p-2">
-          <strong>{remote.length} outside host{remote.length === 1 ? "" : "s"}</strong>
-          <span className={HINT}>{view.hosts.length - remote.length} on this computer</span>
+          <strong>{remote.length === 1 ? t("1 outside host") : t("{count} outside hosts", { count: remote.length })}</strong>
+          <span className={HINT}>{t("{count} on this computer", { count: view.hosts.length - remote.length })}</span>
         </div>
-        {view.hosts.length === 0 ? <p className={classes("px-2 pb-2", HINT)}>No requests yet.</p> : null}
+        {view.hosts.length === 0 ? <p className={classes("px-2 pb-2", HINT)}>{t("No requests yet.")}</p> : null}
         <table className={TABLE}>
           <thead>
-            <tr><th>Host</th><th>Where</th><th>Requests</th><th>Methods</th><th>Last</th></tr>
+            <tr><th>{t("Host")}</th><th>{t("Where")}</th><th>{t("Requests")}</th><th>{t("Methods")}</th><th>{t("Last")}</th></tr>
           </thead>
           <tbody>
             {view.hosts.map((host) => (
               <tr key={host.host}>
                 <td><code>{host.host}</code></td>
-                <td>{host.local ? "this computer" : "internet"}</td>
+                <td>{host.local ? t("this computer") : t("internet")}</td>
                 <td>{host.requests}</td>
                 <td>{host.methods.join(", ")}</td>
                 <td>{new Date(host.last).toLocaleTimeString()}</td>
@@ -782,7 +782,7 @@ function Network(props: { view: NetworkView | null }) {
         </table>
       </Card>
       <Card className="gap-0 overflow-hidden p-0">
-        <div className="flex items-baseline gap-2.5 p-2"><strong>Latest requests</strong></div>
+        <div className="flex items-baseline gap-2.5 p-2"><strong>{t("Latest requests")}</strong></div>
         <table className={TABLE}>
           <tbody>
             {view.recent.slice(0, 100).map((entry, index) => (

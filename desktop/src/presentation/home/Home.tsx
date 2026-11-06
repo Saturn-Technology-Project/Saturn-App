@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import { changedSince, lastActive, reviewProgress, runHasResults, runStatusLabel, type Hypothesis, type Verdict } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Button } from "../ui/base/Button.js";
@@ -14,7 +15,8 @@ import { ResearchBundle } from "../experiments/ResearchBundle.js";
 
 const service = desktop.research;
 const VERDICTS: Verdict[] = ["undecided", "supported", "refuted", "inconclusive"];
-const VERDICT_OPTIONS = VERDICTS.map((verdict) => ({ value: verdict, label: verdict[0].toUpperCase() + verdict.slice(1) }));
+const VERDICT_LABELS: Record<Verdict, string> = { undecided: t("Undecided"), supported: t("Supported"), refuted: t("Refuted"), inconclusive: t("Inconclusive") };
+const VERDICT_OPTIONS = VERDICTS.map((verdict) => ({ value: verdict, label: VERDICT_LABELS[verdict] }));
 const MUTED = "text-xs text-muted-foreground";
 
 /** A moment in words, for saying when the work stopped. */
@@ -65,87 +67,87 @@ export function Home(props: ScreenProps) {
   const active = value ? lastActive([value.runs, value.findings, value.hypotheses, value.questions]) : null;
   const since = value
     ? [
-        ...changedSince(value.runs, visited).map((run) => ({ key: run.id, at: run.updatedAt, text: `Run ${run.id}: ${runStatusLabel(run.status)}, ${run.samples ?? 0} samples`, screen: "Experiments" as const })),
-        ...changedSince(value.findings, visited).map((item) => ({ key: item.id, at: item.updatedAt, text: `${item.kind === "conclusion" ? "Conclusion" : item.kind === "ai_suggestion" ? "AI suggestion" : "Observation"}: ${item.text}`, screen: "Experiments" as const })),
-        ...changedSince(value.hypotheses, visited).map((item) => ({ key: item.id, at: item.updatedAt, text: `Hypothesis ${item.verdict}: ${item.title}`, screen: "Experiments" as const })),
-        ...value.events.filter((event) => !visited || event.at > visited).map((event, index) => ({ key: `${event.at}-${index}`, at: event.at, text: event.kind === "refused" ? `Refused: ${event.reason}` : event.kind === "integrity_changed" ? `Changed outside Saturn: ${event.paths.join(", ")}` : `Accepted a change to ${event.path}`, screen: "Protection" as const })),
+        ...changedSince(value.runs, visited).map((run) => ({ key: run.id, at: run.updatedAt, text: t("Run {run}: {status}, {count} samples", { run: run.id, status: runStatusLabel(run.status), count: run.samples ?? 0 }), screen: "Experiments" as const })),
+        ...changedSince(value.findings, visited).map((item) => ({ key: item.id, at: item.updatedAt, text: item.kind === "conclusion" ? t("Conclusion: {text}", { text: item.text }) : item.kind === "ai_suggestion" ? t("AI suggestion: {text}", { text: item.text }) : t("Observation: {text}", { text: item.text }), screen: "Experiments" as const })),
+        ...changedSince(value.hypotheses, visited).map((item) => ({ key: item.id, at: item.updatedAt, text: t("Hypothesis {verdict}: {title}", { verdict: VERDICT_LABELS[item.verdict] ?? item.verdict, title: item.title }), screen: "Experiments" as const })),
+        ...value.events.filter((event) => !visited || event.at > visited).map((event, index) => ({ key: `${event.at}-${index}`, at: event.at, text: event.kind === "refused" ? t("Refused: {reason}", { reason: event.reason }) : event.kind === "integrity_changed" ? t("Changed outside Saturn: {paths}", { paths: event.paths.join(", ") }) : t("Accepted a change to {path}", { path: event.path }), screen: "Protection" as const })),
       ].sort((left, right) => (left.at < right.at ? 1 : -1))
     : [];
   const restored = [
-    session.file ? `${session.file} in the editor` : null,
-    session.draft ? `an unsaved draft of ${session.draft.file}` : null,
-    session.runId ? `run ${session.runId}` : null,
+    session.file ? t("{file} in the editor", { file: session.file }) : null,
+    session.draft ? t("an unsaved draft of {file}", { file: session.draft.file }) : null,
+    session.runId ? t("run {run}", { run: session.runId }) : null,
   ].filter(Boolean);
 
   return (
-    <Page title={lastQuestion ? lastQuestion.title : `Start ${props.project.name}`} lead={lastFinding ? `Latest note: ${lastFinding.text}` : "Write down the question this project is trying to answer, then work on it."}>
-      {active ? <div className={MUTED}>Last active {when(active)}</div> : null}
+    <Page title={lastQuestion ? lastQuestion.title : t("Start {project}", { project: props.project.name })} lead={lastFinding ? t("Latest note: {text}", { text: lastFinding.text }) : t("Write down the question this project is trying to answer, then work on it.")}>
+      {active ? <div className={MUTED}>{t("Last active {time}", { time: when(active) })}</div> : null}
       <ImportResults projectId={projectId} onImported={() => { void refresh(); props.go("Experiments"); }} notify={props.notify} />
       <ResearchBundle projectId={projectId} notify={props.notify} go={props.go} onImported={() => void refresh()} />
       <div className="mt-3.5 flex flex-wrap items-end gap-2">
         <Button onClick={() => props.go("Workspace")}>
-          {restored.length ? "Restore last layout" : "Continue in the workspace"}
+          {restored.length ? t("Restore last layout") : t("Continue in the workspace")}
         </Button>
         {value?.lastWithResults ? (
           <Button variant="outline" onClick={() => { service.open(projectId, { kind: "sample", runId: value.lastWithResults!.id }); props.go("Samples"); }}>
-            Continue sample review{value.review ? ` (${value.review.labeled} of ${value.review.total})` : ""}
+            {value.review ? t("Continue sample review ({labeled} of {total})", { labeled: value.review.labeled, total: value.review.total }) : t("Continue sample review")}
           </Button>
         ) : null}
       </div>
 
       {restored.length ? (
         <>
-          <Heading>Restored as it was</Heading>
+          <Heading>{t("Restored as it was")}</Heading>
           <Card className="gap-1 border-0 bg-panel px-3.5 py-3">
-            <div>The workspace reopens with {restored.join(", ")}.</div>
-            <div className={MUTED}>Records come from the project folder; what was open comes from this device.</div>
+            <div>{t("The workspace reopens with {items}.", { items: restored.join(t(", ")) })}</div>
+            <div className={MUTED}>{t("Records come from the project folder; what was open comes from this device.")}</div>
           </Card>
         </>
       ) : null}
 
-      <Heading>Since your last visit</Heading>
-      {visited ? <div className={MUTED}>On this device, {when(visited)}.</div> : <div className={MUTED}>First visit on this device, so everything is new.</div>}
-      {since.length === 0 ? <p className={MUTED}>Nothing changed.</p> : null}
+      <Heading>{t("Since your last visit")}</Heading>
+      {visited ? <div className={MUTED}>{t("On this device, {time}.", { time: when(visited) })}</div> : <div className={MUTED}>{t("First visit on this device, so everything is new.")}</div>}
+      {since.length === 0 ? <p className={MUTED}>{t("Nothing changed.")}</p> : null}
       {since.slice(0, 8).map((item) => (
         <Row key={item.key}>
           <span>{item.text}</span>
           <Button variant="ghost" size="small" className="text-info" onClick={() => props.go(item.screen)}>
-            {item.screen === "Protection" ? "Decide" : "See"}
+            {item.screen === "Protection" ? t("Decide") : t("See")}
           </Button>
         </Row>
       ))}
 
-      <Heading>Open</Heading>
+      <Heading>{t("Open")}</Heading>
       <Card className="gap-0 border-0 bg-panel px-3.5 py-3">
         <Row>
-          <span>Latest run</span>
-          <span className={MUTED}>{lastRun ? `${runStatusLabel(lastRun.status)}, ${lastRun.samples ?? 0} samples, ${when(lastRun.updatedAt)}` : "None yet"}</span>
+          <span>{t("Latest run")}</span>
+          <span className={MUTED}>{lastRun ? t("{status}, {count} samples, {time}", { status: runStatusLabel(lastRun.status), count: lastRun.samples ?? 0, time: when(lastRun.updatedAt) }) : t("None yet")}</span>
         </Row>
         {undecided.map((item) => (
           <Row key={item.id}>
             <span>{item.title}</span>
-            <span className={MUTED}>Undecided</span>
+            <span className={MUTED}>{VERDICT_LABELS.undecided}</span>
           </Row>
         ))}
         {troubled.map((run) => (
           <Row key={run.id}>
-            <span>Run {run.id}</span>
+            <span>{t("Run {run}", { run: run.id })}</span>
             <span className={MUTED}>{runStatusLabel(run.status)}</span>
           </Row>
         ))}
         <Row>
-          <span>Refusals and unexplained changes</span>
+          <span>{t("Refusals and unexplained changes")}</span>
           {alerts.length ? (
             <Button variant="ghost" size="small" className="text-info" onClick={() => props.go("Protection")}>
-              {alerts.length} to look at
+              {t("{count} to look at", { count: alerts.length })}
             </Button>
           ) : (
-            <span className={MUTED}>None</span>
+            <span className={MUTED}>{t("None")}</span>
           )}
         </Row>
       </Card>
 
-      <Heading data-tour="home-questions">Questions</Heading>
+      <Heading data-tour="home-questions">{t("Questions")}</Heading>
       {value?.questions.map((item) => (
         <Row key={item.id}>
           <span>{item.title}</span>
@@ -163,20 +165,20 @@ export function Home(props: ScreenProps) {
           }
         }}
       >
-        <Field label="New question" className="flex-[1_1_160px]">
+        <Field label={t("New question")} className="flex-[1_1_160px]">
           <Input value={question} onChange={(event) => setQuestion(event.target.value)} />
         </Field>
         <Button type="submit" variant="outline" disabled={!question.trim()}>
-          Add
+          {t("Add")}
         </Button>
       </form>
 
-      <Heading data-tour="home-hypotheses">Hypotheses</Heading>
-      <p className="max-w-[680px] text-muted-foreground">A verdict is yours to set. A run that completes says only that it executed.</p>
+      <Heading data-tour="home-hypotheses">{t("Hypotheses")}</Heading>
+      <p className="max-w-[680px] text-muted-foreground">{t("A verdict is yours to set. A run that completes says only that it executed.")}</p>
       {value?.hypotheses.map((item: Hypothesis) => (
         <Row key={item.id}>
           <span>{item.title}</span>
-          <Choice label="Verdict" className="flex-row items-center gap-2" triggerClassName="w-36" value={item.verdict} options={VERDICT_OPTIONS} onChange={(verdict) => void act(() => service.setVerdict(projectId, item, verdict as Verdict))} />
+          <Choice label={t("Verdict")} className="flex-row items-center gap-2" triggerClassName="w-36" value={item.verdict} options={VERDICT_OPTIONS} onChange={(verdict) => void act(() => service.setVerdict(projectId, item, verdict as Verdict))} />
         </Row>
       ))}
       <form
@@ -191,11 +193,11 @@ export function Home(props: ScreenProps) {
           }
         }}
       >
-        <Field label="New hypothesis" className="flex-[1_1_160px]">
+        <Field label={t("New hypothesis")} className="flex-[1_1_160px]">
           <Input value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} />
         </Field>
         <Button type="submit" variant="outline" disabled={!hypothesis.trim()}>
-          Add
+          {t("Add")}
         </Button>
       </form>
     </Page>

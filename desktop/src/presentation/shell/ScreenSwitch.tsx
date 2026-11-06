@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "../../domain/i18n.js";
 import type { Project } from "../../domain/model.js";
 import type { SampleItem } from "../../domain/research.js";
 import { AssistantPanel } from "../assistant/AssistantPanel.js";
@@ -29,7 +30,7 @@ export function ScreenSwitch(props: ScreenProps & { screen: Screen; assistant: b
   const [reviewed, setReviewed] = useState<SampleItem | null>(null);
   const focus: WorkspaceFocus | null = screen === "Samples" ? { file: null, selection: null, run: null, errorOutput: "", sample: reviewed } : screen === "Workspace" ? workspaceFocus : null;
   return (
-    <Split id="assistant" side="right" size={340} minimum={260} open={assistant} label="Research assistant" pane={<AssistantPanel {...shared} screen={screen} focus={focus} onOpenSettings={onOpenSettings} />}>
+    <Split id="assistant" side="right" size={340} minimum={260} open={assistant} label={t("Research assistant")} pane={<AssistantPanel {...shared} screen={screen} focus={focus} onOpenSettings={onOpenSettings} />}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col [&[hidden]]:hidden" hidden={screen !== "Workspace"}>
         <Workspace {...shared} onFocus={setWorkspaceFocus} />
       </div>

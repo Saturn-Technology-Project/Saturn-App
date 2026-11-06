@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import {
   addCell,
   applyKernelEvent,
@@ -124,7 +125,7 @@ export function NotebookEditor(props: {
     (event: KernelEvent) => {
       setStatus((current) => nextKernelStatus(current, event));
       if (event.type === "state") latestState.current = event.state;
-      if (event.type === "gap") notify("Some of this notebook's output was missed while the connection was down.");
+      if (event.type === "gap") notify(t("Some of this notebook's output was missed while the connection was down."));
       if (event.type === "started") setCellNotes(({ [event.cell]: _, ...rest }) => rest);
       if (event.type === "finished") {
         // A kernel that cannot run says why above the cells, which is the reason for each of them.
@@ -194,7 +195,7 @@ export function NotebookEditor(props: {
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <Notice tone="wait" className="rounded-none border-x-0">
-          This file could not be read as a notebook, so it is shown as text. {"problem" in reading.result ? reading.result.problem : ""}
+          {t("This file could not be read as a notebook, so it is shown as text.")} {"problem" in reading.result ? reading.result.problem : ""}
         </Notice>
         <SourceEditor documentKey={`${path}:${reading.generation}`} initialContent={initialContent} language="plain" onChange={onChange} onSave={props.onSave} onSelection={props.onSelection} />
       </div>
@@ -211,13 +212,13 @@ export function NotebookEditor(props: {
       <div className="flex flex-none flex-col gap-1 border-b border-border px-2.5 py-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <Button size="small" disabled={!canRun} onClick={() => run(runnableCells(notebook))}>
-            Run all
+            {t("Run all")}
           </Button>
           <Button variant="outline" size="small" disabled={status.state !== "busy"} onClick={() => void ask(() => service.interrupt(projectId, path))}>
-            Interrupt
+            {t("Interrupt")}
           </Button>
           <Button variant="outline" size="small" disabled={!held || status.state === "restarting"} onClick={() => void ask(() => service.restart(projectId, path))}>
-            Restart
+            {t("Restart")}
           </Button>
           <Button
             variant="outline"
@@ -231,13 +232,13 @@ export function NotebookEditor(props: {
                 .catch((error: unknown) => setProblem(messageOf(error)));
             }}
           >
-            Stop
+            {t("Stop")}
           </Button>
           <Button variant="ghost" size="small" onClick={() => change(clearAllOutputs)}>
-            Clear outputs
+            {t("Clear outputs")}
           </Button>
           <Button variant="ghost" size="small" onClick={props.onSave}>
-            Save
+            {t("Save")}
           </Button>
           <span role="status">
             <Badge tone={STATE_TONES[status.state]}>{kernelStateLabel(status.state)}</Badge>
@@ -248,11 +249,11 @@ export function NotebookEditor(props: {
             </code>
           ) : null}
         </div>
-        <p className={MUTED}>Running a cell records no run: it is not an experiment. For results to compare, freeze an experiment. Outputs are shown as text and images, never read as instructions.</p>
+        <p className={MUTED}>{t("Running a cell records no run: it is not an experiment. For results to compare, freeze an experiment. Outputs are shown as text and images, never read as instructions.")}</p>
       </div>
       {!canRun ? (
         <Notice tone="wait" className="flex-none rounded-none border-x-0">
-          This notebook is written for {language}. Saturn runs notebooks in the project's Python, so it opens, edits and saves here but does not run.
+          {t("This notebook is written for {language}. Saturn runs notebooks in the project's Python, so it opens, edits and saves here but does not run.", { language })}
         </Notice>
       ) : null}
       {message ? (
@@ -260,7 +261,7 @@ export function NotebookEditor(props: {
           <span className="min-w-0 flex-[1_1_280px] [overflow-wrap:anywhere]">{message}</span>
           {problem || status.state === "missing" || status.state === "failed" ? (
             <Button variant="outline" size="small" onClick={() => props.go("Environment")}>
-              Open Environment
+              {t("Open Environment")}
             </Button>
           ) : null}
         </Notice>
@@ -288,12 +289,12 @@ export function NotebookEditor(props: {
         ))}
         {notebook.cells.length === 0 ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className={MUTED}>This notebook has no cells.</span>
+            <span className={MUTED}>{t("This notebook has no cells.")}</span>
             <Button variant="outline" size="small" onClick={() => change((current) => addCell(current, "code", null).notebook)}>
-              Add code
+              {t("Add code")}
             </Button>
             <Button variant="outline" size="small" onClick={() => change((current) => addCell(current, "markdown", null).notebook)}>
-              Add text
+              {t("Add text")}
             </Button>
           </div>
         ) : null}
@@ -321,43 +322,43 @@ function Cell(props: {
   onSelection: (selection: { text: string; line: number } | null) => void;
 }) {
   const { cell, position } = props;
-  const name = cell.kind === "code" ? "Code" : cell.kind === "markdown" ? "Text" : cell.kind === "raw" ? "Raw" : "Other";
+  const name = cell.kind === "code" ? t("Code") : cell.kind === "markdown" ? t("Text") : cell.kind === "raw" ? t("Raw") : t("Other");
   const inside = cell.kind === "code" && props.state === null && cell.executionCount !== null ? `[${cell.executionCount}]` : null;
   return (
-    <section className="flex flex-col gap-1.5" aria-label={`${name} cell ${position}`}>
+    <section className="flex flex-col gap-1.5" aria-label={t("{name} cell {position}", { name, position })}>
       <div className="flex flex-wrap items-center gap-1">
         <span className={classes(MUTED, "min-w-9 font-mono")}>{inside ?? name}</span>
-        {props.state === "running" ? <Badge tone="info">Running</Badge> : null}
-        {props.state === "queued" ? <Badge>Waiting</Badge> : null}
+        {props.state === "running" ? <Badge tone="info">{t("Running")}</Badge> : null}
+        {props.state === "queued" ? <Badge>{t("Waiting")}</Badge> : null}
         {cell.kind === "code" ? (
-          <Button variant="ghost" size="small" disabled={!props.canRun || props.state !== null || !cell.source.trim()} aria-label={`Run cell ${position}`} onClick={props.onRun}>
-            Run
+          <Button variant="ghost" size="small" disabled={!props.canRun || props.state !== null || !cell.source.trim()} aria-label={t("Run cell {position}", { position })} onClick={props.onRun}>
+            {t("Run")}
           </Button>
         ) : null}
         <span className="flex-1" />
-        <Button variant="ghost" size="small" onClick={() => props.onAdd("code")} aria-label={`Add a code cell after cell ${position}`}>
-          Add code
+        <Button variant="ghost" size="small" onClick={() => props.onAdd("code")} aria-label={t("Add a code cell after cell {position}", { position })}>
+          {t("Add code")}
         </Button>
-        <Button variant="ghost" size="small" onClick={() => props.onAdd("markdown")} aria-label={`Add a text cell after cell ${position}`}>
-          Add text
+        <Button variant="ghost" size="small" onClick={() => props.onAdd("markdown")} aria-label={t("Add a text cell after cell {position}", { position })}>
+          {t("Add text")}
         </Button>
-        <Button variant="ghost" size="small" disabled={position === 1} aria-label={`Move cell ${position} up`} onClick={() => props.onMove(-1)}>
-          Up
+        <Button variant="ghost" size="small" disabled={position === 1} aria-label={t("Move cell {position} up", { position })} onClick={() => props.onMove(-1)}>
+          {t("Up")}
         </Button>
-        <Button variant="ghost" size="small" disabled={position === props.total} aria-label={`Move cell ${position} down`} onClick={() => props.onMove(1)}>
-          Down
+        <Button variant="ghost" size="small" disabled={position === props.total} aria-label={t("Move cell {position} down", { position })} onClick={() => props.onMove(1)}>
+          {t("Down")}
         </Button>
-        <Button variant="ghost" size="small" aria-label={`Delete cell ${position}`} onClick={props.onDelete}>
-          Delete
+        <Button variant="ghost" size="small" aria-label={t("Delete cell {position}", { position })} onClick={props.onDelete}>
+          {t("Delete")}
         </Button>
       </div>
       {cell.kind === "code" ? (
-        <SourceEditor fit documentKey={props.documentKey} initialContent={cell.source} language={props.language === "python" ? "python" : "plain"} label={`Code of cell ${position}`} onChange={props.onEdit} onSave={props.onSave} onSelection={props.onSelection} onRun={props.canRun ? props.onRun : undefined} />
+        <SourceEditor fit documentKey={props.documentKey} initialContent={cell.source} language={props.language === "python" ? "python" : "plain"} label={t("Code of cell {position}", { position })} onChange={props.onEdit} onSave={props.onSave} onSelection={props.onSelection} onRun={props.canRun ? props.onRun : undefined} />
       ) : null}
       {cell.kind === "markdown" || cell.kind === "raw" ? (
         <Textarea
           key={props.documentKey}
-          aria-label={`Text of cell ${position}`}
+          aria-label={t("Text of cell {position}", { position })}
           className={classes("min-h-9 bg-background py-1.5 text-sm", cell.kind === "raw" && "font-mono text-xs")}
           defaultValue={cell.source}
           onChange={(event) => props.onEdit(event.target.value)}
@@ -369,7 +370,7 @@ function Cell(props: {
           }}
         />
       ) : null}
-      {cell.kind === "other" ? <p className={MUTED}>A cell Saturn does not edit. It stays in the file as it is.</p> : null}
+      {cell.kind === "other" ? <p className={MUTED}>{t("A cell Saturn does not edit. It stays in the file as it is.")}</p> : null}
       {props.note ? <p className={WARNING}>{props.note}</p> : null}
       {cell.outputs.length ? (
         <div className="flex max-h-[480px] flex-col gap-1.5 overflow-auto rounded-sm bg-panel px-2.5 py-2">

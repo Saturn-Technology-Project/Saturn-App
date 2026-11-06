@@ -1,6 +1,7 @@
 // A Jupyter notebook as the Workspace edits it. Saving keeps what is not understood and, for what did not change, the
 // very bytes it was read as: each cell remembers its text in the file, so a number written `1.0` or an unusual layout
 // survives an edit somewhere else. nbformat 4 is what is read and written.
+import { t } from "./i18n.ts";
 
 /** What a cell holds, as far as Saturn understands it. A kind it does not know is kept and not edited. */
 export type CellKind = "code" | "markdown" | "raw" | "other";
@@ -158,13 +159,13 @@ export function parseNotebook(text: string): NotebookReading {
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    return { problem: `It is not JSON: ${error instanceof Error ? error.message : String(error)}.` };
+    return { problem: t("It is not JSON: {reason}.", { reason: error instanceof Error ? error.message : String(error) }) };
   }
-  if (!isObject(parsed)) return { problem: "It is not a JSON object." };
-  if (parsed.nbformat !== 4) return { problem: `It is nbformat ${String(parsed.nbformat)}, and Saturn opens nbformat 4.` };
-  if (!Array.isArray(parsed.cells)) return { problem: "It has no list of cells." };
+  if (!isObject(parsed)) return { problem: t("It is not a JSON object.") };
+  if (parsed.nbformat !== 4) return { problem: t("It is nbformat {version}, and Saturn opens nbformat 4.", { version: String(parsed.nbformat) }) };
+  if (!Array.isArray(parsed.cells)) return { problem: t("It has no list of cells.") };
   const place = findCells(text);
-  if (!place || place.items.length !== parsed.cells.length) return { problem: "Its list of cells could not be found." };
+  if (!place || place.items.length !== parsed.cells.length) return { problem: t("Its list of cells could not be found.") };
 
   const seen = new Set<string>();
   let nextKey = 0;
@@ -359,16 +360,16 @@ export function nextKernelStatus(status: KernelStatus, event: KernelEvent): Kern
 /** What the kernel's state means, in a word or two. */
 export function kernelStateLabel(state: KernelStatus["state"]): string {
   const labels: Record<KernelStatus["state"], string> = {
-    none: "No kernel",
-    starting: "Starting",
-    idle: "Idle",
-    busy: "Running",
-    restarting: "Restarting",
-    stopping: "Stopping",
-    stopped: "Stopped",
-    dead: "Stopped by itself",
-    missing: "Cannot run",
-    failed: "Could not start",
+    none: t("No kernel"),
+    starting: t("Starting"),
+    idle: t("Idle"),
+    busy: t("Running"),
+    restarting: t("Restarting"),
+    stopping: t("Stopping"),
+    stopped: t("Stopped"),
+    dead: t("Stopped by itself"),
+    missing: t("Cannot run"),
+    failed: t("Could not start"),
   };
   return labels[state];
 }
@@ -378,9 +379,9 @@ export function runStatusNote(status: CellRunStatus): string | null {
   const notes: Record<CellRunStatus, string | null> = {
     ok: null,
     error: null,
-    aborted: "Stopped before it finished.",
-    skipped: "Not run: an earlier cell did not finish.",
-    dead: "The kernel stopped while this ran.",
+    aborted: t("Stopped before it finished."),
+    skipped: t("Not run: an earlier cell did not finish."),
+    dead: t("The kernel stopped while this ran."),
   };
   return notes[status];
 }
@@ -424,7 +425,7 @@ function viewOfData(data: Record<string, unknown>): OutputView {
   const plain = joined(data["text/plain"]);
   const png = joined(data["image/png"]);
   if (png !== null && /^[A-Za-z0-9+/=\s]+$/.test(png)) {
-    return { kind: "image", source: `data:image/png;base64,${png.replace(/\s/g, "")}`, description: plain ? plainText(plain) : "An image from this cell" };
+    return { kind: "image", source: `data:image/png;base64,${png.replace(/\s/g, "")}`, description: plain ? plainText(plain) : t("An image from this cell") };
   }
   if (plain !== null) return { kind: "text", text: plainText(plain), failure: false };
   for (const [type, value] of Object.entries(data)) {
@@ -432,12 +433,13 @@ function viewOfData(data: Record<string, unknown>): OutputView {
     if (text !== null && (!type.startsWith("image/") || type === "image/svg+xml")) return { kind: "text", text, failure: false };
     if (type.endsWith("json")) return { kind: "text", text: JSON.stringify(value, null, 2), failure: false };
   }
-  return { kind: "note", text: `An output Saturn does not show: ${Object.keys(data).join(", ") || "it is empty"}.` };
+  const types = Object.keys(data).join(", ");
+  return { kind: "note", text: types ? t("An output Saturn does not show: {types}.", { types }) : t("An output Saturn does not show: it is empty.") };
 }
 
 /** How one stored output is shown. */
 export function outputView(output: unknown): OutputView {
-  if (!isObject(output)) return { kind: "note", text: "An output Saturn does not understand. It is kept in the file." };
+  if (!isObject(output)) return { kind: "note", text: t("An output Saturn does not understand. It is kept in the file.") };
   switch (output.output_type) {
     case "stream":
       return { kind: "text", text: plainText(joined(output.text) ?? ""), failure: output.name === "stderr" };
@@ -451,10 +453,10 @@ export function outputView(output: unknown): OutputView {
     case "execute_result": {
       const data = isObject(output.data) ? output.data : {};
       const metadata = isObject(output.metadata) ? output.metadata : {};
-      if (isObject(metadata.saturn) && metadata.saturn.truncated === true) return { kind: "note", text: joined(data["text/plain"]) ?? "Some of this cell's output was left out." };
+      if (isObject(metadata.saturn) && metadata.saturn.truncated === true) return { kind: "note", text: joined(data["text/plain"]) ?? t("Some of this cell's output was left out.") };
       return viewOfData(data);
     }
     default:
-      return { kind: "note", text: `An output Saturn does not understand (${String(output.output_type)}). It is kept in the file.` };
+      return { kind: "note", text: t("An output Saturn does not understand ({type}). It is kept in the file.", { type: String(output.output_type) }) };
   }
 }

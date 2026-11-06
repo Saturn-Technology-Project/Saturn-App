@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import type { SampleItem } from "./research.js";
 import { sampleText } from "./research.js";
 import { hiddenContext } from "./slash.js";
@@ -21,20 +22,20 @@ export function taskState(hasWorktree: boolean, latestStatus: string | undefined
   return "review";
 }
 
-export const TASK_STATE_LABELS: Record<TaskState, string> = { decision: "Needs a decision", running: "Running", review: "Ready for review", finished: "Finished" };
+export const TASK_STATE_LABELS: Record<TaskState, string> = { decision: t("Needs a decision"), running: t("Running"), review: t("Ready for review"), finished: t("Finished") };
 
 /** Requests that keep a person writing the code themselves. */
 export const MANUAL_REQUESTS: { label: string; prompt: string }[] = [
-  { label: "Give a hint", prompt: "Give me one hint toward the next step. Do not write the code." },
-  { label: "Explain the error", prompt: "Explain why this fails, in terms of the code I wrote. Do not write the fix." },
-  { label: "Review my work", prompt: "Review what I wrote. Point at what is wrong or risky, without rewriting it." },
-  { label: "Show a solution", prompt: "Show one correct solution, and explain the part I most likely got wrong." },
+  { label: t("Give a hint"), prompt: "Give me one hint toward the next step. Do not write the code." },
+  { label: t("Explain the error"), prompt: "Explain why this fails, in terms of the code I wrote. Do not write the fix." },
+  { label: t("Review my work"), prompt: "Review what I wrote. Point at what is wrong or risky, without rewriting it." },
+  { label: t("Show a solution"), prompt: "Show one correct solution, and explain the part I most likely got wrong." },
 ];
 
 /** Requests about a sample under review. The sample goes along as data. */
 export const REVIEW_REQUESTS: { label: string; prompt: string }[] = [
-  { label: "Find similar counterexamples", prompt: "This sample is a counterexample. Say what makes it one, and list the kinds of inputs that would fail the same way, so I can search the run for them." },
-  { label: "Is the scorer right?", prompt: "Say whether the scorer's result on this sample is justified by the output, and what it may have missed." },
+  { label: t("Find similar counterexamples"), prompt: "This sample is a counterexample. Say what makes it one, and list the kinds of inputs that would fail the same way, so I can search the run for them." },
+  { label: t("Is the scorer right?"), prompt: "Say whether the scorer's result on this sample is justified by the output, and what it may have missed." },
 ];
 
 /** A context block for selected code. */

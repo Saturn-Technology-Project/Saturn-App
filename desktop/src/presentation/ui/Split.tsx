@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { classes } from "./base/classes.js";
+import { t } from "../../domain/i18n.js";
 
 /** Reads a remembered size; it only sets where a splitter starts. */
 function rememberedSize(key: string, fallback: number): number {
@@ -76,7 +77,7 @@ export function Split(props: {
       className={classes("z-2 flex-none touch-none bg-[linear-gradient(var(--line),var(--line))] bg-no-repeat hover:bg-info/15 focus-visible:bg-info/15", vertical ? "-my-0.5 h-[5px] cursor-row-resize bg-[length:100%_1px] bg-center" : "-mx-0.5 w-[5px] cursor-col-resize bg-[length:1px_100%] bg-center")}
       role="separator"
       tabIndex={0}
-      aria-label={`Resize ${props.label}`}
+      aria-label={t("Resize {pane}", { pane: props.label })}
       aria-orientation={vertical ? "horizontal" : "vertical"}
       aria-valuenow={size}
       aria-valuemin={minimum}

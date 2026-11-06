@@ -3,8 +3,9 @@ import { desktop } from "../../application/desktop.js";
 import { errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
 import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../../domain/chat-mode.js";
 import type { Agent, ChatMode, ContextItem, Model } from "../../domain/model.js";
-import { HELP_REQUESTS, workbenchState, type Screen } from "../../domain/workbench.js";
+import { helpRequests, workbenchState, type Screen } from "../../domain/workbench.js";
 import { hiddenContext } from "../../domain/slash.js";
+import { t } from "../../domain/i18n.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { classes } from "../ui/base/classes.js";
 import { Button } from "../ui/base/Button.js";
@@ -90,9 +91,9 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
 
   const available: { id: Attachment; label: string }[] = [
     ...(focus?.file ? [{ id: "file" as const, label: focus.file }] : []),
-    ...(focus?.selection ? [{ id: "selection" as const, label: `Selection, line ${focus.selection.line}` }] : []),
-    ...(focus?.errorOutput ? [{ id: "error" as const, label: "Error output" }] : []),
-    ...(focus?.sample ? [{ id: "sample" as const, label: focus.sample.sample?.sampleId ?? "Sample" }] : []),
+    ...(focus?.selection ? [{ id: "selection" as const, label: t("Selection, line {line}", { line: focus.selection.line }) }] : []),
+    ...(focus?.errorOutput ? [{ id: "error" as const, label: t("Error output") }] : []),
+    ...(focus?.sample ? [{ id: "sample" as const, label: focus.sample.sample?.sampleId ?? t("Sample") }] : []),
   ];
   const attached = (id: Attachment) => available.some((item) => item.id === id) && (reviewing && id === "sample" ? !off.has("selection") : !off.has(id));
 
@@ -143,8 +144,8 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   if (ready && !agent) {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-panel">
-        <Empty title="Connect a model" action={<Button onClick={props.onOpenSettings}>Open Settings</Button>}>
-          The assistant needs a model. Code and experiments work without one.
+        <Empty title={t("Connect a model")} action={<Button onClick={props.onOpenSettings}>{t("Open Settings")}</Button>}>
+          {t("The assistant needs a model. Code and experiments work without one.")}
         </Empty>
       </div>
     );
@@ -153,31 +154,31 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-panel">
       <div className="flex min-h-10 flex-none items-center justify-between gap-2 border-b border-border px-3 py-1">
-        <strong className="flex-none">Research assistant</strong>
+        <strong className="flex-none">{t("Research assistant")}</strong>
         <div className="ml-auto flex-none" data-tour="assistant-mode">
-          <Choice ariaLabel="How much the assistant may do in this chat" triggerClassName={MODE_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label, hint: item.hint }))} onChange={(next) => void chooseMode(next as ChatMode)} />
+          <Choice ariaLabel={t("How much the assistant may do in this chat")} triggerClassName={MODE_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label, hint: item.hint }))} onChange={(next) => void chooseMode(next as ChatMode)} />
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5" ref={log} role="log" aria-label="Conversation with the research assistant">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5" ref={log} role="log" aria-label={t("Conversation with the research assistant")}>
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(comment) => void ask(comment)} />
         ))}
-        {ready && !conversation.runs.length ? <p className="m-auto max-w-[220px] text-center text-xs text-muted-foreground">Ask about your work, or how to do something in Saturn.</p> : null}
+        {ready && !conversation.runs.length ? <p className="m-auto max-w-[220px] text-center text-xs text-muted-foreground">{t("Ask about your work, or how to do something in Saturn.")}</p> : null}
       </div>
 
       <div className="flex flex-none flex-col gap-1.5 border-t border-border px-3 py-2.5">
         <div className="flex flex-none gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[...(!focus || mode !== "manual" ? [] : reviewing ? REVIEW_REQUESTS : MANUAL_REQUESTS), ...HELP_REQUESTS].map((request) => (
-            <Button variant="outline" size="small" key={request.label} className="h-[26px] flex-none rounded-full px-2.5 text-[11.5px]" disabled={conversation.busy} onClick={() => void ask(request.prompt, request.label === "Explain the error" && focus?.errorOutput && !attached("error") ? errorContext(focus.errorOutput) : undefined)}>
+          {[...(!focus || mode !== "manual" ? [] : reviewing ? REVIEW_REQUESTS : MANUAL_REQUESTS), ...helpRequests(t)].map((request) => (
+            <Button variant="outline" size="small" key={request.label} className="h-[26px] flex-none rounded-full px-2.5 text-[11.5px]" disabled={conversation.busy} onClick={() => void ask(request.prompt, request.label === t("Explain the error") && focus?.errorOutput && !attached("error") ? errorContext(focus.errorOutput) : undefined)}>
               {request.label}
             </Button>
           ))}
         </div>
         {available.length || extraFiles.length || picking ? (
-          <div className="flex flex-wrap gap-1" role="group" aria-label="What goes with your message">
+          <div className="flex flex-wrap gap-1" role="group" aria-label={t("What goes with your message")}>
             {extraFiles.map((path) => (
-              <Button variant="soft" size="small" key={`extra-${path}`} aria-pressed="true" className={ATTACHMENT} title="Goes with your message. Select to leave it out." onClick={() => setExtraFiles((current) => current.filter((item) => item !== path))}>
+              <Button variant="soft" size="small" key={`extra-${path}`} aria-pressed="true" className={ATTACHMENT} title={t("Goes with your message. Select to leave it out.")} onClick={() => setExtraFiles((current) => current.filter((item) => item !== path))}>
                 <span className="truncate">{path}</span>
               </Button>
             ))}
@@ -188,7 +189,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
                 key={item.id}
                 aria-pressed={attached(item.id)}
                 className={classes(ATTACHMENT, !attached(item.id) && "border-dashed text-muted-foreground line-through")}
-                title={attached(item.id) ? "Goes with your message. Select to leave it out." : "Left out. Select to include it."}
+                title={attached(item.id) ? t("Goes with your message. Select to leave it out.") : t("Left out. Select to include it.")}
                 onClick={() =>
                   setOff((current) => {
                     const next = new Set(current);
@@ -206,7 +207,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
         ) : null}
         {picking ? (
           <div className="flex flex-col gap-1">
-            <Input aria-label="Find a file to attach" autoFocus value={fileQuery} placeholder="Type part of a path" onChange={(event) => setFileQuery(event.target.value)} onKeyDown={(event) => event.key === "Escape" && setPicking(false)} />
+            <Input aria-label={t("Find a file to attach")} autoFocus value={fileQuery} placeholder={t("Type part of a path")} onChange={(event) => setFileQuery(event.target.value)} onKeyDown={(event) => event.key === "Escape" && setPicking(false)} />
             <div className="flex max-h-40 flex-col gap-px overflow-auto">
               {found.filter((path) => !extraFiles.includes(path) && path !== focus?.file).map((path) => (
                 <Button variant="ghost" size="small" key={path} className="h-auto min-h-7 justify-start py-1 text-left font-mono break-all whitespace-normal" onClick={() => { setExtraFiles((current) => [...current, path]); setPicking(false); setFileQuery(""); }}>
@@ -220,10 +221,10 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
           <Textarea
             ref={box}
             className="max-h-40 min-h-[46px] resize-none border-0 bg-transparent px-2.5 pt-2 pb-0.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
-            aria-label="Message to the assistant"
+            aria-label={t("Message to the assistant")}
             rows={2}
             value={text}
-            placeholder="Message the assistant"
+            placeholder={t("Message the assistant")}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -233,20 +234,20 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
             }}
           />
           <div className="flex items-center gap-0.5 px-1.5 pt-[3px] pb-[5px]">
-            <Button variant="ghost" size="small" className="min-w-7 flex-none px-1.5" aria-label="Attach a file" title="Attach a file" aria-pressed={picking} onClick={() => setPicking((open) => !open)}>
+            <Button variant="ghost" size="small" className="min-w-7 flex-none px-1.5" aria-label={t("Attach a file")} title={t("Attach a file")} aria-pressed={picking} onClick={() => setPicking((open) => !open)}>
               @
             </Button>
             <div className="max-w-[130px] min-w-0" title={models.find((model) => model.id === agent?.modelConnectionId)?.name}>
-              <Choice ariaLabel="Model" triggerClassName={CHAT_SELECT} value={agent?.modelConnectionId ?? ""} options={models.map((model) => ({ value: model.id, label: model.name }))} onChange={(next) => void chooseModel(next)} />
+              <Choice ariaLabel={t("Model")} triggerClassName={CHAT_SELECT} value={agent?.modelConnectionId ?? ""} options={models.map((model) => ({ value: model.id, label: model.name }))} onChange={(next) => void chooseModel(next)} />
             </div>
             <div className="flex-1" />
             {conversation.busy && conversation.latest ? (
               <Button variant="outline" onClick={() => void conversation.stop(conversation.latest!)}>
-                Stop
+                {t("Stop")}
               </Button>
             ) : (
               <Button disabled={!text.trim()} onClick={() => void ask(text)}>
-                Send
+                {t("Send")}
               </Button>
             )}
           </div>

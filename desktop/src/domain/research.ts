@@ -1,3 +1,5 @@
+import { t } from "./i18n.ts";
+
 /** A research record as the runtime saves it. */
 export interface ResearchRecord {
   id: string;
@@ -311,9 +313,9 @@ export function comparisonFactors(spec: EvaluationSpec | null | undefined, compa
 
 /** Why two runs cannot be compared, in words. */
 export function comparisonText(comparison: Comparison): string {
-  if (comparison.result === "comparable") return "Measured the same way";
-  if (comparison.result === "not_comparable") return `Not comparable, these differ: ${comparison.differs.join(", ")}`;
-  return `Cannot tell: ${comparison.missing.join(", ")} not stated`;
+  if (comparison.result === "comparable") return t("Measured the same way");
+  if (comparison.result === "not_comparable") return t("Not comparable, these differ: {fields}", { fields: comparison.differs.join(", ") });
+  return t("Cannot tell: {fields} not stated", { fields: comparison.missing.join(", ") });
 }
 
 /** Models as a forest: each with its depth, parents before their children. */
@@ -382,7 +384,7 @@ export function runHasResults(status: RunStatus): boolean {
 
 /** A score for showing: enough digits to tell runs apart. */
 export function scoreText(value: number | null | undefined): string {
-  return value === null || value === undefined ? "No score" : Number(value.toFixed(3)).toString();
+  return value === null || value === undefined ? t("No score") : Number(value.toFixed(3)).toString();
 }
 
 /** Whether a run can still change. */
@@ -393,14 +395,14 @@ export function isRunActive(status: RunStatus): boolean {
 /** A run's status in words. Execution says nothing about whether a hypothesis holds. */
 export function runStatusLabel(status: RunStatus): string {
   const labels: Record<RunStatus, string> = {
-    starting: "Starting",
-    running: "Running",
-    stopping: "Stopping",
-    stopped: "Stopped",
-    completed: "Execution completed",
-    failed: "Execution failed",
-    interrupted: "Interrupted, samples kept",
-    protocol_error: "Output has problems",
+    starting: t("Starting"),
+    running: t("Running"),
+    stopping: t("Stopping"),
+    stopped: t("Stopped"),
+    completed: t("Execution completed"),
+    failed: t("Execution failed"),
+    interrupted: t("Interrupted, samples kept"),
+    protocol_error: t("Output has problems"),
   };
   return labels[status];
 }
@@ -612,7 +614,8 @@ export function ablationStanding(view: FeaturesView): AblationStanding | null {
   return "beyond";
 }
 
-const ABLATION_TEXT: Record<AblationStanding, string> = {
+/** The same, in English, for an observation the assistant reads too. */
+const ABLATION_ENGLISH: Record<AblationStanding, string> = {
   beyond: "That is further than both the control and the error of splicing.",
   control: "That is no further than the control went, so it says nothing about this feature.",
   splice: "It is further than the control, but no further than splicing alone moved the margin, so the error of the reconstruction could account for it.",
@@ -622,7 +625,11 @@ const ABLATION_TEXT: Record<AblationStanding, string> = {
 /** What an ablation came to, in a sentence, against what it must be read with. */
 export function ablationText(view: FeaturesView): string {
   const standing = ablationStanding(view);
-  return standing ? ABLATION_TEXT[standing] : "";
+  if (standing === "beyond") return t("That is further than both the control and the error of splicing.");
+  if (standing === "control") return t("That is no further than the control went, so it says nothing about this feature.");
+  if (standing === "splice") return t("It is further than the control, but no further than splicing alone moved the margin, so the error of the reconstruction could account for it.");
+  if (standing === "no-control") return t("No other feature fires on this prompt, so there is no control to read it against.");
+  return "";
 }
 
 /** What reading features found, in words fit to keep as an observation. Ids only, since a name would be a guess. */
@@ -636,7 +643,7 @@ export function featuresText(view: FeaturesView, modelName: string): string {
   if (strongest.length) parts.push(`Strongest features: ${strongest.join("; ")}.`);
   if (ablation && margins) {
     const control = ablation.control ? ` A random feature of similar activation, ${ablation.control.feature}, moved it ${signedText(ablation.control.change)}.` : "";
-    parts.push(`Margin of ${JSON.stringify(view.expected)} over ${JSON.stringify(view.alternative)}: ${margins.plain}, and ${margins.spliced} with the reconstruction spliced in, a change of ${signedText(margins.spliceChange)}. Ablating feature ${ablation.feature} moved it ${signedText(ablation.change)} from there.${control} ${ablationText(view)}`);
+    parts.push(`Margin of ${JSON.stringify(view.expected)} over ${JSON.stringify(view.alternative)}: ${margins.plain}, and ${margins.spliced} with the reconstruction spliced in, a change of ${signedText(margins.spliceChange)}. Ablating feature ${ablation.feature} moved it ${signedText(ablation.change)} from there.${control} ${ABLATION_ENGLISH[ablationStanding(view) ?? "no-control"]}`);
   }
   parts.push("A prompt typed by hand, one case: not a measurement of the model in general.");
   return parts.join(" ");
@@ -670,7 +677,9 @@ export function sweepMeasure(view: SweepView): RestoreMeasure {
 }
 
 /** How a measure reads after a count, in words. */
-export const RESTORE_MEASURE_TEXT: Record<RestoreMeasure, string> = { margin: "by logit margin", top: "by top token" };
+export function restoreMeasureText(measure: RestoreMeasure): string {
+  return measure === "margin" ? t("by logit margin") : t("by top token");
+}
 
 /** One thing saved under a run's inside folder: a reading of one sample, or a sweep. */
 export type InsideItem = (({ kind: "reading" } & ActivationView) | ({ kind: "sweep" } & SweepView) | ({ kind: "compare" } & ModelCompareView) | ({ kind: "prompts" } & PromptPatchView) | ({ kind: "features" } & FeaturesView)) & {
@@ -841,12 +850,12 @@ export interface EnvironmentReport {
 
 /** The compute an environment can offer, in words. */
 export function devicesText(report: EnvironmentReport | null): string {
-  if (!report) return "Not checked yet";
+  if (!report) return t("Not checked yet");
   const devices = report.devices;
-  if (!devices.torch) return devices.reason ?? "torch is not installed";
-  if (devices.cuda) return `CUDA: ${(devices.cudaDevices ?? []).join(", ") || "available"}`;
+  if (!devices.torch) return devices.reason ?? t("torch is not installed");
+  if (devices.cuda) return `CUDA: ${(devices.cudaDevices ?? []).join(", ") || t("available")}`;
   if (devices.mps) return "Apple MPS";
-  return "CPU only";
+  return t("CPU only");
 }
 
 /** A page of a run's samples. */

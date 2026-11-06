@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../application/desktop";
+import { t } from "../domain/i18n";
 import type { FileChange, Run, RunChanges } from "../domain/model";
 import { activateOnKey } from "./keyboard";
 import { Badge } from "./ui/base/Badge.js";
@@ -60,7 +61,7 @@ export function RunChangesCard(props: { run: Run; defaultOpen?: boolean; onComme
       desktop.runs
         .changes(run.id)
         .then((next) => live && setChanges(next))
-        .catch((reason: unknown) => live && setError(reason instanceof Error ? reason.message : "Could not load the changes"));
+        .catch((reason: unknown) => live && setError(reason instanceof Error ? reason.message : t("Could not load the changes")));
     void load();
     window.addEventListener(CHANGED_EVENT, load);
     return () => {
@@ -84,7 +85,7 @@ export function RunChangesCard(props: { run: Run; defaultOpen?: boolean; onComme
       if (result && typeof result === "object" && "files" in result && "runId" in result) setChanges(result as RunChanges);
       window.dispatchEvent(new Event(CHANGED_EVENT));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "That did not work");
+      setError(reason instanceof Error ? reason.message : t("That did not work"));
     } finally {
       setWorking(false);
       setConfirmRestore(false);
@@ -96,19 +97,17 @@ export function RunChangesCard(props: { run: Run; defaultOpen?: boolean; onComme
       <div className="flex items-center gap-2 bg-panel py-1.5 pr-2 pl-1">
         <Button variant="ghost" size="small" className="h-auto min-w-0 flex-1 justify-start gap-1.5 px-1 py-0.5 text-xs font-semibold" onClick={() => setOpen(!open)} aria-expanded={open}>
           <Chevron down={open} />
-          <span>
-            {files.length} {files.length === 1 ? "file" : "files"} changed
-          </span>
+          <span>{files.length === 1 ? t("1 file changed") : t("{count} files changed", { count: files.length })}</span>
           <Counts additions={additions} deletions={deletions} />
-          {allReverted ? <Tag>Reverted</Tag> : !pending.length ? <Tag>Kept</Tag> : null}
+          {allReverted ? <Tag>{t("Reverted")}</Tag> : !pending.length ? <Tag>{t("Kept")}</Tag> : null}
         </Button>
         {pending.length ? (
           <div className="flex shrink-0 gap-1.5">
             <Button variant="outline" size="small" disabled={working} onClick={() => void act(() => desktop.runs.revertChanges(run.id))}>
-              Revert all
+              {t("Revert all")}
             </Button>
             <Button size="small" disabled={working} onClick={() => void act(() => desktop.runs.keepChanges(run.id))}>
-              Keep
+              {t("Keep")}
             </Button>
           </div>
         ) : null}
@@ -131,17 +130,17 @@ export function RunChangesCard(props: { run: Run; defaultOpen?: boolean; onComme
           <div className="flex flex-wrap items-center gap-2 px-2.5 py-1.5 text-[11px] text-muted-foreground">
             {confirmRestore ? (
               <>
-                <span className="min-w-[180px] flex-1">Put every file this chat changed back to how it was before this turn? Later turns are reverted too; messages stay.</span>
+                <span className="min-w-[180px] flex-1">{t("Put every file this chat changed back to how it was before this turn? Later turns are reverted too; messages stay.")}</span>
                 <Button variant="danger" size="small" disabled={working} onClick={() => void act(() => desktop.runs.restoreTo(run.id))}>
-                  Restore
+                  {t("Restore")}
                 </Button>
                 <Button variant="outline" size="small" disabled={working} onClick={() => setConfirmRestore(false)}>
-                  Cancel
+                  {t("Cancel")}
                 </Button>
               </>
             ) : (
               <Button variant="ghost" size="small" className="h-5 px-1.5 text-[11px] text-muted-foreground" disabled={working} onClick={() => setConfirmRestore(true)}>
-                Restore to before this turn
+                {t("Restore to before this turn")}
               </Button>
             )}
           </div>
@@ -150,8 +149,8 @@ export function RunChangesCard(props: { run: Run; defaultOpen?: boolean; onComme
       {error ? <Notice tone="bad" className="rounded-none border-x-0 border-b-0">{error}</Notice> : null}
       {commentCount && props.onComment ? (
         <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2">
-          <span className="text-xs text-muted-foreground">{commentCount} comment{commentCount === 1 ? "" : "s"} on the diff</span>
-          <Button variant="outline" size="small" onClick={sendComments}>Send to agent</Button>
+          <span className="text-xs text-muted-foreground">{commentCount === 1 ? t("1 comment on the diff") : t("{count} comments on the diff", { count: commentCount })}</span>
+          <Button variant="outline" size="small" onClick={sendComments}>{t("Send to agent")}</Button>
         </div>
       ) : null}
     </div>
@@ -183,18 +182,18 @@ function FileRow(props: { file: FileChange; open: boolean; working: boolean; onT
           <span className={classes("min-w-0 truncate font-mono text-[11.5px] group-hover/button:underline", reverted && "text-muted-foreground line-through")} title={file.path}>
             {file.path}
           </span>
-          {file.binary ? <Tag>binary</Tag> : <Counts additions={file.additions} deletions={file.deletions} />}
+          {file.binary ? <Tag>{t("binary")}</Tag> : <Counts additions={file.additions} deletions={file.deletions} />}
           {file.modifiedSince ? (
-            <Tag warn title="The file was changed again after this turn; reverting puts back the version from before this turn.">
-              changed since
+            <Tag warn title={t("The file was changed again after this turn; reverting puts back the version from before this turn.")}>
+              {t("changed since")}
             </Tag>
           ) : null}
         </Button>
         {reverted ? (
-          <Tag>Reverted</Tag>
+          <Tag>{t("Reverted")}</Tag>
         ) : (
           <Button variant="outline" size="small" className="h-5 px-2 text-[11px]" disabled={props.working} onClick={props.onRevert}>
-            Revert
+            {t("Revert")}
           </Button>
         )}
       </div>
@@ -227,7 +226,7 @@ export function DiffBlock(props: { diff: string; truncated?: boolean; comments?:
           <div key={index}>
             <div
               className={classes("px-2.5 py-px whitespace-pre", kind, commentable && "cursor-pointer hover:-outline-offset-1 hover:outline hover:outline-dashed hover:outline-input", comment && "shadow-[inset_3px_0_0_var(--wait)]")}
-              title={commentable && !open ? "Click to comment on this line" : undefined}
+              title={commentable && !open ? t("Click to comment on this line") : undefined}
               role={commentable ? "button" : undefined}
               tabIndex={commentable ? 0 : undefined}
               aria-expanded={commentable ? open : undefined}
@@ -241,8 +240,8 @@ export function DiffBlock(props: { diff: string; truncated?: boolean; comments?:
                 <Input
                   className="h-7 text-xs"
                   autoFocus={commenting === index}
-                  aria-label="Comment for the agent"
-                  placeholder="Comment for the agent…"
+                  aria-label={t("Comment for the agent")}
+                  placeholder={t("Comment for the agent…")}
                   value={comment ?? ""}
                   onChange={(event) => props.onCommentChange?.(index, event.target.value)}
                   onKeyDown={(event) => {
@@ -254,7 +253,7 @@ export function DiffBlock(props: { diff: string; truncated?: boolean; comments?:
           </div>
         );
       })}
-      {props.truncated ? <div className={classes("px-2.5 py-px whitespace-pre", DIFF_META)}>… diff cut short; reverting still restores the whole file</div> : null}
+      {props.truncated ? <div className={classes("px-2.5 py-px whitespace-pre", DIFF_META)}>{t("… diff cut short; reverting still restores the whole file")}</div> : null}
     </pre>
   );
 }

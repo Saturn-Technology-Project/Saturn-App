@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import type { Agent, Autonomy, Model, Run, RunAction, RunThought } from "./model.js";
 
 export type PlanStep = {
@@ -327,47 +328,47 @@ export function actionLine(action: RunAction): ActionLine {
   if (action.toolId === "files") {
     const mode = str(args.action) || "list";
     const target = str(args.path);
-    if (mode === "read") return { verb: "Analyzed", target: target || "file", badge: fileBadge(target), suffix: readRange(action) };
-    if (mode === "write") return { verb: "Edited", target: target || "file", badge: fileBadge(target) };
+    if (mode === "read") return { verb: t("Analyzed"), target: target || t("file"), badge: fileBadge(target), suffix: readRange(action) };
+    if (mode === "write") return { verb: t("Edited"), target: target || t("file"), badge: fileBadge(target) };
     if (mode === "patch") {
       const applied = (action.result as { applied?: { path?: string }[] } | undefined)?.applied ?? [];
       const first = applied[0]?.path ?? "";
       const more = applied.length > 1 ? ` +${applied.length - 1}` : "";
-      return { verb: "Edited", target: first ? `${first}${more}` : "files", badge: fileBadge(first) };
+      return { verb: t("Edited"), target: first ? `${first}${more}` : t("files"), badge: fileBadge(first) };
     }
-    return { verb: "Listed", target: target || "workspace" };
+    return { verb: t("Listed"), target: target || t("workspace") };
   }
-  if (action.toolId === "code") return { verb: args.background === true ? "Started" : "Ran", target: str(args.command) || "command", mono: true };
-  if (action.toolId === "code_output") return { verb: "Read output of", target: str(args.jobId) || "background command", mono: true };
-  if (action.toolId === "code_stop") return { verb: "Stopped", target: str(args.jobId) || "background command", mono: true };
+  if (action.toolId === "code") return { verb: args.background === true ? t("Started") : t("Ran"), target: str(args.command) || t("command"), mono: true };
+  if (action.toolId === "code_output") return { verb: t("Read output of"), target: str(args.jobId) || t("background command"), mono: true };
+  if (action.toolId === "code_stop") return { verb: t("Stopped"), target: str(args.jobId) || t("background command"), mono: true };
   if (action.toolId === "delegate") {
     const count = (Array.isArray(args.tasks) ? args.tasks.length : 0) + (str(args.task) ? 1 : 0);
-    return { verb: "Delegated", target: count > 1 ? `${count} tasks to sub-agents` : str(args.task) || "a task to a sub-agent" };
+    return { verb: t("Delegated"), target: count > 1 ? t("{count} tasks to sub-agents", { count }) : str(args.task) || t("a task to a sub-agent") };
   }
-  if (action.toolId === "web") return { verb: "Read", target: shortUrl(str(args.url)) || "web page" };
+  if (action.toolId === "web") return { verb: t("Read"), target: shortUrl(str(args.url)) || t("web page") };
   if (action.toolId === "multi_step") {
     const steps = Array.isArray(args.steps) ? args.steps.length : 0;
-    return { verb: "Updated plan", target: steps ? `${steps} step${steps === 1 ? "" : "s"}` : "" };
+    return { verb: t("Updated plan"), target: steps === 1 ? t("1 step") : steps ? t("{count} steps", { count: steps }) : "" };
   }
-  if (action.toolId === "mcp") return { verb: "Called", target: str(args.tool) || str(args.toolId) || "MCP tool", mono: true };
+  if (action.toolId === "mcp") return { verb: t("Called"), target: str(args.tool) || str(args.toolId) || t("MCP tool"), mono: true };
   // Claude Code's own tools (claude-code models), named by the SDK.
   const file = str(args.file_path) || str(args.notebook_path);
   if (file && ["Edit", "MultiEdit", "Write", "NotebookEdit"].includes(action.toolId)) {
     const name = projectPath(file);
-    return { verb: action.toolId === "Write" ? "Wrote" : "Edited", target: name, badge: fileBadge(name) };
+    return { verb: action.toolId === "Write" ? t("Wrote") : t("Edited"), target: name, badge: fileBadge(name) };
   }
-  if (file && action.toolId === "Read") return { verb: "Analyzed", target: projectPath(file), badge: fileBadge(file) };
-  if (action.toolId === "Bash") return { verb: "Ran", target: str(args.command) || "command", mono: true };
-  if (action.toolId === "Grep" || action.toolId === "Glob") return { verb: "Searched", target: str(args.pattern) || "files", mono: true };
-  return { verb: "Called", target: action.toolId, mono: true };
+  if (file && action.toolId === "Read") return { verb: t("Analyzed"), target: projectPath(file), badge: fileBadge(file) };
+  if (action.toolId === "Bash") return { verb: t("Ran"), target: str(args.command) || t("command"), mono: true };
+  if (action.toolId === "Grep" || action.toolId === "Glob") return { verb: t("Searched"), target: str(args.pattern) || t("files"), mono: true };
+  return { verb: t("Called"), target: action.toolId, mono: true };
 }
 
 export function formatDuration(seconds: number): string {
   const whole = Math.max(1, Math.round(seconds));
-  if (whole < 60) return `${whole}s`;
+  if (whole < 60) return t("{seconds}s", { seconds: whole });
   const minutes = Math.floor(whole / 60);
   const rest = whole % 60;
-  return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+  return rest ? t("{minutes}m {seconds}s", { minutes, seconds: rest }) : t("{minutes}m", { minutes });
 }
 
 /** "#L1-94" for a file read: the requested window, capped at the file's length. */

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import { ablationText, controlCeiling, featurePeaks, featuresText, promptPatchText, readingDifference, reconstructionIsPoor, restoredByLayer, signedText, strongestPatch, type ExperimentRun, type FeaturesView, type InsideItem, type ModelCompareView, type ModelNode, type PromptPatchView } from "../../domain/research.js";
 import { ActivationGrid } from "../samples/LookInside.js";
 import { Button } from "../ui/base/Button.js";
@@ -17,7 +18,11 @@ import { Artifacts } from "../experiments/Artifacts.js";
 const service = desktop.research;
 const VIEWS = ["Two prompts", "Two models", "Features", "Recorded"] as const;
 type View = (typeof VIEWS)[number];
-const KIND_LABELS: Record<InsideItem["kind"], string> = { reading: "Activations", sweep: "Layer sweep", compare: "Two models", prompts: "Two prompts", features: "Features" };
+/** Each view's name, as it is shown. */
+const VIEW_LABELS: Record<View, string> = { "Two prompts": t("Two prompts"), "Two models": t("Two models"), Features: t("Features"), Recorded: t("Recorded") };
+const KIND_LABELS: Record<InsideItem["kind"], string> = { reading: t("Activations"), sweep: t("Layer sweep"), compare: t("Two models"), prompts: t("Two prompts"), features: t("Features") };
+/** A finding's kind, as it is shown. */
+const FINDING_LABELS: Record<string, string> = { observation: t("Observation"), ai_suggestion: t("AI suggestion"), conclusion: t("Conclusion") };
 
 /** A recorded look inside, with the run it is kept with. */
 type Recorded = InsideItem & { runId: string };
@@ -63,55 +68,55 @@ export function Inspect(props: ScreenProps) {
     try {
       await service.addFinding(projectId, text, "observation", run.startsWith("inspection_") ? [] : [run], run.startsWith("inspection_") ? [run] : undefined);
       await refresh();
-      props.notify("Recorded as an observation.");
+      props.notify(t("Recorded as an observation."));
     } catch (error) {
       props.notify(messageOf(error));
     }
   };
 
   return (
-    <Page title="Inspect" lead="Look inside a model on prompts of your own. Prompts typed here are one case each, not a measurement: an experiment is what measures.">
+    <Page title={t("Inspect")} lead={t("Look inside a model on prompts of your own. Prompts typed here are one case each, not a measurement: an experiment is what measures.")}>
       <InspectionSessionBuilder projectId={projectId} models={models} notify={props.notify} go={props.go} onCreated={(id) => { setRunId(id); void refresh(); }} />
-      {session ? <p className="my-2 text-xs text-muted-foreground">Session Python: {session.python}. Models: {session.models.map((model) => `${model.name || model.source} @ ${model.weightsRevision || "floating"}`).join(", ")}. {session.note}</p> : null}
-      {!runs.length ? <p className="my-2 text-sm text-muted-foreground">Start an inspection session above, or use a completed experiment's Python and model references.</p> : null}
+      {session ? <p className="my-2 text-xs text-muted-foreground">{t("Session Python: {python}. Models: {models}.", { python: session.python, models: session.models.map((model) => `${model.name || model.source} @ ${model.weightsRevision || t("floating")}`).join(", ") })} {session.note}</p> : null}
+      {!runs.length ? <p className="my-2 text-sm text-muted-foreground">{t("Start an inspection session above, or use a completed experiment's Python and model references.")}</p> : null}
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <Tabs value={view} onValueChange={(item) => setView(item as View)}>
-          <TabsList aria-label="What to look at">
+          <TabsList aria-label={t("What to look at")}>
             {VIEWS.map((item) => (
               <TabsTrigger key={item} value={item}>
-                {item}{item === "Recorded" && value?.recorded.length ? ` ${value.recorded.length}` : ""}
+                {VIEW_LABELS[item]}{item === "Recorded" && value?.recorded.length ? ` ${value.recorded.length}` : ""}
               </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
-        {view !== "Recorded" ? <Choice label="Python and weights from" className="w-56" value={chosenRun?.id ?? ""} options={runs.map((run) => ({ value: run.id, label: runName(run) }))} onChange={setRunId} /> : null}
+        {view !== "Recorded" ? <Choice label={t("Python and weights from")} className="w-56" value={chosenRun?.id ?? ""} options={runs.map((run) => ({ value: run.id, label: runName(run) }))} onChange={setRunId} /> : null}
       </div>
       {view === "Two prompts" && chosenRun ? <TwoPrompts projectId={projectId} run={chosenRun} models={availableModels} sent={sent} notify={props.notify} onDone={refresh} onRecord={record} /> : null}
       {view === "Two models" && chosenRun ? <TwoModels projectId={projectId} run={chosenRun} models={availableModels} sent={sent} notify={props.notify} onDone={refresh} /> : null}
       {view === "Features" && chosenRun ? <Features projectId={projectId} run={chosenRun} models={availableModels} sent={sent} onDone={refresh} onRecord={record} /> : null}
       {view === "Recorded" ? <RecordedList items={value?.recorded ?? []} models={models} /> : null}
       {session ? <Artifacts key={session.id} projectId={projectId} inspectionId={session.id} notify={props.notify} go={props.go} /> : null}
-      {session?.archived ? <Notice tone="wait">This is archived evidence. Create a new inspection session with this machine's Python and models to compute new results.</Notice> : null}
-      {session ? value?.findings.filter((finding) => finding.inspectionIds?.includes(session.id)).map((finding) => <div key={finding.id} className="my-2 rounded-lg bg-panel p-3 text-sm"><span className="text-xs text-muted-foreground">{finding.kind}: </span>{finding.text}</div>) : null}
+      {session?.archived ? <Notice tone="wait">{t("This is archived evidence. Create a new inspection session with this machine's Python and models to compute new results.")}</Notice> : null}
+      {session ? value?.findings.filter((finding) => finding.inspectionIds?.includes(session.id)).map((finding) => <div key={finding.id} className="my-2 rounded-lg bg-panel p-3 text-sm"><span className="text-xs text-muted-foreground">{FINDING_LABELS[finding.kind] ?? finding.kind}: </span>{finding.text}</div>) : null}
     </Page>
   );
 }
 
 /** A run as a choice: when it began and its id's end. */
 function runName(run: InspectionSource): string {
-  return `${run.title ? "Session: " + run.title : "Run"} · ${new Date(run.createdAt).toLocaleString()} · ${run.id.slice(-8)}`;
+  return `${run.title ? t("Session: {title}", { title: run.title }) : t("Run")} · ${new Date(run.createdAt).toLocaleString()} · ${run.id.slice(-8)}`;
 }
 
 /** A model's name, or its id when the project no longer has it. */
 function modelName(models: ModelNode[], id: string | null | undefined): string {
   const model = models.find((item) => item.id === id);
-  return model ? model.name || model.source : (id ?? "the run's model");
+  return model ? model.name || model.source : (id ?? t("the run's model"));
 }
 
 /** Chooses a model of the project. */
 function ModelChoice(props: { label: string; models: ModelNode[]; value: string; onChange: (id: string) => void }) {
   const options = props.models.map((model) => ({ value: model.id, label: model.name || model.source }));
-  return <Choice label={props.label} className="w-44" placeholder="Choose a model" value={props.value} options={options} onChange={props.onChange} />;
+  return <Choice label={props.label} className="w-44" placeholder={t("Choose a model")} value={props.value} options={options} onChange={props.onChange} />;
 }
 
 type Sent = { modelId: string | null; input: string; expected?: string; alternative?: string } | null;
@@ -143,21 +148,21 @@ function TwoPrompts(props: { projectId: string; run: InspectionSource; models: M
 
   return (
     <section className="mt-3 flex flex-col gap-3 rounded-lg bg-card p-4">
-      <h2 className="mt-0! text-sm font-semibold">Where does the answer come from?</h2>
-      <div className="text-xs text-muted-foreground">The corrupted prompt runs with one layer and position restored from the clean prompt at a time. Both need the same number of tokens, so change a word for a word.</div>
+      <h2 className="mt-0! text-sm font-semibold">{t("Where does the answer come from?")}</h2>
+      <div className="text-xs text-muted-foreground">{t("The corrupted prompt runs with one layer and position restored from the clean prompt at a time. Both need the same number of tokens, so change a word for a word.")}</div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3">
-        <Field label="Clean prompt"><Textarea value={clean} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setClean(event.target.value)} /></Field>
-        <Field label="Corrupted prompt"><Textarea value={corrupted} placeholder="When Mary and John went to the store, Mary gave a drink to" onChange={(event) => setCorrupted(event.target.value)} /></Field>
+        <Field label={t("Clean prompt")}><Textarea value={clean} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setClean(event.target.value)} /></Field>
+        <Field label={t("Corrupted prompt")}><Textarea value={corrupted} placeholder="When Mary and John went to the store, Mary gave a drink to" onChange={(event) => setCorrupted(event.target.value)} /></Field>
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <ModelChoice label="Model" models={props.models} value={modelId} onChange={setModelId} />
-        <Field label="Expected word" className="w-32"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
-        <Field label="Against" className="w-32"><Input value={alternative} placeholder=" John" onChange={(event) => setAlternative(event.target.value)} /></Field>
+        <ModelChoice label={t("Model")} models={props.models} value={modelId} onChange={setModelId} />
+        <Field label={t("Expected word")} className="w-32"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
+        <Field label={t("Against")} className="w-32"><Input value={alternative} placeholder=" John" onChange={(event) => setAlternative(event.target.value)} /></Field>
         <Button disabled={busy || !modelId || !clean.trim() || !corrupted.trim() || !expected || !alternative} onClick={() => void run()}>
-          {busy ? "Patching…" : "Patch every layer and position"}
+          {busy ? t("Patching…") : t("Patch every layer and position")}
         </Button>
       </div>
-      <div className="text-xs text-muted-foreground">Spaces count: a name in the middle of a sentence usually starts with one.</div>
+      <div className="text-xs text-muted-foreground">{t("Spaces count: a name in the middle of a sentence usually starts with one.")}</div>
       {problem ? <Notice tone="bad">{problem}</Notice> : null}
       {answer ? <PatchResult view={answer} models={props.models} onRecord={(text) => props.onRecord(text, props.run.id)} /> : null}
     </section>
@@ -173,16 +178,16 @@ function PatchResult(props: { view: PromptPatchView; models: ModelNode[]; onReco
   return (
     <>
       <div>
-        {best ? `Layer ${best.layer} at ${JSON.stringify(best.token)} brings back ${(best.recovery * 100).toFixed(1)}%.` : "No layer and position brought back more than the control."}{" "}
-        <span className="text-xs text-muted-foreground">A random change of the same size moved at most {(ceiling * 100).toFixed(1)}%.</span>
+        {best ? t("Layer {layer} at {token} brings back {share}%.", { layer: best.layer, token: JSON.stringify(best.token), share: (best.recovery * 100).toFixed(1) }) : t("No layer and position brought back more than the control.")}{" "}
+        <span className="text-xs text-muted-foreground">{t("A random change of the same size moved at most {share}%.", { share: (ceiling * 100).toFixed(1) })}</span>
       </div>
-      <div className="text-xs text-muted-foreground">Clean ends on {JSON.stringify(view.cleanTop)}, margin {view.cleanMargin}. Corrupted ends on {JSON.stringify(view.corruptedTop)}, margin {view.corruptedMargin}.</div>
-      <ActivationGrid signed quietAtOrBelow={ceiling} caption="How much of the margin comes back, layer by token. Blue brings it back, red pushes it away, an outline is no further than the control went." tokens={view.tokens} layers={toRows(view.recovery)} />
+      <div className="text-xs text-muted-foreground">{t("Clean ends on {cleanTop}, margin {cleanMargin}. Corrupted ends on {corruptedTop}, margin {corruptedMargin}.", { cleanTop: JSON.stringify(view.cleanTop), cleanMargin: view.cleanMargin, corruptedTop: JSON.stringify(view.corruptedTop), corruptedMargin: view.corruptedMargin })}</div>
+      <ActivationGrid signed quietAtOrBelow={ceiling} caption={t("How much of the margin comes back, layer by token. Blue brings it back, red pushes it away, an outline is no further than the control went.")} tokens={view.tokens} layers={toRows(view.recovery)} />
       <details>
-        <summary className="text-xs text-muted-foreground">The control</summary>
-        <ActivationGrid signed caption="The same places given a random change of the same size as the difference between the prompts." tokens={view.tokens} layers={toRows(view.control)} />
+        <summary className="text-xs text-muted-foreground">{t("The control")}</summary>
+        <ActivationGrid signed caption={t("The same places given a random change of the same size as the difference between the prompts.")} tokens={view.tokens} layers={toRows(view.control)} />
       </details>
-      {props.onRecord ? <Button variant="outline" className="w-fit" onClick={() => void props.onRecord?.(promptPatchText(view, modelName(props.models, view.modelId)))}>Record as an observation</Button> : null}
+      {props.onRecord ? <Button variant="outline" className="w-fit" onClick={() => void props.onRecord?.(promptPatchText(view, modelName(props.models, view.modelId)))}>{t("Record as an observation")}</Button> : null}
     </>
   );
 }
@@ -220,14 +225,14 @@ function TwoModels(props: { projectId: string; run: InspectionSource; models: Mo
 
   return (
     <section className="mt-3 flex flex-col gap-3 rounded-lg bg-card p-4">
-      <h2 className="mt-0! text-sm font-semibold">Where do two models part?</h2>
-      <Field label="Prompt"><Textarea value={input} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setInput(event.target.value)} /></Field>
+      <h2 className="mt-0! text-sm font-semibold">{t("Where do two models part?")}</h2>
+      <Field label={t("Prompt")}><Textarea value={input} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setInput(event.target.value)} /></Field>
       <div className="flex flex-wrap items-end gap-3">
-        <ModelChoice label="Model" models={props.models} value={modelId} onChange={setModelId} />
-        <ModelChoice label="Against" models={props.models.filter((model) => model.id !== modelId)} value={otherModelId} onChange={setOtherModelId} />
-        <Field label="Expected word, if any" className="w-40"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
+        <ModelChoice label={t("Model")} models={props.models} value={modelId} onChange={setModelId} />
+        <ModelChoice label={t("Against")} models={props.models.filter((model) => model.id !== modelId)} value={otherModelId} onChange={setOtherModelId} />
+        <Field label={t("Expected word, if any")} className="w-40"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
         <Button disabled={busy || !modelId || !otherModelId || !input.trim()} onClick={() => void run()}>
-          {busy ? "Reading…" : "Read both"}
+          {busy ? t("Reading…") : t("Read both")}
         </Button>
       </div>
       {problem ? <Notice tone="bad">{problem}</Notice> : null}
@@ -243,8 +248,8 @@ function CompareResult(props: { view: ModelCompareView; models: ModelNode[] }) {
   const other = modelName(models, view.otherModelId);
   return (
     <>
-      <div className="text-xs text-muted-foreground">{view.measure}. {name} ends on {JSON.stringify(view.top)}, {other} on {JSON.stringify(view.otherTop)}.</div>
-      <ActivationGrid signed caption={`${name} less ${other}. Blue is higher in ${name}, red in ${other}.`} tokens={view.tokens} layers={readingDifference(view.layers, view.otherLayers)} />
+      <div className="text-xs text-muted-foreground">{view.measure}. {t("{name} ends on {top}, {other} on {otherTop}.", { name, top: JSON.stringify(view.top), other, otherTop: JSON.stringify(view.otherTop) })}</div>
+      <ActivationGrid signed caption={t("{name} less {other}. Blue is higher in {name}, red in {other}.", { name, other })} tokens={view.tokens} layers={readingDifference(view.layers, view.otherLayers)} />
       <ActivationGrid caption={name} tokens={view.tokens} layers={view.layers} />
       <ActivationGrid caption={other} tokens={view.tokens} layers={view.otherLayers} />
     </>
@@ -252,7 +257,7 @@ function CompareResult(props: { view: ModelCompareView; models: ModelNode[] }) {
 }
 
 /** Where an SAE comes from: a release of SAELens, or a folder. */
-const SAE_SOURCES = [{ value: "release", label: "SAELens release" }, { value: "path", label: "Local folder" }];
+const SAE_SOURCES = [{ value: "release", label: t("SAELens release") }, { value: "path", label: t("Local folder") }];
 
 /** One layer on one prompt read through a sparse autoencoder, with one feature set to zero if asked. */
 function Features(props: { projectId: string; run: InspectionSource; models: ModelNode[]; sent: Sent; onDone: () => Promise<void> | void; onRecord: (text: string, run: string) => Promise<void> }) {
@@ -295,28 +300,28 @@ function Features(props: { projectId: string; run: InspectionSource; models: Mod
 
   return (
     <section className="mt-3 flex flex-col gap-3 rounded-lg bg-card p-4">
-      <h2 className="mt-0! text-sm font-semibold">What does a sparse autoencoder find at this layer?</h2>
-      <div className="text-xs text-muted-foreground">The SAE must have been made for this model's residual stream. Layer counts as in a patch: layer 7 is the stream leaving block 7, which SAELens calls blocks.8.hook_resid_pre or blocks.7.hook_resid_post.</div>
-      <Field label="Prompt"><Textarea value={prompt} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setPrompt(event.target.value)} /></Field>
+      <h2 className="mt-0! text-sm font-semibold">{t("What does a sparse autoencoder find at this layer?")}</h2>
+      <div className="text-xs text-muted-foreground">{t("The SAE must have been made for this model's residual stream. Layer counts as in a patch: layer 7 is the stream leaving block 7, which SAELens calls blocks.8.hook_resid_pre or blocks.7.hook_resid_post.")}</div>
+      <Field label={t("Prompt")}><Textarea value={prompt} placeholder="When Mary and John went to the store, John gave a drink to" onChange={(event) => setPrompt(event.target.value)} /></Field>
       <div className="flex flex-wrap items-end gap-3">
-        <ModelChoice label="Model" models={props.models} value={modelId} onChange={setModelId} />
-        <Field label="Layer" className="w-20"><Input value={layer} inputMode="numeric" placeholder="7" onChange={(event) => setLayer(event.target.value.replace(/\D/g, ""))} /></Field>
-        <Choice label="SAE from" className="w-40" value={source} options={SAE_SOURCES} onChange={setSource} />
+        <ModelChoice label={t("Model")} models={props.models} value={modelId} onChange={setModelId} />
+        <Field label={t("Layer")} className="w-20"><Input value={layer} inputMode="numeric" placeholder="7" onChange={(event) => setLayer(event.target.value.replace(/\D/g, ""))} /></Field>
+        <Choice label={t("SAE from")} className="w-40" value={source} options={SAE_SOURCES} onChange={setSource} />
         {source === "path" ? (
-          <Field label="Folder" className="w-72"><Input value={path} placeholder="saes/layer-7" onChange={(event) => setPath(event.target.value)} /></Field>
+          <Field label={t("Folder")} className="w-72"><Input value={path} placeholder="saes/layer-7" onChange={(event) => setPath(event.target.value)} /></Field>
         ) : (
           <>
-            <Field label="Release" className="w-44"><Input value={release} placeholder="gpt2-small-res-jb" onChange={(event) => setRelease(event.target.value)} /></Field>
-            <Field label="SAE id" className="w-52"><Input value={saeId} placeholder="blocks.8.hook_resid_pre" onChange={(event) => setSaeId(event.target.value)} /></Field>
+            <Field label={t("Release")} className="w-44"><Input value={release} placeholder="gpt2-small-res-jb" onChange={(event) => setRelease(event.target.value)} /></Field>
+            <Field label={t("SAE id")} className="w-52"><Input value={saeId} placeholder="blocks.8.hook_resid_pre" onChange={(event) => setSaeId(event.target.value)} /></Field>
           </>
         )}
       </div>
       <div className="flex flex-wrap items-end gap-3">
-        <Field label="Expected word, if any" className="w-40"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
-        <Field label="Against" className="w-32"><Input value={alternative} placeholder=" John" onChange={(event) => setAlternative(event.target.value)} /></Field>
-        <Field label="Feature to ablate, if any" className="w-44"><Input value={ablate} inputMode="numeric" disabled={!margin} placeholder={margin ? "a feature's id" : "needs both words"} onChange={(event) => setAblate(event.target.value.replace(/\D/g, ""))} /></Field>
+        <Field label={t("Expected word, if any")} className="w-40"><Input value={expected} placeholder=" Mary" onChange={(event) => setExpected(event.target.value)} /></Field>
+        <Field label={t("Against")} className="w-32"><Input value={alternative} placeholder=" John" onChange={(event) => setAlternative(event.target.value)} /></Field>
+        <Field label={t("Feature to ablate, if any")} className="w-44"><Input value={ablate} inputMode="numeric" disabled={!margin} placeholder={margin ? t("a feature's id") : t("needs both words")} onChange={(event) => setAblate(event.target.value.replace(/\D/g, ""))} /></Field>
         <Button disabled={busy || !modelId || !prompt.trim() || !layer || !named || Boolean(expected) !== Boolean(alternative)} onClick={() => void run()}>
-          {busy ? "Reading…" : ablate && margin ? `Read and ablate feature ${ablate}` : "Read features"}
+          {busy ? t("Reading…") : ablate && margin ? t("Read and ablate feature {feature}", { feature: ablate }) : t("Read features")}
         </Button>
       </div>
       {problem ? <Notice tone="bad">{problem}</Notice> : null}
@@ -338,20 +343,20 @@ function FeaturesResult(props: { view: FeaturesView; models: ModelNode[]; onPick
   return (
     <>
       <div>
-        {explained === null ? "One token has no variance to explain." : `The SAE explains ${(explained * 100).toFixed(1)}% of the variance on this prompt.`}{" "}
-        <span className="text-xs text-muted-foreground">Relative error {reconstruction.relativeError}, {reconstruction.meanActiveFeatures} features active per token. {name} ends on {JSON.stringify(view.top)}.</span>
+        {explained === null ? t("One token has no variance to explain.") : t("The SAE explains {share}% of the variance on this prompt.", { share: (explained * 100).toFixed(1) })}{" "}
+        <span className="text-xs text-muted-foreground">{t("Relative error {error}, {count} features active per token. {name} ends on {top}.", { error: reconstruction.relativeError, count: reconstruction.meanActiveFeatures, name, top: JSON.stringify(view.top) })}</span>
       </div>
-      {reconstructionIsPoor(view) ? <Notice tone="wait">This SAE rebuilds the prompt poorly, so its features say little here. It may have been made for other weights.</Notice> : null}
+      {reconstructionIsPoor(view) ? <Notice tone="wait">{t("This SAE rebuilds the prompt poorly, so its features say little here. It may have been made for other weights.")}</Notice> : null}
       <div className="text-xs text-muted-foreground">
-        {sae.path ?? `${sae.release} / ${sae.id}`}: reads {sae.hookName}, {sae.width} features{sae.trainedOn ? `, trained on ${sae.trainedOn}` : ""}.
-        {sae.startTokenAdded ? " A start token was added, as it was trained with." : ""}
-        {sae.centered ? " The stream's mean over dimensions was removed, as it was trained without; the model's LayerNorms ignore it." : ""}
-        {reconstruction.tokensLeftOut ? ` ${reconstruction.tokensLeftOut} special token${reconstruction.tokensLeftOut === 1 ? " is" : "s are"} left out and left as they were.` : ""}
+        {sae.path ?? `${sae.release} / ${sae.id}`}: {sae.trainedOn ? t("reads {hook}, {width} features, trained on {data}.", { hook: sae.hookName, width: sae.width, data: sae.trainedOn }) : t("reads {hook}, {width} features.", { hook: sae.hookName, width: sae.width })}
+        {sae.startTokenAdded ? ` ${t("A start token was added, as it was trained with.")}` : ""}
+        {sae.centered ? ` ${t("The stream's mean over dimensions was removed, as it was trained without; the model's LayerNorms ignore it.")}` : ""}
+        {reconstruction.tokensLeftOut ? ` ${reconstruction.tokensLeftOut === 1 ? t("1 special token is left out and left as it was.") : t("{count} special tokens are left out and left as they were.", { count: reconstruction.tokensLeftOut })}` : ""}
       </div>
       <FeatureEffects view={view} />
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs" aria-label="The strongest features at each token">
-          <thead><tr><th scope="col" className={HEAD}>Token</th><th scope="col" className={HEAD}>Strongest features, with activation</th></tr></thead>
+        <table className="w-full border-collapse text-xs" aria-label={t("The strongest features at each token")}>
+          <thead><tr><th scope="col" className={HEAD}>{t("Token")}</th><th scope="col" className={HEAD}>{t("Strongest features, with activation")}</th></tr></thead>
           <tbody>
             {view.tokens.map((token, position) => (
               <tr key={`${position}-${token}`}>
@@ -360,10 +365,10 @@ function FeaturesResult(props: { view: FeaturesView; models: ModelNode[]; onPick
                   <div className="flex flex-wrap gap-x-3 gap-y-1">
                     {view.features[position]?.length ? view.features[position].map(({ feature, activation }) => (
                       <span key={feature} className="whitespace-nowrap">
-                        {props.onPick ? <button type="button" className="text-foreground underline underline-offset-2" aria-label={`Choose feature ${feature} to ablate`} onClick={() => props.onPick?.(feature)}>{feature}</button> : feature}{" "}
+                        {props.onPick ? <button type="button" className="text-foreground underline underline-offset-2" aria-label={t("Choose feature {feature} to ablate", { feature })} onClick={() => props.onPick?.(feature)}>{feature}</button> : feature}{" "}
                         <span className="text-muted-foreground">{activation.toFixed(1)}</span>
                       </span>
-                    )) : <span className="text-muted-foreground">Not read</span>}
+                    )) : <span className="text-muted-foreground">{t("Not read")}</span>}
                   </div>
                 </td>
               </tr>
@@ -372,13 +377,13 @@ function FeaturesResult(props: { view: FeaturesView; models: ModelNode[]; onPick
         </table>
       </div>
       <details>
-        <summary className="text-xs text-muted-foreground">Each feature, and what activates it here</summary>
+        <summary className="text-xs text-muted-foreground">{t("Each feature, and what activates it here")}</summary>
         <div className="mt-1 flex flex-col gap-0.5 text-xs">
-          {peaks.map((item) => <div key={item.feature}>{item.feature} <span className="text-muted-foreground">peaks at {item.peak.toFixed(1)}, at {item.tokens.map((token) => JSON.stringify(token)).join(", ")}</span></div>)}
+          {peaks.map((item) => <div key={item.feature}>{item.feature} <span className="text-muted-foreground">{t("peaks at {peak}, at {tokens}", { peak: item.peak.toFixed(1), tokens: item.tokens.map((token) => JSON.stringify(token)).join(", ") })}</span></div>)}
         </div>
       </details>
-      <div className="text-xs text-muted-foreground">A feature here is its number and the tokens above, not a name: a label would be a guess until it is tested. Numbers belong to this SAE on these weights, so features are not compared across models. One prompt is one case, not a measurement.</div>
-      {props.onRecord ? <Button variant="outline" className="w-fit" onClick={() => void props.onRecord?.(featuresText(view, name))}>Record as an observation</Button> : null}
+      <div className="text-xs text-muted-foreground">{t("A feature here is its number and the tokens above, not a name: a label would be a guess until it is tested. Numbers belong to this SAE on these weights, so features are not compared across models. One prompt is one case, not a measurement.")}</div>
+      {props.onRecord ? <Button variant="outline" className="w-fit" onClick={() => void props.onRecord?.(featuresText(view, name))}>{t("Record as an observation")}</Button> : null}
     </>
   );
 }
@@ -397,19 +402,19 @@ function FeatureEffects(props: { view: FeaturesView }) {
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs" aria-label={`The margin of ${expected} over ${alternative}`}>
+        <table className="w-full border-collapse text-xs" aria-label={t("The margin of {expected} over {alternative}", { expected: expected ?? "", alternative: alternative ?? "" })}>
           <thead>
             <tr>
-              <th scope="col" className={HEAD}>Margin of {JSON.stringify(expected)} over {JSON.stringify(alternative)}</th>
-              <th scope="col" className={HEAD}>Margin</th>
-              <th scope="col" className={HEAD}>Change</th>
+              <th scope="col" className={HEAD}>{t("Margin of {expected} over {alternative}", { expected: JSON.stringify(expected), alternative: JSON.stringify(alternative) })}</th>
+              <th scope="col" className={HEAD}>{t("Margin")}</th>
+              <th scope="col" className={HEAD}>{t("Change")}</th>
             </tr>
           </thead>
           <tbody>
-            <tr><th scope="row" className={`${CELL} font-medium`}>The model as it is</th><td className={CELL}>{margins.plain}</td><td className={CELL} /></tr>
-            {row("Unmodified reconstruction spliced in, from the model as it is", margins.spliced, margins.spliceChange)}
-            {ablation ? row(`Feature ${ablation.feature} set to zero (activation up to ${ablation.activation}), from the reconstruction`, ablation.margin, ablation.change) : null}
-            {ablation?.control ? row(`Control: random feature ${ablation.control.feature} set to zero (activation up to ${ablation.control.activation}), from the reconstruction`, ablation.control.margin, ablation.control.change) : null}
+            <tr><th scope="row" className={`${CELL} font-medium`}>{t("The model as it is")}</th><td className={CELL}>{margins.plain}</td><td className={CELL} /></tr>
+            {row(t("Unmodified reconstruction spliced in, from the model as it is"), margins.spliced, margins.spliceChange)}
+            {ablation ? row(t("Feature {feature} set to zero (activation up to {activation}), from the reconstruction", { feature: ablation.feature, activation: ablation.activation }), ablation.margin, ablation.change) : null}
+            {ablation?.control ? row(t("Control: random feature {feature} set to zero (activation up to {activation}), from the reconstruction", { feature: ablation.control.feature, activation: ablation.control.activation }), ablation.control.margin, ablation.control.change) : null}
           </tbody>
         </table>
       </div>
@@ -422,7 +427,7 @@ function FeatureEffects(props: { view: FeaturesView }) {
 function RecordedList(props: { items: Recorded[]; models: ModelNode[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const keyOf = (item: Recorded) => `${item.runId}:${item.key ?? item.recordedAt}`;
-  if (!props.items.length) return <Empty title="Nothing recorded yet">What you and the assistant look at inside a model is kept here, with the run it used.</Empty>;
+  if (!props.items.length) return <Empty title={t("Nothing recorded yet")}>{t("What you and the assistant look at inside a model is kept here, with the run it used.")}</Empty>;
   return (
     <section className="mt-3 flex flex-col gap-0.5 rounded-lg bg-card p-4">
       {props.items.map((item) => {
@@ -430,7 +435,7 @@ function RecordedList(props: { items: Recorded[]; models: ModelNode[] }) {
         return (
           <details key={key} open={open === key} onToggle={(event) => { if (event.currentTarget.open) setOpen(key); else if (open === key) setOpen(null); }}>
             <summary>
-              {KIND_LABELS[item.kind]} <span className="text-xs text-muted-foreground">{describe(item, props.models)} · {item.recordedAt ? new Date(item.recordedAt).toLocaleString() : ""}{item.current === false ? " · by an earlier helper" : ""}</span>
+              {KIND_LABELS[item.kind]} <span className="text-xs text-muted-foreground">{describe(item, props.models)} · {item.recordedAt ? new Date(item.recordedAt).toLocaleString() : ""}{item.current === false ? ` · ${t("by an earlier helper")}` : ""}</span>
             </summary>
             {open === key ? <RecordedItem item={item} models={props.models} /> : null}
           </details>
@@ -442,11 +447,11 @@ function RecordedList(props: { items: Recorded[]; models: ModelNode[] }) {
 
 /** One line on what a recorded look was at. */
 function describe(item: Recorded, models: ModelNode[]): string {
-  if (item.kind === "sweep") return `${modelName(models, item.sourceModelId)} into ${modelName(models, item.targetModelId)}, ${item.samples.length} samples`;
-  if (item.kind === "compare") return `${modelName(models, item.modelId)} against ${modelName(models, item.otherModelId)}`;
+  if (item.kind === "sweep") return t("{source} into {target}, {count} samples", { source: modelName(models, item.sourceModelId), target: modelName(models, item.targetModelId), count: item.samples.length });
+  if (item.kind === "compare") return t("{model} against {other}", { model: modelName(models, item.modelId), other: modelName(models, item.otherModelId) });
   if (item.kind === "prompts") return modelName(models, item.modelId);
-  if (item.kind === "features") return `${modelName(models, item.modelId)}, layer ${item.layer}, ${item.sae.path ?? `${item.sae.release} / ${item.sae.id}`}`;
-  return `${modelName(models, item.modelId)} on ${item.sampleId}`;
+  if (item.kind === "features") return t("{model}, layer {layer}, {sae}", { model: modelName(models, item.modelId), layer: item.layer, sae: item.sae.path ?? `${item.sae.release} / ${item.sae.id}` });
+  return t("{model} on {sample}", { model: modelName(models, item.modelId), sample: item.sampleId });
 }
 
 /** A recorded look, as it was seen. */
@@ -457,7 +462,7 @@ function RecordedItem(props: { item: Recorded; models: ModelNode[] }) {
   if (item.kind === "features") return <FeaturesResult view={item} models={models} />;
   if (item.kind === "sweep") {
     const totals = restoredByLayer(item);
-    return <div className="text-xs text-muted-foreground">Restored of {item.samples.length}, by layer {item.layers.join(", ")}: {totals.join(" ")}. The Experiments screen shows it sample by sample.</div>;
+    return <div className="text-xs text-muted-foreground">{t("Restored of {count}, by layer {layers}: {totals}. The Experiments screen shows it sample by sample.", { count: item.samples.length, layers: item.layers.join(", "), totals: totals.join(" ") })}</div>;
   }
   return <ActivationGrid caption={item.measure} tokens={item.tokens} layers={item.layers} />;
 }

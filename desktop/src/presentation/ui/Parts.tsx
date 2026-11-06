@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { t } from "../../domain/i18n.js";
 import { Tabs as TabsRoot, TabsList, TabsTrigger } from "./base/Tabs.js";
 
 /** A failure's message. */
@@ -8,7 +9,7 @@ export function messageOf(error: unknown): string {
 
 /** What a screen shows while it reads, so that a slow read is not taken for an empty project. */
 export function Loading() {
-  return <p className="mt-3 text-sm text-muted-foreground" role="status">Reading this project's records…</p>;
+  return <p className="mt-3 text-sm text-muted-foreground" role="status">{t("Reading this project's records…")}</p>;
 }
 
 /** What a screen shows when there is nothing yet, and the next thing to do. */
@@ -35,12 +36,12 @@ export function Page(props: { title: string; lead?: ReactNode; children: ReactNo
   );
 }
 
-/** A row of tabs; the panel under it belongs to the caller. */
-export function Tabs<T extends string>(props: { label: string; tabs: readonly T[]; current: T; onChoose: (tab: T) => void; end?: ReactNode }) {
+/** A row of tabs; the panel under it belongs to the caller. Each tab shows its label, or its id when it has none. */
+export function Tabs<T extends string>(props: { label: string; tabs: readonly T[]; labels?: Partial<Record<T, string>>; current: T; onChoose: (tab: T) => void; end?: ReactNode }) {
   return (
     <TabsRoot value={props.current} onValueChange={(tab) => props.onChoose(tab as T)} className="flex-row items-center gap-2">
       <TabsList aria-label={props.label}>
-        {props.tabs.map((tab) => <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>)}
+        {props.tabs.map((tab) => <TabsTrigger key={tab} value={tab}>{props.labels?.[tab] ?? tab}</TabsTrigger>)}
       </TabsList>
       {props.end}
     </TabsRoot>

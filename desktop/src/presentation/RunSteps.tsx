@@ -8,6 +8,7 @@ import {
   type ActionLine,
   type RunStep,
 } from "../domain/conversation";
+import { t } from "../domain/i18n";
 import type { Run, RunAction, RunThought } from "../domain/model";
 import { desktop } from "../application/desktop";
 import { RecordingPlayer } from "./RecordingPlayer";
@@ -78,7 +79,7 @@ export function WaitingSteps(props: { run: Run }) {
   const waiting = runSteps(props.run).filter(isWaitingStep);
   if (!waiting.length) return null;
   return (
-    <div className="flex flex-col gap-1.5" role="group" aria-label="Waiting for your decision">
+    <div className="flex flex-col gap-1.5" role="group" aria-label={t("Waiting for your decision")}>
       {waiting.map((step) => (step.kind === "thought" ? null : <ActionRow key={step.key} runId={props.run.id} action={step.action} />))}
     </div>
   );
@@ -90,11 +91,11 @@ function SubAgentRuns(props: { runs: Run[] }) {
     <div className="my-1 mb-1.5 ml-[22px] flex flex-col gap-1.5">
       {props.runs.map((child) => {
         const busy = child.status === "running" || child.status === "queued" || child.status === "waiting_approval" || child.status === "sleeping";
-        const state = child.status === "waiting_approval" ? "needs your approval" : child.status === "completed" ? "done" : child.status === "failed" ? "failed" : child.status === "cancelled" ? "stopped" : "working";
+        const state = child.status === "waiting_approval" ? t("needs your approval") : child.status === "completed" ? t("done") : child.status === "failed" ? t("failed") : child.status === "cancelled" ? t("stopped") : t("working");
         return (
           <div className={classes("rounded-lg border border-l-2 border-border border-l-input bg-card px-2.5 py-1.5", child.status === "waiting_approval" && "border-l-wait", child.status === "failed" && "border-l-destructive")} key={child.id}>
             <div className="flex min-w-0 items-center gap-2 text-xs">
-              <Badge className="text-[10.5px] tracking-wide uppercase">{child.delegated?.tools === "all" ? "sub-agent" : "sub-agent · read-only"}</Badge>
+              <Badge className="text-[10.5px] tracking-wide uppercase">{child.delegated?.tools === "all" ? t("sub-agent") : t("sub-agent · read-only")}</Badge>
               <span className="min-w-0 flex-1 truncate text-foreground" title={child.delegated?.task ?? child.input}>{child.delegated?.task ?? child.input}</span>
               <span className={classes("text-[11.5px] whitespace-nowrap text-muted-foreground", child.status === "waiting_approval" && "text-wait", child.status === "failed" && "text-destructive", child.status === "completed" && "text-good")}>{state}</span>
             </div>
@@ -113,7 +114,7 @@ function ThoughtRow(props: { thought: RunThought }) {
   return (
     <div className="flex flex-col gap-1">
       <Button variant="ghost" size="small" className={classes(STEP_ROW, "font-medium")} onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-        <span className="shrink-0 text-(--subtle) group-hover/button:text-muted-foreground">{thought.seconds > 0 ? `Thought for ${formatDuration(thought.seconds)}` : "Thought"}</span>
+        <span className="shrink-0 text-(--subtle) group-hover/button:text-muted-foreground">{thought.seconds > 0 ? t("Thought for {duration}", { duration: formatDuration(thought.seconds) }) : t("Thought")}</span>
         <Chevron down={open} />
       </Button>
       {open ? (
@@ -195,7 +196,7 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
     try {
       if (action.id) await desktop.runs.allowAlways(props.runId, action.id, { scope, pattern });
     } catch (reason) {
-      setDecisionError(reason instanceof Error ? reason.message : "Could not save the rule");
+      setDecisionError(reason instanceof Error ? reason.message : t("Could not save the rule"));
       setDeciding(false);
     }
   }
@@ -204,10 +205,10 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
     setRestoring(true);
     try {
       const result = await desktop.runs.restoreTo(props.runId, action.id);
-      setDecisionError(result.files.length ? "" : "Nothing to restore.");
+      setDecisionError(result.files.length ? "" : t("Nothing to restore."));
       window.dispatchEvent(new Event("saturn:changes"));
     } catch (reason) {
-      setDecisionError(reason instanceof Error ? reason.message : "Could not restore");
+      setDecisionError(reason instanceof Error ? reason.message : t("Could not restore"));
     } finally {
       setRestoring(false);
       setConfirmRestore(false);
@@ -220,7 +221,7 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
     try {
       if (action.id) await desktop.runs.decide(props.runId, action.id, allow);
     } catch (reason) {
-      setDecisionError(reason instanceof Error ? reason.message : "Could not send your answer");
+      setDecisionError(reason instanceof Error ? reason.message : t("Could not send your answer"));
       setDeciding(false);
     }
   }
@@ -243,39 +244,39 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
       {props.restorable ? (
         confirmRestore ? (
           <span className="my-1 mb-1.5 ml-7 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>Put the files back to just before this step? Later steps and turns are undone too.</span>
-            <Button variant="danger" size="small" disabled={restoring} onClick={() => void restoreHere()}>Restore</Button>
-            <Button variant="outline" size="small" disabled={restoring} onClick={() => setConfirmRestore(false)}>Cancel</Button>
+            <span>{t("Put the files back to just before this step? Later steps and turns are undone too.")}</span>
+            <Button variant="danger" size="small" disabled={restoring} onClick={() => void restoreHere()}>{t("Restore")}</Button>
+            <Button variant="outline" size="small" disabled={restoring} onClick={() => setConfirmRestore(false)}>{t("Cancel")}</Button>
           </span>
         ) : (
-          <Button variant="outline" size="small" className="my-0.5 mb-1 ml-7 h-5 w-fit px-2 text-[11px] font-normal text-muted-foreground opacity-0 transition-opacity group-hover/step:opacity-100 focus-visible:opacity-100" title="Put the files back to how they were just before this step" onClick={() => setConfirmRestore(true)}>
-            Restore to here
+          <Button variant="outline" size="small" className="my-0.5 mb-1 ml-7 h-5 w-fit px-2 text-[11px] font-normal text-muted-foreground opacity-0 transition-opacity group-hover/step:opacity-100 focus-visible:opacity-100" title={t("Put the files back to how they were just before this step")} onClick={() => setConfirmRestore(true)}>
+            {t("Restore to here")}
           </Button>
         )
       ) : null}
 
       {waiting ? (
-        <Notice tone="wait" role="group" aria-label={`Approve ${action.toolId}?`} className="my-1 mb-1.5 ml-[22px] flex flex-wrap items-center gap-2 border-wait px-2.5 py-2 whitespace-normal">
-          <span className="flex-1 text-[12.5px] text-foreground">Allow {action.toolId} to run?</span>
+        <Notice tone="wait" role="group" aria-label={t("Approve {tool}?", { tool: action.toolId })} className="my-1 mb-1.5 ml-[22px] flex flex-wrap items-center gap-2 border-wait px-2.5 py-2 whitespace-normal">
+          <span className="flex-1 text-[12.5px] text-foreground">{t("Allow {tool} to run?", { tool: action.toolId })}</span>
           {decisionError ? <span className="basis-full text-xs text-destructive">{decisionError}</span> : null}
           <Button variant="ghost" size="small" disabled={deciding} onClick={() => void decide(false)}>
-            Deny
+            {t("Deny")}
           </Button>
           <Button size="small" disabled={deciding} onClick={() => void decide(true)}>
-            Approve
+            {t("Approve")}
           </Button>
           {always ? (
             <form className="flex basis-full flex-wrap items-center gap-1.5 border-t border-border pt-1.5" onSubmit={(event) => { event.preventDefault(); void allowAlways(); }}>
-              <span className="text-xs text-muted-foreground">Allow <code className="font-mono">{action.toolId}</code> matching</span>
-              <Input className="h-7 w-[180px] font-mono text-xs" aria-label="Rule pattern" value={pattern} onChange={(event) => setPattern(event.target.value)} />
-              <span className="text-xs text-muted-foreground">in</span>
-              <Choice ariaLabel="Where the rule applies" className="w-36" triggerClassName="h-7 text-xs" value={scope} options={SCOPE_CHOICES.map((item) => ({ value: item.id, label: item.label }))} onChange={(next) => setScope(next as PermissionScope)} />
-              <Button variant="outline" size="small" type="submit" disabled={deciding || !pattern.trim()}>Save and approve</Button>
-              <Button variant="ghost" size="small" disabled={deciding} onClick={() => setAlways(false)}>Cancel</Button>
+              <span className="text-xs text-muted-foreground">{t("Allow")} <code className="font-mono">{action.toolId}</code> {t("matching")}</span>
+              <Input className="h-7 w-[180px] font-mono text-xs" aria-label={t("Rule pattern")} value={pattern} onChange={(event) => setPattern(event.target.value)} />
+              <span className="text-xs text-muted-foreground">{t("in")}</span>
+              <Choice ariaLabel={t("Where the rule applies")} className="w-36" triggerClassName="h-7 text-xs" value={scope} options={SCOPE_CHOICES.map((item) => ({ value: item.id, label: item.label }))} onChange={(next) => setScope(next as PermissionScope)} />
+              <Button variant="outline" size="small" type="submit" disabled={deciding || !pattern.trim()}>{t("Save and approve")}</Button>
+              <Button variant="ghost" size="small" disabled={deciding} onClick={() => setAlways(false)}>{t("Cancel")}</Button>
             </form>
           ) : (
-            <Button variant="ghost" size="small" disabled={deciding} onClick={() => setAlways(true)} title="Save a rule so calls like this one run without asking">
-              Always allow…
+            <Button variant="ghost" size="small" disabled={deciding} onClick={() => setAlways(true)} title={t("Save a rule so calls like this one run without asking")}>
+              {t("Always allow…")}
             </Button>
           )}
         </Notice>
@@ -291,27 +292,27 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
             className="group/shot relative inline-block max-h-[85px] w-[140px] max-w-[140px] cursor-zoom-in overflow-hidden rounded-md border border-input bg-background shadow-sm transition hover:-translate-y-px hover:shadow-md"
             role="button"
             tabIndex={0}
-            aria-label="View full screenshot"
+            aria-label={t("View full screenshot")}
             onKeyDown={activateOnKey}
             onClick={() => setModalOpen(true)}
-            title="Click to view full screenshot"
+            title={t("Click to view full screenshot")}
           >
             <img
               src={screenshotImg}
-              alt="Computer Screenshot"
+              alt={t("Computer Screenshot")}
               className="block h-[85px] w-full bg-black object-cover"
               loading="lazy"
             />
-            <span className="pointer-events-none absolute right-1 bottom-1 rounded-[3px] bg-black/75 px-[5px] py-px text-[9.5px] font-medium text-white opacity-85 backdrop-blur-xs group-hover/shot:opacity-100">🔍 Zoom</span>
+            <span className="pointer-events-none absolute right-1 bottom-1 rounded-[3px] bg-black/75 px-[5px] py-px text-[9.5px] font-medium text-white opacity-85 backdrop-blur-xs group-hover/shot:opacity-100">🔍 {t("Zoom")}</span>
           </div>
         </div>
       ) : null}
 
       <Dialog open={modalOpen && Boolean(screenshotImg)} onOpenChange={(next) => { if (!next) setModalOpen(false); }}>
         <DialogContent className="w-auto max-w-[90vw] gap-0 overflow-hidden bg-black! p-0 sm:max-w-[90vw]">
-          <DialogTitle className="sr-only">Screenshot</DialogTitle>
-          {screenshotImg ? <img className="block max-h-[90vh] max-w-[90vw] object-contain" src={screenshotImg} alt="Screenshot full view" /> : null}
-          <Button variant="ghost" className="absolute top-2.5 right-2.5 size-8 rounded-full border-white/30 bg-black/60 p-0 text-base text-white hover:bg-black/80 hover:text-white" aria-label="Close screenshot" onClick={() => setModalOpen(false)}>
+          <DialogTitle className="sr-only">{t("Screenshot")}</DialogTitle>
+          {screenshotImg ? <img className="block max-h-[90vh] max-w-[90vw] object-contain" src={screenshotImg} alt={t("Screenshot full view")} /> : null}
+          <Button variant="ghost" className="absolute top-2.5 right-2.5 size-8 rounded-full border-white/30 bg-black/60 p-0 text-base text-white hover:bg-black/80 hover:text-white" aria-label={t("Close screenshot")} onClick={() => setModalOpen(false)}>
             ✕
           </Button>
         </DialogContent>
@@ -321,13 +322,13 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
         <div className="my-1 mb-2 flex flex-col gap-2 rounded-lg border border-border bg-(--code-bg) px-3.5 py-2.5">
           {argsText ? (
             <div className="flex flex-col gap-1">
-              <div className="text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase">Arguments</div>
+              <div className="text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase">{t("Arguments")}</div>
               <pre className={DETAIL_TEXT}>{argsText}</pre>
             </div>
           ) : null}
           {resultText ? (
             <div className="flex flex-col gap-1">
-              <div className="text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase">{action.reason ? "Reason" : "Result"}</div>
+              <div className="text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase">{action.reason ? t("Reason") : t("Result")}</div>
               <pre className={DETAIL_TEXT}>{resultText}</pre>
             </div>
           ) : null}
@@ -350,7 +351,7 @@ function ActionTarget(props: { line: ActionLine }) {
 }
 
 function WorkingRow() {
-  return <div className="inline-flex animate-pulse items-center gap-1.5 px-1 py-[3px] text-[12.5px] font-medium text-muted-foreground">Working</div>;
+  return <div className="inline-flex animate-pulse items-center gap-1.5 px-1 py-[3px] text-[12.5px] font-medium text-muted-foreground">{t("Working")}</div>;
 }
 
 /** Plain reasoning text: blank-line paragraphs, "**Heading**" lines, inline **bold** and `code`. */
@@ -377,8 +378,8 @@ function inline(text: string): ReactNode[] {
 
 function currentLabel(steps: RunStep[]): string {
   const last = steps.at(-1);
-  if (!last) return "Thinking";
-  if (last.kind === "thought") return "Thinking";
+  if (!last) return t("Thinking");
+  if (last.kind === "thought") return t("Thinking");
   const line = actionLine(last.action);
   return [line.verb, line.target].filter(Boolean).join(" ");
 }
@@ -388,18 +389,18 @@ function doneLabel(steps: RunStep[]): string {
   const actions = steps.length - thoughts.length;
   const seconds = thoughts.reduce((sum, step) => sum + step.thought.seconds, 0);
   const parts: string[] = [];
-  if (thoughts.length) parts.push(seconds > 0 ? `Thought for ${formatDuration(seconds)}` : "Thought");
-  if (actions) parts.push(`${actions} tool call${actions === 1 ? "" : "s"}`);
+  if (thoughts.length) parts.push(seconds > 0 ? t("Thought for {duration}", { duration: formatDuration(seconds) }) : t("Thought"));
+  if (actions) parts.push(actions === 1 ? t("1 tool call") : t("{count} tool calls", { count: actions }));
   return parts.join(" · ");
 }
 
 function statusTag(status: string, reason?: string): { label: string; tone: string } | null {
-  if (status === "failed") return { label: "Failed", tone: "failed" };
+  if (status === "failed") return { label: t("Failed"), tone: "failed" };
   // An Ask or Plan turn refuses its own writes: not a failure, the mode working as meant.
-  if (status === "denied" && reason?.includes("mode only reads")) return { label: "Skipped (read-only mode)", tone: "waiting" };
-  if (status === "denied") return { label: "Denied", tone: "failed" };
-  if (status === "waiting_approval") return { label: "Waiting for approval", tone: "waiting" };
-  if (status === "sleeping") return { label: "Waiting", tone: "waiting" };
+  if (status === "denied" && reason?.includes("mode only reads")) return { label: t("Skipped (read-only mode)"), tone: "waiting" };
+  if (status === "denied") return { label: t("Denied"), tone: "failed" };
+  if (status === "waiting_approval") return { label: t("Waiting for approval"), tone: "waiting" };
+  if (status === "sleeping") return { label: t("Waiting"), tone: "waiting" };
   return null;
 }
 

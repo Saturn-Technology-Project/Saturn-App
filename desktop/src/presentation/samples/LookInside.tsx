@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import type { ActivationView, ModelNode } from "../../domain/research.js";
 import { Button } from "../ui/base/Button.js";
 import { Choice, Field } from "../ui/base/Field.js";
@@ -33,7 +34,7 @@ export function LookInside(props: { projectId: string; runId: string; sampleId: 
   const [layer, setLayer] = useState("6");
   const nameOf = (id: string | null) => {
     const model = models.find((item) => item.id === id);
-    return model ? model.name || model.source : "the run's model";
+    return model ? model.name || model.source : t("the run's model");
   };
 
   async function compare() {
@@ -61,32 +62,32 @@ export function LookInside(props: { projectId: string; runId: string; sampleId: 
 
   return (
     <div className="flex flex-col gap-2 py-2.5">
-      <div className="text-xs text-muted-foreground">Runs with the Python the experiment's command names, in float32. The result is saved with the run and answered from there when asked again.</div>
+      <div className="text-xs text-muted-foreground">{t("Runs with the Python the experiment's command names, in float32. The result is saved with the run and answered from there when asked again.")}</div>
       <div className="flex flex-wrap items-end gap-2">
         {candidates.length > 1 ? (
-          <Choice label="Model" className="flex-[0_1_160px]" value={modelId ?? ""} options={candidates.map((id) => ({ value: id, label: nameOf(id) }))} onChange={(chosen) => { setModelId(chosen || null); setAnswer(null); }} />
+          <Choice label={t("Model")} className="flex-[0_1_160px]" value={modelId ?? ""} options={candidates.map((id) => ({ value: id, label: nameOf(id) }))} onChange={(chosen) => { setModelId(chosen || null); setAnswer(null); }} />
         ) : null}
         <Button variant="outline" disabled={busy} onClick={() => void compare()}>
-          {busy ? "Running…" : "Read activations at every layer"}
+          {busy ? t("Running…") : t("Read activations at every layer")}
         </Button>
       </div>
       <div className="flex flex-wrap items-end gap-2">
-        <Field label="Patch layer" className="flex-[0_1_160px]">
+        <Field label={t("Patch layer")} className="flex-[0_1_160px]">
           <Input value={layer} inputMode="numeric" onChange={(event) => setLayer(event.target.value.replace(/\D/g, ""))} />
         </Field>
-        <Choice label="From" className="flex-[0_1_160px]" placeholder="Choose a model" value={source} options={models.filter((model) => model.id !== modelId).map((model) => ({ value: model.id, label: model.name || model.source }))} onChange={setSource} />
+        <Choice label={t("Patch from")} className="flex-[0_1_160px]" placeholder={t("Choose a model")} value={source} options={models.filter((model) => model.id !== modelId).map((model) => ({ value: model.id, label: model.name || model.source }))} onChange={setSource} />
         <Button variant="outline" disabled={busy || !source || !modelId || !layer} onClick={() => void patch()}>
-          Patch into {nameOf(modelId)}
+          {t("Patch into {model}", { model: nameOf(modelId) })}
         </Button>
       </div>
       {answer?.kind === "unavailable" ? <Notice tone="wait">{answer.reason}</Notice> : null}
       {answer?.kind === "view" ? (
         <>
-          <ActivationGrid caption={`${answer.view.measure}, layer by token${answer.view.top !== undefined ? `; the model ends on ${JSON.stringify(answer.view.top)}` : ""}`} tokens={answer.view.tokens} layers={answer.view.layers} />
+          <ActivationGrid caption={answer.view.top !== undefined ? t("{measure}, layer by token; the model ends on {top}", { measure: answer.view.measure, top: JSON.stringify(answer.view.top) }) : t("{measure}, layer by token", { measure: answer.view.measure })} tokens={answer.view.tokens} layers={answer.view.layers} />
           {answer.view.patched ? (
-            <ActivationGrid caption={`The same with the residual stream after layer ${answer.view.patched.layer} taken from ${nameOf(answer.view.patched.sourceModelId)}, so layers up to ${answer.view.patched.layer} are its and the rest stay; it then ends on ${JSON.stringify(answer.view.patched.top)}`} tokens={answer.view.tokens} layers={answer.view.patched.layers} />
+            <ActivationGrid caption={t("The same with the residual stream after layer {layer} taken from {source}, so layers up to {layer} are its and the rest stay; it then ends on {top}", { layer: answer.view.patched.layer, source: nameOf(answer.view.patched.sourceModelId), top: JSON.stringify(answer.view.patched.top) })} tokens={answer.view.tokens} layers={answer.view.patched.layers} />
           ) : null}
-          {answer.view.recordedAt ? <div className="text-xs text-muted-foreground">Recorded {new Date(answer.view.recordedAt).toLocaleString()} and kept with the run.</div> : null}
+          {answer.view.recordedAt ? <div className="text-xs text-muted-foreground">{t("Recorded {when} and kept with the run.", { when: new Date(answer.view.recordedAt).toLocaleString() })}</div> : null}
         </>
       ) : null}
     </div>
@@ -104,7 +105,7 @@ export function ActivationGrid(props: { caption: string; tokens: string[]; layer
         <table className="w-full border-collapse text-xs" aria-label={props.caption}>
           <thead>
             <tr>
-              <th scope="col" className="px-1 py-0.5 text-center font-medium whitespace-nowrap text-muted-foreground">Layer</th>
+              <th scope="col" className="px-1 py-0.5 text-center font-medium whitespace-nowrap text-muted-foreground">{t("Layer")}</th>
               {view.tokens.map((token, index) => (
                 <th scope="col" key={`${index}-${token}`} className="px-1 py-0.5 text-center font-medium whitespace-nowrap text-muted-foreground">
                   <code>{token}</code>
@@ -120,7 +121,7 @@ export function ActivationGrid(props: { caption: string; tokens: string[]; layer
                   // No further from zero than the control went, so it says nothing: an outline, not a fill.
                   const quiet = props.quietAtOrBelow !== undefined && Math.abs(value) <= props.quietAtOrBelow;
                   return (
-                    <td key={index} title={`layer ${row.layer}, ${view.tokens[index] ?? index}: ${value.toFixed(3)}`} className="border-t border-border px-1 py-0.5 text-center align-top">
+                    <td key={index} title={t("layer {layer}, {token}: {value}", { layer: row.layer, token: view.tokens[index] ?? index, value: value.toFixed(3) })} className="border-t border-border px-1 py-0.5 text-center align-top">
                       <span
                         className={classes("inline-block size-[18px] rounded-[3px] bg-primary", props.signed && value < 0 && "bg-destructive", props.signed && value >= 0 && "bg-info", quiet && "border border-input bg-transparent")}
                         role="img"

@@ -1,5 +1,6 @@
 // What the runtime says about a project's data files, and how the Data screen words it. A name is not proof, and an overlap
 // finds exact duplicates only, so what is said here never claims more than that.
+import { t } from "./i18n.ts";
 
 /** How a run reads against a file as test data: by its version's declared split, by the file's name, or the two at odds. */
 export type TestRead = "declared" | "name" | "conflict";
@@ -129,11 +130,11 @@ export interface DataOverlap {
 
 /** Where a file stands, in a word, and what color that word is. Color marks only what needs looking at. */
 export function dataFileState(file: DataFile): { label: string; tone: "neutral" | "wait" | "bad" } {
-  if (file.problem) return { label: "Refused", tone: "bad" };
-  if (!file.exists) return { label: "Missing", tone: "bad" };
-  if (file.changed) return { label: "Changed since frozen", tone: "wait" };
-  if (file.frozen) return { label: "As frozen", tone: "neutral" };
-  return { label: "Not frozen", tone: "neutral" };
+  if (file.problem) return { label: t("Refused"), tone: "bad" };
+  if (!file.exists) return { label: t("Missing"), tone: "bad" };
+  if (file.changed) return { label: t("Changed since frozen"), tone: "wait" };
+  if (file.frozen) return { label: t("As frozen"), tone: "neutral" };
+  return { label: t("Not frozen"), tone: "neutral" };
 }
 
 /** Whether a format is read by the helper in the project's Python, which needs `datasets`. */
@@ -146,27 +147,34 @@ export function isReadable(file: DataFile): boolean {
   return file.exists && !file.problem && file.format !== "other";
 }
 
-/** A count with its noun, and an s when it takes one. */
-function counted(count: number, noun: string): string {
-  return `${count.toLocaleString("en-US")} ${noun}${count === 1 ? "" : "s"}`;
+/** A count as the tables write it. */
+function countText(count: number): string {
+  return count.toLocaleString("en-US");
+}
+
+/** A number of rows, in words. */
+function rowsText(count: number): string {
+  return count === 1 ? t("1 row") : t("{count} rows", { count: countText(count) });
 }
 
 /** What the list says about how a file was read as test data. */
 export function testReadSummary(file: DataFile): string {
   if (file.testReads > 0) {
     const declared = file.runs.filter((run) => run.testRead === "declared").length;
-    const reads = counted(file.testReads, "run");
-    return declared === file.testReads ? `${reads}, declared test` : `${reads}, ${declared ? "partly by name" : "by name only"}`;
+    const reads = file.testReads === 1 ? t("1 run") : t("{count} runs", { count: countText(file.testReads) });
+    if (declared === file.testReads) return t("{reads}, declared test", { reads });
+    return declared ? t("{reads}, partly by name", { reads }) : t("{reads}, by name only", { reads });
   }
-  return file.looksLikeTest ? "Name looks like test, no runs" : "";
+  return file.looksLikeTest ? t("Name looks like test, no runs") : "";
 }
 
 /** What one run says about a file being test data, plainly about how much that is worth. */
 export function testReadText(run: DataRun): string {
-  if (run.testRead === "declared") return `Its version declares the split "${run.split}".`;
-  if (run.testRead === "conflict") return `Its version declares the split "${run.split}", but the file's name looks like a test split. One of them is wrong.`;
-  if (run.testRead === "name") return "No split declared. The file's name looks like a test split, which is not proof.";
-  return run.split ? `Its version declares the split "${run.split}".` : "No split declared, and the name does not look like a test split.";
+  const split = run.split ?? "";
+  if (run.testRead === "declared") return t("Its version declares the split \"{split}\".", { split });
+  if (run.testRead === "conflict") return t("Its version declares the split \"{split}\", but the file's name looks like a test split. One of them is wrong.", { split });
+  if (run.testRead === "name") return t("No split declared. The file's name looks like a test split, which is not proof.");
+  return run.split ? t("Its version declares the split \"{split}\".", { split }) : t("No split declared, and the name does not look like a test split.");
 }
 
 /** The columns of a page: what the header names, then whatever else its rows have, in the order they come. */
@@ -204,15 +212,15 @@ function shortNumber(value: number): string {
 
 /** How many different values a column has, saying when that is only the least there are. */
 export function distinctText(column: Pick<DataColumn, "distinct" | "distinctCapped">): string {
-  return column.distinctCapped ? `at least ${column.distinct.toLocaleString("en-US")}` : column.distinct.toLocaleString("en-US");
+  return column.distinctCapped ? t("at least {count}", { count: countText(column.distinct) }) : countText(column.distinct);
 }
 
 /** A column's range of values or lengths, in words. */
 export function spanText(column: Pick<DataColumn, "range" | "lengths">): string {
-  const span = (low: number, high: number) => (low === high ? shortNumber(low) : `${shortNumber(low)} to ${shortNumber(high)}`);
+  const span = (low: number, high: number) => (low === high ? shortNumber(low) : t("{low} to {high}", { low: shortNumber(low), high: shortNumber(high) }));
   const parts: string[] = [];
   if (column.range) parts.push(span(column.range.min, column.range.max));
-  if (column.lengths) parts.push(`${span(column.lengths.min, column.lengths.max)} characters`);
+  if (column.lengths) parts.push(t("{span} characters", { span: span(column.lengths.min, column.lengths.max) }));
   return parts.join("; ");
 }
 
@@ -228,24 +236,39 @@ export function sideName(side: Pick<DataOverlapSide, "path" | "split">): string 
 
 /** What an overlap found, in one sentence, saying when its counts are only the least there are. */
 export function overlapText(view: DataOverlap): string {
-  const least = view.capped ? "at least " : "";
-  const compared = view.comparedBy === "columns" ? ` by ${view.columns.join(", ")}` : "";
+  const least = (count: string) => (view.capped ? t("at least {count}", { count }) : count);
+  const columns = view.columns.join(", ");
+  const byColumns = view.comparedBy === "columns";
   if (view.left.inBoth === 0 && view.right.inBoth === 0) {
-    return `${view.capped ? "None found so far" : "No identical rows"}${compared}: ${counted(view.left.rows, "row")} and ${counted(view.right.rows, "row")} compared.`;
+    const compared = { left: rowsText(view.left.rows), right: rowsText(view.right.rows), columns };
+    if (view.capped) return byColumns ? t("None found so far by {columns}: {left} and {right} compared.", compared) : t("None found so far: {left} and {right} compared.", compared);
+    return byColumns ? t("No identical rows by {columns}: {left} and {right} compared.", compared) : t("No identical rows: {left} and {right} compared.", compared);
   }
-  return `${least}${counted(view.left.inBoth, "row")} of ${view.left.rows.toLocaleString("en-US")} in ${sideName(view.left)} and ${least}${view.right.inBoth.toLocaleString("en-US")} of ${view.right.rows.toLocaleString("en-US")} in ${sideName(view.right)} are identical${compared}, ${least}${counted(view.sharedDistinct, "different row")} in all.`;
+  const found = {
+    left: least(rowsText(view.left.inBoth)),
+    leftRows: countText(view.left.rows),
+    leftName: sideName(view.left),
+    right: least(countText(view.right.inBoth)),
+    rightRows: countText(view.right.rows),
+    rightName: sideName(view.right),
+    shared: least(view.sharedDistinct === 1 ? t("1 different row") : t("{count} different rows", { count: countText(view.sharedDistinct) })),
+    columns,
+  };
+  return byColumns
+    ? t("{left} of {leftRows} in {leftName} and {right} of {rightRows} in {rightName} are identical by {columns}, {shared} in all.", found)
+    : t("{left} of {leftRows} in {leftName} and {right} of {rightRows} in {rightName} are identical, {shared} in all.", found);
 }
 
 /** What could not be compared in an overlap, or nothing when everything was. */
 export function overlapLeftOut(view: DataOverlap): string {
   const side = (item: DataOverlapSide) => {
     const parts = [
-      item.malformed ? `${counted(item.malformed, "malformed row")}` : "",
-      item.tooLong ? `${counted(item.tooLong, "row")} too long` : "",
-      item.withoutColumns ? `${counted(item.withoutColumns, "row")} without those columns` : "",
+      item.malformed ? (item.malformed === 1 ? t("1 malformed row") : t("{count} malformed rows", { count: countText(item.malformed) })) : "",
+      item.tooLong ? t("{rows} too long", { rows: rowsText(item.tooLong) }) : "",
+      item.withoutColumns ? t("{rows} without those columns", { rows: rowsText(item.withoutColumns) }) : "",
     ].filter(Boolean);
     return parts.length ? `${sideName(item)}: ${parts.join(", ")}` : "";
   };
-  const parts = [side(view.left), side(view.right), view.capped ? "The first file had more different rows than are remembered, so the counts are the least there are" : ""].filter(Boolean);
-  return parts.length ? `Left out of the comparison. ${parts.join(". ")}.` : "";
+  const parts = [side(view.left), side(view.right), view.capped ? t("The first file had more different rows than are remembered, so the counts are the least there are") : ""].filter(Boolean);
+  return parts.length ? t("Left out of the comparison. {parts}.", { parts: parts.join(". ") }) : "";
 }

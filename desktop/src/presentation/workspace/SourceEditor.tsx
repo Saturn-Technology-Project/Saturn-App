@@ -4,6 +4,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
+import { t } from "../../domain/i18n.js";
 
 const editorTheme = EditorView.theme({
   "&": { height: "100%", backgroundColor: "var(--stage)", color: "var(--fg)", fontSize: "13px" },
@@ -83,7 +84,7 @@ export function SourceEditor(props: {
             );
           }
         }),
-        EditorView.contentAttributes.of({ "aria-label": props.label ?? "Source file" }),
+        EditorView.contentAttributes.of({ "aria-label": props.label ?? t("Source file") }),
       ],
     });
     return () => view.destroy();

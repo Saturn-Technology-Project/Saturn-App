@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "../domain/i18n.js";
 import { Button } from "./ui/base/Button.js";
 
 /** A reply with fenced code blocks shown as copyable snippets. */
@@ -29,9 +30,9 @@ function CodeSnippet(props: { lang: string; code: string }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-(--code-bg)">
       <div className="flex items-center justify-between border-b border-border px-2.5 py-1.5 text-[11px] text-muted-foreground">
-        <span>{props.lang || "code"}</span>
+        <span>{props.lang || t("code")}</span>
         <Button variant="ghost" size="small" className="h-5 px-1.5 text-[11px] text-muted-foreground" onClick={copy}>
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("Copied") : t("Copy")}
         </Button>
       </div>
       <pre className="overflow-x-auto px-3 py-2.5 text-[12.5px] leading-normal">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop";
+import { t } from "../../domain/i18n";
 import { Badge } from "../ui/base/Badge.js";
 import { Button } from "../ui/base/Button.js";
 import { classes } from "../ui/base/classes.js";
@@ -8,8 +9,8 @@ type Which = "accessibility" | "screenRecording";
 type Status = { platform: string; required: boolean; accessibility: boolean; screenRecording: boolean; error?: string };
 
 const ROWS: { which: Which; label: string; detail: string }[] = [
-  { which: "accessibility", label: "Accessibility", detail: "Lets agents click, type and read what is on screen." },
-  { which: "screenRecording", label: "Screen Recording", detail: "Lets agents take screenshots to see what they are doing." },
+  { which: "accessibility", label: t("Accessibility"), detail: t("Lets agents click, type and read what is on screen.") },
+  { which: "screenRecording", label: t("Screen Recording"), detail: t("Lets agents take screenshots to see what they are doing.") },
 ];
 
 /**
@@ -40,7 +41,7 @@ export function ComputerPermissions(props: { compact?: boolean }) {
   }, [asked]);
 
   if (status && !status.required) {
-    return <p className="text-[12.5px] text-muted-foreground">Nothing to grant on {status.platform === "win32" ? "Windows" : "this system"}: agents can take screenshots and control apps already.</p>;
+    return <p className="text-[12.5px] text-muted-foreground">{status.platform === "win32" ? t("Nothing to grant on Windows: agents can take screenshots and control apps already.") : t("Nothing to grant on this system: agents can take screenshots and control apps already.")}</p>;
   }
   return (
     <ul className={classes("m-0 flex list-none flex-col p-0", props.compact && "gap-2")}>
@@ -57,11 +58,11 @@ export function ComputerPermissions(props: { compact?: boolean }) {
             <strong className={classes("col-start-1 text-[13px]", !props.compact && "font-medium")}>{row.label}</strong>
             <span className="col-start-1 row-start-2 text-xs text-muted-foreground">{row.detail}</span>
             {granted ? (
-              <Badge tone="good" className="col-start-2 row-span-2 row-start-1 text-[13px] font-semibold">✓ allowed</Badge>
+              <Badge tone="good" className="col-start-2 row-span-2 row-start-1 text-[13px] font-semibold">✓ {t("allowed")}</Badge>
             ) : (
               <span className="col-start-2 row-span-2 row-start-1 inline-flex flex-wrap justify-end gap-1.5">
-                <Button type="button" variant="outline" size="small" onClick={() => { setAsked(true); void requestPermission(row.which); }}>Request</Button>
-                <Button type="button" variant="outline" size="small" onClick={() => void desktop.admin.openPermissionPane(row.which)}>Open System Settings</Button>
+                <Button type="button" variant="outline" size="small" onClick={() => { setAsked(true); void requestPermission(row.which); }}>{t("Request")}</Button>
+                <Button type="button" variant="outline" size="small" onClick={() => void desktop.admin.openPermissionPane(row.which)}>{t("Open System Settings")}</Button>
               </span>
             )}
           </li>

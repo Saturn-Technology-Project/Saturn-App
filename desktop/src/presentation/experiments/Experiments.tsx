@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import {
   comparisonText,
   DEFAULT_LABELS,
@@ -46,15 +47,19 @@ import { ResearchBundle } from "./ResearchBundle.js";
 
 const service = desktop.research;
 const FIELD_LABELS: Record<(typeof EVALUATION_FIELD_NAMES)[number], string> = {
-  dataset: "Dataset",
-  split: "Split",
-  sampleSet: "Sample set",
-  scorer: "Scorer",
-  promptFormat: "Prompt format",
-  chatTemplate: "Chat template (empty for none)",
+  dataset: t("Dataset"),
+  split: t("Split"),
+  sampleSet: t("Sample set"),
+  scorer: t("Scorer"),
+  promptFormat: t("Prompt format"),
+  chatTemplate: t("Chat template (empty for none)"),
 };
-const FINDING_LABELS: Record<FindingKind, string> = { observation: "Observation", ai_suggestion: "AI suggestion", conclusion: "Conclusion" };
+const FINDING_LABELS: Record<FindingKind, string> = { observation: t("Observation"), ai_suggestion: t("AI suggestion"), conclusion: t("Conclusion") };
 const VERDICTS: Verdict[] = ["undecided", "supported", "refuted", "inconclusive"];
+/** A verdict's word, as it is shown. */
+const VERDICT_LABELS: Record<Verdict, string> = { undecided: t("Undecided"), supported: t("Supported"), refuted: t("Refuted"), inconclusive: t("Inconclusive") };
+/** A model's role in an experiment, as it is shown. */
+const ROLE_LABELS: Record<ModelRole, string> = { base: t("Base"), reference: t("Reference"), policy: t("Policy") };
 /** Which badge tone marks a finding: an AI suggestion stands apart, and a conclusion is the person's. */
 const FINDING_TONES: Record<FindingKind, "neutral" | "accent" | "violet"> = { observation: "neutral", ai_suggestion: "violet", conclusion: "accent" };
 /** The color of a verdict's word; the word itself always says it too. */
@@ -160,7 +165,7 @@ export function Experiments(props: ScreenProps) {
     if (!draft) return;
     try {
       const version = await service.freeze(projectId, draft.id);
-      props.notify(`Version ${version.number} frozen. The next run uses it.`);
+      props.notify(t("Version {number} frozen. The next run uses it.", { number: version.number }));
       await refresh();
     } catch (error) {
       props.notify(messageOf(error));
@@ -212,57 +217,57 @@ export function Experiments(props: ScreenProps) {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-[920px] px-6 py-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h1 className="text-(length:--text-title) font-semibold">Experiments</h1>
+        <h1 className="text-(length:--text-title) font-semibold">{t("Experiments")}</h1>
         {draft ? (
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" data-tour="experiments-export" onClick={() => void exportRecord()}>Export summary JSON</Button>
-            <Button data-tour="experiments-freeze" onClick={() => void freeze()}>New version</Button>
+            <Button variant="outline" data-tour="experiments-export" onClick={() => void exportRecord()}>{t("Export summary JSON")}</Button>
+            <Button data-tour="experiments-freeze" onClick={() => void freeze()}>{t("New version")}</Button>
           </div>
         ) : null}
       </div>
-      {exported ? <Notice tone="good" className="my-2">Written to {exported} in the project.</Notice> : null}
+      {exported ? <Notice tone="good" className="my-2">{t("Written to {path} in the project.", { path: exported })}</Notice> : null}
       <ImportResults projectId={projectId} onImported={(id) => { setSelected(id); void refresh(); }} notify={props.notify} />
       <ResearchBundle projectId={projectId} notify={props.notify} go={props.go} onImported={() => void refresh()} />
       <ComparisonPanel projectId={projectId} runs={value?.runs ?? []} notify={props.notify} go={props.go} />
       {draft ? <RemoteRun projectId={projectId} versions={versions} notify={props.notify} onStarted={() => void refresh()} /> : null}
       <Artifacts key={newest?.id ?? projectId} projectId={projectId} runId={newest?.id} notify={props.notify} go={props.go} />
-      {draft ? <Choice label="Output contract for the next version" className="my-3 max-w-72" value={draft.kind ?? "evaluation"} options={[{ value: "evaluation", label: "Scored evaluation samples" }, { value: "training", label: "Training metrics (samples optional)" }]} onChange={(kind) => void change({ kind: kind as "evaluation" | "training" })} /> : null}
+      {draft ? <Choice label={t("Output contract for the next version")} className="my-3 max-w-72" value={draft.kind ?? "evaluation"} options={[{ value: "evaluation", label: t("Scored evaluation samples") }, { value: "training", label: t("Training metrics (samples optional)") }]} onChange={(kind) => void change({ kind: kind as "evaluation" | "training" })} /> : null}
       {!value ? <Loading /> : null}
-      {value && drafts.length === 0 ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Running a command in the workspace creates the first experiment.</p> : null}
+      {value && drafts.length === 0 ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("Running a command in the workspace creates the first experiment.")}</p> : null}
       {drafts.length > 1 ? drafts.map((item) => (
         <Button key={item.id} variant={item.id === draft?.id ? "soft" : "ghost"} aria-pressed={item.id === draft?.id} className="h-auto min-h-8 w-full justify-start gap-3 py-1 text-left" title={item.command} onClick={() => setSelected(item.id)}>
           <strong className="max-w-[55%] shrink-0 truncate">{item.title}</strong>
-          {item.imported ? <Badge tone="wait" className="shrink-0">Imported</Badge> : null}
+          {item.imported ? <Badge tone="wait" className="shrink-0">{t("Imported")}</Badge> : null}
           <code className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{item.command}</code>
         </Button>
       )) : null}
       {draft ? (
         <>
           <div className="mt-3 mb-4 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2" data-tour="experiments-links">
-            <Choice label="Question" className={STAT} value={draft.questionId ?? NOT_SET} options={[{ value: NOT_SET, label: "Not set" }, ...(value?.questions ?? []).map((item: Question) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ questionId: chosen === NOT_SET ? undefined : chosen })} />
-            <Choice label="Hypothesis" className={STAT} value={draft.hypothesisId ?? NOT_SET} options={[{ value: NOT_SET, label: "Not set" }, ...(value?.hypotheses ?? []).map((item: Hypothesis) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ hypothesisId: chosen === NOT_SET ? undefined : chosen })} />
-            <div className={classes(STAT, "ring-1 ring-input")}><span className={MUTED}>Experiment</span><strong>{versions.length ? `v${versions.at(-1)?.number} frozen` : "Not frozen yet"}</strong></div>
-            <div className={STAT}><span className={MUTED}>Runs</span><strong>{runs.length}</strong></div>
-            <div className={STAT}><span className={MUTED}>Evidence</span><strong>{sources ? `${sources.scored} samples` : "None yet"}</strong></div>
-            <div className={STAT}><span className={MUTED}>Findings</span><strong>{findings.length ? `${findings.length}, ${findings.some((item) => item.kind === "conclusion") ? "concluded" : "no conclusion"}` : "None"}</strong></div>
+            <Choice label={t("Question")} className={STAT} value={draft.questionId ?? NOT_SET} options={[{ value: NOT_SET, label: t("Not set") }, ...(value?.questions ?? []).map((item: Question) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ questionId: chosen === NOT_SET ? undefined : chosen })} />
+            <Choice label={t("Hypothesis")} className={STAT} value={draft.hypothesisId ?? NOT_SET} options={[{ value: NOT_SET, label: t("Not set") }, ...(value?.hypotheses ?? []).map((item: Hypothesis) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ hypothesisId: chosen === NOT_SET ? undefined : chosen })} />
+            <div className={classes(STAT, "ring-1 ring-input")}><span className={MUTED}>{t("Experiment")}</span><strong>{versions.length ? t("v{number} frozen", { number: versions.at(-1)?.number ?? "" }) : t("Not frozen yet")}</strong></div>
+            <div className={STAT}><span className={MUTED}>{t("Runs")}</span><strong>{runs.length}</strong></div>
+            <div className={STAT}><span className={MUTED}>{t("Evidence")}</span><strong>{sources ? t("{count} samples", { count: sources.scored }) : t("None yet")}</strong></div>
+            <div className={STAT}><span className={MUTED}>{t("Findings")}</span><strong>{findings.length ? (findings.some((item) => item.kind === "conclusion") ? t("{count}, concluded", { count: findings.length }) : t("{count}, no conclusion", { count: findings.length })) : t("None")}</strong></div>
           </div>
 
           <div className={CARDS}>
             <Card className={CARD}>
-              <div className={MUTED}>Execution</div>
-              <strong className={HEADLINE}>{newest ? runStatusLabel(newest.status) : runs.length ? runStatusLabel(runs.at(-1)!.status) : "Not run"}</strong>
-              <div className={MUTED}>{finished.length} of {runs.length} runs have results. Execution says nothing about whether the hypothesis holds.</div>
+              <div className={MUTED}>{t("Execution")}</div>
+              <strong className={HEADLINE}>{newest ? runStatusLabel(newest.status) : runs.length ? runStatusLabel(runs.at(-1)!.status) : t("Not run")}</strong>
+              <div className={MUTED}>{t("{finished} of {count} runs have results. Execution says nothing about whether the hypothesis holds.", { finished: finished.length, count: runs.length })}</div>
             </Card>
             <Card className={classes(CARD, hypothesis?.verdict === "undecided" && "ring-1 ring-wait")}>
-              <div className={MUTED}>Hypothesis</div>
+              <div className={MUTED}>{t("Hypothesis")}</div>
               {hypothesis ? (
                 <>
-                  <strong className={classes(HEADLINE, VERDICT_TEXT[hypothesis.verdict])}>{hypothesis.verdict[0].toUpperCase() + hypothesis.verdict.slice(1)}</strong>
+                  <strong className={classes(HEADLINE, VERDICT_TEXT[hypothesis.verdict])}>{VERDICT_LABELS[hypothesis.verdict]}</strong>
                   <div className={MUTED}>{hypothesis.title}</div>
-                  <Choice label="Only you set this" className="max-w-[220px]" value={hypothesis.verdict} options={VERDICTS.map((verdict) => ({ value: verdict, label: verdict[0].toUpperCase() + verdict.slice(1) }))} onChange={(chosen) => void service.setVerdict(projectId, hypothesis, chosen as Verdict).then(refresh).catch((error: unknown) => props.notify(messageOf(error)))} />
+                  <Choice label={t("Only you set this")} className="max-w-[220px]" value={hypothesis.verdict} options={VERDICTS.map((verdict) => ({ value: verdict, label: VERDICT_LABELS[verdict] }))} onChange={(chosen) => void service.setVerdict(projectId, hypothesis, chosen as Verdict).then(refresh).catch((error: unknown) => props.notify(messageOf(error)))} />
                 </>
               ) : (
-                <div className={MUTED}>Choose the hypothesis this experiment tests, above.</div>
+                <div className={MUTED}>{t("Choose the hypothesis this experiment tests, above.")}</div>
               )}
             </Card>
           </div>
@@ -272,26 +277,26 @@ export function Experiments(props: ScreenProps) {
 
           {sources && newest ? (
             <>
-              <h2 className={SECTION} data-tour="experiments-sources">Where the score comes from</h2>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">The newest run with results, {newest.id}.</p>
+              <h2 className={SECTION} data-tour="experiments-sources">{t("Where the score comes from")}</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("The newest run with results, {run}.", { run: newest.id })}</p>
               <div className={CARDS}>
                 <button type="button" className={SOURCE} onClick={() => toSamples("all")}>
-                  <strong>Model behavior</strong>
-                  <span className={MUTED}>{sources.scored} samples the scorer judged</span>
+                  <strong>{t("Model behavior")}</strong>
+                  <span className={MUTED}>{t("{count} samples the scorer judged", { count: sources.scored })}</span>
                 </button>
                 <button type="button" className={classes(SOURCE, sources.disputed > 0 && "ring-1 ring-wait")} onClick={() => toSamples("disputed")}>
-                  <strong>Scorer in question</strong>
-                  <span className={MUTED}>{sources.reviewed ? `${sources.disputed} of ${sources.reviewed} reviewed disagree with the scorer` : "Nothing reviewed yet"}</span>
+                  <strong>{t("Scorer in question")}</strong>
+                  <span className={MUTED}>{sources.reviewed ? t("{disputed} of {reviewed} reviewed disagree with the scorer", { disputed: sources.disputed, reviewed: sources.reviewed }) : t("Nothing reviewed yet")}</span>
                 </button>
                 <button type="button" className={SOURCE} onClick={() => toSamples("errors")}>
-                  <strong>Errors</strong>
-                  <span className={MUTED}>{sources.infrastructure} infrastructure, excluded{sources.otherErrors ? `; ${sources.otherErrors} model or scorer` : ""}</span>
+                  <strong>{t("Errors")}</strong>
+                  <span className={MUTED}>{sources.otherErrors ? t("{count} infrastructure, excluded; {other} model or scorer", { count: sources.infrastructure, other: sources.otherErrors }) : t("{count} infrastructure, excluded", { count: sources.infrastructure })}</span>
                 </button>
               </div>
             </>
           ) : null}
 
-          <h2 className={SECTION}>Does the mechanism change too?</h2>
+          <h2 className={SECTION}>{t("Does the mechanism change too?")}</h2>
           <Mechanism
             projectId={projectId}
             run={newest}
@@ -308,12 +313,12 @@ export function Experiments(props: ScreenProps) {
             }}
           />
 
-          <h2 className={SECTION}>Findings</h2>
+          <h2 className={SECTION}>{t("Findings")}</h2>
           <div className="my-2 flex flex-wrap gap-1.5">
-            {findings.length === 0 ? <span className={MUTED}>None linked to this experiment's runs yet.</span> : null}
+            {findings.length === 0 ? <span className={MUTED}>{t("None linked to this experiment's runs yet.")}</span> : null}
             {findings.map((finding: Finding) => (
               <Badge key={finding.id} tone={FINDING_TONES[finding.kind]} title={finding.text}>
-                {FINDING_LABELS[finding.kind]}{finding.kind === "ai_suggestion" ? " · marked" : finding.kind === "conclusion" ? " · yours" : ""}{finding.runIds?.[0] ? ` · ${finding.runIds[0]}` : ""}
+                {FINDING_LABELS[finding.kind]}{finding.kind === "ai_suggestion" ? ` · ${t("marked")}` : finding.kind === "conclusion" ? ` · ${t("yours")}` : ""}{finding.runIds?.[0] ? ` · ${finding.runIds[0]}` : ""}
               </Badge>
             ))}
           </div>
@@ -331,60 +336,60 @@ export function Experiments(props: ScreenProps) {
             }}
           >
             <div className="flex-[1_1_320px]" data-tour="experiments-conclusion">
-              <Field label="Conclusion">
-                <Textarea rows={2} value={conclusion} placeholder={newest ? `Saved with run ${newest.id} and its exact conditions.` : "Saved with this experiment."} onChange={(event) => setConclusion(event.target.value)} />
+              <Field label={t("Conclusion")}>
+                <Textarea rows={2} value={conclusion} placeholder={newest ? t("Saved with run {run} and its exact conditions.", { run: newest.id }) : t("Saved with this experiment.")} onChange={(event) => setConclusion(event.target.value)} />
               </Field>
             </div>
-            <Button type="submit" variant="outline" disabled={!conclusion.trim()}>Save conclusion</Button>
+            <Button type="submit" variant="outline" disabled={!conclusion.trim()}>{t("Save conclusion")}</Button>
           </form>
 
-          <h2 className={SECTION} data-tour="experiments-measures">How it measures</h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Two runs compare only when all of this matches. Training data is not part of it.</p>
+          <h2 className={SECTION} data-tour="experiments-measures">{t("How it measures")}</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("Two runs compare only when all of this matches. Training data is not part of it.")}</p>
           <div className="mt-2 flex flex-wrap items-end gap-2">
             {EVALUATION_FIELD_NAMES.map((key) => (
               <Field label={FIELD_LABELS[key]} className="flex-[1_1_160px]" key={key}>
                 <Input value={edits[key] ?? String(spec[key] ?? "")} onChange={(event) => setEdits({ ...edits, [key]: event.target.value })} />
               </Field>
             ))}
-            <Field label="Label names, comma separated" className="flex-[1_1_160px]">
+            <Field label={t("Label names, comma separated")} className="flex-[1_1_160px]">
               <Input value={edits.labels ?? (draft.labels ?? []).join(", ")} placeholder={DEFAULT_LABELS.join(", ")} onChange={(event) => setEdits({ ...edits, labels: event.target.value })} />
             </Field>
             {labelsOf({ ...draft, labels: (edits.labels ?? (draft.labels ?? []).join(",")).split(",") }).map((name) => (
-              <Field label={`Scorer word for “${name}”`} className="flex-[1_1_160px]" key={`alias:${name}`}>
+              <Field label={t("Scorer word for “{name}”", { name })} className="flex-[1_1_160px]" key={`alias:${name}`}>
                 <Input value={edits[`alias:${name}`] ?? draft.labelAliases?.[name] ?? ""} placeholder={name} onChange={(event) => setEdits({ ...edits, [`alias:${name}`]: event.target.value })} />
               </Field>
             ))}
-            <div className={classes(MUTED, "w-full")}>Optional wording matches, such as “Wrong name” → “Wrong”. Applies to this experiment's review comparisons, including earlier labels; original labels and scores stay unchanged.</div>
+            <div className={classes(MUTED, "w-full")}>{t("Optional wording matches, such as “Wrong name” → “Wrong”. Applies to this experiment's review comparisons, including earlier labels; original labels and scores stay unchanged.")}</div>
             <Button variant="outline" onClick={() => void saveEvaluation()}>
-              Save
+              {t("Save")}
             </Button>
           </div>
 
-          <h2 className={SECTION}>Models</h2>
+          <h2 className={SECTION}>{t("Models")}</h2>
           {bound.map((item) => (
             <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-border px-2.5 py-1.5 text-sm" key={`${item.modelId}-${item.role}`}>
               <span className="min-w-0 flex-[1_1_220px] wrap-anywhere">{value?.models.find((model) => model.id === item.modelId)?.name ?? value?.models.find((model) => model.id === item.modelId)?.source ?? item.modelId}</span>
-              <span className={MUTED}>{item.role}</span>
+              <span className={MUTED}>{ROLE_LABELS[item.role] ?? item.role}</span>
             </div>
           ))}
           <div className="mt-2 flex flex-wrap items-end gap-2">
-            <Choice label="Model" className="flex-[1_1_160px]" placeholder="Choose" value={binding.modelId} options={(value?.models ?? []).map((model: ModelNode) => ({ value: model.id, label: model.name || model.source }))} onChange={(chosen) => setBinding({ ...binding, modelId: chosen })} />
-            <Choice label="Role" className="flex-[1_1_160px]" value={binding.role} options={[{ value: "base", label: "Base" }, { value: "reference", label: "Reference" }, { value: "policy", label: "Policy" }]} onChange={(chosen) => setBinding({ ...binding, role: chosen as ModelRole })} />
+            <Choice label={t("Model")} className="flex-[1_1_160px]" placeholder={t("Choose")} value={binding.modelId} options={(value?.models ?? []).map((model: ModelNode) => ({ value: model.id, label: model.name || model.source }))} onChange={(chosen) => setBinding({ ...binding, modelId: chosen })} />
+            <Choice label={t("Role")} className="flex-[1_1_160px]" value={binding.role} options={[{ value: "base", label: ROLE_LABELS.base }, { value: "reference", label: ROLE_LABELS.reference }, { value: "policy", label: ROLE_LABELS.policy }]} onChange={(chosen) => setBinding({ ...binding, role: chosen as ModelRole })} />
             <Button variant="outline" disabled={!binding.modelId} onClick={() => void bindModel()}>
-              Add
+              {t("Add")}
             </Button>
           </div>
 
-          <h2 className={SECTION}>Frozen versions</h2>
+          <h2 className={SECTION}>{t("Frozen versions")}</h2>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs" aria-label="Frozen versions">
+            <table className="w-full border-collapse text-xs" aria-label={t("Frozen versions")}>
               <thead>
-                <tr><th scope="col" className={HEAD}>Compare</th><th scope="col" className={HEAD}>Version</th><th scope="col" className={HEAD}>Runs</th><th scope="col" className={HEAD}>Created</th></tr>
+                <tr><th scope="col" className={HEAD}>{t("Compare")}</th><th scope="col" className={HEAD}>{t("Version")}</th><th scope="col" className={HEAD}>{t("Runs")}</th><th scope="col" className={HEAD}>{t("Created")}</th></tr>
               </thead>
               <tbody>
                 {versions.map((version: FrozenVersion) => (
                   <tr key={version.id}>
-                    <td className={CELL}><Checkbox aria-label={`Compare version ${version.number}`} checked={compared.includes(version.id)} onCheckedChange={() => void toggleCompared(version.id)} /></td>
+                    <td className={CELL}><Checkbox aria-label={t("Compare version {number}", { number: version.number })} checked={compared.includes(version.id)} onCheckedChange={() => void toggleCompared(version.id)} /></td>
                     <td className={CELL}>v{version.number}</td>
                     <td className={CELL}>{runs.filter((run) => run.versionId === version.id).length}</td>
                     <td className={CELL}>{new Date(version.createdAt).toLocaleString()}</td>
@@ -395,25 +400,25 @@ export function Experiments(props: ScreenProps) {
           </div>
           {comparison ? <div className={comparison.result === "comparable" ? MUTED : WARNING}>{comparisonText(comparison)}</div> : null}
 
-          <h2 className={SECTION}>Runs</h2>
+          <h2 className={SECTION}>{t("Runs")}</h2>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs" aria-label="Runs">
+            <table className="w-full border-collapse text-xs" aria-label={t("Runs")}>
               <thead>
-                <tr><th scope="col" className={HEAD}>Run</th><th scope="col" className={HEAD}>Version</th><th scope="col" className={HEAD}>Models</th><th scope="col" className={HEAD}>Execution</th><th scope="col" className={HEAD}>Samples</th></tr>
+                <tr><th scope="col" className={HEAD}>{t("Run")}</th><th scope="col" className={HEAD}>{t("Version")}</th><th scope="col" className={HEAD}>{t("Models")}</th><th scope="col" className={HEAD}>{t("Execution")}</th><th scope="col" className={HEAD}>{t("Samples")}</th></tr>
               </thead>
               <tbody>
                 {[...runs].reverse().map((run: ExperimentRun) => {
-                  const named = results.summaries.find((item) => item.runId === run.id)?.models.map((model) => value?.models.find((item) => item.id === model.modelId)?.name ?? model.modelId ?? "unnamed") ?? [];
+                  const named = results.summaries.find((item) => item.runId === run.id)?.models.map((model) => value?.models.find((item) => item.id === model.modelId)?.name ?? model.modelId ?? t("unnamed")) ?? [];
                   return (
                     <tr key={run.id}>
                       <td className={CELL}><Button variant="ghost" size="small" className="text-primary" onClick={() => { service.open(projectId, { kind: "sample", runId: run.id }); props.go("Samples"); }}><code>{run.id}</code></Button></td>
                       <td className={CELL}>v{versions.find((version) => version.id === run.versionId)?.number ?? "?"}</td>
-                      <td className={CELL}>{named.length > 3 ? `${named.length} models` : named.join(", ") || "—"}</td>
+                      <td className={CELL}>{named.length > 3 ? t("{count} models", { count: named.length }) : named.join(", ") || "—"}</td>
                       <td className={CELL}>
-                        {runStatusLabel(run.status)}{run.inputsChanged?.length ? `, ${run.inputsChanged.length} inputs changed during it` : ""}
-                        {run.archived ? <span className="ml-1 text-muted-foreground">· imported archive</span> : null}
-                        {run.imported ? <Badge tone="wait" className="ml-1" title="Imported from a file. Saturn did not run it, and its model, data and scorer are only described.">Imported, not run here</Badge> : null}
-                        {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? "pending"}{run.resumeFrom ? ` · resume ${run.resumeFrom}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{["starting", "running", "stopping"].includes(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>Request stop</Button> : null}</div> : null}
+                        {run.inputsChanged?.length ? t("{status}, {count} inputs changed during it", { status: runStatusLabel(run.status), count: run.inputsChanged.length }) : runStatusLabel(run.status)}
+                        {run.archived ? <span className="ml-1 text-muted-foreground">· {t("imported archive")}</span> : null}
+                        {run.imported ? <Badge tone="wait" className="ml-1" title={t("Imported from a file. Saturn did not run it, and its model, data and scorer are only described.")}>{t("Imported, not run here")}</Badge> : null}
+                        {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? t("pending")}{run.resumeFrom ? ` · ${t("resume {run}", { run: run.resumeFrom })}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{["starting", "running", "stopping"].includes(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>{t("Request stop")}</Button> : null}</div> : null}
                         {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
                       </td>
                       <td className={CELL}>{run.samples ?? 0}</td>

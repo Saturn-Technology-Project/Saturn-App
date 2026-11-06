@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop";
+import { t } from "../../domain/i18n";
 import type { PermissionLayer, PermissionRule, PermissionScope, Project } from "../../domain/model";
 import { patternHint } from "../../domain/permissions";
 import { Button } from "../ui/base/Button.js";
@@ -9,10 +10,13 @@ import { Explained } from "./Explained";
 import { FormHint, RowDescription, RowLabel, RowText, RuleCode, RuleEffect, RuleForm, RuleItem, RuleList, SectionTitle, SettingsCard, SettingsRow } from "./Parts";
 
 const EFFECTS: { id: PermissionRule["effect"]; label: string; hint: string }[] = [
-  { id: "allow", label: "Allow", hint: "runs without asking, in every approval mode" },
-  { id: "ask", label: "Ask", hint: "always shows an approval card" },
-  { id: "deny", label: "Deny", hint: "is refused; the agent is told why" },
+  { id: "allow", label: t("allow"), hint: t("Allow runs without asking, in every approval mode.") },
+  { id: "ask", label: t("ask"), hint: t("Ask always shows an approval card.") },
+  { id: "deny", label: t("deny"), hint: t("Deny is refused; the agent is told why.") },
 ];
+
+/** Each effect as the word on a rule's badge. */
+const EFFECT_WORDS: Record<PermissionRule["effect"], string> = { allow: t("allow"), ask: t("ask"), deny: t("deny") };
 
 /** The common tools, for the rule form; any other tool id can be typed. */
 const TOOLS = ["code", "files", "web", "*"];
@@ -37,7 +41,7 @@ export function RulesEditor(props: { layer: PermissionLayer; target: { projectId
       props.onChanged(await desktop.admin.addPermissionRule(props.layer.scope, { tool: toolId, pattern: pattern.trim(), effect }, props.target));
       setPattern("");
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not save the rule");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save the rule"));
     } finally {
       setBusy(false);
     }
@@ -53,7 +57,7 @@ export function RulesEditor(props: { layer: PermissionLayer; target: { projectId
         ? await desktop.admin.approvePermissionFile(projectId, props.layer.path, props.layer.fingerprint ?? "")
         : await desktop.admin.revokePermissionFile(projectId, props.layer.path));
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not change the rules");
+      props.onError(reason instanceof Error ? reason.message : t("Could not change the rules"));
     } finally {
       setBusy(false);
     }
@@ -64,7 +68,7 @@ export function RulesEditor(props: { layer: PermissionLayer; target: { projectId
     try {
       props.onChanged(await desktop.admin.removePermissionRule(props.layer.scope, rule, props.target));
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not remove the rule");
+      props.onError(reason instanceof Error ? reason.message : t("Could not remove the rule"));
     } finally {
       setBusy(false);
     }
@@ -76,60 +80,60 @@ export function RulesEditor(props: { layer: PermissionLayer; target: { projectId
         <RuleList>
           {props.layer.rules.map((rule, index) => (
             <RuleItem key={`${rule.tool}:${rule.pattern}:${index}`}>
-              <RuleEffect kind={rule.effect}>{rule.effect}</RuleEffect>
+              <RuleEffect kind={rule.effect}>{EFFECT_WORDS[rule.effect] ?? rule.effect}</RuleEffect>
               <RuleCode>{rule.tool}</RuleCode>
               <RuleCode pattern>{rule.pattern}</RuleCode>
               {props.layer.editable ? (
-                <Button type="button" variant="ghost" size="small" className="text-muted-foreground hover:bg-destructive/12 hover:text-destructive" disabled={busy} onClick={() => void remove(rule)} aria-label={`Remove ${rule.tool} ${rule.pattern}`}>
-                  Remove
+                <Button type="button" variant="ghost" size="small" className="text-muted-foreground hover:bg-destructive/12 hover:text-destructive" disabled={busy} onClick={() => void remove(rule)} aria-label={t("Remove {tool} {pattern}", { tool: rule.tool, pattern: rule.pattern })}>
+                  {t("Remove")}
                 </Button>
               ) : null}
             </RuleItem>
           ))}
         </RuleList>
       ) : (
-        <RowDescription>{props.layer.editable ? "No rules yet." : "No rules."}</RowDescription>
+        <RowDescription>{props.layer.editable ? t("No rules yet.") : t("No rules.")}</RowDescription>
       )}
       {props.layer.editable ? (
         <RuleForm onSubmit={(event) => void add(event)}>
-          <Choice ariaLabel="Effect" value={effect} options={EFFECTS.map((item) => ({ value: item.id, label: item.label }))} onChange={(next) => setEffect(next as PermissionRule["effect"])} />
-          <Choice ariaLabel="Tool" value={tool} options={[...TOOLS.map((item) => ({ value: item, label: item === "*" ? "any tool" : item })), { value: "other", label: "other…" }]} onChange={setTool} />
-          {tool === "other" ? <Input className="w-auto flex-none" aria-label="Tool id" placeholder="tool id, e.g. github_*" value={custom} onChange={(event) => setCustom(event.target.value)} /> : null}
-          <Input className="w-55 flex-none font-mono" aria-label="Pattern" placeholder={toolId === "files" ? "write src/**" : toolId === "code" ? "npm test *" : "*"} value={pattern} onChange={(event) => setPattern(event.target.value)} />
-          <Button type="submit" disabled={busy || !toolId || !pattern.trim()}>Add rule</Button>
-          <FormHint>{patternHint(toolId)} {EFFECTS.find((item) => item.id === effect)?.label} {EFFECTS.find((item) => item.id === effect)?.hint}.</FormHint>
+          <Choice ariaLabel={t("Effect")} value={effect} options={EFFECTS.map((item) => ({ value: item.id, label: item.label }))} onChange={(next) => setEffect(next as PermissionRule["effect"])} />
+          <Choice ariaLabel={t("Tool")} value={tool} options={[...TOOLS.map((item) => ({ value: item, label: item === "*" ? t("any tool") : item })), { value: "other", label: t("other…") }]} onChange={setTool} />
+          {tool === "other" ? <Input className="w-auto flex-none" aria-label={t("Tool id")} placeholder={t("tool id, e.g. github_*")} value={custom} onChange={(event) => setCustom(event.target.value)} /> : null}
+          <Input className="w-55 flex-none font-mono" aria-label={t("Pattern")} placeholder={toolId === "files" ? "write src/**" : toolId === "code" ? "npm test *" : "*"} value={pattern} onChange={(event) => setPattern(event.target.value)} />
+          <Button type="submit" disabled={busy || !toolId || !pattern.trim()}>{t("Add rule")}</Button>
+          <FormHint>{patternHint(toolId)} {EFFECTS.find((item) => item.id === effect)?.hint}</FormHint>
         </RuleForm>
       ) : (
         <>
           {props.layer.held?.length ? (
             <div className="my-1.5 flex flex-col items-start gap-2 rounded-lg border border-wait/30 bg-wait/10 px-3 py-2.5">
               <p className="m-0 text-xs text-muted-foreground">
-                <strong>Waiting for you.</strong> These allow rules came with the folder, so they apply only after you allow them; until then these commands ask like any other. Allow them only if you trust whoever wrote <code>{props.layer.path}</code>.
+                <strong>{t("Waiting for you.")}</strong> {t("These allow rules came with the folder, so they apply only after you allow them; until then these commands ask like any other. Allow them only if you trust whoever wrote this file:")} <code>{props.layer.path}</code>
               </p>
               <RuleList>
                 {props.layer.held.map((rule, index) => (
                   <RuleItem key={`held:${rule.tool}:${rule.pattern}:${index}`}>
-                    <RuleEffect kind="allow">allow</RuleEffect>
+                    <RuleEffect kind="allow">{EFFECT_WORDS.allow}</RuleEffect>
                     <RuleCode>{rule.tool}</RuleCode>
                     <RuleCode pattern>{rule.pattern}</RuleCode>
                   </RuleItem>
                 ))}
               </RuleList>
-              <Button type="button" size="small" disabled={busy || !props.target.projectId} onClick={() => void decideFile(true)}>Allow these rules</Button>
+              <Button type="button" size="small" disabled={busy || !props.target.projectId} onClick={() => void decideFile(true)}>{t("Allow these rules")}</Button>
             </div>
           ) : null}
           {props.layer.approved ? (
             <p className="m-0 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              You allowed this file's allow rules; a change to them asks again.{" "}
-              <Button type="button" variant="outline" size="small" disabled={busy} onClick={() => void decideFile(false)}>Revoke</Button>
+              {t("You allowed this file's allow rules; a change to them asks again.")}{" "}
+              <Button type="button" variant="outline" size="small" disabled={busy} onClick={() => void decideFile(false)}>{t("Revoke")}</Button>
             </p>
           ) : null}
           {props.layer.refused?.length ? (
             <p className="m-0 text-xs text-muted-foreground">
-              Never applied, since they would allow every call: {props.layer.refused.map((rule) => <code key={`${rule.tool}:${rule.pattern}`}>{rule.tool} {rule.pattern}</code>)}.
+              {t("Never applied, since they would allow every call:")} {props.layer.refused.map((rule) => <code key={`${rule.tool}:${rule.pattern}`}>{rule.tool} {rule.pattern}</code>)}
             </p>
           ) : null}
-          <p className="m-0 text-xs text-muted-foreground">Read from <code>{props.layer.path}</code> in the project folder; edit that file to change them.</p>
+          <p className="m-0 text-xs text-muted-foreground">{t("Read from this file in the project folder; edit it to change them:")} <code>{props.layer.path}</code></p>
         </>
       )}
     </div>
@@ -148,7 +152,7 @@ export function PermissionsPage(props: { projects: Project[]; agents: { id: stri
     setLoading(true);
     desktop.admin.permissions(selection)
       .then((result) => { if (active) { setLayers(result); setLoading(false); } })
-      .catch((reason) => { if (active) { props.onError(reason instanceof Error ? reason.message : "Could not load permissions"); setLoading(false); } });
+      .catch((reason) => { if (active) { props.onError(reason instanceof Error ? reason.message : t("Could not load permissions")); setLoading(false); } });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
@@ -156,34 +160,34 @@ export function PermissionsPage(props: { projects: Project[]; agents: { id: stri
   const shown = layers.filter((layer) => (target === "user" ? layer.scope === "user" : layer.scope !== "user"));
   return (
     <div className="flex max-w-[760px] flex-col gap-5">
-      <Explained summary="Rules decide which tool calls run, wait for you, or are refused, before any approval setting applies.">
-        <li>A rule names a tool and a pattern. <strong>Deny</strong> refuses the call, <strong>ask</strong> shows an approval card, and <strong>allow</strong> runs it without asking. Deny beats ask, and ask beats allow.</li>
-        <li>When no rule applies, the approval setting decides. Sensitive commands (<code>rm -rf</code>, <code>sudo</code>, <code>git push --force</code>, deleting files, paths outside the project) always ask in the default setting.</li>
-        <li>Rules in a project's <code>.saturn/settings.json</code> and the <code>permissions</code> of its <code>.claude/settings.json</code> apply too. They come with the folder (a cloned repository, say), so their deny and ask rules apply at once, but their allow rules only after you allow them in the project's rules here.</li>
-        <li>A rule that allows every command is never applied.</li>
+      <Explained summary={t("Rules decide which tool calls run, wait for you, or are refused, before any approval setting applies.")}>
+        <li>{t("A rule names a tool and a pattern. Deny refuses the call, ask shows an approval card, and allow runs it without asking. Deny beats ask, and ask beats allow.")}</li>
+        <li>{t("When no rule applies, the approval setting decides. In the default setting, sensitive commands always ask:")} <code>rm -rf</code>, <code>sudo</code>, <code>git push --force</code>, {t("deleting files, and paths outside the project.")}</li>
+        <li>{t("Rules in these project files apply too:")} <code>.saturn/settings.json</code>, <code>.claude/settings.json</code> (<code>permissions</code>). {t("They come with the folder (a cloned repository, say), so their deny and ask rules apply at once, but their allow rules only after you allow them in the project's rules here.")}</li>
+        <li>{t("A rule that allows every command is never applied.")}</li>
       </Explained>
       <div>
-        <SectionTitle>Rules for</SectionTitle>
+        <SectionTitle>{t("Rules for")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Scope</RowLabel>
-              <RowDescription>Everywhere applies to every agent in every project; a project's or an agent's rules add to it.</RowDescription>
+              <RowLabel>{t("Scope")}</RowLabel>
+              <RowDescription>{t("Everywhere applies to every agent in every project; a project's or an agent's rules add to it.")}</RowDescription>
             </RowText>
             <Choice
-              ariaLabel="Rules for"
+              ariaLabel={t("Rules for")}
               value={target}
               options={[
-                { value: "user", label: "Everywhere" },
-                ...props.projects.map((project) => ({ value: `project:${project.id}`, label: project.name, group: "Projects" })),
-                ...props.agents.map((agent) => ({ value: `agent:${agent.id}`, label: agent.name, group: "Agents" })),
+                { value: "user", label: t("Everywhere") },
+                ...props.projects.map((project) => ({ value: `project:${project.id}`, label: project.name, group: t("Projects") })),
+                ...props.agents.map((agent) => ({ value: `agent:${agent.id}`, label: agent.name, group: t("Agents") })),
               ]}
               onChange={setTarget}
             />
           </SettingsRow>
-          {loading ? <RowDescription>Loading…</RowDescription> : shown.map((layer) => (
+          {loading ? <RowDescription>{t("Loading…")}</RowDescription> : shown.map((layer) => (
             <SettingsRow stacked key={layer.scope}>
-              <RowLabel>{layer.scope === "user" ? "Everywhere" : layer.label}</RowLabel>
+              <RowLabel>{layer.scope === "user" ? t("Everywhere") : layer.label}</RowLabel>
               <RulesEditor layer={layer} target={selection} onChanged={setLayers} onError={props.onError} />
             </SettingsRow>
           ))}
@@ -200,28 +204,28 @@ export function ProjectPermissions(props: { project: Project; onError: (message:
     let active = true;
     desktop.admin.permissions({ projectId: props.project.id })
       .then((result) => { if (active) setLayers(result); })
-      .catch((reason) => { if (active) props.onError(reason instanceof Error ? reason.message : "Could not load permissions"); });
+      .catch((reason) => { if (active) props.onError(reason instanceof Error ? reason.message : t("Could not load permissions")); });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.project.id]);
   return (
     <div>
-      <SectionTitle>Permissions</SectionTitle>
+      <SectionTitle>{t("Permissions")}</SectionTitle>
       <SettingsCard>
         {layers.filter((layer) => layer.scope !== "user").map((layer) => (
           <SettingsRow stacked key={layer.scope}>
-            <RowLabel>{layer.scope === "project" ? "This project" : layer.label}</RowLabel>
+            <RowLabel>{layer.scope === "project" ? t("This project") : layer.label}</RowLabel>
             <RulesEditor layer={layer} target={{ projectId: props.project.id }} onChanged={setLayers} onError={props.onError} />
           </SettingsRow>
         ))}
-        {layers.length ? null : <RowDescription>Loading…</RowDescription>}
+        {layers.length ? null : <RowDescription>{t("Loading…")}</RowDescription>}
       </SettingsCard>
     </div>
   );
 }
 
 export const SCOPE_CHOICES: { id: PermissionScope; label: string }[] = [
-  { id: "project", label: "this project" },
-  { id: "agent", label: "this agent" },
-  { id: "user", label: "everywhere" },
+  { id: "project", label: t("this project") },
+  { id: "agent", label: t("this agent") },
+  { id: "user", label: t("everywhere") },
 ];

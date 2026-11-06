@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../application/desktop";
+import { t } from "../domain/i18n";
 import { Button } from "./ui/base/Button.js";
 import { Notice } from "./ui/base/Notice.js";
 
@@ -67,7 +68,7 @@ export function RecordingPlayer(props: { runId: string; name: string; frames: nu
       const result = await desktop.runs.exportRecording(props.runId, props.name);
       setExported(result.path);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not export");
+      setError(reason instanceof Error ? reason.message : t("Could not export"));
     }
   }
 
@@ -75,15 +76,15 @@ export function RecordingPlayer(props: { runId: string; name: string; frames: nu
   return (
     <div className="mt-1.5 mb-2 ml-7 max-w-[640px] overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex min-h-30 items-center justify-center bg-black">
-        {frame ? <img className="block h-auto w-full" src={frame} alt={`Recording ${props.name}, frame ${at + 1}`} /> : <span className="text-xs text-muted-foreground">{loading ? "Loading frames…" : "No frames"}</span>}
+        {frame ? <img className="block h-auto w-full" src={frame} alt={t("Recording {name}, frame {frame}", { name: props.name, frame: at + 1 })} /> : <span className="text-xs text-muted-foreground">{loading ? t("Loading frames…") : t("No frames")}</span>}
       </div>
       <div className="flex items-center gap-2 px-2 py-1.5 text-[11.5px]">
         <Button variant="ghost" size="small" disabled={!urls.length} onClick={() => { if (at + 1 >= urls.length) setAt(0); setPlaying((value) => !value); }}>
-          {playing ? "Pause" : "Play"}
+          {playing ? t("Pause") : t("Play")}
         </Button>
-        <input className="min-w-20 flex-1" type="range" min={0} max={Math.max(0, urls.length - 1)} value={Math.min(at, urls.length - 1)} onChange={(event) => { setPlaying(false); setAt(Number(event.target.value)); }} aria-label="Frame" />
-        <span className="text-xs text-muted-foreground">{urls.length ? `${at + 1} / ${props.frames}` : ""}{props.seconds ? ` · ${props.seconds}s` : ""}</span>
-        {exported ? <span className="text-xs text-muted-foreground" title={exported}>MP4 saved</span> : <Button variant="ghost" size="small" onClick={() => void exportMp4()}>Export MP4</Button>}
+        <input className="min-w-20 flex-1" type="range" min={0} max={Math.max(0, urls.length - 1)} value={Math.min(at, urls.length - 1)} onChange={(event) => { setPlaying(false); setAt(Number(event.target.value)); }} aria-label={t("Frame")} />
+        <span className="text-xs text-muted-foreground">{urls.length ? `${at + 1} / ${props.frames}` : ""}{props.seconds ? ` · ${t("{seconds}s", { seconds: props.seconds })}` : ""}</span>
+        {exported ? <span className="text-xs text-muted-foreground" title={exported}>{t("MP4 saved")}</span> : <Button variant="ghost" size="small" onClick={() => void exportMp4()}>{t("Export MP4")}</Button>}
       </div>
       {error ? <Notice tone="bad" className="m-2">{error}</Notice> : null}
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import { Input } from "../ui/base/Input.js";
 import { messageOf } from "../ui/Parts.js";
 
@@ -50,7 +51,7 @@ export function Terminal(props: { folder: string }) {
             <div className="font-mono text-xs text-(--term-prompt)">$ {entry.command}</div>
             {entry.stdout ? <pre className="font-mono text-xs break-words whitespace-pre-wrap [overflow-wrap:anywhere]">{entry.stdout}</pre> : null}
             {entry.stderr ? <pre className="font-mono text-xs break-words whitespace-pre-wrap [overflow-wrap:anywhere] text-(--term-stderr)">{entry.stderr}</pre> : null}
-            {entry.exitCode !== 0 ? <div className="text-xs text-wait">Exit code {entry.exitCode}</div> : null}
+            {entry.exitCode !== 0 ? <div className="text-xs text-wait">{t("Exit code {code}", { code: entry.exitCode })}</div> : null}
           </div>
         ))}
         <div ref={end} />
@@ -62,8 +63,8 @@ export function Terminal(props: { folder: string }) {
           void run();
         }}
       >
-        <span className="text-xs text-muted-foreground">{running ? "Running…" : folder}</span>
-        <Input aria-label="Command" className="h-7 flex-[1_1_200px] border-0 bg-transparent font-mono text-xs shadow-none focus-visible:ring-0 dark:bg-transparent" value={command} onChange={(event) => setCommand(event.target.value)} spellCheck={false} disabled={running} />
+        <span className="text-xs text-muted-foreground">{running ? t("Running…") : folder}</span>
+        <Input aria-label={t("Command")} className="h-7 flex-[1_1_200px] border-0 bg-transparent font-mono text-xs shadow-none focus-visible:ring-0 dark:bg-transparent" value={command} onChange={(event) => setCommand(event.target.value)} spellCheck={false} disabled={running} />
       </form>
     </div>
   );

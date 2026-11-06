@@ -1,3 +1,5 @@
+import { t } from "./i18n.ts";
+
 export type ResponseStyle = "concise" | "professional" | "detailed";
 export type Autonomy =
   | "default"
@@ -36,7 +38,7 @@ export type Model = {
   effort?: Effort;
 };
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
-export const EFFORT_LABELS: Record<Effort, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra High", max: "Max" };
+export const EFFORT_LABELS: Record<Effort, string> = { low: t("Low"), medium: t("Medium"), high: t("High"), xhigh: t("Extra High"), max: t("Max") };
 /** LM Studio and DeepSeek have no effort control. */
 export function supportsEffort(provider?: string): boolean {
   return provider !== "lmstudio" && provider !== "deepseek";
@@ -88,7 +90,7 @@ export function splitCommandLine(text: string): string[] {
       started = true;
     }
   }
-  if (quote) throw new Error("The command has an unclosed quote.");
+  if (quote) throw new Error(t("The command has an unclosed quote."));
   if (started) parts.push(current);
   return parts;
 }
@@ -482,10 +484,10 @@ export type RunSummary = {
 
 /** What removing a connection means for the agents using it, in words, for asking first. `replacement` is null when nothing takes over. */
 export function removalQuestion(name: string, users: string[], kind: "model" | "server", replacement: string | null): string {
-  if (!users.length) return `Remove ${name}?`;
-  const who = users.length === 1 ? users[0] : users.length === 2 ? `${users[0]} and ${users[1]}` : `${users[0]} and ${users.length - 1} other agents`;
-  if (kind === "server") return `Remove ${name}? ${who} ${users.length === 1 ? "uses" : "use"} it and will no longer have its tools.`;
-  return replacement
-    ? `Remove ${name}? ${who} ${users.length === 1 ? "uses" : "use"} it and will move to ${replacement}.`
-    : `Remove ${name}? ${who} ${users.length === 1 ? "uses" : "use"} it and will have no model until you connect another.`;
+  if (!users.length) return t("Remove {name}?", { name });
+  const one = users.length === 1;
+  const who = one ? users[0] : users.length === 2 ? t("{first} and {second}", { first: users[0], second: users[1] }) : t("{first} and {count} other agents", { first: users[0], count: users.length - 1 });
+  if (kind === "server") return one ? t("Remove {name}? {who} uses it and will no longer have its tools.", { name, who }) : t("Remove {name}? {who} use it and will no longer have its tools.", { name, who });
+  if (replacement) return one ? t("Remove {name}? {who} uses it and will move to {replacement}.", { name, who, replacement }) : t("Remove {name}? {who} use it and will move to {replacement}.", { name, who, replacement });
+  return one ? t("Remove {name}? {who} uses it and will have no model until you connect another.", { name, who }) : t("Remove {name}? {who} use it and will have no model until you connect another.", { name, who });
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { t } from "../../domain/i18n.js";
 import type { Mcp, McpTool } from "../../domain/model.js";
 import { Button } from "../ui/base/Button.js";
 import { Checkbox } from "../ui/base/Checkbox.js";
@@ -60,11 +61,11 @@ export function ConfigureMcpModal({ server, onClose, onSave, onReload }: Props) 
   const handleBatchSelect = (tools: McpTool[], action: "allow" | "block") => {
     setDisabled((prev) => {
       const next = new Set(prev);
-      for (const t of tools) {
+      for (const tool of tools) {
         if (action === "allow") {
-          next.delete(t.toolId);
+          next.delete(tool.toolId);
         } else {
-          next.add(t.toolId);
+          next.add(tool.toolId);
         }
       }
       return next;
@@ -73,9 +74,9 @@ export function ConfigureMcpModal({ server, onClose, onSave, onReload }: Props) 
 
   const getSectionStatus = (tools: McpTool[]): "Allow all" | "Block all" | "Custom" => {
     if (tools.length === 0) return "Allow all";
-    const allAllowed = tools.every((t) => !disabled.has(t.toolId));
+    const allAllowed = tools.every((tool) => !disabled.has(tool.toolId));
     if (allAllowed) return "Allow all";
-    const allBlocked = tools.every((t) => disabled.has(t.toolId));
+    const allBlocked = tools.every((tool) => disabled.has(tool.toolId));
     if (allBlocked) return "Block all";
     return "Custom";
   };
@@ -108,12 +109,12 @@ export function ConfigureMcpModal({ server, onClose, onSave, onReload }: Props) 
         <div className="flex items-center justify-between border-b border-border pb-2">
           <span className="text-sm font-semibold text-foreground">{title}</span>
           <Choice
-            ariaLabel={`${title} tools`}
+            ariaLabel={t("{section} tools", { section: title })}
             value={status}
             options={[
-              { value: "Allow all", label: "Allow all" },
-              { value: "Block all", label: "Block all" },
-              ...(status === "Custom" ? [{ value: "Custom", label: "Custom" }] : []),
+              { value: "Allow all", label: t("Allow all") },
+              { value: "Block all", label: t("Block all") },
+              ...(status === "Custom" ? [{ value: "Custom", label: t("Custom") }] : []),
             ]}
             onChange={(next) => {
               if (next === "Allow all") handleBatchSelect(tools, "allow");
@@ -138,24 +139,24 @@ export function ConfigureMcpModal({ server, onClose, onSave, onReload }: Props) 
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-h-[84vh] max-w-[92vw] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-[580px]" aria-label={`Configure ${server.name}`}>
+      <DialogContent className="max-h-[84vh] max-w-[92vw] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-[580px]" aria-label={t("Configure {name}", { name: server.name })}>
         <DialogHeader className="border-b border-border px-5.5 pt-4.5 pb-3.5">
-          <DialogTitle className="text-[17px] font-semibold tracking-tight">Configure {server.name}</DialogTitle>
-          <DialogDescription>1 source</DialogDescription>
+          <DialogTitle className="text-[17px] font-semibold tracking-tight">{t("Configure {name}", { name: server.name })}</DialogTitle>
+          <DialogDescription>{t("1 source")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-col gap-5.5 overflow-y-auto px-5.5 py-4">
-          {renderSection("Reads", reads)}
-          {renderSection("Writes", writes)}
+          {renderSection(t("Reads"), reads)}
+          {renderSection(t("Writes"), writes)}
         </div>
 
         <DialogFooter className="items-center justify-between border-t border-border px-5.5 py-3.5">
           <Button type="button" variant="outline" onClick={() => void handleReload()} disabled={reloading}>
             <span className={reloading ? "inline-block animate-spin" : undefined}>↻</span>
-            <span>Reload</span>
+            <span>{t("Reload")}</span>
           </Button>
           <Button type="button" onClick={() => void handleDone()} disabled={saving}>
-            {saving ? "Saving..." : "Done"}
+            {saving ? t("Saving…") : t("Done")}
           </Button>
         </DialogFooter>
       </DialogContent>

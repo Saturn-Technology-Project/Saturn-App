@@ -24,6 +24,8 @@ import { Switch } from "../ui/base/Switch.js";
 import { Tabs, TabsList, TabsTrigger } from "../ui/base/Tabs.js";
 import { Textarea } from "../ui/base/Textarea.js";
 import { CardRow, InlineForm, LinkButton, Pills, RowActions, RowDescription, RowError, RowLabel, RowText, SectionTitle, SettingsCard, SettingsRow, Status, SubTitle } from "./Parts";
+import { chooseLanguage, languageChoice } from "../../application/language";
+import { t } from "../../domain/i18n";
 
 export type SettingsPage =
   | "settings"
@@ -42,24 +44,24 @@ export type SettingsPage =
 
 const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
   {
-    title: "Settings",
+    title: t("Settings"),
     items: [
-      ["settings", "General", "Execution, appearance, and workspace"],
-      ["llm", "Models", "LLM providers & models"],
-      ["mcp", "MCP & Skills", "Tool servers & knowledge sources"],
-      ["usage", "Usage & Billing", "Token spend & costs"],
-      ["memory", "Memory", "What Saturn remembers across chats"],
-      ["permissions", "Permissions", "What agents may do without asking"],
-      ["hooks", "Hooks", "Commands around tool calls and turns"],
-      ["plugins", "Plugins", "Bundles of skills, commands, hooks and MCP servers"],
+      ["settings", t("General"), t("Execution, appearance, and workspace")],
+      ["llm", t("Models"), t("LLM providers & models")],
+      ["mcp", t("MCP & Skills"), t("Tool servers & knowledge sources")],
+      ["usage", t("Usage & Billing"), t("Token spend & costs")],
+      ["memory", t("Memory"), t("What Saturn remembers across chats")],
+      ["permissions", t("Permissions"), t("What agents may do without asking")],
+      ["hooks", t("Hooks"), t("Commands around tool calls and turns")],
+      ["plugins", t("Plugins"), t("Bundles of skills, commands, hooks and MCP servers")],
     ],
   },
   {
-    title: "System",
+    title: t("System"),
     items: [
-      ["telemetry", "Telemetry", "OpenTelemetry traces & logs"],
-      ["logs", "Logs", "Live runtime event stream"],
-      ["information", "About", "What Saturn is and how it fits together"],
+      ["telemetry", t("Telemetry"), t("OpenTelemetry traces & logs")],
+      ["logs", t("Logs"), t("Live runtime event stream")],
+      ["information", t("About"), t("What Saturn is and how it fits together")],
     ],
   },
 ];
@@ -112,16 +114,16 @@ export function Settings(props: {
   }
 
   useEffect(() => {
-    void load().catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not load settings"));
+    void load().catch((reason: unknown) => setError(reason instanceof Error ? reason.message : t("Could not load settings")));
   }, [props.models, props.agents]);
 
   const selectedProject = selectedProjectId ? props.projects?.find((p) => p.id === selectedProjectId) : null;
   const currentMeta = selectedProject
-    ? ["project", selectedProject.name, `Project configuration & custom rules (${selectedProject.path})`]
+    ? ["project", selectedProject.name, t("Project configuration & custom rules ({path})", { path: selectedProject.path })]
     : page === "shortcuts"
-      ? ["shortcuts", "Shortcuts", "Quick keyboard shortcuts for Saturn"]
+      ? ["shortcuts", t("Shortcuts"), t("Quick keyboard shortcuts for Saturn")]
       : page === "older"
-        ? ["older", "Still running", "What the earlier interface set going"]
+        ? ["older", t("Still running"), t("What the earlier interface set going")]
       : GROUPS.flatMap((group) => group.items).find(([id]) => id === page);
 
   return (
@@ -132,8 +134,8 @@ export function Settings(props: {
           className="absolute top-3.5 right-4 z-20 size-7 px-0 text-muted-foreground"
           type="button"
           onClick={props.onClose}
-          title="Close (Esc)"
-          aria-label="Close settings"
+          title={t("Close (Esc)")}
+          aria-label={t("Close settings")}
         >
           <CloseIcon />
         </Button>
@@ -159,7 +161,7 @@ export function Settings(props: {
 
             {props.projects && props.projects.length > 0 ? (
               <div className="flex flex-col gap-0.5">
-                <div className={RAIL_GROUP}>Projects</div>
+                <div className={RAIL_GROUP}>{t("Projects")}</div>
                 {props.projects.map((proj) => (
                   <RailLink
                     key={proj.id}
@@ -178,13 +180,13 @@ export function Settings(props: {
               active={page === "shortcuts" && !selectedProjectId}
               onClick={() => { setPage("shortcuts"); setSelectedProjectId(null); setError(""); }}
             >
-              <span>Shortcuts</span>
+              <span>{t("Shortcuts")}</span>
             </RailLink>
             <RailLink
               active={page === "older" && !selectedProjectId}
               onClick={() => { setPage("older"); setSelectedProjectId(null); setError(""); }}
             >
-              <span>Still running</span>
+              <span>{t("Still running")}</span>
             </RailLink>
           </div>
         </aside>
@@ -192,7 +194,7 @@ export function Settings(props: {
         <div className="min-h-0 overflow-y-auto px-8.5 pb-12 max-[760px]:px-5 max-[760px]:pb-9" ref={paneRef}>
           <header className="sticky top-0 z-5 -mx-8.5 mb-5 flex items-start justify-between gap-4 border-b border-border bg-popover py-5.5 pr-16 pb-3.5 pl-8.5 max-[760px]:-mx-5 max-[760px]:mb-4 max-[760px]:pl-5">
             <div>
-              <DialogTitle id="settings-dialog-title" className="text-xl font-semibold tracking-tight">{currentMeta?.[1] ?? "Settings"}</DialogTitle>
+              <DialogTitle id="settings-dialog-title" className="text-xl font-semibold tracking-tight">{currentMeta?.[1] ?? t("Settings")}</DialogTitle>
               {currentMeta?.[2] ? <DialogDescription className="mt-0.5 text-[12.5px]">{currentMeta[2]}</DialogDescription> : null}
             </div>
           </header>
@@ -281,12 +283,12 @@ function RailLink(props: { active: boolean; onClick: () => void; children: React
 /** Settings → General → Command line: install the `saturn` command, which runs this app's own CLI. */
 /** What each of Saturn's own tool servers is for. */
 const BUILT_IN_SUMMARIES: Record<string, string> = {
-  "general-skills": "Files, commands, web and plans",
-  "computer-use": "Mouse, keyboard and screen",
-  origin: "GitHub repositories and pull requests",
-  automations: "Schedules, rules, skills and plugins",
-  browser: "A browser agents can drive",
-  research: "Research records, runs and looking inside models",
+  "general-skills": t("Files, commands, web and plans"),
+  "computer-use": t("Mouse, keyboard and screen"),
+  origin: t("GitHub repositories and pull requests"),
+  automations: t("Schedules, rules, skills and plugins"),
+  browser: t("A browser agents can drive"),
+  research: t("Research records, runs and looking inside models"),
 };
 
 function CommandLine(props: { onError: (message: string) => void }) {
@@ -301,26 +303,26 @@ function CommandLine(props: { onError: (message: string) => void }) {
       setStatus(await desktop.admin.installCli());
       props.onError("");
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not install the command");
+      props.onError(reason instanceof Error ? reason.message : t("Could not install the command"));
     } finally {
       setBusy(false);
     }
   }
   return (
     <div>
-      <SectionTitle>Command Line</SectionTitle>
+      <SectionTitle>{t("Command Line")}</SectionTitle>
       <SettingsCard>
         <SettingsRow>
           <RowText>
-            <RowLabel>The saturn command</RowLabel>
+            <RowLabel>{t("The saturn command")}</RowLabel>
             <RowDescription>
-              Run agents from a terminal or a script while Saturn is open: <code>saturn run "fix the failing test" --agent Saturn --project .</code>, <code>saturn runs</code>, <code>saturn approve</code>. It uses this app's own runtime, so it never goes out of date.
-              {status?.installed ? (status.current ? ` Installed at ${status.path}.` : ` Installed at ${status.path}, for another copy of Saturn: reinstall to point it here.`) : ""}
-              {status?.installed && !status.onPath ? ` Add ${status.folder} to your PATH to type just "saturn".` : ""}
+              {t("Run agents from a terminal or a script while Saturn is open:")} <code>saturn run "fix the failing test" --agent Saturn --project .</code>, <code>saturn runs</code>, <code>saturn approve</code>{t(". It uses this app's own runtime, so it never goes out of date.")}
+              {status?.installed ? " " + (status.current ? t("Installed at {path}.", { path: status.path ?? "" }) : t("Installed at {path}, for another copy of Saturn: reinstall to point it here.", { path: status.path ?? "" })) : ""}
+              {status?.installed && !status.onPath ? " " + t('Add {folder} to your PATH to type just "saturn".', { folder: status.folder ?? "" }) : ""}
             </RowDescription>
           </RowText>
           <Button type="button" variant="default" size="small" disabled={busy || status?.current === true} onClick={() => void install()}>
-            {status?.current ? "Installed" : status?.installed ? "Reinstall" : busy ? "Installing…" : "Install"}
+            {status?.current ? t("Installed") : status?.installed ? t("Reinstall") : busy ? t("Installing…") : t("Install")}
           </Button>
         </SettingsRow>
       </SettingsCard>
@@ -347,7 +349,7 @@ function Memory(props: { projects: Project[] }) {
         setSaved(result.content);
         setError("");
       },
-      (reason: unknown) => current && setError(reason instanceof Error ? reason.message : "Could not load memory"),
+      (reason: unknown) => current && setError(reason instanceof Error ? reason.message : t("Could not load memory")),
     );
     return () => {
       current = false;
@@ -361,26 +363,26 @@ function Memory(props: { projects: Project[] }) {
       setSaved(result.content);
       setError("");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not save");
+      setError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
 
   return (
     <div>
-      <SectionTitle>Memory</SectionTitle>
+      <SectionTitle>{t("Memory")}</SectionTitle>
       <SettingsCard>
         <SettingsRow>
           <RowText>
-            <RowLabel>Notes</RowLabel>
-            <RowDescription>One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Saturn forget it.</RowDescription>
+            <RowLabel>{t("Notes")}</RowLabel>
+            <RowDescription>{t("One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Saturn forget it.")}</RowDescription>
           </RowText>
-          <Choice className="w-45" ariaLabel="Memory scope" value={scope} options={[{ value: "global", label: "About you (every chat)" }, ...props.projects.map((project) => ({ value: project.id, label: project.name }))]} onChange={setScope} />
+          <Choice className="w-45" ariaLabel={t("Memory scope")} value={scope} options={[{ value: "global", label: t("About you (every chat)") }, ...props.projects.map((project) => ({ value: project.id, label: project.name }))]} onChange={setScope} />
         </SettingsRow>
         <SettingsRow stacked>
-          <Textarea className="min-h-55 w-full resize-y font-mono text-[12.5px] leading-normal field-sizing-fixed" aria-label="Memory notes" value={content} rows={14} placeholder={scope === "global" ? "Nothing remembered yet. Notes appear after a few turns of chat, or write your own: \"- Prefers short answers\"." : "Nothing remembered about this project yet."} onChange={(event) => setContent(event.target.value)} />
+          <Textarea className="min-h-55 w-full resize-y font-mono text-[12.5px] leading-normal field-sizing-fixed" aria-label={t("Memory notes")} value={content} rows={14} placeholder={scope === "global" ? t("Nothing remembered yet. Notes appear after a few turns of chat, or write your own: \"- Prefers short answers\".") : t("Nothing remembered about this project yet.")} onChange={(event) => setContent(event.target.value)} />
           <RowActions>
-            <Button type="button" variant="default" size="small" disabled={content === saved} onClick={() => void save()}>Save</Button>
-            {content !== saved ? <Button type="button" variant="outline" size="small" onClick={() => setContent(saved)}>Discard</Button> : null}
+            <Button type="button" variant="default" size="small" disabled={content === saved} onClick={() => void save()}>{t("Save")}</Button>
+            {content !== saved ? <Button type="button" variant="outline" size="small" onClick={() => setContent(saved)}>{t("Discard")}</Button> : null}
           </RowActions>
         </SettingsRow>
         {error ? <RowError>{error}</RowError> : null}
@@ -417,7 +419,7 @@ function McpPage(props: {
       props.onError("");
       await props.onChanged();
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not remove the MCP server");
+      props.onError(reason instanceof Error ? reason.message : t("Could not remove the MCP server"));
     }
   }
 
@@ -429,7 +431,7 @@ function McpPage(props: {
       props.onError("");
       await props.onChanged();
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not connect MCP");
+      props.onError(reason instanceof Error ? reason.message : t("Could not connect MCP"));
     }
   }
 
@@ -437,11 +439,11 @@ function McpPage(props: {
   async function addLocal() {
     try {
       const [program, ...args] = splitCommandLine(commandText);
-      if (!program) throw new Error("Type the command that starts the server, for example npx -y @modelcontextprotocol/server-filesystem /path/to/folder");
+      if (!program) throw new Error(t("Type the command that starts the server, for example npx -y @modelcontextprotocol/server-filesystem /path/to/folder"));
       const env: Record<string, string> = {};
       for (const line of envText.split("\n").map((item) => item.trim()).filter(Boolean)) {
         const at = line.indexOf("=");
-        if (at < 1) throw new Error(`"${line}" is not NAME=value`);
+        if (at < 1) throw new Error(t('"{line}" is not NAME=value', { line }));
         env[line.slice(0, at).trim()] = line.slice(at + 1);
       }
       const created = await desktop.admin.createLocalMcp({ name: commandName.trim(), program, args, env });
@@ -452,7 +454,7 @@ function McpPage(props: {
       props.onError("");
       await props.onChanged();
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not add the local MCP server");
+      props.onError(reason instanceof Error ? reason.message : t("Could not add the local MCP server"));
     }
   }
 
@@ -463,7 +465,7 @@ function McpPage(props: {
       props.onError("");
       await props.onChanged();
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not start the MCP server");
+      props.onError(reason instanceof Error ? reason.message : t("Could not start the MCP server"));
       await props.onChanged();
     }
   }
@@ -475,7 +477,7 @@ function McpPage(props: {
       props.onError("");
       await props.onChanged();
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not connect knowledge");
+      props.onError(reason instanceof Error ? reason.message : t("Could not connect knowledge"));
     }
   }
 
@@ -505,8 +507,10 @@ function McpPage(props: {
               <strong className="block truncate">{item.name}</strong>
               <span className="block truncate text-[12.5px] text-muted-foreground">
                 {item.command
-                  ? `${item.approval === "approved" ? `${item.tools.length} tools · ` : ""}Local program · ${item.commandLine ?? item.command.program}`
-                  : `${item.tools.length} tools · ${builtin ? (BUILT_IN_SUMMARIES[item.id] ?? "Built in") : item.url}`}
+                  ? item.approval === "approved"
+                    ? t("{count} tools · Local program · {command}", { count: item.tools.length, command: item.commandLine ?? item.command.program })
+                    : t("Local program · {command}", { command: item.commandLine ?? item.command.program })
+                  : t("{count} tools · {source}", { count: item.tools.length, source: builtin ? (BUILT_IN_SUMMARIES[item.id] ?? t("Built in")) : item.url })}
               </span>
             </span>
           </button>
@@ -515,18 +519,18 @@ function McpPage(props: {
               variant="outline" size="small"
               type="button"
               onClick={() => setConfiguringServer(item)}
-              title={`Configure ${item.name}`}
+              title={t("Configure {name}", { name: item.name })}
             >
-              Configure
+              {t("Configure")}
             </Button>
             {removable ? (
               confirming === item.id ? (
                 <>
-                  <Button variant="outline" size="small" type="button" onClick={() => setConfirming(null)}>Cancel</Button>
-                  <Button variant="danger" size="small" type="button" onClick={() => void removeServer(item.id)}>Remove</Button>
+                  <Button variant="outline" size="small" type="button" onClick={() => setConfirming(null)}>{t("Cancel")}</Button>
+                  <Button variant="danger" size="small" type="button" onClick={() => void removeServer(item.id)}>{t("Remove")}</Button>
                 </>
               ) : (
-                <Button variant="outline" size="small" type="button" onClick={() => setConfirming(item.id)}>Remove</Button>
+                <Button variant="outline" size="small" type="button" onClick={() => setConfirming(item.id)}>{t("Remove")}</Button>
               )
             ) : null}
             {!builtin ? (
@@ -542,7 +546,7 @@ function McpPage(props: {
                   })
                 }
               >
-                {on ? "Enabled" : "Disabled"}
+                {on ? t("Enabled") : t("Disabled")}
               </Button>
             ) : null}
           </RowActions>
@@ -550,14 +554,14 @@ function McpPage(props: {
         {item.command && item.approval !== "approved" ? (
           <Notice tone="wait" className="mt-2.5 grid gap-2 whitespace-normal">
             <p className="m-0 text-[12.5px] leading-snug">
-              <strong>This server runs a program on your computer</strong>, with your user account&apos;s permissions. Allow it only if you
-              trust it. It starts with only a minimal environment, not Saturn&apos;s keys.
+              <strong>{t("This server runs a program on your computer")}</strong>
+              {t(", with your user account's permissions. Allow it only if you trust it. It starts with only a minimal environment, not Saturn's keys.")}
             </p>
             <code className="block rounded-md bg-card px-2 py-1.5 text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">{item.commandLine}</code>
-            {item.command.env?.length ? <p className="m-0 text-[12.5px] text-muted-foreground">Environment variables: {item.command.env.join(", ")} (values hidden)</p> : null}
+            {item.command.env?.length ? <p className="m-0 text-[12.5px] text-muted-foreground">{t("Environment variables: {names} (values hidden)", { names: item.command.env.join(", ") })}</p> : null}
             <RowActions className="gap-1.5">
-              <Button variant="default" size="small" type="button" onClick={() => void allow(item)}>Allow and Start</Button>
-              <Button variant="outline" size="small" type="button" onClick={() => void removeServer(item.id)}>Remove</Button>
+              <Button variant="default" size="small" type="button" onClick={() => void allow(item)}>{t("Allow and Start")}</Button>
+              <Button variant="outline" size="small" type="button" onClick={() => void removeServer(item.id)}>{t("Remove")}</Button>
             </RowActions>
           </Notice>
         ) : null}
@@ -574,52 +578,51 @@ function McpPage(props: {
 
   return (
     <>
-      <SubTitle>Connect an MCP server</SubTitle>
+      <SubTitle>{t("Connect an MCP server")}</SubTitle>
       <Card>
         <Tabs value={kind} onValueChange={(next) => setKind(next as "url" | "command")} className="mt-2 mb-1">
-          <TabsList aria-label="Kind of MCP server">
+          <TabsList aria-label={t("Kind of MCP server")}>
             <TabsTrigger value="url">URL</TabsTrigger>
-            <TabsTrigger value="command">Local Program</TabsTrigger>
+            <TabsTrigger value="command">{t("Local Program")}</TabsTrigger>
           </TabsList>
         </Tabs>
         {kind === "url" ? (
           <>
-            <p className="text-[12.5px] text-muted-foreground">An MCP server reached over HTTP(S). Tools are discovered automatically.</p>
+            <p className="text-[12.5px] text-muted-foreground">{t("An MCP server reached over HTTP(S). Tools are discovered automatically.")}</p>
             <div className="flex gap-2">
               <Input value={url} placeholder="https://mcp.example.com/mcp" onChange={(event) => setUrl(event.target.value)} />
               <Button variant="default" type="button" disabled={!url.trim()} onClick={() => void addMcp()}>
-                Connect MCP
+                {t("Connect MCP")}
               </Button>
             </div>
           </>
         ) : (
           <>
             <p className="text-[12.5px] text-muted-foreground">
-              A server Saturn starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is
-              used, so ~, $VARIABLES and pipes are not expanded: write full paths.
+              {t("A server Saturn starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is used, so ~, $VARIABLES and pipes are not expanded: write full paths.")}
             </p>
             <div className="mt-2 grid gap-2">
-              <Input value={commandName} placeholder="Name (optional)" onChange={(event) => setCommandName(event.target.value)} />
+              <Input value={commandName} placeholder={t("Name (optional)")} onChange={(event) => setCommandName(event.target.value)} />
               <Input value={commandText} placeholder="npx -y @modelcontextprotocol/server-filesystem /Users/you/Documents" onChange={(event) => setCommandText(event.target.value)} />
-              <Textarea className="resize-y font-mono text-xs field-sizing-fixed" value={envText} rows={2} placeholder={"Environment variables, one per line (optional)\nGITHUB_TOKEN=…"} onChange={(event) => setEnvText(event.target.value)} />
+              <Textarea className="resize-y font-mono text-xs field-sizing-fixed" value={envText} rows={2} placeholder={t("Environment variables, one per line (optional)\nGITHUB_TOKEN=…")} onChange={(event) => setEnvText(event.target.value)} />
               <Button variant="default" className="justify-self-start" type="button" disabled={!commandText.trim()} onClick={() => void addLocal()}>
-                Add Local Server
+                {t("Add Local Server")}
               </Button>
             </div>
           </>
         )}
       </Card>
 
-      <SubTitle>Built in</SubTitle>
+      <SubTitle>{t("Built in")}</SubTitle>
       {builtinServers.length === 0 ? (
-        <p className="text-[12.5px] text-muted-foreground">No built-in skills available.</p>
+        <p className="text-[12.5px] text-muted-foreground">{t("No built-in skills available.")}</p>
       ) : (
         builtinServers.map(renderMcpCard)
       )}
 
-      <SubTitle className="mt-6">Installed MCP Servers</SubTitle>
+      <SubTitle className="mt-6">{t("Installed MCP Servers")}</SubTitle>
       {installedServers.length === 0 ? (
-        <p className="text-[12.5px] text-muted-foreground">No external MCP servers installed yet.</p>
+        <p className="text-[12.5px] text-muted-foreground">{t("No external MCP servers installed yet.")}</p>
       ) : (
         installedServers.map(renderMcpCard)
       )}
@@ -634,7 +637,7 @@ function McpPage(props: {
               props.onError("");
               await props.onChanged();
             } catch (reason) {
-              props.onError(reason instanceof Error ? reason.message : "Could not save tool configuration");
+              props.onError(reason instanceof Error ? reason.message : t("Could not save tool configuration"));
             }
           }}
           onReload={async () => {
@@ -643,19 +646,19 @@ function McpPage(props: {
               props.onError("");
               await props.onChanged();
             } catch (reason) {
-              props.onError(reason instanceof Error ? reason.message : "Could not reload tools");
+              props.onError(reason instanceof Error ? reason.message : t("Could not reload tools"));
             }
           }}
         />
       )}
 
-      <SubTitle className="mt-6">Knowledge & RAG Endpoints</SubTitle>
+      <SubTitle className="mt-6">{t("Knowledge & RAG Endpoints")}</SubTitle>
       <Card>
-        <div className="text-xs font-medium text-muted-foreground">Connect Knowledge URL</div>
+        <div className="text-xs font-medium text-muted-foreground">{t("Connect Knowledge URL")}</div>
         <div className="flex gap-2">
           <Input value={ragUrl} placeholder="http://127.0.0.1:4200/search" onChange={(event) => setRagUrl(event.target.value)} />
           <Button variant="default" type="button" disabled={!ragUrl.trim()} onClick={() => void addRag()}>
-            Connect Knowledge
+            {t("Connect Knowledge")}
           </Button>
         </div>
       </Card>
@@ -680,7 +683,7 @@ function McpPage(props: {
                   })
                 }
               >
-                {on ? "Enabled" : "Disabled"}
+                {on ? t("Enabled") : t("Disabled")}
               </Button>
             </CardRow>
           </Card>
@@ -714,7 +717,7 @@ export function LlmPage(props: {
       setProviderId(first.id);
       setModelId(first.models[0]?.id ?? "");
       setBaseUrl(first.baseUrl);
-    }).catch((reason: unknown) => props.onError(reason instanceof Error ? reason.message : "Could not load models"));
+    }).catch((reason: unknown) => props.onError(reason instanceof Error ? reason.message : t("Could not load models")));
   }, []);
 
   useEffect(() => {
@@ -749,7 +752,7 @@ export function LlmPage(props: {
       props.onError("");
       await props.onChanged();
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not connect the model");
+      props.onError(reason instanceof Error ? reason.message : t("Could not connect the model"));
     }
   }
 
@@ -761,7 +764,7 @@ export function LlmPage(props: {
       props.onError("");
       await props.onChanged();
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not save the API key");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save the API key"));
     }
   }
 
@@ -771,9 +774,9 @@ export function LlmPage(props: {
 
   return (
     <>
-      <SubTitle>Connected models</SubTitle>
+      <SubTitle>{t("Connected models")}</SubTitle>
       {props.models.length === 0 ? (
-        <p className="mb-3.5 text-[12.5px] text-muted-foreground">No models connected yet. Add a cloud or local LM Studio model below.</p>
+        <p className="mb-3.5 text-[12.5px] text-muted-foreground">{t("No models connected yet. Add a cloud or local LM Studio model below.")}</p>
       ) : (
         props.models.map((item) => {
           return (
@@ -787,18 +790,18 @@ export function LlmPage(props: {
                 </div>
                 <div className="flex items-center gap-2">
                   {supportsEffort(item.provider) ? (
-                    <div title={(item.provider && EFFORT_HINTS[item.provider]) || "How much the model reasons before answering"}>
+                    <div title={(item.provider && EFFORT_HINTS[item.provider]) || t("How much the model reasons before answering")}>
                       <Choice
                         className="min-w-33"
-                        ariaLabel={`Effort for ${item.name}`}
+                        ariaLabel={t("Effort for {name}", { name: item.name })}
                         value={item.effort || DEFAULT_EFFORT}
-                        options={[{ value: DEFAULT_EFFORT, label: "Default effort" }, ...Object.entries(EFFORT_LABELS).map(([value, label]) => ({ value, label: `${label} effort` }))]}
+                        options={[{ value: DEFAULT_EFFORT, label: t("Default effort") }, ...Object.entries(EFFORT_LABELS).map(([value, label]) => ({ value, label: t("{level} effort", { level: EFFORT_NAMES[value] ?? label }) }))]}
                         onChange={async (next) => {
                           try {
                             await desktop.admin.updateModelEffort(item.id, next === DEFAULT_EFFORT ? null : next);
                             await props.onChanged();
                           } catch (err) {
-                            props.onError(err instanceof Error ? err.message : "Could not change the effort");
+                            props.onError(err instanceof Error ? err.message : t("Could not change the effort"));
                           }
                         }}
                       />
@@ -806,7 +809,7 @@ export function LlmPage(props: {
                   ) : null}
                   <Status
                     ok={item.provider === "lmstudio" || item.provider === "claude-code" || item.provider === "codex" || item.hasSecret}
-                    label={item.provider === "lmstudio" ? "Local Server" : item.provider === "claude-code" ? "Claude plan" : item.provider === "codex" ? "ChatGPT plan" : item.hasSecret ? "Key stored" : "No key"}
+                    label={item.provider === "lmstudio" ? t("Local Server") : item.provider === "claude-code" ? t("Claude plan") : item.provider === "codex" ? t("ChatGPT plan") : item.hasSecret ? t("Key stored") : t("No key")}
                   />
                   {item.provider !== "lmstudio" && item.provider !== "claude-code" && item.provider !== "codex" && editingKey !== item.id ? (
                     <Button
@@ -818,13 +821,13 @@ export function LlmPage(props: {
                         setKeyDraft("");
                       }}
                     >
-                      {item.hasSecret ? "Replace Key" : "Add Key"}
+                      {item.hasSecret ? t("Replace Key") : t("Add Key")}
                     </Button>
                   ) : null}
                   <Button
                     variant="ghost" size="small" className="text-muted-foreground hover:bg-destructive/12 hover:text-destructive"
                     type="button"
-                    title="Remove model"
+                    title={t("Remove model")}
                     onClick={async (e) => {
                       e.stopPropagation();
                       try {
@@ -834,11 +837,11 @@ export function LlmPage(props: {
                         await desktop.admin.deleteModel(item.id, users.length ? (replacement?.id ?? "none") : undefined);
                         await props.onChanged();
                       } catch (err) {
-                        props.onError(err instanceof Error ? err.message : "Failed to remove model");
+                        props.onError(err instanceof Error ? err.message : t("Failed to remove model"));
                       }
                     }}
                   >
-                    Remove
+                    {t("Remove")}
                   </Button>
                 </div>
               </CardRow>
@@ -855,16 +858,16 @@ export function LlmPage(props: {
                     type="password"
                     autoFocus
                     autoComplete="off"
-                    aria-label={`API key for ${item.name}`}
-                    placeholder={`Paste ${providerLabel(providers, item)} API key…`}
+                    aria-label={t("API key for {name}", { name: item.name })}
+                    placeholder={t("Paste {provider} API key…", { provider: providerLabel(providers, item) })}
                     value={keyDraft}
                     onChange={(event) => setKeyDraft(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === "Escape") setEditingKey(null);
                     }}
                   />
-                  <Button variant="outline" size="small" type="button" onClick={() => setEditingKey(null)}>Cancel</Button>
-                  <Button variant="default" size="small" type="submit" disabled={!keyDraft.trim()}>Save Key</Button>
+                  <Button variant="outline" size="small" type="button" onClick={() => setEditingKey(null)}>{t("Cancel")}</Button>
+                  <Button variant="default" size="small" type="submit" disabled={!keyDraft.trim()}>{t("Save Key")}</Button>
                 </form>
               ) : null}
             </Card>
@@ -872,48 +875,48 @@ export function LlmPage(props: {
         })
       )}
 
-      <SubTitle className="mt-5">Connect a model</SubTitle>
+      <SubTitle className="mt-5">{t("Connect a model")}</SubTitle>
       <Card className="gap-3.5">
         <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
-          <Choice label="Provider" value={providerId} options={providers.map((item) => ({ value: item.id, label: item.label }))} onChange={chooseProvider} />
+          <Choice label={t("Provider")} value={providerId} options={providers.map((item) => ({ value: item.id, label: item.label }))} onChange={chooseProvider} />
           {providerId === "lmstudio" && choices.length === 0 ? (
-            <Field label="Model">
-              <Input id="llm-model" value={modelId} placeholder="Model identifier in LM Studio" onChange={(event) => setModelId(event.target.value)} />
+            <Field label={t("Model")}>
+              <Input id="llm-model" value={modelId} placeholder={t("Model identifier in LM Studio")} onChange={(event) => setModelId(event.target.value)} />
             </Field>
           ) : (
-            <Choice label="Model" value={modelId} options={choices.map((item) => ({ value: item.id, label: item.label }))} onChange={setModelId} />
+            <Choice label={t("Model")} value={modelId} options={choices.map((item) => ({ value: item.id, label: item.label }))} onChange={setModelId} />
           )}
         </div>
 
         {supportsEffort(providerId) ? (
           <div className="flex flex-col gap-1.5">
             <Choice
-              label="Effort"
+              label={t("Effort")}
               value={effort || DEFAULT_EFFORT}
-              options={[{ value: DEFAULT_EFFORT, label: "Model default" }, ...Object.entries(EFFORT_LABELS).map(([value, label]) => ({ value, label }))]}
+              options={[{ value: DEFAULT_EFFORT, label: t("Model default") }, ...Object.entries(EFFORT_LABELS).map(([value, label]) => ({ value, label: EFFORT_NAMES[value] ?? label }))]}
               onChange={(next) => setEffort(next === DEFAULT_EFFORT ? "" : next)}
             />
             <p className="m-0 text-[12.5px] leading-snug text-muted-foreground">
-              {EFFORT_HINTS[providerId] ?? "How much the model reasons before answering. Higher is slower and costs more."}
-              {providerId === "claude-code" ? " Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Saturn never sends API requests for it, takes no API key, and does not schedule it." : ""}
-              {providerId === "codex" ? " Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key." : ""}
+              {EFFORT_HINTS[providerId] ?? t("How much the model reasons before answering. Higher is slower and costs more.")}
+              {providerId === "claude-code" ? " " + t("Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Saturn never sends API requests for it, takes no API key, and does not schedule it.") : ""}
+              {providerId === "codex" ? " " + t("Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key.") : ""}
             </p>
           </div>
         ) : null}
 
         {providerId === "lmstudio" ? (
-          <Field label="LM Studio Endpoint">
+          <Field label={t("LM Studio Endpoint")}>
             <Input id="llm-host" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
           </Field>
         ) : null}
 
         {needsKey ? (
-          <Field label="API Key">
+          <Field label={t("API Key")}>
             <Input
               id="llm-key"
               type="password"
               value={secret}
-              placeholder={savedKey ? `Using your saved ${provider?.label ?? ""} key — paste to replace` : "Paste provider API key…"}
+              placeholder={savedKey ? t("Using your saved {provider} key — paste to replace", { provider: provider?.label ?? "" }) : t("Paste provider API key…")}
               autoComplete="off"
               onChange={(event) => setSecret(event.target.value)}
             />
@@ -927,7 +930,7 @@ export function LlmPage(props: {
             disabled={!modelId.trim() || (needsKey && !savedKey && !secret.trim())}
             onClick={() => void add()}
           >
-            Connect Model
+            {t("Connect Model")}
           </Button>
         </div>
       </Card>
@@ -940,15 +943,18 @@ const DEFAULT_EFFORT = "default";
 
 /** What the effort setting does on each provider. */
 const EFFORT_HINTS: Record<string, string> = {
-  claude: "Claude's effort setting (output_config.effort). Models without effort support ignore it.",
-  "claude-code": "Claude Code's effort level.",
-  codex: "Codex reasoning effort.",
-  openai: "OpenAI reasoning effort for o-series and GPT-5 models (Extra High and Max use High). Other models ignore it.",
-  gemini: "Gemini thinking level (3.x and 4) or thinking budget (2.5).",
+  claude: t("Claude's effort setting (output_config.effort). Models without effort support ignore it."),
+  "claude-code": t("Claude Code's effort level."),
+  codex: t("Codex reasoning effort."),
+  openai: t("OpenAI reasoning effort for o-series and GPT-5 models (Extra High and Max use High). Other models ignore it."),
+  gemini: t("Gemini thinking level (3.x and 4) or thinking budget (2.5)."),
 };
 
+/** Each effort level's name as shown, by its stored value. */
+const EFFORT_NAMES: Record<string, string> = { low: t("Low"), medium: t("Medium"), high: t("High"), xhigh: t("Extra High"), max: t("Max") };
+
 function providerLabel(providers: LlmProvider[], model: Model) {
-  return providers.find((item) => item.id === model.provider)?.label ?? model.provider ?? "Model";
+  return providers.find((item) => item.id === model.provider)?.label ?? model.provider ?? t("Model");
 }
 
 /** The log filters' choice for everything, since a choice cannot be empty. */
@@ -967,18 +973,18 @@ function Logs(props: { lines: LogLine[]; onReload: () => void }) {
   return (
     <>
       <div className="flex items-center gap-2">
-        <Choice className="min-w-35" ariaLabel="Service" value={service || ALL_LOGS} options={[{ value: ALL_LOGS, label: "All services" }, ...services.map((name) => ({ value: name, label: name }))]} onChange={(next) => setService(next === ALL_LOGS ? "" : next)} />
+        <Choice className="min-w-35" ariaLabel={t("Service")} value={service || ALL_LOGS} options={[{ value: ALL_LOGS, label: t("All services") }, ...services.map((name) => ({ value: name, label: name }))]} onChange={(next) => setService(next === ALL_LOGS ? "" : next)} />
         <Choice
           className="min-w-35"
-          ariaLabel="Level"
+          ariaLabel={t("Level")}
           value={level || ALL_LOGS}
-          options={[{ value: ALL_LOGS, label: "All levels" }, { value: "info", label: "info+" }, { value: "warning", label: "warning+" }, { value: "error", label: "error" }]}
+          options={[{ value: ALL_LOGS, label: t("All levels") }, { value: "info", label: "info+" }, { value: "warning", label: "warning+" }, { value: "error", label: "error" }]}
           onChange={(next) => setLevel(next === ALL_LOGS ? "" : next)}
         />
-        <Button variant="outline" type="button" onClick={props.onReload}>Refresh</Button>
+        <Button variant="outline" type="button" onClick={props.onReload}>{t("Refresh")}</Button>
       </div>
       <div className="h-[54vh] overflow-auto rounded-lg border border-border bg-muted px-3 py-2.5 font-mono text-xs leading-normal">
-        {shown.length === 0 ? <div className="text-[12.5px] text-muted-foreground">No log lines matching filter.</div> : shown.map((item) => (
+        {shown.length === 0 ? <div className="text-[12.5px] text-muted-foreground">{t("No log lines matching filter.")}</div> : shown.map((item) => (
           <div className={classes("grid grid-cols-[88px_72px_64px_1fr] gap-2.5 py-0.5", item.level === "debug" && "opacity-60", item.level === "warning" && "text-wait", item.level === "error" && "text-destructive")} key={item.seq}>
             <span className="text-muted-foreground">{item.ts.slice(11, 23)}</span>
             <span className="text-muted-foreground">{item.service}</span>
@@ -996,8 +1002,8 @@ const AUTOMATIC_MODEL = "automatic";
 
 /** The models Saturn runs itself (runtime/src/infrastructure/embeddings.ts); the first ships with the app. */
 const BUILTIN_EMBEDDING_MODELS = [
-  { id: "multilingual-e5-small", label: "E5 multilingual (included)" },
-  { id: "jina-embeddings-v2-base-code", label: "Jina code (162 MB)" },
+  { id: "multilingual-e5-small", label: t("E5 multilingual (included)") },
+  { id: "jina-embeddings-v2-base-code", label: t("Jina code (162 MB)") },
 ];
 
 function General(props: {
@@ -1028,7 +1034,7 @@ function General(props: {
       props.onError("");
     } catch (reason) {
       setAgentBrowser(previous);
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
 
@@ -1039,7 +1045,7 @@ function General(props: {
       props.onError("");
     } catch (reason) {
       setClaudeProjectSettings(!next);
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
   const [sandbox, setSandbox] = useState<SandboxSettings>(props.profile.sandbox ?? { mode: "workspace-write", network: true });
@@ -1052,7 +1058,7 @@ function General(props: {
       props.onError("");
     } catch (reason) {
       setSandbox(previous);
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
   // Settings from before the source could be chosen (a model name only) meant LM Studio.
@@ -1070,7 +1076,7 @@ function General(props: {
       props.onError("");
     } catch (reason) {
       set(!next);
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
 
@@ -1083,7 +1089,7 @@ function General(props: {
       }));
       props.onError("");
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
   const [saved, setSaved] = useState(false);
@@ -1099,7 +1105,7 @@ function General(props: {
       props.onError("");
     } catch (reason) {
       setBackgroundModelId(previous);
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
 
@@ -1111,15 +1117,15 @@ function General(props: {
       await props.onSaved(next);
       setTimeout(() => setSaved(false), 2000);
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
 
   const themeButtons = (
     <Pills
-      label="Theme"
+      label={t("Theme")}
       value={props.theme}
-      options={[["light", "Light", <SunIcon key="sun" />], ["dark", "Dark", <MoonIcon key="moon" />]] as const}
+      options={[["light", t("Light"), <SunIcon key="sun" />], ["dark", t("Dark"), <MoonIcon key="moon" />]] as const}
       onChoose={(value) => {
         if (props.onSetTheme) props.onSetTheme(value);
         else if (props.theme !== value) props.onToggleTheme?.();
@@ -1130,21 +1136,21 @@ function General(props: {
   return (
     <div className="flex max-w-[760px] flex-col gap-5">
       <div>
-        <SectionTitle>General</SectionTitle>
+        <SectionTitle>{t("General")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Agent browser</RowLabel>
+              <RowLabel>{t("Agent browser")}</RowLabel>
               <RowDescription>
                 {agentBrowser === "system"
-                  ? "Agents browse in a visible window of your Chrome (or Edge, Brave), with Saturn's own profile: your logins and tabs stay out of it. You watch the cursor there."
+                  ? t("Agents browse in a visible window of your Chrome (or Edge, Brave), with Saturn's own profile: your logins and tabs stay out of it. You watch the cursor there.")
                   : agentBrowser === "safari"
-                    ? "Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second."
-                    : "Agents browse in Saturn's own browser, shown live in the chat's Browser tab with the agent's cursor."}
+                    ? t("Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.")
+                    : t("Agents browse in Saturn's own browser, shown live in the chat's Browser tab with the agent's cursor.")}
               </RowDescription>
             </RowText>
             <Pills
-              label="Agent browser"
+              label={t("Agent browser")}
               value={agentBrowser}
               options={isMac ? ([["saturn", "Saturn"], ["system", "Chrome"], ["safari", "Safari"]] as const) : ([["saturn", "Saturn"], ["system", "Chrome"]] as const)}
               onChoose={(value) => void chooseAgentBrowser(value)}
@@ -1152,23 +1158,37 @@ function General(props: {
           </SettingsRow>
           <SettingsRow>
             <RowText>
-              <RowLabel>Theme</RowLabel>
-              <RowDescription>Light or dark appearance.</RowDescription>
+              <RowLabel>{t("Theme")}</RowLabel>
+              <RowDescription>{t("Light or dark appearance.")}</RowDescription>
             </RowText>
             {themeButtons}
+          </SettingsRow>
+          <SettingsRow>
+            <RowText>
+              <RowLabel>{t("Language")}</RowLabel>
+              <RowDescription>{t("The interface's language. Saturn reloads to show it.")}</RowDescription>
+            </RowText>
+            <Pills
+              label={t("Language")}
+              value={languageChoice()}
+              options={[["auto", t("System")], ["en", "English"], ["zh-Hant", "繁體中文"]] as const}
+              onChoose={(value) => {
+                if (value !== languageChoice()) chooseLanguage(value);
+              }}
+            />
           </SettingsRow>
         </SettingsCard>
       </div>
 
       <div>
-        <SectionTitle>Computer use</SectionTitle>
+        <SectionTitle>{t("Computer use")}</SectionTitle>
         <SettingsCard>
           <ComputerPermissions />
         </SettingsCard>
       </div>
 
       <div>
-        <SectionTitle>Storage</SectionTitle>
+        <SectionTitle>{t("Storage")}</SectionTitle>
         <SettingsCard>
           <SnapshotStorage onError={props.onError} />
         </SettingsCard>
@@ -1182,10 +1202,10 @@ function General(props: {
           </ProgramGate>
           <SettingsRow>
             <RowText>
-              <RowLabel>Use the project's Claude Code settings</RowLabel>
-              <RowDescription>Claude Code loads the chat's project <code>.claude/settings.json</code>: its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.</RowDescription>
+              <RowLabel>{t("Use the project's Claude Code settings")}</RowLabel>
+              <RowDescription>{t("Claude Code loads the chat's project")} <code>.claude/settings.json</code>{t(": its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.")}</RowDescription>
             </RowText>
-            <Switch checked={claudeProjectSettings} aria-label="Use the project's Claude Code settings" onCheckedChange={(next) => void chooseClaudeProjectSettings(next)} />
+            <Switch checked={claudeProjectSettings} aria-label={t("Use the project's Claude Code settings")} onCheckedChange={(next) => void chooseClaudeProjectSettings(next)} />
           </SettingsRow>
         </SettingsCard>
       </div>
@@ -1200,21 +1220,21 @@ function General(props: {
       </div>
 
       <div>
-        <SectionTitle>Models</SectionTitle>
+        <SectionTitle>{t("Models")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Background Model</RowLabel>
+              <RowLabel>{t("Background Model")}</RowLabel>
               <RowDescription>
-                Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.
+                {t("Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.")}
               </RowDescription>
             </RowText>
             <Choice
               className="w-45"
-              ariaLabel="Background model"
+              ariaLabel={t("Background model")}
               value={backgroundModelId || AUTOMATIC_MODEL}
               disabled={!backgroundChoices.length && !backgroundModelId}
-              options={[{ value: AUTOMATIC_MODEL, label: "Automatic" }, ...backgroundChoices.map((item) => ({ value: item.id, label: item.name }))]}
+              options={[{ value: AUTOMATIC_MODEL, label: t("Automatic") }, ...backgroundChoices.map((item) => ({ value: item.id, label: item.name }))]}
               onChange={(next) => void chooseBackgroundModel(next === AUTOMATIC_MODEL ? "" : next)}
             />
           </SettingsRow>
@@ -1222,39 +1242,39 @@ function General(props: {
       </div>
 
       <div>
-        <SectionTitle>Agents</SectionTitle>
+        <SectionTitle>{t("Agents")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Memory</RowLabel>
-              <RowDescription>Every few turns, Saturn notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.</RowDescription>
+              <RowLabel>{t("Memory")}</RowLabel>
+              <RowDescription>{t("Every few turns, Saturn notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.")}</RowDescription>
             </RowText>
-            <Switch checked={memory} aria-label="Memory" onCheckedChange={(next) => void chooseFlag("memory", next)} />
+            <Switch checked={memory} aria-label={t("Memory")} onCheckedChange={(next) => void chooseFlag("memory", next)} />
           </SettingsRow>
           <SettingsRow>
             <RowText>
-              <RowLabel>Notifications</RowLabel>
-              <RowDescription>A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.</RowDescription>
+              <RowLabel>{t("Notifications")}</RowLabel>
+              <RowDescription>{t("A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.")}</RowDescription>
             </RowText>
-            <Switch checked={notify} aria-label="Notifications" onCheckedChange={(next) => { setNotify(next); localStorage.setItem("saturn-notify", next ? "on" : "off"); }} />
+            <Switch checked={notify} aria-label={t("Notifications")} onCheckedChange={(next) => { setNotify(next); localStorage.setItem("saturn-notify", next ? "on" : "off"); }} />
           </SettingsRow>
           <SettingsRow>
             <RowText>
-              <RowLabel>Plan approval</RowLabel>
-              <RowDescription>Agents write a plan and wait for your go-ahead before changing files or running commands. Reply "go" to proceed, or say what to change.</RowDescription>
+              <RowLabel>{t("Plan approval")}</RowLabel>
+              <RowDescription>{t('Agents write a plan and wait for your go-ahead before changing files or running commands. Reply "go" to proceed, or say what to change.')}</RowDescription>
             </RowText>
-            <Switch checked={planApproval} aria-label="Plan approval" onCheckedChange={(next) => void chooseFlag("planApproval", next)} />
+            <Switch checked={planApproval} aria-label={t("Plan approval")} onCheckedChange={(next) => void chooseFlag("planApproval", next)} />
           </SettingsRow>
           <SettingsRow>
             <RowText>
-              <RowLabel>Embedding model</RowLabel>
-              <RowDescription>Builds each project's code index, so agents find code by meaning. The built-in model runs on this Mac with nothing else to install; changing the model rebuilds the index.</RowDescription>
+              <RowLabel>{t("Embedding model")}</RowLabel>
+              <RowDescription>{t("Builds each project's code index, so agents find code by meaning. The built-in model runs on this Mac with nothing else to install; changing the model rebuilds the index.")}</RowDescription>
             </RowText>
             <div className="flex items-center gap-2">
               <Choice
-                ariaLabel="Embedding source"
+                ariaLabel={t("Embedding source")}
                 value={embeddingSource}
-                options={[{ value: "builtin", label: "Built in" }, { value: "lmstudio", label: "LM Studio" }, { value: "openai", label: "OpenAI-compatible" }]}
+                options={[{ value: "builtin", label: t("Built in") }, { value: "lmstudio", label: "LM Studio" }, { value: "openai", label: t("OpenAI-compatible") }]}
                 onChange={(value) => {
                   const next = value as EmbeddingSource;
                   const model = next === "builtin" ? BUILTIN_EMBEDDING_MODELS[0]!.id : next === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small";
@@ -1267,7 +1287,7 @@ function General(props: {
               />
               {embeddingSource === "builtin" ? (
                 <Choice
-                  ariaLabel="Built-in embedding model"
+                  ariaLabel={t("Built-in embedding model")}
                   value={BUILTIN_EMBEDDING_MODELS.some((item) => item.id === embeddingModel) ? embeddingModel : BUILTIN_EMBEDDING_MODELS[0]!.id}
                   options={BUILTIN_EMBEDDING_MODELS.map((item) => ({ value: item.id, label: item.label }))}
                   onChange={(next) => {
@@ -1278,10 +1298,10 @@ function General(props: {
               ) : (
                 <InlineForm onSubmit={(event) => { event.preventDefault(); void chooseEmbedding(); }}>
                   {embeddingSource === "openai" && (
-                    <Choice className="min-w-45" ariaLabel="Embedding connection" value={embeddingConnectionId} placeholder={embeddingConnections.length === 0 ? "Add an OpenAI connection first" : undefined} options={embeddingConnections.map((item) => ({ value: item.id, label: item.name }))} onChange={setEmbeddingConnectionId} />
+                    <Choice className="min-w-45" ariaLabel={t("Embedding connection")} value={embeddingConnectionId} placeholder={embeddingConnections.length === 0 ? t("Add an OpenAI connection first") : undefined} options={embeddingConnections.map((item) => ({ value: item.id, label: item.name }))} onChange={setEmbeddingConnectionId} />
                   )}
-                  <Input className="w-45" aria-label="Embedding model" value={embeddingModel} placeholder={embeddingSource === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small"} onChange={(event) => setEmbeddingModel(event.target.value)} />
-                  <Button type="submit" variant="default" size="small" disabled={(props.profile.embeddingModel ?? "") === embeddingModel.trim() && (props.profile.embeddingConnectionId ?? "") === embeddingConnectionId && props.profile.embeddingSource === embeddingSource}>Save</Button>
+                  <Input className="w-45" aria-label={t("Embedding model")} value={embeddingModel} placeholder={embeddingSource === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small"} onChange={(event) => setEmbeddingModel(event.target.value)} />
+                  <Button type="submit" variant="default" size="small" disabled={(props.profile.embeddingModel ?? "") === embeddingModel.trim() && (props.profile.embeddingConnectionId ?? "") === embeddingConnectionId && props.profile.embeddingSource === embeddingSource}>{t("Save")}</Button>
                 </InlineForm>
               )}
             </div>
@@ -1292,34 +1312,42 @@ function General(props: {
       <CommandLine onError={props.onError} />
 
       <div>
-        <SectionTitle>Sandbox</SectionTitle>
+        <SectionTitle>{t("Sandbox")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Commands</RowLabel>
+              <RowLabel>{t("Commands")}</RowLabel>
               <RowDescription>
-                Where a shell command run by an agent may write. <strong>Workspace</strong> confines it to the project folder (plus temp and cache folders) with the operating system's sandbox, so a stray <code>rm</code> or a script cannot touch anything else; <strong>Read-only</strong> lets it write nowhere; <strong>Off</strong> runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows cannot. A project can override this.
+                {t("Where a shell command run by an agent may write. ")}
+                <strong>{t("Workspace")}</strong>
+                {t(" confines it to the project folder (plus temp and cache folders) with the operating system's sandbox, so a stray ")}
+                <code>rm</code>
+                {t(" or a script cannot touch anything else; ")}
+                <strong>{t("Read-only")}</strong>
+                {t(" lets it write nowhere; ")}
+                <strong>{t("Off")}</strong>
+                {t(" runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows cannot. A project can override this.")}
               </RowDescription>
             </RowText>
-            <Choice ariaLabel="Sandbox mode" value={sandbox.mode} options={[{ value: "workspace-write", label: "Workspace" }, { value: "read-only", label: "Read-only" }, { value: "off", label: "Off" }]} onChange={(next) => void chooseSandbox({ ...sandbox, mode: next as SandboxMode })} />
+            <Choice ariaLabel={t("Sandbox mode")} value={sandbox.mode} options={[{ value: "workspace-write", label: t("Workspace") }, { value: "read-only", label: t("Read-only") }, { value: "off", label: t("Off") }]} onChange={(next) => void chooseSandbox({ ...sandbox, mode: next as SandboxMode })} />
           </SettingsRow>
           <SettingsRow>
             <RowText>
-              <RowLabel>Network</RowLabel>
-              <RowDescription>Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.</RowDescription>
+              <RowLabel>{t("Network")}</RowLabel>
+              <RowDescription>{t("Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.")}</RowDescription>
             </RowText>
-            <Switch checked={sandbox.network} aria-label="Network for commands" onCheckedChange={(next) => void chooseSandbox({ ...sandbox, network: next })} />
+            <Switch checked={sandbox.network} aria-label={t("Network for commands")} onCheckedChange={(next) => void chooseSandbox({ ...sandbox, network: next })} />
           </SettingsRow>
         </SettingsCard>
       </div>
 
       <div>
-        <SectionTitle>Workspace</SectionTitle>
+        <SectionTitle>{t("Workspace")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Workspace Name</RowLabel>
-              <RowDescription>Shown in the title bar and settings.</RowDescription>
+              <RowLabel>{t("Workspace Name")}</RowLabel>
+              <RowDescription>{t("Shown in the title bar and settings.")}</RowDescription>
             </RowText>
             <InlineForm
               onSubmit={(event) => {
@@ -1329,31 +1357,31 @@ function General(props: {
             >
               <Input
                 className="w-45"
-                aria-label="Workspace name"
+                aria-label={t("Workspace name")}
                 value={name}
                 onChange={(event) => { setName(event.target.value); setSaved(false); }}
               />
               <Button type="submit" variant="default" size="small" disabled={!name.trim() || name === props.profile.name}>
-                {saved ? "Saved ✓" : "Save"}
+                {saved ? t("Saved ✓") : t("Save")}
               </Button>
             </InlineForm>
           </SettingsRow>
 
           <SettingsRow>
             <RowText>
-              <RowLabel>Log Level</RowLabel>
-              <RowDescription>How much the runtime writes to Logs.</RowDescription>
+              <RowLabel>{t("Log Level")}</RowLabel>
+              <RowDescription>{t("How much the runtime writes to Logs.")}</RowDescription>
             </RowText>
             <Pills
-              label="Log level"
+              label={t("Log level")}
               value={logging}
-              options={[["debug", "Debug"], ["info", "Info"], ["warning", "Warning"], ["error", "Error"]] as const}
+              options={[["debug", t("Debug")], ["info", t("Info")], ["warning", t("Warning")], ["error", t("Error")]] as const}
               onChoose={(level) => {
                 const previous = logging;
                 setLogging(level);
                 desktop.admin.updateSettings({ logging: level }).then(props.onSaved, (reason: unknown) => {
                   setLogging(previous);
-                  props.onError(reason instanceof Error ? reason.message : "Could not save");
+                  props.onError(reason instanceof Error ? reason.message : t("Could not save"));
                 });
               }}
             />
@@ -1361,8 +1389,8 @@ function General(props: {
 
           <SettingsRow>
             <RowText>
-              <RowLabel>API Keys</RowLabel>
-              <RowDescription>Kept on this Mac in a file only your user account can read.</RowDescription>
+              <RowLabel>{t("API Keys")}</RowLabel>
+              <RowDescription>{t("Kept on this Mac in a file only your user account can read.")}</RowDescription>
             </RowText>
             <code className="rounded-md bg-muted px-2 py-0.5 text-[11.5px] whitespace-nowrap text-muted-foreground">~/.saturn-app/secrets.json</code>
           </SettingsRow>
@@ -1392,18 +1420,18 @@ function ProjectSettingsTab(props: {
       await desktop.projects.update(props.project.id, { sandbox: next });
     } catch (reason) {
       setSandbox(previous);
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
 
   /** Takes the project and its chats out of Saturn. Its folder and everything in it stay. */
   async function removeProject() {
-    if (!await askToConfirm(`Remove ${props.project.name} from Saturn? Its chats go with it. The folder and its files stay where they are.`)) return;
+    if (!await askToConfirm(t("Remove {name} from Saturn? Its chats go with it. The folder and its files stay where they are.", { name: props.project.name }))) return;
     try {
       await desktop.projects.delete(props.project.id);
       props.onRemoved?.();
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not remove the project");
+      props.onError(reason instanceof Error ? reason.message : t("Could not remove the project"));
     }
   }
 
@@ -1413,7 +1441,7 @@ function ProjectSettingsTab(props: {
       setVerifySaved(true);
       setTimeout(() => setVerifySaved(false), 2000);
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Could not save");
+      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
 
@@ -1442,7 +1470,7 @@ function ProjectSettingsTab(props: {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : "Failed to save project rules");
+      props.onError(reason instanceof Error ? reason.message : t("Failed to save project rules"));
     } finally {
       setSaving(false);
     }
@@ -1451,24 +1479,24 @@ function ProjectSettingsTab(props: {
   return (
     <div className="flex max-w-[760px] flex-col gap-5">
       <div>
-        <SectionTitle>Project Details</SectionTitle>
+        <SectionTitle>{t("Project Details")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Project Name</RowLabel>
+              <RowLabel>{t("Project Name")}</RowLabel>
               <RowDescription>{props.project.name}</RowDescription>
             </RowText>
           </SettingsRow>
           <SettingsRow>
             <RowText>
-              <RowLabel>Workspace Path</RowLabel>
+              <RowLabel>{t("Workspace Path")}</RowLabel>
               <RowDescription className="font-mono">{props.project.path}</RowDescription>
             </RowText>
           </SettingsRow>
           {props.project.gitBranch ? (
             <SettingsRow>
               <RowText>
-                <RowLabel>Git Branch</RowLabel>
+                <RowLabel>{t("Git Branch")}</RowLabel>
                 <RowDescription className="font-mono">{props.project.gitBranch}</RowDescription>
               </RowText>
             </SettingsRow>
@@ -1477,37 +1505,37 @@ function ProjectSettingsTab(props: {
       </div>
 
       <div>
-        <SectionTitle>Check After Changes</SectionTitle>
+        <SectionTitle>{t("Check After Changes")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Verify command</RowLabel>
-              <RowDescription>Run after an agent changes files here; a failure goes straight back to the agent to fix (at most twice per message). Use "auto" for package.json's typecheck or lint script, or leave empty to skip.</RowDescription>
+              <RowLabel>{t("Verify command")}</RowLabel>
+              <RowDescription>{t('Run after an agent changes files here; a failure goes straight back to the agent to fix (at most twice per message). Use "auto" for package.json\'s typecheck or lint script, or leave empty to skip.')}</RowDescription>
             </RowText>
             <InlineForm onSubmit={(event) => { event.preventDefault(); void saveVerify(); }}>
-              <Input className="w-45" aria-label="Verify command" value={verifyCommand} placeholder="auto, or e.g. npm test" onChange={(event) => setVerifyCommand(event.target.value)} />
-              <Button type="submit" variant="default" size="small" disabled={(props.project.verifyCommand ?? "") === verifyCommand.trim()}>{verifySaved ? "Saved" : "Save"}</Button>
+              <Input className="w-45" aria-label={t("Verify command")} value={verifyCommand} placeholder={t("auto, or e.g. npm test")} onChange={(event) => setVerifyCommand(event.target.value)} />
+              <Button type="submit" variant="default" size="small" disabled={(props.project.verifyCommand ?? "") === verifyCommand.trim()}>{verifySaved ? t("Saved") : t("Save")}</Button>
             </InlineForm>
           </SettingsRow>
         </SettingsCard>
       </div>
 
       <div>
-        <SectionTitle>Sandbox</SectionTitle>
+        <SectionTitle>{t("Sandbox")}</SectionTitle>
         <SettingsCard>
           <SettingsRow>
             <RowText>
-              <RowLabel>Commands in this project</RowLabel>
-              <RowDescription>Overrides the sandbox under Settings → General for commands run here. Workspace confines writes to this folder; Read-only allows none; Off runs commands as you.</RowDescription>
+              <RowLabel>{t("Commands in this project")}</RowLabel>
+              <RowDescription>{t("Overrides the sandbox under Settings → General for commands run here. Workspace confines writes to this folder; Read-only allows none; Off runs commands as you.")}</RowDescription>
             </RowText>
             <div className="flex items-center gap-2">
               <Choice
-                ariaLabel="Sandbox for this project"
+                ariaLabel={t("Sandbox for this project")}
                 value={sandbox?.mode ?? "inherit"}
-                options={[{ value: "inherit", label: "Same as General" }, { value: "workspace-write", label: "Workspace" }, { value: "read-only", label: "Read-only" }, { value: "off", label: "Off" }]}
+                options={[{ value: "inherit", label: t("Same as General") }, { value: "workspace-write", label: t("Workspace") }, { value: "read-only", label: t("Read-only") }, { value: "off", label: t("Off") }]}
                 onChange={(next) => void chooseSandbox(next === "inherit" ? null : { mode: next as SandboxMode, network: sandbox?.network ?? true })}
               />
-              {sandbox ? <Switch checked={sandbox.network} aria-label="Network for commands" onCheckedChange={(next) => void chooseSandbox({ ...sandbox, network: next })} /> : null}
+              {sandbox ? <Switch checked={sandbox.network} aria-label={t("Network for commands")} onCheckedChange={(next) => void chooseSandbox({ ...sandbox, network: next })} /> : null}
             </div>
           </SettingsRow>
         </SettingsCard>
@@ -1516,16 +1544,16 @@ function ProjectSettingsTab(props: {
       <ProjectPermissions project={props.project} onError={props.onError} />
 
       <div>
-        <SectionTitle>Project Rules & Custom Instructions</SectionTitle>
+        <SectionTitle>{t("Project Rules & Custom Instructions")}</SectionTitle>
         <SettingsCard>
           <div className="flex flex-col gap-2.5">
-            <RowDescription>Custom instructions for agents working in this project (.cursorrules / AGENTS.md).</RowDescription>
+            <RowDescription>{t("Custom instructions for agents working in this project (.cursorrules / AGENTS.md).")}</RowDescription>
             <Textarea
               className="resize-y font-mono text-xs field-sizing-fixed"
               rows={7}
               value={rules}
               disabled={loading}
-              placeholder={loading ? "Loading project rules…" : "Add custom instructions for this project…"}
+              placeholder={loading ? t("Loading project rules…") : t("Add custom instructions for this project…")}
               onChange={(event) => {
                 setRules(event.target.value);
                 setSaved(false);
@@ -1533,7 +1561,7 @@ function ProjectSettingsTab(props: {
             />
             <div className="flex justify-end">
               <Button type="button" variant="default" size="small" disabled={saving || loading} onClick={() => void saveRules()}>
-                {saving ? "Saving…" : saved ? "Saved ✓" : "Save Rules"}
+                {saving ? t("Saving…") : saved ? t("Saved ✓") : t("Save Rules")}
               </Button>
             </div>
           </div>
@@ -1541,16 +1569,16 @@ function ProjectSettingsTab(props: {
       </div>
 
       <div>
-        <SectionTitle>Actions</SectionTitle>
+        <SectionTitle>{t("Actions")}</SectionTitle>
         <SettingsCard className="flex flex-wrap gap-2.5">
           <Button type="button" variant="outline" size="small" onClick={() => void desktop.projects.openInTerminal(props.project.id)}>
-            Open in Terminal
+            {t("Open in Terminal")}
           </Button>
           <Button type="button" variant="outline" size="small" onClick={() => void desktop.projects.openInFolder(props.project.id)}>
-            Reveal in Finder
+            {t("Reveal in Finder")}
           </Button>
           <Button type="button" variant="danger" size="small" onClick={() => void removeProject()}>
-            Remove from Saturn
+            {t("Remove from Saturn")}
           </Button>
         </SettingsCard>
       </div>
@@ -1560,19 +1588,19 @@ function ProjectSettingsTab(props: {
 
 function ShortcutsTab() {
   const shortcuts = [
-    ["⌘ K", "Commands"],
-    ["⌘ 1 to 7", "Go to a screen"],
-    ["⌘ J", "Show or hide the research assistant"],
-    ["⌘ S", "Save the open file"],
-    ["⌘ ,", "Open Settings"],
-    ["Enter", "Send a message"],
-    ["Shift + Enter", "New line in a message"],
-    ["Esc", "Close popups"],
+    ["⌘ K", t("Commands")],
+    [t("⌘ 1 to 7"), t("Go to a screen")],
+    ["⌘ J", t("Show or hide the research assistant")],
+    ["⌘ S", t("Save the open file")],
+    ["⌘ ,", t("Open Settings")],
+    ["Enter", t("Send a message")],
+    ["Shift + Enter", t("New line in a message")],
+    ["Esc", t("Close popups")],
   ];
   return (
     <div className="flex max-w-[760px] flex-col gap-5">
       <div>
-        <SectionTitle>Keyboard Shortcuts</SectionTitle>
+        <SectionTitle>{t("Keyboard Shortcuts")}</SectionTitle>
         <SettingsCard>
           {shortcuts.map(([keys, label]) => (
             <SettingsRow key={keys}>
@@ -1631,7 +1659,7 @@ function Chevron(props: { open: boolean }) {
 export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNode }) {
   const [status, setStatus] = useState<ProgramStatus | null>(null);
   const [error, setError] = useState("");
-  const load = () => desktop.admin.program(props.id).then(setStatus, (reason) => setError(reason instanceof Error ? reason.message : "Could not reach the runtime"));
+  const load = () => desktop.admin.program(props.id).then(setStatus, (reason) => setError(reason instanceof Error ? reason.message : t("Could not reach the runtime")));
 
   useEffect(() => {
     void load();
@@ -1649,16 +1677,16 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
     try {
       setStatus(await desktop.admin.installProgram(props.id));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not start the download");
+      setError(reason instanceof Error ? reason.message : t("Could not start the download"));
     }
   }
 
   async function remove() {
-    if (!await askToConfirm(`Remove Saturn's copy of ${status?.label}? ${status?.label} models stop working until it is downloaded again or found on your system.`)) return;
+    if (!await askToConfirm(t("Remove Saturn's copy of {program}? {program} models stop working until it is downloaded again or found on your system.", { program: status?.label ?? "" }))) return;
     try {
       setStatus(await desktop.admin.removeProgram(props.id));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not remove it");
+      setError(reason instanceof Error ? reason.message : t("Could not remove it"));
     }
   }
 
@@ -1668,8 +1696,8 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
     return (
       <SettingsRow>
         <RowText>
-          <RowLabel>Program</RowLabel>
-          <RowDescription>{error || "Checking…"}</RowDescription>
+          <RowLabel>{t("Program")}</RowLabel>
+          <RowDescription>{error || t("Checking…")}</RowDescription>
         </RowText>
       </SettingsRow>
     );
@@ -1681,13 +1709,15 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
       <>
         <SettingsRow>
           <RowText>
-            <RowLabel>{label} is not installed</RowLabel>
+            <RowLabel>{t("{program} is not installed", { program: label })}</RowLabel>
             <RowDescription>
               {busy
                 ? progress!.state === "downloading"
-                  ? `Downloading… ${Math.round(progress!.received / 1048576)} of ${Math.round(progress!.total / 1048576)} MB`
-                  : progress!.state === "verifying" ? "Checking the download against its pinned checksum…" : "Unpacking…"
-                : `Saturn downloads the official ${label} program${status.downloadVersion ? ` (${status.downloadVersion})` : ""} from the npm registry and checks it against a checksum pinned in Saturn, or uses one you have installed yourself.`}
+                  ? t("Downloading… {received} of {total} MB", { received: Math.round(progress!.received / 1048576), total: Math.round(progress!.total / 1048576) })
+                  : progress!.state === "verifying" ? t("Checking the download against its pinned checksum…") : t("Unpacking…")
+                : status.downloadVersion
+                  ? t("Saturn downloads the official {program} program ({version}) from the npm registry and checks it against a checksum pinned in Saturn, or uses one you have installed yourself.", { program: label, version: status.downloadVersion })
+                  : t("Saturn downloads the official {program} program from the npm registry and checks it against a checksum pinned in Saturn, or uses one you have installed yourself.", { program: label })}
             </RowDescription>
             {busy ? (
               <div className="mt-2 h-1 overflow-hidden rounded-full bg-border" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
@@ -1696,9 +1726,9 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
             ) : null}
           </RowText>
           <RowActions>
-            <Status ok={false} label="Not installed" />
+            <Status ok={false} label={t("Not installed")} />
             <Button type="button" variant="default" size="small" disabled={Boolean(busy) || !status.downloadVersion} onClick={() => void install()}>
-              {busy ? "Downloading…" : progress?.state === "failed" ? "Try Again" : megabytes ? `Download (${megabytes})` : "Download"}
+              {busy ? t("Downloading…") : progress?.state === "failed" ? t("Try Again") : megabytes ? t("Download ({size})", { size: megabytes }) : t("Download")}
             </Button>
           </RowActions>
         </SettingsRow>
@@ -1707,20 +1737,20 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
     );
   }
   const where =
-    status.source === "saturn" ? `Saturn's copy${status.version ? ` · ${status.version}` : ""}`
-    : status.source === "system" ? `Your installed ${label}${status.version ? ` · ${status.version}` : ""} · ${status.path}`
-    : `Development copy${status.version ? ` · ${status.version}` : ""}`;
+    status.source === "saturn" ? `${t("Saturn's copy")}${status.version ? ` · ${status.version}` : ""}`
+    : status.source === "system" ? `${t("Your installed {program}", { program: label })}${status.version ? ` · ${status.version}` : ""} · ${status.path}`
+    : `${t("Development copy")}${status.version ? ` · ${status.version}` : ""}`;
   return (
     <>
       <SettingsRow>
         <RowText>
-          <RowLabel>Program</RowLabel>
+          <RowLabel>{t("Program")}</RowLabel>
           <RowDescription title={status.path ?? ""}>{where}</RowDescription>
         </RowText>
         <RowActions>
-          <Status ok label="Installed" />
+          <Status ok label={t("Installed")} />
           {status.source === "saturn" ? (
-            <Button type="button" variant="outline" size="small" onClick={() => void remove()}>Remove</Button>
+            <Button type="button" variant="outline" size="small" onClick={() => void remove()}>{t("Remove")}</Button>
           ) : null}
         </RowActions>
       </SettingsRow>
@@ -1754,7 +1784,7 @@ export function CodexLogin() {
   }
 
   useEffect(() => {
-    void run("checking", () => desktop.admin.codexStatus(), "Could not reach the runtime");
+    void run("checking", () => desktop.admin.codexStatus(), t("Could not reach the runtime"));
   }, []);
 
   // While a sign-in waits, follow it until Codex reports signed in or the sign-in ends.
@@ -1769,15 +1799,15 @@ export function CodexLogin() {
   }, [waiting]);
 
   async function signOut() {
-    if (!await askToConfirm("Sign Saturn out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in.")) return;
-    await run("signing_out", () => desktop.admin.codexLogout(), "Could not sign out");
+    if (!await askToConfirm(t("Sign Saturn out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in."))) return;
+    await run("signing_out", () => desktop.admin.codexLogout(), t("Could not sign out"));
   }
 
   async function openPage() {
     try {
       await desktop.admin.codexOpenPage();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not open the page");
+      setError(reason instanceof Error ? reason.message : t("Could not open the page"));
     }
   }
 
@@ -1792,33 +1822,33 @@ export function CodexLogin() {
     }
   }
 
-  const method = status?.authMethod === "chatgpt" ? "ChatGPT plan" : status?.authMethod === "api-key" ? "API key" : "";
+  const method = status?.authMethod === "chatgpt" ? t("ChatGPT plan") : status?.authMethod === "api-key" ? t("API key") : "";
   return (
     <>
       <SettingsRow>
         <RowText>
-          <RowLabel>Codex Sign-In</RowLabel>
+          <RowLabel>{t("Codex Sign-In")}</RowLabel>
           <RowDescription>
             {status === null
-              ? busy ? "Checking…" : "Status unavailable."
+              ? busy ? t("Checking…") : t("Status unavailable.")
               : status.loggedIn
-                ? ["Signed in", method].filter(Boolean).join(" · ")
-                : "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; Saturn never sees your credentials."}
+                ? [t("Signed in"), method].filter(Boolean).join(" · ")
+                : t("Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; Saturn never sees your credentials.")}
           </RowDescription>
         </RowText>
         <RowActions>
-          {status ? <Status ok={status.loggedIn} label={status.loggedIn ? "Signed in" : "Signed out"} /> : null}
+          {status ? <Status ok={status.loggedIn} label={status.loggedIn ? t("Signed in") : t("Signed out")} /> : null}
           {status?.loggedIn ? (
             <Button type="button" variant="default" size="small" disabled={busy !== null} onClick={() => void signOut()}>
-              {busy === "signing_out" ? "Signing out…" : "Sign Out"}
+              {busy === "signing_out" ? t("Signing out…") : t("Sign Out")}
             </Button>
           ) : waiting ? (
-            <Button type="button" variant="outline" size="small" onClick={() => void run("checking", () => desktop.admin.codexCancelSignIn(), "Could not cancel")}>
-              Cancel
+            <Button type="button" variant="outline" size="small" onClick={() => void run("checking", () => desktop.admin.codexCancelSignIn(), t("Could not cancel"))}>
+              {t("Cancel")}
             </Button>
           ) : (
-            <Button type="button" variant="default" size="small" disabled={busy !== null || status === null} onClick={() => void run("starting", () => desktop.admin.codexSignIn("device"), "Could not start sign-in")}>
-              {busy === "starting" ? "Starting…" : "Sign In to Codex"}
+            <Button type="button" variant="default" size="small" disabled={busy !== null || status === null} onClick={() => void run("starting", () => desktop.admin.codexSignIn("device"), t("Could not start sign-in"))}>
+              {busy === "starting" ? t("Starting…") : t("Sign In to Codex")}
             </Button>
           )}
         </RowActions>
@@ -1827,25 +1857,25 @@ export function CodexLogin() {
         <SettingsRow stacked>
           {signIn.mode === "device" ? (
             <>
-              <RowDescription>Codex shows this one-time code: open the OpenAI page, sign in, and enter it. It expires in 15 minutes; this card updates once you're done.</RowDescription>
+              <RowDescription>{t("Codex shows this one-time code: open the OpenAI page, sign in, and enter it. It expires in 15 minutes; this card updates once you're done.")}</RowDescription>
               <div className={COMMAND_BOX}>
-                <code className="min-w-0 flex-1 overflow-x-auto text-[15px] font-semibold tracking-widest whitespace-nowrap">{signIn.code ?? "Waiting for a code…"}</code>
-                {signIn.code ? <Button type="button" variant="outline" size="small" onClick={() => void copyCode()}>{copied ? "Copied" : "Copy"}</Button> : null}
+                <code className="min-w-0 flex-1 overflow-x-auto text-[15px] font-semibold tracking-widest whitespace-nowrap">{signIn.code ?? t("Waiting for a code…")}</code>
+                {signIn.code ? <Button type="button" variant="outline" size="small" onClick={() => void copyCode()}>{copied ? t("Copied") : t("Copy")}</Button> : null}
                 {signIn.url ? (
-                  <Button type="button" variant="default" size="small" onClick={() => void openPage()}>Open Page</Button>
+                  <Button type="button" variant="default" size="small" onClick={() => void openPage()}>{t("Open Page")}</Button>
                 ) : null}
               </div>
               <RowDescription>
-                Device codes must be allowed in your ChatGPT security settings. If they aren't,{" "}
-                <LinkButton onClick={() => void run("starting", () => desktop.admin.codexSignIn("browser"), "Could not start sign-in")}>
-                  sign in with the browser instead
-                </LinkButton>.
+                {t("Device codes must be allowed in your ChatGPT security settings. If they aren't,")}{" "}
+                <LinkButton onClick={() => void run("starting", () => desktop.admin.codexSignIn("browser"), t("Could not start sign-in"))}>
+                  {t("sign in with the browser instead")}
+                </LinkButton>{t(".")}
               </RowDescription>
             </>
           ) : (
             <RowDescription>
-              Finish signing in on the page that opened in your browser. Saturn keeps Codex listening for it until you're done.
-              {signIn.url ? <> <LinkButton onClick={() => void openPage()}>Open it again</LinkButton>.</> : null}
+              {t("Finish signing in on the page that opened in your browser. Saturn keeps Codex listening for it until you're done.")}
+              {signIn.url ? <> <LinkButton onClick={() => void openPage()}>{t("Open it again")}</LinkButton>{t(".")}</> : null}
             </RowDescription>
           )}
         </SettingsRow>
@@ -1874,7 +1904,7 @@ export function ClaudeCodeLogin() {
     try {
       setStatus(await desktop.admin.claudeCodeStatus());
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not reach the runtime");
+      setError(reason instanceof Error ? reason.message : t("Could not reach the runtime"));
     } finally {
       setBusy(null);
     }
@@ -1895,13 +1925,13 @@ export function ClaudeCodeLogin() {
   }, [signedOut]);
 
   async function signOut() {
-    if (!await askToConfirm("Sign Saturn out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in.")) return;
+    if (!await askToConfirm(t("Sign Saturn out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in."))) return;
     setBusy("signing_out");
     setError("");
     try {
       setStatus(await desktop.admin.claudeCodeLogout());
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not sign out");
+      setError(reason instanceof Error ? reason.message : t("Could not sign out"));
     } finally {
       setBusy(null);
     }
@@ -1918,29 +1948,29 @@ export function ClaudeCodeLogin() {
     }
   }
 
-  const plan = status?.subscriptionType ? `${status.subscriptionType.charAt(0).toUpperCase()}${status.subscriptionType.slice(1)} plan` : "";
+  const plan = status?.subscriptionType ? t("{plan} plan", { plan: `${status.subscriptionType.charAt(0).toUpperCase()}${status.subscriptionType.slice(1)}` }) : "";
   return (
     <>
       <SettingsRow>
         <RowText>
-          <RowLabel>Claude Account</RowLabel>
+          <RowLabel>{t("Claude Account")}</RowLabel>
           <RowDescription>
             {status === null
-              ? busy ? "Checking…" : "Status unavailable."
+              ? busy ? t("Checking…") : t("Status unavailable.")
               : status.loggedIn
-                ? [status.email ?? "Signed in", plan].filter(Boolean).join(" · ")
-                : "Not signed in. Claude (via Claude Code) models run on your own Claude login; Saturn never sees your credentials."}
+                ? [status.email ?? t("Signed in"), plan].filter(Boolean).join(" · ")
+                : t("Not signed in. Claude (via Claude Code) models run on your own Claude login; Saturn never sees your credentials.")}
           </RowDescription>
         </RowText>
         <RowActions>
-          {status ? <Status ok={status.loggedIn} label={status.loggedIn ? "Signed in" : "Signed out"} /> : null}
+          {status ? <Status ok={status.loggedIn} label={status.loggedIn ? t("Signed in") : t("Signed out")} /> : null}
           {status?.loggedIn ? (
             <Button type="button" variant="default" size="small" disabled={busy !== null} onClick={() => void signOut()}>
-              {busy === "signing_out" ? "Signing out…" : "Sign Out"}
+              {busy === "signing_out" ? t("Signing out…") : t("Sign Out")}
             </Button>
           ) : (
             <Button type="button" variant="outline" size="small" disabled={busy !== null} onClick={() => void check()}>
-              {busy === "checking" ? "Checking…" : "Check Again"}
+              {busy === "checking" ? t("Checking…") : t("Check Again")}
             </Button>
           )}
         </RowActions>
@@ -1948,12 +1978,12 @@ export function ClaudeCodeLogin() {
       {status && !status.loggedIn && status.loginCommand ? (
         <SettingsRow stacked>
           <RowDescription>
-            To sign in, run this in Terminal and keep that window open until it says you're signed in. This card updates on its own.
-            If the browser says it can't connect to localhost, that terminal sign-in had already ended: run the command again and use the new browser page.
+            {t("To sign in, run this in Terminal and keep that window open until it says you're signed in. This card updates on its own.")}
+            {t(" If the browser says it can't connect to localhost, that terminal sign-in had already ended: run the command again and use the new browser page.")}
           </RowDescription>
           <div className={COMMAND_BOX}>
             <code className="min-w-0 flex-1 overflow-x-auto text-[11.5px] whitespace-nowrap">{status.loginCommand}</code>
-            <Button type="button" variant="outline" size="small" onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</Button>
+            <Button type="button" variant="outline" size="small" onClick={() => void copy()}>{copied ? t("Copied") : t("Copy")}</Button>
           </div>
         </SettingsRow>
       ) : null}

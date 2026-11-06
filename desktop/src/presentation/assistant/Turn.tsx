@@ -1,4 +1,5 @@
 import { isBusy } from "../../domain/conversation.js";
+import { t } from "../../domain/i18n.js";
 import type { Run } from "../../domain/model.js";
 import { shownInput, shownSources } from "../../domain/slash.js";
 import { guideIn } from "../../domain/workbench.js";
@@ -6,12 +7,12 @@ import { Button } from "../ui/base/Button.js";
 import { FormattedOutput } from "../FormattedOutput.js";
 import { RunChangesCard } from "../RunChanges.js";
 import { RunSteps, WaitingSteps } from "../RunSteps.js";
-import { startGuide } from "../shell/Guide.js";
+import { shownPlace, startGuide } from "../shell/Guide.js";
 
 /** One message and what came of it: its steps and approvals, its changes, and the answer. */
 export function Turn(props: { run: Run; onComment?: (text: string) => void }) {
   const { run } = props;
-  const details = [shownSources(run.input), run.mode === "ask" ? "Reads only" : ""].filter(Boolean).join(" · ");
+  const details = [shownSources(run.input), run.mode === "ask" ? t("Reads only") : ""].filter(Boolean).join(" · ");
   const guide = guideIn(run.output ?? "");
   return (
     <article className="flex min-w-0 flex-none flex-col gap-2">
@@ -25,13 +26,13 @@ export function Turn(props: { run: Run; onComment?: (text: string) => void }) {
         <div className="min-w-0 leading-[1.55] [overflow-wrap:anywhere]">
           <FormattedOutput text={guide.text} />
           {guide.places.length ? (
-            <Button variant="outline" className="mt-2" title={guide.places.map((place) => place.title).join(", ")} onClick={() => startGuide(guide.places)}>
-              {guide.places.length === 1 ? `Show me: ${guide.places[0].title}` : `Walk me through it (${guide.places.length} steps)`}
+            <Button variant="outline" className="mt-2" title={guide.places.map((place) => shownPlace(place).title).join(", ")} onClick={() => startGuide(guide.places)}>
+              {guide.places.length === 1 ? t("Show me: {place}", { place: shownPlace(guide.places[0]).title }) : t("Walk me through it ({count} steps)", { count: guide.places.length })}
             </Button>
           ) : null}
         </div>
       ) : isBusy(run) || run.status === "waiting_approval" ? null : (
-        <div className={run.status === "failed" ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{run.status === "cancelled" ? "Stopped" : run.error || run.status}</div>
+        <div className={run.status === "failed" ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{run.status === "cancelled" ? t("Stopped") : run.error || run.status}</div>
       )}
       <WaitingSteps run={run} />
     </article>

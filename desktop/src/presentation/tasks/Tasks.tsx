@@ -3,6 +3,7 @@ import { desktop } from "../../application/desktop.js";
 import type { WorktreeStatus } from "../../application/catalog.js";
 import { TASK_PREFIX, TASK_STATE_LABELS, taskState, type TaskState } from "../../domain/assistant.js";
 import { isBusy } from "../../domain/conversation.js";
+import { t } from "../../domain/i18n.js";
 import type { Agent, Conversation } from "../../domain/model.js";
 import { lockedPathOf, type ResearchEvent, type ResearchPolicy } from "../../domain/research.js";
 import { askToConfirm } from "../../infrastructure/confirm.js";
@@ -78,8 +79,8 @@ export function Tasks(props: ScreenProps & { onOpenSettings: () => void }) {
 
   if (ready && !agent) {
     return (
-      <Empty title="Connect a model" action={<Button onClick={props.onOpenSettings}>Open Settings</Button>}>
-        Tasks need a model to run on.
+      <Empty title={t("Connect a model")} action={<Button onClick={props.onOpenSettings}>{t("Open Settings")}</Button>}>
+        {t("Tasks need a model to run on.")}
       </Empty>
     );
   }
@@ -94,13 +95,13 @@ export function Tasks(props: ScreenProps & { onOpenSettings: () => void }) {
           void start();
         }}
       >
-        <Field label="New task">
-          <Textarea rows={3} value={prompt} placeholder="Clean up load_data.py and the data splits" onChange={(event) => setPrompt(event.target.value)} />
+        <Field label={t("New task")}>
+          <Textarea rows={3} value={prompt} placeholder={t("Clean up load_data.py and the data splits")} onChange={(event) => setPrompt(event.target.value)} />
         </Field>
         <Button type="submit" disabled={!prompt.trim() || starting}>
-          {starting ? "Starting…" : "Start in its own worktree"}
+          {starting ? t("Starting…") : t("Start in its own worktree")}
         </Button>
-        <p className={MUTED}>Locked files are refused, and nothing reaches the project until you merge it.</p>
+        <p className={MUTED}>{t("Locked files are refused, and nothing reaches the project until you merge it.")}</p>
       </form>
       {STATES.map((state) => {
         const group = tasks.filter((task) => stateOf(task) === state);
@@ -111,7 +112,7 @@ export function Tasks(props: ScreenProps & { onOpenSettings: () => void }) {
             {group.map((task) => (
               <Button variant="ghost" key={task.id} aria-pressed={task.id === current?.id} className={classes("h-auto min-h-10 w-full flex-col items-start justify-start px-2.5 py-1.5 text-left whitespace-normal [overflow-wrap:anywhere]", task.id === current?.id && "bg-muted")} onClick={() => setSelected(task.id)}>
                 {task.title?.slice(TASK_PREFIX.length)}
-                <div className={classes(MUTED, "font-normal")}>{task.worktree ? `Worktree ${task.worktree.branch}` : "Worktree closed"}</div>
+                <div className={classes(MUTED, "font-normal")}>{task.worktree ? t("Worktree {branch}", { branch: task.worktree.branch }) : t("Worktree closed")}</div>
               </Button>
             ))}
           </section>
@@ -121,8 +122,8 @@ export function Tasks(props: ScreenProps & { onOpenSettings: () => void }) {
   );
 
   return (
-    <Split id="tasks" side="left" size={300} minimum={220} label="Tasks" pane={list}>
-      <h1 className="sr-only">Tasks</h1>
+    <Split id="tasks" side="left" size={300} minimum={220} label={t("Tasks")} pane={list}>
+      <h1 className="sr-only">{t("Tasks")}</h1>
       {current && agent ? (
         <TaskDetail
           key={current.id}
@@ -137,7 +138,7 @@ export function Tasks(props: ScreenProps & { onOpenSettings: () => void }) {
           onState={(state) => setStates((known) => (known[current.id] === state ? known : { ...known, [current.id]: state }))}
         />
       ) : (
-        <Empty title="No tasks yet">Hand off batch runs, cleanups and long work here, and keep writing what you want to write yourself.</Empty>
+        <Empty title={t("No tasks yet")}>{t("Hand off batch runs, cleanups and long work here, and keep writing what you want to write yourself.")}</Empty>
       )}
     </Split>
   );
@@ -175,7 +176,7 @@ function TaskDetail(props: {
   const refusals = own.filter((event) => event.kind === "refused" && lockedPathOf(event) && !(policy?.released ?? []).includes(lockedPathOf(event)!));
 
   async function finish(how: "merge" | "discard") {
-    const question = how === "merge" ? `Merge ${task.worktree?.branch} into ${task.worktree?.base}?` : "Discard this task's worktree and everything in it?";
+    const question = how === "merge" ? t("Merge {branch} into {base}?", { branch: task.worktree?.branch ?? "", base: task.worktree?.base ?? "" }) : t("Discard this task's worktree and everything in it?");
     if (!(await askToConfirm(question))) return;
     try {
       await desktop.catalog.finishWorktree(task.id, how);
@@ -190,7 +191,7 @@ function TaskDetail(props: {
     try {
       await research.releaseLock(projectId, policy, path);
       await onChanged();
-      await conversation.send(`${path} is released for the next version: change it, and the next run freezes a new version with it.`, "agent");
+      await conversation.send(t("{path} is released for the next version: change it, and the next run freezes a new version with it.", { path }), "agent");
     } catch (error) {
       notify(messageOf(error));
     }
@@ -200,26 +201,26 @@ function TaskDetail(props: {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="flex min-h-[42px] flex-none flex-wrap items-center gap-2.5 border-b border-border px-2.5 py-1.5">
         <strong className="min-w-0 truncate">{task.title?.slice(TASK_PREFIX.length)}</strong>
-        {task.worktree ? <Badge>{task.worktree.branch}</Badge> : <Badge tone="good">Worktree closed</Badge>}
-        {state === "decision" ? <Badge tone="wait">Needs your decision</Badge> : null}
-        {state === "running" ? <Badge tone="info">Running</Badge> : null}
-        {state === "review" ? <Badge tone="accent">Ready for review</Badge> : null}
+        {task.worktree ? <Badge>{task.worktree.branch}</Badge> : <Badge tone="good">{t("Worktree closed")}</Badge>}
+        {state === "decision" ? <Badge tone="wait">{t("Needs your decision")}</Badge> : null}
+        {state === "running" ? <Badge tone="info">{t("Running")}</Badge> : null}
+        {state === "review" ? <Badge tone="accent">{t("Ready for review")}</Badge> : null}
         <div className="flex-1" />
         {running && conversation.latest ? (
           <Button variant="outline" onClick={() => void conversation.stop(conversation.latest!)}>
-            Stop task
+            {t("Stop task")}
           </Button>
         ) : null}
         <Button variant="ghost" aria-pressed={log} onClick={() => setLog((on) => !on)}>
-          {log ? "Hide full log" : "View full log"}
+          {log ? t("Hide full log") : t("View full log")}
         </Button>
         {task.worktree && !running ? (
           <>
             <Button variant="outline" onClick={() => void finish("discard")}>
-              Discard
+              {t("Discard")}
             </Button>
             <Button onClick={() => void finish("merge")}>
-              Merge
+              {t("Merge")}
             </Button>
           </>
         ) : null}
@@ -227,18 +228,18 @@ function TaskDetail(props: {
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-x-4 gap-y-2 border-b border-border px-3.5 py-2.5 text-xs">
         <div>
-          <div className="text-muted-foreground">Can change</div>
-          <div>Every file that is not locked</div>
+          <div className="text-muted-foreground">{t("Can change")}</div>
+          <div>{t("Every file that is not locked")}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">Locked</div>
-          <div>{policy?.locked.length ? policy.locked.join(", ") : "Nothing named; a frozen version also locks its data and scorer"}</div>
+          <div className="text-muted-foreground">{t("Locked")}</div>
+          <div>{policy?.locked.length ? policy.locked.join(", ") : t("Nothing named; a frozen version also locks its data and scorer")}</div>
         </div>
         <div>
-          <div className="text-muted-foreground">Limits</div>
-          <div>{task.worktree ? `Sandboxed to worktree ${task.worktree.branch}` : "Worktree closed"}</div>
-          <div>Network: not restricted by Saturn</div>
-          <div>Budget: none set</div>
+          <div className="text-muted-foreground">{t("Limits")}</div>
+          <div>{task.worktree ? t("Sandboxed to worktree {branch}", { branch: task.worktree.branch }) : t("Worktree closed")}</div>
+          <div>{t("Network: not restricted by Saturn")}</div>
+          <div>{t("Budget: none set")}</div>
         </div>
       </div>
 
@@ -246,39 +247,39 @@ function TaskDetail(props: {
         const path = lockedPathOf(event)!;
         return (
           <Card className="mx-3.5 my-2.5 gap-1.5 border-wait bg-panel px-3.5 py-3" key={`${event.at}-${index}`}>
-            <div className="font-medium">This task wants to change a locked item</div>
+            <div className="font-medium">{t("This task wants to change a locked item")}</div>
             <div>{event.kind === "refused" ? event.reason : path}</div>
-            <div className={MUTED}>The current version keeps its results. Releasing the lock lets the next run freeze a new version with the changed file, and the two can be compared.</div>
+            <div className={MUTED}>{t("The current version keeps its results. Releasing the lock lets the next run freeze a new version with the changed file, and the two can be compared.")}</div>
             <div className="flex flex-wrap items-end gap-2">
-              <Button onClick={() => void release(path)}>Release {path} for the next version</Button>
-              <Button variant="outline" onClick={() => void conversation.send(`Keep ${path} as it is and continue without changing it.`, "agent")}>Keep it and continue</Button>
-              <Button variant="outline" onClick={() => { research.open(projectId, { kind: "file", path }); props.go("Workspace"); }}>Edit it myself</Button>
+              <Button onClick={() => void release(path)}>{t("Release {path} for the next version", { path })}</Button>
+              <Button variant="outline" onClick={() => void conversation.send(t("Keep {path} as it is and continue without changing it.", { path }), "agent")}>{t("Keep it and continue")}</Button>
+              <Button variant="outline" onClick={() => { research.open(projectId, { kind: "file", path }); props.go("Workspace"); }}>{t("Edit it myself")}</Button>
             </div>
           </Card>
         );
       })}
 
-      {status?.changedFiles.length ? <div className={classes(MUTED, "px-3 py-1")}>Changed: {status.changedFiles.join(", ")}</div> : null}
+      {status?.changedFiles.length ? <div className={classes(MUTED, "px-3 py-1")}>{t("Changed: {files}", { files: status.changedFiles.join(", ") })}</div> : null}
 
       {!log ? (
         <div className="flex flex-col gap-[3px] border-b border-border px-3.5 py-2.5 text-xs">
-          <div className={PANE_TITLE}>Activity</div>
-          {task.worktree ? <div className="text-muted-foreground">Created worktree {task.worktree.branch} from {task.worktree.base}</div> : null}
+          <div className={PANE_TITLE}>{t("Activity")}</div>
+          {task.worktree ? <div className="text-muted-foreground">{t("Created worktree {branch} from {base}", { branch: task.worktree.branch, base: task.worktree.base })}</div> : null}
           {conversation.runs.map((run) => (
             <div key={run.id} className="text-muted-foreground">
-              {run.status === "waiting_approval" ? "Paused: waiting for your decision" : isBusy(run) ? "Working" : `Turn ${run.status}`}
+              {run.status === "waiting_approval" ? t("Paused: waiting for your decision") : isBusy(run) ? t("Working") : t("Turn {status}", { status: run.status })}
               {run.status === "waiting_approval" ? "" : ` · ${run.id}`}
             </div>
           ))}
           {own.map((event, index) => (
             <div key={`${event.at}-${index}`} className={event.kind === "refused" ? "text-wait" : "text-muted-foreground"}>
-              {event.kind === "refused" ? `Refused: ${event.reason}` : event.kind === "integrity_changed" ? `Changed outside its tools: ${event.paths.join(", ")}` : `Changed ${event.path} with your approval`}
+              {event.kind === "refused" ? t("Refused: {reason}", { reason: event.reason }) : event.kind === "integrity_changed" ? t("Changed outside its tools: {paths}", { paths: event.paths.join(", ") }) : t("Changed {path} with your approval", { path: event.path })}
             </div>
           ))}
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5 [&[hidden]]:hidden" ref={activity} role="log" aria-label="What this task did" hidden={!log && conversation.runs.length === 0}>
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5 [&[hidden]]:hidden" ref={activity} role="log" aria-label={t("What this task did")} hidden={!log && conversation.runs.length === 0}>
         {(log ? conversation.runs : conversation.runs.slice(-1)).map((run) => (
           <Turn key={run.id} run={run} onComment={(text) => void conversation.send(text, "agent")} />
         ))}
@@ -293,11 +294,11 @@ function TaskDetail(props: {
             });
           }}
         >
-          <Textarea aria-label="Follow-up for this task" className="resize-none" rows={2} value={followUp} placeholder="Tell it what to do next" onChange={(event) => setFollowUp(event.target.value)} />
+          <Textarea aria-label={t("Follow-up for this task")} className="resize-none" rows={2} value={followUp} placeholder={t("Tell it what to do next")} onChange={(event) => setFollowUp(event.target.value)} />
           <div className="flex items-center gap-2">
             <div className="flex-1" />
             <Button type="submit" variant="outline" disabled={!followUp.trim() || conversation.busy}>
-              Send
+              {t("Send")}
             </Button>
           </div>
         </form>

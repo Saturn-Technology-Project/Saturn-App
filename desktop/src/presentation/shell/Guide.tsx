@@ -1,11 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { GuidePlace, Screen } from "../../domain/workbench.js";
+import { t } from "../../domain/i18n.js";
+import { guidePlaces, type GuidePlace, type Screen } from "../../domain/workbench.js";
 import { Button } from "../ui/base/Button.js";
 import { followTourTarget, type TourBox } from "./tour-focus.js";
 
 const EVENT = "saturn-guide";
 const CARD_WIDTH = 300;
 const GAP = 12;
+
+const SHOWN_PLACES = new Map(guidePlaces(t).map((place) => [place.id, place]));
+
+/** A place as the person reads it, in the interface's language; the assistant names it in English. */
+export function shownPlace(place: GuidePlace): GuidePlace {
+  return SHOWN_PLACES.get(place.id) ?? place;
+}
 
 /** Starts a walk through these places. A person's click is the only thing that calls it. */
 export function startGuide(places: GuidePlace[]): void {
@@ -22,7 +30,8 @@ export function Guide(props: { go: (screen: Screen) => void }) {
   const [at, setAt] = useState(0);
   const [box, setBox] = useState<TourBox | null>(null);
   const shown = useRef<HTMLElement | null>(null);
-  const place = places[at];
+  const named = places[at];
+  const place = named ? shownPlace(named) : undefined;
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -76,26 +85,26 @@ export function Guide(props: { go: (screen: Screen) => void }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-30">
       {box ? <div className="absolute rounded-lg border-2 border-primary shadow-[0_0_0_3px_var(--bg),0_0_0_5px_var(--accent)]" style={{ top: box.top, left: box.left, width: box.width, height: box.height }} /> : null}
-      <section className="glass pointer-events-auto absolute flex max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-xl px-3.5 py-3 text-foreground shadow-lg ring-1 ring-foreground/10" aria-label="Walking you through it" style={{ top, left, width: CARD_WIDTH }}>
+      <section className="glass pointer-events-auto absolute flex max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-xl px-3.5 py-3 text-foreground shadow-lg ring-1 ring-foreground/10" aria-label={t("Walking you through it")} style={{ top, left, width: CARD_WIDTH }}>
         <div className="text-[11px] text-muted-foreground">
-          {at + 1} of {places.length}
+          {t("{step} of {count}", { step: at + 1, count: places.length })}
         </div>
         <h2 aria-live="polite" className="m-0! text-sm font-semibold">{place.title}</h2>
         <p className="text-xs text-muted-foreground">{place.hint}</p>
-        {box ? null : <p className="text-xs text-wait">Not on this screen yet{place.when ? `: it appears once ${place.when}` : ""}.</p>}
+        {box ? null : <p className="text-xs text-wait">{place.when ? t("Not on this screen yet: it appears once {condition}.", { condition: place.when }) : t("Not on this screen yet.")}</p>}
         <div className="mt-2 flex items-center gap-2">
           <Button variant="ghost" onClick={() => setPlaces([])}>
-            Done
+            {t("Done")}
           </Button>
           <div className="flex-1" />
           {at > 0 ? (
             <Button variant="outline" onClick={() => setAt(at - 1)}>
-              Back
+              {t("Back")}
             </Button>
           ) : null}
           {last ? null : (
             <Button onClick={() => setAt(at + 1)}>
-              Next
+              {t("Next")}
             </Button>
           )}
         </div>

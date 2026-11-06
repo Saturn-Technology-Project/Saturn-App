@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop";
+import { t } from "../../domain/i18n";
 import type { AgentUsage, ModelUsage, UsageSummary, UsageTally } from "../../domain/model";
 import { Badge } from "../ui/base/Badge.js";
 import { Button } from "../ui/base/Button.js";
@@ -10,12 +11,12 @@ import { RowError } from "./Parts";
 
 type Period = "today" | "week" | "month" | "30d" | "all" | "custom";
 const PERIODS: [Period, string][] = [
-  ["today", "Today"],
-  ["week", "This week"],
-  ["month", "This month"],
-  ["30d", "Last 30 days"],
-  ["all", "All time"],
-  ["custom", "Custom"],
+  ["today", t("Today")],
+  ["week", t("This week")],
+  ["month", t("This month")],
+  ["30d", t("Last 30 days")],
+  ["all", t("All time")],
+  ["custom", t("Custom")],
 ];
 const PERIOD_KEY = "saturn.usage.period";
 
@@ -113,7 +114,7 @@ function Cost(props: { tally: UsageTally }) {
   const { tally } = props;
   if (tally.unpricedCalls === tally.calls) {
     return (
-      <span className="flex flex-col items-end text-muted-foreground" title="No official price for this model, so it is not included in the bill">
+      <span className="flex flex-col items-end text-muted-foreground" title={t("No official price for this model, so it is not included in the bill")}>
         —
       </span>
     );
@@ -121,7 +122,7 @@ function Cost(props: { tally: UsageTally }) {
   return (
     <span className="flex flex-col items-end">
       <strong>{usd(tally.costUsd)}</strong>
-      {tally.unpricedCalls ? <small className="text-[11px] text-wait">+{tally.unpricedCalls} unpriced</small> : null}
+      {tally.unpricedCalls ? <small className="text-[11px] text-wait">{t("+{count} unpriced", { count: tally.unpricedCalls })}</small> : null}
     </span>
   );
 }
@@ -152,7 +153,7 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
     setError("");
     desktop.admin.usageSummary(range).then(
       (next) => current && setSummary(next),
-      (reason: unknown) => current && setError(reason instanceof Error ? reason.message : "Could not load usage"),
+      (reason: unknown) => current && setError(reason instanceof Error ? reason.message : t("Could not load usage")),
     );
     return () => {
       current = false;
@@ -163,7 +164,7 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
   const label = PERIODS.find(([id]) => id === period)?.[1] ?? "";
   const filter = (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <div className="inline-flex flex-wrap gap-0.5 rounded-lg border border-border p-0.5" role="group" aria-label="Period">
+      <div className="inline-flex flex-wrap gap-0.5 rounded-lg border border-border p-0.5" role="group" aria-label={t("Period")}>
         {PERIODS.map(([id, text]) => (
           <Button key={id} type="button" variant={period === id ? "soft" : "ghost"} size="small" className={period === id ? undefined : "text-muted-foreground"} aria-pressed={period === id} onClick={() => choose(id)}>
             {text}
@@ -172,9 +173,9 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
       </div>
       {period === "custom" ? (
         <div className="inline-flex items-center gap-1.5">
-          <Input type="date" className="w-auto [color-scheme:light_dark]" aria-label="From" value={custom.from} max={custom.to || undefined} onChange={(event) => setCustom({ ...custom, from: event.target.value })} />
-          <span className="text-[12.5px] text-muted-foreground">to</span>
-          <Input type="date" className="w-auto [color-scheme:light_dark]" aria-label="To" value={custom.to} min={custom.from || undefined} onChange={(event) => setCustom({ ...custom, to: event.target.value })} />
+          <Input type="date" className="w-auto [color-scheme:light_dark]" aria-label={t("From")} value={custom.from} max={custom.to || undefined} onChange={(event) => setCustom({ ...custom, from: event.target.value })} />
+          <span className="text-[12.5px] text-muted-foreground">{t("to")}</span>
+          <Input type="date" className="w-auto [color-scheme:light_dark]" aria-label={t("To")} value={custom.to} min={custom.from || undefined} onChange={(event) => setCustom({ ...custom, to: event.target.value })} />
         </div>
       ) : null}
     </div>
@@ -184,13 +185,13 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
     return (
       <div className={USAGE}>
         {filter}
-        {error ? <RowError className="mt-0">{error}</RowError> : <p className="text-[12.5px] text-muted-foreground">Loading usage…</p>}
+        {error ? <RowError className="mt-0">{error}</RowError> : <p className="text-[12.5px] text-muted-foreground">{t("Loading usage…")}</p>}
       </div>
     );
   }
   const { totals } = summary;
   const since = summary.since ? new Date(summary.since).toLocaleDateString() : null;
-  const window_ = period === "all" ? (since ? `since ${since}` : "") : period === "custom" ? `${custom.from || "…"} – ${custom.to || "…"}` : label.toLowerCase();
+  const window_ = period === "all" ? (since ? t("since {date}", { date: since }) : "") : period === "custom" ? `${custom.from || "…"} – ${custom.to || "…"}` : label.toLowerCase();
 
   return (
     <div className={USAGE}>
@@ -198,38 +199,43 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
       {error ? <RowError className="mt-0">{error}</RowError> : null}
       <div className="grid grid-cols-2 gap-3 @max-[380px]:grid-cols-1">
         <Card className="gap-1">
-          <span className="text-xs font-medium text-muted-foreground">Total tokens</span>
+          <span className="text-xs font-medium text-muted-foreground">{t("Total tokens")}</span>
           <strong className={STAT}>{tokens(total(totals))}</strong>
           <small className="text-xs text-muted-foreground">
-            {tokens(totals.inputTokens)} input{totals.cachedInputTokens ? ` (${tokens(totals.cachedInputTokens)} from cache, ${Math.round((totals.cachedInputTokens / Math.max(1, totals.inputTokens)) * 100)}%)` : ""} · {tokens(totals.outputTokens)} output · {totals.calls} {totals.calls === 1 ? "call" : "calls"}
+            {t("{count} input", { count: tokens(totals.inputTokens) })}
+            {totals.cachedInputTokens ? ` ${t("({count} from cache, {percent}%)", { count: tokens(totals.cachedInputTokens), percent: Math.round((totals.cachedInputTokens / Math.max(1, totals.inputTokens)) * 100) })}` : ""}
+            {" · "}
+            {t("{count} output", { count: tokens(totals.outputTokens) })}
+            {" · "}
+            {totals.calls === 1 ? t("1 call") : t("{count} calls", { count: totals.calls })}
           </small>
         </Card>
         <Card className="gap-1">
-          <span className="text-xs font-medium text-muted-foreground">Total bill</span>
+          <span className="text-xs font-medium text-muted-foreground">{t("Total bill")}</span>
           <strong className={STAT}>{usd(totals.costUsd)}</strong>
           <small className="text-xs text-muted-foreground">
-            USD at each model's official price{window_ ? ` · ${window_}` : ""}
-            {totals.unpricedCalls ? ` · ${totals.unpricedCalls} calls on unpriced models not included` : ""}
+            {t("USD at each model's official price")}{window_ ? ` · ${window_}` : ""}
+            {totals.unpricedCalls ? ` · ${t("{count} calls on unpriced models not included", { count: totals.unpricedCalls })}` : ""}
           </small>
         </Card>
       </div>
 
       <Card className="gap-0">
         <div className={SECTION_HEAD}>
-          <strong className="text-sm">By model</strong>
-          <span className="text-[12.5px] text-muted-foreground">Priced at the rate in force when each call was made</span>
+          <strong className="text-sm">{t("By model")}</strong>
+          <span className="text-[12.5px] text-muted-foreground">{t("Priced at the rate in force when each call was made")}</span>
         </div>
         {summary.models.length === 0 ? (
-          <p className={EMPTY}>{period === "all" ? "No model calls recorded yet." : "No model calls in this period."}</p>
+          <p className={EMPTY}>{period === "all" ? t("No model calls recorded yet.") : t("No model calls in this period.")}</p>
         ) : (
           <div className="flex flex-col">
             <UsageRow head>
-              <span>Model</span>
-              <span>Calls</span>
-              <span>Input</span>
-              <span>Output</span>
-              <span>Tokens</span>
-              <span>Cost</span>
+              <span>{t("Model")}</span>
+              <span>{t("Calls")}</span>
+              <span>{t("Input")}</span>
+              <span>{t("Output")}</span>
+              <span>{t("Tokens")}</span>
+              <span>{t("Cost")}</span>
             </UsageRow>
             {summary.models.map((model) => <ModelRow key={`${model.provider}/${model.model}`} model={model} totals={totals} />)}
           </div>
@@ -238,18 +244,18 @@ export function UsageBilling(props: { refreshOn?: readonly unknown[] }) {
 
       <Card className="gap-0">
         <div className={SECTION_HEAD}>
-          <strong className="text-sm">By agent</strong>
-          <span className="text-[12.5px] text-muted-foreground">Each call counts toward the model the agent was using at that moment</span>
+          <strong className="text-sm">{t("By agent")}</strong>
+          <span className="text-[12.5px] text-muted-foreground">{t("Each call counts toward the model the agent was using at that moment")}</span>
         </div>
         {summary.agents.length === 0 ? (
-          <p className={EMPTY}>{period === "all" ? "No agent has used a model yet." : "No agent used a model in this period."}</p>
+          <p className={EMPTY}>{period === "all" ? t("No agent has used a model yet.") : t("No agent used a model in this period.")}</p>
         ) : (
           <div className="flex flex-col">
             <UsageRow agent head>
-              <span>Agent</span>
-              <span>Calls</span>
-              <span>Tokens</span>
-              <span>Cost</span>
+              <span>{t("Agent")}</span>
+              <span>{t("Calls")}</span>
+              <span>{t("Tokens")}</span>
+              <span>{t("Cost")}</span>
             </UsageRow>
             {summary.agents.map((agent) => <AgentRow key={agent.agentId} agent={agent} />)}
           </div>
@@ -267,11 +273,11 @@ function ModelRow(props: { model: ModelUsage; totals: UsageTally }) {
       <span className={NAME}>
         <strong className={NAME_TITLE}>{model.label}</strong>
         <small className={NAME_NOTE}>{model.provider} · <code className="text-[11px]">{model.model}</code></small>
-        <small className={classes(NAME_NOTE, model.price ? "text-muted-foreground" : "text-wait")}>{model.price ?? "No official price"}</small>
+        <small className={classes(NAME_NOTE, model.price ? "text-muted-foreground" : "text-wait")}>{model.price ?? t("No official price")}</small>
         <span className="mt-1 block h-[3px] overflow-hidden rounded-sm bg-muted" aria-hidden="true"><span className="block h-full bg-info" style={{ width: `${Math.max(share * 100, 1)}%` }} /></span>
       </span>
       <span>{model.calls}</span>
-      <span title={model.cachedInputTokens ? `${tokens(model.cachedInputTokens)} of these from the cache, billed at its lower rate` : undefined}>{tokens(model.inputTokens)}{model.cachedInputTokens ? <small className="text-[11px] text-muted-foreground"> · {Math.round((model.cachedInputTokens / Math.max(1, model.inputTokens)) * 100)}% cached</small> : null}</span>
+      <span title={model.cachedInputTokens ? t("{count} of these from the cache, billed at its lower rate", { count: tokens(model.cachedInputTokens) }) : undefined}>{tokens(model.inputTokens)}{model.cachedInputTokens ? <small className="text-[11px] text-muted-foreground"> · {t("{percent}% cached", { percent: Math.round((model.cachedInputTokens / Math.max(1, model.inputTokens)) * 100) })}</small> : null}</span>
       <span>{tokens(model.outputTokens)}</span>
       <span><strong>{tokens(total(model))}</strong></span>
       <Cost tally={model} />
@@ -286,14 +292,14 @@ function AgentRow(props: { agent: AgentUsage }) {
       <span className={NAME}>
         <strong className={NAME_TITLE}>
           {agent.name}
-          {agent.exists ? null : <Badge className="h-auto px-1.5 text-[10.5px]">deleted</Badge>}
+          {agent.exists ? null : <Badge className="h-auto px-1.5 text-[10.5px]">{t("deleted")}</Badge>}
         </strong>
         <span className="mt-1 flex flex-wrap gap-1">
           {agent.models.map((model) => (
             <span key={`${model.provider}/${model.model}`} className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 text-[11.5px]" title={`${model.provider} · ${model.model}`}>
               {model.label}
-              <span className="text-muted-foreground tabular-nums">{compact(total(model))} tokens</span>
-              <span className="text-muted-foreground tabular-nums">{model.unpricedCalls === model.calls ? "unpriced" : usd(model.costUsd)}</span>
+              <span className="text-muted-foreground tabular-nums">{t("{count} tokens", { count: compact(total(model)) })}</span>
+              <span className="text-muted-foreground tabular-nums">{model.unpricedCalls === model.calls ? t("unpriced") : usd(model.costUsd)}</span>
             </span>
           ))}
         </span>

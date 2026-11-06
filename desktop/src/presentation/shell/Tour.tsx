@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
+import { t } from "../../domain/i18n.js";
 import type { Model, Project } from "../../domain/model.js";
 import { Button } from "../ui/base/Button.js";
 import { Field } from "../ui/base/Field.js";
@@ -7,11 +8,14 @@ import { Notice } from "../ui/base/Notice.js";
 import { Textarea } from "../ui/base/Textarea.js";
 import { messageOf } from "../ui/Parts.js";
 import type { Screen } from "./navigation.js";
-import { TOUR_STEPS } from "../../domain/workbench.js";
+import { tourSteps } from "../../domain/workbench.js";
 import { followTourTarget, type TourBox } from "./tour-focus.js";
 
 /** Where the boxed element is on screen. */
 type Box = TourBox;
+
+/** The tour in the interface's language. */
+const TOUR_STEPS = tourSteps(t);
 
 const CARD_WIDTH = 340;
 const GAP = 14;
@@ -108,7 +112,7 @@ export function Tour(props: {
         }}
       >
         <div className="text-[11px] text-muted-foreground">
-          {at + 1} of {TOUR_STEPS.length}
+          {t("{step} of {count}", { step: at + 1, count: TOUR_STEPS.length })}
         </div>
         <h2 id="lab-tour-title" className="m-0! text-[15px] font-semibold">{step.title}</h2>
         <p className="text-xs leading-normal text-muted-foreground">{step.text}</p>
@@ -116,39 +120,39 @@ export function Tour(props: {
           <div className="mt-1 flex flex-col gap-1">
             {error ? <Notice tone="bad">{error}</Notice> : null}
             <div className="flex flex-wrap items-center gap-2 py-1 *:first:min-w-0 *:first:flex-[1_1_220px] *:first:[overflow-wrap:anywhere]">
-              <span>{project ? <code>{project.path}</code> : <span className="text-xs text-muted-foreground">No project folder yet</span>}</span>
+              <span>{project ? <code>{project.path}</code> : <span className="text-xs text-muted-foreground">{t("No project folder yet")}</span>}</span>
               <Button variant="outline" onClick={() => void props.onAddProject().catch((reason: unknown) => setError(messageOf(reason)))}>
-                {project ? "Another folder" : "Choose a folder"}
+                {project ? t("Another folder") : t("Choose a folder")}
               </Button>
             </div>
             <div className="flex flex-wrap items-center gap-2 py-1 *:first:min-w-0 *:first:flex-[1_1_220px] *:first:[overflow-wrap:anywhere]">
-              <span>{props.models.length ? `${props.models.length === 1 ? "1 model" : `${props.models.length} models`} connected for the assistant` : <span className="text-xs text-muted-foreground">No model yet; code and experiments work without one</span>}</span>
+              <span>{props.models.length ? (props.models.length === 1 ? t("1 model connected for the assistant") : t("{count} models connected for the assistant", { count: props.models.length })) : <span className="text-xs text-muted-foreground">{t("No model yet; code and experiments work without one")}</span>}</span>
               <Button variant="outline" onClick={props.onOpenSettings}>
-                {props.models.length ? "Settings" : "Connect a model"}
+                {props.models.length ? t("Settings") : t("Connect a model")}
               </Button>
             </div>
-            <Field label="Your first question">
-              <Textarea rows={3} value={question} disabled={!project} placeholder="When does this behavior appear during training?" onChange={(event) => setQuestion(event.target.value)} />
+            <Field label={t("Your first question")}>
+              <Textarea rows={3} value={question} disabled={!project} placeholder={t("When does this behavior appear during training?")} onChange={(event) => setQuestion(event.target.value)} />
             </Field>
           </div>
         ) : null}
         <div className="mt-2 flex items-center gap-2">
           <Button variant="ghost" onClick={() => void props.onFinish()}>
-            Skip
+            {t("Skip")}
           </Button>
           <div className="flex-1" />
           {at > 0 ? (
             <Button variant="outline" onClick={() => setAt(at - 1)}>
-              Back
+              {t("Back")}
             </Button>
           ) : null}
           {last ? (
             <Button disabled={busy} onClick={() => void start()}>
-              {project ? (question.trim() ? "Save the question and start" : "Start") : "Finish"}
+              {project ? (question.trim() ? t("Save the question and start") : t("Start")) : t("Finish")}
             </Button>
           ) : (
             <Button autoFocus onClick={() => setAt(at + 1)}>
-              Next
+              {t("Next")}
             </Button>
           )}
         </div>

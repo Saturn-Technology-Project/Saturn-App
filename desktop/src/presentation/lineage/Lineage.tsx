@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
-import { comparisonText, earlierSweeps, heldFixed, lineageRows, mechanismOf, RESTORE_MEASURE_TEXT, runHasResults, scoreText, type Comparison, type EvaluationSpec, type InsideItem, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
+import { t } from "../../domain/i18n.js";
+import { comparisonText, earlierSweeps, heldFixed, lineageRows, mechanismOf, restoreMeasureText, runHasResults, scoreText, type Comparison, type EvaluationSpec, type InsideItem, type ModelNode, type ModelSummary, type RunLabels } from "../../domain/research.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Badge } from "../ui/base/Badge.js";
 import { Button } from "../ui/base/Button.js";
@@ -141,17 +142,17 @@ export function Lineage(props: ScreenProps) {
 
   const details = current ? (
     <div className="flex flex-1 flex-col gap-1.5 overflow-auto bg-panel p-3.5" data-tour="lineage-details">
-      <div className={MUTED}>{current.parentId ? (current.referenceId ? "Policy" : "Branch") : "Base model"}{current.floating ? "" : " · pinned weights"}</div>
+      <div className={MUTED}>{current.parentId ? (current.referenceId ? t("Policy") : t("Branch")) : t("Base model")}{current.floating ? "" : ` · ${t("pinned weights")}`}</div>
       <h2 className={DETAIL_TITLE}>{nameOf(current)}</h2>
-      <div className={DETAIL_ROW}><span className={MUTED}>Source</span><code>{current.source}</code></div>
-      <div className={DETAIL_ROW}><span className={MUTED}>Revision</span>{current.floating ? <Badge tone="wait">Not fixed, so it can change</Badge> : <code>{current.weightsRevision}</code>}</div>
-      <div className={DETAIL_ROW}><span className={MUTED}>Parent</span><span>{models.find((item) => item.id === current.parentId)?.source ?? "None"}</span></div>
-      <div className={DETAIL_ROW}><span className={MUTED}>Reference model</span><span>{current.referenceId ? (models.find((item) => item.id === current.referenceId) ? nameOf(models.find((item) => item.id === current.referenceId)!) : current.referenceId) : "None"}</span></div>
-      <div className={DETAIL_ROW}><span className={MUTED}>Produced by</span><span>{current.producedBy ?? "Not recorded"}</span></div>
-      <div className={DETAIL_ROW}><span className={MUTED}>Training data</span><span>{current.trainingData ?? "Not recorded"}</span></div>
-      {value?.compared[current.id] && value.compared[current.id].result !== "comparable" ? <Notice tone="wait">{comparisonText(value.compared[current.id])} from its parent. Measure it the same way, or start a new experiment.</Notice> : null}
+      <div className={DETAIL_ROW}><span className={MUTED}>{t("Source")}</span><code>{current.source}</code></div>
+      <div className={DETAIL_ROW}><span className={MUTED}>{t("Revision")}</span>{current.floating ? <Badge tone="wait">{t("Not fixed, so it can change")}</Badge> : <code>{current.weightsRevision}</code>}</div>
+      <div className={DETAIL_ROW}><span className={MUTED}>{t("Parent")}</span><span>{models.find((item) => item.id === current.parentId)?.source ?? t("None")}</span></div>
+      <div className={DETAIL_ROW}><span className={MUTED}>{t("Reference model")}</span><span>{current.referenceId ? (models.find((item) => item.id === current.referenceId) ? nameOf(models.find((item) => item.id === current.referenceId)!) : current.referenceId) : t("None")}</span></div>
+      <div className={DETAIL_ROW}><span className={MUTED}>{t("Produced by")}</span><span>{current.producedBy ?? t("Not recorded")}</span></div>
+      <div className={DETAIL_ROW}><span className={MUTED}>{t("Training data")}</span><span>{current.trainingData ?? t("Not recorded")}</span></div>
+      {value?.compared[current.id] && value.compared[current.id].result !== "comparable" ? <Notice tone="wait">{t("{comparison} from its parent. Measure it the same way, or start a new experiment.", { comparison: comparisonText(value.compared[current.id]) })}</Notice> : null}
 
-      <h2 className={DETAIL_TITLE}>Behavior</h2>
+      <h2 className={DETAIL_TITLE}>{t("Behavior")}</h2>
       {measured ? (
         <>
           {Object.entries(measured.summary.scores).map(([name, score]) => (
@@ -160,50 +161,50 @@ export function Lineage(props: ScreenProps) {
               <span>{scoreText(score.mean)} <span className={MUTED}>n = {score.count}</span></span>
             </div>
           ))}
-          <div className={DETAIL_ROW}><span className={MUTED}>Run</span><code>{measured.runId}</code></div>
-          <div className={DETAIL_ROW}><span className={MUTED}>Review</span><span>{measured.toReview ? `${measured.toReview} samples to review` : "Every scored sample labeled"}</span></div>
+          <div className={DETAIL_ROW}><span className={MUTED}>{t("Run")}</span><code>{measured.runId}</code></div>
+          <div className={DETAIL_ROW}><span className={MUTED}>{t("Review")}</span><span>{measured.toReview ? t("{count} samples to review", { count: measured.toReview }) : t("Every scored sample labeled")}</span></div>
           <div className={classes(FORM, "mt-1.5")}>
-            <Button variant="outline" onClick={() => { service.open(projectId, { kind: "sample", runId: measured.runId }); props.go("Samples"); }}>Open samples at this node</Button>
-            <Button variant="outline" onClick={() => props.go("Experiments")}>Open its experiment</Button>
+            <Button variant="outline" onClick={() => { service.open(projectId, { kind: "sample", runId: measured.runId }); props.go("Samples"); }}>{t("Open samples at this node")}</Button>
+            <Button variant="outline" onClick={() => props.go("Experiments")}>{t("Open its experiment")}</Button>
           </div>
         </>
       ) : (
-        <p className={MUTED}>No run has named this model. A run names one with each sample's modelId.</p>
+        <p className={MUTED}>{t("No run has named this model. A run names one with each sample's modelId.")}</p>
       )}
 
-      <h2 className={DETAIL_TITLE}>Mechanism</h2>
+      <h2 className={DETAIL_TITLE}>{t("Mechanism")}</h2>
       {(() => {
         const known = measured ? mechanismOf(value?.inside[measured.runId] ?? [], current.id) : [];
         const readings = measured ? (value?.inside[measured.runId] ?? []).filter((item) => item.kind === "reading" && item.current !== false && item.modelId === current.id).length : 0;
         const earlier = measured ? earlierSweeps(value?.inside[measured.runId] ?? [], current.id) : 0;
-        const earlierNote = earlier ? <p className={MUTED}>{earlier === 1 ? "1 earlier sweep" : `${earlier} earlier sweeps`} came from a helper that has since changed. Kept with the run, not counted here; sweep again under Experiments.</p> : null;
+        const earlierNote = earlier ? <p className={MUTED}>{earlier === 1 ? t("1 earlier sweep came from a helper that has since changed. Kept with the run, not counted here; sweep again under Experiments.") : t("{count} earlier sweeps came from a helper that has since changed. Kept with the run, not counted here; sweep again under Experiments.", { count: earlier })}</p> : null;
         return known.length ? (
           <>
           {known.map((item, index) => (
             <div className={DETAIL_ROW} key={index}>
-              <span className={MUTED}>From {nameOf(models.find((model) => model.id === item.sourceModelId) ?? { source: item.sourceModelId ?? "?" } as ModelNode)}</span>
-              <span>{item.layers.length ? `${item.layers.length === 1 ? "Layer" : "Layers"} ${item.layers.join(", ")} ${item.layers.length === 1 ? "restores" : "restore"} ${item.restored} of ${item.of} ${RESTORE_MEASURE_TEXT[item.measure]}${item.layers.length > 1 ? " (tied)" : ""}` : `No layer restores any of ${item.of} ${RESTORE_MEASURE_TEXT[item.measure]}`}</span>
+              <span className={MUTED}>{t("From {model}", { model: nameOf(models.find((model) => model.id === item.sourceModelId) ?? { source: item.sourceModelId ?? "?" } as ModelNode) })}</span>
+              <span>{item.layers.length === 1 ? t("Layer {layers} restores {restored} of {of} {measure}", { layers: item.layers.join(", "), restored: item.restored, of: item.of, measure: restoreMeasureText(item.measure) }) : item.layers.length ? t("Layers {layers} restore {restored} of {of} {measure} (tied)", { layers: item.layers.join(", "), restored: item.restored, of: item.of, measure: restoreMeasureText(item.measure) }) : t("No layer restores any of {of} {measure}", { of: item.of, measure: restoreMeasureText(item.measure) })}</span>
             </div>
           ))}
           {earlierNote}
           </>
         ) : (
           <>
-          <p className={MUTED}>{readings ? `${readings} activation readings, no patch yet.` : "No intervention is recorded at this node. Under Experiments, sweep every layer into it from another node; a sample's Look inside does one layer."}</p>
+          <p className={MUTED}>{readings ? t("{count} activation readings, no patch yet.", { count: readings }) : t("No intervention is recorded at this node. Under Experiments, sweep every layer into it from another node; a sample's Look inside does one layer.")}</p>
           {earlierNote}
           </>
         );
       })()}
       <Card className="gap-1 p-3 text-sm">
-        <div className={MUTED}>Feature alignment across nodes</div>
-        Not set. Features from different models are not treated as the same until you record how they were aligned and test them with an intervention.
+        <div className={MUTED}>{t("Feature alignment across nodes")}</div>
+        {t("Not set. Features from different models are not treated as the same until you record how they were aligned and test them with an intervention.")}
       </Card>
 
-      <h2 className={DETAIL_TITLE}>Your note</h2>
+      <h2 className={DETAIL_TITLE}>{t("Your note")}</h2>
       {note === null ? (
         <>
-          <div className="text-sm">{current.note || <span className={MUTED}>No note yet.</span>}</div>
-          <Button variant="ghost" className="mt-1.5 w-fit" onClick={() => setNote(current.note ?? "")}>{current.note ? "Change" : "Write one"}</Button>
+          <div className="text-sm">{current.note || <span className={MUTED}>{t("No note yet.")}</span>}</div>
+          <Button variant="ghost" className="mt-1.5 w-fit" onClick={() => setNote(current.note ?? "")}>{current.note ? t("Change") : t("Write one")}</Button>
         </>
       ) : (
         <form
@@ -213,9 +214,9 @@ export function Lineage(props: ScreenProps) {
             void saveNote();
           }}
         >
-          <Textarea aria-label="Your note on this model" rows={3} value={note} onChange={(event) => setNote(event.target.value)} />
-          <Button type="submit" variant="outline">Save</Button>
-          <Button variant="ghost" onClick={() => setNote(null)}>Cancel</Button>
+          <Textarea aria-label={t("Your note on this model")} rows={3} value={note} onChange={(event) => setNote(event.target.value)} />
+          <Button type="submit" variant="outline">{t("Save")}</Button>
+          <Button variant="ghost" onClick={() => setNote(null)}>{t("Cancel")}</Button>
         </form>
       )}
 
@@ -227,26 +228,26 @@ export function Lineage(props: ScreenProps) {
           setAdding(true);
         }}
       >
-        Branch from here
+        {t("Branch from here")}
       </Button>
     </div>
   ) : null;
 
   return (
-    <Split id="lineage" side="right" size={320} minimum={240} label="Model details" open={Boolean(current)} pane={details}>
-      <Page title="Model lineage" lead="From checkpoints to fine-tuned and preference-trained branches. Saturn records where weights are, and does not copy them.">
+    <Split id="lineage" side="right" size={320} minimum={240} label={t("Model details")} open={Boolean(current)} pane={details}>
+      <Page title={t("Model lineage")} lead={t("From checkpoints to fine-tuned and preference-trained branches. Saturn records where weights are, and does not copy them.")}>
           {!value ? <Loading /> : null}
           {value && models.length === 0 && !adding ? (
-            <Empty title="No models yet" action={<Button data-tour="lineage-add" onClick={() => setAdding(true)}>Add the first model</Button>}>
-              Add a checkpoint to start a lineage.
+            <Empty title={t("No models yet")} action={<Button data-tour="lineage-add" onClick={() => setAdding(true)}>{t("Add the first model")}</Button>}>
+              {t("Add a checkpoint to start a lineage.")}
             </Empty>
           ) : null}
           {models.length ? (
-            <div className="mt-3.5 flex flex-col overflow-hidden rounded-lg border border-border" role="group" aria-label="Models, each under the one it came from">
+            <div className="mt-3.5 flex flex-col overflow-hidden rounded-lg border border-border" role="group" aria-label={t("Models, each under the one it came from")}>
               <div className={classes(TREE_ROW, "min-h-[30px] border-b border-border bg-panel text-[11.5px] text-muted-foreground")} aria-hidden="true">
-                <span>Model</span>
-                <span className="truncate text-right">{scoreName ?? "Score"}</span>
-                <span>Status</span>
+                <span>{t("Model")}</span>
+                <span className="truncate text-right">{scoreName ?? t("Score")}</span>
+                <span>{t("Status")}</span>
               </div>
               {lineageRows(models).map(({ model, depth, branch }) => {
                 const score = firstScore(value?.latest[model.id]);
@@ -259,7 +260,7 @@ export function Lineage(props: ScreenProps) {
                       <span className="min-w-0 truncate font-mono text-xs">{nameOf(model)}</span>
                     </span>
                     <span className="truncate text-right text-sm tabular-nums" title={score ? score.name : undefined}>{score ? scoreText(score.mean) : "–"}</span>
-                    <span className="flex min-w-0 overflow-hidden whitespace-nowrap">{compared && compared.result === "not_comparable" ? <Badge tone="wait">Not comparable</Badge> : compared && compared.result === "unknown" ? <Badge>Cannot tell</Badge> : model.floating ? <Badge tone="wait">Revision not fixed</Badge> : value?.latest[model.id]?.toReview ? <span className={MUTED}>{value.latest[model.id].toReview} to review</span> : score ? <Badge tone="good">Evaluated</Badge> : null}</span>
+                    <span className="flex min-w-0 overflow-hidden whitespace-nowrap">{compared && compared.result === "not_comparable" ? <Badge tone="wait">{t("Not comparable")}</Badge> : compared && compared.result === "unknown" ? <Badge>{t("Cannot tell")}</Badge> : model.floating ? <Badge tone="wait">{t("Revision not fixed")}</Badge> : value?.latest[model.id]?.toReview ? <span className={MUTED}>{t("{count} to review", { count: value.latest[model.id].toReview })}</span> : score ? <Badge tone="good">{t("Evaluated")}</Badge> : null}</span>
                   </button>
                 );
               })}
@@ -268,7 +269,7 @@ export function Lineage(props: ScreenProps) {
 
           {value?.fixed.length ? (
             <Card className="mt-4 gap-1.5 border-0 bg-panel px-3.5 py-3">
-              <div className="mb-1.5 text-sm font-medium">Held fixed across the measured nodes</div>
+              <div className="mb-1.5 text-sm font-medium">{t("Held fixed across the measured nodes")}</div>
               <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-x-4 gap-y-2 text-xs">
                 {value.fixed.map((item) => (
                   <div key={item.field}>
@@ -281,12 +282,12 @@ export function Lineage(props: ScreenProps) {
           ) : null}
           {models.length > 0 && !adding ? (
             <Button variant="outline" className="mt-4 w-fit" data-tour="lineage-add" onClick={() => setAdding(true)}>
-              Add a model
+              {t("Add a model")}
             </Button>
           ) : null}
           {adding ? (
             <>
-              <h2 className={SECTION}>Add a model</h2>
+              <h2 className={SECTION}>{t("Add a model")}</h2>
               <form
                 className={FORM}
                 onSubmit={(event) => {
@@ -294,18 +295,18 @@ export function Lineage(props: ScreenProps) {
                   if (form.source.trim()) void add();
                 }}
               >
-                {field("source", "Source (name or local path)")}
-                {field("name", "Name")}
-                {field("weightsRevision", "Revision")}
-                {field("trainingData", "Training data")}
-                {field("producedBy", "Produced by (a script, a training run, a release)")}
-                <Choice label="Reference model" className="flex-[1_1_160px]" value={form.referenceId || NONE} options={[{ value: NONE, label: "None" }, ...models.map((model) => ({ value: model.id, label: nameOf(model) }))]} onChange={(chosen) => setForm({ ...form, referenceId: chosen === NONE ? "" : chosen })} />
-                <Choice label="Parent" className="flex-[1_1_160px]" value={form.parentId || NONE} options={[{ value: NONE, label: "None" }, ...models.map((model) => ({ value: model.id, label: nameOf(model) }))]} onChange={(chosen) => setForm({ ...form, parentId: chosen === NONE ? "" : chosen })} />
+                {field("source", t("Source (name or local path)"))}
+                {field("name", t("Name"))}
+                {field("weightsRevision", t("Revision"))}
+                {field("trainingData", t("Training data"))}
+                {field("producedBy", t("Produced by (a script, a training run, a release)"))}
+                <Choice label={t("Reference model")} className="flex-[1_1_160px]" value={form.referenceId || NONE} options={[{ value: NONE, label: t("None") }, ...models.map((model) => ({ value: model.id, label: nameOf(model) }))]} onChange={(chosen) => setForm({ ...form, referenceId: chosen === NONE ? "" : chosen })} />
+                <Choice label={t("Parent")} className="flex-[1_1_160px]" value={form.parentId || NONE} options={[{ value: NONE, label: t("None") }, ...models.map((model) => ({ value: model.id, label: nameOf(model) }))]} onChange={(chosen) => setForm({ ...form, parentId: chosen === NONE ? "" : chosen })} />
                 <Button type="submit" disabled={!form.source.trim()}>
-                  Add
+                  {t("Add")}
                 </Button>
                 <Button variant="ghost" onClick={() => setAdding(false)}>
-                  Cancel
+                  {t("Cancel")}
                 </Button>
               </form>
             </>
