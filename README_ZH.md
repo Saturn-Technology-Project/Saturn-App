@@ -470,7 +470,7 @@ Saturn 的下載檔由約 360 個 Rust crate（`cargo tree` 對 macOS 上的 App
 - **每個版本都附 SBOM。** `Saturn-<version>-sbom.cdx.json`（CycloneDX 1.5）列出 `Cargo.lock` 中的每個 crate 與其 SHA-256、介面的 npm 套件與其授權及 SHA-512，以及模型與其雜湊。SBOM、安裝程式、壓縮檔與更新套件都附有建置來源證明。
 - **有意義的簽章。** Windows 版本以 Saturn 的憑證簽署 Saturn 的程式與安裝程式。
 - **簽署的更新。** 更新程式只安裝帶有 Saturn 更新金鑰有效簽章的套件。這把金鑰是 Saturn 自己的，所以更新不依賴 Apple Developer ID。沒有這把金鑰建置的版本（例如 fork 或你自己建置的）完全沒有更新功能。
-- **發佈權限。** 發佈須在受保護的 environment 中經維護者核准。Release tag 只有管理員能建立，且永遠不能移動或刪除；`main` 不能 force-push；[CODEOWNERS](.github/CODEOWNERS) 會在每個 pull request 要求維護者審查。建議所有具寫入權限的成員啟用雙重驗證。
+- **發佈權限。** 發佈須在受保護的 environment 中經維護者核准。Release tag 由發佈流程建立，一經建立就永遠不能移動或刪除；`main` 不能 force-push；[CODEOWNERS](.github/CODEOWNERS) 會在每個 pull request 要求維護者審查。建議所有具寫入權限的成員啟用雙重驗證。
 
 **已審視的例外。** 目前無法修補的公告（沒有修補版本，或修補需要上游變更），連同原因與結案條件都列在 [`docs/known-advisories.md`](docs/known-advisories.md)。
 
