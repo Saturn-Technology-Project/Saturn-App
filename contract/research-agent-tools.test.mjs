@@ -277,6 +277,32 @@ test("an assistant starts a task, which works apart, and follows it to its answe
   assert.equal((await readFile(path.join(setup.folder, "readme.md"), "utf8")), "start\n");
 });
 
+test("a finished task tells the chat that started it, which hears of it in a turn of its own", posixOnly, async () => {
+  const setup = await gitBed();
+  const begun = await call(setup, "research_task_start", { prompt: "Count the rows" });
+  const told = await until("the chat to hear from its task", () => saturn.api("GET", `/agents/${setup.agent.id}/threads`), (threads) => {
+    const chat = threads.find((item) => item.id === setup.thread.id);
+    return chat?.taskReports?.some((report) => report.task === begun.task && report.delivered);
+  });
+  const chat = told.find((item) => item.id === setup.thread.id);
+  const [report] = chat.taskReports;
+  assert.equal(report.report.status, "completed");
+  assert.equal(report.report.answer, "done");
+  assert.equal(told.find((item) => item.id === begun.task).taskOf, setup.thread.id, "the task knows which chat started it");
+
+  const recent = await saturn.api("GET", "/runs?limit=50");
+  const full = await Promise.all((recent.items ?? recent).filter((run) => run.threadId === setup.thread.id).map((run) => saturn.api("GET", `/runs/${run.id}`)));
+  const woken = full.find((run) => run.fromTasks?.includes(begun.task));
+  assert.ok(woken, "a turn of its own started in the chat");
+  assert.equal(woken.automatic, true);
+  assert.match(woken.input, /^Task "Task: Count the rows" completed\./);
+  assert.match(woken.input, /<saturn_context sources="task reports">[\s\S]*Its answer: done/);
+
+  // Each report is told once: the chat's next turn carries nothing more.
+  const next = await setup.turn([], "and now?");
+  assert.doesNotMatch(next.input, /task reports/);
+});
+
 test("a task starts in the mode of the chat that started it, and never asks less than that", posixOnly, async () => {
   const auto = await gitBed();
   await saturn.api("PATCH", `/threads/${auto.thread.id}`, { chatMode: "delegate_auto" });

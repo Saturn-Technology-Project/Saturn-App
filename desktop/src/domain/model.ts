@@ -235,6 +235,8 @@ export type Run = {
   mode?: RunMode;
   /** Saturn sent this message itself (an automatic fix round after verification). */
   automatic?: boolean;
+  /** Started because tasks this chat started reported back: their chats' ids. */
+  fromTasks?: string[];
   /** The project's check command after this turn's changes. */
   /** Before this turn, earlier turns were folded into the chat's summary to fit the model's context. */
   compacted?: { turns: number; at: string };

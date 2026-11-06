@@ -324,4 +324,6 @@ export default {
   "Find a file": "尋找檔案",
   "Files found": "找到的檔案",
   "No file matches.": "沒有符合的檔案。",
+  "A task reported back": "任務回報",
+  "{count} tasks reported back": "{count} 個任務回報",
 } satisfies Dictionary;

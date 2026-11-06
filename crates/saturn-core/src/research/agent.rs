@@ -465,7 +465,7 @@ impl Kernel {
     }
 
     /// The newest turn of a chat.
-    fn newest_turn(&self, thread: &str) -> Option<Value> {
+    pub(super) fn newest_turn(&self, thread: &str) -> Option<Value> {
         self.store.read(|state| {
             state
                 .runs
@@ -512,6 +512,7 @@ impl Kernel {
             .map_err(said)?;
         let id = text(&thread, "id").to_owned();
         let begun = async {
+            self.mark_task_of(&id, text(&from, "id")).await?;
             self.set_chat_mode(&id, task_mode(self.chat_mode_of(turn).as_deref()))
                 .await?;
             let worktree = self.create_worktree(&id).await?;
@@ -532,7 +533,7 @@ impl Kernel {
                 "run": text(&run, "id"),
                 "branch": worktree.get("branch"),
                 "status": text(&run, "status"),
-                "note": "It runs on its own. Follow it with research_task_read. The person merges it or discards it, and answers anything it asks.",
+                "note": "It runs on its own. When it ends or waits for the person, this chat hears of it in a turn of its own, so you need not wait; research_task_read follows it sooner. The person merges it or discards it, and answers anything it asks.",
             })),
             Err(error) => {
                 // A chat that never began leaves nothing behind on the person's Tasks screen.
@@ -543,7 +544,7 @@ impl Kernel {
     }
 
     /// How a task stands: its status, its answer, what it waits for and what it changed.
-    async fn task_report(&self, task: &Value) -> Value {
+    pub(super) async fn task_report(&self, task: &Value) -> Value {
         let id = text(task, "id");
         let run = self.newest_turn(id);
         let waiting: Vec<Value> = run

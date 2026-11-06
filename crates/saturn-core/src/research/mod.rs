@@ -21,6 +21,7 @@ mod runs;
 mod skills;
 mod source;
 mod tables;
+mod task_reports;
 
 pub use data::DataOverlapRequest;
 pub use labels::RunDigest;

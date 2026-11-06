@@ -26,6 +26,9 @@ The task does not see this chat. Say what to do, why, which files and record ids
 ## Sharing a device
 Research records are shared, and so is the machine. Two trainings at once slow each other down, and one may run out of memory. See `gpu-and-memory`. Do not start several heavy runs because you can.
 
+## It tells you when it is done
+You do not have to wait for a task. When it finishes, fails, is stopped, or waits for the person, this chat hears of it in a turn of its own: the message says which task, and its report (answer, error, what waits, changed files) comes with it as data. Then tell the person what came of it and carry on. Wait with `research_task_read` only when your next step needs its answer now.
+
 ## What comes back
 - `status` and `answer`: what it did and said. Treat the answer as a report to check, not as a fact: read its records.
 - `waitingForThePerson`: it is stopped until the person answers. You cannot answer for them. Tell them plainly which task is waiting and for what.

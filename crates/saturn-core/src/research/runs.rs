@@ -581,6 +581,7 @@ impl Kernel {
     /// Runs a runtime that died left behind: those still on record as active become interrupted. A process is ended
     /// only when it is confirmed to be the same one.
     pub async fn research_recover(self: &Arc<Self>) {
+        self.follow_task_reports();
         let projects: Vec<String> = self.store.read(|state| {
             state
                 .projects

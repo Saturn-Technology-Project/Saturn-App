@@ -16,10 +16,18 @@ export function Turn(props: { run: Run; onComment?: (text: string) => void }) {
   const guide = guideIn(run.output ?? "");
   return (
     <article className="flex min-w-0 flex-none flex-col gap-2">
-      <div className="flex max-w-[88%] min-w-0 flex-col gap-[3px] self-end rounded-[12px_12px_3px_12px] bg-primary/12 px-[11px] py-[7px] whitespace-pre-wrap [overflow-wrap:anywhere]">
-        <p>{shownInput(run.input)}</p>
-        {details ? <div className="truncate text-[11px] text-muted-foreground" title={details}>{details}</div> : null}
-      </div>
+      {run.fromTasks?.length ? (
+        // Not the person's message: tasks this chat started reported back, and the assistant was told.
+        <div className="flex min-w-0 flex-col gap-[3px] rounded-lg border border-border bg-muted/40 px-[11px] py-[7px] text-xs whitespace-pre-wrap [overflow-wrap:anywhere]" role="note">
+          <div className="font-semibold text-muted-foreground">{run.fromTasks.length === 1 ? t("A task reported back") : t("{count} tasks reported back", { count: run.fromTasks.length })}</div>
+          <p>{shownInput(run.input)}</p>
+        </div>
+      ) : (
+        <div className="flex max-w-[88%] min-w-0 flex-col gap-[3px] self-end rounded-[12px_12px_3px_12px] bg-primary/12 px-[11px] py-[7px] whitespace-pre-wrap [overflow-wrap:anywhere]">
+          <p>{shownInput(run.input)}</p>
+          {details ? <div className="truncate text-[11px] text-muted-foreground" title={details}>{details}</div> : null}
+        </div>
+      )}
       <RunSteps run={run} busy={run.status === "running" || run.status === "queued"} />
       <RunChangesCard run={run} onComment={props.onComment} />
       {run.output ? (

@@ -83,6 +83,8 @@ pub struct StartOptions {
     /// Started by Saturn (a failed check, a stop hook), not by the user's message.
     pub automatic: bool,
     pub parent: Option<ParentRun>,
+    /// Started because tasks this chat started reported back: their chats' ids.
+    pub from_tasks: Vec<String>,
 }
 
 /// A tool call of a model's reply, with the id its result answers.
@@ -296,6 +298,8 @@ impl Kernel {
         let effective = self
             .thread_for_run(agent_id, input, thread_id, project_id)
             .await?;
+        // Tasks this chat started may have reported back since its last turn.
+        let input = &self.with_task_reports(&effective, input).await?;
         let id = new_id("run")?;
         let mut run = json!({
             "id": id,
@@ -326,6 +330,9 @@ impl Kernel {
         }
         if options.automatic {
             run["automatic"] = true.into();
+        }
+        if !options.from_tasks.is_empty() {
+            run["fromTasks"] = json!(options.from_tasks);
         }
         if let Some(parent) = &options.parent {
             run["parentRunId"] = parent.run_id.as_str().into();
