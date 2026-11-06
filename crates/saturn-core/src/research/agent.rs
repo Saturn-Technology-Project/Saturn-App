@@ -97,6 +97,7 @@ impl Kernel {
             "research_notebook" => self.research_notebook_action(&project, arguments).await,
             "research_task_start" => self.research_task_start(&project, arguments, run).await,
             "research_task_read" => self.research_task_read(&project, arguments, run).await,
+            "research_task_delete" => self.research_task_delete(&project, arguments, run).await,
             _ => Err(format!("Unknown research tool: {tool}")),
         }?;
         Ok(fitted(answer))
@@ -637,6 +638,37 @@ impl Kernel {
             }
             other => Err(format!("Nothing to read called \"{other}\".")),
         }
+    }
+
+    /// Deletes a task of this project that has ended and whose worktree the person has already merged or discarded:
+    /// its conversation goes, and nothing of its code is lost. A task still going, or one with an open worktree, is
+    /// the person's to stop, merge or discard first.
+    async fn research_task_delete(
+        &self,
+        project: &str,
+        arguments: &Value,
+        turn: &Value,
+    ) -> Result<Value, String> {
+        let wanted = needed(arguments, "task")?;
+        let task = self
+            .tasks_of(project, text(turn, "agentId"))
+            .into_iter()
+            .find(|task| text(task, "id") == wanted)
+            .ok_or_else(|| format!("No task {wanted} in this project."))?;
+        if self
+            .newest_turn(wanted)
+            .is_some_and(|run| crate::records::active(&run))
+        {
+            return Err(
+                "This task is still going. Wait for it to end, or ask the person to stop it."
+                    .to_owned(),
+            );
+        }
+        if task.get("worktree").is_some_and(|tree| !tree.is_null()) {
+            return Err("This task's worktree is still open. Merging or discarding it is the person's, in Tasks; once they have, the task can be deleted.".to_owned());
+        }
+        self.delete_thread(wanted).await.map_err(said)?;
+        Ok(json!({ "deleted": wanted, "title": task["title"] }))
     }
 
     /// Sets up the project's Python.

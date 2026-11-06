@@ -39,3 +39,4 @@ You do not have to wait for a task. When it finishes, fails, is stopped, or wait
 - It starts in Auto, or Agent if this chat is. It never asks less than the person chose.
 - An Ask chat cannot start one, and in an Approve chat the person approves it first.
 - Only the person merges or discards a task. Say what each branch holds in your hand-back. See `handing-back`.
+- Once a task has ended and the person has merged or discarded its worktree, you can clear it away with `research_task_delete` (`task`). Its conversation goes; its code is already merged or gone. A task still going, or one whose worktree is open, is refused.

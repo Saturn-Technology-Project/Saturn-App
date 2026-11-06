@@ -3866,6 +3866,24 @@
       "what"
      ]
     }
+   },
+   {
+    "toolId": "research_task_delete",
+    "serverId": "research",
+    "category": "write",
+    "description": "Delete a task of this project that has ended and whose worktree the person has merged or discarded: its conversation is removed, and no code is lost. A task still going, or one whose worktree is still open, is refused: stopping, merging and discarding are the person's.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "task": {
+       "type": "string",
+       "description": "The task's id, from research_task_read."
+      }
+     },
+     "required": [
+      "task"
+     ]
+    }
    }
   ]
  }

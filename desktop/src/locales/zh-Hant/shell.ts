@@ -494,4 +494,7 @@ export default {
   "Hide": "隱藏",
   "Not done yet": "尚未完成",
   "The request opens in the assistant's box for you to read and send. It previews each file and imports only after you agree.": "請求會出現在研究助理的訊息框中，讓你檢閱後再送出。助理會先預覽每個檔案，經你同意後才匯入。",
+  "Delete this task? Its worktree and branch {branch} are discarded with it, including anything not merged.": "要刪除這個任務嗎？它的 worktree 與分支 {branch} 會一併捨棄，包括尚未合併的內容。",
+  "Delete this task? Its conversation is removed; its worktree was already merged or discarded.": "要刪除這個任務嗎？會移除它的對話；它的 worktree 已經合併或捨棄。",
+  "Delete task": "刪除任務",
 } satisfies Dictionary;

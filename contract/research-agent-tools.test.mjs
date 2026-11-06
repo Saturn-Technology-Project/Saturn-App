@@ -261,6 +261,18 @@ async function gitBed(options = {}) {
   return { ...setup, folder };
 }
 
+/** Waits until a task's report reached the chat that started it and the turn it started there has ended. */
+async function untilReported(setup, task) {
+  await until("the chat to hear from its task", () => saturn.api("GET", `/agents/${setup.agent.id}/threads`), (threads) =>
+    threads.find((item) => item.id === setup.thread.id)?.taskReports?.some((report) => report.task === task && report.delivered));
+  // The turn the report starts is recorded a moment after the report is marked delivered: wait for it, then its end.
+  await until("the chat's own turn about it to end", async () => {
+    const recent = await saturn.api("GET", "/runs?limit=200");
+    const ours = (recent.items ?? recent).filter((run) => run.threadId === setup.thread.id);
+    return Promise.all(ours.map((run) => saturn.api("GET", `/runs/${run.id}`)));
+  }, (runs) => runs.some((run) => run.fromTasks?.includes(task) && !["running", "starting", "queued", "waiting_approval"].includes(run.status)));
+}
+
 test("an assistant starts a task, which works apart, and follows it to its answer", posixOnly, async () => {
   const setup = await gitBed();
   const begun = await call(setup, "research_task_start", { prompt: "Clean up the data\nand say what you did" });
@@ -271,6 +283,8 @@ test("an assistant starts a task, which works apart, and follows it to its answe
   assert.equal(task.projectId, setup.project.id);
   assert.equal(task.chatMode, "delegate");
   assert.ok(task.worktree, "it has its own worktree");
+  // The finished task reports to this chat in a turn of its own; the next scripted turn comes after that one.
+  await untilReported(setup, begun.task);
   const report = await call(setup, "research_task_read", { what: "wait", task: begun.task, seconds: 30 });
   assert.equal(report.status, "completed", report.error);
   assert.equal(report.answer, "done");
@@ -421,4 +435,22 @@ test("the assistant can delete an imported experiment, but one frozen here is th
   assert.notEqual(refused.status, "completed");
   assert.match(JSON.stringify(refused), /person's to delete/);
   assert.equal((await saturn.api("GET", `${setup.route}/experiments/${own.id}`)).id, own.id);
+});
+
+test("the assistant deletes a task only once it has ended and its worktree is merged or discarded", posixOnly, async () => {
+  const setup = await gitBed();
+  const begun = await call(setup, "research_task_start", { prompt: "Count the rows" });
+  await untilReported(setup, begun.task);
+  const open = (await setup.turn([["research_task_delete", { task: begun.task }]])).actions[0];
+  assert.notEqual(open.status, "completed");
+  assert.match(JSON.stringify(open), /worktree is still open/);
+  assert.ok((await saturn.api("GET", `/agents/${setup.agent.id}/threads`)).some((thread) => thread.id === begun.task));
+
+  // The person discards it; then the task can be cleared away.
+  assert.equal((await saturn.call("POST", `/threads/${begun.task}/worktree/finish`, { how: "discard" })).status, 200);
+  const deleted = await call(setup, "research_task_delete", { task: begun.task });
+  assert.equal(deleted.deleted, begun.task);
+  assert.ok(!(await saturn.api("GET", `/agents/${setup.agent.id}/threads`)).some((thread) => thread.id === begun.task));
+  const unknown = (await setup.turn([["research_task_delete", { task: "thread_nothere" }]])).actions[0];
+  assert.match(JSON.stringify(unknown), /No task thread_nothere/);
 });

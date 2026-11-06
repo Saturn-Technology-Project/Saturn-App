@@ -186,6 +186,20 @@ function TaskDetail(props: {
     }
   }
 
+  /** Deletes the task's conversation; an open worktree, with whatever was not merged, is discarded with it. */
+  async function remove() {
+    const question = task.worktree
+      ? t("Delete this task? Its worktree and branch {branch} are discarded with it, including anything not merged.", { branch: task.worktree.branch })
+      : t("Delete this task? Its conversation is removed; its worktree was already merged or discarded.");
+    if (!(await askToConfirm(question))) return;
+    try {
+      await desktop.catalog.deleteThread(task.id);
+      await onChanged();
+    } catch (error) {
+      notify(messageOf(error));
+    }
+  }
+
   async function release(path: string) {
     if (!policy) return;
     try {
@@ -214,6 +228,11 @@ function TaskDetail(props: {
         <Button variant="ghost" aria-pressed={log} onClick={() => setLog((on) => !on)}>
           {log ? t("Hide full log") : t("View full log")}
         </Button>
+        {running ? null : (
+          <Button variant="ghost" className="text-muted-foreground" onClick={() => void remove()}>
+            {t("Delete task")}
+          </Button>
+        )}
         {task.worktree && !running ? (
           <>
             <Button variant="outline" onClick={() => void finish("discard")}>
