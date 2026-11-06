@@ -216,6 +216,9 @@ export interface ResearchImportPreview {
 /** One training event, separate from a scored evaluation sample. */
 export interface TrainingMetric { step: number; values: Record<string, number> }
 
+/** A page of training metrics: `next` when another page is there now, `end` where its whole lines stop, to follow a running run from. */
+export interface TrainingMetricsPage { items: TrainingMetric[]; next: number | null; end: number }
+
 /** A fixed pair of runs/models and a numeric score, with explicit score direction. */
 export interface PairedComparisonRequest {
   left: { runId: string; modelId?: string };
@@ -470,6 +473,18 @@ export function scoreText(value: number | null | undefined): string {
 /** Whether a run can still change. */
 export function isRunActive(status: RunStatus): boolean {
   return status === "starting" || status === "running" || status === "stopping";
+}
+
+/** The run whose training metrics to show: the newest one still going, so its curve can be followed, or else the newest with results. */
+export function metricsRun<T extends { status: RunStatus }>(runs: readonly T[]): T | null {
+  return runs.filter((run) => isRunActive(run.status)).at(-1) ?? runs.filter((run) => runHasResults(run.status)).at(-1) ?? null;
+}
+
+/** At most `limit` of a curve's points, evenly spaced through it, keeping its first and last: a long run stays quick to draw. */
+export function plotPoints<T>(points: readonly T[], limit = 2000): T[] {
+  if (points.length <= limit) return [...points];
+  const gap = (points.length - 1) / (limit - 1);
+  return Array.from({ length: limit }, (_, index) => points[Math.round(index * gap)]);
 }
 
 /** A run's status in words. Execution says nothing about whether a hypothesis holds. */
