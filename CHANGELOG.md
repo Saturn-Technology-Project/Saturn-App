@@ -2,6 +2,13 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **A run can be paused and continued.** A running experiment can be held where it is and let go on later, from its row in Experiments or by the assistant. It keeps its memory, and the GPU's, while paused, and the run says how long it spent paused. A paused run can still be stopped.
+- **A run that stopped, was interrupted or failed can be resumed.** Resuming starts a new run of the same version that takes over where the old one was: an evaluation keeps the samples it finished, and its program skips them; a training run's program restores the last checkpoint the run listed, and its curve goes on from that step. The new run, and its evidence, say which run it resumed and what came along. The assistant can pause, continue and resume runs too, and a new skill tells it how, and how to write a program that can be resumed.
+
 ## 0.4.1 (2026-11-07)
 
 ### Changed
