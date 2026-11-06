@@ -253,6 +253,102 @@ test("a committed link out of the project is uncontrolled, and its target changi
   await rm(outside, { recursive: true, force: true });
 });
 
+test("a paused run writes nothing until it is continued, and a paused run still stops", posixOnly, async () => {
+  const bed = await setup(LONG);
+  const started = await start(bed);
+  const samples = path.join(runFolder(bed, started.id), "samples.jsonl");
+  const size = () => stat(samples).then((info) => info.size, () => 0);
+  await until("the first samples", size, (bytes) => bytes > 0);
+  const route = `${bed.route}/runs/${started.id}`;
+  const paused = await saturn.api("POST", `${route}/pause`, {});
+  assert.equal(paused.status, "paused");
+  assert.ok(paused.pausedAt);
+  assert.equal((await saturn.api("POST", `${route}/pause`, {})).status, "paused", "pausing twice is once");
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const still = await size();
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal(await size(), still, "nothing is written while paused");
+  const going = await saturn.api("POST", `${route}/continue`, {});
+  assert.equal(going.status, "running");
+  assert.ok(going.pausedSeconds >= 0.5, `the pause is counted: ${going.pausedSeconds}`);
+  assert.equal(going.pausedAt, undefined);
+  await until("samples again", size, (bytes) => bytes > still);
+  await saturn.api("POST", `${route}/pause`, {});
+  await saturn.api("POST", `${route}/stop`, {});
+  const run = await ended(bed, started.id);
+  assert.equal(run.status, "stopped", "a paused run stops when asked");
+  assert.equal((await saturn.call("POST", `${route}/pause`, {})).status, 409, "an ended run cannot be paused");
+  assert.equal((await saturn.call("POST", `${route}/continue`, {})).status, 409);
+});
+
+test("a run that failed partway is resumed by a new run that keeps its samples and does only what is left", posixOnly, async () => {
+  // The program skips what SATURN_RUN_SAMPLES already holds; the first time it fails after two samples.
+  const bed = await setup(`
+    import { appendFileSync, existsSync, readFileSync } from "node:fs";
+    const file = process.env.SATURN_RUN_SAMPLES;
+    const done = new Set(existsSync(file) ? readFileSync(file, "utf8").split("\\n").filter(Boolean).map((line) => JSON.parse(line).sampleId) : []);
+    const line = (id) => JSON.stringify({ schemaVersion: 1, sampleId: id, input: "in", output: process.env.SATURN_RESUME_RUN ? "again" : "first", scores: { s: 1 }, error: null }) + "\\n";
+    for (const id of ["a", "b", "c", "d", "e"]) {
+      if (done.has(id)) continue;
+      appendFileSync(file, line(id));
+      if (!process.env.SATURN_RESUME_RUN && id === "b") process.exit(1);
+    }
+    console.log(process.env.SATURN_RESUME_RUN ?? "");
+  `);
+  const first = await ended(bed, (await start(bed)).id);
+  assert.equal(first.status, "failed");
+  assert.equal(first.samples, 2);
+  const route = `${bed.route}/runs/${first.id}`;
+  const resumed = await saturn.api("POST", `${route}/resume`, { clientId: "resume-1" });
+  assert.equal(resumed.resumes, first.id);
+  assert.deepEqual([resumed.carried.run, resumed.carried.samples], [first.id, 2]);
+  const again = await saturn.api("POST", `${route}/resume`, { clientId: "resume-1" });
+  assert.equal(again.id, resumed.id, "repeating a resume starts nothing");
+  const run = await ended(bed, resumed.id);
+  assert.equal(run.status, "completed", JSON.stringify(run));
+  assert.equal(run.samples, 5);
+  const lines = (await readFile(path.join(runFolder(bed, run.id), "samples.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+  assert.deepEqual(lines.map((item) => [item.sampleId, item.output]), [["a", "first"], ["b", "first"], ["c", "again"], ["d", "again"], ["e", "again"]]);
+  assert.equal((await readFile(path.join(runFolder(bed, run.id), "stdout.log"), "utf8")).trim(), first.id, "the program is told which run it resumes");
+  const evidence = await saturn.api("GET", `${bed.route}/runs/${run.id}/evidence`);
+  assert.equal(evidence.observed.resume.samples, 2);
+  assert.match(evidence.observed.resume.sha256, /^[0-9a-f]{64}$/);
+  assert.equal((await saturn.call("POST", `${bed.route}/runs/${run.id}/resume`, { clientId: "resume-2" })).status, 409, "a completed run has nothing left");
+});
+
+test("a training run resumes from its last checkpoint, which it can read, and its curve goes on from that step", posixOnly, async () => {
+  const metric = (step) => JSON.stringify({ schemaVersion: 1, step, values: { loss: 1 / step } }) + "\n";
+  // The first time it writes four steps, saves a checkpoint at step 2 and fails; resumed, it reads the checkpoint and
+  // writes from step 3 on.
+  const bed = await setup(`
+    import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+    const metric = ${metric.toString()};
+    if (process.env.SATURN_RESUME_FROM) {
+      console.log(readFileSync(process.env.SATURN_RESUME_FROM, "utf8"));
+      for (const step of [3, 4]) appendFileSync(process.env.SATURN_RUN_METRICS, metric(step));
+    } else {
+      for (const step of [1, 2, 3, 4]) appendFileSync(process.env.SATURN_RUN_METRICS, metric(step));
+      writeFileSync(process.env.SATURN_RUN_OUTPUT + "/checkpoint-2", "state at step 2");
+      appendFileSync(process.env.SATURN_RUN_ARTIFACTS, JSON.stringify({ path: "written/checkpoint-2", kind: "checkpoint", step: 2 }) + "\\n");
+      process.exit(1);
+    }
+  `, { fields: { kind: "training" } });
+  const first = await ended(bed, (await start(bed)).id);
+  assert.equal(first.status, "failed");
+  const route = `${bed.route}/runs/${first.id}`;
+  assert.equal((await saturn.call("POST", `${route}/resume`, { clientId: "outside", checkpoint: "/etc/hosts" })).status, 400, "a checkpoint outside the run and the project is refused");
+  assert.equal((await saturn.call("POST", `${route}/resume`, { clientId: "climbing", checkpoint: "../../../../../../etc/hosts" })).status, 400);
+  const resumed = await saturn.api("POST", `${route}/resume`, { clientId: "resume-training" });
+  assert.equal(resumed.carried.metrics, 2, "the metrics up to the checkpoint's step come along");
+  assert.equal(resumed.carried.step, 2);
+  assert.equal(path.basename(resumed.carried.checkpoint), "checkpoint-2");
+  const run = await ended(bed, resumed.id);
+  assert.equal(run.status, "completed", `${JSON.stringify(run)}\n${await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8").catch(() => "")}`);
+  assert.equal((await readFile(path.join(runFolder(bed, run.id), "stdout.log"), "utf8")).trim(), "state at step 2", "the program read the checkpoint inside its sandbox");
+  const metrics = await saturn.api("GET", `${bed.route}/runs/${run.id}/metrics`);
+  assert.deepEqual(metrics.items.map((item) => item.step), [1, 2, 3, 4]);
+});
+
 test("a run started before the project was edited runs the version it was given", posixOnly, async () => {
   const release = path.join(await saturn.folder(), "release");
   const { home, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "before-process", SATURN_RESEARCH_TEST_RELEASE: release });

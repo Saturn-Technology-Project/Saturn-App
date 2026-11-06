@@ -83,7 +83,7 @@ impl Kernel {
         let going = {
             let active = locked(&self.research.active);
             runs.iter().any(|run| {
-                matches!(text(run, "status"), "starting" | "running" | "stopping")
+                saturn_domain::research::run_is_active(text(run, "status"))
                     || active.contains_key(text(run, "id"))
             })
         };

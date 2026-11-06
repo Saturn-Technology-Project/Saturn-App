@@ -396,7 +396,7 @@ fn archive(entries: &mut [Entry]) -> Result<(), CoreError> {
             .map_err(|_| CoreError::new(422, "Invalid execution context."))?;
         record["archived"] = json!(true);
         if is_run {
-            if matches!(text(&record, "status"), "starting" | "running" | "stopping") {
+            if saturn_domain::research::run_is_active(text(&record, "status")) {
                 record["status"] = json!("interrupted");
                 record["process"] = json!("archived");
                 if let Some(bytes) = samples.get(entry.path.strip_suffix("/run.json").unwrap_or(""))
@@ -663,9 +663,8 @@ impl Kernel {
             .iter()
             .filter(|entry| entry.path.starts_with("runs/") && entry.path.ends_with("/run.json"))
             .filter(|entry| {
-                serde_json::from_slice::<Value>(&entry.bytes).is_ok_and(|run| {
-                    matches!(text(&run, "status"), "starting" | "running" | "stopping")
-                })
+                serde_json::from_slice::<Value>(&entry.bytes)
+                    .is_ok_and(|run| saturn_domain::research::run_is_active(text(&run, "status")))
             })
             .count();
         let info = json!({ "sha256": hash, "files": entries.len(), "activeRuns": active, "external": bundle["external"], "unavailable": bundle["unavailable"], "note": NOTE });
