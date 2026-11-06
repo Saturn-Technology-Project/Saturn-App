@@ -63,6 +63,38 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 
 設定包含模型、MCP 伺服器與 skills、用量、記憶、權限、hooks、plugins、遙測、紀錄，以及介面語言（英文或繁體中文）。指令面板（⌘K）可用鍵盤到達任何地方，首次啟動時導覽會逐一框出介面的每個部分。
 
+### 畫面一覽
+
+<sub>示範專案的截圖（深色主題），研究助理的回覆也是示範內容。Saturn 另有淺色主題與英文介面。</sub>
+
+<p align="center">
+  <img src="docs/images/screens/02-assistant-zh.webp" width="49%" alt="研究助理在首頁旁" title="研究助理在首頁旁" />
+  <img src="docs/images/screens/09-samples-zh.webp" width="49%" alt="同一個樣本在五個 checkpoint 上的表現，評分器的判斷就在你的標註旁" title="同一個樣本在五個 checkpoint 上的表現，評分器的判斷就在你的標註旁" />
+</p>
+
+<p align="center"><sub>研究助理在首頁旁 · 同一個樣本在五個 checkpoint 上的表現，評分器的判斷就在你的標註旁</sub></p>
+
+<p align="center">
+  <img src="docs/images/screens/04-scores-zh.webp" width="49%" alt="平均分數：只有測量方式相同的執行才會放在一起比較" title="平均分數：只有測量方式相同的執行才會放在一起比較" />
+  <img src="docs/images/screens/06-evidence-zh.webp" width="49%" alt="執行證據：版本的預期、Saturn 在沙箱中的觀察，以及程式的回報" title="執行證據：版本的預期、Saturn 在沙箱中的觀察，以及程式的回報" />
+</p>
+
+<p align="center"><sub>平均分數：只有測量方式相同的執行才會放在一起比較 · 執行證據：版本的預期、Saturn 在沙箱中的觀察，以及程式的回報</sub></p>
+
+<p align="center">
+  <img src="docs/images/screens/10-lineage-zh.webp" width="49%" alt="各個 checkpoint 與微調出的分支，以及各自的分數" title="各個 checkpoint 與微調出的分支，以及各自的分數" />
+  <img src="docs/images/screens/11-workspace-zh.webp" width="49%" alt="程式碼與執行、樣本和研究助理並排" title="程式碼與執行、樣本和研究助理並排" />
+</p>
+
+<p align="center"><sub>各個 checkpoint 與微調出的分支，以及各自的分數 · 程式碼與執行、樣本和研究助理並排</sub></p>
+
+<p align="center">
+  <img src="docs/images/screens/08-training-zh.webp" width="49%" alt="微調執行的 loss 曲線" title="微調執行的 loss 曲線" />
+  <img src="docs/images/screens/07-sandbox-zh.webp" width="49%" alt="每個實驗的沙箱：網路與環境變數" title="每個實驗的沙箱：網路與環境變數" />
+</p>
+
+<p align="center"><sub>微調執行的 loss 曲線 · 每個實驗的沙箱：網路與環境變數</sub></p>
+
 ## 研究助理
 
 研究助理就在每個畫面旁（⌘J），知道你在哪個畫面、每個畫面的用途，也能一步步帶你操作，框出每個位置，由你自己動手。每個對話都有一個模式，在研究助理的名稱旁選擇：

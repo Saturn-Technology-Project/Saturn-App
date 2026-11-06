@@ -63,6 +63,38 @@ A run's program needs nothing from Saturn but an environment variable: it append
 
 Settings holds models, MCP servers and skills, usage, memory, permissions, hooks, plugins, telemetry, logs and the interface language (English or Traditional Chinese). Commands (⌘K) reach everything from the keyboard, and a tour boxes each part of the interface on first launch.
 
+### In pictures
+
+<sub>Screenshots of an example project, in the dark theme; the assistant's reply is an example too. Saturn also has a light theme and a Traditional Chinese interface.</sub>
+
+<p align="center">
+  <img src="docs/images/screens/02-assistant-en.webp" width="49%" alt="The research assistant beside Home" title="The research assistant beside Home" />
+  <img src="docs/images/screens/09-samples-en.webp" width="49%" alt="One sample across five checkpoints: the scorer's word beside your label" title="One sample across five checkpoints: the scorer's word beside your label" />
+</p>
+
+<p align="center"><sub>The research assistant beside Home · One sample across five checkpoints: the scorer's word beside your label</sub></p>
+
+<p align="center">
+  <img src="docs/images/screens/04-scores-en.webp" width="49%" alt="Mean scores, put together only when the runs measured the same way" title="Mean scores, put together only when the runs measured the same way" />
+  <img src="docs/images/screens/06-evidence-en.webp" width="49%" alt="A run's evidence: what the version expected, what Saturn saw in its sandbox, what the program reported" title="A run's evidence: what the version expected, what Saturn saw in its sandbox, what the program reported" />
+</p>
+
+<p align="center"><sub>Mean scores, put together only when the runs measured the same way · A run's evidence: what the version expected, what Saturn saw in its sandbox, what the program reported</sub></p>
+
+<p align="center">
+  <img src="docs/images/screens/10-lineage-en.webp" width="49%" alt="Checkpoints and their fine-tuned branch, with each one's score" title="Checkpoints and their fine-tuned branch, with each one's score" />
+  <img src="docs/images/screens/11-workspace-en.webp" width="49%" alt="The code beside the run, its samples and the assistant" title="The code beside the run, its samples and the assistant" />
+</p>
+
+<p align="center"><sub>Checkpoints and their fine-tuned branch, with each one's score · The code beside the run, its samples and the assistant</sub></p>
+
+<p align="center">
+  <img src="docs/images/screens/08-training-en.webp" width="49%" alt="A fine-tuning run's loss curve" title="A fine-tuning run's loss curve" />
+  <img src="docs/images/screens/07-sandbox-en.webp" width="49%" alt="Each experiment's sandbox: network and environment variables" title="Each experiment's sandbox: network and environment variables" />
+</p>
+
+<p align="center"><sub>A fine-tuning run's loss curve · Each experiment's sandbox: network and environment variables</sub></p>
+
 ## The research assistant
 
 The assistant sits beside every screen (⌘J), knows which one you are on and what each is for, and can walk you through something, boxing each place while you do the work. Each chat has a mode, chosen beside the assistant's name:
