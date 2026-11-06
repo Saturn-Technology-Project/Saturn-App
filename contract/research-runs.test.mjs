@@ -463,7 +463,7 @@ test("a runtime killed before the process existed: the run is interrupted and no
   }
 });
 
-test("a runtime killed just after the process started still finds it, by what the process recorded", posixOnly, async () => {
+test("a runtime killed just after the process started still finds it, by what Saturn recorded", posixOnly, async () => {
   const { home, dataDir, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "after-process" });
   const bed = await setup(LONG, { on: first, folder });
   await projectSaved(dataDir, folder);
