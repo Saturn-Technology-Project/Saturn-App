@@ -28,6 +28,10 @@ const SNAPSHOT_LIMIT: usize = 400;
 const LOAD_WAIT: Duration = Duration::from_secs(15);
 /// How long the browser gets to start: a first start makes its profile, which on a busy computer takes more than ten seconds.
 const START_WAIT: Duration = Duration::from_secs(30);
+/// How many times the browser is started before the tool says it could not be.
+const START_ATTEMPTS: usize = 2;
+/// How much of what a browser printed is kept, to say why it did not start.
+const PRINTED_KEPT: usize = 1500;
 /// How long each frame of a recording shows, in seconds.
 const FRAME_SECONDS: &str = "0.1";
 
@@ -232,10 +236,29 @@ impl Chrome {
         let profile = self.data_dir.join("browser-profile");
         std::fs::create_dir_all(&profile).map_err(|error| error.to_string())?;
         restrict(&profile);
+        // A start that fails is tried once more: a browser can fail once on a busy computer and start the next time.
+        let mut failed = String::new();
+        for _ in 0..START_ATTEMPTS {
+            match self.start(&program, &profile, mode).await {
+                Ok((address, supervised)) => return self.connect(&address, supervised).await,
+                Err(reason) => failed = reason,
+            }
+        }
+        Err(failed)
+    }
+
+    /// Starts the browser once: the address to connect to and the running program, or why it did not start, with
+    /// the last of what it printed.
+    async fn start(
+        &self,
+        program: &Path,
+        profile: &Path,
+        mode: Mode,
+    ) -> Result<(String, Supervised), String> {
         // Chrome picks a free port and says which in this file, so no other program's port can be taken for it.
         let port_file = profile.join("DevToolsActivePort");
         let _ = std::fs::remove_file(&port_file);
-        let mut command = tokio::process::Command::new(&program);
+        let mut command = tokio::process::Command::new(program);
         command
             .arg("--remote-debugging-port=0")
             .arg(format!("--user-data-dir={}", profile.display()));
@@ -253,30 +276,39 @@ impl Chrome {
             ])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .kill_on_drop(true);
         launch_env(&mut command);
-        let child = command.spawn().map_err(|error| {
+        let mut child = command.spawn().map_err(|error| {
             format!(
                 "The browser could not start: {error} ({}). Install Google Chrome, or set SATURN_BROWSER to a Chrome binary.",
                 program.display()
             )
         })?;
+        let printed = keep_last_printed(child.stderr.take());
         let state = Arc::clone(&self.state);
         let supervised = Supervised::watch(child, move || {
             let mut state = locked(&state);
             state.connection = None;
             state.screencasting = false;
         });
-        let address = match wait_for_address(&port_file).await {
-            Some(address) => address,
-            None => {
-                supervised.end().await;
-                let name = program.file_name().unwrap_or_default().to_string_lossy();
-                return Err(format!("The browser did not start ({name})"));
-            }
+        if let Some(address) = wait_for_address(&port_file, &supervised).await {
+            return Ok((address, supervised));
+        }
+        let ended = supervised.ended();
+        supervised.end().await;
+        let name = program.file_name().unwrap_or_default().to_string_lossy();
+        let how = if ended {
+            "it ended"
+        } else {
+            "it did not answer in time"
         };
-        self.connect(&address, supervised).await
+        let said = locked(&printed).trim().to_owned();
+        Err(if said.is_empty() {
+            format!("The browser did not start ({name}): {how}")
+        } else {
+            format!("The browser did not start ({name}): {how}. It said: {said}")
+        })
     }
 
     /// Connects to the started browser and prepares its page.
@@ -588,10 +620,10 @@ impl Chrome {
     }
 }
 
-/// The address to connect to, once the browser has written it.
-async fn wait_for_address(port_file: &Path) -> Option<String> {
+/// The address to connect to, once the browser has written it; none if the browser ends or takes too long.
+async fn wait_for_address(port_file: &Path, browser: &Supervised) -> Option<String> {
     let started = Instant::now();
-    while started.elapsed() < START_WAIT {
+    while started.elapsed() < START_WAIT && !browser.ended() {
         settle(100).await;
         if let Ok(written) = tokio::fs::read_to_string(port_file).await {
             let mut lines = written.lines();
@@ -601,6 +633,33 @@ async fn wait_for_address(port_file: &Path) -> Option<String> {
         }
     }
     None
+}
+
+/// Keeps the last of what a program prints, to say why it failed.
+fn keep_last_printed(output: Option<tokio::process::ChildStderr>) -> Arc<Mutex<String>> {
+    let kept = Arc::new(Mutex::new(String::new()));
+    if let Some(mut output) = output {
+        let into = Arc::clone(&kept);
+        tokio::spawn(async move {
+            use tokio::io::AsyncReadExt;
+            let mut chunk = [0_u8; 4096];
+            while let Ok(read) = output.read(&mut chunk).await {
+                if read == 0 {
+                    break;
+                }
+                let mut kept = locked(&into);
+                kept.push_str(&String::from_utf8_lossy(&chunk[..read]));
+                if kept.len() > PRINTED_KEPT {
+                    let mut cut = kept.len() - PRINTED_KEPT;
+                    while !kept.is_char_boundary(cut) {
+                        cut += 1;
+                    }
+                    kept.drain(..cut);
+                }
+            }
+        });
+    }
+    kept
 }
 
 /// The profile is for this user alone.

@@ -64,9 +64,10 @@ async function api(runtime, method, route, body) {
   return answer.body;
 }
 
-async function until(what, read, done = Boolean) {
+async function until(what, read, done = Boolean, seconds = 20) {
   let value;
-  for (let attempt = 0; attempt < 500; attempt += 1) {
+  const deadline = Date.now() + seconds * 1000;
+  while (Date.now() < deadline) {
     value = await read();
     if (done(value)) return value;
     await new Promise((resolve) => setTimeout(resolve, 40));
@@ -95,7 +96,8 @@ async function toolRunner(runtime) {
   return async (steps) => {
     queue.push(...steps);
     const started = await api(runtime, "POST", `/agents/${agent.id}/runs`, { input: "go" });
-    const run = await until("the run", () => api(runtime, "GET", `/runs/${started.id}`), (item) => !["queued", "running", "waiting_approval"].includes(item.status));
+    // A step may start the browser, which has thirty seconds to start and fifteen for a page to load.
+    const run = await until("the run", () => api(runtime, "GET", `/runs/${started.id}`), (item) => !["queued", "running", "waiting_approval"].includes(item.status), 90);
     assert.equal(run.status, "completed", run.error);
     assert.equal(run.actions.length, steps.length);
     return { id: run.id, answers: run.actions.map((action, index) => ({ tool: steps[index][0], arguments: steps[index][1], status: action.status, ...(action.result === undefined ? {} : { result: action.result }), ...(action.reason === undefined ? {} : { reason: action.reason }) })) };
@@ -348,6 +350,21 @@ test("a browser that cannot start says so, and the runtime keeps running", async
   assert.equal(answers[0].status, "failed");
   assert.match(answers[0].reason, /The browser could not start/);
   assert.match(answers[0].reason, /SATURN_BROWSER/);
+  assert.equal((await api(runtime, "GET", "/browser")).open, false);
+});
+
+test("a browser that ends as it starts is tried once more, and then says what it printed", { skip: process.platform === "win32" && "a shell script stands in for the browser" }, async () => {
+  const fake = path.join(scratch, "crashing-browser");
+  const tries = path.join(scratch, "crashing-browser-tries");
+  await writeFile(fake, `#!/bin/sh\necho started >> "${tries}"\necho "Missing X server or \\$DISPLAY" >&2\nexit 1\n`);
+  await chmod(fake, 0o755);
+  const runtime = await start({ SATURN_BROWSER: fake });
+  const began = Date.now();
+  const { answers } = await (await toolRunner(runtime))([["browser_snapshot", {}]]);
+  assert.equal(answers[0].status, "failed");
+  assert.match(answers[0].reason, /The browser did not start \(crashing-browser\): it ended\. It said: Missing X server or \$DISPLAY/);
+  assert.equal((await readFile(tries, "utf8")).trim().split("\n").length, 2, "started twice");
+  assert.ok(Date.now() - began < 20_000, "a browser that ended is not waited on");
   assert.equal((await api(runtime, "GET", "/browser")).open, false);
 });
 
