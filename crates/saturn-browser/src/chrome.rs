@@ -26,8 +26,8 @@ pub(crate) const CURSOR_SCRIPT: &str = include_str!("cursor.js");
 const SNAPSHOT_LIMIT: usize = 400;
 /// How long a page gets to load before it is read as it stands.
 const LOAD_WAIT: Duration = Duration::from_secs(15);
-/// How long the browser gets to start.
-const START_WAIT: Duration = Duration::from_secs(10);
+/// How long the browser gets to start: a first start makes its profile, which on a busy computer takes more than ten seconds.
+const START_WAIT: Duration = Duration::from_secs(30);
 /// How long each frame of a recording shows, in seconds.
 const FRAME_SECONDS: &str = "0.1";
 
