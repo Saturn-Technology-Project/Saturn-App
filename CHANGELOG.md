@@ -87,6 +87,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **You can see the assistant's pointer.** While it uses the computer, an orange cursor marked Saturn glides to each point just before the click, drag or scroll lands there, ripples on a click, says when it types, and the screen's edge glows until it stops. It lets every click through and stays out of screenshots, so only you see it. Saturn's own computer use passes over it when it reads Saturn's window.
 - **The assistant can operate Saturn itself with computer use.** With the computer tools on, it finds Saturn's screens, buttons and fields by name in the accessibility tree instead of only pointing you to them, and it leaves its own Assistant panel alone. Fields that only had a placeholder now have names too.
 - **The assistant can set verdicts, label samples and write conclusions.** It can also edit a hypothesis and change any finding. Each is marked as the assistant's, and Home, Samples and Experiments say who set it. It never changes a verdict or a label you set yourself; it disagrees in a finding instead. Locks, chat modes, merging tasks and loosening a run's sandbox stay with you.
 - **Delete a task.** The Tasks screen has a Delete task button. Before deleting, it tells you whether the task's worktree and branch will be discarded with it. The assistant can clear away a task once it has ended and you have merged or discarded its worktree; merging and discarding stay with you.

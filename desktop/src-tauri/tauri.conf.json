@@ -9,6 +9,7 @@
     "beforeDevCommand": "cargo build -p saturn-server -p saturn-cli && vite --port 5174 --strictPort"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [],
     "security": {
       "csp": null

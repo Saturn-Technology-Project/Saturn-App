@@ -498,4 +498,5 @@ export default {
   "Delete this task? Its worktree and branch {branch} are discarded with it, including anything not merged.": "要刪除這個任務嗎？它的 worktree 與分支 {branch} 會一併捨棄，包括尚未合併的內容。",
   "Delete this task? Its conversation is removed; its worktree was already merged or discarded.": "要刪除這個任務嗎？會移除它的對話；它的 worktree 已經合併或捨棄。",
   "Delete task": "刪除任務",
+  "Saturn · typing…": "Saturn · 輸入中…",
 } satisfies Dictionary;

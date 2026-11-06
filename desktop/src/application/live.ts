@@ -1,5 +1,5 @@
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
-import type { AgentBrowserFrame, AgentBrowserState, Run } from "../domain/model.js";
+import type { AgentBrowserFrame, AgentBrowserState, PointerPlace, Run } from "../domain/model.js";
 
 /** What the runtime's /events stream says after a change: the runs that changed, and whether anything else did. */
 export type LiveChange = { runs: { id: string; threadId?: string; agentId: string; status: string; parentRunId?: string }[]; other: boolean };
@@ -86,6 +86,13 @@ export class LiveService {
     return this.runtime.stream("/browser/live", (event, data) => {
       if (event === "state") onState(data as AgentBrowserState);
       else if (event === "frame") onFrame(data as AgentBrowserFrame);
+    }, signal);
+  }
+
+  /** Where the assistant's computer use is about to act, as it happens, until `signal` aborts. */
+  watchPointer(onPlace: (place: PointerPlace) => void, signal: AbortSignal): Promise<void> {
+    return this.runtime.stream("/computer/pointer", (event, data) => {
+      if (event === "pointer") onPlace(data as PointerPlace);
     }, signal);
   }
 

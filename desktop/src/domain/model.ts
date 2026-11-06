@@ -299,6 +299,9 @@ export type AgentBrowser = "saturn" | "system" | "safari";
 
 /** The agent's browser as the runtime reports it, and one frame of its page (base64 JPEG). */
 export type AgentBrowserState = { open: boolean; mode: AgentBrowser; url: string; title: string };
+/** Where the assistant's computer use is about to act, in screen points: a click, a move, a drag (to `to`), a scroll, or
+ * typing wherever the focus is (no point). `at` is when, in milliseconds. */
+export type PointerPlace = { kind: "click" | "move" | "drag" | "scroll" | "type"; x?: number; y?: number; to?: { x: number; y: number }; at: number };
 export type AgentBrowserFrame = { data: string; format?: "jpeg" | "png"; width: number; height: number; url: string; title: string };
 
 export type Profile = {
