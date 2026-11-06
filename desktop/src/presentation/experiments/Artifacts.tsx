@@ -54,6 +54,7 @@ export function Artifacts(props: { projectId: string; runId?: string; inspection
     {selected ? <section className="mt-2 rounded-md bg-panel p-3"><h3 className="text-sm font-medium">{selected.title}</h3><p className="my-1 break-all text-xs text-muted-foreground">{selected.sourcePath || selected.uri} · SHA-256 {selected.sha256 || "not supplied"}{selected.hashVerified ? " · verified at registration" : " · external contents unverified"}</p>
       {!selected.packaged ? <Notice tone="wait">Reference only. Its data has not been copied or downloaded.</Notice> : null}
       {content?.sourceChanged ? <Notice tone="wait">The original source changed or is unavailable. This preview is the saved snapshot.</Notice> : null}
+      {content && content.sourceChanged === null ? <Notice>Copied from the remote host. Its source there is not compared again.</Notice> : null}
       {content && selected.kind === "figure" ? <img className="mt-2 max-h-96 max-w-full object-contain" alt={selected.title} src={`data:${content.mime};base64,${content.data}`} /> : null}
       {shown ? <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-xs">{shown}</pre> : null}
       {content && selected.kind !== "figure" ? <p className="mt-1 text-xs text-muted-foreground">Text preview shows at most 100,000 characters; the saved snapshot keeps all bytes.</p> : null}

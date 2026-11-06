@@ -61,7 +61,7 @@ export interface ResearchArtifact extends ResearchRecord {
   runId?: string | null; inspectionId?: string | null; metadata?: unknown; hashVerified: boolean;
 }
 
-export interface ArtifactContent { data: string; encoding: "base64"; mime: string; sha256: string; sourceChanged: boolean }
+export interface ArtifactContent { data: string; encoding: "base64"; mime: string; sha256: string; sourceChanged: boolean | null }
 
 /** A selected run/session narrows evidence until the person asks to browse every analysis output in this project. */
 export function artifactsInContext<T extends { runId?: string | null; inspectionId?: string | null }>(items: T[], runId?: string, inspectionId?: string, all = false): T[] {

@@ -61,6 +61,7 @@ test("a detached worker survives the runtime, reconnects, and does not submit tw
   assert.equal(outputs.items.length, 1);
   const content = await api("GET", `${route}/artifacts/${outputs.items[0].id}/content`);
   assert.deepEqual(JSON.parse(Buffer.from(content.data, "base64").toString()), { framework: "NNsight", result: [1, 2] });
+  assert.equal(content.sourceChanged, null, "a remote snapshot has no source here to compare with");
   assert.match((await api("GET", `${route}/remote`)).note, /SSH/);
 });
 
@@ -83,6 +84,10 @@ test("remote settings reject command-like host names and do not disable host ver
   const response = await fetch(origin + route, { method: "PUT", headers: { "content-type": "application/json", authorization: `Bearer ${(await readFile(path.join(data, "runtime-token"), "utf8")).trim()}` }, body: JSON.stringify({ host: "-oProxyCommand=bad", workdir: remote, program: worker }) });
   assert.equal(response.status, 400);
   if (process.platform !== "win32") {
+    // Its own call, so what is checked is what this request sent, whatever ran before.
+    await rm(path.join(binaries, "ssh.args"), { force: true });
+    await api("PUT", route, { host: "fixture-host", workdir: remote, program: worker });
+    await api("POST", `${route}/check`, {});
     const args = await readFile(path.join(binaries, "ssh.args"), "utf8");
     assert.match(args, /BatchMode=yes/);
     assert.equal(args.includes("StrictHostKeyChecking=no"), false);

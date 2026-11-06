@@ -57,8 +57,13 @@ pub(super) fn metric_output(path: &std::path::Path) -> std::io::Result<(u64, boo
 struct Imported {
     samples: Vec<Value>,
     metrics: Vec<Value>,
+    /// What a Trainer logged from evaluating (`eval_*`, `test_*`), kept apart from training metrics.
+    evaluation: Vec<Value>,
     provenance: Value,
 }
+
+/// Said of an imported Trainer state that logged evaluations: they are not training metrics, and not an evaluation either.
+const TRAINER_EVALUATION: &str = "The Trainer state also logged evaluation values (eval_* or test_*). They are kept apart from the training metrics, as trainerEvaluation on this run. Which split they came from is not recorded, so they are not counted as an evaluation, nor as a read of test data.";
 
 /// A readable error in a source file, without echoing its contents.
 fn invalid(message: impl Into<String>) -> CoreError {
@@ -156,25 +161,36 @@ fn sample(row: Value, index: usize, request: &Value) -> Result<Value, CoreError>
     Ok(value)
 }
 
-/// A Trainer logging event, separated from evaluation samples.
-fn metric(row: &Value) -> Result<Value, CoreError> {
+/// Whether a Trainer value came from evaluating rather than training.
+fn evaluation_key(key: &str) -> bool {
+    key.starts_with("eval_") || key.starts_with("test_")
+}
+
+/// A Trainer logging event split in two: what training logged, and what evaluating logged. Either may be empty.
+fn metric(row: &Value) -> Result<(Option<Value>, Option<Value>), CoreError> {
     let step = row
         .get("step")
         .and_then(Value::as_u64)
         .ok_or_else(|| invalid("Each metric event needs a non-negative integer step."))?;
-    let values: Map<String, Value> = row
+    let numbers = row
         .as_object()
         .ok_or_else(|| invalid("A metric event must be an object."))?
         .iter()
-        .filter(|(key, value)| key.as_str() != "step" && value.as_f64().is_some_and(f64::is_finite))
+        .filter(|(key, value)| {
+            key.as_str() != "step" && value.as_f64().is_some_and(f64::is_finite)
+        });
+    let (evaluated, trained): (Map<String, Value>, Map<String, Value>) = numbers
         .map(|(key, value)| (key.clone(), value.clone()))
-        .collect();
-    if values.is_empty() {
+        .partition(|(key, _)| evaluation_key(key));
+    if evaluated.is_empty() && trained.is_empty() {
         return Err(invalid(
             "Each metric event needs at least one numeric value.",
         ));
     }
-    Ok(json!({ "schemaVersion": 1, "step": step, "values": values }))
+    let event = |values: Map<String, Value>| {
+        (!values.is_empty()).then(|| json!({ "schemaVersion": 1, "step": step, "values": values }))
+    };
+    Ok((event(trained), event(evaluated)))
 }
 
 /// Decodes JSONL, a JSON array, CSV/TSV, or a Transformers Trainer state, without running code.
@@ -248,10 +264,13 @@ fn decode(bytes: &[u8], path: &str, request: &Value) -> Result<Imported, CoreErr
     }
     let mut samples = Vec::new();
     let mut metrics = Vec::new();
+    let mut evaluation = Vec::new();
     let mut seen = HashSet::new();
     for (index, row) in rows.into_iter().enumerate() {
         if format == "trainer" {
-            metrics.push(metric(&row)?);
+            let (trained, evaluated) = metric(&row)?;
+            metrics.extend(trained);
+            evaluation.extend(evaluated);
         } else {
             let value = sample(row, index, request)?;
             if !seen.insert(sample_identity(&value).map_err(invalid)?) {
@@ -267,6 +286,7 @@ fn decode(bytes: &[u8], path: &str, request: &Value) -> Result<Imported, CoreErr
         .any(|row| row.get("identityGenerated") == Some(&json!(true)));
     Ok(Imported {
         samples,
+        evaluation,
         metrics,
         provenance: json!({
             "kind": "imported", "path": path, "format": format, "sha256": sha256_hex(bytes), "size": bytes.len(),
@@ -349,7 +369,7 @@ impl Kernel {
         let sample_bytes = json_lines(&imported.samples)?;
         let run = json!({ "schemaVersion": 1, "id": run_id, "revision": 1, "createdAt": now, "updatedAt": now, "endedAt": now,
             "experimentId": experiment_id, "versionId": version_id, "status": "completed", "kind": if imported.metrics.is_empty() { "evaluation" } else { "training" },
-            "imported": true, "samples": imported.samples.len(), "samplesSize": sample_bytes.len(), "samplesSha256": sha256_hex(&sample_bytes), "provenance": imported.provenance });
+            "imported": true, "trainerEvaluation": imported.evaluation, "warnings": if imported.evaluation.is_empty() { json!([]) } else { json!([TRAINER_EVALUATION]) }, "samples": imported.samples.len(), "samplesSize": sample_bytes.len(), "samplesSha256": sha256_hex(&sample_bytes), "provenance": imported.provenance });
         let records = self.records_for_writing(project).await?;
         let lock = self.records_lock(&records);
         let _writing = lock.lock().await;

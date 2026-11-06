@@ -84,6 +84,21 @@ test("tampered data, traversal, credentials and conflicts reject before any new 
   assert.equal(await readFile(collision, "utf8"), "different");
 });
 
+test("a bundle cannot attach evidence to a run the project already has", async () => {
+  const source = await study();
+  const exported = await saturn.api("POST", `${source.route}/bundles/export`, { path: "exports/study.saturn.json" });
+  const bundle = JSON.parse(await readFile(path.join(source.folder, exported.path)));
+  // Only an inspection for that run, under a name the project does not have yet: no run comes with it.
+  bundle.files = bundle.files.filter((file) => file.path.startsWith(`runs/${source.run.id}/inside/`)).map((file) => ({ ...file, path: file.path.replace("inspect-abcd", "inspect-ffff") }));
+  assert.equal(bundle.files.length, 1);
+  await writeFile(path.join(source.folder, "attach.saturn.json"), JSON.stringify(bundle));
+  const refused = await saturn.call("POST", `${source.route}/bundles/import`, { path: "attach.saturn.json" });
+  assert.equal(refused.status, 409, JSON.stringify(refused.body));
+  assert.match(refused.body.error, /already has, and the bundle does not carry that run/);
+  const inside = await readdir(path.join(source.folder, ".saturn/research/runs", source.run.id, "inside"));
+  assert.deepEqual(inside, ["inspect-abcd.json"], "nothing was added");
+});
+
 test("active jobs import as archived interrupted evidence, never as launch instructions", async () => {
   const source = await study();
   const model = await saturn.api("POST", `${source.route}/models`, { source: "org/model", weightsRevision: "fixed" });

@@ -371,11 +371,16 @@ impl Kernel {
                 .ok()
                 .map(|(path, _)| path)
         };
-        let changed = match source {
-            Some(path) => super::freeze::hash_file(&path)
-                .await
-                .map_or(true, |(current, _)| current != hash),
-            None => true,
+        // A snapshot fetched from a remote host has no source here to compare with, so nothing is said either way.
+        let changed = if record["sourceScope"] == "remote" {
+            Value::Null
+        } else {
+            json!(match source {
+                Some(path) => super::freeze::hash_file(&path)
+                    .await
+                    .map_or(true, |(current, _)| current != hash),
+                None => true,
+            })
         };
         Ok(
             json!({ "data": STANDARD.encode(bytes), "encoding": "base64", "mime": record["mime"], "sha256": hash, "sourceChanged": changed }),

@@ -673,6 +673,37 @@ impl Kernel {
         let root = self.records_for_writing(project).await?;
         let lock = self.records_lock(&root);
         let _writing = lock.lock().await;
+        // Evidence for a run this project already has may come only with that same run: a bundle cannot attach its labels,
+        // metrics or inspections to someone else's run.
+        let carried: std::collections::HashSet<String> = entries
+            .iter()
+            .filter_map(|entry| {
+                entry
+                    .path
+                    .strip_prefix("runs/")?
+                    .strip_suffix("/run.json")
+                    .map(str::to_owned)
+            })
+            .collect();
+        for entry in &entries {
+            let run = entry
+                .path
+                .strip_prefix("runs/")
+                .and_then(|rest| rest.split('/').next())
+                .or_else(|| entry.path.strip_prefix("labels/")?.strip_suffix(".json"));
+            if let Some(run) = run
+                && !carried.contains(run)
+                && tokio::fs::try_exists(root.join("runs").join(run).join("run.json")).await?
+            {
+                return Err(CoreError::new(
+                    409,
+                    format!(
+                        "{} belongs to {run}, a run this project already has, and the bundle does not carry that run. Nothing was imported.",
+                        entry.path
+                    ),
+                ));
+            }
+        }
         let mut planned = Vec::new();
         let mut reused = 0;
         for entry in entries {

@@ -58,6 +58,9 @@ test("Trainer log_history becomes metrics, without pretending training steps are
   const metrics = await saturn.api("GET", `${route}/runs/${imported.run.id}/metrics`);
   assert.equal(metrics.items.length, 2);
   assert.deepEqual(metrics.items[0].values, { loss: 2.5, epoch: 0.1 });
+  assert.deepEqual(metrics.items[1].values, { total_flos: 200 }, "an evaluation value is not a training metric");
+  assert.deepEqual(imported.run.trainerEvaluation, [{ schemaVersion: 1, step: 20, values: { eval_loss: 2.0 } }]);
+  assert.match(imported.run.warnings[0], /not counted as an evaluation, nor as a read of test data/);
   assert.deepEqual((await saturn.api("GET", `${route}/runs/${imported.run.id}/samples`)).items, []);
 });
 
