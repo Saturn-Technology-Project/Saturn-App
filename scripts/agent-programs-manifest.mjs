@@ -24,7 +24,7 @@ async function pin(name, version, platform) {
     ? [[name, `${version}-${platform}`], [`${name}-${platform}`, version]]
     : [[`${name}-${platform}`, version]];
   for (const [packageName, packageVersion] of candidates) {
-    const response = await fetch(`${REGISTRY}/${packageName.replace("/", "%2f")}/${packageVersion}`);
+    const response = await fetch(`${REGISTRY}/${packageName.replaceAll("/", "%2f")}/${packageVersion}`);
     if (!response.ok) continue;
     const { dist } = await response.json();
     // The registry answers HEAD without a length; a one-byte range request reports the total in Content-Range.

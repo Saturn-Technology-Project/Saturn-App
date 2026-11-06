@@ -111,6 +111,8 @@ impl Kernel {
     ) -> Result<PathBuf, CoreError> {
         let recording = self.recording(run_id, name)?;
         let total = recording["frames"].as_u64().unwrap_or(0);
+        // The folder's name as found among the run's own recordings, never the name as asked for.
+        let name = text(&recording, "name").to_owned();
         let index = index
             .parse::<u64>()
             .ok()
@@ -119,7 +121,7 @@ impl Kernel {
         // Chrome records JPEGs, Safari PNGs.
         let base = self
             .recordings_root()
-            .join(name)
+            .join(&name)
             .join(format!("frame-{index:05}"));
         let jpeg = base.with_extension("jpg");
         Ok(if jpeg.exists() {

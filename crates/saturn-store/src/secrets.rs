@@ -207,8 +207,7 @@ impl SecretsFile {
             .collect();
         self.save(&secrets)?;
         eprintln!(
-            "[store] Encrypted {} saved secrets in secrets.json; the key is kept in the {}",
-            secrets.len(),
+            "[store] Encrypted the saved secrets in secrets.json; the key is kept in the {}",
             self.store.label()
         );
         Ok(secrets)
