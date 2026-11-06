@@ -43,12 +43,31 @@ function calls() {
 
 // Every dictionary file, read directly: the index's imports are written for the bundler.
 const LOCALES = new URL("../src/locales/zh-Hant/", import.meta.url);
-const traditionalChinese = await Promise.all(readdirSync(LOCALES).sort().map(async (name) => (await import(new URL(name, LOCALES).href)).default));
+const ENGLISH = new URL("../src/locales/en/", import.meta.url);
+const load = (folder) => Promise.all(readdirSync(folder).sort().map(async (name) => (await import(new URL(name, folder).href)).default));
+const traditionalChinese = await load(LOCALES);
+const english = await load(ENGLISH);
 const merged = Object.assign({}, ...traditionalChinese);
 
 test("the index merges every dictionary file", () => {
   const index = readFileSync(new URL("../src/locales/index.ts", import.meta.url), "utf8");
   for (const name of readdirSync(LOCALES)) assert.match(index, new RegExp(`from "./zh-Hant/${name.replace(/\.ts$/, "")}"`));
+  for (const name of readdirSync(ENGLISH)) assert.match(index, new RegExp(`from "./en/${name.replace(/\.ts$/, "")}"`));
+});
+
+test("English wording replaces only texts the code uses, keeps their placeholders, and words each one way", () => {
+  const { texts } = calls();
+  const seen = new Map();
+  const problems = [];
+  for (const dictionary of english) {
+    for (const [text, worded] of Object.entries(dictionary)) {
+      if (!texts.has(text)) problems.push(`unused: ${text}`);
+      if (placeholders(text).join() !== placeholders(worded).join()) problems.push(`placeholders: ${text}`);
+      if (seen.has(text) && seen.get(text) !== worded) problems.push(`two ways: ${text}`);
+      seen.set(text, worded);
+    }
+  }
+  assert.deepEqual(problems, []);
 });
 
 test("t() is only given string literals", () => {
