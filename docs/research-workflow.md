@@ -91,9 +91,9 @@ verified; they must stay inside that job's directory. External references cannot
 ## Take evidence to another project
 
 **Home / Experiments → Portable project research bundle** exports all project research records, samples, labels,
-metrics, logs, Inspect results, saved source objects and analysis snapshots. It also writes escaped Markdown and HTML
-reports. Weights, datasets, scorers, environments and unavailable saved objects are listed as external or missing;
-they are not silently downloaded or reconstructed. Runtime settings, permissions and process control files are excluded.
+metrics, logs, run evidence (what was expected, observed and reported), Inspect results, saved source objects and
+analysis snapshots. It also writes escaped Markdown and HTML reports. Weights, datasets, scorers, environments and
+unavailable saved objects are listed as external or missing; they are not silently downloaded or reconstructed. Runtime settings, permissions and process control files are excluded.
 
 Copy the bundle into another project, then validate and import. Extraction accepts only the research evidence
 namespaces, verifies every file's size/hash, rejects symlinks and refuses conflicting contents before publishing files.

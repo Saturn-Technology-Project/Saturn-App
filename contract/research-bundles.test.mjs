@@ -141,3 +141,28 @@ test("exports and imports refuse links and leave missing external data explicit"
     assert.deepEqual(await readdir(outside), []);
   }
 });
+
+test("a run's evidence travels with the bundle: the imported run still has it", async () => {
+  const source = await project();
+  await writeFile(path.join(source.folder, "probe.mjs"), `import { appendFileSync } from "node:fs"; appendFileSync(process.env.SATURN_RUN_REPORT, JSON.stringify({ kind: "seed", value: 7 }) + "\\n"); appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "a", input: "i", output: "o", scores: { s: 1 }, error: null }) + "\\n");`);
+  const experiment = await saturn.api("POST", `${source.route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } });
+  const version = await saturn.api("POST", `${source.route}/experiments/${experiment.id}/versions`, {});
+  const started = await saturn.api("POST", `${source.route}/versions/${version.id}/runs`, { clientId: "bundled-evidence" });
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    if (!["starting", "running", "stopping"].includes((await saturn.api("GET", `${source.route}/runs/${started.id}`)).status)) break;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  const before = await saturn.api("GET", `${source.route}/runs/${started.id}/evidence`);
+  assert.equal(before.recorded, true);
+  const exported = await saturn.api("POST", `${source.route}/bundles/export`, { path: "exports/evidence.saturn.json" });
+  const bytes = await readFile(path.join(source.folder, exported.path));
+  const names = JSON.parse(bytes).files.map((file) => file.path);
+  for (const name of ["evidence.json", "report.jsonl"]) assert.ok(names.includes(`runs/${started.id}/${name}`), `${name} in ${names}`);
+  const target = await project();
+  await writeFile(path.join(target.folder, "evidence.saturn.json"), bytes);
+  await saturn.api("POST", `${target.route}/bundles/import`, { path: "evidence.saturn.json" });
+  const after = await saturn.api("GET", `${target.route}/runs/${started.id}/evidence`);
+  assert.equal(after.recorded, true);
+  assert.deepEqual(after.verdicts, before.verdicts);
+  assert.deepEqual(after.reported.seed, { value: 7 });
+});
