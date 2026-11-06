@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
+import saturnMark from "../../assets/saturn-mark.png";
 import type { PointerPlace } from "../../domain/model.js";
 
 /** How long the pointer stays after the assistant's last action. */
@@ -9,11 +10,11 @@ const LINGER_MS = 4000;
 const GLIDE_MS = 200;
 
 /** Saturn's colors, from its icon: the black of the ground and the ivory of the ringed planet. */
-const INK = "#07070b";
+const INK = "#06050a";
 const IVORY = "#f6f4ef";
 const IVORY_LINE = "rgba(246, 244, 239, 0.35)";
 /** The screen's edge while the assistant works: an ivory band, with a thin dark line so it shows on light screens too. */
-const GLOW = "inset 0 0 0 1px rgba(7, 7, 11, 0.55), inset 0 0 0 4px rgba(246, 244, 239, 0.9), inset 0 0 40px 10px rgba(246, 244, 239, 0.32)";
+const GLOW = "inset 0 0 0 1px rgba(6, 5, 10, 0.55), inset 0 0 0 4px rgba(246, 244, 239, 0.9), inset 0 0 40px 10px rgba(246, 244, 239, 0.32)";
 
 /** What the overlay shows now: where the pointer is, what it last did, and whether it is shown at all. */
 type Shown = { x: number; y: number; kind: PointerPlace["kind"]; at: number; visible: boolean };
@@ -72,12 +73,8 @@ export function Pointer() {
           <path d="M3 2 L3 24 L9 18.5 L13 27.5 L17 25.7 L13.2 17 L21 17 Z" fill={INK} stroke={IVORY} strokeWidth="1.8" strokeLinejoin="round" />
         </svg>
         <span className="absolute top-6 left-5 flex items-center gap-1 rounded-full py-0.5 pr-2 pl-1.5 text-[11px] font-semibold whitespace-nowrap shadow-md" style={{ background: INK, color: IVORY, boxShadow: `0 0 0 1px ${IVORY_LINE}, 0 4px 10px rgba(0, 0, 0, 0.35)` }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={IVORY} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            {/* Saturn's mark: a planet with its ring, as on the app's icon. */}
-            <path d="M8.2 15.9 A6 6 0 1 1 15.6 7.6" />
-            <path d="M15.8 16.4 A6 6 0 0 1 10.3 17.8" />
-            <ellipse cx="12" cy="12" rx="10.5" ry="3.6" transform="rotate(-18 12 12)" />
-          </svg>
+          {/* Saturn's mark: the ringed planet from its icon, on a transparent ground. */}
+          <img src={saturnMark} alt="" width={15} height={15} />
           {shown.kind === "type" ? t("Saturn · typing…") : "Saturn"}
         </span>
       </div>
