@@ -2,7 +2,7 @@
 // docs/research-contract.md is the contract. The stand-in experiments are small Node scripts.
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -32,7 +32,7 @@ setInterval(() => appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringif
 /** A new allowed project, in the given bench, with an experiment that runs this script. */
 async function setup(script, { on = saturn, folder: given, inputs = {}, fields = {} } = {}) {
   const folder = given ?? await on.folder();
-  await writeFile(path.join(folder, "probe.mjs"), script);
+  if (script !== null) await writeFile(path.join(folder, "probe.mjs"), script);
   const made = await on.api("POST", "/projects", { path: folder });
   await on.api("POST", `/projects/${made.id}/access`, {});
   const route = `/projects/${made.id}/research`;
@@ -207,6 +207,41 @@ test("without the sandbox, an input replaced during the run is recorded as chang
   const evidence = JSON.parse(await readFile(path.join(runFolder(bed, run.id), "evidence.json"), "utf8"));
   assert.equal(evidence.verdicts.inputs, "changed");
   assert.deepEqual(evidence.observed.afterRun.changed, ["set.jsonl"]);
+});
+
+test("a committed link out of the project is uncontrolled, and its target changing during the run is caught", posixOnly, async () => {
+  const folder = await saturn.folder();
+  const outside = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-outside-")));
+  await writeFile(path.join(outside, "set.jsonl"), "{\"v\":1}\n");
+  await mkdir(path.join(folder, "data"));
+  await symlink(path.join(outside, "set.jsonl"), path.join(folder, "data", "set.jsonl"));
+  // The program reads through the link, then waits until the test has changed what it points to.
+  await writeFile(path.join(folder, "probe.mjs"), `
+    import { appendFileSync, existsSync, readFileSync } from "node:fs";
+    const read = readFileSync("data/set.jsonl", "utf8");
+    while (!existsSync(${JSON.stringify(path.join(outside, "go"))})) await new Promise((resolve) => setTimeout(resolve, 50));
+    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    console.log(read.trim());
+  `);
+  commitAll(folder);
+  const bed = await setup(null, { folder });
+  const started = await start(bed);
+  await until("the run to start", () => saturn.api("GET", `${bed.route}/runs/${started.id}`), (item) => item.status === "running");
+  const evidence = await saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`);
+  const link = evidence.observed.snapshot.uncontrolled.find((item) => item.path === "data/set.jsonl");
+  assert.ok(link, `the link is listed as uncontrolled: ${JSON.stringify(evidence.observed.snapshot.uncontrolled)}`);
+  assert.equal(link.kind, "linked file");
+  assert.equal(link.target, path.join(outside, "set.jsonl"));
+  assert.equal(link.sha256, sha("{\"v\":1}\n"));
+  assert.equal(evidence.verdicts.inputs, "partial", "not verified: the version never fixed what the link reads");
+  await writeFile(path.join(outside, "set.jsonl"), "{\"v\":2}\n");
+  await writeFile(path.join(outside, "go"), "");
+  const run = await ended(bed, started.id);
+  assert.equal(run.status, "completed", JSON.stringify(run));
+  assert.deepEqual(run.inputsChanged, ["data/set.jsonl"]);
+  const after = await saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`);
+  assert.equal(after.verdicts.inputs, "changed");
+  await rm(outside, { recursive: true, force: true });
 });
 
 test("a run started before the project was edited runs the version it was given", posixOnly, async () => {
