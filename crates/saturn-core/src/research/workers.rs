@@ -31,8 +31,9 @@ const RELEASES: &str = "https://github.com/Saturn-Technology-Project/Saturn-App/
 const PROBE_LIMIT: Duration = Duration::from_secs(20);
 /// How long sending a worker may take; it is tens of megabytes.
 const UPLOAD_LIMIT: Duration = Duration::from_secs(15 * 60);
-/// The largest worker accepted from a download.
-const LARGEST: u64 = 256 * 1024 * 1024;
+/// The largest worker accepted from a download. A release's is tens of megabytes; a developer's build with its debug
+/// information can be hundreds.
+const LARGEST: u64 = 1024 * 1024 * 1024;
 
 /// The kind of system a worker is built for, from what `uname -s` and `uname -m` say on the host.
 fn target_of(system: &str, machine: &str) -> Option<&'static str> {
@@ -303,16 +304,16 @@ impl Kernel {
             .read_timeout(Duration::from_secs(60))
             .build()
             .map_err(|error| CoreError::new(502, error.to_string()))?;
+        let part = path.with_extension("part");
         let mut last = String::new();
         for attempt in 1..=3_u64 {
-            match fetch(&client, &url).await {
-                Ok(bytes) if sha256_hex(&bytes) == expected => {
-                    let part = path.with_extension("part");
-                    tokio::fs::write(&part, &bytes).await?;
+            match fetch(&client, &url, &part).await {
+                Ok(hash) if hash == expected => {
                     tokio::fs::rename(&part, &path).await?;
                     return Ok(path);
                 }
                 Ok(_) => {
+                    let _ = tokio::fs::remove_file(&part).await;
                     return Err(CoreError::new(
                         502,
                         "The downloaded worker is not the one this Saturn was built with, so it was not used.",
@@ -322,6 +323,7 @@ impl Kernel {
             }
             tokio::time::sleep(Duration::from_secs(2 * attempt)).await;
         }
+        let _ = tokio::fs::remove_file(&part).await;
         Err(CoreError::new(
             502,
             format!("The worker could not be downloaded ({last})."),
@@ -329,8 +331,11 @@ impl Kernel {
     }
 }
 
-/// One whole download, bounded in size.
-async fn fetch(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> {
+/// One whole download into `into`, bounded in size and hashed as it arrives, so even a large one is never held in memory.
+/// Its SHA-256.
+async fn fetch(client: &reqwest::Client, url: &str, into: &Path) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    use tokio::io::AsyncWriteExt;
     let mut response = client
         .get(url)
         .send_noted()
@@ -342,12 +347,21 @@ async fn fetch(client: &reqwest::Client, url: &str) -> Result<Vec<u8>, String> {
             response.status().as_u16()
         ));
     }
-    let mut bytes = Vec::new();
+    let mut file = tokio::fs::File::create(into)
+        .await
+        .map_err(|error| error.to_string())?;
+    let mut hash = Sha256::new();
+    let mut received = 0_u64;
     while let Some(chunk) = response.chunk().await.map_err(|error| error.to_string())? {
-        bytes.extend_from_slice(&chunk);
-        if bytes.len() as u64 > LARGEST {
+        received += chunk.len() as u64;
+        if received > LARGEST {
             return Err("the download is larger than any worker".to_owned());
         }
+        hash.update(&chunk);
+        file.write_all(&chunk)
+            .await
+            .map_err(|error| error.to_string())?;
     }
-    Ok(bytes)
+    file.flush().await.map_err(|error| error.to_string())?;
+    Ok(saturn_domain::research::hex(&hash.finalize()))
 }
