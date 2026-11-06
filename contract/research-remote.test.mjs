@@ -6,10 +6,12 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { createHash } from "node:crypto";
+import { createServer } from "node:http";
 import { startRuntime } from "./runtime.mjs";
 import { until } from "./files-support.mjs";
 
-let runtime, folder, remote, binaries, data, origin;
+let runtime, folder, remote, binaries, data, origin, releases, served, runtimeEnv;
 const worker = path.resolve("target/debug/saturn-server");
 /** A JSON request to the isolated runtime. */
 async function api(method, route, body) {
@@ -23,12 +25,23 @@ before(async () => {
   remote = path.join(folder, "remote"); binaries = path.join(folder, "bin"); data = path.join(folder, "state");
   await mkdir(remote); await mkdir(binaries);
   const fake = path.join(binaries, "ssh");
-  await writeFile(fake, '#!/bin/sh\nif [ -f "$0.offline" ]; then exit 255; fi\nprintf "%s\\n" "$@" > "$0.args"\nfor remote_command do :; done\nexec /bin/sh -c "$remote_command"\n');
+  // ssh.home names the host's home folder, and ssh.foreign makes the host another kind of system than this one.
+  await writeFile(fake, '#!/bin/sh\nif [ -f "$0.offline" ]; then exit 255; fi\nprintf "%s\\n" "$@" > "$0.args"\nif [ -f "$0.home" ]; then HOME="$(cat "$0.home")"; export HOME; fi\nif [ -f "$0.foreign" ]; then PATH="$0.uname:$PATH"; export PATH; fi\nfor remote_command do :; done\nexec /bin/sh -c "$remote_command"\n');
   await chmod(fake, 0o755);
-  runtime = await startRuntime({ dataDir: data, keepData: true, env: { PATH: `${binaries}:${process.env.PATH}` } });
+  await mkdir(path.join(binaries, "ssh.uname"));
+  const foreign = process.arch === "x64" && process.platform === "linux" ? "aarch64" : "x86_64";
+  await writeFile(path.join(binaries, "ssh.uname", "uname"), `#!/bin/sh\nif [ "$1" = "-m" ]; then echo ${foreign}; else echo Linux; fi\n`);
+  await chmod(path.join(binaries, "ssh.uname", "uname"), 0o755);
+  // The release a foreign host's worker comes from: whatever `served` holds, under any version's name.
+  releases = createServer((request, response) => { if (!served) { response.writeHead(404).end(); return; } response.writeHead(200, { "content-type": "application/octet-stream" }).end(served); });
+  await new Promise((resolve) => releases.listen(0, "127.0.0.1", resolve));
+  const pin = createHash("sha256").update(await readFile(worker)).digest("hex");
+  // Every runtime of these tests, the restarted ones too, sees the fake ssh and the release's pinned worker.
+  runtimeEnv = { PATH: `${binaries}:${process.env.PATH}`, SATURN_WORKER_SHA256: `linux-x64=${pin},linux-arm64=${pin}`, SATURN_WORKER_DOWNLOAD: `http://127.0.0.1:${releases.address().port}` };
+  runtime = await startRuntime({ dataDir: data, keepData: true, env: runtimeEnv });
   origin = runtime.origin;
 });
-after(async () => { await runtime?.stop(); await rm(folder, { recursive: true, force: true }); });
+after(async () => { await runtime?.stop(); releases?.close(); await rm(folder, { recursive: true, force: true }); });
 
 /** A configured remote experiment, whose code already lives on the other machine. */
 async function experiment(command, kind = "evaluation", files = {}, inputs = undefined, fields = {}) {
@@ -54,7 +67,7 @@ test("a detached worker survives the runtime, reconnects, and does not submit tw
   await until("transport disconnected", () => api("GET", `${route}/runs/${run.id}`), (item) => item.remoteConnection === "disconnected");
   await runtime.stop();
   await rm(path.join(binaries, "ssh.offline"));
-  runtime = await startRuntime({ dataDir: data, keepData: true, env: { PATH: `${binaries}:${process.env.PATH}` } }); origin = runtime.origin;
+  runtime = await startRuntime({ dataDir: data, keepData: true, env: runtimeEnv }); origin = runtime.origin;
   const ended = await until("remote finish after reconnect", () => api("GET", `${route}/runs/${run.id}`), (item) => item.status === "completed", 30);
   assert.equal(ended.samples, 12);
   assert.equal((await api("GET", `${route}/runs/${run.id}/samples`)).items.length, 12);
@@ -99,7 +112,7 @@ test("remote settings reject command-like host names and do not disable host ver
 /** Restarts the isolated runtime on the same data, as reopening the app does. */
 async function restart() {
   await runtime.stop();
-  runtime = await startRuntime({ dataDir: data, keepData: true, env: { PATH: `${binaries}:${process.env.PATH}` } });
+  runtime = await startRuntime({ dataDir: data, keepData: true, env: runtimeEnv });
   origin = runtime.origin;
 }
 
@@ -139,7 +152,7 @@ test("a job whose folder is gone from the remote host is reported, not started a
   const { rm: remove } = await import("node:fs/promises");
   await remove(path.join(remote, ".saturn/remote-jobs", run.id), { recursive: true, force: true });
   await remove(path.join(binaries, "ssh.offline"));
-  runtime = await startRuntime({ dataDir: data, keepData: true, env: { PATH: `${binaries}:${process.env.PATH}` } }); origin = runtime.origin;
+  runtime = await startRuntime({ dataDir: data, keepData: true, env: runtimeEnv }); origin = runtime.origin;
   const ended = await until("the lost job to be reported", () => api("GET", `${route}/runs/${run.id}`), (item) => item.status === "interrupted");
   assert.match(ended.remoteError, /not on the remote host/);
   await new Promise((resolve) => setTimeout(resolve, 2500));
@@ -188,5 +201,89 @@ test("a host that holds the version runs it from a checked snapshot, and the evi
     assert.equal(existsSync(escaped), false);
   } else {
     assert.ok(sandbox.unavailable, JSON.stringify(sandbox));
+  }
+});
+
+/** A host with an empty home of its own, set as the project's target with no worker named yet. */
+async function freshHost(foreign = false) {
+  const home = path.join(folder, `home-${Date.now()}`);
+  await mkdir(home);
+  await writeFile(path.join(binaries, "ssh.home"), home);
+  if (foreign) await writeFile(path.join(binaries, "ssh.foreign"), "");
+  else await rm(path.join(binaries, "ssh.foreign"), { force: true });
+  const local = path.join(folder, `paired-${Date.now()}`); await mkdir(local);
+  const project = await api("POST", "/projects", { path: local, grant: true });
+  const route = `/projects/${project.id}/research`;
+  await api("PUT", `${route}/remote`, { host: "fixture-host", workdir: remote, program: "saturn-server" });
+  const { version } = await (await fetch(`${origin}/health`)).json();
+  return { home, route, version, installed: path.join(home, ".saturn", "worker", version, "saturn-server") };
+}
+
+/** A request that must fail, and its status and message. */
+async function refusedWith(method, route, body) {
+  const response = await fetch(origin + route, { method, headers: { "content-type": "application/json", authorization: `Bearer ${(await readFile(path.join(data, "runtime-token"), "utf8")).trim()}` }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  return { status: response.status, error: (await response.json()).error };
+}
+
+const sha = async (file) => createHash("sha256").update(await readFile(file)).digest("hex");
+
+test("connecting finds no worker, installing one from this computer pairs with it, and runs then use it", { skip: process.platform === "win32" }, async () => {
+  const { home, route, version, installed } = await freshHost();
+  try {
+    const missing = await api("POST", `${route}/remote/pair`, {});
+    assert.deepEqual([missing.state, missing.source, missing.version, missing.path], ["missing", "this computer", version, installed]);
+    const ready = await api("POST", `${route}/remote/install`, {});
+    assert.deepEqual([ready.state, ready.installed, ready.sha256], ["ready", true, await sha(worker)]);
+    assert.equal(await sha(installed), await sha(worker), "the host has exactly this Saturn's program");
+    assert.equal((await api("GET", `${route}/remote`)).target.program, installed, "pairing names the worker for runs");
+    assert.equal((await api("POST", `${route}/remote/check`, {})).version, version);
+    assert.equal((await api("POST", `${route}/remote/pair`, {})).state, "ready", "connecting again finds it ready");
+  } finally {
+    await rm(path.join(binaries, "ssh.home"), { force: true });
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("a host of another kind gets the release's worker only if it is the one Saturn was built with", { skip: process.platform === "win32" }, async () => {
+  const { home, route, installed } = await freshHost(true);
+  try {
+    const missing = await api("POST", `${route}/remote/pair`, {});
+    assert.deepEqual([missing.state, missing.source, missing.system], ["missing", "release", "Linux"]);
+    served = Buffer.from("#!/bin/sh\necho not saturn\n");
+    const refused = await refusedWith("POST", `${route}/remote/install`, {});
+    assert.equal(refused.status, 502);
+    assert.match(refused.error, /not the one this Saturn was built with/);
+    assert.equal(existsSync(installed), false, "nothing was sent to the host");
+    served = await readFile(worker);
+    const ready = await api("POST", `${route}/remote/install`, {});
+    assert.equal(ready.state, "ready");
+    assert.equal(await sha(installed), await sha(worker));
+  } finally {
+    served = undefined;
+    await rm(path.join(binaries, "ssh.foreign"), { force: true });
+    await rm(path.join(binaries, "ssh.home"), { force: true });
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("a worker of another version is found as such, refused for runs, and replaced by installing", { skip: process.platform === "win32" }, async () => {
+  const { home, route, installed } = await freshHost();
+  try {
+    // An older worker: it answers a check without a version, as workers did before versions were told.
+    await mkdir(path.dirname(installed), { recursive: true });
+    await writeFile(installed, `#!/bin/sh\nprintf '%s' '{"protocol":1,"platform":"linux","workdir":"${remote}"}'\n`);
+    await chmod(installed, 0o755);
+    const old = await api("POST", `${route}/remote/pair`, {});
+    assert.equal(old.state, "wrong_version");
+    assert.equal((await api("GET", `${route}/remote`)).target.program, "saturn-server", "another version is not paired with");
+    await api("PUT", `${route}/remote`, { host: "fixture-host", workdir: remote, program: installed });
+    const check = await refusedWith("POST", `${route}/remote/check`, {});
+    assert.equal(check.status, 409);
+    assert.match(check.error, /not Saturn/);
+    assert.equal((await api("POST", `${route}/remote/install`, {})).state, "ready");
+    assert.equal(await sha(installed), await sha(worker));
+  } finally {
+    await rm(path.join(binaries, "ssh.home"), { force: true });
+    await rm(home, { recursive: true, force: true });
   }
 });

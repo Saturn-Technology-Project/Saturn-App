@@ -116,12 +116,12 @@ pub(super) async fn artifact_bytes(run: &Value, path: &str) -> Result<Vec<u8>, C
 }
 
 /// A shell argument on the remote side; command contents themselves travel as JSON on stdin.
-fn quoted(value: &str) -> String {
+pub(super) fn quoted(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 /// Only a host alias or user@host is accepted here; extra SSH options belong in the user's SSH configuration.
-fn check_target(target: &Value) -> Result<(), CoreError> {
+pub(super) fn check_target(target: &Value) -> Result<(), CoreError> {
     let host = text(target, "host");
     if host.is_empty()
         || !host.as_bytes()[0].is_ascii_alphanumeric()
@@ -146,28 +146,44 @@ fn check_target(target: &Value) -> Result<(), CoreError> {
     Ok(())
 }
 
-/// A time-bounded SSH exchange with no terminal, agent forwarding, stored keys or disabled host verification.
-async fn rpc(target: &Value, request: &Value) -> Result<Value, CoreError> {
-    check_target(target)?;
-    let invocation = Invocation {
+/// An SSH command with no terminal, agent forwarding, stored keys or disabled host verification, and a connection
+/// deadline. `remote` is what the host runs, in the user's own shell there.
+pub(super) fn ssh(host: &str, remote: String) -> Invocation {
+    Invocation {
         file: "ssh".to_owned(),
         args: vec![
             "-T".into(),
             "-a".into(),
             "-oBatchMode=yes".into(),
             "-oConnectTimeout=10".into(),
-            text(target, "host").into(),
-            format!("exec {} --research-worker", quoted(text(target, "program"))),
+            host.into(),
+            remote,
         ],
         verbatim: false,
-    };
-    let env: Vec<_> = std::env::vars_os()
+    }
+}
+
+/// This process's environment without Saturn's own variables, for the SSH client.
+pub(super) fn ssh_env() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+    std::env::vars_os()
         .filter(|(name, _)| !name.to_string_lossy().starts_with("SATURN_"))
-        .collect();
+        .collect()
+}
+
+/// A time-bounded exchange with the worker. Every request carries this Saturn's version, which a worker of another
+/// version refuses.
+pub(super) async fn rpc(target: &Value, request: &Value) -> Result<Value, CoreError> {
+    check_target(target)?;
+    let invocation = ssh(
+        text(target, "host"),
+        format!("exec {} --research-worker", quoted(text(target, "program"))),
+    );
+    let mut request = request.clone();
+    request["saturnVersion"] = json!(super::workers::VERSION);
     let answer = run_captured(
         &invocation,
         Path::new("."),
-        &env,
+        &ssh_env(),
         request.to_string().as_bytes(),
         Duration::from_secs(20),
         2 * 1024 * 1024,
@@ -225,11 +241,22 @@ impl Kernel {
     /// Checks a configured host without starting a job or changing SSH trust.
     pub async fn research_remote_check(&self, project: &str) -> Result<Value, CoreError> {
         let settings = self.research_remote(project, None).await?;
-        rpc(
+        let check = rpc(
             &settings["target"],
             &json!({ "action": "check", "workdir": settings["target"]["workdir"] }),
         )
-        .await
+        .await?;
+        // A worker from before versions were told says none, and it is not this Saturn's either.
+        if text(&check, "version") != super::workers::VERSION {
+            return Err(CoreError::new(
+                409,
+                format!(
+                    "The worker on the host is not Saturn {}. Connect in Environment to install the matching one.",
+                    super::workers::VERSION
+                ),
+            ));
+        }
+        Ok(check)
     }
 
     /// Saves a remote launch intent before SSH runs. Retrying the same client/version cannot submit twice.
@@ -652,9 +679,22 @@ async fn safe_child(parent: &Path, name: &str) -> Result<PathBuf, CoreError> {
 
 /// A single bounded worker exchange; repeated launch intents find the same job directory.
 async fn worker_rpc(request: &Value) -> Result<Value, CoreError> {
+    // A Saturn of another version may expect another worker; it is told so rather than half understood.
+    let asking = text(request, "saturnVersion");
+    if !asking.is_empty() && asking != super::workers::VERSION {
+        return Err(CoreError::new(
+            409,
+            format!(
+                "This worker is Saturn {}, and Saturn {asking} asked. Install the matching worker from Environment.",
+                super::workers::VERSION
+            ),
+        ));
+    }
     let root = tokio::fs::canonicalize(text(request, "workdir")).await?;
     if text(request, "action") == "check" {
-        return Ok(json!({ "protocol": 1, "platform": std::env::consts::OS, "workdir": root }));
+        return Ok(
+            json!({ "protocol": 1, "platform": std::env::consts::OS, "workdir": root, "version": super::workers::VERSION }),
+        );
     }
     let id = text(request, "id");
     if !is_id(id) || !id.starts_with("run_") {
