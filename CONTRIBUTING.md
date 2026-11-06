@@ -85,7 +85,7 @@ Every push to `main` is checked and packaged by the Release workflow. To release
 node scripts/set-version.mjs 0.4.2   # Cargo.toml, desktop/package.json and both lock files
 ```
 
-The workflow then tags the commit `v<version>` and publishes it. A version older than the newest release fails the workflow; an unchanged one only packages. Pushing a matching `v<version>` tag (repository admins only) or running the workflow by hand does the same. Publishing waits for a maintainer's approval in the `release` environment, if the repository's settings ask for one. Each release carries checksums, build provenance attestations and an SBOM; see the README's [Security and trust](README.md#security-and-trust) section for how users verify them. Installed Saturns update only from a release built with the updater key (the `TAURI_SIGNING_PRIVATE_KEY` secret and the `SATURN_UPDATER_PUBKEY` variable); without them the build has no updater.
+The workflow then tags the commit `v<version>` and publishes it. A version older than the newest release fails the workflow; an unchanged one only packages. Pushing a matching `v<version>` tag or running the workflow by hand does the same. A release tag cannot be moved or deleted once it exists. Publishing waits for a maintainer's approval in the `release` environment, if the repository's settings ask for one. Each release carries checksums, build provenance attestations and an SBOM; see the README's [Security and trust](README.md#security-and-trust) section for how users verify them. Installed Saturns update only from a release built with the updater key (the `TAURI_SIGNING_PRIVATE_KEY` secret and the `SATURN_UPDATER_PUBKEY` variable); without them the build has no updater.
 
 ## Reporting a vulnerability
 
