@@ -188,8 +188,15 @@ impl Kernel {
         let (trigger, zone) = cron_to_trigger(&cron, |zone| {
             valid_time_zone(Some(&json!(zone))).map_err(said)
         })?;
-        let zone =
-            zone.unwrap_or_else(|| TimeZone::system().iana_name().unwrap_or("UTC").to_owned());
+        let zone = zone.unwrap_or_else(|| {
+            match TimeZone::system().iana_name().unwrap_or("UTC") {
+                // Linux names UTC by its alias in the zone database; it is the same zone.
+                "Etc/UTC" | "Etc/UCT" | "Etc/Universal" | "Etc/Zulu" | "UCT" | "Universal"
+                | "Zulu" => "UTC",
+                zone => zone,
+            }
+            .to_owned()
+        });
         let created = self
             .create_automation(&json!({
                 "name": js::text(args.get("name")),
