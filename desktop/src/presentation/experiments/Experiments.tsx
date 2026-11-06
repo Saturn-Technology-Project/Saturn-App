@@ -8,6 +8,7 @@ import {
   EVALUATION_FIELD_NAMES,
   runHasResults,
   runStatusLabel,
+  sampleModel,
   scoreSources,
   labelsOf,
   type Comparison,
@@ -417,7 +418,7 @@ export function Experiments(props: ScreenProps) {
               </thead>
               <tbody>
                 {[...runs].reverse().map((run: ExperimentRun) => {
-                  const named = results.summaries.find((item) => item.runId === run.id)?.models.map((model) => value?.models.find((item) => item.id === model.modelId)?.name ?? model.modelId ?? t("unnamed")) ?? [];
+                  const named = results.summaries.find((item) => item.runId === run.id)?.models.map((model) => sampleModel(model.modelId, versions.find((version) => version.id === run.versionId), value?.models ?? []).name) ?? [];
                   return (
                     <Fragment key={run.id}>
                     <tr>

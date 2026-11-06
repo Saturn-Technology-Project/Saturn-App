@@ -467,6 +467,25 @@ export function scoreText(value: number | null | undefined): string {
   return value === null || value === undefined ? t("No score") : Number(value.toFixed(3)).toString();
 }
 
+/**
+ * Which model a sample line is about, in words, with a note when that needed working out. A line that names a model
+ * gets its name (or its source, or the id itself when no such model is recorded); a line that names none belongs to
+ * the version's one model when it has exactly one; otherwise it says the model was not recorded, and why.
+ */
+export function sampleModel(modelId: string | null | undefined, version: Pick<FrozenVersion, "models"> | undefined, models: readonly Pick<ModelNode, "id" | "name" | "source">[]): { name: string; note?: string } {
+  const named = (id: string) => {
+    const model = models.find((item) => item.id === id);
+    return model ? model.name || model.source : undefined;
+  };
+  if (modelId) return named(modelId) !== undefined ? { name: named(modelId)! } : { name: modelId, note: t("No model with this id is recorded under Models.") };
+  const bound = version?.models ?? [];
+  if (bound.length === 1) return { name: named(bound[0].modelId) ?? bound[0].source, note: t("The line names no model; the version has only this one.") };
+  return {
+    name: t("Model not recorded"),
+    note: bound.length ? t("The line names no model, and the version has {count}. Have the program write modelId on each line.", { count: bound.length }) : t("The line names no model, and the version names none. Add the model to the experiment, or have the program write modelId."),
+  };
+}
+
 /** Whether a run can still change. */
 export function isRunActive(status: RunStatus): boolean {
   return status === "starting" || status === "running" || status === "stopping";

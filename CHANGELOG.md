@@ -2,6 +2,13 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Changed
+
+- **Samples name the model a line is about.** A line that names no model used to show "Unnamed model". It now shows the version's model when the version has only one, the model's id when that id is not recorded under Models, and otherwise "Model not recorded", with a note on how to fix it. The runs table names models the same way.
+- **"Scorer: no word" is gone from every sample line.** The scorer's word is shown only when the program wrote one; the scores are beside it either way.
+
 ## 0.4.1 (2026-11-07)
 
 ### Changed
