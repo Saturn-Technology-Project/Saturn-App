@@ -117,15 +117,52 @@ starting → running → stopping → stopped
 
 - The run is saved as `starting` before its process exists. A start carries a `clientId`; repeating it returns the same
   run and starts nothing.
-- Inputs are checked against the version just before the process starts, and a mismatch starts nothing. They are checked
-  again at the end, and a change during the run is recorded on it as `inputsChanged`.
+- Inputs are checked against the version's fingerprint just before the run starts, and a mismatch starts nothing. The
+  run then gets its own snapshot (see "Run evidence"), and the command runs there, not in the project folder. A file of
+  the snapshot that differs from the version refuses the run (`failed`, `refused: true`). When the run ends, the snapshot
+  is checked again, and a file replaced during the run is recorded on it as `inputsChanged`.
 - The process is identified by its process id, its start time and a token in its environment. After the runtime restarts,
   a run left `starting` or `running` becomes `interrupted`. Its process group is ended only if the process is confirmed to
   be the same one; otherwise the run says it could not be confirmed.
 - An interrupted run keeps its complete samples. A new run can be started; resuming the same one is not offered.
-- Ending a run seals it: the hash of `samples.jsonl` is recorded, and later writes to the file do not count.
+- Ending a run seals it: the hash of `samples.jsonl` is recorded, and later writes to the file do not count. Reading a
+  run, its samples or its summary checks the seal again: `sealIntact: false` means the samples changed after the run
+  ended, and they no longer stand for its results.
 - A running run holds its worktree: discarding it, or the chat that owns it, gets 409.
 - Process identity is implemented for macOS and Linux. On Windows, starting a run says it is not supported yet.
+
+## Run evidence
+
+A local run starts from its own snapshot in Saturn's data folder (`run-snapshots/<run>`), never from the folder being
+edited:
+
+- Committed files come from git's objects for the version's commit (`git archive`), uncommitted files from the copies
+  saved at freezing (or copied from the project and checked), and declared inputs are copied in, copy-on-write where the
+  file system can. Every file is checked against the hash the version recorded.
+- On systems without copy-on-write, a data file over 1 GiB is linked instead and checked before and after the run.
+- Top-level entries of the project that the version does not hold (except `.git` and `.saturn`) are linked and listed
+  as uncontrolled.
+- The snapshot's files are read-only. This is file permissions, not isolation. A program can still replace a file,
+  which the check at the end records.
+- Files the program writes in its working folder are moved to `runs/<id>/written/` when it ends, and the snapshot is
+  removed. A snapshot a process might still be using after a restart is checked and kept.
+
+`runs/<id>/evidence.json` (`GET .../research/runs/:run/evidence`, `research_read { what: "evidence" }`) keeps three
+sources apart:
+
+- `expected`: the version's command, commit, inputs, models and seeds.
+- `observed`: what Saturn saw. That is the snapshot's files and their hashes with a manifest hash, how each input got
+  there, what is uncontrolled, the seeds passed as `SATURN_RUN_SEED` and `SATURN_RUN_SEEDS`, and, after the run, what
+  changed and what was written.
+- `reported`: what the program wrote to `SATURN_RUN_REPORT`, one JSON object per line with `kind` of `seed`, `model`,
+  `config` or `resume`. What it did not report is `null` and is never filled in from `expected`.
+
+Three verdicts: `execution` (the run's status), `inputs` (`verified`, `partial`, `changed`, `unverified`) and
+`outputs` (`sealed`, `incomplete`, `changed`, `none`). A run from before evidence was kept answers `recorded: false`.
+
+A hash confirms which content a file had. It does not show that the program used that content, or that the scorer or
+the conclusion is right. Remote runs do not have this evidence yet: their host runs the command in its own working
+folder.
 
 ## Importing completed results
 

@@ -157,6 +157,10 @@ impl Kernel {
             "runs" => self.research_runs(project).await.map_err(said),
             "run" => self.research_run(project, run()?).await.map_err(said),
             "summary" => self.research_summary(project, run()?).await.map_err(said),
+            "evidence" => self
+                .research_run_evidence(project, run()?)
+                .await
+                .map_err(said),
             "samples" => {
                 let cursor = arguments.get("cursor").and_then(Value::as_u64).unwrap_or(0);
                 let limit = arguments

@@ -22,6 +22,8 @@ Smoke test: same program, a few samples. Use an argument or environment variable
 
 ## Starting
 - `start` checks inputs against the version. If they changed since freezing it answers 409, so freeze again.
+- The run reads its own checked snapshot of the version, not the folder: editing the project while it runs changes
+  nothing it reads. What the version does not hold is reached by link and listed as uncontrolled. See `run-provenance`.
 - A repeated call with the same `attempt` returns the same run and starts nothing. Use `attempt: 2` to run a version again deliberately.
 - Experiment runs do not start on Windows.
 
@@ -36,7 +38,8 @@ Stop early if it is failing: `research_run { action: "stop", run }`. Complete sa
 ## When it ends
 Read, in order:
 1. `status`. If it is not `completed`, see `run-failures`.
-2. `error`, `warnings`, `inputsChanged`, `problems`. `inputsChanged` means a declared input changed during the run: treat the result as suspect.
+2. `error`, `warnings`, `inputsChanged`, `problems`, `sealIntact`. `inputsChanged` means a file in the run's snapshot was replaced during the run: treat the result as suspect. `sealIntact: false` means the samples changed after the run ended.
+   `what: "evidence"` shows the three verdicts (execution, inputs, outputs) and what is uncontrolled.
 3. The summary: scores and errors per model. Error counts first.
 4. Samples. See `reading-samples`.
 

@@ -15,6 +15,7 @@ use saturn_tools::{force, in_own_group, launch_env, terminate};
 use serde_json::{Value, json};
 use tokio::process::Command;
 
+use super::evidence;
 use super::freeze::hash_file;
 use super::{ResearchState, pretty, read_record, write_whole};
 use crate::records::text;
@@ -179,7 +180,14 @@ pub(super) fn group_exists(pid: u32) -> bool {
 /// Whichever test hook holds a run at a moment a crash could happen.
 async fn test_hold(moment: &str) {
     if std::env::var("SATURN_RESEARCH_TEST_HOLD").is_ok_and(|held| held == moment) {
-        tokio::time::sleep(Duration::from_secs(600)).await;
+        // A test may let the run go on by creating this file; otherwise the hold outlasts the test.
+        let release = std::env::var_os("SATURN_RESEARCH_TEST_RELEASE").map(PathBuf::from);
+        for _ in 0..12_000 {
+            if release.as_ref().is_some_and(|file| file.exists()) {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
     }
 }
 
@@ -216,10 +224,42 @@ impl Kernel {
             return Err(not_found());
         }
         let records = self.records_folder(project).await?;
-        read_record(&run_file(&records, id))
+        let mut run = read_record(&run_file(&records, id))
             .await
             .map_err(|reason| super::cannot_use(id, &reason))?
-            .ok_or_else(not_found)
+            .ok_or_else(not_found)?;
+        if let Some(intact) = self.seal_intact(&records, &run).await {
+            run["sealIntact"] = json!(intact);
+        }
+        Ok(run)
+    }
+
+    /// Whether an ended run's samples still match the hash they were sealed with; nothing for a run with no seal.
+    /// A changed file no longer stands for the run's results, wherever it is read.
+    pub(super) async fn seal_intact(&self, records: &Path, run: &Value) -> Option<bool> {
+        let sealed = run.get("samplesSha256").and_then(Value::as_str)?;
+        if is_active_status(text(run, "status")) || sealed.is_empty() {
+            return None;
+        }
+        let path = records
+            .join("runs")
+            .join(text(run, "id"))
+            .join("samples.jsonl");
+        let info = tokio::fs::metadata(&path).await.ok()?;
+        let modified = info.modified().ok()?;
+        if let Some((size, time, intact)) = locked(&self.research.seals).get(&path)
+            && *size == info.len()
+            && *time == modified
+        {
+            return Some(*intact);
+        }
+        let end = run.get("samplesSize").and_then(Value::as_u64).unwrap_or(0);
+        let intact = info.len() == end
+            && hash_file(&path)
+                .await
+                .is_ok_and(|(sha256, _)| sha256 == sealed);
+        locked(&self.research.seals).insert(path, (info.len(), modified, intact));
+        Some(intact)
     }
 
     /// Starts a version's command, unless this `clientId` already did.
@@ -258,7 +298,6 @@ impl Kernel {
         if let Some(existing) = run_with_client(&records, client_id).await? {
             return Ok((existing, false));
         }
-        let working_folder = source.join(text(&version, "cwd"));
         let content = self.frozen_content(&records, &source, &version).await?;
         if saturn_domain::research::fingerprint(&content) != text(&version, "fingerprint") {
             return Err(CoreError::new(
@@ -292,16 +331,45 @@ impl Kernel {
         write_whole(&directory.join("run.json"), &pretty(&run)?).await?;
         drop(writing);
         self.research_changed();
+
+        // The run reads its own copy of the version, checked file by file, never the folder being edited.
+        let snapshot = match self
+            .prepare_snapshot(&records, &source, &version, &id)
+            .await
+        {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                let reason = error.to_string();
+                let _ = evidence::write(&directory, &evidence::refused(&version, &reason)).await;
+                let refused = self
+                    .settle_run(&records, &id, |run| {
+                        run["status"] = json!("failed");
+                        run["refused"] = json!(true);
+                        run["error"] = json!(reason);
+                        run["endedAt"] = json!(iso_time(now_millis()));
+                    })
+                    .await?;
+                return Ok((refused, true));
+            }
+        };
+        let seeds = seeds_of(&version);
+        let mut observed = snapshot.observed;
+        observed["source"] = json!(source);
+        evidence::write(&directory, &evidence::starting(&version, &observed, &seeds)).await?;
         test_hold("before-process").await;
 
+        let working_folder = snapshot.tree.join(text(&version, "cwd"));
         let started = self
-            .spawn_run(&id, &version, &working_folder, &directory)
+            .spawn_run(&id, &version, &working_folder, &directory, &seeds)
             .await;
         let mut child = match started {
             Ok(child) => child,
             Err(error) => {
+                let closed = self
+                    .close_snapshot(&id, &directory, &observed, &source, true)
+                    .await;
                 let failed = self
-                    .settle_run(&records, &id, |run| {
+                    .settle_ended(&records, &id, Some(&closed), |run| {
                         run["status"] = json!("failed");
                         run["error"] = json!(format!("The command could not start: {error}"));
                     })
@@ -336,6 +404,7 @@ impl Kernel {
             directory,
             id,
             version,
+            observed,
             pid,
         };
         tokio::spawn(async move {
@@ -352,6 +421,7 @@ impl Kernel {
         version: &Value,
         working_folder: &Path,
         directory: &Path,
+        seeds: &[String],
     ) -> std::io::Result<tokio::process::Child> {
         let stdout = tokio::fs::File::create(directory.join("stdout.log"))
             .await?
@@ -379,9 +449,16 @@ impl Kernel {
             .env("SATURN_RUN_SAMPLES", directory.join("samples.jsonl"))
             .env("SATURN_RUN_METRICS", directory.join("metrics.jsonl"))
             .env("SATURN_RUN_ARTIFACTS", directory.join("artifacts.jsonl"))
+            .env("SATURN_RUN_REPORT", directory.join(evidence::REPORT))
             .stdin(Stdio::null())
             .stdout(stdout)
             .stderr(stderr);
+        // Passed, not applied: whether the program used a seed is for its report to say.
+        if let Some(first) = seeds.first() {
+            command
+                .env("SATURN_RUN_SEED", first)
+                .env("SATURN_RUN_SEEDS", seeds.join(","));
+        }
         in_own_group(&mut command);
         command.spawn()
     }
@@ -438,6 +515,33 @@ impl Kernel {
         Ok(run)
     }
 
+    /// Ends a run's record. Its evidence is completed first, so whoever reads the run as ended reads whole evidence.
+    async fn settle_ended(
+        &self,
+        records: &Path,
+        id: &str,
+        closed: Option<&Value>,
+        change: impl FnOnce(&mut Value),
+    ) -> Result<Value, CoreError> {
+        let lock = self.records_lock(records);
+        let _writing = lock.lock().await;
+        let file = run_file(records, id);
+        let mut run = read_record(&file)
+            .await
+            .map_err(|reason| super::cannot_use(id, &reason))?
+            .ok_or_else(not_found)?;
+        let was_active = is_active_status(text(&run, "status"));
+        change(&mut run);
+        run["revision"] = json!(run["revision"].as_u64().unwrap_or(0) + 1);
+        run["updatedAt"] = json!(iso_time(now_millis()));
+        if was_active && !is_active_status(text(&run, "status")) {
+            evidence::finish(&records.join("runs").join(id), &run, closed).await;
+        }
+        write_whole(&file, &pretty(&run)?).await?;
+        self.research_changed();
+        Ok(run)
+    }
+
     /// Changes a run's record only if it has not ended.
     async fn change_active_run(
         &self,
@@ -462,6 +566,7 @@ impl Kernel {
             directory,
             id,
             version,
+            observed,
             pid,
         } = finishing;
         // What the process left running must not keep writing after the seal.
@@ -471,7 +576,10 @@ impl Kernel {
         if self.research.ending.load(Ordering::SeqCst) {
             return;
         }
-        let changed = self.inputs_changed(&records, &source, &version).await;
+        let closed = self
+            .close_snapshot(&id, &directory, &observed, &source, true)
+            .await;
+        let changed = closed["changed"].clone();
         let metric_path = directory.join("metrics.jsonl");
         let metrics =
             tokio::task::spawn_blocking(move || super::imports::metric_output(&metric_path))
@@ -483,7 +591,7 @@ impl Kernel {
         let sealed = seal(&directory).await;
         let (per_model, warnings) = self.drift_check(&project, &version, &directory).await;
         let saved = self
-            .settle_run(&records, &id, |run| {
+            .settle_ended(&records, &id, Some(&closed), |run| {
                 if !is_active_status(text(run, "status")) {
                     return;
                 }
@@ -530,37 +638,6 @@ impl Kernel {
             eprintln!("Could not save the end of research run {id}: {error}");
         }
         locked(&self.research.active).remove(&id);
-    }
-
-    /// Which frozen files differ now, compared with what the version recorded.
-    async fn inputs_changed(&self, records: &Path, source: &Path, version: &Value) -> Vec<String> {
-        let Ok(now) = self.frozen_content(records, source, version).await else {
-            return vec!["(the inputs could not be read again)".to_owned()];
-        };
-        let mut changed = Vec::new();
-        if version.pointer("/git/commit") != now.pointer("/git/commit") {
-            changed.push("(the git commit)".to_owned());
-        }
-        for field in ["inputs", "changedFiles"] {
-            let listed = |record: &Value| {
-                record
-                    .get(field)
-                    .and_then(Value::as_array)
-                    .cloned()
-                    .unwrap_or_default()
-            };
-            let current = listed(&now);
-            for item in listed(version) {
-                let path = text(&item, "path");
-                let same = current.iter().any(|other| {
-                    text(other, "path") == path && other.get("sha256") == item.get("sha256")
-                });
-                if !same && !changed.iter().any(|known| known == path) {
-                    changed.push(path.to_owned());
-                }
-            }
-        }
-        changed
     }
 
     /// Ends this runtime's runs because it is stopping: each one is interrupted, its samples kept.
@@ -631,8 +708,29 @@ impl Kernel {
     async fn interrupt(&self, records: &Path, id: &str, process: &str) {
         let directory = records.join("runs").join(id);
         let sealed = seal(&directory).await;
+        // A snapshot left by the interrupted run is checked and removed; its evidence is kept.
+        let observed = super::read_record(&directory.join(evidence::EVIDENCE))
+            .await
+            .ok()
+            .flatten()
+            .map(|evidence| evidence["observed"].clone())
+            .unwrap_or(Value::Null);
+        let closed = if observed.get("snapshot").is_some() {
+            let source = PathBuf::from(text(&observed["snapshot"], "source"));
+            // Only a process known to have ended has let go of its snapshot.
+            let remove = matches!(process, "ended" | "none");
+            Some(
+                self.close_snapshot(id, &directory, &observed["snapshot"], &source, remove)
+                    .await,
+            )
+        } else {
+            None
+        };
         let saved = self
-            .change_active_run(records, id, |run| {
+            .settle_ended(records, id, closed.as_ref(), |run| {
+                if !is_active_status(text(run, "status")) {
+                    return;
+                }
                 run["status"] = json!("interrupted");
                 run["process"] = json!(process);
                 run["endedAt"] = json!(iso_time(now_millis()));
@@ -656,7 +754,22 @@ struct FinishingRun {
     directory: PathBuf,
     id: String,
     version: Value,
+    /// What was observed making the run's snapshot.
+    observed: Value,
     pid: u32,
+}
+
+/// The version's seeds as text, in order.
+fn seeds_of(version: &Value) -> Vec<String> {
+    version["seeds"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|seed| match seed {
+            Value::String(text) => text.clone(),
+            other => other.to_string(),
+        })
+        .collect()
 }
 
 /// What a run records about its samples file when it ends; the hash and size fix what counts as its samples.

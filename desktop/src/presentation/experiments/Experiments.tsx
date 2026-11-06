@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
 import {
@@ -36,6 +36,7 @@ import { classes } from "../ui/base/classes.js";
 import { Loading, messageOf } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
 
+import { Evidence } from "./Evidence.js";
 import { Mechanism } from "./Mechanism.js";
 import { ScoreChart } from "./ScoreChart.js";
 import { ImportResults } from "./ImportResults.js";
@@ -102,6 +103,7 @@ export function Experiments(props: ScreenProps) {
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [conclusion, setConclusion] = useState("");
   const [exported, setExported] = useState<string | null>(null);
+  const [evidenceOf, setEvidenceOf] = useState<string | null>(null);
   const drafts = value?.drafts ?? [];
   const draft = drafts.find((item) => item.id === selected) ?? drafts[drafts.length - 1];
   const spec = draft?.evaluation ?? {};
@@ -410,7 +412,8 @@ export function Experiments(props: ScreenProps) {
                 {[...runs].reverse().map((run: ExperimentRun) => {
                   const named = results.summaries.find((item) => item.runId === run.id)?.models.map((model) => value?.models.find((item) => item.id === model.modelId)?.name ?? model.modelId ?? t("unnamed")) ?? [];
                   return (
-                    <tr key={run.id}>
+                    <Fragment key={run.id}>
+                    <tr>
                       <td className={CELL}><Button variant="ghost" size="small" className="text-primary" onClick={() => { service.open(projectId, { kind: "sample", runId: run.id }); props.go("Samples"); }}><code>{run.id}</code></Button></td>
                       <td className={CELL}>v{versions.find((version) => version.id === run.versionId)?.number ?? "?"}</td>
                       <td className={CELL}>{named.length > 3 ? t("{count} models", { count: named.length }) : named.join(", ") || "—"}</td>
@@ -420,9 +423,19 @@ export function Experiments(props: ScreenProps) {
                         {run.imported ? <Badge tone="wait" className="ml-1" title={t("Imported from a file. Saturn did not run it, and its model, data and scorer are only described.")}>{t("Imported, not run here")}</Badge> : null}
                         {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? t("pending")}{run.resumeFrom ? ` · ${t("resume {run}", { run: run.resumeFrom })}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{["starting", "running", "stopping"].includes(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>{t("Request stop")}</Button> : null}</div> : null}
                         {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
+                        {run.sealIntact === false ? <div className={WARNING}>{t("The samples changed after the run was sealed. They no longer stand for its results.")}</div> : null}
+                        {run.imported ? null : (
+                          <Button variant="ghost" size="small" className="text-muted-foreground" aria-expanded={evidenceOf === run.id} onClick={() => setEvidenceOf((current) => (current === run.id ? null : run.id))}>
+                            {evidenceOf === run.id ? t("Hide evidence") : t("Evidence")}
+                          </Button>
+                        )}
                       </td>
                       <td className={CELL}>{run.samples ?? 0}</td>
                     </tr>
+                    {evidenceOf === run.id ? (
+                      <tr><td colSpan={5} className="px-2 pb-3"><Evidence projectId={projectId} runId={run.id} /></td></tr>
+                    ) : null}
+                    </Fragment>
                   );
                 })}
               </tbody>

@@ -172,7 +172,7 @@ test("a start refuses when the frozen content has changed, and starts nothing", 
   assert.equal((await saturn.api("GET", `${bed.route}/runs`)).items.length, 0);
 });
 
-test("a change to an input during the run is recorded on it", posixOnly, async () => {
+test("a run reads its own read-only snapshot: a write to an input is refused and the project is untouched", posixOnly, async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "set.jsonl"), "{}\n");
   const bed = await setup(`
@@ -181,8 +181,81 @@ test("a change to an input during the run is recorded on it", posixOnly, async (
     appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
   `, { folder, inputs: { data: ["set.jsonl"] } });
   const run = await ended(bed, (await start(bed)).id);
+  assert.equal(run.status, "failed");
+  assert.match(await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8"), /EACCES|permission denied/i);
+  assert.equal(await readFile(path.join(folder, "set.jsonl"), "utf8"), "{}\n");
+});
+
+test("an input replaced during the run is recorded as changed, and the project keeps its own copy", posixOnly, async () => {
+  const folder = await saturn.folder();
+  await writeFile(path.join(folder, "set.jsonl"), "{}\n");
+  const bed = await setup(`
+    import { appendFileSync, rmSync, writeFileSync } from "node:fs";
+    rmSync("set.jsonl");
+    writeFileSync("set.jsonl", "{\\"changed\\":true}\\n");
+    writeFileSync("made.txt", "output");
+    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+  `, { folder, inputs: { data: ["set.jsonl"] } });
+  const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed");
   assert.deepEqual(run.inputsChanged, ["set.jsonl"]);
+  assert.equal(await readFile(path.join(folder, "set.jsonl"), "utf8"), "{}\n");
+  assert.equal(existsSync(path.join(folder, "made.txt")), false);
+  assert.equal(await readFile(path.join(runFolder(bed, run.id), "written", "made.txt"), "utf8"), "output");
+  const evidence = JSON.parse(await readFile(path.join(runFolder(bed, run.id), "evidence.json"), "utf8"));
+  assert.equal(evidence.verdicts.inputs, "changed");
+  assert.deepEqual(evidence.observed.afterRun.changed, ["set.jsonl"]);
+});
+
+test("a run started before the project was edited runs the version it was given", posixOnly, async () => {
+  const release = path.join(await saturn.folder(), "release");
+  const { home, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "before-process", SATURN_RESEARCH_TEST_RELEASE: release });
+  try {
+    const bed = await setup(writes([`${line("a")}\n`]), { on: first, folder });
+    void first.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: "held" }).catch(() => {});
+    const [held] = await until("the run to be saved", async () => (await first.api("GET", `${bed.route}/runs`)).items, (items) => items.length === 1);
+    await until("the evidence", () => existsSync(path.join(runFolder(bed, held.id), "evidence.json")));
+    // The project changes after the snapshot was checked: the run must not see it.
+    await writeFile(path.join(folder, "probe.mjs"), writes([`${line("edited")}\n`]));
+    await writeFile(release, "");
+    const run = await ended(bed, held.id, first);
+    assert.equal(run.status, "completed", JSON.stringify(run));
+    assert.match(await readFile(path.join(runFolder(bed, run.id), "samples.jsonl"), "utf8"), /"sampleId":"a"/);
+    const evidence = JSON.parse(await readFile(path.join(runFolder(bed, run.id), "evidence.json"), "utf8"));
+    assert.equal(evidence.verdicts.inputs, "verified");
+    assert.equal(evidence.verdicts.outputs, "sealed");
+    assert.ok(evidence.observed.snapshot.files.some((file) => file.path === "probe.mjs"));
+    assert.equal(evidence.reported.seed, null, "a seed the program did not report is unknown");
+  } finally {
+    await first.stop();
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("what the program reports about itself is kept apart from what was expected", posixOnly, async () => {
+  const bed = await setup(`
+    import { appendFileSync } from "node:fs";
+    appendFileSync(process.env.SATURN_RUN_REPORT, JSON.stringify({ kind: "seed", value: Number(process.env.SATURN_RUN_SEED ?? -1), applied: ["python", "numpy"] }) + "\\n");
+    appendFileSync(process.env.SATURN_RUN_REPORT, JSON.stringify({ kind: "model", source: "local", revision: "abc" }) + "\\nnot json\\n");
+    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+  `);
+  const run = await ended(bed, (await start(bed)).id);
+  assert.equal(run.status, "completed", JSON.stringify(run));
+  const evidence = JSON.parse(await readFile(path.join(runFolder(bed, run.id), "evidence.json"), "utf8"));
+  assert.deepEqual(evidence.reported.seed, { value: -1, applied: ["python", "numpy"] });
+  assert.deepEqual(evidence.reported.models, [{ source: "local", revision: "abc" }]);
+  assert.equal(evidence.reported.problems.length, 1);
+  assert.match(evidence.limits, /does not show that the program used/);
+});
+
+test("samples changed after the seal are caught wherever the run is read", posixOnly, async () => {
+  const bed = await setup(writes([`${line("a")}\n`, `${line("b")}\n`]));
+  const run = await ended(bed, (await start(bed)).id);
+  assert.equal(run.sealIntact, true);
+  await writeFile(path.join(runFolder(bed, run.id), "samples.jsonl"), `${line("a")}\n${line("b", { scores: { s: 0 } })}\n`);
+  assert.equal((await saturn.api("GET", `${bed.route}/runs/${run.id}`)).sealIntact, false);
+  const samples = await saturn.api("GET", `${bed.route}/runs/${run.id}/samples`);
+  assert.equal(samples.sealIntact, false);
 });
 
 test("stopping a run stops it, keeps its samples, and is stopped rather than completed", posixOnly, async () => {

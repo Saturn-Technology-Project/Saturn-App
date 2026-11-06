@@ -33,7 +33,7 @@ import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import type { ResearchImportRequest, ResearchImportPreview, TrainingMetric } from "../domain/research.js";
 import type { PairedComparison, PairedComparisonRequest } from "../domain/research.js";
 import type { CounterexampleSet } from "../domain/research.js";
-import type { RemoteTarget } from "../domain/research.js";
+import type { RemoteTarget, RunEvidence } from "../domain/research.js";
 import type { InspectionSession, ResearchArtifact, ArtifactContent } from "../domain/research.js";
 import type { ResearchBundleExport, ResearchBundlePreview } from "../domain/research.js";
 
@@ -183,6 +183,10 @@ export class ResearchService {
 
   samples(project: string, run: string, cursor = 0, only: "all" | "disputed" | "errors" = "all", limit?: number): Promise<{ items: SampleItem[]; next: number | null }> {
     return this.runtime.request(`${this.route(project)}/runs/${run}/samples?cursor=${cursor}&only=${only}${limit ? `&limit=${limit}` : ""}`);
+  }
+
+  evidence(project: string, run: string): Promise<RunEvidence> {
+    return this.runtime.request(`${this.route(project)}/runs/${run}/evidence`);
   }
 
   log(project: string, run: string, stream: "stdout" | "stderr"): Promise<{ text: string }> {

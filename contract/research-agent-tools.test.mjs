@@ -128,7 +128,11 @@ test("freezing and running a task use the task's own worktree, and its records a
   const waited = await call(setup, "research_wait", { run: run.id, seconds: 60 });
   assert.equal(waited.run.status, "completed", waited.run.error);
   const [item] = (await call(setup, "research_read", { what: "samples", run: run.id })).items;
-  assert.notEqual(await realpath(item.sample.scores.worktree), await realpath(folder));
+  // The run ran in its own snapshot, made from the task's worktree rather than the project's checkout.
+  assert.match(item.sample.scores.worktree, /run-snapshots/);
+  const evidence = await call(setup, "research_read", { what: "evidence", run: run.id });
+  assert.notEqual(await realpath(evidence.observed.snapshot.source), await realpath(folder));
+  assert.equal(evidence.verdicts.inputs, "verified");
   await readFile(path.join(folder, ".saturn/research/runs", run.id, "run.json"));
 });
 

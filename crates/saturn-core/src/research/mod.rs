@@ -7,6 +7,7 @@ mod checks;
 mod comparison;
 mod data;
 mod environment;
+mod evidence;
 mod freeze;
 mod imports;
 mod inside;
@@ -19,6 +20,7 @@ mod remote;
 mod resources;
 mod runs;
 mod skills;
+mod snapshot;
 mod source;
 mod tables;
 mod task_reports;
@@ -67,6 +69,8 @@ pub struct ResearchState {
     remote: Mutex<std::collections::HashSet<String>>,
     /// Held while the record of what this runtime launched remotely is read and rewritten.
     remote_ledger: tokio::sync::Mutex<()>,
+    /// Whether each sealed samples file still matches its seal, by its size and modification time when checked.
+    seals: Mutex<HashMap<PathBuf, (u64, std::time::SystemTime, bool)>>,
 }
 
 impl Default for ResearchState {
@@ -82,6 +86,7 @@ impl Default for ResearchState {
             notebooks: notebooks::Notebooks::default(),
             remote: Mutex::default(),
             remote_ledger: tokio::sync::Mutex::new(()),
+            seals: Mutex::default(),
         }
     }
 }

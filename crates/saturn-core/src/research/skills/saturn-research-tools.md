@@ -15,7 +15,7 @@ They live in `.saturn/research` in the project. Your file tools refuse to write 
 ## Reading: `research_read`
 - `what: "status"`: everything at a glance. Start here.
 - `what: "list"`, `collection`; `what: "record"`, `collection`, `id`.
-- `what: "runs"`, `"run"`, `"summary"` (scores and errors per model), `"log"` (`stream: stdout|stderr`), `"resources"`.
+- `what: "runs"`, `"run"`, `"summary"` (scores and errors per model), `"evidence"` (expected, observed and reported, with three verdicts; see `run-provenance`), `"log"` (`stream: stdout|stderr`), `"resources"`.
 - `what: "samples"`, `run`, `cursor`, `limit` (at most 50), `only: all|disputed|errors`. Follow `next` as the next cursor.
 - `what: "compare"`, `left`, `right`: version ids. Answers `comparable`, `not_comparable` or `unknown`.
 - `what: "sample_across"`, `sample`, `runs`: one sample in several runs.

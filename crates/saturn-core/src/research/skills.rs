@@ -3,7 +3,7 @@
 //! them for people.
 
 /// Every skill, by name, in the order a study meets them.
-const SKILLS: [(&str, &str); 49] = [
+const SKILLS: [(&str, &str); 50] = [
     (
         "research-autopilot",
         include_str!("skills/research-autopilot.md"),
@@ -64,6 +64,7 @@ const SKILLS: [(&str, &str); 49] = [
     ("evaluation-spec", include_str!("skills/evaluation-spec.md")),
     ("scorer-design", include_str!("skills/scorer-design.md")),
     ("freeze-and-run", include_str!("skills/freeze-and-run.md")),
+    ("run-provenance", include_str!("skills/run-provenance.md")),
     ("run-failures", include_str!("skills/run-failures.md")),
     ("remote-runs", include_str!("skills/remote-runs.md")),
     ("notebooks", include_str!("skills/notebooks.md")),

@@ -108,10 +108,41 @@ export interface ExperimentRun extends ResearchRecord {
   process?: string;
   problems?: { line: number; reason: string }[];
   inputsChanged?: string[];
+  /** Whether the sealed samples still match their hash, when read; false means they changed after the run ended. */
+  sealIntact?: boolean;
+  /** Refused before it started, because a file differed from the version. */
+  refused?: boolean;
   /** The most samples any one model got. */
   samplesPerModel?: number;
   /** What the runtime noticed at the end: a sample count unlike the last comparable run's, for one. */
   warnings?: string[];
+}
+
+/** One file a run's snapshot held: how it got there, and its hash. */
+export interface EvidenceInput { path: string; role: string; sha256: string; size: number; how: "from the commit" | "saved copy" | "copied" | "linked" }
+
+/**
+ * A run's evidence, kept apart from its status: what the version expected, what Saturn observed while running it, and
+ * what the program reported about itself. What the program did not report is null, never filled in from what was expected.
+ */
+export interface RunEvidence {
+  recorded: boolean;
+  limits: string;
+  expected?: { versionId: string; fingerprint: string; command: string; cwd: string; commit: string | null; seeds: unknown[] | null };
+  observed?: {
+    executor: string;
+    platform?: string;
+    command?: string;
+    seedsPassed?: string[];
+    refused?: string;
+    startedAt?: string;
+    endedAt?: string;
+    exitCode?: number | null;
+    snapshot?: { isolation: string; manifestSha256: string; files: { path: string; sha256: string; size: number }[]; inputs: EvidenceInput[]; uncontrolled: { path: string; kind: string }[] };
+    afterRun?: { checked: boolean; changed?: string[]; written?: string[]; kept?: boolean; reason?: string };
+  };
+  reported?: { seed: Record<string, unknown> | null; models: Record<string, unknown>[]; config: Record<string, unknown> | null; resume: Record<string, unknown> | null; lines: number; problems: string[] };
+  verdicts?: { execution: string; inputs: "verified" | "partial" | "changed" | "unverified"; outputs: "sealed" | "incomplete" | "changed" | "none" | "pending" };
 }
 
 /** An SSH target names a machine and existing working tree, never keys or passwords. */

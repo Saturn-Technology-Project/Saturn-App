@@ -175,11 +175,16 @@ impl Kernel {
         let path = records.join("runs").join(id).join("samples.jsonl");
         let end = run.get("samplesSize").and_then(Value::as_u64);
         let limit = limit.unwrap_or(DEFAULT_PAGE).clamp(1, LARGEST_PAGE);
-        tokio::task::spawn_blocking(move || {
+        let intact = run.get("sealIntact").cloned();
+        let mut page = tokio::task::spawn_blocking(move || {
             read_page(&path, cursor, end, limit, &only, &labels, &aliases)
         })
         .await
-        .map_err(|error| CoreError::new(500, error.to_string()))?
+        .map_err(|error| CoreError::new(500, error.to_string()))??;
+        if let Some(intact) = intact {
+            page["sealIntact"] = intact;
+        }
+        Ok(page)
     }
 
     /// The end of a run's log.

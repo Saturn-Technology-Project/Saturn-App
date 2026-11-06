@@ -152,6 +152,10 @@ async fn log(
     ok(kernel.research_run_log(&project, &id, stream).await?)
 }
 
+async fn evidence(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
+    ok(kernel.research_run_evidence(&project, &run).await?)
+}
+
 async fn summary(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
     ok(kernel.research_summary(&project, &run).await?)
 }
@@ -603,6 +607,7 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
         )
         .route("/projects/{id}/research/runs/{run}/samples", get(samples))
         .route("/projects/{id}/research/runs/{run}/log", get(log))
+        .route("/projects/{id}/research/runs/{run}/evidence", get(evidence))
         .route("/projects/{id}/research/runs", get(runs))
         .route("/projects/{id}/research/runs/{run}", get(run))
         .route("/projects/{id}/research/runs/{run}/stop", post(stop_run))

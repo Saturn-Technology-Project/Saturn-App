@@ -51,6 +51,7 @@ The audit and the tools skill use `research_read` with `data_list`, `data_profil
 | `evaluation-spec` | Fill in the evaluation spec, so that runs compare fairly or say why they do not. Read when creating an experiment. |
 | `scorer-design` | Build and validate a scorer, and connect it to a person's labels. Read before trusting any score. |
 | `freeze-and-run` | Freeze an experiment, start a run and follow it to the end. Read before starting any run. |
+| `run-provenance` | What a run's evidence shows and does not show, and how a program reports its seed, models and resumed state. |
 | `run-failures` | Diagnose failed, interrupted and protocol-error runs without repeating the same attempt. Read when a run did not complete. |
 | `remote-runs` | Run a frozen experiment on the SSH host the person configured, leave it going, and follow it. Read when a run needs a machine other than this computer. |
 | `notebooks` | Run a project notebook's cells in its kernel, and know when a notebook should become an experiment. Read before running or changing a notebook. |

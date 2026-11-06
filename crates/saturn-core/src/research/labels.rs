@@ -243,7 +243,7 @@ impl Kernel {
         let end = found.get("samplesSize").and_then(Value::as_u64);
         let models = self.run_digest(path, end).await?.models.clone();
         Ok(
-            json!({ "runId": run, "versionId": text(&found, "versionId"), "status": text(&found, "status"), "models": models }),
+            json!({ "runId": run, "versionId": text(&found, "versionId"), "status": text(&found, "status"), "sealIntact": found.get("sealIntact"), "models": models }),
         )
     }
 

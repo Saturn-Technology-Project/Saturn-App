@@ -47,7 +47,11 @@ with open(path, "a", encoding="utf-8") as out:
 - **Keep going past one bad sample**: record the error on its line. Crash only on what makes every later line meaningless.
 - **Exit nonzero on failure.** Exit 0 means it worked; do not hide a failure.
 - **Stdout and stderr are logs.** Print progress there, at a sensible rate.
-- **Outputs go to `SATURN_RUN_DIRECTORY`** or a git-ignored folder. New untracked files make the next run a new version.
+- **Outputs go to `SATURN_RUN_DIRECTORY`.** The program runs in a read-only snapshot of the version; new files it
+  writes in its working folder are kept in the run's `written/` folder, and writes to a linked, uncontrolled folder
+  reach the project itself.
+- **Report what it actually used** to `SATURN_RUN_REPORT`: the seed it applied, the model revision it loaded, what a
+  resume restored. Without it those are unknown. See `run-provenance`.
 - **Handle SIGTERM** if it holds work that should be saved. Stopping a run signals the process group.
 
 ## What decides the status
