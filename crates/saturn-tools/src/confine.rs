@@ -170,10 +170,16 @@ fn depth(path: &str) -> usize {
 }
 
 /// bubblewrap's arguments for a confinement, up to the `--` before the command. The whole system is read-only and
-/// `/tmp` private; the hidden folders are replaced by empty ones (a hidden file by an empty file); the visible and
-/// writable ones are bound back over them; a hidden path inside one of those is hidden again; the protected files are
-/// bound read-only over themselves. There is no
-/// `--die-with-parent`: a run outlives Saturn, as an unconfined run does, and is found again after a restart.
+/// `/tmp` private. The hidden folders are replaced by empty read-only ones (a hidden file by an empty file), and the
+/// visible and writable ones are bound back over them; a hidden path inside one of those is hidden again.
+///
+/// A writable folder that holds protected files is bound read-only, with each of its other entries bound writable
+/// over it: a file bound over itself would not stay protected, since Linux detaches that mount as soon as the
+/// supervisor replaces the file by renaming a new one over it, as it does with every record it saves. The program can
+/// therefore write only entries that exist when it starts, which the caller makes beforehand.
+///
+/// There is no `--die-with-parent`: a run outlives Saturn, as an unconfined run does, and is found again after a
+/// restart.
 pub fn bubblewrap_confinement(confinement: &Confinement, working: &Path) -> Vec<String> {
     let mut args: Vec<String> = [
         "--ro-bind",
@@ -198,6 +204,7 @@ pub fn bubblewrap_confinement(confinement: &Confinement, working: &Path) -> Vec<
     for path in hidden {
         hide(&mut args, path);
     }
+    let protected = resolved(&confinement.protected);
     let mut binds: Vec<(String, bool)> = resolved(&confinement.visible)
         .into_iter()
         .map(|path| (path, false))
@@ -209,24 +216,75 @@ pub fn bubblewrap_confinement(confinement: &Confinement, working: &Path) -> Vec<
     );
     binds.sort_by_key(|(path, _)| depth(path));
     for (path, writes) in binds {
-        let flag = if writes {
-            "--bind-try"
+        if writes {
+            bind_writable(&mut args, &path, &protected);
         } else {
-            "--ro-bind-try"
-        };
-        args.extend([flag.to_owned(), path.clone(), path]);
+            args.extend(["--ro-bind-try".to_owned(), path.clone(), path]);
+        }
     }
     for path in resolved(&nested_hidden(confinement)) {
         hide(&mut args, path);
     }
-    for file in resolved(&confinement.protected) {
-        args.extend(["--ro-bind-try".to_owned(), file.clone(), file]);
+    // What is protected outside every writable folder, such as a snapshot, is bound read-only as it is.
+    for path in &protected {
+        let inside = resolved(&confinement.writable)
+            .iter()
+            .any(|folder| Path::new(path).starts_with(Path::new(folder)));
+        if !inside {
+            args.extend(["--ro-bind-try".to_owned(), path.clone(), path.clone()]);
+        }
+    }
+    // The empty folders that hide something take no writes either, so a write there fails instead of vanishing.
+    for path in resolved(&confinement.hidden) {
+        if std::fs::metadata(&path).is_ok_and(|info| info.is_dir()) {
+            args.extend(["--remount-ro".to_owned(), path]);
+        }
     }
     if !confinement.network {
         args.push("--unshare-net".to_owned());
     }
     args.extend(["--chdir".to_owned(), real(working)]);
     args
+}
+
+/// Binds `folder` writable, or, when it holds protected paths, read-only with each other entry bound writable over it,
+/// going down into the entries that hold protected paths themselves.
+fn bind_writable(args: &mut Vec<String>, folder: &str, protected: &[String]) {
+    let holds = |path: &str| {
+        protected
+            .iter()
+            .any(|item| Path::new(item).starts_with(Path::new(path)))
+    };
+    if !holds(folder) {
+        args.extend([
+            "--bind-try".to_owned(),
+            folder.to_owned(),
+            folder.to_owned(),
+        ]);
+        return;
+    }
+    args.extend([
+        "--ro-bind-try".to_owned(),
+        folder.to_owned(),
+        folder.to_owned(),
+    ]);
+    if protected.iter().any(|item| item == folder) {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return;
+    };
+    let mut names: Vec<String> = entries
+        .flatten()
+        .map(|entry| entry.path().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    for path in names {
+        if protected.contains(&path) {
+            continue;
+        }
+        bind_writable(args, &path, protected);
+    }
 }
 
 /// Whether confinement works on this computer, with what, or why not. Checked once, by confining a program that

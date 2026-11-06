@@ -183,7 +183,7 @@ test("a run reads its own read-only snapshot: a write to an input is refused and
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "failed");
   // Refused by the file's permissions, or by the sandbox before them.
-  assert.match(await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8"), /EACCES|EPERM|permission denied|not permitted/i);
+  assert.match(await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8"), /EACCES|EPERM|EROFS|permission denied|not permitted|read-only file system/i);
   assert.equal(await readFile(path.join(folder, "set.jsonl"), "utf8"), "{}\n");
 });
 

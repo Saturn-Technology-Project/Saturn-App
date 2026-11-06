@@ -15,6 +15,14 @@ use tokio::process::Command;
 /// The folder in a run's records that its program writes its own files to.
 pub(super) const OUTPUT: &str = "written";
 
+/// The files in its records folder that a run's program writes to; an empty one means it wrote nothing.
+const CHANNELS: [&str; 4] = [
+    "samples.jsonl",
+    "metrics.jsonl",
+    "artifacts.jsonl",
+    "report.jsonl",
+];
+
 /// Variables every confined program gets when they are set: where things are, not who anyone is.
 const PASSED: [&str; 34] = [
     "PATH",
@@ -244,6 +252,13 @@ pub(super) async fn command(
     }
 
     tokio::fs::create_dir_all(&placement.temporary).await?;
+    // The files the program writes its records to exist before it starts: on Linux it can write only what is there.
+    for name in CHANNELS {
+        let file = placement.records.join(name);
+        if tokio::fs::symlink_metadata(&file).await.is_err() {
+            tokio::fs::write(&file, b"").await?;
+        }
+    }
     for file in &placement.protected {
         // A record Saturn writes later is made now, so the program cannot make it first.
         if tokio::fs::symlink_metadata(file).await.is_err() {

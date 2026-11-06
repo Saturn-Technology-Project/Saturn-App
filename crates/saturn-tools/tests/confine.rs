@@ -78,8 +78,11 @@ fn seatbelt_leaves_the_network_alone_when_it_is_allowed() {
 }
 
 #[test]
-fn bubblewrap_hides_before_it_binds_and_binds_the_protected_last() {
+fn bubblewrap_hides_before_it_binds_and_keeps_the_records_folder_read_only_but_its_other_entries() {
     let (_root, confinement) = sample();
+    let records = &confinement.writable[0];
+    std::fs::write(records.join("samples.jsonl"), "").expect("a file");
+    std::fs::create_dir(records.join("written")).expect("a folder");
     let args = bubblewrap_confinement(&confinement, &confinement.visible[0]);
     let index = |flag: &str, path: &PathBuf| {
         let path = path.to_string_lossy().into_owned();
@@ -87,22 +90,39 @@ fn bubblewrap_hides_before_it_binds_and_binds_the_protected_last() {
             .position(|pair| pair[0] == flag && pair[1] == path)
             .unwrap_or_else(|| panic!("{flag} {path} is not in {args:?}"))
     };
+    let has = |flag: &str, path: &PathBuf| {
+        let path = path.to_string_lossy().into_owned();
+        args.windows(2)
+            .any(|pair| pair[0] == flag && pair[1] == path)
+    };
     let project_hidden = index("--tmpfs", &confinement.hidden[0]);
     let tree_bound = index("--ro-bind-try", &confinement.visible[0]);
-    let records_bound = index("--bind-try", &confinement.writable[0]);
-    let run_protected = args
-        .windows(2)
-        .rposition(|pair| {
-            pair[0] == "--ro-bind-try" && pair[1] == confinement.protected[0].to_string_lossy()
-        })
-        .expect("the run's record is bound read-only");
-    assert!(project_hidden < tree_bound && project_hidden < records_bound);
-    assert!(records_bound < run_protected);
+    let records_read_only = index("--ro-bind-try", records);
+    let samples_writable = index("--bind-try", &records.join("samples.jsonl"));
+    assert!(project_hidden < tree_bound && project_hidden < records_read_only);
+    assert!(records_read_only < samples_writable);
+    assert!(has("--bind-try", &records.join("written")));
+    // Saturn renames a new run.json over the old one, which would detach a mount on the file itself.
+    assert!(!has("--bind-try", &records.join("run.json")));
+    assert!(!has("--ro-bind-try", &records.join("run.json")));
+    assert!(
+        !has("--bind-try", records),
+        "the records folder itself takes no new files"
+    );
+    let remounted = index("--remount-ro", &confinement.hidden[0]);
+    assert!(
+        samples_writable < remounted,
+        "a write into the hidden project fails"
+    );
     assert!(args.iter().any(|arg| arg == "--unshare-net"));
     assert_eq!(&args[..3], ["--ro-bind", "/", "/"]);
     assert!(
         args.windows(2).any(|pair| pair == ["--tmpfs", "/tmp"]),
         "the program's /tmp is its own"
+    );
+    assert!(
+        !args.iter().any(|arg| arg == "--die-with-parent"),
+        "a run outlives Saturn"
     );
 }
 

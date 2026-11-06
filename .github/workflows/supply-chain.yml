@@ -85,4 +85,4 @@ jobs:
       - name: The runtime keeps the HTTP contract
         run: |
           cargo build --locked -p saturn-server -p saturn-cli
-          node --test contract/*.test.mjs
+          node --test --test-timeout=300000 contract/*.test.mjs

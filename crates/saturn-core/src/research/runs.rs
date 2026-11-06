@@ -827,7 +827,9 @@ fn seeds_of(version: &Value) -> Vec<String> {
 /// What a run records about its samples file when it ends; the hash and size fix what counts as its samples.
 async fn seal(directory: &Path) -> std::io::Result<(Scan, Value)> {
     let path = directory.join("samples.jsonl");
+    // An empty file is no samples, as a missing one is: a sandboxed run's file is made empty before it starts.
     let (sha256, size) = match hash_file(&path).await {
+        Ok((_, 0)) => (String::new(), 0),
         Ok(found) => found,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => (String::new(), 0),
         Err(error) => return Err(error),

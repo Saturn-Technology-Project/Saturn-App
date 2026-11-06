@@ -123,12 +123,12 @@ test("a sandboxed run cannot read the project's own files, its records, Saturn's
   const bed = await setup("");
   await writeFile(path.join(bed.folder, "probe.mjs"), tries({
     live: `return await fs.readFile(${JSON.stringify(path.join(bed.folder, "probe.mjs"))}, 'utf8');`,
-    listing: `return (await fs.readdir(${JSON.stringify(bed.folder)})).length;`,
-    records: `return (await fs.readdir(${JSON.stringify(path.join(bed.folder, ".saturn", "research"))})).length;`,
+    listing: `return (await fs.readdir(${JSON.stringify(bed.folder)})).join(",");`,
+    records: `return (await fs.readdir(${JSON.stringify(path.join(bed.folder, ".saturn", "research"))})).join(",");`,
     key: `return await fs.readFile(${JSON.stringify(path.join(home, ".ssh", "id_test"))}, 'utf8');`,
     hfToken: `return await fs.readFile(${JSON.stringify(path.join(home, ".cache", "huggingface", "token"))}, 'utf8');`,
     cache: `await fs.writeFile(${JSON.stringify(path.join(home, ".cache", "probe.txt"))}, 'x'); return 'wrote';`,
-    data: `return (await fs.readdir(${JSON.stringify(saturn.runtime.dataDir)})).length;`,
+    data: `return (await fs.readdir(${JSON.stringify(saturn.runtime.dataDir)})).join(",");`,
     linked: "return await fs.readFile('env/tool.txt', 'utf8');",
     beside: "return await fs.readFile('notes.txt', 'utf8');",
   }));
@@ -136,13 +136,15 @@ test("a sandboxed run cannot read the project's own files, its records, Saturn's
   const version = await saturn.api("POST", `${bed.route}/experiments/${experiment.id}/versions`, {});
   const { evidence, results } = await run({ ...bed, version });
   if (!sandboxed(t, evidence)) return;
+  // macOS refuses the listing; Linux shows an empty stand-in holding only what the run may reach.
+  const shows = (value, name) => !refused(value) && String(value).split(",").includes(name);
   assert.ok(refused(results.live), `the project's own copy of a file the version holds: ${JSON.stringify(results)}`);
-  assert.ok(refused(results.records), JSON.stringify(results));
-  assert.ok(refused(results.listing), JSON.stringify(results));
+  assert.ok(!shows(results.records, "experiments") && !shows(results.records, "versions"), JSON.stringify(results));
+  assert.ok(!shows(results.listing, "probe.mjs"), JSON.stringify(results));
   assert.ok(refused(results.key), JSON.stringify(results));
   assert.ok(refused(results.hfToken), `a token in the shared cache stays hidden: ${JSON.stringify(results)}`);
   assert.equal(results.cache, "wrote", "the shared cache itself stays writable");
-  assert.ok(refused(results.data), JSON.stringify(results));
+  assert.ok(!shows(results.data, "runtime-token"), JSON.stringify(results));
   assert.equal(results.linked, "an environment folder");
   assert.equal(results.beside, "not part of the version", "what the project has beside the version stays reachable, as uncontrolled");
 });
