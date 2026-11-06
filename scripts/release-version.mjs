@@ -39,7 +39,7 @@ export function isPrerelease(version) {
 /** What a push of these files, with these tags, should do. */
 export function decide({ packageVersion, cargoVersion, tags, pushedTag }) {
   if (packageVersion !== cargoVersion) {
-    throw new Error(`desktop/package.json says ${packageVersion} but Cargo.toml says ${cargoVersion}: set both to the version to release.`);
+    throw new Error(`desktop/package.json says ${packageVersion} but Cargo.toml says ${cargoVersion}: set both with node scripts/set-version.mjs <version>.`);
   }
   if (!parse(packageVersion)) throw new Error(`Not a version: ${packageVersion}`);
   const prerelease = isPrerelease(packageVersion);
@@ -51,7 +51,7 @@ export function decide({ packageVersion, cargoVersion, tags, pushedTag }) {
   if (released.includes(packageVersion)) return { version: packageVersion, release: false, prerelease, reason: `v${packageVersion} is already released` };
   const newest = released.sort(compare).at(-1);
   if (newest && compare(packageVersion, newest) < 0) {
-    throw new Error(`The version ${packageVersion} is older than the newest release, v${newest}: raise it in desktop/package.json and Cargo.toml.`);
+    throw new Error(`The version ${packageVersion} is older than the newest release, v${newest}: raise it with node scripts/set-version.mjs <version>.`);
   }
   return { version: packageVersion, release: true, prerelease, reason: newest ? `${packageVersion} is newer than v${newest}` : "there is no release yet" };
 }
