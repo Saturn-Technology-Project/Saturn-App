@@ -1,27 +1,34 @@
-# Fails the build unless the installer and the programs it installs carry an Authenticode signature, and, when the
-# repository's certificate was used, unless it is that certificate (by SHA-1 thumbprint). The programs are read out of
-# the installer itself (7-Zip opens NSIS installers), since that is what users get: the bundler puts the files it built
-# back as they were once the installer is made.
+# Fails the build unless the installer, and every program it installs, carry an Authenticode signature, and, when the
+# repository's certificate was used, unless it is that certificate (by SHA-1 thumbprint). The installer is run silently
+# into a folder of its own and every .exe it leaves is checked, the uninstaller among them, since that is what users get;
+# then it is uninstalled.
 param([string]$Release = 'desktop/release', [string]$Expected = '')
 $ErrorActionPreference = 'Stop'
-$PSNativeCommandUseErrorActionPreference = $true
-$installers = @(Get-ChildItem -Path $Release -Filter '*-setup.exe' | ForEach-Object { $_.FullName })
-if ($installers.Count -eq 0) { throw "No installer in $Release" }
-$paths = @() + $installers
-foreach ($installer in $installers) {
-  $unpacked = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
-  & 7z x -y -bso0 -bsp0 "-o$unpacked" $installer | Out-Null
-  foreach ($program in @('saturn-desktop.exe', 'saturn-server.exe', 'saturn.exe')) {
-    $found = Get-ChildItem -Path $unpacked -Recurse -Filter $program | Select-Object -First 1
-    if (-not $found) { throw "$program is not in $(Split-Path $installer -Leaf)" }
-    $paths += $found.FullName
-  }
-}
-foreach ($path in $paths) {
-  $signature = Get-AuthenticodeSignature -FilePath $path
-  if (-not $signature.SignerCertificate) { throw "$path is not signed" }
+
+function Check-Signature([string]$Path) {
+  $signature = Get-AuthenticodeSignature -FilePath $Path
+  if (-not $signature.SignerCertificate) { throw "$Path is not signed" }
   $thumbprint = $signature.SignerCertificate.Thumbprint
   # A self-signed certificate is not trusted by Windows, so Status reads UnknownError; what matters is who signed.
-  Write-Output ("{0}: {1}  {2}  timestamped={3}" -f (Split-Path $path -Leaf), $signature.SignerCertificate.Subject, $thumbprint, [bool]$signature.TimeStamperCertificate)
-  if ($Expected -and $thumbprint -ne $Expected) { throw "$path is signed by $thumbprint, not Saturn's certificate $Expected" }
+  Write-Output ("{0}: {1}  {2}  timestamped={3}" -f (Split-Path $Path -Leaf), $signature.SignerCertificate.Subject, $thumbprint, [bool]$signature.TimeStamperCertificate)
+  if ($Expected -and $thumbprint -ne $Expected) { throw "$Path is signed by $thumbprint, not Saturn's certificate $Expected" }
+}
+
+$installers = @(Get-ChildItem -Path $Release -Filter '*-setup.exe' | ForEach-Object { $_.FullName })
+if ($installers.Count -eq 0) { throw "No installer in $Release" }
+foreach ($installer in $installers) {
+  Check-Signature $installer
+  $folder = Join-Path $env:RUNNER_TEMP ('saturn-install-' + [System.IO.Path]::GetRandomFileName())
+  # NSIS takes the folder as the last argument, unquoted.
+  $install = Start-Process -FilePath $installer -ArgumentList '/S', "/D=$folder" -PassThru
+  if (-not $install.WaitForExit(300000)) { $install.Kill(); throw "$(Split-Path $installer -Leaf) did not finish installing in five minutes" }
+  if ($install.ExitCode -ne 0) { throw "$(Split-Path $installer -Leaf) exited with $($install.ExitCode)" }
+  $programs = @(Get-ChildItem -Path $folder -Recurse -Filter '*.exe' | ForEach-Object { $_.FullName })
+  Write-Output "Installed: $(($programs | ForEach-Object { Split-Path $_ -Leaf }) -join ', ')"
+  if (-not ($programs | Where-Object { (Split-Path $_ -Leaf) -like 'uninstall*.exe' })) { throw 'The installer left no uninstaller' }
+  if ($programs.Count -lt 4) { throw "Only $($programs.Count) programs were installed; the app, the runtime, the saturn command and the uninstaller were expected" }
+  foreach ($program in $programs) { Check-Signature $program }
+  $uninstaller = $programs | Where-Object { (Split-Path $_ -Leaf) -like 'uninstall*.exe' } | Select-Object -First 1
+  $remove = Start-Process -FilePath $uninstaller -ArgumentList '/S' -PassThru
+  if (-not $remove.WaitForExit(120000)) { $remove.Kill() }
 }

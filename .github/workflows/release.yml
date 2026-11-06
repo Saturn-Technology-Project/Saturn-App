@@ -281,14 +281,19 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           UPDATER_PUBKEY: ${{ vars.SATURN_UPDATER_PUBKEY }}
-          # tauri.signing.json's signCommand runs from desktop/src-tauri, so it is given the script's whole path.
-          SATURN_SIGN_WINDOWS_FILE: ${{ github.workspace }}\.github\scripts\sign-windows-file.ps1
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
+          # The sign command names the script by its whole path, with no variable in it: Tauri runs it from
+          # desktop/src-tauri, and NSIS runs it again inside makensis for the uninstaller, where "$" starts NSIS's own
+          # variables.
+          $script = (Join-Path $env:GITHUB_WORKSPACE '.github/scripts/sign-windows-file.ps1') -replace '\\', '/'
+          $signing = Join-Path $env:RUNNER_TEMP 'tauri.signing.json'
+          @{ bundle = @{ windows = @{ signCommand = "pwsh -NoProfile -File $script -File %1" } } } | ConvertTo-Json -Depth 4 | Set-Content -Path $signing
+          Get-Content $signing
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
           $updater = (node scripts/updater-config.mjs) -split ' ' | Where-Object { $_ }
-          npm run package -- --bundles nsis --config src-tauri/tauri.signing.json @updater
+          npm run package -- --bundles nsis --config $signing @updater
           npm run archive
 
       - name: Check the signatures
