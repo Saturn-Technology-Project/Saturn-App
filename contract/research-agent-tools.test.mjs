@@ -294,10 +294,13 @@ test("a finished task tells the chat that started it, which hears of it in a tur
   assert.equal(report.report.answer, "done");
   assert.equal(told.find((item) => item.id === begun.task).taskOf, setup.thread.id, "the task knows which chat started it");
 
-  const recent = await saturn.api("GET", "/runs?limit=50");
-  const full = await Promise.all((recent.items ?? recent).filter((run) => run.threadId === setup.thread.id).map((run) => saturn.api("GET", `/runs/${run.id}`)));
+  // The report is marked delivered as the chat's turn is made, so the turn may be recorded a moment later.
+  const turns = async () => {
+    const recent = await saturn.api("GET", "/runs?limit=200");
+    return Promise.all((recent.items ?? recent).filter((run) => run.threadId === setup.thread.id).map((run) => saturn.api("GET", `/runs/${run.id}`)));
+  };
+  const full = await until("a turn of its own in the chat", turns, (items) => items.some((run) => run.fromTasks?.includes(begun.task) && run.input));
   const woken = full.find((run) => run.fromTasks?.includes(begun.task));
-  assert.ok(woken, "a turn of its own started in the chat");
   assert.equal(woken.automatic, true);
   assert.match(woken.input, /^Task "Task: Count the rows" completed\./);
   assert.match(woken.input, /<saturn_context sources="task reports">[\s\S]*Its answer: done/);
