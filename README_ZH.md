@@ -140,7 +140,7 @@ npm run archive                     # 下載檔與校驗碼，輸出至 desktop/
 
 `npm run package` 會建置介面、把嵌入模型下載到 `desktop/.staging/`（以固定的 SHA-256 驗證）、以 release 模式建置 Runtime 與 `saturn`，再打包。Claude Code 與 Codex 程式不在套件內，由 Saturn 按需下載。只有以 Saturn 更新金鑰建置的版本才有更新功能（[`updater-config.mjs`](desktop/scripts/updater-config.mjs)）。
 
-正式版本由 [release workflow](.github/workflows/release.yml) 產出：在 GitHub 託管的 runner 上建置並測試兩個平台（Windows 不跑合約測試）、為產出物簽發來源證明，並在推送 `v*` tag 時發佈 release。
+每次推送到 `main` 都會經過 [release workflow](.github/workflows/release.yml)：先跑完整檢查（與 pull request 必須通過的相同），再在 GitHub 託管的 runner 上建置、測試並打包兩個平台（Windows 不跑合約測試），並為產出物簽發來源證明。當 `desktop/package.json` 與 `Cargo.toml` 的版本比所有 `v*` tag 都新時，它也會為該 commit 打上 tag 並發佈 release，發佈說明取自 CHANGELOG。所以發佈就是提高版本號並合併到 `main`。
 
 ### 平台說明
 

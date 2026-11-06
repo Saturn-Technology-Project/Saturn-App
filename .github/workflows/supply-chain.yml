@@ -7,14 +7,16 @@ name: Supply chain
 # - no known high or critical vulnerability in what the desktop app ships.
 # It also enforces the coding standard (oxlint with .oxlintrc.json) on the desktop app, and for the runtime: formatting,
 # clippy and tests, cargo deny (crates.io only, advisories, licenses), and the HTTP contract (contract/).
+#
+# Pull requests require its `check` job. A push to main runs it through the Release workflow, which packages and
+# releases only after it passes.
 
 on:
-  push:
-    branches: [main]
   pull_request:
   schedule:
     - cron: "17 3 * * 1"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -64,6 +66,14 @@ jobs:
 
       - name: The route checklist matches the runtime
         run: node scripts/contract-routes.mjs --check
+
+      - name: Release decisions (version, notes)
+        run: node --test scripts/release.test.mjs
+
+      - name: The interface type-checks and keeps its rules
+        run: |
+          npm run typecheck
+          node --test desktop/test/*.test.mjs
 
       - name: The runtime keeps the HTTP contract
         run: |

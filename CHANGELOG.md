@@ -65,6 +65,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Changed
 
+- **Releases come from `main`.** Every push to `main` is checked and packaged for macOS and Windows, and a new version in `desktop/package.json` and `Cargo.toml` is tagged and published automatically, with its notes from this changelog. The next version is 0.4.0.
 - **Saturn is now licensed under the Apache License 2.0**, in place of MIT. It is still free and open source; Apache 2.0 adds an explicit patent grant. Code released under MIT before this change stays available under MIT.
 - **A new look.** Menus and the command palette are frosted, without showing what is behind the window. Color now means something: a state, what the assistant wrote, a kind of data, code. Everything else is neutral. Menus, dialogs and buttons look the same across screens, and keyboard focus stays inside a dialog and returns where it was when it closes.
 - **Saturn's interface is rebuilt for research.** Instead of agents and chats, it is organized around your questions, code, experiments, models, samples and findings. A research assistant sits beside your work and does what you allow in that chat, and long work goes to Tasks, each in its own worktree.

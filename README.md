@@ -140,7 +140,7 @@ npm run archive                     # the downloads and their checksums, in desk
 
 `npm run package` builds the interface, downloads the embedding model into `desktop/.staging/` (checked against its pinned SHA-256), builds the runtime and `saturn` for release, and bundles them. The Claude Code and Codex programs are not in the package: Saturn downloads them on demand. A build has an updater only when it is made with Saturn's updater key ([`updater-config.mjs`](desktop/scripts/updater-config.mjs)).
 
-Release builds come from the [release workflow](.github/workflows/release.yml): it builds and tests both platforms on GitHub-hosted runners (on Windows without the contract tests), attests the artifacts and publishes the release when a `v*` tag is pushed.
+Every push to `main` goes through the [release workflow](.github/workflows/release.yml): the full check (the same one pull requests must pass), then a build, test and package of both platforms on GitHub-hosted runners (on Windows without the contract tests), with attested artifacts. When the version in `desktop/package.json` and `Cargo.toml` is newer than every `v*` tag, it also tags the commit and publishes the release, with notes from the CHANGELOG. So releasing is raising the version and merging to `main`.
 
 ### Platform notes
 

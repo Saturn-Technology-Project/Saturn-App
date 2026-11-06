@@ -79,7 +79,7 @@ Dependabot opens security updates at once and grouped version updates for npm pa
 
 ## Releases
 
-Push a `v<version>` tag (repository admins only) or run the Release workflow. Publishing waits for a maintainer's approval in the `release` environment. Each release carries checksums, build provenance attestations and an SBOM; see the README's [Security and trust](README.md#security-and-trust) section for how users verify them. Installed Saturns update only from a release built with the updater key (the `TAURI_SIGNING_PRIVATE_KEY` secret and the `SATURN_UPDATER_PUBKEY` variable); without them the build has no updater.
+Every push to `main` is checked and packaged by the Release workflow. To release, raise the version in `desktop/package.json` and `Cargo.toml` (and their lock files: `npm install --prefix desktop` and `cargo build` update them), give the CHANGELOG's Unreleased section that version's heading, and merge to `main`: the workflow tags the commit `v<version>` and publishes it. A version older than the newest release fails the workflow; an unchanged one only packages. Pushing a matching `v<version>` tag (repository admins only) or running the workflow by hand does the same. Publishing waits for a maintainer's approval in the `release` environment, if the repository's settings ask for one. Each release carries checksums, build provenance attestations and an SBOM; see the README's [Security and trust](README.md#security-and-trust) section for how users verify them. Installed Saturns update only from a release built with the updater key (the `TAURI_SIGNING_PRIVATE_KEY` secret and the `SATURN_UPDATER_PUBKEY` variable); without them the build has no updater.
 
 ## Reporting a vulnerability
 

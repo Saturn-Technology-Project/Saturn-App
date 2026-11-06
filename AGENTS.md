@@ -60,5 +60,6 @@ contract, workflow and skills).
   runtime instead: `SATURN_DATA_DIR=$(mktemp -d) SATURN_RUNTIME_PORT=4791 SATURN_SECRET_STORE=file npm start`.
 - Don't edit build output: `target/`, `desktop/dist/`, `desktop/.staging/`, `desktop/release/`,
   `desktop/src-tauri/binaries/`, `desktop/src-tauri/gen/`.
-- Don't push, tag or publish unless asked: a `v*` tag starts a release.
+- Don't push, tag or publish unless asked: a push to `main` with a new version in `desktop/package.json` and
+  `Cargo.toml`, or a `v*` tag, publishes a release.
 - Don't push to `main`: it only takes pull requests whose `check` job (the supply-chain workflow) passes.
