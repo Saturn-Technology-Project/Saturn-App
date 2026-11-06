@@ -89,7 +89,9 @@ test("each kind of record says what it must hold", async () => {
   assert.equal((await saturn.api("POST", `${route}/findings`, { text: "x", kind: "observation" })).kind, "observation");
   assert.equal((await saturn.call("POST", `${route}/models`, { name: "no source" })).status, 400);
   assert.equal((await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-14m" })).floating, true);
-  assert.equal((await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-14m", weightsRevision: "abc" })).floating, false);
+  assert.equal((await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-14m", weightsRevision: "abc" })).floating, true, "a short name can move");
+  assert.equal((await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-14m", weightsRevision: "latest" })).floating, true);
+  assert.equal((await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-14m", weightsRevision: "a".repeat(40) })).floating, false);
   assert.equal((await saturn.call("POST", `${route}/rumours`, { title: "x" })).status, 404);
   assert.equal((await saturn.call("POST", `${route}/versions`, { title: "x" })).status, 405);
 });
@@ -281,16 +283,36 @@ test("a linked input is recorded as a link and not followed", posixOnly, async (
 
 test("a version names its models' sources and revisions, and knows the floating ones", async () => {
   const { route } = await project({ "probe.py": "print(1)\n" });
-  const pinned = await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-14m", weightsRevision: "abc" });
+  const commit = "c".repeat(40);
+  const pinned = await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-14m", weightsRevision: commit });
   const floating = await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-31m" });
   const experiment = await draft(route, { code: ["probe.py"] }, { models: [{ modelId: pinned.id, role: "base" }, { modelId: floating.id, role: "policy" }] });
   const version = (await freeze(route, experiment.id)).body;
   assert.deepEqual(version.models, [
-    { modelId: pinned.id, role: "base", source: "EleutherAI/pythia-14m", weightsRevision: "abc", floating: false },
-    { modelId: floating.id, role: "policy", source: "EleutherAI/pythia-31m", weightsRevision: null, floating: true },
+    { modelId: pinned.id, role: "base", source: "EleutherAI/pythia-14m", weightsRevision: commit, floating: false, revisionKind: "commit" },
+    { modelId: floating.id, role: "policy", source: "EleutherAI/pythia-31m", weightsRevision: null, floating: true, revisionKind: "none" },
   ]);
   const unknown = await draft(route, { code: ["probe.py"] }, { models: [{ modelId: "model_nothere000000", role: "base" }] });
   assert.equal((await freeze(route, unknown.id)).status, 422);
+});
+
+test("a revision name that can move is not a pinned identity, and local weights are known by their content", async () => {
+  const { route, folder } = await project({ "probe.py": "print(1)\n" });
+  await writeFile(path.join(folder, "weights.bin"), "first weights");
+  const latest = await saturn.api("POST", `${route}/models`, { source: "EleutherAI/pythia-14m", weightsRevision: "latest" });
+  const local = await saturn.api("POST", `${route}/models`, { source: "weights.bin", weightsRevision: "latest" });
+  const experiment = await draft(route, { code: ["probe.py"] }, { models: [{ modelId: latest.id, role: "base" }, { modelId: local.id, role: "policy" }] });
+  const version = (await freeze(route, experiment.id)).body;
+  const [named, checkpoint] = version.models;
+  assert.equal(named.floating, true);
+  assert.equal(named.revisionKind, "name");
+  assert.equal(named.weightsSha256, undefined, "a hub model is not read here");
+  assert.equal(checkpoint.weightsSha256, sha("first weights"));
+  // Other weights behind the same name make the next freeze a new version.
+  await writeFile(path.join(folder, "weights.bin"), "other weights");
+  const again = (await freeze(route, experiment.id)).body;
+  assert.notEqual(again.id, version.id);
+  assert.notEqual(again.models[1].weightsSha256, checkpoint.weightsSha256);
 });
 
 test("a chat from another project cannot choose the source folder", async () => {

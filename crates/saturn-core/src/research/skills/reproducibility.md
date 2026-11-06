@@ -8,7 +8,7 @@ Saturn records what a run computed. You make sure that is enough to repeat it.
 
 ## In the experiment
 - `seeds`: list them. Read the seed in the program from an argument or an environment variable named in `envNames`.
-- `models`: pin each with `weightsRevision`. A model without one is `floating`, and the run says so. Hugging Face: the commit hash. A local path: the checkpoint's hash.
+- `models`: pin each with `weightsRevision`: the full 40-character commit for Hugging Face, or a 64-character hash. Anything else, `main` or `latest` included, is `floating`, because the name can come to mean other weights. A local path is also known by its content: freezing hashes the file or folder (`weightsSha256`), and other weights make a new version.
 - `inputs`: every data file, scorer and lock file. A version holds their hashes, so a change is a new version.
 - Never read an undeclared file that affects results.
 

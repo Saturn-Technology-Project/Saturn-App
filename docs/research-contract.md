@@ -59,8 +59,13 @@ Question ← Hypothesis ← Experiment (draft) ← ExperimentVersion ← Run →
 - A hypothesis has a `verdict`: `undecided`, `supported`, `refuted` or `inconclusive`. A run's `status` says whether it
   executed. Neither one changes the other.
 - A finding's `kind` is `observation`, `ai_suggestion` or `conclusion`. It may name the runs it came from.
-- A model has a `source` (a name or a local path) and a `weightsRevision`. One with no `weightsRevision` is `floating`, and a run on it
-  says so. Roles (`base`, `reference`, `policy`) belong to an experiment's use of a model, since one set of weights can
+- A model has a `source` (a name or a local path) and a `weightsRevision`. Only a full commit (40 hex digits) or hash
+  (64) pins it. One with no revision, or a name that can move such as `main`, `latest` or a short commit, is
+  `floating`, and a run on it says so. A version's models also say their `revisionKind` (`commit`, `hash`, `name`,
+  `none`). A model whose source is a file or folder on this computer is hashed when the version is frozen
+  (`weightsSha256`, a folder by each file's path and hash) and checked again when a run starts. Versions frozen before
+  these fields were recorded still start when nothing they held changed. A hub model's weights are not read: its
+  identity is its revision. Roles (`base`, `reference`, `policy`) belong to an experiment's use of a model, since one set of weights can
   play different roles in different experiments.
 
 ## Freezing

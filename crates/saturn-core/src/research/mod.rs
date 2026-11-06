@@ -71,6 +71,8 @@ pub struct ResearchState {
     remote_ledger: tokio::sync::Mutex<()>,
     /// Whether each sealed samples file still matches its seal, by its size and modification time when checked.
     seals: Mutex<HashMap<PathBuf, (u64, std::time::SystemTime, bool)>>,
+    /// The SHA-256 of each local weights file, by its size and modification time when hashed.
+    weights: Mutex<HashMap<PathBuf, (u64, std::time::SystemTime, String)>>,
 }
 
 impl Default for ResearchState {
@@ -87,6 +89,7 @@ impl Default for ResearchState {
             remote: Mutex::default(),
             remote_ledger: tokio::sync::Mutex::new(()),
             seals: Mutex::default(),
+            weights: Mutex::default(),
         }
     }
 }

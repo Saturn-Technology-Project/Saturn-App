@@ -82,9 +82,9 @@ test("a whole study: a question to a finding, training and evaluation, through t
   assert.match((await call(setup, "research_read", { what: "log", run: trainRun.id })).text, /trained/);
 
   // The checkpoint joins the lineage, pinned.
-  const parent = await call(setup, "research_write", { collection: "models", fields: { name: "untrained", source: "init", weightsRevision: "zero" } });
+  const parent = await call(setup, "research_write", { collection: "models", fields: { name: "untrained", source: "init", weightsRevision: "0".repeat(40) } });
   const weights = path.join(setup.folder, ".saturn/research/runs", trainRun.id, "weight.json");
-  const trained = await call(setup, "research_write", { collection: "models", fields: { name: "trained", source: weights, weightsRevision: "abc", parentId: parent.id, producedBy: `run ${trainRun.id}` } });
+  const trained = await call(setup, "research_write", { collection: "models", fields: { name: "trained", source: weights, weightsRevision: "a".repeat(64), parentId: parent.id, producedBy: `run ${trainRun.id}` } });
   assert.equal(trained.floating, false);
 
   // Evaluation: a separate experiment, so that it stays the same whatever is trained.

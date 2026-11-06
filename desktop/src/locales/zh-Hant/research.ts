@@ -609,4 +609,7 @@ export default {
   "{count} files written by the program, kept with the run": "程式寫入 {count} 個檔案，已隨執行保存",
   "{count} files in the run's snapshot": "執行快照中有 {count} 個檔案",
   "On {host}, by its Saturn worker": "在 {host} 上，由該主機的 Saturn worker 觀察",
+  "revision can change, weights not checked": "修訂版本可能變動，權重未核對",
+  "pinned revision, weights not checked here": "已固定修訂版本，權重未在此核對",
+  weights: "權重",
 } satisfies Dictionary;

@@ -35,7 +35,7 @@ research_write { collection: "models", fields: {
   weightsRevision: "<sha256>", parentId: "<parent model>", trainingData: "<dataset and its hash>",
   producedBy: "run <id>" } }
 ```
-- Without `weightsRevision` the model is `floating`, and every run on it says so.
+- Without a full commit or hash as `weightsRevision` the model is `floating`, and every run on it says so. `main`, `latest` and short commits are floating.
 - `parentId`: the checkpoint or model it came from. Cycles are refused.
 - `referenceId`: the frozen model preference training was against.
 - For a published model: its name as `source`, and its commit hash as `weightsRevision`.

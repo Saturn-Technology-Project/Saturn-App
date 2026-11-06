@@ -299,7 +299,10 @@ impl Kernel {
             return Ok((existing, false));
         }
         let content = self.frozen_content(&records, &source, &version).await?;
-        if saturn_domain::research::fingerprint(&content) != text(&version, "fingerprint") {
+        if saturn_domain::research::fingerprint(&content) != text(&version, "fingerprint")
+            && saturn_domain::research::fingerprint(&before_model_identity(&content))
+                != text(&version, "fingerprint")
+        {
             return Err(CoreError::new(
                 409,
                 "The code, data or models changed since this version was frozen. Freeze a new version to run them.",
@@ -355,7 +358,11 @@ impl Kernel {
         let seeds = seeds_of(&version);
         let mut observed = snapshot.observed;
         observed["source"] = json!(source);
-        evidence::write(&directory, &evidence::starting(&version, &observed, &seeds)).await?;
+        evidence::write(
+            &directory,
+            &evidence::starting(&version, &observed, &seeds, &content["models"]),
+        )
+        .await?;
         test_hold("before-process").await;
 
         let working_folder = snapshot.tree.join(text(&version, "cwd"));
@@ -759,6 +766,24 @@ struct FinishingRun {
     pid: u32,
 }
 
+/// A version's content as it was fingerprinted before models had a revision kind and a weights hash, so a version
+/// frozen then still starts when nothing it held has changed. Its models are not pinned by those fields.
+fn before_model_identity(content: &Value) -> Value {
+    let mut old = content.clone();
+    for model in old["models"].as_array_mut().into_iter().flatten() {
+        if let Some(fields) = model.as_object_mut() {
+            fields.remove("revisionKind");
+            fields.remove("weightsSha256");
+            let named = fields
+                .get("weightsRevision")
+                .and_then(Value::as_str)
+                .is_some_and(|revision| !revision.is_empty());
+            fields.insert("floating".to_owned(), json!(!named));
+        }
+    }
+    old
+}
+
 /// The version's seeds as text, in order.
 fn seeds_of(version: &Value) -> Vec<String> {
     version["seeds"]
@@ -847,4 +872,26 @@ pub(super) async fn read_runs(records: &Path) -> Result<(Vec<Value>, Vec<Value>)
 async fn run_with_client(records: &Path, client: &str) -> Result<Option<Value>, CoreError> {
     let (runs, _) = read_runs(records).await?;
     Ok(runs.into_iter().find(|run| text(run, "clientId") == client))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_version_frozen_before_model_identity_is_read_as_it_was_fingerprinted() {
+        let now = json!({ "command": "run", "models": [
+            { "modelId": "model_a", "weightsRevision": "main", "floating": true, "revisionKind": "name" },
+            { "modelId": "model_b", "weightsRevision": null, "floating": true, "revisionKind": "none", "weightsSha256": "ff" },
+        ] });
+        let old = before_model_identity(&now);
+        assert_eq!(
+            old["models"],
+            json!([
+                { "modelId": "model_a", "weightsRevision": "main", "floating": false },
+                { "modelId": "model_b", "weightsRevision": null, "floating": true },
+            ])
+        );
+        assert_eq!(old["command"], "run");
+    }
 }

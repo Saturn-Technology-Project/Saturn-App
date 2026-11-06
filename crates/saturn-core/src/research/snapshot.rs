@@ -33,7 +33,7 @@ fn entry(path: &str, role: &str, sha256: &str, size: u64, how: &str) -> Value {
 }
 
 /// Every regular file under a folder, by path relative to it, not following links.
-fn files_in(root: &Path) -> Vec<String> {
+pub(super) fn files_in(root: &Path) -> Vec<String> {
     let mut found = Vec::new();
     let mut pending = vec![PathBuf::new()];
     while let Some(relative) = pending.pop() {

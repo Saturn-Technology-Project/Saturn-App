@@ -19,6 +19,8 @@ use crate::{CoreError, Kernel};
 const COPY_LIMIT: u64 = 5 * 1024 * 1024;
 /// How much one version saves as copies; files after that are kept by hash.
 const COPIES_LIMIT: u64 = 200 * 1024 * 1024;
+/// The most files a model folder may hold for its weights to be hashed; a larger folder stays unverified.
+const WEIGHT_FILES: usize = 10_000;
 /// The kinds of input an experiment declares, in the order a version lists them.
 const INPUT_ROLES: [&str; 4] = ["code", "data", "scorer", "environment"];
 
@@ -272,7 +274,68 @@ impl Kernel {
     }
 
     /// An experiment's models as a version names them, each with its source and revision.
-    async fn bound_models(&self, records: &Path, draft: &Value) -> Result<Vec<Value>, CoreError> {
+    /// The hash of a model's weights when its source is a file or folder on this computer: one file's SHA-256, or for
+    /// a folder the SHA-256 of each file's path and hash in order. Each file's hash is kept by its size and
+    /// modification time, so an unchanged checkpoint is not read again. Nothing for a source that is not a path here.
+    async fn local_weights(&self, project: &Path, model_source: &str) -> Option<String> {
+        if model_source.is_empty() || model_source.contains("://") {
+            return None;
+        }
+        let candidate = Path::new(model_source);
+        let path = if candidate.is_absolute() {
+            candidate.to_path_buf()
+        } else if model_source.starts_with('.')
+            || tokio::fs::try_exists(project.join(candidate))
+                .await
+                .unwrap_or(false)
+        {
+            project.join(candidate)
+        } else {
+            return None;
+        };
+        let info = tokio::fs::metadata(&path).await.ok()?;
+        if info.is_file() {
+            return self.cached_hash(&path).await;
+        }
+        let files = {
+            let root = path.clone();
+            tokio::task::spawn_blocking(move || super::snapshot::files_in(&root))
+                .await
+                .ok()?
+        };
+        if files.is_empty() || files.len() > WEIGHT_FILES {
+            return None;
+        }
+        let mut listing = String::new();
+        for file in files {
+            let hash = self.cached_hash(&path.join(&file)).await?;
+            listing.push_str(&format!("{file}\0{hash}\n"));
+        }
+        Some(sha256_hex(listing.as_bytes()))
+    }
+
+    /// A file's SHA-256, remembered by its size and modification time.
+    async fn cached_hash(&self, path: &Path) -> Option<String> {
+        let info = tokio::fs::metadata(path).await.ok()?;
+        let modified = info.modified().ok()?;
+        if let Some((size, time, hash)) = crate::locked(&self.research.weights).get(path)
+            && *size == info.len()
+            && *time == modified
+        {
+            return Some(hash.clone());
+        }
+        let (hash, _) = hash_file(path).await.ok()?;
+        crate::locked(&self.research.weights)
+            .insert(path.to_path_buf(), (info.len(), modified, hash.clone()));
+        Some(hash)
+    }
+
+    async fn bound_models(
+        &self,
+        records: &Path,
+        source: &Path,
+        draft: &Value,
+    ) -> Result<Vec<Value>, CoreError> {
         let mut bound = Vec::new();
         for binding in draft
             .get("models")
@@ -293,13 +356,20 @@ impl Kernel {
                 model.ok_or_else(|| unusable_input(format!("The model {id} does not exist.")))?;
             let revision =
                 Some(text(&model, "weightsRevision")).filter(|revision| !revision.is_empty());
-            bound.push(json!({
+            let mut entry = json!({
                 "modelId": id,
                 "role": text(binding, "role"),
                 "source": text(&model, "source"),
                 "weightsRevision": revision,
-                "floating": revision.is_none(),
-            }));
+                // A name such as `main` can move to other weights: only a full commit or hash pins them.
+                "floating": !revision.is_some_and(saturn_domain::research::revision_pins),
+                "revisionKind": saturn_domain::research::revision_kind(revision.unwrap_or("")),
+            });
+            // Weights on this computer are identified by their content, whatever the revision says.
+            if let Some(weights) = self.local_weights(source, text(&model, "source")).await {
+                entry["weightsSha256"] = json!(weights);
+            }
+            bound.push(entry);
         }
         Ok(bound)
     }
@@ -333,7 +403,7 @@ impl Kernel {
             .cloned()
             .unwrap_or_else(|| json!({}));
         let (inputs, code) = Self::input_hashes(source, &declared).await?;
-        let models = self.bound_models(records, draft).await?;
+        let models = self.bound_models(records, source, draft).await?;
         let mut copies = Copies {
             objects: records.join("objects"),
             used: 0,

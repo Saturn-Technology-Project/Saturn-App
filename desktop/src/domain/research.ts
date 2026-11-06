@@ -82,7 +82,8 @@ export interface FrozenVersion extends ResearchRecord {
   experimentId: string;
   number: number;
   evaluation?: EvaluationSpec | null;
-  models?: { modelId: string; role: ModelRole; source: string; weightsRevision: string | null; floating: boolean }[];
+  /** `revisionKind` says whether the revision pins weights (`commit`, `hash`) or can move (`name`, `none`); weights on this computer are also known by `weightsSha256`. */
+  models?: { modelId: string; role: ModelRole; source: string; weightsRevision: string | null; floating: boolean; revisionKind?: "commit" | "hash" | "name" | "none"; weightsSha256?: string }[];
 }
 
 export type RunStatus = "starting" | "running" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
@@ -137,6 +138,7 @@ export interface RunEvidence {
     platform?: string;
     command?: string;
     seedsPassed?: string[];
+    models?: { modelId: string; source: string; weightsRevision: string | null; floating: boolean; revisionKind?: string; weightsSha256?: string }[];
     refused?: string;
     startedAt?: string;
     endedAt?: string;

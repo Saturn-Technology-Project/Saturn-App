@@ -104,6 +104,11 @@ export function Evidence(props: { projectId: string; runId: string }) {
               ) : null}
             </>
           ) : null}
+          {observed?.models?.map((model) => (
+            <div key={model.modelId} className={model.weightsSha256 ? MUTED : "text-xs text-wait"}>
+              <code>{model.source}</code> · {model.weightsSha256 ? <>{t("weights")} <code title={model.weightsSha256}>{model.weightsSha256.slice(0, 12)}</code></> : model.floating ? t("revision can change, weights not checked") : t("pinned revision, weights not checked here")}
+            </div>
+          ))}
           {observed?.seedsPassed?.length ? <div className={MUTED}>{t("Seeds passed as SATURN_RUN_SEED: {seeds}", { seeds: observed.seedsPassed.join(", ") })}</div> : null}
           {after?.changed?.length ? <div className="text-xs text-wait">{t("Changed during the run: {inputs}", { inputs: after.changed.join(", ") })}</div> : null}
           {after?.written?.length ? <div className={MUTED}>{t("{count} files written by the program, kept with the run", { count: after.written.length })}</div> : null}

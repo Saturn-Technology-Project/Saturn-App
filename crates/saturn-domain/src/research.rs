@@ -104,10 +104,36 @@ fn requested_fields(input: &Value) -> Map<String, Value> {
     fields
 }
 
+/// Whether a revision names one fixed set of weights: a full git commit (40 hex digits) or a content hash (64). A
+/// branch or tag such as `main` or `latest`, or an abbreviated commit, can come to mean other weights.
+pub fn revision_pins(revision: &str) -> bool {
+    let revision = revision.trim();
+    matches!(revision.len(), 40 | 64) && revision.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+/// What kind of revision this is: `commit`, `hash`, `name` (it can move) or `none`.
+pub fn revision_kind(revision: &str) -> &'static str {
+    let revision = revision.trim();
+    if revision.is_empty() {
+        "none"
+    } else if revision_pins(revision) {
+        if revision.len() == 40 {
+            "commit"
+        } else {
+            "hash"
+        }
+    } else {
+        "name"
+    }
+}
+
 /// Fills in what follows from a record's fields, and checks them.
 fn finished(collection: &str, mut fields: Map<String, Value>) -> Result<Value, String> {
     if collection == "models" {
-        let pinned = has_text(&fields, "weightsRevision");
+        let pinned = fields
+            .get("weightsRevision")
+            .and_then(Value::as_str)
+            .is_some_and(revision_pins);
         fields.insert("floating".to_owned(), json!(!pinned));
     }
     check(collection, &fields)?;
@@ -513,6 +539,18 @@ mod tests {
 
     fn evaluation() -> Value {
         json!({"dataset": "ioi", "split": "test", "sampleSet": "all", "scorer": "logit", "promptFormat": "continuation", "chatTemplate": null, "generation": {"top_k": 1}})
+    }
+
+    #[test]
+    fn only_a_full_commit_or_hash_pins_weights() {
+        assert!(revision_pins(&"a".repeat(40)));
+        assert!(revision_pins(&"0F".repeat(32)));
+        for moving in ["", "main", "latest", "v1.0", "abc1234", &"g".repeat(40)] {
+            assert!(!revision_pins(moving), "{moving}");
+        }
+        assert_eq!(revision_kind("main"), "name");
+        assert_eq!(revision_kind(&"a".repeat(40)), "commit");
+        assert_eq!(revision_kind(""), "none");
     }
 
     #[test]

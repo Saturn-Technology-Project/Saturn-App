@@ -35,7 +35,12 @@ fn expected(version: &Value) -> Value {
 }
 
 /// The evidence a run starts with: expected and observed, and nothing reported yet.
-pub(super) fn starting(version: &Value, snapshot: &Value, seeds: &[String]) -> Value {
+pub(super) fn starting(
+    version: &Value,
+    snapshot: &Value,
+    seeds: &[String],
+    models: &Value,
+) -> Value {
     json!({
         "schemaVersion": 1,
         "limits": LIMITS,
@@ -47,6 +52,8 @@ pub(super) fn starting(version: &Value, snapshot: &Value, seeds: &[String]) -> V
             "cwd": text(version, "cwd"),
             "seedsPassed": seeds,
             "snapshot": snapshot,
+            // The models as checked at the start: a local checkpoint by its content, others by their revision only.
+            "models": models,
             "startedAt": iso_time(now_millis()),
         },
         "reported": unreported(),
