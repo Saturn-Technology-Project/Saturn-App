@@ -45,12 +45,14 @@ impl Workspace {
         Ok(target)
     }
 
-    /// A path inside the workspace as the agent is shown it.
+    /// A path inside the workspace as the agent is shown it: with forward slashes on every system, as it is written.
     pub fn relative(&self, target: &Path) -> String {
         match target.strip_prefix(&self.root) {
-            Ok(relative) if !relative.as_os_str().is_empty() => {
-                relative.to_string_lossy().into_owned()
-            }
+            Ok(relative) if !relative.as_os_str().is_empty() => relative
+                .components()
+                .map(|part| part.as_os_str().to_string_lossy())
+                .collect::<Vec<_>>()
+                .join("/"),
             Ok(_) => ".".to_owned(),
             Err(_) => target.to_string_lossy().into_owned(),
         }

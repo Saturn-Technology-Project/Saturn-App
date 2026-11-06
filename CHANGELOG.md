@@ -22,6 +22,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **On Windows, the assistant's file tools name paths with forward slashes,** as on macOS and Linux, rather than backslashes.
 - **A run's sample and token counts follow a samples file rewritten moments after the last read.** A rewrite of the same size could leave the file's size and time as they were, most of all on Windows, whose file times move in steps, and the counts stayed on the old content. A file changed in the last two seconds is now read to check.
 - **Quitting Saturn can no longer leave the runtime running.** If one of the steps of stopping hung, such as ending an experiment run, the runtime stayed on in the background. It now exits within ten seconds of being asked, whatever is left.
 - **The browser tools no longer report Chrome closed on a slow first start.** Chrome had ten seconds to start, and its first start, which makes its profile, could take longer on a busy computer. It now has thirty, a start that fails is tried once more, and when Chrome still does not start the tool says whether it ended or did not answer, and what it printed.
