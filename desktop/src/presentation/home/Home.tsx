@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
-import { changedSince, lastActive, reviewProgress, runHasResults, runStatusLabel, type Hypothesis, type Verdict } from "../../domain/research.js";
+import { byAssistant, changedSince, lastActive, reviewProgress, runHasResults, runStatusLabel, type Hypothesis, type Verdict } from "../../domain/research.js";
+import { Badge } from "../ui/base/Badge.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Button } from "../ui/base/Button.js";
 import { Card } from "../ui/base/Card.js";
@@ -206,10 +207,11 @@ export function Home(props: ScreenProps) {
       </form>
 
       <Heading data-tour="home-hypotheses">{t("Hypotheses")}</Heading>
-      <p className="max-w-[680px] text-muted-foreground">{t("A verdict is yours to set. A run that completes says only that it executed.")}</p>
+      <p className="max-w-[680px] text-muted-foreground">{t("You or the assistant set a verdict, and it says which of you did. A run that completes says only that it executed.")}</p>
       {value?.hypotheses.map((item: Hypothesis) => (
         <Row key={item.id}>
           <span>{item.title}</span>
+          {item.verdict !== "undecided" && byAssistant(item) ? <Badge tone="violet">{t("Set by the assistant")}</Badge> : null}
           <Choice label={t("Verdict")} className="flex-row items-center gap-2" triggerClassName="w-36" value={item.verdict} options={VERDICT_OPTIONS} onChange={(verdict) => void act(() => service.setVerdict(projectId, item, verdict as Verdict))} />
         </Row>
       ))}

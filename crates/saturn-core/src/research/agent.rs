@@ -385,6 +385,9 @@ impl Kernel {
     /// Makes or changes a record, under the rules for what an agent may write.
     async fn research_write(&self, project: &str, arguments: &Value) -> Result<Value, String> {
         let collection = needed(arguments, "collection")?;
+        if collection == "labels" {
+            return self.research_agent_label(project, arguments).await;
+        }
         if arguments.get("delete").and_then(Value::as_bool) == Some(true) {
             if collection != "experiments" {
                 return Err("Only an experiment can be deleted.".to_owned());
@@ -422,6 +425,40 @@ impl Kernel {
         self.research_update(project, collection, id, &changes)
             .await
             .map_err(said)
+    }
+
+    /// Labels one sample of a run with one of its experiment's label names, recorded as the assistant's label.
+    async fn research_agent_label(
+        &self,
+        project: &str,
+        arguments: &Value,
+    ) -> Result<Value, String> {
+        let fields = arguments
+            .get("fields")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let run_id = needed(&fields, "runId")?;
+        let run = self.research_run(project, run_id).await.map_err(said)?;
+        let experiment = self
+            .research_record(project, "experiments", text(&run, "experimentId"))
+            .await
+            .ok();
+        let names = label_names(experiment.as_ref());
+        let label = text(&fields, "label");
+        if !names.iter().any(|name| name == label) {
+            return Err(format!(
+                "\"label\" must be one of this experiment's labels: {}.",
+                names.join(", ")
+            ));
+        }
+        self.research_set_label(
+            project,
+            run_id,
+            &fields,
+            saturn_domain::research::BY_ASSISTANT,
+        )
+        .await
+        .map_err(said)
     }
 
     /// Freezes an experiment, or starts or stops a run, from the folder the chat works in.
@@ -799,5 +836,25 @@ impl Kernel {
             other => return Err(format!("research_notebook has no action \"{other}\".")),
         }
         .map_err(said)
+    }
+}
+
+/// The labels an experiment's samples take: its own, or the plain set.
+fn label_names(experiment: Option<&Value>) -> Vec<String> {
+    let own: Vec<String> = experiment
+        .and_then(|experiment| experiment["labels"].as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+        .collect();
+    if own.is_empty() {
+        ["Correct", "Wrong", "Invalid", "Unsure"]
+            .map(str::to_owned)
+            .to_vec()
+    } else {
+        own
     }
 }

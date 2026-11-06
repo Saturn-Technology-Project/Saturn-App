@@ -31,6 +31,15 @@ export interface ExperimentDraft extends ResearchRecord {
   envNames?: string[];
 }
 
+/** Who set a verdict, a label or a finding. */
+export type SetBy = "person" | "assistant";
+
+/** Whether the assistant set this verdict, wrote or last changed this finding, or set this label. */
+export function byAssistant(record: { verdictBy?: SetBy; by?: SetBy; changedBy?: SetBy } | null | undefined): boolean {
+  if (!record) return false;
+  return record.verdictBy === "assistant" || (record.changedBy ?? record.by) === "assistant";
+}
+
 /** Whether a run's program runs in the sandbox, and whether it may use the network there. */
 export interface SandboxSettings { isolated?: boolean; network?: boolean }
 
@@ -71,6 +80,10 @@ export type FindingKind = "observation" | "ai_suggestion" | "conclusion";
 export interface Finding extends ResearchRecord {
   text: string;
   kind: FindingKind;
+  /** "assistant" when the assistant wrote it; the person's own have none. */
+  by?: SetBy;
+  /** Who changed it last, when it was changed. */
+  changedBy?: SetBy;
   runIds?: string[];
   inspectionIds?: string[];
 }
@@ -284,6 +297,8 @@ export interface Question extends ResearchRecord {
 export interface Hypothesis extends ResearchRecord {
   title: string;
   verdict: Verdict;
+  /** Who set the verdict; one from before verdicts said so is the person's. */
+  verdictBy?: SetBy;
   questionId?: string;
 }
 
@@ -332,7 +347,7 @@ export interface AcrossRow {
 }
 
 export interface RunLabels {
-  labels: Record<string, { sampleId: string; trial: number; modelId?: string | null; label: string; note?: string; agreesWithScorer?: boolean | null }>;
+  labels: Record<string, { sampleId: string; trial: number; modelId?: string | null; label: string; note?: string; by?: SetBy; agreesWithScorer?: boolean | null }>;
   agreement: { labeled: number; compared: number; agreed: number };
 }
 

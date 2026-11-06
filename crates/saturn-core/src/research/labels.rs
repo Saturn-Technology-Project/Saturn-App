@@ -196,12 +196,14 @@ impl Kernel {
             .unwrap_or_else(|| json!({})))
     }
 
-    /// Saves a person's label on one sample. It never touches the sample's score.
+    /// Saves a label on one sample, saying whether the person or the assistant (`by`) set it. It never touches the
+    /// sample's score.
     pub async fn research_set_label(
         &self,
         project: &str,
         run: &str,
         request: &Value,
+        by: &str,
     ) -> Result<Value, CoreError> {
         let label = text(request, "label");
         if label.trim().is_empty() {
@@ -221,12 +223,24 @@ impl Kernel {
         let lock = self.records_lock(&records);
         let _writing = lock.lock().await;
         let mut saved = read_labels(&records, run).await?;
+        // The assistant labels only what the person has not: a label from before labels said who set them is theirs.
+        let existing = &saved["labels"][&identity];
+        if by == saturn_domain::research::BY_ASSISTANT
+            && existing.is_object()
+            && existing["by"] != saturn_domain::research::BY_ASSISTANT
+        {
+            return Err(CoreError::new(
+                409,
+                "The person labelled this sample. Say in a finding why you read it differently.",
+            ));
+        }
         saved["labels"][&identity] = json!({
             "sampleId": request.get("sampleId"),
             "trial": request.get("trial").cloned().unwrap_or_else(|| json!(0)),
             "modelId": request.get("modelId"),
             "label": label,
             "note": request.get("note"),
+            "by": by,
             "updatedAt": iso_time(now_millis()),
         });
         write_whole(&folder.join(format!("{run}.json")), &pretty(&saved)?).await?;

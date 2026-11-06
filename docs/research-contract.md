@@ -616,9 +616,14 @@ An agent with the built-in `research` server, which an agent has only when its l
 | `research_task_delete` | Writes | Deletes a task that has ended and whose worktree the person merged or discarded; its conversation goes, no code is lost |
 
 - An Ask chat keeps the tools that read. An Approve chat waits for the user before those that write, even with approvals off.
-- What an agent finds is always `ai_suggestion`: `kind` is set for it, and a `conclusion` is refused.
-- A hypothesis it makes has no verdict, and it does not change once made, so that nothing under a person's verdict moves. It changes only its own findings. A record's other changes go through `expectedRevision` as usual.
-- There is no tool for labels, verdicts, modes, the policy, merging a task, or the SSH host: the person configures the host, and an agent only checks it and starts runs there.
+- An agent may set a hypothesis's verdict and edit the hypothesis, write findings of any kind (`ai_suggestion` when it
+  gives none) and change anyone's, and label samples with one of the experiment's label names
+  (`research_write { collection: "labels" }`). Each is marked: `verdictBy`, a finding's `by` or `changedBy`, and a
+  label's `by`, as `assistant`. What the person sets in the app is marked `person`; a finding with no `by` is theirs.
+- An agent cannot change a verdict the person set, or relabel a sample the person labelled. A verdict other than
+  `undecided` from before verdicts said who set them counts as the person's, as does a label without `by`.
+- There is no tool for modes, the policy, lifting a lock, merging a task, loosening a run's sandbox, or the SSH host:
+  the person configures the host, and an agent only checks it and starts runs there.
 - A task cannot start a task, and at most 4 of an agent's tasks in a project are going at once. A task starts in `delegate`, or `delegate_auto` if the chat that started it is. Only the person answers its approvals, and merges or discards it.
 - A task reports back to the chat that started it. When its newest turn completes, fails, is stopped or waits for approval, the chat keeps the report (`taskReports`) and a turn starts there by itself (`automatic`, with `fromTasks`), carrying the report as context; a chat in the middle of a turn hears when that turn ends. Each report is passed on once, and the turn keeps the chat's mode.
 - A start's `attempt` (default 1) makes its `clientId` with the turn and the version: repeating a call in a turn starts nothing, and a new attempt runs the version again.

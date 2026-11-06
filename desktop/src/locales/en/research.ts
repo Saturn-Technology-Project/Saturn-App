@@ -38,7 +38,6 @@ export default {
   "{count}, concluded": "{count}, with conclusion",
   Execution: "Run status",
   "{finished} of {count} runs have results. Execution says nothing about whether the hypothesis holds.": "{finished} of {count} runs have results. Run status says nothing about whether the hypothesis holds.",
-  "Only you set this": "Verdict (set only by you)",
   "Choose the hypothesis this experiment tests, above.": "Choose a hypothesis above for this experiment to test.",
   "The newest run with results, {run}.": "From the latest run with results, {run}.",
   "{count} samples the scorer judged": "{count} samples scored",

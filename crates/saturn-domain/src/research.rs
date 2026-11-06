@@ -478,7 +478,7 @@ const AGENT_COLLECTIONS: [&str; 6] = [
     "counterexamples",
 ];
 
-/// What an agent asks to make, as it may make it. A verdict is the person's, and whatever an agent finds is its suggestion.
+/// What an agent asks to make, as it may make it, marked as its own.
 pub fn agent_record(collection: &str, fields: &Value) -> Result<Value, String> {
     if !AGENT_COLLECTIONS.contains(&collection) {
         return Err(format!("An agent cannot make records in \"{collection}\"."));
@@ -490,45 +490,48 @@ pub fn agent_record(collection: &str, fields: &Value) -> Result<Value, String> {
             "Only the person can {what}, in Experiments. Make the experiment without it, and say why it is needed."
         ));
     }
-    agent_fields(collection, fields)
+    agent_fields(collection, fields, true)
 }
 
-/// The fields an agent writes, as it may write them: no verdict, and its findings are suggestions.
-fn agent_fields(collection: &str, fields: &Value) -> Result<Value, String> {
+/// Who set a judgment, so a record says whether a verdict, a label or a finding came from the person or the assistant.
+pub const BY_ASSISTANT: &str = "assistant";
+/// The same, for what the person set in the app.
+pub const BY_PERSON: &str = "person";
+
+/// The fields an agent writes, marked as its own: a verdict it sets says so, and a finding says who wrote it. A finding
+/// with no kind is a suggestion.
+fn agent_fields(collection: &str, fields: &Value, made: bool) -> Result<Value, String> {
     let mut fields = fields.clone();
     let Some(record) = fields.as_object_mut() else {
         return Err("\"fields\" must be an object.".to_owned());
     };
-    if record.contains_key("verdict") {
-        return Err(
-            "A verdict is the person's to set. Say what the evidence suggests in a finding."
-                .to_owned(),
-        );
+    if collection == "hypotheses" && record.contains_key("verdict") {
+        record.insert("verdictBy".to_owned(), json!(BY_ASSISTANT));
     }
     if collection == "findings" {
-        if record
-            .get("kind")
-            .and_then(Value::as_str)
-            .is_some_and(|kind| kind != "ai_suggestion")
-        {
-            return Err("What an agent finds is recorded as a suggestion: leave out \"kind\". A conclusion is the person's.".to_owned());
+        if made && !record.contains_key("kind") {
+            record.insert("kind".to_owned(), json!("ai_suggestion"));
         }
-        record.insert("kind".to_owned(), json!("ai_suggestion"));
+        let key = if made { "by" } else { "changedBy" };
+        record.insert(key.to_owned(), json!(BY_ASSISTANT));
     }
     Ok(fields)
 }
 
-/// What an agent asks to change on a record, as it may change it. A hypothesis does not change under the person's verdict, and
-/// the only findings an agent changes are its own.
+/// Whether a hypothesis's verdict is one the person set: marked theirs, or set before verdicts said who set them.
+pub fn verdict_is_persons(hypothesis: &Value) -> bool {
+    match hypothesis.get("verdictBy").and_then(Value::as_str) {
+        Some(by) => by == BY_PERSON,
+        None => hypothesis
+            .get("verdict")
+            .and_then(Value::as_str)
+            .is_some_and(|verdict| verdict != "undecided"),
+    }
+}
+
+/// What an agent asks to change on a record, as it may change it. It may edit hypotheses, their verdicts and anyone's
+/// findings, each marked as its own change; it may not loosen an experiment's sandbox.
 pub fn agent_change(collection: &str, current: &Value, fields: &Value) -> Result<Value, String> {
-    if collection == "hypotheses" {
-        return Err("A hypothesis does not change once made, since a verdict may rest on it. Make a new one.".to_owned());
-    }
-    if collection == "findings"
-        && current.get("kind").and_then(Value::as_str) != Some("ai_suggestion")
-    {
-        return Err("This finding is the person's. Add your own instead.".to_owned());
-    }
     if collection == "experiments"
         && let Some(what) = loosens_sandbox(current, fields)
     {
@@ -541,7 +544,13 @@ pub fn agent_change(collection: &str, current: &Value, fields: &Value) -> Result
             "An agent cannot change records in \"{collection}\"."
         ));
     }
-    agent_fields(collection, fields)
+    if collection == "hypotheses" && fields.get("verdict").is_some() && verdict_is_persons(current)
+    {
+        return Err(
+            "The person set this verdict. Say in a finding why you would change it.".to_owned(),
+        );
+    }
+    agent_fields(collection, fields, false)
 }
 
 /// How much a chat's agent may change: `manual` only reads, `pair` asks about each change, `delegate` works on its own and asks
@@ -715,33 +724,51 @@ mod tests {
     }
 
     #[test]
-    fn an_agent_cannot_set_what_is_the_persons() {
-        assert!(
-            agent_record("hypotheses", &json!({"title": "H", "verdict": "supported"})).is_err()
-        );
+    fn an_agents_verdicts_and_findings_are_marked_as_its_own() {
+        let hypothesis =
+            agent_record("hypotheses", &json!({"title": "H", "verdict": "supported"})).unwrap();
+        assert_eq!(hypothesis["verdictBy"], BY_ASSISTANT);
         assert!(agent_record("versions", &json!({})).is_err());
-        assert!(agent_record("findings", &json!({"text": "T", "kind": "conclusion"})).is_err());
+        let conclusion =
+            agent_record("findings", &json!({"text": "T", "kind": "conclusion"})).unwrap();
+        assert_eq!(
+            (&conclusion["kind"], &conclusion["by"]),
+            (&json!("conclusion"), &json!(BY_ASSISTANT))
+        );
         assert_eq!(
             agent_record("findings", &json!({"text": "T"})).unwrap()["kind"],
             "ai_suggestion"
         );
-        assert!(agent_change("hypotheses", &json!({}), &json!({"title": "H"})).is_err());
+        let edited =
+            agent_change("hypotheses", &json!({}), &json!({"verdict": "refuted"})).unwrap();
+        assert_eq!(edited["verdictBy"], BY_ASSISTANT);
         assert!(
-            agent_change(
-                "findings",
-                &json!({"kind": "conclusion"}),
-                &json!({"text": "T"})
-            )
-            .is_err()
+            agent_change("hypotheses", &json!({}), &json!({"title": "H"}))
+                .unwrap()
+                .get("verdictBy")
+                .is_none()
         );
+        let theirs = agent_change(
+            "findings",
+            &json!({"kind": "conclusion"}),
+            &json!({"text": "T"}),
+        )
+        .unwrap();
+        assert_eq!(theirs["changedBy"], BY_ASSISTANT);
         assert!(
-            agent_change(
-                "findings",
-                &json!({"kind": "ai_suggestion"}),
-                &json!({"text": "T"})
-            )
-            .is_ok()
+            theirs.get("kind").is_none(),
+            "a change keeps the finding's kind unless it says"
         );
+        assert!(agent_change("versions", &json!({}), &json!({})).is_err());
+        let persons = json!({ "verdict": "supported", "verdictBy": BY_PERSON });
+        assert!(agent_change("hypotheses", &persons, &json!({ "verdict": "refuted" })).is_err());
+        let legacy = json!({ "verdict": "supported" });
+        assert!(
+            agent_change("hypotheses", &legacy, &json!({ "verdict": "refuted" })).is_err(),
+            "set before verdicts said who"
+        );
+        let assistants = json!({ "verdict": "supported", "verdictBy": BY_ASSISTANT });
+        assert!(agent_change("hypotheses", &assistants, &json!({ "verdict": "refuted" })).is_ok());
     }
 
     #[test]

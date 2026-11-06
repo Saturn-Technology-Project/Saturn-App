@@ -10,8 +10,8 @@ Finish with what the person needs, and nothing that makes the work look more fin
 1. **The outcome** in a sentence or two, with the main number.
 2. **What was not done or not verified**, first if it changes the meaning. A run on one seed; a sample you could not read; a model not evaluated.
 3. **What waits for them**, as a list:
-   - Verdicts: for each hypothesis, what the evidence suggests, with its finding id. Set on Home.
-   - Labels: which samples are worth labelling, by run and sample id, and how many. Set on Samples.
+   - Verdicts: each one you set, with the finding it rests on, so the person can check it on Home.
+   - Labels: how many you set and on which runs, and which samples still need the person's eye. On Samples.
    - Locks: any file you asked to change, and why. Released on Protection or the task.
    - Merge: what the task's branch holds, and what merging brings. Merged or discarded on Tasks.
 4. **Where everything is**: the report's path, run ids, where the weights are.

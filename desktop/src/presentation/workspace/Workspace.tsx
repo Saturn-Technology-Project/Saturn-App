@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import {
+  byAssistant,
   isRunActive,
   runStatusLabel,
   sampleText,
@@ -583,6 +584,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               <Card key={finding.id} className="gap-1 px-3.5 py-3">
                 <div className={MUTED}>
                   {FINDING_LABELS[finding.kind]}
+                  {byAssistant(finding) ? ` · ${t("by the assistant")}` : ""}
                   {finding.runIds?.length ? ` · ${finding.runIds[0]}` : ""}
                 </div>
                 <div>{finding.text}</div>

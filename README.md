@@ -32,7 +32,7 @@ AI research goes wrong in quiet ways: a score compared across two different eval
 
 - **Your research, not a chat.** Questions, hypotheses, experiments, versions, runs, samples, labels and findings each have a place, kept as plain files in the project's `.saturn/research` folder. Read them, diff them, commit them with your code.
 - **Fair by construction.** An experiment is frozen into a version with its code, data and settings. Only runs measured the same way share a chart; anything else is listed apart with what differs. A score splits into what the scorer judged, what you disputed and what was excluded as an error.
-- **You decide.** A run that finishes says only that it executed. Verdicts, labels, locks and merges are yours, and the assistant's findings are always marked as its suggestions.
+- **You stay in charge.** A run that finishes says only that it executed. The assistant may set verdicts, label samples and write conclusions, each marked as its own and never over yours; locks, modes, merges and loosening a run's sandbox stay with you.
 - **Local and verifiable.** The runtime listens only on `127.0.0.1`, there is no Saturn backend, and every HTTP request it sends is in a network log you can read ([how to verify](#security-and-trust)). Use API keys, your Claude or ChatGPT plan, or an offline model.
 
 ## A study in Saturn
@@ -42,7 +42,7 @@ AI research goes wrong in quiet ways: a score compared across two different eval
 3. **Freeze and run.** An experiment names its command, its data and scorer files, its models and how it is evaluated. Freezing makes a version; a changed file or setting makes a new one, and the data and scorer of a frozen version are locked against agents. Runs happen here or on an SSH host you configured, and survive a crash with their samples readable. A run reads its own checked, read-only snapshot of the version, so editing the project while it runs changes nothing it reads, and it runs in the system sandbox (seatbelt on macOS, bubblewrap on Linux): it writes only its own output, cannot read the project's other files or your credential folders, gets only the environment variables its experiment names, and uses the network only if the experiment allows it. Its evidence keeps what the version expected, what Saturn observed and what the program reported apart, and lists what was not under control. A hash shows which content a file had, not that the program used it or that the result is right.
 4. **Read.** Every sample, across every model that saw it, with the scorer's word beside your label. Compare two runs sample by sample: what improved, what regressed, by category. Keep counterexamples.
 5. **Look inside.** Read activations at every layer, patch a clean prompt into a corrupted one against a random control, and read a layer through a sparse autoencoder.
-6. **Conclude.** Write what you found, tied to the runs it rests on, and set the hypothesis's verdict yourself.
+6. **Conclude.** Write what you found, tied to the runs it rests on, and set the hypothesis's verdict, or check the one the assistant set.
 
 A run's program needs nothing from Saturn but an environment variable: it appends one JSON line per sample to `SATURN_RUN_SAMPLES` ([the protocol](docs/research-contract.md)). Results you already have can be imported, marked as imported. [`docs/research-workflow.md`](docs/research-workflow.md) shows how to bring an existing workflow in.
 
@@ -74,7 +74,7 @@ The assistant sits beside every screen (⌘J), knows which one you are on and wh
 | **Auto** | Work in the chat, on the project itself, asking before anything sensitive |
 | **Agent** | Work on the project and ask nothing. Work to keep apart goes to a task in its own worktree |
 
-In every mode, verdicts, labels, locks, the policy, the SSH host and merging stay yours. Modes and locks are a workflow constraint, not a security boundary: a shell in a task can still write a locked file, and Saturn records it afterwards under Protection. [`docs/research-contract.md`](docs/research-contract.md) says exactly what each backend enforces.
+In every mode, locks, the policy, the SSH host, merging and loosening a run's sandbox stay yours, and so does every verdict and label you set yourself. Modes and locks are a workflow constraint, not a security boundary: a shell in a task can still write a locked file, and Saturn records it afterwards under Protection. [`docs/research-contract.md`](docs/research-contract.md) says exactly what each backend enforces.
 
 **Tools and skills.** The assistant works on the same records you see through thirteen `research_*` tools: read anything, make questions, hypotheses, experiments and models, freeze and run (here or on the SSH host), wait for a run, set up the Python environment, look inside models, import results and bundles, keep analysis outputs, run notebook cells, and start, follow and clear away tasks. Fifty bundled skills teach it how, from scoping a question and writing hypotheses to leakage audits, layer sweeps and a final report; it reads the one it needs with `research_skill`, and a project's own skill of the same name comes first. [`docs/research-skills.md`](docs/research-skills.md) lists them.
 

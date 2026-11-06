@@ -9,8 +9,8 @@ export default {
   "Saturn is organized around your research, not around chats: questions, code, models, experiments, samples, data, long tasks, protection and the environment. ⌘1 to ⌘9 switch to the first nine.":
     "Saturn is organized around your research, not chats: questions, code, models, experiments, samples, data, long-running tasks, protection, and the environment. Press ⌘1–⌘9 to switch to the first nine.",
   "Home: where the work stands": "Home: where your research stands",
-  "The question you are on, its hypotheses and their verdicts, what changed since you last looked, and what is still open. A verdict is yours to set; a run that finishes says only that it executed.":
-    "The question you're working on, its hypotheses and their verdicts, what changed since your last visit, and what's still open. Only you set a verdict; a finished run only means it executed.",
+  "The question you are on, its hypotheses and their verdicts, what changed since you last looked, and what is still open. You or the assistant set a verdict, and it says which of you did; a run that finishes says only that it executed.":
+    "The question you are working on, its hypotheses and verdicts, what changed since your last visit, and what is still open. A verdict is set by you or the assistant, and shows which. A finished run only means it executed.",
   "Workspace: code beside its results": "Workspace: code and results side by side",
   "Open a file, write it, and run the experiment's command. Below the editor: the run, what it cost, its samples, your findings, a look inside the model, and a terminal.":
     "Open a file, edit it, and run the experiment's command. Below the editor are the run, its cost, its samples, your findings, a look inside the model, and a terminal.",
@@ -46,7 +46,7 @@ export default {
   "Choose Ask, Approve, Auto or Agent for this chat, beside the assistant's name.": "Next to the assistant's name, choose Ask, Approve, Auto, or Agent for this chat.",
   "Open every command here, or with ⌘K.": "Open the command menu here, or press ⌘K.",
   "Connect models, MCP servers and more here.": "Connect models, MCP servers, and more.",
-  "Add a hypothesis, and set its verdict when you have evidence. Only you set it.": "Add a hypothesis and set its verdict once you have evidence. Only you can set a verdict.",
+  "Add a hypothesis, and set its verdict when you have evidence. A verdict the assistant set is marked as its own.": "Add a hypothesis and set its verdict once you have evidence. Verdicts set by the assistant are marked.",
   "Open a file to write it.": "Open a file to edit it.",
   "The experiment's command": "Experiment command",
   "Type the command that runs the experiment, starting with its Python.": "Enter the command that runs the experiment, starting with its Python interpreter.",
@@ -119,7 +119,7 @@ export default {
   "See": "View",
   "Open": "Open items",
   "{count} to look at": "{count} to review",
-  "A verdict is yours to set. A run that completes says only that it executed.": "Only you set a verdict. A completed run only means it executed.",
+  "You or the assistant set a verdict, and it says which of you did. A run that completes says only that it executed.": "A verdict is set by you or the assistant, and shows which. A completed run only means it executed.",
 
   // Tasks.
   "Tasks need a model to run on.": "Connect a model to run tasks.",

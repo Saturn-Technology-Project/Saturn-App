@@ -29,9 +29,33 @@ async fn create(
 ) -> Answer {
     created(
         kernel
-            .research_create(&project, &collection, &body_of(body))
+            .research_create(
+                &project,
+                &collection,
+                &by_person(&collection, body_of(body), true),
+            )
             .await?,
     )
+}
+
+/// What the person sends from the app, marked as theirs: a verdict they set, a finding they change. A finding with no
+/// `by` is the person's. The assistant's tools mark their own instead.
+fn by_person(collection: &str, mut fields: serde_json::Value, made: bool) -> serde_json::Value {
+    use saturn_domain::research::BY_PERSON;
+    let Some(record) = fields.as_object_mut() else {
+        return fields;
+    };
+    if collection == "hypotheses" && record.contains_key("verdict") {
+        record.insert("verdictBy".to_owned(), BY_PERSON.into());
+    }
+    if collection == "findings" {
+        record.remove("by");
+        record.remove("changedBy");
+        if !made {
+            record.insert("changedBy".to_owned(), BY_PERSON.into());
+        }
+    }
+    fields
 }
 
 async fn record(
@@ -47,7 +71,12 @@ async fn update(
     body: Body,
 ) -> Answer {
     ok(kernel
-        .research_update(&project, &collection, &id, &body_of(body))
+        .research_update(
+            &project,
+            &collection,
+            &id,
+            &by_person(&collection, body_of(body), false),
+        )
         .await?)
 }
 
@@ -187,7 +216,12 @@ async fn set_label(
     body: Body,
 ) -> Answer {
     ok(kernel
-        .research_set_label(&project, &run, &body_of(body))
+        .research_set_label(
+            &project,
+            &run,
+            &body_of(body),
+            saturn_domain::research::BY_PERSON,
+        )
         .await?)
 }
 
