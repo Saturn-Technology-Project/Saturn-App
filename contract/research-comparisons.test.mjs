@@ -1,6 +1,6 @@
 // Compare the same inputs, keep missing/error counts, and save the whole regression set rather than one visible page.
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, until } from "./files-support.mjs";
@@ -113,4 +113,31 @@ test("generated row IDs are not treated as matched inputs, and multiple models r
   assert.equal((await saturn.api("POST", `${route}/comparisons`, request)).summary.paired, 0);
   const multi = await pair([{ sampleId: "a", modelId: "m1" }, { sampleId: "a", modelId: "m2" }], [{ sampleId: "a" }]);
   assert.equal((await saturn.call("POST", `${multi.route}/comparisons`, multi.request)).status, 400);
+});
+
+test("a run whose inputs changed while it ran is not compared as if it measured its version", async () => {
+  const folder = await saturn.folder();
+  const project = await saturn.api("POST", "/projects", { path: folder, grant: true });
+  const route = `/projects/${project.id}/research`;
+  await mkdir(path.join(folder, "data"));
+  await writeFile(path.join(folder, "data", "set.jsonl"), "{}\n");
+  const rows = [{ sampleId: "a" }, { sampleId: "b" }];
+  const runs = [];
+  for (const [index, replaces] of [false, true].entries()) {
+    const lines = rows.map((row) => JSON.stringify({ schemaVersion: 1, input: row.sampleId, output: "o", scores: { s: index }, ...row }) + "\n");
+    // Without the sandbox only permissions protect the snapshot: the program can replace a file it was given.
+    const swap = replaces ? 'rmSync("data/set.jsonl"); writeFileSync("data/set.jsonl", "{\\"changed\\":true}\\n");' : "";
+    await writeFile(path.join(folder, `run${index}.mjs`), `import { appendFileSync, rmSync, writeFileSync } from "node:fs";\n${swap}\nfor (const line of ${JSON.stringify(lines)}) appendFileSync(process.env.SATURN_RUN_SAMPLES, line);\n`);
+    const experiment = await saturn.api("POST", `${route}/experiments`, { title: `E${index}`, command: `node run${index}.mjs`, evaluation, inputs: { code: [`run${index}.mjs`], data: ["data/set.jsonl"] }, sandbox: { isolated: false } });
+    const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+    const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: `changed-${index}` });
+    runs.push(await until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status)));
+  }
+  assert.deepEqual(runs[1].inputsChanged, ["data/set.jsonl"], JSON.stringify(runs[1]));
+  const result = await saturn.api("POST", `${route}/comparisons`, { left: { runId: runs[0].id }, right: { runId: runs[1].id }, scorer: "s" });
+  assert.equal(result.comparison.result, "not_comparable");
+  assert.ok(result.comparison.differs.some((reason) => /changed during the run \(data\/set\.jsonl\)/.test(reason)), JSON.stringify(result.comparison));
+  assert.equal(result.summary.interval95, null, "no interval rests on a run that read other inputs");
+  const across = await saturn.api("GET", `${route}/samples/a?runs=${runs[0].id},${runs[1].id}`);
+  assert.equal(across.rows[1].comparison.result, "not_comparable", "nor beside it when one sample is read across runs");
 });

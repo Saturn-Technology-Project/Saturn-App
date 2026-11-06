@@ -630,4 +630,5 @@ export default {
   "Without the sandbox the program can read and write anything your account can, and gets every environment variable, including keys.": "不使用沙箱時，程式可以讀寫你帳號能存取的所有內容，並取得所有環境變數，包括金鑰。",
   "Environment variables to pass, comma separated": "要傳入的環境變數，以逗號分隔",
   "Only these, and variables that say where things are (PATH, HOME, HF_HOME, CUDA_VISIBLE_DEVICES and the like), reach the program. Their names are recorded with each run, never their values.": "程式只會取得這些變數，以及標示路徑與裝置的變數（如 PATH、HOME、HF_HOME、CUDA_VISIBLE_DEVICES）。每次執行只記錄變數名稱，不記錄變數值。",
+  "inputs, changed during the run ({paths})": "輸入（執行中有變動：{paths}）",
 } satisfies Dictionary;

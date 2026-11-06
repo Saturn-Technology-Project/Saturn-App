@@ -276,10 +276,15 @@ impl Kernel {
             let version = self
                 .research_record(project, "versions", text(&run, "versionId"))
                 .await?;
-            let comparison = match &first_version {
+            let mut comparison = match &first_version {
                 None => json!({ "result": "comparable", "differs": [], "missing": [] }),
                 Some(first) => compare_versions(first, &version),
             };
+            let changed = super::comparison::inputs_changed(&run);
+            if !changed.is_empty() {
+                comparison["result"] = json!("not_comparable");
+                comparison["differs"] = json!([super::comparison::changed_inputs_text(&changed)]);
+            }
             if first_version.is_none() {
                 first_version = Some(version.clone());
             }
