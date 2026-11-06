@@ -17,8 +17,8 @@ pub mod shell;
 pub mod web;
 
 pub use process::{
-    Captured, EndOnDrop, force, group_alive, group_of, in_own_group, launch_env, leave_session,
-    no_window, run_captured, terminate,
+    Captured, EndOnDrop, continue_group, force, group_alive, group_of, in_own_group, launch_env,
+    leave_session, no_window, pause_group, run_captured, terminate,
 };
 
 /// What a tool returns to the model, or the message saying why it could not.

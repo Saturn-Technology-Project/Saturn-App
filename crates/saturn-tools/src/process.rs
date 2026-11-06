@@ -133,10 +133,25 @@ pub fn group_alive(_pid: u32) -> bool {
     false
 }
 
-/// Asks the group to end. Sends nothing when the group is gone.
+/// Asks the group to end. Sends nothing when the group is gone. A paused group is let go on as well, since a stopped
+/// process only acts on the request once it runs again.
 #[cfg(unix)]
 pub fn terminate(pid: u32) {
     signal_group(pid, rustix::process::Signal::TERM);
+    signal_group(pid, rustix::process::Signal::CONT);
+}
+
+/// Pauses the whole group where it is, as Ctrl-Z would: it keeps its memory, a GPU's included, and does nothing until
+/// `continue_group`. False when the group is gone or will not take the signal.
+#[cfg(unix)]
+pub fn pause_group(pid: u32) -> bool {
+    signal_group(pid, rustix::process::Signal::STOP)
+}
+
+/// Lets a paused group go on from where it was. False when the group is gone.
+#[cfg(unix)]
+pub fn continue_group(pid: u32) -> bool {
+    signal_group(pid, rustix::process::Signal::CONT)
 }
 
 /// Ends the group at once.
@@ -145,15 +160,14 @@ pub fn force(pid: u32) {
     signal_group(pid, rustix::process::Signal::KILL);
 }
 
+/// Sends a signal to the group; whether it got there. A group already gone is what ending it wanted, so callers that end
+/// it pass over the answer.
 #[cfg(unix)]
-fn signal_group(pid: u32, signal: rustix::process::Signal) {
-    let group = i32::try_from(pid)
+fn signal_group(pid: u32, signal: rustix::process::Signal) -> bool {
+    i32::try_from(pid)
         .ok()
-        .and_then(rustix::process::Pid::from_raw);
-    if let Some(group) = group {
-        // Already gone is what was wanted.
-        let _ = rustix::process::kill_process_group(group, signal);
-    }
+        .and_then(rustix::process::Pid::from_raw)
+        .is_some_and(|group| rustix::process::kill_process_group(group, signal).is_ok())
 }
 
 /// `taskkill /T` ends the shell and everything it started.
@@ -174,6 +188,18 @@ pub fn terminate(pid: u32) {
 /// `terminate` already ended it by force.
 #[cfg(windows)]
 pub fn force(_pid: u32) {}
+
+/// Pausing a group is not there on Windows.
+#[cfg(windows)]
+pub fn pause_group(_pid: u32) -> bool {
+    false
+}
+
+/// Pausing a group is not there on Windows.
+#[cfg(windows)]
+pub fn continue_group(_pid: u32) -> bool {
+    false
+}
 
 /// After the grace period, ends by force what `still_running` says is left. Without a runtime (the process is ending)
 /// there is nothing to wait in.
