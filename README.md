@@ -493,7 +493,7 @@ Report vulnerabilities privately to [security@saturn-core.com](mailto:security@s
 
 Computer use tools observe the screen through screenshots and act through synthesized mouse and keyboard events and the platform's element tree: the accessibility API on macOS, UI Automation on Windows.
 
-While the assistant uses the computer, Saturn draws its pointer on the screen: an orange cursor marked Saturn glides to each point just before the click, drag or scroll lands there, and the screen's edge glows until it stops. The pointer lets every click through and is kept out of screenshots, so the assistant never sees it; it is there for you.
+While the assistant uses the computer, Saturn draws its pointer on the screen: a cursor in Saturn's black and ivory, marked with its ringed planet, glides to each point just before the click, drag or scroll lands there, and the screen's edge glows ivory until it stops. The pointer lets every click through and is kept out of screenshots, so the assistant never sees it; it is there for you.
 
 ### macOS
 
