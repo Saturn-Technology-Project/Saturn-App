@@ -32,7 +32,8 @@ async function call(method, route, body) {
 
 before(async () => {
   scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-tools-")));
-  runtime = await startRuntime();
+  // A fixed zone, so an automation in "this computer's" zone records the same everywhere.
+  runtime = await startRuntime({ env: { TZ: "UTC" } });
   server = createServer((request, response) => {
     let raw = "";
     request.on("data", (chunk) => { raw += chunk; });
@@ -91,7 +92,7 @@ test("automations made by an agent are the ones on the Automations page", async 
   const id = created.result.automation.id;
   assert.equal(created.result.automation.agentId, agent.id, "the calling agent runs it");
   const [local] = await run([["automation_create", { name: "Here", prompt: "x", cron: "30 * * * *", enabled: false }]]);
-  assert.equal(local.result.automation.timeZone, Intl.DateTimeFormat().resolvedOptions().timeZone);
+  assert.equal(local.result.automation.timeZone, "UTC", "this computer's zone, here set to UTC");
   assert.equal(local.result.automation.enabled, false);
   assert.match(local.result.message, /next run when enabled/);
   const localId = local.result.automation.id;
