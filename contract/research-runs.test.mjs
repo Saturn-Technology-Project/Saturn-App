@@ -215,29 +215,38 @@ test("a committed link out of the project is uncontrolled, and its target changi
   await writeFile(path.join(outside, "set.jsonl"), "{\"v\":1}\n");
   await mkdir(path.join(folder, "data"));
   await symlink(path.join(outside, "set.jsonl"), path.join(folder, "data", "set.jsonl"));
-  // The program reads through the link, then waits until the test has changed what it points to.
+  // The program reads through the link, then waits until the test has changed what it points to. It waits in its own
+  // run folder, which it can see on every system, and never longer than 20 seconds, so a failure leaves nothing behind.
   await writeFile(path.join(folder, "probe.mjs"), `
-    import { appendFileSync, existsSync, readFileSync } from "node:fs";
+    import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
     const read = readFileSync("data/set.jsonl", "utf8");
-    while (!existsSync(${JSON.stringify(path.join(outside, "go"))})) await new Promise((resolve) => setTimeout(resolve, 50));
+    writeFileSync(process.env.SATURN_RUN_DIRECTORY + "/read", "");
+    const go = process.env.SATURN_RUN_DIRECTORY + "/go";
+    for (const until = Date.now() + 20000; !existsSync(go) && Date.now() < until;) await new Promise((resolve) => setTimeout(resolve, 50));
     appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
     console.log(read.trim());
   `);
   commitAll(folder);
   const bed = await setup(null, { folder });
   const started = await start(bed);
-  await until("the run to start", () => saturn.api("GET", `${bed.route}/runs/${started.id}`), (item) => item.status === "running");
-  const evidence = await saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`);
+  const evidence = await until("the run's evidence", () => saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`), (item) => item.recorded && item.observed?.snapshot);
   const link = evidence.observed.snapshot.uncontrolled.find((item) => item.path === "data/set.jsonl");
   assert.ok(link, `the link is listed as uncontrolled: ${JSON.stringify(evidence.observed.snapshot.uncontrolled)}`);
   assert.equal(link.kind, "linked file");
   assert.equal(link.target, path.join(outside, "set.jsonl"));
   assert.equal(link.sha256, sha("{\"v\":1}\n"));
   assert.equal(evidence.verdicts.inputs, "partial", "not verified: the version never fixed what the link reads");
+  const reading = await until("the program to read the link, or the run to end", async () => {
+    if (existsSync(path.join(runFolder(bed, started.id), "read"))) return "read";
+    const now = await saturn.api("GET", `${bed.route}/runs/${started.id}`);
+    return ["starting", "running", "stopping"].includes(now.status) ? null : now;
+  });
+  assert.equal(reading, "read", `the program could not read through the link: ${JSON.stringify(reading)}\n${await readFile(path.join(runFolder(bed, started.id), "stderr.log"), "utf8").catch(() => "")}`);
   await writeFile(path.join(outside, "set.jsonl"), "{\"v\":2}\n");
-  await writeFile(path.join(outside, "go"), "");
+  await writeFile(path.join(runFolder(bed, started.id), "go"), "");
   const run = await ended(bed, started.id);
-  assert.equal(run.status, "completed", JSON.stringify(run));
+  assert.equal(run.status, "completed", `${JSON.stringify(run)}\n${await readFile(path.join(runFolder(bed, started.id), "stderr.log"), "utf8").catch(() => "")}`);
+  assert.equal((await readFile(path.join(runFolder(bed, started.id), "stdout.log"), "utf8")).trim(), "{\"v\":1}", "it read the target as it was at the start");
   assert.deepEqual(run.inputsChanged, ["data/set.jsonl"]);
   const after = await saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`);
   assert.equal(after.verdicts.inputs, "changed");
