@@ -91,7 +91,7 @@ Out of scope: a process already running as the same user can read the token file
 - **A crate's build script runs at build time.** Cargo cannot deny it as npm can an install script, so a compromised crate could run code in CI or on a machine that builds Saturn.
 - **An embedding model downloaded on demand is not hash-checked,** unlike the bundled one (`crates/saturn-embed/src/lib.rs`).
 - **The agent browser's address check covers `browser_navigate` only.** A page it opens can still redirect to, link to or load from a private address, because the browser makes those requests itself.
-- **A run's snapshot is protected by read-only permissions, not isolation.** An experiment program can replace a file in it, which the check at the end records, and it can write through a linked, uncontrolled folder into the project. Remote runs still execute in the host's working folder, with no snapshot or input check.
+- **A run's snapshot is protected by read-only permissions, not isolation.** An experiment program can replace a file in it, which the check at the end records, and it can write through a linked, uncontrolled folder into the project. A remote run's evidence is what the host's worker recorded; a compromised host can report anything.
 - **No third-party security audit yet.**
 
 ## Assurance case
@@ -247,7 +247,7 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 - **crate 的 build script 會在建置時執行。** Cargo 無法像 npm 拒絕安裝腳本那樣拒絕它，所以遭入侵的 crate 可能在 CI 或建置 Saturn 的電腦上執行程式碼。
 - **按需下載的嵌入模型不做雜湊驗證**，與內建模型不同（`crates/saturn-embed/src/lib.rs`）。
 - **Agent 瀏覽器的位址檢查只涵蓋 `browser_navigate`。** 它開啟的頁面仍可能重新導向、連結或載入私有位址，因為這些請求由瀏覽器自己發出。
-- **執行快照只以唯讀權限保護，並非隔離。** 實驗程式仍可替換快照中的檔案（結束時的核對會記錄下來），也能透過連結的未受控資料夾寫入專案。遠端執行仍在主機的工作資料夾中進行，沒有快照，也不核對輸入。
+- **執行快照只以唯讀權限保護，並非隔離。** 實驗程式仍可替換快照中的檔案（結束時的核對會記錄下來），也能透過連結的未受控資料夾寫入專案。遠端執行的證據是主機上的 worker 所記錄的內容；遭入侵的主機可以回報任何內容。
 - **尚未經過第三方安全審計。**
 
 ## 保證論證

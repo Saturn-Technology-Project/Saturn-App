@@ -20,8 +20,10 @@ use super::{pretty, write_whole};
 use crate::records::text;
 use crate::{CoreError, Kernel, locked};
 
-const OUTPUTS: [&str; 6] = [
+const OUTPUTS: [&str; 8] = [
     "samples.jsonl",
+    "report.jsonl",
+    "snapshot.json",
     "metrics.jsonl",
     "artifacts.jsonl",
     "stdout.log",
@@ -30,7 +32,9 @@ const OUTPUTS: [&str; 6] = [
 ];
 const OUTPUT_LIMIT: u64 = 64 * 1024 * 1024;
 const CHUNK: u64 = 128 * 1024;
-const NOTE: &str = "Uses your SSH configuration and host verification. Install this version of saturn-server on the remote host first. Code and data are not uploaded: the command runs in the remote working tree, whose identity may differ from the local frozen source. Closing Saturn detaches; stopping explicitly requests cancellation.";
+const NOTE: &str = "Uses your SSH configuration and host verification. Install this version of saturn-server on the remote host first. Code and data are not uploaded: the host builds the run's snapshot from its own working tree and checks every file against the version, and a difference refuses the run before anything starts. Closing Saturn detaches; stopping explicitly requests cancellation.";
+/// What a refused remote run is told to do.
+const REMOTE_HINT: &str = "Bring the host's working folder to the version (with git, say), or freeze a new version, then start again.";
 
 /// Whether this job's remote execution has a final status.
 /// The record of what this computer's runtime launched remotely, in Saturn's own data folder. A project's files say
@@ -48,7 +52,10 @@ fn final_remote_error(status: u16) -> bool {
 }
 
 fn finished(status: &str) -> bool {
-    matches!(status, "completed" | "failed" | "stopped" | "timed_out")
+    matches!(
+        status,
+        "completed" | "failed" | "stopped" | "timed_out" | "refused"
+    )
 }
 
 /// Fetches an explicitly requested small analysis output, never a credential or an arbitrary remote path.
@@ -463,7 +470,9 @@ impl Kernel {
         let mut request = json!({ "action": "sync", "workdir": target["workdir"], "id": id, "cancel": run.get("cancelRequested").and_then(Value::as_bool).unwrap_or(false), "cursors": cursors });
         // Only the first exchange may start the job. After that a job the worker no longer has is reported, not resent.
         if !launched {
-            request["start"] = json!({ "command": version["command"], "kind": run["kind"], "timeoutSeconds": run["timeoutSeconds"], "resumeFrom": run["resumeFrom"], "versionId": version["id"] });
+            // What the host must hold, so that it checks its own files against the version before it runs anything.
+            let expected = json!({ "number": version["number"], "git": version["git"], "changedFiles": version["changedFiles"], "inputs": version["inputs"], "cwd": version["cwd"], "seeds": version["seeds"] });
+            request["start"] = json!({ "command": version["command"], "kind": run["kind"], "timeoutSeconds": run["timeoutSeconds"], "resumeFrom": run["resumeFrom"], "versionId": version["id"], "expected": expected });
         }
         let response = rpc(target, &request).await?;
         if !launched {
@@ -552,7 +561,7 @@ impl Kernel {
             protocol_error |= !metrics_valid;
             let status = match remote_status {
                 "stopped" | "timed_out" => "stopped",
-                "failed" => "failed",
+                "failed" | "refused" => "failed",
                 _ if protocol_error
                     || (count == 0 && !(current["kind"] == "training" && has_metrics)) =>
                 {
@@ -566,6 +575,15 @@ impl Kernel {
             current["samplesSha256"] = json!(sha256_hex(&bytes));
             current["exitCode"] = state["exitCode"].clone();
             current["endedAt"] = state["endedAt"].clone();
+            if remote_status == "refused" {
+                current["refused"] = json!(true);
+                current["error"] = state["error"].clone();
+            }
+            current["inputsChanged"] = state
+                .pointer("/afterRun/changed")
+                .cloned()
+                .unwrap_or(json!([]));
+            super::evidence::remote_finished(&folder, &version, state, &current).await;
         } else if current.get("cancelRequested") != Some(&json!(true)) {
             current["status"] = json!(if remote_status == "starting" {
                 "starting"
@@ -843,9 +861,51 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
     let start: Value = serde_json::from_slice(&tokio::fs::read(folder.join("start.json")).await?)
         .map_err(|_| CoreError::new(422, "Invalid remote launch record."))?;
     let spec = &start["spec"];
+    let workdir = PathBuf::from(text(&start, "workdir"));
+    // The snapshot is built and checked before anything runs; a difference ends the job without running it.
+    let snapshot_folder = folder.join("snapshot");
+    let mut working = workdir.clone();
+    let mut observed = Value::Null;
+    if spec["expected"].is_object() {
+        let tree = snapshot_folder.join("tree");
+        let _ = tokio::fs::remove_dir_all(&snapshot_folder).await;
+        tokio::fs::create_dir_all(&tree).await?;
+        match super::snapshot::fill(
+            None,
+            &workdir,
+            &spec["expected"],
+            &snapshot_folder,
+            &tree,
+            REMOTE_HINT,
+        )
+        .await
+        {
+            Ok(made) => {
+                // Written once, before the command runs, and brought back with the outputs.
+                write_whole(&folder.join("snapshot.json"), &pretty(&made)?).await?;
+                observed = made;
+                working = tree.join(text(&spec["expected"], "cwd"));
+            }
+            Err(error) => {
+                let _ = tokio::fs::remove_dir_all(&snapshot_folder).await;
+                let now = iso_time(now_millis());
+                write_whole(&folder.join("state.json"), &pretty(&json!({ "schemaVersion": 1, "status": "refused", "error": error.message, "createdAt": now, "endedAt": now }))?).await?;
+                return Ok(());
+            }
+        }
+    }
+    let seeds: Vec<String> = spec["expected"]["seeds"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|seed| {
+            seed.as_str()
+                .map_or_else(|| seed.to_string(), str::to_owned)
+        })
+        .collect();
     let git = Command::new("git")
         .args(["rev-parse", "HEAD"])
-        .current_dir(text(&start, "workdir"))
+        .current_dir(&workdir)
         .output()
         .await
         .ok();
@@ -859,7 +919,7 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
     }
     command
         .args(["-c", text(spec, "command")])
-        .current_dir(text(&start, "workdir"))
+        .current_dir(&working)
         .stdin(Stdio::null())
         .stdout(
             tokio::fs::File::create(folder.join("stdout.log"))
@@ -880,7 +940,13 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
         .env("SATURN_RUN_SAMPLES", folder.join("samples.jsonl"))
         .env("SATURN_RUN_METRICS", folder.join("metrics.jsonl"))
         .env("SATURN_RUN_ARTIFACTS", folder.join("artifacts.jsonl"))
+        .env("SATURN_RUN_REPORT", folder.join("report.jsonl"))
         .env("SATURN_RESUME_FROM", text(spec, "resumeFrom"));
+    if let Some(first) = seeds.first() {
+        command
+            .env("SATURN_RUN_SEED", first)
+            .env("SATURN_RUN_SEEDS", seeds.join(","));
+    }
     in_own_group(&mut command);
     let mut child = command.spawn()?;
     let pid = child.id().unwrap_or(0);
@@ -894,7 +960,7 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
     ));
     let begin = tokio::time::Instant::now();
     let limit = Duration::from_secs(spec["timeoutSeconds"].as_u64().unwrap_or(3600));
-    let mut state = json!({ "schemaVersion": 1, "status": "running", "startedAt": iso_time(now_millis()), "source": source, "system": super::resources::system() });
+    let mut state = json!({ "schemaVersion": 1, "status": "running", "startedAt": iso_time(now_millis()), "source": source, "system": super::resources::system(), "snapshotted": !observed.is_null(), "seedsPassed": seeds });
     let (status, code) = loop {
         state["heartbeatMs"] = json!(now_millis());
         write_whole(&folder.join("state.json"), &pretty(&state)?).await?;
@@ -924,6 +990,16 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
     guard.finished();
     stop_sampling.store(true, Ordering::SeqCst);
     let _ = sampler.await;
+    if !observed.is_null() {
+        state["afterRun"] = super::snapshot::close(
+            &snapshot_folder,
+            &folder.join("written"),
+            &observed,
+            &workdir,
+            true,
+        )
+        .await;
+    }
     state["status"] = json!(status);
     state["exitCode"] = json!(code);
     state["endedAt"] = json!(iso_time(now_millis()));

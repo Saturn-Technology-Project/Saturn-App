@@ -89,6 +89,7 @@ export function Evidence(props: { projectId: string; runId: string }) {
         </section>
         <section>
           <div className={LABEL}>{t("Observed by Saturn")}</div>
+          {observed?.executor === "ssh" ? <div className={MUTED}>{t("On {host}, by its Saturn worker", { host: observed.host ?? "" })}</div> : null}
           {snapshot ? (
             <>
               <div className={MUTED}>{t("{count} files in the run's snapshot", { count: snapshot.files.length })} · <code title={snapshot.manifestSha256}>{snapshot.manifestSha256.slice(0, 12)}</code></div>

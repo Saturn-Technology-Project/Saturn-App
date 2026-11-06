@@ -222,6 +222,51 @@ impl crate::Kernel {
     }
 }
 
+/// The evidence of a remote run that has ended, from what its host recorded: its snapshot, what changed, and why it
+/// was refused if it was. The host observed it; Saturn here only received it.
+pub(super) async fn remote_finished(directory: &Path, version: &Value, state: &Value, run: &Value) {
+    let snapshot = match tokio::fs::read(directory.join("snapshot.json")).await {
+        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+        Err(_) => Value::Null,
+    };
+    let after = state.get("afterRun").filter(|after| after.is_object());
+    let refused = text(state, "status") == "refused";
+    let status = text(run, "status");
+    let evidence = json!({
+        "schemaVersion": 1,
+        "limits": LIMITS,
+        "expected": expected(version),
+        "observed": {
+            "executor": "ssh",
+            "host": run["remote"]["host"],
+            "workdir": run["remote"]["workdir"],
+            "command": text(version, "command"),
+            "cwd": text(version, "cwd"),
+            "seedsPassed": state.get("seedsPassed").cloned().unwrap_or(json!([])),
+            "snapshot": snapshot,
+            "source": state.get("source").cloned().unwrap_or(Value::Null),
+            "system": state.get("system").cloned().unwrap_or(Value::Null),
+            "refused": if refused { state["error"].clone() } else { Value::Null },
+            "afterRun": after.cloned().unwrap_or(Value::Null),
+            "startedAt": state.get("startedAt").cloned().unwrap_or(Value::Null),
+            "endedAt": state.get("endedAt").cloned().unwrap_or(Value::Null),
+            "exitCode": state.get("exitCode").cloned().unwrap_or(Value::Null),
+        },
+        "reported": read_report(directory).await,
+        "outputs": {
+            "samplesSha256": run.get("samplesSha256").cloned().unwrap_or(Value::Null),
+            "samplesSize": run.get("samplesSize").cloned().unwrap_or(Value::Null),
+            "samples": run.get("samples").cloned().unwrap_or(Value::Null),
+        },
+        "verdicts": {
+            "execution": if refused { "not started" } else { status },
+            "inputs": if refused { "changed" } else { inputs_verdict(&snapshot, after) },
+            "outputs": if refused { "none" } else { outputs_verdict(status, run) },
+        },
+    });
+    let _ = write(directory, &evidence).await;
+}
+
 /// Writes a run's evidence file.
 pub(super) async fn write(directory: &Path, evidence: &Value) -> Result<(), crate::CoreError> {
     write_whole(&directory.join(EVIDENCE), &pretty(evidence)?).await

@@ -31,12 +31,13 @@ before(async () => {
 after(async () => { await runtime?.stop(); await rm(folder, { recursive: true, force: true }); });
 
 /** A configured remote experiment, whose code already lives on the other machine. */
-async function experiment(command, kind = "evaluation") {
+async function experiment(command, kind = "evaluation", files = {}, inputs = undefined) {
   const local = path.join(folder, `local-${Date.now()}`); await mkdir(local);
+  for (const [name, content] of Object.entries(files)) await writeFile(path.join(local, name), content);
   const project = await api("POST", "/projects", { path: local, grant: true });
   const route = `/projects/${project.id}/research`;
   await api("PUT", `${route}/remote`, { host: "fixture-host", workdir: remote, program: worker });
-  const draft = await api("POST", `${route}/experiments`, { title: "Remote", command, kind });
+  const draft = await api("POST", `${route}/experiments`, { title: "Remote", command, kind, ...(inputs ? { inputs } : {}) });
   const version = await api("POST", `${route}/experiments/${draft.id}/versions`, {});
   return { route, version };
 }
@@ -126,7 +127,7 @@ test("a remote run whose record came with the project is never connected to or s
 });
 
 test("a job whose folder is gone from the remote host is reported, not started again", { skip: process.platform === "win32" }, async () => {
-  await writeFile(path.join(remote, "once.mjs"), `import { appendFileSync } from 'node:fs'; appendFileSync('launches.txt', 'launched\\n'); setTimeout(() => {}, 1500);`);
+  await writeFile(path.join(remote, "once.mjs"), `import { appendFileSync } from 'node:fs'; appendFileSync(${JSON.stringify(path.join(remote, "launches.txt"))}, 'launched\\n'); setTimeout(() => {}, 1500);`);
   const { route, version } = await experiment("node once.mjs");
   const run = await api("POST", `${route}/remote/runs`, { versionId: version.id, clientId: `once-${Date.now()}`, timeoutSeconds: 30 });
   await until("the job to launch", async () => (existsSync(path.join(remote, "launches.txt")) ? await readFile(path.join(remote, "launches.txt"), "utf8") : ""), (text) => text.includes("launched"));
@@ -143,4 +144,37 @@ test("a job whose folder is gone from the remote host is reported, not started a
   await new Promise((resolve) => setTimeout(resolve, 2500));
   const launches = (await readFile(path.join(remote, "launches.txt"), "utf8")).trim().split("\n");
   assert.equal(launches.length, 1, "launched once, never again");
+});
+
+test("a host whose files differ from the version is refused before anything runs", { skip: process.platform === "win32" }, async () => {
+  const marker = path.join(folder, `ran-${Date.now()}`);
+  const local = `import { appendFileSync } from 'node:fs'; appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({schemaVersion:1,sampleId:'a',scores:{s:1}})+'\\n');`;
+  await writeFile(path.join(remote, "checked.mjs"), `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(marker)}, 'ran');`);
+  const { route, version } = await experiment("node checked.mjs", "evaluation", { "checked.mjs": local }, { code: ["checked.mjs"] });
+  const run = await api("POST", `${route}/remote/runs`, { versionId: version.id, clientId: `refused-${Date.now()}`, timeoutSeconds: 30 });
+  const ended = await until("the refusal", () => api("GET", `${route}/runs/${run.id}`), (item) => item.status === "failed", 30);
+  assert.equal(ended.refused, true);
+  assert.match(ended.error, /differ from version 1 — checked\.mjs/);
+  assert.equal(existsSync(marker), false, "nothing ran on the host");
+  const evidence = await api("GET", `${route}/runs/${run.id}/evidence`);
+  assert.equal(evidence.observed.executor, "ssh");
+  assert.deepEqual(evidence.verdicts, { execution: "not started", inputs: "changed", outputs: "none" });
+});
+
+test("a host that holds the version runs it from a checked snapshot, and the evidence comes back", { skip: process.platform === "win32" }, async () => {
+  const program = `import { appendFileSync } from 'node:fs'; appendFileSync(process.env.SATURN_RUN_REPORT, JSON.stringify({kind:'seed',value:7})+'\\n'); appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({schemaVersion:1,sampleId:'a',input:process.cwd(),scores:{s:1}})+'\\n');`;
+  await writeFile(path.join(remote, "same.mjs"), program);
+  const { route, version } = await experiment("node same.mjs", "evaluation", { "same.mjs": program }, { code: ["same.mjs"] });
+  const run = await api("POST", `${route}/remote/runs`, { versionId: version.id, clientId: `same-${Date.now()}`, timeoutSeconds: 30 });
+  const ended = await until("the run", () => api("GET", `${route}/runs/${run.id}`), (item) => !["starting", "running", "stopping"].includes(item.status), 30);
+  assert.equal(ended.status, "completed", JSON.stringify(ended));
+  const [sample] = (await api("GET", `${route}/runs/${run.id}/samples`)).items;
+  assert.match(sample.sample.input, /snapshot/, "it ran in the job's snapshot, not the working tree");
+  const evidence = await api("GET", `${route}/runs/${run.id}/evidence`);
+  assert.equal(evidence.observed.executor, "ssh");
+  assert.ok(evidence.observed.snapshot.inputs.some((input) => input.path === "same.mjs" && input.how === "copied"), JSON.stringify(evidence.observed.snapshot.inputs));
+  assert.equal(evidence.verdicts.execution, "completed");
+  assert.equal(evidence.verdicts.inputs, "partial", "the rest of the working tree is linked and uncontrolled");
+  assert.equal(evidence.verdicts.outputs, "sealed");
+  assert.deepEqual(evidence.reported.seed, { value: 7 });
 });

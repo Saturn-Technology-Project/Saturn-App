@@ -161,8 +161,14 @@ Three verdicts: `execution` (the run's status), `inputs` (`verified`, `partial`,
 `outputs` (`sealed`, `incomplete`, `changed`, `none`). A run from before evidence was kept answers `recorded: false`.
 
 A hash confirms which content a file had. It does not show that the program used that content, or that the scorer or
-the conclusion is right. Remote runs do not have this evidence yet: their host runs the command in its own working
-folder.
+the conclusion is right.
+
+A remote run sends the host what the version holds (commit, uncommitted files and declared inputs, each with its hash),
+not the files themselves. The host's worker builds the snapshot in the job's folder from its own working tree and git,
+checks every file, and only then runs the command there. A difference ends the job as `refused` before anything runs,
+and the run is `failed` with `refused: true` and the files named. The snapshot's list (`snapshot.json`), the
+program's report and what changed come back with the outputs, and the evidence says `executor: "ssh"`: the host
+observed it, and Saturn here only received what the host recorded.
 
 ## Importing completed results
 

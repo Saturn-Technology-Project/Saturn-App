@@ -110,9 +110,15 @@ impl Kernel {
         let tree = folder.join("tree");
         let _ = tokio::fs::remove_dir_all(&folder).await;
         tokio::fs::create_dir_all(&tree).await?;
-        let made = self
-            .fill_snapshot(records, source, version, &folder, &tree)
-            .await;
+        let made = fill(
+            Some(&records.join("objects")),
+            source,
+            version,
+            &folder,
+            &tree,
+            "Freeze a new version to run them.",
+        )
+        .await;
         match made {
             Ok(observed) => Ok(Snapshot { tree, observed }),
             Err(error) => {
@@ -122,16 +128,70 @@ impl Kernel {
         }
     }
 
-    async fn fill_snapshot(
+    /// After the run: checks the snapshot against what it was given, keeps what the program wrote, and removes it.
+    pub(super) async fn close_snapshot(
         &self,
-        records: &Path,
+        run: &str,
+        directory: &Path,
+        observed: &Value,
         source: &Path,
-        version: &Value,
-        folder: &Path,
-        tree: &Path,
-    ) -> Result<Value, CoreError> {
+        remove: bool,
+    ) -> Value {
+        close(
+            &self.snapshot_folder(run),
+            &directory.join("written"),
+            observed,
+            source,
+            remove,
+        )
+        .await
+    }
+}
+
+/// Whether a path from a record stays inside the folder it is joined to: relative, with no `..` and no root.
+fn plain_path(path: &str) -> bool {
+    !path.is_empty()
+        && Path::new(path).components().all(|part| {
+            matches!(
+                part,
+                std::path::Component::Normal(_) | std::path::Component::CurDir
+            )
+        })
+}
+
+/// Builds a snapshot in `tree` from what `expected` names (a version, or the part of one sent to a remote host): the
+/// commit from `source`'s git, uncommitted files from `saved` copies when there are any or else from `source`, and
+/// the declared inputs from `source`. Every file is checked against its recorded hash; any difference is an error
+/// that names the files, and `hint` says what to do about it.
+pub(super) async fn fill(
+    saved: Option<&Path>,
+    source: &Path,
+    expected: &Value,
+    folder: &Path,
+    tree: &Path,
+    hint: &str,
+) -> Result<Value, CoreError> {
+    let version = expected;
+    {
         let mut inputs: Vec<Value> = Vec::new();
         let mut differences: Vec<String> = Vec::new();
+        for item in ["changedFiles", "inputs"].iter().flat_map(|field| {
+            version
+                .get(*field)
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+        }) {
+            if !plain_path(text(&item, "path")) {
+                return Err(CoreError::new(
+                    422,
+                    format!(
+                        "The version names a file outside its folder: {}",
+                        text(&item, "path")
+                    ),
+                ));
+            }
+        }
 
         // The committed files come from git's own objects, not from the folder, which may have changed since.
         if let Some(commit) = version.pointer("/git/commit").and_then(Value::as_str) {
@@ -203,9 +263,10 @@ impl Kernel {
                 }
                 _ => {
                     let expected = text(item, "sha256");
-                    let saved = item["saved"] == true;
-                    let from = if saved {
-                        records.join("objects").join(expected)
+                    let copy = saved.filter(|_| item["saved"] == true);
+                    let saved = copy.is_some();
+                    let from = if let Some(objects) = copy {
+                        objects.join(expected)
                     } else {
                         source.join(path)
                     };
@@ -242,7 +303,17 @@ impl Kernel {
             let (path, role, expected) =
                 (text(item, "path"), text(item, "role"), text(item, "sha256"));
             let target = tree.join(path);
-            let how = if tokio::fs::try_exists(&target).await? {
+            // An uncommitted file already placed keeps how it got there.
+            let placed = inputs
+                .iter()
+                .find(|known| text(known, "path") == path)
+                .map(|known| text(known, "how").to_owned());
+            let how = if let Some(placed) = placed.as_deref() {
+                match placed {
+                    "saved copy" => "saved copy",
+                    _ => "copied",
+                }
+            } else if tokio::fs::try_exists(&target).await? {
                 "from the commit"
             } else {
                 let from = source.join(path);
@@ -285,7 +356,7 @@ impl Kernel {
             return Err(CoreError::new(
                 409,
                 format!(
-                    "This run was not started: these files differ from version {} — {}. Freeze a new version to run them.",
+                    "This run was not started: these files differ from version {} — {}. {hint}",
                     version["number"],
                     differences.join("; ")
                 ),
@@ -342,19 +413,19 @@ impl Kernel {
             "uncontrolled": uncontrolled,
         }))
     }
+}
 
-    /// After the run: checks the snapshot's files against what it was given, keeps what the program wrote there in the
-    /// run's `written` folder, and removes the snapshot. Linked inputs are checked against their source. A snapshot a
-    /// process may still be using (`remove` false) is checked and left in place.
-    pub(super) async fn close_snapshot(
-        &self,
-        run: &str,
-        directory: &Path,
-        observed: &Value,
-        source: &Path,
-        remove: bool,
-    ) -> Value {
-        let folder = self.snapshot_folder(run);
+/// After the run: checks the snapshot's files in `folder` against what it was given, moves what the program wrote
+/// there into `written`, and removes the snapshot. Linked inputs are checked against their source. A snapshot a
+/// process may still be using (`remove` false) is checked and left in place.
+pub(super) async fn close(
+    folder: &Path,
+    written_to: &Path,
+    observed: &Value,
+    source: &Path,
+    remove: bool,
+) -> Value {
+    {
         let tree = folder.join("tree");
         if !tokio::fs::try_exists(&tree).await.unwrap_or(false) {
             return json!({ "at": iso_time(now_millis()), "checked": false, "reason": "The snapshot was no longer there to check." });
@@ -408,7 +479,7 @@ impl Kernel {
             if given.iter().any(|file| text(file, "path") == path) {
                 continue;
             }
-            let to = directory.join("written").join(&path);
+            let to = written_to.join(&path);
             if let Some(parent) = to.parent() {
                 let _ = tokio::fs::create_dir_all(parent).await;
             }
@@ -416,7 +487,7 @@ impl Kernel {
                 written.push(path);
             }
         }
-        let _ = tokio::fs::remove_dir_all(&folder).await;
+        let _ = tokio::fs::remove_dir_all(folder).await;
         json!({ "at": iso_time(now_millis()), "checked": true, "changed": changed, "written": written })
     }
 }

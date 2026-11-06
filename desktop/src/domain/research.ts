@@ -131,6 +131,9 @@ export interface RunEvidence {
   expected?: { versionId: string; fingerprint: string; command: string; cwd: string; commit: string | null; seeds: unknown[] | null };
   observed?: {
     executor: string;
+    /** The SSH host and its working folder, for a remote run; the host's worker observed it. */
+    host?: string;
+    workdir?: string;
     platform?: string;
     command?: string;
     seedsPassed?: string[];
