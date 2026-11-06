@@ -8,7 +8,10 @@
 mod cdp;
 mod chrome;
 mod files;
+mod pace;
 mod safari;
+
+pub use pace::Pace;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};

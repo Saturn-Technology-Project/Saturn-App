@@ -22,6 +22,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **The Browser panel's live view no longer stays on an older picture.** A frame that came less than 80 ms after the one before was dropped, and a page that had gone still sent no more, so the panel could keep showing the page as it was before the last scroll or click. The newest frame now waits its turn instead.
 - **A committed link that leads out of the project no longer passes as verified.** A run read whatever the link pointed to, while its evidence said every input was verified. Such a link is now listed as uncontrolled, with its target and the target's hash at the start, and a target that changes during the run is recorded as changed.
 - **A run whose inputs changed while it ran is no longer compared as if it measured its version.** Paired comparisons, the score chart and the same sample across runs now say it is not comparable, and name the inputs that changed.
 - **A research bundle keeps each run's evidence.** Exports now carry `evidence.json`, the program's `report.jsonl` and a remote run's `snapshot.json`, so an imported run still shows what was expected, observed and reported.

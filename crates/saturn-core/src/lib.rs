@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use saturn_browser::Browser;
+/// How often the browser's live view sends a viewer a frame.
+pub use saturn_browser::Pace;
 use saturn_computer::Computer;
 use saturn_llm::{Broker, Http, LlmError};
 use saturn_mcp::{McpClient, McpError};
