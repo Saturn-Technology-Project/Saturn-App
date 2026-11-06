@@ -109,6 +109,24 @@ pub fn group_alive(pid: u32) -> bool {
         .is_some_and(|group| rustix::process::test_kill_process_group(group).is_ok())
 }
 
+/// The process group a process is in, if it is still there. A sandboxed program can sit in the group of the sandbox
+/// that started it, so ending "its" group means ending that one.
+#[cfg(unix)]
+pub fn group_of(pid: u32) -> Option<u32> {
+    let pid = i32::try_from(pid)
+        .ok()
+        .and_then(rustix::process::Pid::from_raw)?;
+    rustix::process::getpgid(Some(pid))
+        .ok()
+        .and_then(|group| u32::try_from(group.as_raw_nonzero().get()).ok())
+}
+
+/// Process groups are not tracked this way on Windows.
+#[cfg(windows)]
+pub fn group_of(_pid: u32) -> Option<u32> {
+    None
+}
+
 /// Process groups are not tracked this way on Windows.
 #[cfg(windows)]
 pub fn group_alive(_pid: u32) -> bool {

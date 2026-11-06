@@ -147,10 +147,50 @@ edited:
 - On systems without copy-on-write, a data file over 1 GiB is linked instead and checked before and after the run.
 - Top-level entries of the project that the version does not hold (except `.git` and `.saturn`) are linked and listed
   as uncontrolled.
-- The snapshot's files are read-only. This is file permissions, not isolation. A program can still replace a file,
-  which the check at the end records.
-- Files the program writes in its working folder are moved to `runs/<id>/written/` when it ends, and the snapshot is
-  removed. A snapshot a process might still be using after a restart is checked and kept.
+- The snapshot's files are read-only, and in the sandbox (below) so is the whole snapshot. Without the sandbox this is
+  file permissions only: a program can still replace a file, which the check at the end records, and files it writes
+  in its working folder are moved to `runs/<id>/written/` when it ends.
+- The snapshot is removed when the run ends. A snapshot a process might still be using after a restart is checked and
+  kept.
+
+### Run sandbox
+
+A run's program runs in the system sandbox, seatbelt (`sandbox-exec`) on macOS and bubblewrap on Linux, unless its
+version turns it off. An experiment's `sandbox` holds two switches, `isolated` and `network` (both `true` when left
+out), and `envNames` lists the environment variables its program is given. Both are frozen into each version; a
+version frozen before there was a `sandbox` gets the default.
+
+In the sandbox the program:
+
+- reads its snapshot, and cannot write it, new files included;
+- writes its records (`SATURN_RUN_SAMPLES` and the others, in `runs/<id>/`), `SATURN_RUN_OUTPUT` (`runs/<id>/written/`),
+  its own `TMPDIR`, and the shared caches (`~/.cache`, `~/.npm`, `~/.cargo/registry`, `~/Library/Caches` and the like).
+  On macOS it may also write the system's shared temporary folders; on Linux `/tmp` is its own;
+- cannot write `run.json`, `evidence.json` or `resources.jsonl` (on a remote host, the job's `start.json`,
+  `state.json`, `snapshot.json` and claims);
+- cannot read the project's or worktree's own files, its `.git` and `.saturn` (other runs' records included), Saturn's
+  data folders, or the credential folders (`~/.ssh`, `~/.aws`, `~/.azure`, `~/.gnupg`, `~/.kube`, `~/.docker`,
+  `~/.config/gcloud`, `~/.config/gh`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc`, `~/.codex`,
+  `~/.claude`, `~/.kaggle`, `~/Library/Keychains`, and the Hugging Face token even inside the writable `~/.cache`).
+  Names and sizes can still be looked up on macOS; contents and listings cannot;
+- can read, not write, what the snapshot links to (uncontrolled top-level entries, large linked inputs) and the local
+  model files the version names, such as a checkpoint another run wrote;
+- gets the variables `envNames` lists and those that say where things are: `PATH`, `HOME`, `LANG`, `TZ`, `HF_HOME`,
+  `TORCH_HOME`, the proxies, and the families `LC_`, `CUDA_`, `PYTHON`, `CONDA_`, `OMP_`, `XDG_`, `UV_` and similar,
+  except any whose name contains `TOKEN`, `KEY`, `SECRET`, `PASSWORD`, `CREDENTIAL` or `AUTH`. No `SATURN_` variable
+  but the run's own;
+- uses the network unless `sandbox.network` is `false`, which blocks every connection, to this computer included.
+
+`observed.sandbox` in the evidence records what applied: `isolation` (`sandbox` or `read-only permissions`),
+`mechanism`, `network` (`allowed`, `blocked`, `not restricted`), the folders written and hidden, and the names (never the
+values) of the variables passed, declared and missing. Before starting, Saturn checks once that the sandbox can start a
+program at all. Where it cannot (Linux without bubblewrap, or with unprivileged user namespaces turned off), the run
+goes ahead with read-only permissions and `unavailable` says why. With `isolated: false` the program inherits the
+environment and can read and write anything the account can, and the evidence says so.
+
+On macOS a sandboxed program cannot run setuid programs such as `/bin/ps`; Saturn records the process's identity
+itself. An agent may make an experiment's sandbox stricter but not looser: turning it off, allowing the network or
+adding a name to `envNames` is the person's, in Experiments.
 
 `runs/<id>/evidence.json` (`GET .../research/runs/:run/evidence`, `research_read { what: "evidence" }`) keeps three
 sources apart:

@@ -24,6 +24,9 @@ Smoke test: same program, a few samples. Use an argument or environment variable
 - `start` checks inputs against the version. If they changed since freezing it answers 409, so freeze again.
 - The run reads its own checked snapshot of the version, not the folder: editing the project while it runs changes
   nothing it reads. What the version does not hold is reached by link and listed as uncontrolled. See `run-provenance`.
+- It runs in the sandbox the version froze: writes only to `SATURN_RUN_OUTPUT` and `TMPDIR`, no credentials, only the
+  variables in `envNames`, and the network unless `sandbox.network` is false. A run that fails with "Operation not
+  permitted" or "Read-only file system" tried to write its snapshot or the project: change the program, not the sandbox.
 - A repeated call with the same `attempt` returns the same run and starts nothing. Use `attempt: 2` to run a version again deliberately.
 - Experiment runs do not start on Windows.
 

@@ -30,13 +30,13 @@ setInterval(() => appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringif
 `;
 
 /** A new allowed project, in the given bench, with an experiment that runs this script. */
-async function setup(script, { on = saturn, folder: given, inputs = {} } = {}) {
+async function setup(script, { on = saturn, folder: given, inputs = {}, fields = {} } = {}) {
   const folder = given ?? await on.folder();
   await writeFile(path.join(folder, "probe.mjs"), script);
   const made = await on.api("POST", "/projects", { path: folder });
   await on.api("POST", `/projects/${made.id}/access`, {});
   const route = `/projects/${made.id}/research`;
-  const experiment = await on.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"], ...inputs } });
+  const experiment = await on.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"], ...inputs }, ...fields });
   const version = await on.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
   return { folder, route, version, experiment, project: made.id };
 }
@@ -182,11 +182,13 @@ test("a run reads its own read-only snapshot: a write to an input is refused and
   `, { folder, inputs: { data: ["set.jsonl"] } });
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "failed");
-  assert.match(await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8"), /EACCES|permission denied/i);
+  // Refused by the file's permissions, or by the sandbox before them.
+  assert.match(await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8"), /EACCES|EPERM|permission denied|not permitted/i);
   assert.equal(await readFile(path.join(folder, "set.jsonl"), "utf8"), "{}\n");
 });
 
-test("an input replaced during the run is recorded as changed, and the project keeps its own copy", posixOnly, async () => {
+// Without the sandbox only the files' permissions protect the snapshot; research-sandbox.test.mjs has the sandbox.
+test("without the sandbox, an input replaced during the run is recorded as changed, and the project keeps its own copy", posixOnly, async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "set.jsonl"), "{}\n");
   const bed = await setup(`
@@ -195,7 +197,7 @@ test("an input replaced during the run is recorded as changed, and the project k
     writeFileSync("set.jsonl", "{\\"changed\\":true}\\n");
     writeFileSync("made.txt", "output");
     appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
-  `, { folder, inputs: { data: ["set.jsonl"] } });
+  `, { folder, inputs: { data: ["set.jsonl"] }, fields: { sandbox: { isolated: false } } });
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed");
   assert.deepEqual(run.inputsChanged, ["set.jsonl"]);

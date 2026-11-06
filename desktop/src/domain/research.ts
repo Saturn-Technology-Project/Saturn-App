@@ -25,6 +25,32 @@ export interface ExperimentDraft extends ResearchRecord {
   labels?: string[];
   /** Explicit wording matches for comparing personal labels with a scorer, without guessing their meaning. */
   labelAliases?: Record<string, string>;
+  /** The sandbox its runs get; left out, the sandbox with the network. Frozen into each version. */
+  sandbox?: SandboxSettings;
+  /** Environment variables its runs are given besides those that say where things are. */
+  envNames?: string[];
+}
+
+/** Whether a run's program runs in the sandbox, and whether it may use the network there. */
+export interface SandboxSettings { isolated?: boolean; network?: boolean }
+
+/** The sandbox an experiment asks for, with what is left out filled in. */
+export function sandboxOf(draft: { sandbox?: SandboxSettings } | null | undefined): Required<SandboxSettings> {
+  return { isolated: draft?.sandbox?.isolated ?? true, network: draft?.sandbox?.network ?? true };
+}
+
+/** The sandbox a run's program was started in, as Saturn observed it. */
+export interface RunSandbox {
+  requested: boolean;
+  isolation: string;
+  mechanism?: string;
+  unavailable?: string;
+  network: "allowed" | "blocked" | "not restricted";
+  writable?: { records: string; output: string; temporary: string; caches: string[]; sharedTemporary: string[] };
+  hidden?: string[];
+  readable?: string[];
+  environment: "inherited" | { passed: string[]; declared: string[]; missing: string[]; withheld: number };
+  note?: string;
 }
 
 /** The labels a person can put on a sample: the experiment's own, or the plain set. */
@@ -145,6 +171,7 @@ export interface RunEvidence {
     exitCode?: number | null;
     snapshot?: { isolation: string; manifestSha256: string; files: { path: string; sha256: string; size: number }[]; inputs: EvidenceInput[]; uncontrolled: { path: string; kind: string }[] };
     afterRun?: { checked: boolean; changed?: string[]; written?: string[]; kept?: boolean; reason?: string };
+    sandbox?: RunSandbox | null;
   };
   reported?: { seed: Record<string, unknown> | null; models: Record<string, unknown>[]; config: Record<string, unknown> | null; resume: Record<string, unknown> | null; lines: number; problems: string[] };
   verdicts?: { execution: string; inputs: "verified" | "partial" | "changed" | "unverified"; outputs: "sealed" | "incomplete" | "changed" | "none" | "pending" };

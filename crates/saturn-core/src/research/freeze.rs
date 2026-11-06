@@ -424,6 +424,10 @@ impl Kernel {
         if let Some(kind) = draft.get("kind") {
             content["kind"] = kind.clone();
         }
+        // Only when the experiment says, so a version frozen before there was a choice keeps its fingerprint.
+        if let Some(sandbox) = draft.get("sandbox").filter(|sandbox| sandbox.is_object()) {
+            content["sandbox"] = sandbox.clone();
+        }
         Ok(content)
     }
 

@@ -471,7 +471,7 @@ impl Kernel {
         // Only the first exchange may start the job. After that a job the worker no longer has is reported, not resent.
         if !launched {
             // What the host must hold, so that it checks its own files against the version before it runs anything.
-            let expected = json!({ "number": version["number"], "git": version["git"], "changedFiles": version["changedFiles"], "inputs": version["inputs"], "cwd": version["cwd"], "seeds": version["seeds"] });
+            let expected = json!({ "number": version["number"], "git": version["git"], "changedFiles": version["changedFiles"], "inputs": version["inputs"], "cwd": version["cwd"], "seeds": version["seeds"], "sandbox": version.get("sandbox").cloned().unwrap_or(Value::Null), "envNames": version.get("envNames").cloned().unwrap_or_else(|| json!([])) });
             request["start"] = json!({ "command": version["command"], "kind": run["kind"], "timeoutSeconds": run["timeoutSeconds"], "resumeFrom": run["resumeFrom"], "versionId": version["id"], "expected": expected });
         }
         let response = rpc(target, &request).await?;
@@ -881,8 +881,6 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
         .await
         {
             Ok(made) => {
-                // Written once, before the command runs, and brought back with the outputs.
-                write_whole(&folder.join("snapshot.json"), &pretty(&made)?).await?;
                 observed = made;
                 working = tree.join(text(&spec["expected"], "cwd"));
             }
@@ -910,16 +908,56 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
         .await
         .ok();
     let source = json!({ "workdir": start["workdir"], "gitCommit": git.filter(|result| result.status.success()).map(|result| String::from_utf8_lossy(&result.stdout).trim().to_owned()), "note": "Remote source is observed, not uploaded or certified identical to local frozen files." });
-    let mut command = Command::new("/bin/sh");
-    launch_env(&mut command);
-    for (name, _) in std::env::vars_os() {
-        if name.to_string_lossy().starts_with("SATURN_") {
-            command.env_remove(name);
+    // A job with a snapshot runs in the sandbox its version asks for, as a local run does; one sent by a Saturn from
+    // before snapshots runs in the working folder, as it did then.
+    let (mut command, sandbox) = if observed.is_null() {
+        let mut command = Command::new("/bin/sh");
+        launch_env(&mut command);
+        for (name, _) in std::env::vars_os() {
+            if name.to_string_lossy().starts_with("SATURN_") {
+                command.env_remove(name);
+            }
         }
+        command
+            .args(["-c", text(spec, "command")])
+            .current_dir(&working);
+        (command, Value::Null)
+    } else {
+        let placement = super::isolation::Placement {
+            tree: snapshot_folder.join("tree"),
+            temporary: snapshot_folder.join("tmp"),
+            records: folder.to_path_buf(),
+            protected: [
+                "start.json",
+                "state.json",
+                "launch.claim",
+                "execute.claim",
+                "snapshot.json",
+                "resources.jsonl",
+            ]
+            .iter()
+            .map(|name| folder.join(name))
+            .collect(),
+            sources: vec![workdir.clone()],
+        };
+        let data = super::isolation::data_folders(&super::isolation::home().join(".saturn-app"));
+        super::isolation::command(
+            &spec["expected"],
+            &placement,
+            &data,
+            &working,
+            text(spec, "command"),
+        )
+        .await?
+    };
+    if !observed.is_null() {
+        if sandbox["isolation"] == "sandbox" {
+            observed["isolation"] = json!("sandbox");
+        }
+        // Written once, before the command runs, and brought back with the outputs.
+        write_whole(&folder.join("snapshot.json"), &pretty(&observed)?).await?;
     }
     command
-        .args(["-c", text(spec, "command")])
-        .current_dir(&working)
         .stdin(Stdio::null())
         .stdout(
             tokio::fs::File::create(folder.join("stdout.log"))
@@ -960,7 +998,7 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
     ));
     let begin = tokio::time::Instant::now();
     let limit = Duration::from_secs(spec["timeoutSeconds"].as_u64().unwrap_or(3600));
-    let mut state = json!({ "schemaVersion": 1, "status": "running", "startedAt": iso_time(now_millis()), "source": source, "system": super::resources::system(), "snapshotted": !observed.is_null(), "seedsPassed": seeds });
+    let mut state = json!({ "schemaVersion": 1, "status": "running", "startedAt": iso_time(now_millis()), "source": source, "system": super::resources::system(), "snapshotted": !observed.is_null(), "seedsPassed": seeds, "sandbox": sandbox });
     let (status, code) = loop {
         state["heartbeatMs"] = json!(now_millis());
         write_whole(&folder.join("state.json"), &pretty(&state)?).await?;

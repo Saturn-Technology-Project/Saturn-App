@@ -9,17 +9,30 @@ Every local run starts from its own snapshot of the version, made and checked be
 - Uncommitted files come from the copies saved when the version was frozen, or are copied and checked.
 - Declared data and scorers are copied in (copy-on-write where the disk can) and checked against the version's hashes.
 - A file that differs refuses the run before anything runs. Freeze a new version to run the new content.
-- Files are read-only while the run reads them. This is permissions, not isolation: a program can still delete and
-  replace a file, and Saturn then records it as changed.
 - Top-level folders that are neither in the version nor declared (a `.venv`, a cache) are reached by link and listed as
   **uncontrolled**.
-- New files the program writes in its working folder are kept in the run's `written/` folder.
+
+## The sandbox
+By default the program runs in the system sandbox (seatbelt on macOS, bubblewrap on Linux):
+- The snapshot is read-only, new files included. Write outputs to `SATURN_RUN_OUTPUT` (kept in the run's `written/`),
+  scratch files to `TMPDIR`, and records to the `SATURN_RUN_*` files. The shared caches (`~/.cache` and the like) stay
+  writable so downloaded models are found again.
+- The project's own copies of the version's files, its `.git` and `.saturn`, Saturn's data and credential folders
+  (`~/.ssh`, `~/.aws`, `~/.netrc` …) cannot be read. Linked, uncontrolled folders can be read, not written.
+- Only the environment variables the experiment's `envNames` lists, plus those that say where things are (`PATH`,
+  `HOME`, `HF_HOME`, `CUDA_*` …), reach the program. A key it needs must be listed; only the person can add one.
+- The network is allowed unless the experiment's `sandbox.network` is false. Only the person can allow it again, or turn
+  the sandbox off (`sandbox.isolated: false`).
+- On macOS the program cannot run setuid programs such as `ps`.
+- Where the computer has no working sandbox (Linux without bubblewrap, say) the run goes ahead protected by
+  read-only permissions only, and `observed.sandbox.unavailable` says why. Say so when you cite it.
 
 ## Reading the evidence
 `research_read { what: "evidence", run }` answers three things, kept apart:
 - `expected`: what the version says (command, commit, inputs, models, seeds).
 - `observed`: what Saturn saw (the snapshot's files and hashes, how each input got there, what is uncontrolled, what
-  changed during the run, the seeds passed).
+  changed during the run, the seeds passed, and `sandbox`: how the program was confined, whether it had the network,
+  and the names of the variables it was given).
 - `reported`: what the program said about itself. `null` means it did not say. Never fill it in from `expected`.
 
 And three verdicts:

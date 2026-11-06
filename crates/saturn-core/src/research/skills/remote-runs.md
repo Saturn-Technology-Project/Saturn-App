@@ -28,4 +28,6 @@ version (with git, say) or you freeze a new version from what should run.
 
 ## What a remote run proves
 It ran from a snapshot the host built and checked against the version. `what: "evidence"` shows it, with
-`executor: "ssh"`. That is what the host's worker recorded: Saturn here did not see the files itself. Say where it ran in any finding. Outputs come back by bounded synchronization with hash checks; a resume checkpoint reaches the program as `SATURN_RESUME_FROM`, and the program must load its own state.
+`executor: "ssh"`. That is what the host's worker recorded: Saturn here did not see the files itself. The host runs it
+in its own sandbox when it has one (bubblewrap on Linux); `observed.sandbox` says whether it did, and why not if not.
+Files written to `SATURN_RUN_OUTPUT` stay on the host, in the job's `written/` folder. Say where it ran in any finding. Outputs come back by bounded synchronization with hash checks; a resume checkpoint reaches the program as `SATURN_RESUME_FROM`, and the program must load its own state.

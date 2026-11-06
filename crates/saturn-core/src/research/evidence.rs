@@ -254,6 +254,7 @@ pub(super) async fn remote_finished(directory: &Path, version: &Value, state: &V
             "source": state.get("source").cloned().unwrap_or(Value::Null),
             "system": state.get("system").cloned().unwrap_or(Value::Null),
             "refused": if refused { state["error"].clone() } else { Value::Null },
+            "sandbox": state.get("sandbox").cloned().unwrap_or(Value::Null),
             "afterRun": after.cloned().unwrap_or(Value::Null),
             "startedAt": state.get("startedAt").cloned().unwrap_or(Value::Null),
             "endedAt": state.get("endedAt").cloned().unwrap_or(Value::Null),
@@ -272,6 +273,21 @@ pub(super) async fn remote_finished(directory: &Path, version: &Value, state: &V
         },
     });
     let _ = write(directory, &evidence).await;
+}
+
+/// Records the sandbox a run's program was started in, beside its snapshot.
+pub(super) async fn sandboxed(directory: &Path, sandbox: &Value) {
+    let file = directory.join(EVIDENCE);
+    let Ok(Some(mut evidence)) = super::read_record(&file).await else {
+        return;
+    };
+    evidence["observed"]["sandbox"] = sandbox.clone();
+    if sandbox["isolation"] == "sandbox" {
+        evidence["observed"]["snapshot"]["isolation"] = json!("sandbox");
+    }
+    if let Ok(text) = pretty(&evidence) {
+        let _ = write_whole(&file, &text).await;
+    }
 }
 
 /// Writes a run's evidence file.

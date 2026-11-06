@@ -39,6 +39,7 @@ import { useRecords } from "../ui/useRecords.js";
 import { DeleteExperiment } from "./DeleteExperiment.js";
 import { Evidence } from "./Evidence.js";
 import { Mechanism } from "./Mechanism.js";
+import { RunSandbox } from "./RunSandbox.js";
 import { ScoreChart } from "./ScoreChart.js";
 import { ImportResults } from "./ImportResults.js";
 import { TrainingMetrics } from "./TrainingMetrics.js";
@@ -368,6 +369,8 @@ export function Experiments(props: ScreenProps) {
               {t("Save")}
             </Button>
           </div>
+
+          <RunSandbox draft={draft} save={(fields) => change(fields)} />
 
           <h2 className={SECTION}>{t("Models")}</h2>
           {bound.map((item) => (

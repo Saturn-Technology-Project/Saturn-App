@@ -35,10 +35,13 @@ Leave out `id` to make a record. To change one, pass `id` and `expectedRevision`
 |---|---|
 | `questions` | `title` |
 | `hypotheses` | `title`, `questionId`. Made once, never changed |
-| `experiments` | `title`, `command`, `cwd`, `inputs` (`code`, `data`, `scorer`, `environment`: lists of paths), `evaluation`, `models` (`modelId`, `role`), `seeds`, `envNames`, `questionId`, `hypothesisId`, `labels`, `labelAliases` |
+| `experiments` | `title`, `command`, `cwd`, `inputs` (`code`, `data`, `scorer`, `environment`: lists of paths), `evaluation`, `models` (`modelId`, `role`), `seeds`, `envNames`, `sandbox` (`isolated`, `network`), `questionId`, `hypothesisId`, `labels`, `labelAliases` |
 | `models` | `source`, `weightsRevision`, `name`, `parentId`, `referenceId`, `trainingData`, `producedBy`, `note` |
 | `findings` | `text`, `runIds`. Always recorded as your suggestion |
 | `counterexamples` | `runId`, `sampleId`, `note` |
+
+An experiment's runs are sandboxed (see `run-provenance`). You may set `sandbox.network: false`; turning the sandbox
+off, allowing the network again or adding a name to `envNames` is refused: ask the person to do it in Experiments.
 
 To delete an imported experiment, pass `collection: "experiments"`, `id`, `expectedRevision` and `delete: true`. It
 moves, with its versions and runs, to the records' trash. An experiment frozen or run here is the person's to delete, in

@@ -11,13 +11,13 @@ use std::time::Duration;
 use saturn_domain::new_id;
 use saturn_domain::research::{MAX_SAMPLE_LINE, SCHEMA_VERSION, is_id, sample_identity};
 use saturn_domain::time::{iso_time, now_millis};
-use saturn_tools::{force, in_own_group, launch_env, terminate};
+use saturn_tools::{force, in_own_group, terminate};
 use serde_json::{Value, json};
 use tokio::process::Command;
 
 use super::evidence;
 use super::freeze::hash_file;
-use super::{ResearchState, pretty, read_record, write_whole};
+use super::{ResearchState, isolation, pretty, read_record, write_whole};
 use crate::records::text;
 use crate::{CoreError, Kernel, locked};
 
@@ -28,7 +28,7 @@ const PROBLEMS_KEPT: usize = 20;
 /// Written by the process itself, so a process is known even if the runtime dies right after starting it.
 const IDENTITY_FILE: &str = "process.identity";
 /// Starts the command with the process's own id and start time on record. `exec` keeps both.
-const WRAPPER: &str = r#"{ echo $$; LC_ALL=C ps -o lstart= -p $$; } > "$SATURN_RUN_DIRECTORY/process.identity.tmp" && mv "$SATURN_RUN_DIRECTORY/process.identity.tmp" "$SATURN_RUN_DIRECTORY/process.identity"; exec /bin/sh -c "$SATURN_RUN_COMMAND""#;
+const WRAPPER: &str = r#"{ echo $$; LC_ALL=C ps -o lstart= -p $$ 2>/dev/null; } > "$SATURN_RUN_DIRECTORY/process.identity.tmp" && mv "$SATURN_RUN_DIRECTORY/process.identity.tmp" "$SATURN_RUN_DIRECTORY/process.identity" || rm -f "$SATURN_RUN_DIRECTORY/process.identity.tmp"; exec /bin/sh -c "$SATURN_RUN_COMMAND""#;
 
 /// A run this runtime started and has not finished.
 #[derive(Debug)]
@@ -360,11 +360,23 @@ impl Kernel {
         test_hold("before-process").await;
 
         let working_folder = snapshot.tree.join(text(&version, "cwd"));
+        let mut sources = vec![source.clone()];
+        if let Ok(project_folder) = self.workdir(project)
+            && project_folder != source
+        {
+            sources.push(project_folder);
+        }
         let started = self
-            .spawn_run(&id, &version, &working_folder, &directory, &seeds)
+            .spawn_run(&id, &version, &sources, &working_folder, &directory, &seeds)
             .await;
         let mut child = match started {
-            Ok(child) => child,
+            Ok((child, sandbox)) => {
+                evidence::sandboxed(&directory, &sandbox).await;
+                if sandbox["isolation"] == "sandbox" {
+                    observed["isolation"] = json!("sandbox");
+                }
+                child
+            }
             Err(error) => {
                 let closed = self
                     .close_snapshot(&id, &directory, &observed, &source, true)
@@ -379,6 +391,14 @@ impl Kernel {
             }
         };
         let pid = child.id().unwrap_or(0);
+        // Recorded from here too: in the macOS sandbox the program cannot run `ps`, which macOS installs setuid.
+        if let Some(started) = process_start_time(pid).await {
+            let _ = write_whole(
+                &directory.join(IDENTITY_FILE),
+                format!("{pid}\n{started}\n").as_bytes(),
+            )
+            .await;
+        }
         locked(&self.research.active).insert(
             id.clone(),
             ActiveRun {
@@ -415,15 +435,17 @@ impl Kernel {
         Ok((running, true))
     }
 
-    /// The version's command in its own process group, with its output in the run's folder.
+    /// The version's command in its own process group, in the sandbox the version asks for, with its output in the
+    /// run's folder. Also what was recorded about the sandbox.
     async fn spawn_run(
         &self,
         id: &str,
         version: &Value,
+        sources: &[PathBuf],
         working_folder: &Path,
         directory: &Path,
         seeds: &[String],
-    ) -> std::io::Result<tokio::process::Child> {
+    ) -> std::io::Result<(tokio::process::Child, Value)> {
         let stdout = tokio::fs::File::create(directory.join("stdout.log"))
             .await?
             .into_std()
@@ -432,16 +454,26 @@ impl Kernel {
             .await?
             .into_std()
             .await;
-        let mut command = Command::new("/bin/sh");
-        launch_env(&mut command);
-        for (key, _) in std::env::vars_os() {
-            if key.to_string_lossy().starts_with("SATURN_") {
-                command.env_remove(&key);
-            }
-        }
+        let snapshot = self.snapshot_folder(id);
+        let placement = isolation::Placement {
+            tree: snapshot.join("tree"),
+            temporary: snapshot.join("tmp"),
+            records: directory.to_path_buf(),
+            protected: ["run.json", evidence::EVIDENCE, "resources.jsonl"]
+                .iter()
+                .map(|name| directory.join(name))
+                .collect(),
+            sources: sources.to_vec(),
+        };
+        let (mut command, sandbox) = isolation::command(
+            version,
+            &placement,
+            &isolation::data_folders(self.store.root()),
+            working_folder,
+            WRAPPER,
+        )
+        .await?;
         command
-            .args(["-c", WRAPPER])
-            .current_dir(working_folder)
             .env("SATURN_RUN_COMMAND", text(version, "command"))
             .env("SATURN_RUN_ID", id)
             .env("SATURN_RUN_TOKEN", saturn_domain::random_hex(16)?)
@@ -461,7 +493,7 @@ impl Kernel {
                 .env("SATURN_RUN_SEEDS", seeds.join(","));
         }
         in_own_group(&mut command);
-        command.spawn()
+        Ok((command.spawn()?, sandbox))
     }
 
     /// Asks a run to stop. A run that already ended stays as it ended.
@@ -688,7 +720,8 @@ impl Kernel {
                     None => "none",
                     Some((pid, started)) => match process_start_time(pid).await {
                         Some(now) if now == started => {
-                            end_group(pid).await;
+                            // A sandboxed program is in the group of the sandbox that started it.
+                            end_group(saturn_tools::group_of(pid).unwrap_or(pid)).await;
                             "ended"
                         }
                         Some(_) => "gone",

@@ -87,7 +87,7 @@ pub enum SandboxSupport {
     Unavailable(&'static str),
 }
 
-fn is_executable(file: &Path) -> bool {
+pub(crate) fn is_executable(file: &Path) -> bool {
     #[cfg(unix)]
     {
         use rustix::fs::{Access, access};
@@ -99,7 +99,7 @@ fn is_executable(file: &Path) -> bool {
     }
 }
 
-fn bwrap_path(env: &Env) -> Option<PathBuf> {
+pub(crate) fn bwrap_path(env: &Env) -> Option<PathBuf> {
     let default = OsStr::new("/usr/bin:/bin");
     let folders = env.get(OsStr::new("PATH")).map_or(default, |path| path);
     std::env::split_paths(folders)
@@ -121,7 +121,7 @@ pub fn sandbox_support(platform: Platform, env: &Env) -> SandboxSupport {
 }
 
 /// The folder with symlinks resolved; a missing one is written out as it is.
-fn real(folder: &Path) -> String {
+pub(crate) fn real(folder: &Path) -> String {
     let resolved = std::fs::canonicalize(folder)
         .or_else(|_| std::path::absolute(folder))
         .unwrap_or_else(|_| folder.to_path_buf());
@@ -129,7 +129,7 @@ fn real(folder: &Path) -> String {
 }
 
 /// Folders tools cache into under the home folder; writable so npm, pip, cargo and friends keep working.
-fn cache_folders(home: &Path, platform: Platform) -> Vec<PathBuf> {
+pub(crate) fn cache_folders(home: &Path, platform: Platform) -> Vec<PathBuf> {
     let common = [
         ".npm",
         ".cache",
@@ -189,7 +189,7 @@ pub fn writable_folders(
     unique
 }
 
-fn quote(value: &str) -> String {
+pub(crate) fn quote(value: &str) -> String {
     format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
 }
 

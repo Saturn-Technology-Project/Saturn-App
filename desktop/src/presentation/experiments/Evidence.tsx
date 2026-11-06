@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
-import type { RunEvidence } from "../../domain/research.js";
+import type { RunEvidence, RunSandbox } from "../../domain/research.js";
 import { Badge } from "../ui/base/Badge.js";
 import { messageOf } from "../ui/Parts.js";
 
@@ -35,6 +35,19 @@ function howText(how: string): string {
   if (how === "saved copy") return t("from the saved copy");
   if (how === "linked") return t("linked, checked before and after");
   return t("copied");
+}
+
+/** How the run's program was confined, in a line, and whether that line is a warning. */
+function sandboxLine(sandbox: RunSandbox | null | undefined, isolation: string | undefined): { text: string; warn: boolean } {
+  if (!sandbox) {
+    return isolation === "sandbox" ? { text: t("Isolated in the system sandbox"), warn: false } : { text: t("Protected by read-only permissions, not isolated"), warn: true };
+  }
+  if (sandbox.isolation === "sandbox") {
+    const network = sandbox.network === "blocked" ? t("no network") : t("network allowed");
+    return { text: t("Isolated by {mechanism}: read-only snapshot, {network}", { mechanism: sandbox.mechanism ?? "", network }), warn: false };
+  }
+  if (!sandbox.requested) return { text: t("Sandbox turned off for this version: the program could read and write anything this account can"), warn: true };
+  return { text: t("Not isolated, this computer has no working sandbox: {reason}", { reason: sandbox.unavailable ?? "" }), warn: true };
 }
 
 /** A reported seed as its value and where the program says it applied it, or "Unknown" when it did not report one. */
@@ -77,6 +90,8 @@ export function Evidence(props: { projectId: string; runId: string }) {
   const { expected, observed, reported, verdicts } = evidence;
   const snapshot = observed?.snapshot;
   const after = observed?.afterRun;
+  const confined = sandboxLine(observed?.sandbox, snapshot?.isolation);
+  const environment = observed?.sandbox && typeof observed.sandbox.environment === "object" ? observed.sandbox.environment : null;
   return (
     <div className="flex flex-col gap-2 rounded-md bg-muted/50 p-3" role="region" aria-label={t("Run evidence")}>
       {verdicts ? (
@@ -101,7 +116,13 @@ export function Evidence(props: { projectId: string; runId: string }) {
           {snapshot ? (
             <>
               <div className={MUTED}>{t("{count} files in the run's snapshot", { count: snapshot.files.length })} · <code title={snapshot.manifestSha256}>{snapshot.manifestSha256.slice(0, 12)}</code></div>
-              <div className={MUTED}>{t("Protected by read-only permissions, not isolated")}</div>
+              <div className={confined.warn ? "text-xs text-wait" : MUTED}>{confined.text}</div>
+              {environment ? (
+                <div className={MUTED}>
+                  {t("Environment variables it named: {names}", { names: environment.declared.filter((name) => environment.passed.includes(name)).join(", ") || t("none") })}
+                  {environment.missing.length ? <span className="text-wait"> · {t("named but not set: {names}", { names: environment.missing.join(", ") })}</span> : null}
+                </div>
+              ) : null}
               {snapshot.inputs.map((input) => (
                 <div key={input.path} className={MUTED}>
                   <code>{input.path}</code> · {howText(input.how)} · <code title={input.sha256}>{input.sha256.slice(0, 12)}</code>

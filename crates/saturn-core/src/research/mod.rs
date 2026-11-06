@@ -12,6 +12,7 @@ mod freeze;
 mod imports;
 mod inside;
 mod inspection_sessions;
+mod isolation;
 mod labels;
 mod manage;
 mod notebooks;

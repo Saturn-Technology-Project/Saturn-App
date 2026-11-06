@@ -171,6 +171,7 @@ fn check(collection: &str, fields: &Map<String, Value>) -> Result<(), String> {
             if fields.contains_key("kind") {
                 one_of("kind", &["evaluation", "training"])?;
             }
+            check_sandbox(fields)?;
             if let Some(aliases) = fields.get("labelAliases") {
                 let valid = aliases.as_object().is_some_and(|aliases| {
                     aliases.iter().all(|(name, target)| {
@@ -203,6 +204,71 @@ fn check(collection: &str, fields: &Map<String, Value>) -> Result<(), String> {
         }
         _ => Ok(()),
     }
+}
+
+/// Whether a name can be an environment variable a run is given: letters, digits and underscores, not starting with a
+/// digit, and not one of Saturn's own.
+pub fn is_variable_name(name: &str) -> bool {
+    let mut characters = name.chars();
+    characters
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
+        && !name.starts_with("SATURN_")
+}
+
+/// An experiment's sandbox and the variables it passes on, if it says: `sandbox` holds only the switches `isolated`
+/// and `network`, and `envNames` only variable names.
+fn check_sandbox(fields: &Map<String, Value>) -> Result<(), String> {
+    if let Some(sandbox) = fields.get("sandbox") {
+        let valid = sandbox.as_object().is_some_and(|sandbox| {
+            sandbox.iter().all(|(key, value)| {
+                matches!(key.as_str(), "isolated" | "network") && value.is_boolean()
+            })
+        });
+        if !valid {
+            return Err(
+                "sandbox holds only \"isolated\" and \"network\", each true or false.".to_owned(),
+            );
+        }
+    }
+    if let Some(names) = fields.get("envNames") {
+        let valid = names.as_array().is_some_and(|names| {
+            names
+                .iter()
+                .all(|name| name.as_str().is_some_and(is_variable_name))
+        });
+        if !valid {
+            return Err("envNames lists environment variable names, such as HF_TOKEN; Saturn's own SATURN_ variables are set for every run.".to_owned());
+        }
+    }
+    Ok(())
+}
+
+/// Whether an agent's change to an experiment loosens its sandbox: turning it off, letting the program use the
+/// network, or passing it a variable it did not get before. Those are the person's to decide.
+pub fn loosens_sandbox(current: &Value, fields: &Value) -> Option<&'static str> {
+    let now = |key: &str| current["sandbox"][key].as_bool().unwrap_or(true);
+    let asked = &fields["sandbox"];
+    if asked["isolated"] == false && now("isolated") {
+        return Some("turn the sandbox off");
+    }
+    if asked["network"] == true && !now("network") {
+        return Some("let the program use the network");
+    }
+    let before: Vec<&str> = current["envNames"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    let added = fields["envNames"].as_array().is_some_and(|names| {
+        names
+            .iter()
+            .filter_map(Value::as_str)
+            .any(|name| !before.contains(&name))
+    });
+    added.then_some("pass the program another environment variable")
 }
 
 /// Compares a person's label with the scorer's word, using only explicit aliases, whitespace and case normalization.
@@ -417,6 +483,18 @@ pub fn agent_record(collection: &str, fields: &Value) -> Result<Value, String> {
     if !AGENT_COLLECTIONS.contains(&collection) {
         return Err(format!("An agent cannot make records in \"{collection}\"."));
     }
+    if collection == "experiments"
+        && let Some(what) = loosens_sandbox(&Value::Null, fields)
+    {
+        return Err(format!(
+            "Only the person can {what}, in Experiments. Make the experiment without it, and say why it is needed."
+        ));
+    }
+    agent_fields(collection, fields)
+}
+
+/// The fields an agent writes, as it may write them: no verdict, and its findings are suggestions.
+fn agent_fields(collection: &str, fields: &Value) -> Result<Value, String> {
     let mut fields = fields.clone();
     let Some(record) = fields.as_object_mut() else {
         return Err("\"fields\" must be an object.".to_owned());
@@ -451,7 +529,19 @@ pub fn agent_change(collection: &str, current: &Value, fields: &Value) -> Result
     {
         return Err("This finding is the person's. Add your own instead.".to_owned());
     }
-    agent_record(collection, fields)
+    if collection == "experiments"
+        && let Some(what) = loosens_sandbox(current, fields)
+    {
+        return Err(format!(
+            "Only the person can {what}, in Experiments. Say why it is needed and ask them."
+        ));
+    }
+    if !AGENT_COLLECTIONS.contains(&collection) {
+        return Err(format!(
+            "An agent cannot change records in \"{collection}\"."
+        ));
+    }
+    agent_fields(collection, fields)
 }
 
 /// How much a chat's agent may change: `manual` only reads, `pair` asks about each change, `delegate` works on its own and asks
@@ -726,5 +816,55 @@ mod tests {
         .unwrap();
         assert_eq!(record["id"], "question_1");
         assert_eq!(record["revision"], 1);
+    }
+
+    #[test]
+    fn an_agent_may_tighten_an_experiments_sandbox_but_not_loosen_it() {
+        let open = json!({ "title": "E", "envNames": ["HF_HOME"] });
+        let closed = json!({ "title": "E", "sandbox": { "network": false } });
+        let change = |current: &Value, fields: Value| agent_change("experiments", current, &fields);
+        assert!(change(&open, json!({ "sandbox": { "network": false } })).is_ok());
+        assert!(
+            change(&open, json!({ "envNames": ["HF_HOME"] })).is_ok(),
+            "a name it already had"
+        );
+        assert!(change(&open, json!({ "envNames": [] })).is_ok());
+        let refused = change(&open, json!({ "sandbox": { "isolated": false } })).unwrap_err();
+        assert!(refused.contains("turn the sandbox off"), "{refused}");
+        assert!(change(&closed, json!({ "sandbox": { "network": true } })).is_err());
+        assert!(change(&open, json!({ "envNames": ["HF_HOME", "OPENAI_API_KEY"] })).is_err());
+        assert!(
+            agent_record(
+                "experiments",
+                &json!({ "title": "E", "envNames": ["HF_TOKEN"] })
+            )
+            .is_err()
+        );
+        assert!(
+            agent_record(
+                "experiments",
+                &json!({ "title": "E", "sandbox": { "network": false } })
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn an_experiments_sandbox_holds_two_switches_and_its_variables_are_names() {
+        let experiment = |fields: Value| {
+            let mut record = json!({ "title": "E" });
+            record
+                .as_object_mut()
+                .unwrap()
+                .extend(fields.as_object().unwrap().clone());
+            check("experiments", record.as_object().unwrap())
+        };
+        assert!(experiment(json!({ "sandbox": { "isolated": true, "network": false } })).is_ok());
+        assert!(experiment(json!({ "sandbox": { "network": "no" } })).is_err());
+        assert!(experiment(json!({ "sandbox": { "mounts": [] } })).is_err());
+        assert!(experiment(json!({ "envNames": ["HF_TOKEN", "_X1"] })).is_ok());
+        for bad in ["1X", "A-B", "", "SATURN_RUNTIME_TOKEN"] {
+            assert!(experiment(json!({ "envNames": [bad] })).is_err(), "{bad}");
+        }
     }
 }
