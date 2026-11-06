@@ -128,27 +128,30 @@ impl Kernel {
         name: &str,
         index: &str,
     ) -> Result<PathBuf, CoreError> {
-        let recording = self.recording(run_id, name)?;
-        let total = recording["frames"].as_u64().unwrap_or(0);
         // The folder as found among the run's own recordings: the name asked for is only compared, never joined.
         let folder = self
             .recording_folders(run_id)?
             .into_iter()
             .find(|folder| folder.file_name().is_some_and(|found| found == name))
             .ok_or_else(|| CoreError::new(404, "This run has no such recording"))?;
-        let index = index
-            .parse::<u64>()
+        // The frame is picked by its place among the folder's own frames (JPEGs from Chrome, PNGs from Safari), so
+        // the number asked for never becomes part of a path.
+        let mut frames: Vec<PathBuf> = std::fs::read_dir(&folder)
+            .map_err(|_| CoreError::new(404, "This recording is gone"))?
+            .flatten()
+            .filter(|entry| is_frame(&entry.file_name().to_string_lossy()))
+            .map(|entry| entry.path())
+            .collect();
+        frames.sort();
+        let position = index
+            .parse::<usize>()
             .ok()
-            .filter(|index| (1..=total).contains(index))
+            .and_then(|index| index.checked_sub(1))
             .ok_or_else(|| CoreError::new(404, "No such frame"))?;
-        // Chrome records JPEGs, Safari PNGs.
-        let base = folder.join(format!("frame-{index:05}"));
-        let jpeg = base.with_extension("jpg");
-        Ok(if jpeg.exists() {
-            jpeg
-        } else {
-            base.with_extension("png")
-        })
+        frames
+            .into_iter()
+            .nth(position)
+            .ok_or_else(|| CoreError::new(404, "No such frame"))
     }
 
     /// Writes out.mp4 next to the frames with ffmpeg (10 fps), or says ffmpeg is missing.
