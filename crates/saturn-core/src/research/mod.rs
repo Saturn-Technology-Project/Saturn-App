@@ -64,6 +64,8 @@ pub struct ResearchState {
     notebooks: notebooks::Notebooks,
     /// Remote jobs are polled independently of their detached workers.
     remote: Mutex<std::collections::HashSet<String>>,
+    /// Held while the record of what this runtime launched remotely is read and rewritten.
+    remote_ledger: tokio::sync::Mutex<()>,
 }
 
 impl Default for ResearchState {
@@ -78,6 +80,7 @@ impl Default for ResearchState {
             data: data::DataMemory::default(),
             notebooks: notebooks::Notebooks::default(),
             remote: Mutex::default(),
+            remote_ledger: tokio::sync::Mutex::new(()),
         }
     }
 }

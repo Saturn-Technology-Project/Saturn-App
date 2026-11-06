@@ -157,7 +157,7 @@ verification and uses the user's SSH configuration; it neither stores keys nor p
 `POST .../remote/runs` takes an executable `versionId`, `clientId`, `timeoutSeconds` (1..604800, default 3600), and optional
 `resumeFrom`. The launch intent is stored before SSH. A detached Rust worker, started with nohup in its own group,
 owns the command, output streams, cancellation and wall-clock limit. Closing the desktop/runtime only detaches.
-Restarting reconnects active remote runs instead of interrupting them. Retrying a client ID cannot submit another job.
+Restarting reconnects active remote runs this runtime started, instead of interrupting them; it records those launches in its own data folder (`remote-launches.json`), never in the project. A run whose remote record came with the project is marked `interrupted` with `remoteError`, and its host is not contacted. Only the first exchange carries the start; a worker without the job answers 410 and the run becomes `interrupted`, never resubmitted. Worker errors keep their status, and 400, 403, 404, 410, 413 and 422 end the run with that message rather than being retried. Retrying a client ID cannot submit another job.
 An explicit stop persists a cancellation request even while disconnected; only the worker's acknowledgement ends it.
 A stale heartbeat is unresponsive, not proof the computation stopped. A dead remote machine/worker is not resubmitted.
 

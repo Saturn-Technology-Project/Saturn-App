@@ -1,6 +1,7 @@
 // The SSH stand-in runs the real Rust worker on another temporary folder. No user host, key or model is used.
 import assert from "node:assert/strict";
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -87,4 +88,54 @@ test("remote settings reject command-like host names and do not disable host ver
     assert.equal(args.includes("StrictHostKeyChecking=no"), false);
     assert.equal(args.includes("UserKnownHostsFile=/dev/null"), false);
   }
+});
+
+/** Restarts the isolated runtime on the same data, as reopening the app does. */
+async function restart() {
+  await runtime.stop();
+  runtime = await startRuntime({ dataDir: data, keepData: true, env: { PATH: `${binaries}:${process.env.PATH}` } });
+  origin = runtime.origin;
+}
+
+test("a remote run whose record came with the project is never connected to or started, even after a restart", { skip: process.platform === "win32" }, async () => {
+  // Well-formed records from a real project, then a second folder that carries a running remote run it wrote itself.
+  const { version } = await experiment(`touch ${JSON.stringify(path.join(remote, "STARTED-BY-FILES"))}`);
+  const source = path.dirname(path.dirname(path.join(folder, "x")));
+  const shipped = path.join(folder, `shipped-${Date.now()}`);
+  const own = (await api("GET", "/projects")).find((item) => existsSync(path.join(item.path, ".saturn/research/versions", `${version.id}.json`)));
+  await mkdir(path.join(shipped, ".saturn/research/runs/run_aaaaaaaaaaaa"), { recursive: true });
+  await cp(path.join(own.path, ".saturn/research/versions"), path.join(shipped, ".saturn/research/versions"), { recursive: true });
+  const now = new Date().toISOString();
+  await writeFile(path.join(shipped, ".saturn/research/runs/run_aaaaaaaaaaaa/run.json"), JSON.stringify({ schemaVersion: 1, revision: 1, id: "run_aaaaaaaaaaaa", createdAt: now, updatedAt: now, status: "running",
+    experimentId: version.experimentId, versionId: version.id, kind: "evaluation", timeoutSeconds: 30, remote: { host: "fixture-host", workdir: remote, program: worker } }));
+  const project = await api("POST", "/projects", { path: shipped, grant: true });
+  await writeFile(path.join(binaries, "ssh.log"), "");
+  await restart();
+  const ended = await until("the shipped run to be let go", () => api("GET", `/projects/${project.id}/research/runs/run_aaaaaaaaaaaa`), (item) => item.status !== "running");
+  assert.equal(ended.status, "interrupted");
+  assert.match(ended.remoteError, /did not start this remote run/);
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  assert.equal(existsSync(path.join(remote, "STARTED-BY-FILES")), false, "nothing ran on the remote host");
+  assert.equal(existsSync(path.join(remote, ".saturn/remote-jobs/run_aaaaaaaaaaaa")), false, "nothing was even asked of it");
+  assert.ok(source);
+});
+
+test("a job whose folder is gone from the remote host is reported, not started again", { skip: process.platform === "win32" }, async () => {
+  await writeFile(path.join(remote, "once.mjs"), `import { appendFileSync } from 'node:fs'; appendFileSync('launches.txt', 'launched\\n'); setTimeout(() => {}, 1500);`);
+  const { route, version } = await experiment("node once.mjs");
+  const run = await api("POST", `${route}/remote/runs`, { versionId: version.id, clientId: `once-${Date.now()}`, timeoutSeconds: 30 });
+  await until("the job to launch", async () => (existsSync(path.join(remote, "launches.txt")) ? await readFile(path.join(remote, "launches.txt"), "utf8") : ""), (text) => text.includes("launched"));
+  await writeFile(path.join(binaries, "ssh.offline"), "offline");
+  await until("transport disconnected", () => api("GET", `${route}/runs/${run.id}`), (item) => item.remoteConnection === "disconnected");
+  await runtime.stop();
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  const { rm: remove } = await import("node:fs/promises");
+  await remove(path.join(remote, ".saturn/remote-jobs", run.id), { recursive: true, force: true });
+  await remove(path.join(binaries, "ssh.offline"));
+  runtime = await startRuntime({ dataDir: data, keepData: true, env: { PATH: `${binaries}:${process.env.PATH}` } }); origin = runtime.origin;
+  const ended = await until("the lost job to be reported", () => api("GET", `${route}/runs/${run.id}`), (item) => item.status === "interrupted");
+  assert.match(ended.remoteError, /not on the remote host/);
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+  const launches = (await readFile(path.join(remote, "launches.txt"), "utf8")).trim().split("\n");
+  assert.equal(launches.length, 1, "launched once, never again");
 });

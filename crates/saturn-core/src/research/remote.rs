@@ -32,6 +32,20 @@ const CHUNK: u64 = 128 * 1024;
 const NOTE: &str = "Uses your SSH configuration and host verification. Install this version of saturn-server on the remote host first. Code and data are not uploaded: the command runs in the remote working tree, whose identity may differ from the local frozen source. Closing Saturn detaches; stopping explicitly requests cancellation.";
 
 /// Whether this job's remote execution has a final status.
+/// The record of what this computer's runtime launched remotely, in Saturn's own data folder. A project's files say
+/// what a run was, but they may come from anyone, so only this decides whether Saturn connects to a run, where to, and
+/// whether it may still start it.
+const LEDGER: &str = "remote-launches.json";
+
+/// Said of a run whose remote record came with the project rather than from this runtime.
+const NOT_LAUNCHED_HERE: &str = "Saturn did not start this remote run from this computer, so it does not connect to it or start it. Its record came with the project's files.";
+
+/// Errors that will not go away by trying again: the job is gone or was never recorded, the run is gone, the request
+/// is refused, or an output is too large. Anything else, such as SSH not answering, may be temporary.
+fn final_remote_error(status: u16) -> bool {
+    matches!(status, 400 | 403 | 404 | 410 | 413 | 422)
+}
+
 fn finished(status: &str) -> bool {
     matches!(status, "completed" | "failed" | "stopped" | "timed_out")
 }
@@ -164,7 +178,14 @@ async fn rpc(target: &Value, request: &Value) -> Result<Value, CoreError> {
         )
     })?;
     if let Some(error) = value.get("error").and_then(Value::as_str) {
-        return Err(CoreError::new(502, error));
+        // The worker says how it failed, so that a job that is gone is not mistaken for a host that is away.
+        let status = value
+            .get("status")
+            .and_then(Value::as_u64)
+            .and_then(|status| u16::try_from(status).ok())
+            .filter(|status| (400..600).contains(status))
+            .unwrap_or(502);
+        return Err(CoreError::new(status, error));
     }
     Ok(value)
 }
@@ -253,6 +274,13 @@ impl Kernel {
             return Ok(run.clone());
         }
         let id = new_id("run")?;
+        // Recorded here first: a run whose record exists only in the project is never connected to.
+        self.set_launch(
+            project,
+            &id,
+            Some(json!({ "target": settings["target"], "launched": false })),
+        )
+        .await?;
         let now = iso_time(now_millis());
         let run = json!({ "schemaVersion": 1, "revision": 1, "id": id, "createdAt": now, "updatedAt": now, "status": "starting", "clientId": client,
             "experimentId": version["experimentId"], "versionId": version["id"], "kind": version.get("kind").cloned().unwrap_or(json!("evaluation")),
@@ -297,8 +325,15 @@ impl Kernel {
                     break;
                 }
                 match kernel.sync_remote(&project, &id).await {
-                    Ok(true) => break,
+                    Ok(true) => {
+                        let _ = kernel.set_launch(&project, &id, None).await;
+                        break;
+                    }
                     Ok(false) => {}
+                    Err(error) if final_remote_error(error.status) => {
+                        let _ = kernel.remote_ended(&project, &id, &error).await;
+                        break;
+                    }
                     Err(_) => {
                         let _ = kernel.remote_disconnected(&project, &id).await;
                     }
@@ -307,6 +342,76 @@ impl Kernel {
             }
             locked(&kernel.research.remote).remove(&id);
         });
+    }
+
+    /// What this runtime recorded of a remote launch, if it made one.
+    async fn launch(&self, project: &str, id: &str) -> Option<Value> {
+        let _reading = self.research.remote_ledger.lock().await;
+        let ledger = tokio::fs::read(self.store.root().join(LEDGER)).await.ok()?;
+        let ledger: Value = serde_json::from_slice(&ledger).ok()?;
+        ledger.get(format!("{project}/{id}")).cloned()
+    }
+
+    /// Records a remote launch, or forgets it once its run has ended.
+    async fn set_launch(
+        &self,
+        project: &str,
+        id: &str,
+        entry: Option<Value>,
+    ) -> Result<(), CoreError> {
+        let _writing = self.research.remote_ledger.lock().await;
+        let path = self.store.root().join(LEDGER);
+        let mut ledger: Value = match tokio::fs::read(&path).await {
+            Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_else(|_| json!({})),
+            Err(_) => json!({}),
+        };
+        if !ledger.is_object() {
+            ledger = json!({});
+        }
+        let key = format!("{project}/{id}");
+        match entry {
+            Some(entry) => ledger[&key] = entry,
+            None => {
+                if let Some(entries) = ledger.as_object_mut() {
+                    entries.remove(&key);
+                }
+            }
+        }
+        write_whole(&path, &pretty(&ledger)?).await
+    }
+
+    /// A remote run that cannot go on: it says why, and it is no longer followed. A run that is gone stays gone.
+    async fn remote_ended(
+        &self,
+        project: &str,
+        id: &str,
+        error: &CoreError,
+    ) -> Result<(), CoreError> {
+        let _ = self.set_launch(project, id, None).await;
+        let records = self.records_folder(project).await?;
+        let lock = self.records_lock(&records);
+        let _writing = lock.lock().await;
+        let mut run = self.research_run(project, id).await?;
+        if !matches!(text(&run, "status"), "starting" | "running" | "stopping") {
+            return Ok(());
+        }
+        // Not started here, or its job is gone: it may have run, so it is interrupted rather than failed.
+        run["status"] = json!(if matches!(error.status, 403 | 410) {
+            "interrupted"
+        } else {
+            "failed"
+        });
+        run["remoteConnection"] = json!("ended");
+        run["remoteError"] = json!(error.message);
+        run["endedAt"] = json!(iso_time(now_millis()));
+        run["updatedAt"] = run["endedAt"].clone();
+        write_whole(
+            &records.join("runs").join(id).join("run.json"),
+            &pretty(&run)?,
+        )
+        .await?;
+        self.research_changed();
+        Ok(())
     }
 
     /// Connection failure is not evidence that an expensive remote computation ended.
@@ -337,6 +442,12 @@ impl Kernel {
         let version = self
             .research_record(project, "versions", text(&run, "versionId"))
             .await?;
+        let launch = self
+            .launch(project, id)
+            .await
+            .ok_or_else(|| CoreError::new(403, NOT_LAUNCHED_HERE))?;
+        let target = &launch["target"];
+        let launched = launch["launched"] == true;
         let records = self.records_folder(project).await?;
         let folder = records.join("runs").join(id);
         let mut cursors = HashMap::new();
@@ -348,8 +459,20 @@ impl Kernel {
                     .map_or(0, |info| info.len()),
             );
         }
-        let response = rpc(&run["remote"], &json!({ "action": "sync", "workdir": run["remote"]["workdir"], "id": id, "cancel": run.get("cancelRequested").and_then(Value::as_bool).unwrap_or(false),
-            "cursors": cursors, "start": { "command": version["command"], "kind": run["kind"], "timeoutSeconds": run["timeoutSeconds"], "resumeFrom": run["resumeFrom"], "versionId": version["id"] } })).await?;
+        let mut request = json!({ "action": "sync", "workdir": target["workdir"], "id": id, "cancel": run.get("cancelRequested").and_then(Value::as_bool).unwrap_or(false), "cursors": cursors });
+        // Only the first exchange may start the job. After that a job the worker no longer has is reported, not resent.
+        if !launched {
+            request["start"] = json!({ "command": version["command"], "kind": run["kind"], "timeoutSeconds": run["timeoutSeconds"], "resumeFrom": run["resumeFrom"], "versionId": version["id"] });
+        }
+        let response = rpc(target, &request).await?;
+        if !launched {
+            self.set_launch(
+                project,
+                id,
+                Some(json!({ "target": target, "launched": true })),
+            )
+            .await?;
+        }
         let lock = self.records_lock(&records);
         let _writing = lock.lock().await;
         let mut current = self.research_run(project, id).await?;
@@ -477,7 +600,7 @@ pub async fn worker_entry(mode: &str, directory: Option<&str>) -> Result<(), Cor
         .map_err(|_| CoreError::new(400, "Invalid worker request."))?;
     let response = match worker_rpc(&request).await {
         Ok(value) => value,
-        Err(error) => json!({ "error": error.message }),
+        Err(error) => json!({ "error": error.message, "status": error.status }),
     };
     println!("{response}");
     Ok(())
@@ -578,6 +701,12 @@ async fn worker_rpc(request: &Value) -> Result<Value, CoreError> {
     }
     let state_file = safe_child(&folder, "state.json").await?;
     if !tokio::fs::try_exists(&state_file).await? {
+        if request.get("start").is_none_or(Value::is_null) {
+            return Err(CoreError::new(
+                410,
+                "This job is not on the remote host: its folder is gone, or it was never started. Saturn does not start it again; start a new run.",
+            ));
+        }
         let claim = safe_child(&folder, "launch.claim").await?;
         tokio::fs::OpenOptions::new()
             .write(true)
@@ -586,8 +715,8 @@ async fn worker_rpc(request: &Value) -> Result<Value, CoreError> {
             .await
             .map_err(|_| {
                 CoreError::new(
-                    409,
-                    "A launch is already claimed; it will not be submitted again.",
+                    410,
+                    "A launch was claimed but never recorded, so it may or may not have run. It is not submitted again; start a new run.",
                 )
             })?;
         let start = &request["start"];
@@ -770,4 +899,19 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
     state["endedAt"] = json!(iso_time(now_millis()));
     write_whole(&folder.join("state.json"), &pretty(&state)?).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_errors_that_cannot_clear_end_a_remote_run() {
+        for status in [400, 403, 404, 410, 413, 422] {
+            assert!(final_remote_error(status), "{status}");
+        }
+        for status in [409, 500, 502, 503, 504] {
+            assert!(!final_remote_error(status), "{status} may clear");
+        }
+    }
 }
