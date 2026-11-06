@@ -22,6 +22,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **A run's evidence lists the models the program reported as source and revision**, one per line, instead of raw JSON running off the edge.
 - **On Linux, runs are monitored and ended properly.** Saturn thought every process group had already ended, so resource readings stopped at once, and stopping a run or an environment job could leave its child processes running.
 - **`main`, `latest` and short commits no longer count as pinned weights.** Only a full commit or hash pins a model; anything else is shown as floating, since the name can come to mean other weights. Freezing an experiment whose model is named this way makes a new version once.
 - **Imported results are marked, and are never compared as if verified.** An imported run and its experiment say so in Experiments and in the score chart, and two imports that describe the same evaluation no longer get a 95% interval, since nothing checks their data or scorer.

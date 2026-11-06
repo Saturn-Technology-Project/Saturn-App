@@ -3,6 +3,7 @@ import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
 import type { RunEvidence, RunSandbox } from "../../domain/research.js";
 import { Badge } from "../ui/base/Badge.js";
+import { classes } from "../ui/base/classes.js";
 import { messageOf } from "../ui/Parts.js";
 
 const MUTED = "text-xs text-muted-foreground";
@@ -56,6 +57,14 @@ function seedText(seed: Record<string, unknown> | null | undefined): string {
   const value = seed.value === undefined ? "?" : String(seed.value);
   const applied = Array.isArray(seed.applied) && seed.applied.length ? seed.applied.join(", ") : null;
   return applied ? t("{seed}, applied to {libraries}", { seed: value, libraries: applied }) : value;
+}
+
+/** A model the program says it loaded, as its source and the revision or hash it named, or as it wrote it. */
+function modelText(model: Record<string, unknown>): string {
+  const source = typeof model.source === "string" ? model.source : null;
+  const pinned = [model.revision, model.commit, model.sha256].find((value) => typeof value === "string" && value) as string | undefined;
+  if (!source) return JSON.stringify(model);
+  return pinned ? `${source} @ ${pinned.length > 16 && /^[0-9a-f]+$/i.test(pinned) ? pinned.slice(0, 12) : pinned}` : source;
 }
 
 /** A value the program reported, or "Unknown" when it did not. */
@@ -145,7 +154,12 @@ export function Evidence(props: { projectId: string; runId: string }) {
         <section>
           <div className={LABEL}>{t("Reported by the program")}</div>
           <div className={MUTED}>{t("Seed")}: {seedText(reported?.seed)}</div>
-          <div className={MUTED}>{t("Models")}: {reported?.models.length ? reported.models.map((model) => JSON.stringify(model)).join("; ") : t("Unknown (not reported)")}</div>
+          <div className={MUTED}>{t("Models")}: {reported?.models.length ? null : t("Unknown (not reported)")}</div>
+          {reported?.models.map((model, index) => (
+            <div key={index} className={classes(MUTED, "wrap-anywhere")}>
+              <code>{modelText(model)}</code>
+            </div>
+          ))}
           <div className={MUTED}>{t("Resumed from")}: {reportedText(reported?.resume)}</div>
           {reported?.problems.length ? <div className="text-xs text-wait">{reported.problems.join(" ")}</div> : null}
         </section>
