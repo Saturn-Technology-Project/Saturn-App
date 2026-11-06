@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
-import { comparisonText, type ExperimentRun, type PairedComparison, type PairedComparisonRequest } from "../../domain/research.js";
+import { comparisonText, isRunActive, type ExperimentRun, type PairedComparison, type PairedComparisonRequest } from "../../domain/research.js";
 import type { Screen } from "../shell/navigation.js";
 import { Button } from "../ui/base/Button.js";
 import { Choice, Field } from "../ui/base/Field.js";
@@ -28,7 +28,7 @@ export function ComparisonPanel(props: { projectId: string; runs: ExperimentRun[
   const [slice, setSlice] = useState("__all");
   const [busy, setBusy] = useState(false);
   const { value: sets, refresh: refreshSets } = useRecords(() => desktop.research.counterexampleSets(props.projectId), props.notify);
-  const runs = props.runs.filter((run) => !["starting", "running", "stopping"].includes(run.status));
+  const runs = props.runs.filter((run) => !isRunActive(run.status));
   const options = runs.map((run) => ({ value: run.id, label: `${new Date(run.createdAt).toLocaleString()} · ${run.id}${run.imported ? ` · ${t("imported")}` : ""}` }));
 
   async function compare(next: PairedComparisonRequest, append = false) {

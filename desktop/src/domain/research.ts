@@ -125,7 +125,7 @@ export interface FrozenVersion extends ResearchRecord {
   models?: { modelId: string; role: ModelRole; source: string; weightsRevision: string | null; floating: boolean; revisionKind?: "commit" | "hash" | "name" | "none"; weightsSha256?: string }[];
 }
 
-export type RunStatus = "starting" | "running" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
+export type RunStatus = "starting" | "running" | "paused" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
 
 export interface ExperimentRun extends ResearchRecord {
   archived?: boolean;
@@ -156,6 +156,13 @@ export interface ExperimentRun extends ResearchRecord {
   samplesPerModel?: number;
   /** What the runtime noticed at the end: a sample count unlike the last comparable run's, for one. */
   warnings?: string[];
+  /** When the run was paused, while it is. */
+  pausedAt?: string;
+  /** How long the run has spent paused, in all. */
+  pausedSeconds?: number;
+  /** The run this one takes over from, and what came along from it. */
+  resumes?: string;
+  carried?: { run: string; samples: number; metrics: number; sha256: string; checkpoint: string | null; step: number | null };
 }
 
 /** One file a run's snapshot held: how it got there, and its hash. */
@@ -469,7 +476,12 @@ export function scoreText(value: number | null | undefined): string {
 
 /** Whether a run can still change. */
 export function isRunActive(status: RunStatus): boolean {
-  return status === "starting" || status === "running" || status === "stopping";
+  return status === "starting" || status === "running" || status === "paused" || status === "stopping";
+}
+
+/** Whether a run ended before its work was done, so a new run of the same version can take over from it. */
+export function canResume(run: Pick<ExperimentRun, "status" | "remote" | "imported">): boolean {
+  return !run.remote && !run.imported && (run.status === "stopped" || run.status === "interrupted" || run.status === "failed");
 }
 
 /** A run's status in words. Execution says nothing about whether a hypothesis holds. */
@@ -477,6 +489,7 @@ export function runStatusLabel(status: RunStatus): string {
   const labels: Record<RunStatus, string> = {
     starting: t("Starting"),
     running: t("Running"),
+    paused: t("Paused"),
     stopping: t("Stopping"),
     stopped: t("Stopped"),
     completed: t("Execution completed"),

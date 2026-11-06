@@ -182,6 +182,21 @@ export class ResearchService {
     return this.send(`${this.route(project)}/runs/${run}/stop`, "POST");
   }
 
+  /** Holds a running run where it is; it keeps its memory and devices until it is continued or stopped. */
+  pauseRun(project: string, run: string): Promise<ExperimentRun> {
+    return this.send(`${this.route(project)}/runs/${run}/pause`, "POST");
+  }
+
+  /** Lets a paused run go on. */
+  continueRun(project: string, run: string): Promise<ExperimentRun> {
+    return this.send(`${this.route(project)}/runs/${run}/continue`, "POST");
+  }
+
+  /** Starts a new run of the same version that takes over from one that stopped, was interrupted or failed. */
+  resumeRun(project: string, run: string, clientId: string): Promise<ExperimentRun> {
+    return this.send(`${this.route(project)}/runs/${run}/resume`, "POST", { clientId });
+  }
+
   runs(project: string): Promise<RecordList<ExperimentRun>> {
     return this.runtime.request(`${this.route(project)}/runs`);
   }
