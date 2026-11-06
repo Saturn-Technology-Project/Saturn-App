@@ -1,7 +1,7 @@
 {
   "bundle": {
     "windows": {
-      "signCommand": "pwsh -NoProfile -File ../.github/scripts/sign-windows-file.ps1 -File %1"
+      "signCommand": "pwsh -NoProfile -Command & $env:SATURN_SIGN_WINDOWS_FILE -File %1"
     }
   }
 }
