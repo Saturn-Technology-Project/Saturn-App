@@ -18,6 +18,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **Imported results are marked, and are never compared as if verified.** An imported run and its experiment say so in Experiments and in the score chart, and two imports that describe the same evaluation no longer get a 95% interval, since nothing checks their data or scorer.
 - **Project analysis outputs stay reachable.** An analysis panel can browse all project outputs while a run or session is selected, including snapshots that have no run link.
 
 - **Behavior slices read imported metadata.** A default category can come from `metadata.category`; nested fields such as `metadata.group.language` can be selected explicitly, while a top-level category keeps precedence.
@@ -80,6 +81,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **How much AI each chat gets.** Beside the assistant's name, choose Ask (it only reads and explains), Approve (it proposes, and each change or command waits for your approval), Auto (it works in the same chat, on the project itself, and asks before anything sensitive) or Agent (the same, and it asks nothing). For work to keep apart until you merge it, start a task on the Tasks screen, or the assistant can start one. This one menu replaces the separate approvals setting. An agent's file tools cannot write a locked file in any mode. Modes are a workflow constraint rather than a security boundary, and Codex cannot ask before it writes, so in Pair it only reads.
 
 ### Security
+
+- **A project's files can no longer start a remote job.** Saturn reconnects only remote runs it started from this computer, recorded in its own data folder. Before, a project folder could carry a "running" remote run, and Saturn would connect to that host and run the command from the project's files when it next started. A remote job whose folder is gone is reported as interrupted instead of being started again, and an output too large to bring back ends the run with that reason instead of retrying forever.
 
 - **An agent's GitHub tools could read any git repository on this computer.** A repository owner or name such as `../..` was used as a folder path, so a prompt-injected agent could read a repository outside its project. Owners and names must now be plain names. A remote on a host that merely ends in `github.com` also no longer counts as GitHub.
 - **The code index could send a linked or hidden file to the embedding model.** When the index was asked to refresh named files, a link to a file outside the project, a hidden file such as `.env`, or a file in a folder next to the project with a similar name was indexed. With an OpenAI-compatible embedding connection, that text left the computer. Named files now follow the same rules as a whole pass.

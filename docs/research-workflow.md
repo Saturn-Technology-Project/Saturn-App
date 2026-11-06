@@ -9,7 +9,8 @@ In **Home** or **Experiments → Import existing results**, name a file inside t
 preview it. JSONL, JSON arrays, CSV and TSV support explicit ID/input/output/score column mappings. For Hugging Face
 Trainer state, choose **Trainer state JSON** explicitly; it reads `log_history`, not an array of evaluation samples.
 An import creates a new experiment, descriptive version and completed run, without a hypothesis. It never executes the
-imported version. Unknown model, environment and evaluation provenance remain unknown.
+imported version. Unknown model, environment and evaluation provenance remain unknown. An imported run and its experiment are
+marked as imported wherever they appear, including the score chart.
 
 Imports are limited to 64 MiB and 100,000 rows. The preview hash must still match when the UI imports. Missing IDs can
 be generated for browsing, but generated row IDs cannot establish paired comparisons. Keep stable IDs in your results.
@@ -37,8 +38,8 @@ all regressions in the selected slice, including rows beyond the visible page, w
 
 The mean weights sample IDs equally after averaging their trials. The conservative 95% paired t interval assumes
 independent sample IDs and approximately normal sample means. It measures neither variation across training seeds nor
-multiple-comparison-adjusted significance. It is omitted when evaluation conditions differ or are unknown, or fewer
-than two independent IDs remain. A descriptive delta under mismatched conditions does not establish an improvement.
+multiple-comparison-adjusted significance. It is omitted when evaluation conditions differ or are unknown, when either side is an import (an import only
+describes its evaluation, with no data or scorer files behind it), or fewer than two independent IDs remain. A descriptive delta under mismatched conditions does not establish an improvement.
 
 ## Leave a remote job running
 
@@ -48,7 +49,11 @@ Configure the host alias or `user@host`, absolute working directory and worker p
 your existing configuration and host verification, with batch authentication; Saturn saves no SSH credentials.
 
 Freeze a local experiment, then use **Experiments → Run on the configured SSH host**. The detached Rust worker owns
-the process group, deadline and output. Closing the app detaches; reopening reconnects. A disconnected or unresponsive
+the process group, deadline and output. Closing the app detaches; reopening reconnects. Saturn reconnects only runs
+it started from this computer, which it records in its own data folder, not in the project: a run whose remote record
+arrived with the project's files is marked interrupted and the host is never contacted. Only the first exchange can
+start a job; a job whose folder is gone from the host is reported as interrupted, never submitted again. An error that
+cannot clear, such as an output over the limit, ends the run with that reason instead of retrying forever. A disconnected or unresponsive
 worker may still be computing. Stop remains pending until the worker acknowledges cancellation. A new retry is a new
 run; repeating the same launch ID does not launch another process.
 

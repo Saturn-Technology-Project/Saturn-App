@@ -343,7 +343,7 @@ impl Kernel {
             let model = self.research_record(project, "models", id).await?;
             models.push(json!({ "modelId": id, "role": "base", "source": model["source"], "weightsRevision": model["weightsRevision"], "floating": model["floating"] }));
         }
-        let experiment = new_record("experiments", &json!({ "title": title, "inputs": {}, "evaluation": request.get("evaluation"), "models": models }), &experiment_id, &now).map_err(invalid)?;
+        let experiment = new_record("experiments", &json!({ "title": title, "imported": true, "inputs": {}, "evaluation": request.get("evaluation"), "models": models }), &experiment_id, &now).map_err(invalid)?;
         let version = json!({ "schemaVersion": 1, "id": version_id, "revision": 1, "createdAt": now, "updatedAt": now,
             "experimentId": experiment_id, "number": 1, "imported": true, "models": models, "inputs": [], "evaluation": request.get("evaluation"), "provenance": imported.provenance });
         let sample_bytes = json_lines(&imported.samples)?;

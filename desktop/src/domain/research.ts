@@ -8,6 +8,8 @@ export interface ResearchRecord {
 
 /** An experiment's draft. It keeps changing; running it freezes a version. */
 export interface ExperimentDraft extends ResearchRecord {
+  /** Made by importing results from a file: Saturn ran nothing of it. */
+  imported?: boolean;
   kind?: "evaluation" | "training";
   title: string;
   command?: string;

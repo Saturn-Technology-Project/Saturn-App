@@ -232,6 +232,7 @@ export function Experiments(props: ScreenProps) {
       {drafts.length > 1 ? drafts.map((item) => (
         <Button key={item.id} variant={item.id === draft?.id ? "soft" : "ghost"} aria-pressed={item.id === draft?.id} className="h-auto min-h-8 w-full justify-start gap-3 py-1 text-left" title={item.command} onClick={() => setSelected(item.id)}>
           <strong className="max-w-[55%] shrink-0 truncate">{item.title}</strong>
+          {item.imported ? <Badge tone="wait" className="shrink-0">Imported</Badge> : null}
           <code className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{item.command}</code>
         </Button>
       )) : null}
@@ -411,6 +412,7 @@ export function Experiments(props: ScreenProps) {
                       <td className={CELL}>
                         {runStatusLabel(run.status)}{run.inputsChanged?.length ? `, ${run.inputsChanged.length} inputs changed during it` : ""}
                         {run.archived ? <span className="ml-1 text-muted-foreground">· imported archive</span> : null}
+                        {run.imported ? <Badge tone="wait" className="ml-1" title="Imported from a file. Saturn did not run it, and its model, data and scorer are only described.">Imported, not run here</Badge> : null}
                         {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? "pending"}{run.resumeFrom ? ` · resume ${run.resumeFrom}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{["starting", "running", "stopping"].includes(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>Request stop</Button> : null}</div> : null}
                         {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
                       </td>

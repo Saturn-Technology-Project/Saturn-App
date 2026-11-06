@@ -31,7 +31,8 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
       const node = models.find((item) => item.id === model.modelId);
       return {
         key: `${summary.runId}:${model.modelId ?? ""}`,
-        label: node?.name ?? node?.source ?? model.modelId ?? "This run",
+        // An imported score says so beside its name, so it is never read as one Saturn measured.
+        label: `${node?.name ?? node?.source ?? model.modelId ?? "This run"}${props.runs.find((run) => run.id === summary.runId)?.imported ? " (imported)" : ""}`,
         version: versions.find((version) => version.id === summary.versionId)?.number ?? 0,
         mean: model.scores[chosen]?.mean ?? null,
         count: model.scores[chosen]?.count ?? 0,

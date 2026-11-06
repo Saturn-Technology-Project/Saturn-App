@@ -136,7 +136,20 @@ impl Kernel {
         }
         let left = self.comparison_side(project, &request["left"]).await?;
         let right = self.comparison_side(project, &request["right"]).await?;
-        let comparison = compare_versions(&left.version, &right.version);
+        let mut comparison = compare_versions(&left.version, &right.version);
+        // An imported result only describes its evaluation, with no data or scorer files behind it, so a matching
+        // description is not enough to compare: no interval is drawn from it.
+        if [&left.version, &right.version]
+            .iter()
+            .any(|version| version["imported"] == true)
+        {
+            comparison["result"] = json!("unknown");
+            if let Some(missing) = comparison["missing"].as_array_mut() {
+                missing.push(json!(
+                    "verified data and scorer files (an imported result only describes them)"
+                ));
+            }
+        }
         let inference = comparison["result"] == "comparable";
         let higher = request
             .get("higherIsBetter")

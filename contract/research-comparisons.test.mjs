@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench } from "./files-support.mjs";
+import { bench, until } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -53,11 +53,29 @@ test("slices read preserved metadata, explicit nested fields, and prefer a decla
   assert.deepEqual(explicit.items.map((item) => item.slice), ["zh", "en"]);
 });
 
+/** The same rows as two runs Saturn itself made, from one frozen evaluation, so that they are comparable. */
+async function ranPair(left, right, spec = evaluation) {
+  const folder = await saturn.folder();
+  const project = await saturn.api("POST", "/projects", { path: folder, grant: true });
+  const route = `/projects/${project.id}/research`;
+  const runs = [];
+  for (const [index, rows] of [left, right].entries()) {
+    const lines = rows.map((row) => JSON.stringify({ schemaVersion: 1, input: row.sampleId, output: "o", scores: { s: 0 }, ...row }) + "\n");
+    await writeFile(path.join(folder, `run${index}.mjs`), `import { appendFileSync } from "node:fs";\nfor (const line of ${JSON.stringify(lines)}) appendFileSync(process.env.SATURN_RUN_SAMPLES, line);\n`);
+    const experiment = await saturn.api("POST", `${route}/experiments`, { title: `E${index}`, command: `node run${index}.mjs`, evaluation: spec });
+    const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+    const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: `c${index}` });
+    runs.push(await until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status)));
+  }
+  return { route, request: { left: { runId: runs[0].id }, right: { runId: runs[1].id }, scorer: "s" } };
+}
+
 test("uncertainty uses independent sample IDs, not repeated trials, and unknown methods get no interval", async () => {
   const left = [{ sampleId: "a", trial: 0 }, { sampleId: "a", trial: 1 }, { sampleId: "b" }];
   const right = left.map((row) => ({ ...row, scores: { s: 1 } }));
-  const known = await pair(left, right);
+  const known = await ranPair(left, right);
   const result = await saturn.api("POST", `${known.route}/comparisons`, known.request);
+  assert.equal(result.comparison.result, "comparable");
   assert.equal(result.summary.independentSamples, 2);
   assert.deepEqual(result.summary.interval95, [1, 1]);
   assert.match(result.note, /training seeds/);
@@ -65,6 +83,16 @@ test("uncertainty uses independent sample IDs, not repeated trials, and unknown 
   const unknownResult = await saturn.api("POST", `${unknown.route}/comparisons`, unknown.request);
   assert.equal(unknownResult.comparison.result, "unknown");
   assert.equal(unknownResult.summary.interval95, null);
+});
+
+test("imported results describing the same evaluation are not enough for an interval", async () => {
+  const left = [{ sampleId: "a" }, { sampleId: "b" }];
+  const imported = await pair(left, left.map((row) => ({ ...row, scores: { s: 1 } })));
+  const result = await saturn.api("POST", `${imported.route}/comparisons`, imported.request);
+  assert.equal(result.comparison.result, "unknown");
+  assert.ok(result.comparison.missing.some((reason) => /imported result only describes/.test(reason)));
+  assert.equal(result.summary.interval95, null);
+  assert.equal(result.summary.meanDelta, 1, "the difference is still shown, as a description");
 });
 
 test("saved counterexample sets include every regression and retain their source request", async () => {
