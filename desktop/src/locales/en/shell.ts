@@ -173,9 +173,6 @@ export default {
     "When a lock file is frozen with a version, any change to it makes a new version, so two runs with different environments are never treated as the same.",
 
   // Remote execution.
-  "Install the same version of saturn-server on your Linux or macOS host. Code and data must already be there. SSH uses your existing configuration and known_hosts; Saturn stores no keys or passwords.":
-    "Install the same version of saturn-server on your Linux or macOS host. Your code and data must already be there. SSH uses your existing configuration and known_hosts; Saturn stores no keys or passwords.",
-  "Save and check connection": "Save and test connection",
   "Remote launch recorded: {run}. Closing Saturn detaches; Stop requests cancellation.": "Remote launch recorded: {run}. Closing Saturn only detaches; Stop requests cancellation.",
   "Configure the host in Environment. Remote code is not uploaded or certified identical to these local frozen files. The remote worker records its working directory and git commit. Existing remote jobs keep their original target when settings change.":
     "Set up the host in Environment. Code isn't uploaded, and the remote copy isn't verified to match these local frozen files. The remote worker records its working directory and git commit. Existing remote jobs keep their original target if settings change.",
