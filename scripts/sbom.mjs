@@ -1,10 +1,9 @@
-// Writes one CycloneDX 1.5 SBOM for a Saturn release: the npm packages that ship in the runtime and the desktop app
-// (from their lock files, without installing anything), plus what
-// npm does not know about: Electron and the bundled embedding model with its pinned hashes.
+// Writes one CycloneDX 1.5 SBOM for a Saturn release: the crates of the runtime and the app (from Cargo.lock), the npm packages
+// the interface ships (from its lock file), without installing anything, plus the bundled embedding model with its pinned hashes.
 //
 //   node scripts/sbom.mjs <version> <output.cdx.json>
 import { randomUUID } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,27 +35,25 @@ function npmComponents(dir) {
   return out;
 }
 
-const projects = ["runtime", "desktop"];
-
-// Claude Code and Codex are downloaded on demand, not shipped: their per-platform packages are left out.
-const notShipped = /^pkg:npm\/(%40anthropic-ai\/claude-agent-sdk-|%40openai\/codex-)(darwin|linux|win32)-/;
-const components = new Map();
-for (const project of projects) {
-  for (const component of npmComponents(project)) {
-    if (!component.purl || notShipped.test(component.purl)) continue;
-    const known = components.get(component.purl);
-    const where = { name: "saturn:project", value: project };
-    if (known) known.properties = [...(known.properties ?? []), where];
-    else components.set(component.purl, { ...component, "bom-ref": component.purl, properties: [where] });
-  }
+/** Every crate from crates.io in the lock file, as CycloneDX components, with the sha256 Cargo pins. */
+function crateComponents() {
+  const lock = readFileSync(path.join(root, "Cargo.lock"), "utf8");
+  return [...lock.matchAll(/\[\[package\]\]\nname = "([^"]+)"\nversion = "([^"]+)"\nsource = "registry\+[^"]+"\nchecksum = "([0-9a-f]{64})"/g)].map(([, name, version, sum]) => ({
+    type: "library",
+    name,
+    version,
+    purl: `pkg:cargo/${name}@${version}`,
+    hashes: [{ alg: "SHA-256", content: sum }],
+    externalReferences: [{ type: "distribution", url: `https://crates.io/crates/${name}/${version}` }],
+  }));
 }
 
-// Electron: what the desktop app runs on.
-const electron = JSON.parse(readFileSync(path.join(root, "desktop", "package.json"), "utf8")).devDependencies.electron.replace(/^[^\d]*/, "");
-components.set(`pkg:npm/electron@${electron}`, {
-  type: "framework", name: "electron", version: electron, purl: `pkg:npm/electron@${electron}`, "bom-ref": `pkg:npm/electron@${electron}`,
-  licenses: [{ license: { id: "MIT" } }], properties: [{ name: "saturn:project", value: "desktop" }],
-});
+const components = new Map();
+for (const [project, found] of [["desktop", npmComponents("desktop")], ["crates", crateComponents()]]) {
+  for (const component of found) {
+    components.set(component.purl, { ...component, "bom-ref": component.purl, properties: [{ name: "saturn:project", value: project }] });
+  }
+}
 
 // The embedding model, pinned by sha256 in desktop/scripts/fetch-embedding-model.mjs.
 const fetchScript = readFileSync(path.join(root, "desktop", "scripts", "fetch-embedding-model.mjs"), "utf8");
@@ -82,4 +79,4 @@ const sbom = {
   components: [...components.values()].sort((a, b) => a.purl.localeCompare(b.purl)),
 };
 writeFileSync(output, `${JSON.stringify(sbom, null, 2)}\n`);
-console.log(`${output}: ${sbom.components.length} components from ${projects.length} projects`);
+console.log(`${output}: ${sbom.components.length} components`);

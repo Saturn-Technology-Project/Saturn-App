@@ -1,4 +1,4 @@
-import type { Agent, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run, ContextUsage, BackgroundJob, PullRequestWatch } from "../domain/model.js";
+import type { Agent, ChatMode, Conversation, Mcp, Model, PendingTask, Profile, Rag, Run, ContextUsage, BackgroundJob, PullRequestWatch } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export type WorkspaceSnapshot = {
@@ -51,7 +51,7 @@ export class CatalogService {
     ]).then(([agents, models, mcp, rag, profile, tasks]) => ({ agents, models, mcp, rag, profile, tasks }));
   }
 
-  createAgent(input: { name: string; modelConnectionId: string | null }): Promise<Agent> {
+  createAgent(input: { name: string; modelConnectionId: string | null; instructions?: string }): Promise<Agent> {
     return this.runtime.request<Agent>("/agents", { method: "POST", body: JSON.stringify(input) });
   }
 
@@ -133,6 +133,14 @@ export class CatalogService {
     return this.runtime.request<Conversation>(`/threads/${threadId}`, {
       method: "PATCH",
       body: JSON.stringify({ title }),
+    });
+  }
+
+  /** Sets how much a chat's agent may change. */
+  setChatMode(threadId: string, chatMode: ChatMode): Promise<Conversation> {
+    return this.runtime.request<Conversation>(`/threads/${threadId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ chatMode }),
     });
   }
 

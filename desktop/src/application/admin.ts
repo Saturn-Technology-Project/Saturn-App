@@ -208,8 +208,10 @@ export class AdminService {
     return this.runtime.request(`/connections/models/${id}`, { method: "PATCH", body: JSON.stringify({ effort }) });
   }
 
-  deleteModel(id: string): Promise<void> {
-    return this.runtime.request(`/connections/models/${id}`, { method: "DELETE" });
+  /** Removes a model. A model in use is refused unless `moveAgentsTo` names one to take over, or "none". */
+  deleteModel(id: string, moveAgentsTo?: string): Promise<void> {
+    const query = moveAgentsTo ? `?moveAgentsTo=${encodeURIComponent(moveAgentsTo)}` : "";
+    return this.runtime.request(`/connections/models/${id}${query}`, { method: "DELETE" });
   }
 
   createMcp(url: string): Promise<Mcp> {
@@ -230,8 +232,9 @@ export class AdminService {
     return this.runtime.request(`/connections/mcp/${id}/discover`, { method: "POST" });
   }
 
-  deleteMcp(id: string): Promise<void> {
-    return this.runtime.request(`/mcp/${id}`, { method: "DELETE" });
+  /** Removes a server. One in use is refused unless `releaseAgents` takes it off their lists first. */
+  deleteMcp(id: string, releaseAgents = false): Promise<void> {
+    return this.runtime.request(`/connections/mcp/${id}${releaseAgents ? "?releaseAgents=true" : ""}`, { method: "DELETE" });
   }
 
   updateMcp(id: string, patch: { name?: string; url?: string; disabledTools?: string[] }): Promise<Mcp> {

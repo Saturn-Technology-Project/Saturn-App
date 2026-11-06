@@ -1,0 +1,223 @@
+/* Saturn's colors, type and sizes, in light and dark. Every screen's style uses these names. */
+:root {
+  --bg: #f1f0ec;
+  --stage: rgba(255, 255, 255, 0.3);
+  --panel: rgba(250, 249, 245, 0.55);
+  --fg: #1f1e1c;
+  --muted: #6f6d67;
+  --subtle: #a3a19a;
+  --line: rgba(31, 30, 28, 0.1);
+  --line-strong: rgba(31, 30, 28, 0.17);
+  --card: rgba(255, 255, 255, 0.85);
+  --elevated: #ffffff;
+  --hover: rgba(31, 30, 28, 0.06);
+  --input: rgba(255, 255, 255, 0.6);
+  --code-bg: rgba(31, 30, 28, 0.05);
+  --accent: #1f1e1c;
+  --on-accent: #ffffff;
+  --ok: #15803d;
+  --ok-bg: rgba(21, 128, 61, 0.1);
+  --wait: #b45309;
+  --wait-bg: rgba(180, 83, 9, 0.12);
+  --off: #b91c1c;
+  --off-bg: rgba(185, 28, 28, 0.1);
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.05);
+  --shadow-md: 0 8px 24px rgba(24, 24, 27, 0.07);
+  --focus: rgba(31, 30, 28, 0.12);
+  --blue: #2563eb;
+  --blue-hover: #1d4ed8;
+  --on-blue: #ffffff;
+  --violet: #7c3aed;
+  --violet-bg: rgba(124, 58, 237, 0.1);
+  --blue-bg: rgba(37, 99, 235, 0.1);
+  --nav-width: 226px;
+  --inspector-width: 420px;
+  --term-bg: #ffffff;
+  --term-fg: #1f2328;
+  --term-cmd: #1f2328;
+  --term-prompt: #0969da;
+  --term-stdout: #24292f;
+  --term-stderr: #cf222e;
+  --term-exit-bg: rgba(207, 34, 46, 0.1);
+  --term-running: #9a6700;
+  --term-caret: #0969da;
+  --term-selection: rgba(9, 105, 218, 0.2);
+  /*
+   * Color says what something is, never how it should feel: states, what the assistant wrote, kinds of data in a chart or
+   * a list, and code. Everything else is neutral.
+   */
+  --series-1: #2f6fdc;
+  --series-2: #0e8f80;
+  --series-3: #7c3aed;
+  --series-4: #c9730a;
+  --series-5: #cf3d82;
+  --series-6: #6f6d67;
+  --code-keyword: #7c3aed;
+  --code-string: #15803d;
+  --code-number: #b45309;
+  --code-function: #1d63c9;
+  --code-type: #b83280;
+  /* Floats over the page, and blurs what is behind it. */
+  --glass: rgba(255, 255, 255, 0.76);
+  /* The soft light behind the translucent surfaces, which is what makes them read as frosted. */
+  --backdrop: radial-gradient(1100px 700px at 12% -10%, rgba(255, 255, 255, 0.95), transparent 70%), radial-gradient(900px 700px at 100% 110%, rgba(31, 30, 28, 0.05), transparent 70%);
+  /* The row of where you are, in the rail. */
+  --selected: rgba(31, 30, 28, 0.1);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #191919;
+  --stage: transparent;
+  --panel: #272625;
+  --fg: #eeeeee;
+  --muted: #9c9c9c;
+  --subtle: #6e6e6e;
+  --line: #303030;
+  --line-strong: #3d3d3d;
+  --card: rgba(255, 255, 255, 0.04);
+  --elevated: #2a2a2a;
+  --hover: #2a2a2a;
+  --input: #202020;
+  --code-bg: #141414;
+  --accent: #eeeeee;
+  --on-accent: #191919;
+  --ok: #4ade80;
+  --ok-bg: rgba(74, 222, 128, 0.12);
+  --wait: #fbbf24;
+  --wait-bg: rgba(251, 191, 36, 0.14);
+  --off: #f87171;
+  --off-bg: rgba(248, 113, 113, 0.14);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --focus: rgba(244, 243, 239, 0.14);
+  --blue: #4d8ae6;
+  --blue-hover: #2f6fdc;
+  --on-blue: #f3f7ff;
+  --violet: #a78bfa;
+  --violet-bg: rgba(167, 139, 250, 0.14);
+  --blue-bg: rgba(96, 165, 250, 0.14);
+  --term-bg: #0d1117;
+  --term-fg: #f0f6fc;
+  --term-cmd: #f0f6fc;
+  --term-prompt: #58a6ff;
+  --term-stdout: #c9d1d9;
+  --term-stderr: #f85149;
+  --term-exit-bg: rgba(248, 81, 73, 0.14);
+  --term-running: #d29922;
+  --term-caret: #58a6ff;
+  --term-selection: rgba(88, 166, 255, 0.25);
+  --series-1: #6ea3f7;
+  --series-2: #4cc7b5;
+  --series-3: #b294fb;
+  --series-4: #eda84e;
+  --series-5: #f283b4;
+  --series-6: #a3a29c;
+  --code-keyword: #b9a1fb;
+  --code-string: #7ed39a;
+  --code-number: #e9b872;
+  --code-function: #7fb0f5;
+  --code-type: #ef9dc2;
+  --glass: rgba(42, 42, 42, 0.78);
+  --backdrop: radial-gradient(1100px 700px at 12% -10%, rgba(255, 255, 255, 0.07), transparent 70%), radial-gradient(900px 700px at 100% 110%, rgba(255, 255, 255, 0.035), transparent 70%);
+  /* The row of where you are, in the rail. */
+  --selected: #474645;
+  color-scheme: dark;
+}
+
+
+* {
+  box-sizing: border-box;
+}
+
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  --text-small: 12px;
+  --text-body: 13px;
+  --text-title: 18px;
+  --rail-width: 148px;
+  --bar-height: 44px;
+  --radius: 8px;
+  /* Room for the macOS window buttons, and for those the Windows bridge draws. */
+  --traffic-space: 0px;
+  --window-buttons: var(--saturn-window-buttons, 0px);
+}
+
+:root[data-platform="darwin"] {
+  --traffic-space: 78px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* The window itself never scrolls or bounces: only the panes inside it do. */
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  background: var(--backdrop), var(--bg);
+  color: var(--fg);
+  font: var(--text-body) / 1.5 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Read by assistive technology and computer use, and not drawn. */
+.lab-unseen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+h1,
+h2,
+h3,
+p,
+pre {
+  margin: 0;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

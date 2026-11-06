@@ -1,0 +1,50 @@
+{
+  "createdAt": "2026-11-05T05:53:36.456508+00:00",
+  "scriptSha256": "7bc9c9b6272e075ddaf2040ac8eb627a49b19fb40adadbd499e7bedcba200064",
+  "samplesSha256": "e7a0db781e568d1930baaffb70a75220283958d38acb0d05e297256ecb04bde2",
+  "modelsSha256": "9604a8dd6b694470b1f7b896a51980377de9028a41913b4988c62ed6c78ade34",
+  "python": "3.14.8",
+  "torch": "2.14.1",
+  "transformers": "5.22.1",
+  "dtype": "float32",
+  "device": "cpu",
+  "attention": "sdpa",
+  "threads": 6,
+  "seed": 0,
+  "models": {
+    "model_7ca531f853e2e602": {
+      "source": "EleutherAI/pythia-160m",
+      "revision": "step100000",
+      "commit": "c507d0e63f5a7a833b1b1866116a04cc3e74dc70",
+      "originalModelId": "model_3009cbd909ebc62a",
+      "weightsSha256": "3164be2625f407dd83703a2d218277b7e80a03e28c9d51fc9d40dd5e34c16c14"
+    },
+    "model_39149a6665328b80": {
+      "source": "EleutherAI/pythia-160m",
+      "revision": "step120000",
+      "commit": "3df7d2c5532755f7022704e07dea87f35eeaf0e1",
+      "originalModelId": "model_c84828620d489a99",
+      "weightsSha256": "c7a4594f9cee604cf6a954abb0f1afaf82d9a73de6f6f427c635febe4c044152"
+    },
+    "model_6985f699e1072167": {
+      "source": "EleutherAI/pythia-160m",
+      "revision": "step130000",
+      "commit": "0b59d0757b8e89b8f5acb201425d1a9964ecf77f",
+      "originalModelId": "model_a18eb24afc8a4a95",
+      "weightsSha256": "474eafc5536e46246237a28297964fea230ff630b8adfa71f6d574a2ac5c4bda"
+    },
+    "model_ec6a628a0f0ca3eb": {
+      "source": "EleutherAI/pythia-160m",
+      "revision": "step143000",
+      "commit": "b56d9bee36300031aeea723b73c4d62ac7fa71a2",
+      "originalModelId": "model_9a965613851335b9",
+      "weightsSha256": "d829d1a5cf66032491679d64c5b18e85b82d37833a99c346905668b8553084d5"
+    }
+  },
+  "protocol": {
+    "baseline": "all original prompts; margin > 0; reproduce previous rounded margins within 0.002 and exact correctness/top-1",
+    "embedding": "130k -> 143k input/output row drift; all input embeddings and name-position-only swaps on Laura/David, Mike/Sarah, Mary/John, both orders, all four places",
+    "sweep": "all target failures, no exclusion by donor correctness; 130k -> 143k and 100k/130k -> 120k; actual post-block residual before final norm",
+    "metrics": "candidate margin and full-vocabulary top-1 reported separately; no statistical or mechanistic hypothesis verdict"
+  }
+}

@@ -1,0 +1,7 @@
+# The record of requests (Settings → Telemetry → Network) promises every one the runtime sends, and Rust has no global place
+# to watch them from: each goes through saturn_telemetry::network::SendNoted.
+disallowed-methods = [
+  { path = "reqwest::RequestBuilder::send", reason = "use saturn_telemetry::network::SendNoted::send_noted, so the request is on the record" },
+  { path = "reqwest::Client::execute", reason = "use saturn_telemetry::network::SendNoted::send_noted, so the request is on the record" },
+  { path = "reqwest::get", reason = "use saturn_telemetry::network::SendNoted::send_noted, so the request is on the record" },
+]

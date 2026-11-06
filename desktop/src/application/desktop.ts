@@ -1,9 +1,10 @@
 import { AdminService } from "./admin.js";
+import { AssistantService } from "./assistant.js";
 import { AutomationService } from "./automations.js";
 import { CatalogService } from "./catalog.js";
-import { GroupService } from "./groups.js";
-import { MarketplaceService } from "./marketplace.js";
+import { NotebookService } from "./notebooks.js";
 import { ProjectService } from "./projects.js";
+import { ResearchService } from "./research.js";
 import { RunService } from "./runs.js";
 import { TelemetryService } from "./telemetry.js";
 import { WorkspaceService } from "./workspace.js";
@@ -18,9 +19,10 @@ export class DesktopApp {
   readonly workspace: WorkspaceService;
   readonly automations: AutomationService;
   readonly telemetry: TelemetryService;
-  readonly marketplace: MarketplaceService;
   readonly projects: ProjectService;
-  readonly groups: GroupService;
+  readonly research: ResearchService;
+  readonly notebooks: NotebookService;
+  readonly assistant: AssistantService;
   readonly live: LiveService;
 
   constructor(runtime: RuntimeClient = new RuntimeClient()) {
@@ -30,9 +32,10 @@ export class DesktopApp {
     this.workspace = new WorkspaceService(runtime);
     this.automations = new AutomationService(runtime);
     this.telemetry = new TelemetryService(runtime);
-    this.marketplace = new MarketplaceService(runtime);
     this.projects = new ProjectService(runtime);
-    this.groups = new GroupService(runtime);
+    this.research = new ResearchService(runtime);
+    this.notebooks = new NotebookService(runtime);
+    this.assistant = new AssistantService(this.catalog, this.runs);
     this.live = new LiveService(runtime);
   }
 }

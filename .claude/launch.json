@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "desktop-vite",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--prefix", "desktop", "vite", "desktop", "--port", "5174", "--strictPort"],
+      "port": 5174
+    },
+    {
       "name": "desktop-web",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--prefix", "desktop", "vite", "desktop", "--port", "5181", "--strictPort"],

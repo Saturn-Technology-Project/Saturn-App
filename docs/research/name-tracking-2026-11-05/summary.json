@@ -1,0 +1,212 @@
+[
+  {
+    "source": "step130000",
+    "target": "step143000",
+    "restoredByLayer": [
+      {
+        "layer": 0,
+        "margin": 4,
+        "top1": 2
+      },
+      {
+        "layer": 1,
+        "margin": 5,
+        "top1": 3
+      },
+      {
+        "layer": 2,
+        "margin": 5,
+        "top1": 2
+      },
+      {
+        "layer": 3,
+        "margin": 6,
+        "top1": 2
+      },
+      {
+        "layer": 4,
+        "margin": 7,
+        "top1": 2
+      },
+      {
+        "layer": 5,
+        "margin": 5,
+        "top1": 2
+      },
+      {
+        "layer": 6,
+        "margin": 7,
+        "top1": 2
+      },
+      {
+        "layer": 7,
+        "margin": 7,
+        "top1": 3
+      },
+      {
+        "layer": 8,
+        "margin": 7,
+        "top1": 4
+      },
+      {
+        "layer": 9,
+        "margin": 7,
+        "top1": 5
+      },
+      {
+        "layer": 10,
+        "margin": 7,
+        "top1": 6
+      },
+      {
+        "layer": 11,
+        "margin": 7,
+        "top1": 7
+      }
+    ],
+    "embeddingRestored": {
+      "margin": 4,
+      "top1": 2
+    }
+  },
+  {
+    "source": "step100000",
+    "target": "step120000",
+    "restoredByLayer": [
+      {
+        "layer": 0,
+        "margin": 3,
+        "top1": 0
+      },
+      {
+        "layer": 1,
+        "margin": 4,
+        "top1": 1
+      },
+      {
+        "layer": 2,
+        "margin": 8,
+        "top1": 0
+      },
+      {
+        "layer": 3,
+        "margin": 10,
+        "top1": 0
+      },
+      {
+        "layer": 4,
+        "margin": 12,
+        "top1": 0
+      },
+      {
+        "layer": 5,
+        "margin": 7,
+        "top1": 1
+      },
+      {
+        "layer": 6,
+        "margin": 16,
+        "top1": 2
+      },
+      {
+        "layer": 7,
+        "margin": 15,
+        "top1": 2
+      },
+      {
+        "layer": 8,
+        "margin": 11,
+        "top1": 3
+      },
+      {
+        "layer": 9,
+        "margin": 15,
+        "top1": 3
+      },
+      {
+        "layer": 10,
+        "margin": 15,
+        "top1": 8
+      },
+      {
+        "layer": 11,
+        "margin": 13,
+        "top1": 13
+      }
+    ],
+    "embeddingRestored": {
+      "margin": 2,
+      "top1": 0
+    }
+  },
+  {
+    "source": "step130000",
+    "target": "step120000",
+    "restoredByLayer": [
+      {
+        "layer": 0,
+        "margin": 8,
+        "top1": 0
+      },
+      {
+        "layer": 1,
+        "margin": 14,
+        "top1": 4
+      },
+      {
+        "layer": 2,
+        "margin": 13,
+        "top1": 6
+      },
+      {
+        "layer": 3,
+        "margin": 13,
+        "top1": 8
+      },
+      {
+        "layer": 4,
+        "margin": 14,
+        "top1": 8
+      },
+      {
+        "layer": 5,
+        "margin": 13,
+        "top1": 8
+      },
+      {
+        "layer": 6,
+        "margin": 16,
+        "top1": 5
+      },
+      {
+        "layer": 7,
+        "margin": 16,
+        "top1": 6
+      },
+      {
+        "layer": 8,
+        "margin": 17,
+        "top1": 7
+      },
+      {
+        "layer": 9,
+        "margin": 17,
+        "top1": 9
+      },
+      {
+        "layer": 10,
+        "margin": 17,
+        "top1": 7
+      },
+      {
+        "layer": 11,
+        "margin": 16,
+        "top1": 0
+      }
+    ],
+    "embeddingRestored": {
+      "margin": 6,
+      "top1": 0
+    }
+  }
+]

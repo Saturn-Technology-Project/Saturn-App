@@ -1,0 +1,26 @@
+[package]
+name = "saturn-store"
+description = "Saturn's data folder: state.json, and secrets.json with its key in the operating system's key store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+base64 = "0.22"
+saturn-domain = { path = "../saturn-domain" }
+getrandom = { version = "0.3", features = ["std"] }
+saturn-telemetry = { path = "../saturn-telemetry" }
+serde = { version = "1", features = ["derive"] }
+# Numbers as JavaScript wrote them: exact floats.
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "sync"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }

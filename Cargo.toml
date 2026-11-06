@@ -1,12 +1,14 @@
 # The Rust rewrite of Saturn's runtime (see contract/ for what it must keep doing).
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "desktop/src-tauri"]
+# The desktop app needs a web view to build, so plain cargo commands leave it out; use -p saturn-desktop.
+default-members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.4.0"
 edition = "2024"
-license = "MIT"
+license = "Apache-2.0"
 publish = false
 
 [workspace.lints.rust]

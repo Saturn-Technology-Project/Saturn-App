@@ -1,41 +1,76 @@
 name: Release
 
-# Builds Saturn for macOS (Apple Silicon) and Windows (x64), tests both, and publishes a
-# GitHub release with the downloads.
-# runs on its own runner.
+# Every push to main is checked, packaged for macOS (Apple Silicon) and Windows (x64), and released when its version
+# is new:
 #
-#   Push a tag:   git tag v0.2.0 && git push origin v0.2.0
-#   Or run it:    Actions → Release → Run workflow (version, and whether to publish or only build)
+#   1. check     the whole Supply chain check (lint, types, Rust tests, cargo deny, the HTTP contract), the same job
+#                pull requests must pass.
+#   2. version   reads the version from desktop/package.json (Cargo.toml must agree). It releases when that version is
+#                newer than every v* tag; an older one fails, an existing one only packages.
+#   3. macos, windows   build, test on that system, package, sign and attest. The files are kept as workflow artifacts.
+#   4. release   only for a new version: tags the commit v<version> and publishes the release, with its notes from
+#                .github/release-notes.md and the CHANGELOG section for the version (or Unreleased).
+#
+# To release: raise the version in desktop/package.json and Cargo.toml (and their lock files), and merge to main.
+# Pushing a v* tag that matches the files, or running the workflow by hand, does the same.
 #
 # Versions below 1.0.0 and versions with a suffix (v1.2.0-rc.1) are published as pre-releases.
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version to release, without the v (for example 0.2.0)"
-        required: true
       publish:
-        description: "Publish the GitHub release (off: only build and keep the files as workflow artifacts)"
+        description: "Publish the release if the version is new (off: only check and package)"
         type: boolean
         default: true
 
 concurrency:
-  group: release-${{ github.ref }}-${{ inputs.version || github.ref_name }}
+  # One release run at a time per branch or tag; a newer push to main waits rather than cancelling a publish.
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 # Read-only by default; each job asks for what it needs (OpenSSF Scorecard's Token-Permissions).
 permissions:
   contents: read
 
-env:
-  VERSION: ${{ inputs.version || github.ref_name }}
-
 jobs:
+  check:
+    name: Check
+    uses: ./.github/workflows/supply-chain.yml
+
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.decide.outputs.version }}
+      release: ${{ steps.decide.outputs.release }}
+      prerelease: ${{ steps.decide.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Every tag, to compare the version with what is already released.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Which version, and whether it releases
+        id: decide
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            node scripts/release-version.mjs --tag "$GITHUB_REF_NAME"
+          else
+            node scripts/release-version.mjs
+          fi
+
   macos:
     name: macOS (arm64)
+    needs: [check, version]
     runs-on: macos-14
     permissions:
       contents: read
@@ -48,16 +83,17 @@ jobs:
 
       - name: Version
         id: version
-        run: echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${{ needs.version.outputs.version }}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
 
-      - name: Runtime and desktop dependencies
-        run: |
-          npm ci --ignore-scripts --prefix runtime
-          npm ci --ignore-scripts --prefix desktop
+      - name: Desktop dependencies
+        run: npm ci --ignore-scripts --prefix desktop
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
 
       - name: Git identity for the tests
         run: |
@@ -66,19 +102,21 @@ jobs:
 
       - name: Tests and type checks
         run: |
-          npm test --prefix runtime
+          cargo test --locked
+          cargo build --locked -p saturn-server -p saturn-cli
+          node --test contract/*.test.mjs
           npm run typecheck
 
       - name: Package Saturn.app
         working-directory: desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          UPDATER_PUBKEY: ${{ vars.SATURN_UPDATER_PUBKEY }}
         run: |
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
-          npm run build
-          npm run build:runtime
-          npm run stage:runtime
-          npm run fetch:model
-          npx electron-builder --mac --publish never
-          npm run archive:mac
+          npm run package -- --bundles app $(node scripts/updater-config.mjs)
+          npm run archive
 
       - name: Attest build provenance
         id: attest
@@ -87,6 +125,7 @@ jobs:
           subject-path: |
             desktop/release/*.dmg
             desktop/release/*.zip
+            desktop/release/*-update.tar.gz
 
       # The signed attestation (a Sigstore bundle) ships beside the downloads, so it can be checked offline:
       # gh attestation verify <file> --bundle <bundle> -R Saturn-Technology-Project/Saturn-App
@@ -101,11 +140,15 @@ jobs:
             desktop/release/*.dmg.sha256
             desktop/release/*.zip
             desktop/release/*.zip.sha256
+            desktop/release/*-update.tar.gz
+            desktop/release/*-update.tar.gz.sha256
+            desktop/release/updater-*.json
             desktop/release/*.sigstore.json
           if-no-files-found: error
 
   windows:
     name: Windows (x64)
+    needs: [check, version]
     runs-on: windows-latest
     permissions:
       contents: read
@@ -122,19 +165,17 @@ jobs:
       - name: Version
         id: version
         shell: bash
-        run: echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+        run: echo "version=${{ needs.version.outputs.version }}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
 
-      - name: Runtime and desktop dependencies
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
-          npm ci --ignore-scripts --prefix runtime
-          npm ci --ignore-scripts --prefix desktop
+      - name: Desktop dependencies
+        run: npm ci --ignore-scripts --prefix desktop
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
 
       - name: Git identity for the tests
         run: |
@@ -146,7 +187,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
-          npm test --prefix runtime
+          cargo test --locked
           npm run typecheck
 
       - name: Code-signing certificate (self-signed)
@@ -159,24 +200,23 @@ jobs:
       - name: Package the Saturn installer
         working-directory: desktop
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          UPDATER_PUBKEY: ${{ vars.SATURN_UPDATER_PUBKEY }}
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
-          npm run dist:win
+          $updater = (node scripts/updater-config.mjs) -split ' ' | Where-Object { $_ }
+          npm run package -- --bundles nsis --config src-tauri/tauri.signing.json @updater
+          npm run archive
 
       - name: Check the signatures
         shell: pwsh
         env:
           EXPECTED: ${{ secrets.WINDOWS_SIGNING_PFX && 'D285DA425077C16A3D115D61F9748AFA574BC786' || '' }}
         run: .github/scripts/check-windows-signatures.ps1 -Release desktop/release -Expected "$env:EXPECTED"
-
-      - name: Checksums
-        working-directory: desktop/release
-        shell: bash
-        run: |
-          for file in *.exe; do sha256sum "$file" > "$file.sha256"; done
-          ls -la
 
       - name: Attest build provenance
         id: attest
@@ -194,18 +234,19 @@ jobs:
           path: |
             desktop/release/*.exe
             desktop/release/*.exe.sha256
-            desktop/release/*.exe.blockmap
-            desktop/release/latest.yml
+            desktop/release/updater-*.json
             desktop/release/*.sigstore.json
           if-no-files-found: error
 
   release:
     name: Publish the release
-    needs: [macos, windows]
-    if: github.event_name == 'push' || inputs.publish
+    needs: [version, macos, windows]
+    if: needs.version.outputs.release == 'true' && (github.event_name == 'push' || inputs.publish)
     runs-on: ubuntu-latest
     # Publishing waits for a maintainer's approval (the "release" environment), and only v* tags or main may deploy.
     environment: release
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     permissions:
       # Create the release and upload its files.
       contents: write
@@ -218,6 +259,15 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      # Installed Saturns look here for updates. It is a release of its own because GitHub's "latest" link skips pre-releases.
+      - name: Update manifest
+        run: |
+          version="${VERSION#v}"
+          if ls dist/updater-*.json >/dev/null 2>&1; then
+            node scripts/updater-manifest.mjs "$version" dist latest.json
+          fi
+          rm -f dist/updater-*.json
 
       - name: Software bill of materials (CycloneDX)
         run: |
@@ -245,18 +295,19 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
         run: |
           version="${VERSION#v}"
           tag="v$version"
-          # 0.x and suffixed versions (1.2.0-rc.1) are pre-releases; 1.0.0 and later without a suffix are not.
           prerelease=""
-          if [[ "$version" == 0.* || "$version" == *-* ]]; then prerelease="--prerelease"; fi
-          sed "s/__VERSION__/$version/g" .github/release-notes.md > notes.md
+          if [[ "$PRERELEASE" == "true" ]]; then prerelease="--prerelease"; fi
+          node scripts/release-notes.mjs "$version" notes.md
           ls -la dist
           if gh release view "$tag" >/dev/null 2>&1; then
             # Re-running for an existing release replaces its files and keeps its notes.
             gh release upload "$tag" dist/* --clobber
           else
+            # Creating the release tags this commit v<version>.
             gh release create "$tag" dist/* \
               --title "Saturn $tag" \
               --target "$GITHUB_SHA" \
@@ -265,3 +316,7 @@ jobs:
               $prerelease
           fi
           gh release view "$tag" --json url --jq .url
+          if [[ -f latest.json ]]; then
+            gh release view updates >/dev/null 2>&1 || gh release create updates --title "Saturn updates" --notes "What installed Saturns check for updates." --prerelease --target "$GITHUB_SHA"
+            gh release upload updates latest.json --clobber
+          fi

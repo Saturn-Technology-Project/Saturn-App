@@ -55,9 +55,9 @@ function freePort() {
 export async function startRuntime() {
 	const port = await freePort();
 	const data = await mkdtemp(path.join(os.tmpdir(), 'saturn-eval-data-'));
-	const tsx = path.join(root, 'runtime', 'node_modules', 'tsx', 'dist', 'cli.mjs');
-	const child = spawn(process.execPath, [tsx, path.join(root, 'runtime', 'src', 'main.ts')], {
-		cwd: path.join(root, 'runtime'),
+	const program = process.env.SATURN_RUST_BIN ?? path.join(root, 'target', 'debug', process.platform === 'win32' ? 'saturn-server.exe' : 'saturn-server');
+	const child = spawn(program, [], {
+		cwd: root,
 		env: { ...process.env, SATURN_DATA_DIR: data, SATURN_RUNTIME_PORT: String(port), SATURN_RUNTIME_TOKEN: TOKEN, SATURN_NO_WAKEUP: '1', SATURN_SECRET_STORE: 'file' },
 		stdio: ['ignore', 'ignore', 'inherit'],
 	});

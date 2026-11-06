@@ -1,11 +1,13 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use axum::Json;
-use axum::extract::{Request, State};
+use axum::extract::{MatchedPath, Request, State};
 use axum::http::header::{self, HeaderMap, HeaderValue};
 use axum::http::{Method, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use saturn_telemetry::{Context, Kind, Span};
 use serde_json::json;
 
 use crate::auth::token_matches;
@@ -145,4 +147,58 @@ mod tests {
             assert!(!loopback_host(host), "{host}");
         }
     }
+}
+
+/// Why a route refused a request, for its span.
+#[derive(Clone)]
+pub(crate) struct Refusal(pub String);
+
+/// A server span per HTTP request, continuing any trace the caller sent in `traceparent`. Named "<METHOD> <route template>", so
+/// ids never end up in span names. The Telemetry page polls /telemetry, and tracing those reads would only record the act of
+/// looking.
+pub(crate) async fn trace_requests(request: Request, next: Next) -> Response {
+    let path = request.uri().path().to_owned();
+    let method = request.method().as_str().to_owned();
+    if method == "OPTIONS" || path.starts_with("/telemetry") {
+        return next.run(request).await;
+    }
+    let parent = request
+        .headers()
+        .get("traceparent")
+        .and_then(|value| value.to_str().ok())
+        .and_then(Context::parse);
+    // Express writes a route's parameters :id; the Telemetry page and old files spell them so.
+    let route = request
+        .extensions()
+        .get::<MatchedPath>()
+        .map(|matched| matched.as_str().replace('{', ":").replace('}', ""));
+    let span = Span::under(
+        parent,
+        method.clone(),
+        Kind::Server,
+        json!({ "http.request.method": method, "url.path": path }),
+    );
+    let started = Instant::now();
+    let response = span.scope(next.run(request)).await;
+    let status = response.status().as_u16();
+    if let Some(route) = &route {
+        span.rename(format!("{method} {route}"));
+        span.set("http.route", route.as_str());
+    }
+    span.set("http.response.status_code", status);
+    if let Some(Refusal(reason)) = response.extensions().get::<Refusal>() {
+        span.fail(reason, "HttpError");
+    } else if status >= 500 {
+        span.error_status();
+    }
+    let mut labels = json!({ "http.request.method": method, "http.response.status_code": status });
+    if let Some(route) = route {
+        labels["http.route"] = json!(route);
+    }
+    saturn_telemetry::record(
+        "http.server.request.duration",
+        started.elapsed().as_secs_f64(),
+        labels,
+    );
+    response
 }

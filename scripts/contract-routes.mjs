@@ -1,5 +1,4 @@
-// Lists every HTTP route of the TypeScript runtime in contract/routes.json, the checklist for the Rust runtime: a route
-// added to one must reach the other.
+// Lists every HTTP route of the runtime in contract/routes.json, so a route never changes without a look at who depends on it.
 //
 //   node scripts/contract-routes.mjs          rewrite the list
 //   node scripts/contract-routes.mjs --check  exit 1 when it is out of date
@@ -8,19 +7,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const presentation = path.join(root, "runtime/src/presentation");
+const server = path.join(root, "crates/saturn-server/src");
 const target = path.join(root, "contract/routes.json");
 
-const routes = readdirSync(presentation)
-  .filter((file) => file.endsWith(".ts"))
+// Each .route("/path", get(a).post(b)) in the router; `fallback` answers every other method.
+const routes = readdirSync(server)
+  .filter((file) => file.endsWith(".rs"))
   .flatMap((file) => {
-    const source = readFileSync(path.join(presentation, file), "utf8");
-    return [...source.matchAll(/\bapp\.(get|post|put|patch|delete|all)\(\s*(?:"([^"]+)"|\[([^\]]+)\]|([A-Z_]+))/g)].flatMap((match) => {
-      // One path, a list of paths, or a path named by a constant in the same file, such as AGENT_SKILLS_PATH.
-      const named = match[4] && new RegExp(`${match[4]}\\s*=\\s*"([^"]+)"`).exec(source)?.[1];
-      const paths = match[2] ? [match[2]] : match[3] ? [...match[3].matchAll(/"([^"]+)"/g)].map((item) => item[1]) : named ? [named] : [];
-      if (!paths.length) throw new Error(`${file}: cannot read the path of app.${match[1]}(${match[4]})`);
-      return paths.map((route) => `${match[1].toUpperCase()} ${route}`);
+    const source = readFileSync(path.join(server, file), "utf8");
+    return [...source.matchAll(/\.route\(\s*"([^"]+)"\s*,\s*((?:[^()]|\([^()]*\))*)\)/g)].flatMap((match) => {
+      const route = match[1].replace(/\{(\w+)\}/g, ":$1");
+      return [...match[2].matchAll(/\b(get|post|put|patch|delete|any|fallback)\(/g)].map(([, method]) => `${method === "any" || method === "fallback" ? "ALL" : method.toUpperCase()} ${route}`);
     });
   });
 const next = `${JSON.stringify([...new Set(routes)].sort(), null, 2)}\n`;

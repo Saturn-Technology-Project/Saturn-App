@@ -4,19 +4,19 @@ name: Supply chain
 # dependency still fails the check):
 # - every lock file resolves only to the npm registry, with sha512 integrity (scripts/check-lockfiles.mjs);
 # - every installed package has a valid npm registry signature, and provenance where its publisher provides it;
-# - no known high or critical vulnerability in what the runtime and the desktop app ship;
-# - the Claude Code and Codex download manifest still pins exactly what the lock file says.
-# It also enforces the coding standard (oxlint with .oxlintrc.json) on the runtime and the desktop app, and for the Rust
-# rewrite: formatting, clippy and tests, cargo deny (crates.io only, advisories, licenses), and the HTTP contract
-# (contract/) against both runtimes.
+# - no known high or critical vulnerability in what the desktop app ships.
+# It also enforces the coding standard (oxlint with .oxlintrc.json) on the desktop app, and for the runtime: formatting,
+# clippy and tests, cargo deny (crates.io only, advisories, licenses), and the HTTP contract (contract/).
+#
+# Pull requests require its `check` job. A push to main runs it through the Release workflow, which packages and
+# releases only after it passes.
 
 on:
-  push:
-    branches: [main]
   pull_request:
   schedule:
     - cron: "17 3 * * 1"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -36,28 +36,18 @@ jobs:
         run: node scripts/check-lockfiles.mjs
 
       - name: Install without running any install script
-        run: |
-          npm ci --ignore-scripts --no-audit --no-fund --prefix runtime
-          npm ci --ignore-scripts --no-audit --no-fund --prefix desktop
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix desktop
 
       - name: Registry signatures and provenance
-        run: |
-          (cd runtime && npm audit signatures)
-          (cd desktop && npm audit signatures)
+        working-directory: desktop
+        run: npm audit signatures
 
       - name: No high or critical vulnerabilities in what ships
-        run: |
-          (cd runtime && npm audit --omit=dev --audit-level=high)
-          (cd desktop && npm audit --omit=dev --audit-level=high)
-
-      - name: The Claude Code and Codex download manifest matches the lock file
-        working-directory: runtime
-        run: npx tsx --import ./test/setup.ts --test --test-name-pattern="manifest pins" test/agent-programs.test.ts
+        working-directory: desktop
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Coding standard (oxlint)
-        run: |
-          npm run lint --prefix runtime
-          npm run lint --prefix desktop
+        run: npm run lint --prefix desktop
 
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
@@ -69,16 +59,30 @@ jobs:
           cargo test --locked
 
       - name: Crates resolve only to crates.io, with no known advisories
-        uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
         with:
           tool: cargo-deny@0.20.2
       - run: cargo deny --locked check
 
-      - name: The route checklist matches the TypeScript runtime
+      - name: The route checklist matches the runtime
         run: node scripts/contract-routes.mjs --check
 
-      - name: Both runtimes keep the HTTP contract
+      - name: Release decisions (version, notes)
+        run: node --test scripts/release.test.mjs
+
+      - name: The interface type-checks and keeps its rules
         run: |
-          cargo build --locked -p saturn-server
-          SATURN_TEST_RUNTIME=ts node --test contract/*.test.mjs
-          SATURN_TEST_RUNTIME=rust node --test contract/*.test.mjs
+          npm run typecheck
+          node --test desktop/test/*.test.mjs
+
+      - name: Bubblewrap, so experiment runs are tested inside the Linux sandbox
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends bubblewrap
+          # Ubuntu 24.04 turns off unprivileged user namespaces by default; bubblewrap needs them.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      - name: The runtime keeps the HTTP contract
+        run: |
+          cargo build --locked -p saturn-server -p saturn-cli
+          node --test --test-timeout=300000 contract/*.test.mjs

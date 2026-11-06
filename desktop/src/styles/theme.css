@@ -1,0 +1,74 @@
+/*
+ * Tailwind, for the components in presentation/ui/base and the screens moved onto them. There is no preflight: the older styles keep
+ * their reset. Tailwind's theme stays in a layer, so that Saturn's tokens win over its variables of the same name.
+ */
+@layer theme, base;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" source(none);
+@source "../presentation";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* The names shadcn's components use, as Saturn's own tokens. */
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--card);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--elevated);
+  --color-popover-foreground: var(--fg);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--on-accent);
+  --color-muted: var(--hover);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--hover);
+  --color-accent-foreground: var(--fg);
+  --color-destructive: var(--off);
+  --color-good: var(--ok);
+  --color-wait: var(--wait);
+  --color-info: var(--blue);
+  --color-violet: var(--violet);
+  --color-glass: var(--glass);
+  --color-stage: var(--stage);
+  --color-panel: var(--panel);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-6: var(--series-6);
+  --color-border: var(--line);
+  --color-input: var(--line-strong);
+  --color-ring: var(--subtle);
+  --radius-md: var(--radius);
+  --text-sm: var(--text-body);
+  --text-xs: var(--text-small);
+}
+
+/* What preflight would have done for these elements. In a layer, so any utility wins. */
+@layer base {
+  button,
+  [data-slot="button"],
+  [data-slot="select-trigger"],
+  [data-slot="tabs-trigger"],
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="switch"],
+  [data-slot="checkbox"],
+  [data-slot="menu-trigger"] {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/* Floats over the page and blurs what is behind it. For small things that come and go: a blur costs every frame under it, so nothing large or scrolling wears it. */
+@utility glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  backdrop-filter: blur(24px) saturate(1.3);
+}

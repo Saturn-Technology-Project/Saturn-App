@@ -1,4 +1,4 @@
-**Saturn** runs AI agents on your own computer: the agent app and its local runtime in one download.
+**Saturn** is a workbench for AI research on your own computer: the app, its research assistant and its local runtime in one download.
 
 > **Preview build.** The macOS app is not signed with an Apple Developer ID (Apple Silicon only), and the Windows installer is signed with Saturn's self-signed certificate, which Windows does not trust, so both systems warn the first time you open them.
 
@@ -12,10 +12,12 @@
 **Windows (x64)**
 
 1. Download `Saturn-__VERSION__-win-x64-setup.exe` and run it.
-2. If SmartScreen stops it, click **More info → Run anyway**. Later versions update themselves.
+2. If SmartScreen stops it, click **More info → Run anyway**.
 3. Optional: confirm the installer is Saturn's. In PowerShell, `(Get-AuthenticodeSignature .\Saturn-__VERSION__-win-x64-setup.exe).SignerCertificate.Thumbprint` should print `D285DA425077C16A3D115D61F9748AFA574BC786`.
 
-Then open **Settings → Models**, connect a model, create an agent, and give it a task (the first launch walks you through it).
+Then open **Settings → Models** and connect a model, add a project folder, and write your first question (the first launch walks you through it). The interface is in English or Traditional Chinese, following the system or chosen in **Settings → General**.
+
+**Updating:** from a version before the rewrite in Rust and Tauri (0.3.1 or earlier), install this one by hand; your data in `~/.saturn-app` keeps working. Later versions update themselves: the update downloads in the background and installs when you quit Saturn, and it must carry a signature from Saturn's updater key.
 
 **Check a download** (optional): each file has a `.sha256` beside it, and a signed build attestation that proves it was built from this repository's source by its public release workflow:
 
@@ -24,9 +26,9 @@ shasum -a 256 -c Saturn-__VERSION__-mac-arm64-unsigned.dmg.sha256
 gh attestation verify Saturn-__VERSION__-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
 ```
 
-The signed attestations are attached too (`*.sigstore.json`); with one, `gh attestation verify <file> --bundle <file>.sigstore.json -R Saturn-Technology-Project/Saturn-App` checks a download offline.
+The signed attestations are attached too (`*.sigstore.json`); with one, `gh attestation verify <file> --bundle Saturn-__VERSION__-mac-arm64.sigstore.json -R Saturn-Technology-Project/Saturn-App` checks a macOS download offline (`-win-x64.sigstore.json` for Windows).
 
-`Saturn-__VERSION__-sbom.cdx.json` lists every package, model and runtime this release ships (CycloneDX 1.5, with each package's SHA-512), for your scanner or your security team.
+`Saturn-__VERSION__-sbom.cdx.json` lists the crates, npm packages and model this release is built from (CycloneDX 1.5, with their hashes), for your scanner or your security team.
 
 ## Changes
 

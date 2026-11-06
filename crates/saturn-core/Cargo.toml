@@ -1,0 +1,40 @@
+[package]
+name = "saturn-core"
+description = "The agent loop: a model's turns, its tool calls and approvals, hooks, compaction, sub-agents and checkpoints"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.22"
+# Time zones for schedules; its bundled database is what Windows, which has none, falls back on.
+jiff = "0.2"
+percent-encoding = "2"
+regex = "1"
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+# The code index's file, the same SQLite file earlier versions wrote.
+rusqlite = { version = "0.41", features = ["bundled"] }
+saturn-browser = { path = "../saturn-browser" }
+saturn-computer = { path = "../saturn-computer" }
+saturn-domain = { path = "../saturn-domain" }
+saturn-embed = { path = "../saturn-embed" }
+saturn-llm = { path = "../saturn-llm" }
+saturn-mcp = { path = "../saturn-mcp" }
+saturn-store = { path = "../saturn-store" }
+saturn-telemetry = { path = "../saturn-telemetry" }
+saturn-tools = { path = "../saturn-tools" }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+sha1 = "0.10"
+sha2 = "0.10"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
+url = "2"
+
+[dev-dependencies]
+axum = "0.8"
+serde = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }

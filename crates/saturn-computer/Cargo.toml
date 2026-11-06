@@ -1,0 +1,23 @@
+[package]
+name = "saturn-computer"
+description = "The computer-use tools: real screenshots, mouse and keyboard input, and an app's element tree, on macOS and Windows"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.22"
+regex = "1"
+saturn-domain = { path = "../saturn-domain" }
+saturn-tools = { path = "../saturn-tools" }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+sha2 = "0.10"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

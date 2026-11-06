@@ -1,0 +1,2453 @@
+[
+ {
+  "check": "isPrivateHost",
+  "host": "::ffff:127.0.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "fe80::1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "fc00::1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "169.254.169.254",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "8.8.8.8",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "2001:4860:4860::8888",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "[::ffff:7f00:1]",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::ffff:a9fe:a9fe",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::ffff:c0a8:1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "0:0:0:0:0:ffff:7f00:1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "0:0:0:0:0:0:0:1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::127.0.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::ffff:0:7f00:1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "64:ff9b::7f00:1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "2002:7f00:1::",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "2001:0:1::1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "fec0::1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "ff02::1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "not:an:address",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "1:2:3:4:5:6:7:8:9",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "localhost.",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "100.64.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "100.127.255.255",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "192.0.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "198.18.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "198.51.100.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "203.0.113.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "224.0.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "255.255.255.255",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::ffff:808:808",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "64:ff9b::808:808",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "2002:808:808::",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "2606:2800:220:1::1",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "100.63.0.1",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "100.128.0.1",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "198.20.0.1",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "223.255.255.255",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "LOCALHOST",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "foo.localhost",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "printer.local",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "db.internal",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "example.com",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "example.com.",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "256.1.1.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "999.999.999.999",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "1.2.3",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "1.2.3.4.5",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "10.0.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "172.16.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "172.15.255.255",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "172.32.0.1",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "192.168.1.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "192.0.2.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "127.0.0.1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "0.0.0.0",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::1%lo0",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "fe80::1%en0",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::1.2.3.999",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "1::2::3",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "12345::",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "٣.٣.٣.٣",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "fd00::1",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "fe7f::1",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "2001:1::1",
+  "expect": false
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "::2:3",
+  "expect": true
+ },
+ {
+  "check": "isPrivateHost",
+  "host": "1:2:3:4:5:6:7:8",
+  "expect": false
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://example.com/a?b=1#c",
+  "expect": {
+   "ok": "http://example.com/a?b=1#c"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "https://EXAMPLE.com:443/",
+  "expect": {
+   "ok": "https://example.com/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://example.com:80/x/../y",
+  "expect": {
+   "ok": "http://example.com/y"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "file:///etc/passwd",
+  "expect": {
+   "error": "Only http and https URLs are allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "ftp://example.com/",
+  "expect": {
+   "error": "Only http and https URLs are allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "javascript:alert(1)",
+  "expect": {
+   "error": "Only http and https URLs are allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "not a url",
+  "expect": {
+   "error": "URL is invalid"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "",
+  "expect": {
+   "error": "URL is invalid"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://user:pw@example.com/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://user@example.com/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://127.0.0.1/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://localhost/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://LOCALHOST./",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://2130706433/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://0x7f000001/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://0177.0.0.1/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://127.1/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://%31%32%37.0.0.1/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://①②⑦.0.0.1/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://[::ffff:127.0.0.1]/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://[::1]:8080/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://[fe80::1]/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://[2606:2800:220:1::1]/",
+  "expect": {
+   "ok": "http://[2606:2800:220:1::1]/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://8.8.8.8/",
+  "expect": {
+   "ok": "http://8.8.8.8/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://0x8.8.8.8/",
+  "expect": {
+   "ok": "http://8.8.8.8/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://169.254.169.254/latest/meta-data/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://a b/",
+  "expect": {
+   "error": "URL is invalid"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://exa%20mple.com/",
+  "expect": {
+   "error": "URL is invalid"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://例え.テスト/",
+  "expect": {
+   "ok": "http://xn--r8jz45g.xn--zckzah/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://example.com:99999/",
+  "expect": {
+   "error": "URL is invalid"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "HTTP://Example.COM",
+  "expect": {
+   "ok": "http://example.com/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http:example.com",
+  "expect": {
+   "ok": "http://example.com/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http:/example.com",
+  "expect": {
+   "ok": "http://example.com/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "//example.com",
+  "expect": {
+   "error": "URL is invalid"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "  http://example.com  ",
+  "expect": {
+   "ok": "http://example.com/"
+  }
+ },
+ {
+  "check": "publicAddress",
+  "url": "http://printer.local/",
+  "expect": {
+   "error": "That address is not allowed"
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n function a() {\n-  return 1;\n+  return 10;\n }\n",
+  "source": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "function a() {",
+         "  return 1;",
+         "}"
+        ],
+        "next": [
+         "function a() {",
+         "  return 10;",
+         "}"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "function a() {\n  return 10;\n}\n\nfunction b() {\n  return 2;\n}\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n }\n\n function b() {\n-  return 2;\n+  return 20;\n*** End Patch\n",
+  "source": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "}",
+         "",
+         "function b() {",
+         "  return 2;"
+        ],
+        "next": [
+         "}",
+         "",
+         "function b() {",
+         "  return 20;"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 20;\n}\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n",
+  "expect": {
+   "error": "Patch must end with *** End Patch"
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n?? what\n*** End Patch",
+  "expect": {
+   "error": "A patch line must start with a space, + or -"
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "--- a/x.js\n+++ b/x.js",
+  "expect": {
+   "error": "Patch must start with *** Begin Patch"
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "",
+  "expect": {
+   "error": "Patch must start with *** Begin Patch"
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n\n*** End Patch",
+  "expect": {
+   "error": "Unknown patch line: "
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n*** End Patch",
+  "expect": {
+   "error": "Update for x.js has no hunk"
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Nonsense\n*** End Patch",
+  "expect": {
+   "error": "Unknown patch line: *** Nonsense"
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Add File: new.txt\n+one\n+two\n*** End Patch",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "add",
+      "path": "new.txt",
+      "lines": [
+       "one",
+       "two"
+      ]
+     }
+    ],
+    "applied": null
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Add File: empty.txt\n*** End Patch",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "add",
+      "path": "empty.txt",
+      "lines": []
+     }
+    ],
+    "applied": null
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Add File:  spaced.txt  \n+x\n*** End Patch",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "add",
+      "path": "spaced.txt",
+      "lines": [
+       "x"
+      ]
+     }
+    ],
+    "applied": null
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Delete File: gone.txt\n*** End Patch",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "delete",
+      "path": "gone.txt"
+     }
+    ],
+    "applied": null
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n*** Move to: y.js\n*** End Patch",
+  "source": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "moveTo": "y.js",
+      "hunks": []
+     }
+    ],
+    "applied": {
+     "ok": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n*** Move to: y.js\n@@\n-  return 1;\n+  return 3;\n*** End Patch",
+  "source": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "moveTo": "y.js",
+      "hunks": [
+       {
+        "old": [
+         "  return 1;"
+        ],
+        "next": [
+         "  return 3;"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "function a() {\n  return 3;\n}\n\nfunction b() {\n  return 2;\n}\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n-  return 1;\n+  return 3;\n@@\n-  return 2;\n+  return 4;\n*** End Patch",
+  "source": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "  return 1;"
+        ],
+        "next": [
+         "  return 3;"
+        ]
+       },
+       {
+        "old": [
+         "  return 2;"
+        ],
+        "next": [
+         "  return 4;"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "function a() {\n  return 3;\n}\n\nfunction b() {\n  return 4;\n}\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n-  return 2;\n+  return 4;\n@@\n-  return 1;\n+  return 3;\n*** End Patch",
+  "source": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "  return 2;"
+        ],
+        "next": [
+         "  return 4;"
+        ]
+       },
+       {
+        "old": [
+         "  return 1;"
+        ],
+        "next": [
+         "  return 3;"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "error": "Patch context was not found"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n-missing\n*** End Patch",
+  "source": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "missing"
+        ],
+        "next": []
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "error": "Patch context was not found"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n+first\n@@\n+second\n*** End Patch",
+  "source": "function a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [],
+        "next": [
+         "first"
+        ]
+       },
+       {
+        "old": [],
+        "next": [
+         "second"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "first\nsecond\nfunction a() {\n  return 1;\n}\n\nfunction b() {\n  return 2;\n}\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n+only\n*** End Patch",
+  "source": "",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [],
+        "next": [
+         "only"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "only\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n-a\n+b\n*** End Patch",
+  "source": "a",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "a"
+        ],
+        "next": [
+         "b"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "b"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n-a\n+b\n*** End Patch",
+  "source": "a\r\nc\r\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "a"
+        ],
+        "next": [
+         "b"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "b\nc\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n-a\n*** End Patch",
+  "source": "a\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "a"
+        ],
+        "next": []
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@\n-a\n+b\n*** End of File\n*** Delete File: y\n*** End Patch",
+  "source": "a\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "a"
+        ],
+        "next": [
+         "b"
+        ]
+       }
+      ]
+     },
+     {
+      "kind": "delete",
+      "path": "y"
+     }
+    ],
+    "applied": {
+     "ok": "b\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Update File: x.js\n@@ function a\n-a\n+b\n*** End of File\n@@\n-c\n+d\n*** End Patch",
+  "source": "a\nc\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "a"
+        ],
+        "next": [
+         "b"
+        ]
+       },
+       {
+        "old": [
+         "c"
+        ],
+        "next": [
+         "d"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "b\nd\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\r\n*** Update File: x.js\r\n@@\r\n-a\r\n+b\r\n*** End Patch\r\n",
+  "source": "a\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "update",
+      "path": "x.js",
+      "hunks": [
+       {
+        "old": [
+         "a"
+        ],
+        "next": [
+         "b"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "b\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch trailing\n*** Delete File: y\n   *** End Patch   \n*** Delete File: ignored",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "delete",
+      "path": "y"
+     }
+    ],
+    "applied": null
+   }
+  }
+ },
+ {
+  "check": "patch",
+  "patch": "*** Begin Patch\n*** Add File: a\n+1\n*** Delete File: b\n*** Update File: c\n@@\n x\n+y\n*** End Patch",
+  "source": "x\n",
+  "expect": {
+   "ok": {
+    "changes": [
+     {
+      "kind": "add",
+      "path": "a",
+      "lines": [
+       "1"
+      ]
+     },
+     {
+      "kind": "delete",
+      "path": "b"
+     },
+     {
+      "kind": "update",
+      "path": "c",
+      "hunks": [
+       {
+        "old": [
+         "x"
+        ],
+        "next": [
+         "x",
+         "y"
+        ]
+       }
+      ]
+     }
+    ],
+    "applied": {
+     "ok": "x\ny\n"
+    }
+   }
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {},
+  "expect": {
+   "error": "Plan needs at least one step"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": []
+  },
+  "expect": {
+   "error": "Plan needs at least one step"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": "x"
+  },
+  "expect": {
+   "error": "Plan needs at least one step"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    "one",
+    "two"
+   ]
+  },
+  "expect": {
+   "ok": {
+    "explanation": "",
+    "steps": [
+     {
+      "step": "one",
+      "status": "in_progress"
+     },
+     {
+      "step": "two",
+      "status": "pending"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "explanation": "why",
+   "steps": [
+    "one"
+   ]
+  },
+  "expect": {
+   "ok": {
+    "explanation": "why",
+    "steps": [
+     {
+      "step": "one",
+      "status": "in_progress"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "explanation": 3,
+   "steps": [
+    "one"
+   ]
+  },
+  "expect": {
+   "ok": {
+    "explanation": "3",
+    "steps": [
+     {
+      "step": "one",
+      "status": "in_progress"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": "a",
+     "status": "in_progress"
+    },
+    {
+     "step": "b",
+     "status": "pending"
+    }
+   ]
+  },
+  "expect": {
+   "ok": {
+    "explanation": "",
+    "steps": [
+     {
+      "step": "a",
+      "status": "in_progress"
+     },
+     {
+      "step": "b",
+      "status": "pending"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": "a",
+     "status": "completed"
+    }
+   ]
+  },
+  "expect": {
+   "ok": {
+    "explanation": "",
+    "steps": [
+     {
+      "step": "a",
+      "status": "completed"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": "a",
+     "status": "pending"
+    }
+   ]
+  },
+  "expect": {
+   "error": "Keep exactly one step in progress"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": "a",
+     "status": "in_progress"
+    },
+    {
+     "step": "b",
+     "status": "in_progress"
+    }
+   ]
+  },
+  "expect": {
+   "error": "Keep exactly one step in progress"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": "",
+     "status": "pending"
+    }
+   ]
+  },
+  "expect": {
+   "error": "Each step needs a description"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "status": "pending"
+    }
+   ]
+  },
+  "expect": {
+   "error": "Each step needs a description"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": "a",
+     "status": "done"
+    }
+   ]
+  },
+  "expect": {
+   "error": "Step status must be pending, in_progress, or completed"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": "a"
+    }
+   ]
+  },
+  "expect": {
+   "error": "Step status must be pending, in_progress, or completed"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    5
+   ]
+  },
+  "expect": {
+   "error": "Each step needs a description and a status"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    0
+   ]
+  },
+  "expect": {
+   "error": "Each step needs a description and a status"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    null
+   ]
+  },
+  "expect": {
+   "error": "Each step needs a description and a status"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    false
+   ]
+  },
+  "expect": {
+   "error": "Each step needs a description and a status"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    [
+     "a"
+    ]
+   ]
+  },
+  "expect": {
+   "error": "Each step needs a description"
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": 7,
+     "status": "in_progress"
+    }
+   ]
+  },
+  "expect": {
+   "ok": {
+    "explanation": "",
+    "steps": [
+     {
+      "step": "7",
+      "status": "in_progress"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    "a",
+    {
+     "step": "b",
+     "status": "completed"
+    }
+   ]
+  },
+  "expect": {
+   "ok": {
+    "explanation": "",
+    "steps": [
+     {
+      "step": "a",
+      "status": "in_progress"
+     },
+     {
+      "step": "b",
+      "status": "completed"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "check": "plan",
+  "arguments": {
+   "steps": [
+    {
+     "step": "b",
+     "status": "completed"
+    },
+    "a"
+   ]
+  },
+  "expect": {
+   "error": "Keep exactly one step in progress"
+  }
+ },
+ {
+  "check": "value",
+  "value": null,
+  "text": "",
+  "integer": 0
+ },
+ {
+  "check": "value",
+  "value": "",
+  "text": "",
+  "integer": 0
+ },
+ {
+  "check": "value",
+  "value": "text",
+  "text": "text",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": " 12 ",
+  "text": " 12 ",
+  "integer": 12
+ },
+ {
+  "check": "value",
+  "value": "12.9",
+  "text": "12.9",
+  "integer": 12
+ },
+ {
+  "check": "value",
+  "value": "-3.7",
+  "text": "-3.7",
+  "integer": -3
+ },
+ {
+  "check": "value",
+  "value": "0x10",
+  "text": "0x10",
+  "integer": 16
+ },
+ {
+  "check": "value",
+  "value": "0b11",
+  "text": "0b11",
+  "integer": 3
+ },
+ {
+  "check": "value",
+  "value": "0o7",
+  "text": "0o7",
+  "integer": 7
+ },
+ {
+  "check": "value",
+  "value": "1e3",
+  "text": "1e3",
+  "integer": 1000
+ },
+ {
+  "check": "value",
+  "value": ".5",
+  "text": ".5",
+  "integer": 0
+ },
+ {
+  "check": "value",
+  "value": "5.",
+  "text": "5.",
+  "integer": 5
+ },
+ {
+  "check": "value",
+  "value": "+4",
+  "text": "+4",
+  "integer": 4
+ },
+ {
+  "check": "value",
+  "value": "Infinity",
+  "text": "Infinity",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": "-Infinity",
+  "text": "-Infinity",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": "inf",
+  "text": "inf",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": "nan",
+  "text": "nan",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": "NaN",
+  "text": "NaN",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": "1_000",
+  "text": "1_000",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": "12px",
+  "text": "12px",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": " 7﻿",
+  "text": " 7﻿",
+  "integer": 7
+ },
+ {
+  "check": "value",
+  "value": 0,
+  "text": "0",
+  "integer": 0
+ },
+ {
+  "check": "value",
+  "value": 1,
+  "text": "1",
+  "integer": 1
+ },
+ {
+  "check": "value",
+  "value": 2.5,
+  "text": "2.5",
+  "integer": 2
+ },
+ {
+  "check": "value",
+  "value": -2.5,
+  "text": "-2.5",
+  "integer": -2
+ },
+ {
+  "check": "value",
+  "value": 1e+21,
+  "text": "1e+21",
+  "integer": 1e+21
+ },
+ {
+  "check": "value",
+  "value": 1.5e-7,
+  "text": "1.5e-7",
+  "integer": 0
+ },
+ {
+  "check": "value",
+  "value": 1e+300,
+  "text": "1e+300",
+  "integer": 1e+300
+ },
+ {
+  "check": "value",
+  "value": 123456789012,
+  "text": "123456789012",
+  "integer": 123456789012
+ },
+ {
+  "check": "value",
+  "value": true,
+  "text": "true",
+  "integer": 1
+ },
+ {
+  "check": "value",
+  "value": false,
+  "text": "false",
+  "integer": 0
+ },
+ {
+  "check": "value",
+  "value": [],
+  "text": "",
+  "integer": 0
+ },
+ {
+  "check": "value",
+  "value": [
+   5
+  ],
+  "text": "5",
+  "integer": 5
+ },
+ {
+  "check": "value",
+  "value": [
+   "7"
+  ],
+  "text": "7",
+  "integer": 7
+ },
+ {
+  "check": "value",
+  "value": [
+   1,
+   2
+  ],
+  "text": "1,2",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": [
+   null
+  ],
+  "text": "",
+  "integer": 0
+ },
+ {
+  "check": "value",
+  "value": [
+   [
+    3
+   ]
+  ],
+  "text": "3",
+  "integer": 3
+ },
+ {
+  "check": "value",
+  "value": {},
+  "text": "[object Object]",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": {
+   "a": 1
+  },
+  "text": "[object Object]",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "value": [
+   "a",
+   null,
+   true,
+   {
+    "b": 1
+   },
+   [
+    2,
+    3
+   ]
+  ],
+  "text": "a,,true,[object Object],2,3",
+  "integer": -99
+ },
+ {
+  "check": "value",
+  "text": "",
+  "integer": -99
+ },
+ {
+  "check": "pageText",
+  "html": "<title>a &amp;lt; b</title>",
+  "expect": {
+   "title": "a &lt; b",
+   "text": "a &lt; b"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<p>&lt;b&gt; &quot;x&quot; &#39;y&#39; &amp;&nbsp;z</p>",
+  "expect": {
+   "title": "",
+   "text": "<b> \"x\" 'y' & z"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<p>kept</p><script>hidden()</script ><style>.hidden {}</style\n><script src=x></script>",
+  "expect": {
+   "title": "",
+   "text": "kept"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<scripted>kept</scripted>",
+  "expect": {
+   "title": "",
+   "text": "kept"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<TITLE lang=en>\n Big \t Title </TITLE><BODY>One<br>Two</BODY>",
+  "expect": {
+   "title": "Big Title",
+   "text": "Big Title One Two"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "",
+  "expect": {
+   "title": "",
+   "text": ""
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "plain text",
+  "expect": {
+   "title": "",
+   "text": "plain text"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "no <closing",
+  "expect": {
+   "title": "",
+   "text": "no <closing"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "a<>b",
+  "expect": {
+   "title": "",
+   "text": "a<>b"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<scripté>x</scripté>",
+  "expect": {
+   "title": "",
+   "text": ""
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<title>x</title><title>y</title>",
+  "expect": {
+   "title": "x",
+   "text": "x y"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<title>never closed",
+  "expect": {
+   "title": "",
+   "text": "never closed"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<script>open forever",
+  "expect": {
+   "title": "",
+   "text": "open forever"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "a b﻿c de",
+  "expect": {
+   "title": "",
+   "text": "a b c de"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "&lt;script&gt;shown&lt;/script&gt;",
+  "expect": {
+   "title": "",
+   "text": "<script>shown</script>"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "&AMP; &#38; &apos;",
+  "expect": {
+   "title": "",
+   "text": "&AMP; &#38; &apos;"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "x<script>a</script>y<script>b</script>z",
+  "expect": {
+   "title": "",
+   "text": "x y z"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<a href='>'>link</a>",
+  "expect": {
+   "title": "",
+   "text": "'>link"
+  }
+ },
+ {
+  "check": "pageText",
+  "html": "<style>a</styles>b</style>c",
+  "expect": {
+   "title": "",
+   "text": "c"
+  }
+ },
+ {
+  "check": "clip",
+  "text": "a",
+  "times": 32000,
+  "untouched": true,
+  "rest": ""
+ },
+ {
+  "check": "clip",
+  "text": "a",
+  "times": 32001,
+  "untouched": true,
+  "rest": "\n…[1 more characters cut. Read a narrower part: filter with grep, head or tail, or read a file with offset and limit.]"
+ },
+ {
+  "check": "clip",
+  "text": "é",
+  "times": 40000,
+  "untouched": true,
+  "rest": "\n…[8000 more characters cut. Read a narrower part: filter with grep, head or tail, or read a file with offset and limit.]"
+ },
+ {
+  "check": "clip",
+  "text": "😀",
+  "times": 16000,
+  "untouched": true,
+  "rest": ""
+ },
+ {
+  "check": "clip",
+  "text": "😀",
+  "times": 16001,
+  "untouched": true,
+  "rest": "\n…[2 more characters cut. Read a narrower part: filter with grep, head or tail, or read a file with offset and limit.]"
+ },
+ {
+  "check": "clip",
+  "text": "",
+  "times": 0,
+  "untouched": true,
+  "rest": ""
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "",
+  "expect": {
+   "ok": {
+    "target": "/work",
+    "relative": "."
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": ".",
+  "expect": {
+   "ok": {
+    "target": "/work",
+    "relative": "."
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "a/b",
+  "expect": {
+   "ok": {
+    "target": "/work/a/b",
+    "relative": "a/b"
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "a/../b",
+  "expect": {
+   "ok": {
+    "target": "/work/b",
+    "relative": "b"
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "..",
+  "expect": {
+   "error": "Path is outside the workspace"
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "../work",
+  "expect": {
+   "ok": {
+    "target": "/work",
+    "relative": "."
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "../work2",
+  "expect": {
+   "error": "Path is outside the workspace"
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "../worker/x",
+  "expect": {
+   "error": "Path is outside the workspace"
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "/work/x",
+  "expect": {
+   "ok": {
+    "target": "/work/x",
+    "relative": "x"
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "/etc/passwd",
+  "expect": {
+   "error": "Path is outside the workspace"
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work/",
+  "requested": "x/",
+  "expect": {
+   "ok": {
+    "target": "/work/x",
+    "relative": "x"
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work/sub/..",
+  "requested": "x",
+  "expect": {
+   "ok": {
+    "target": "/work/x",
+    "relative": "x"
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "a//b/./c",
+  "expect": {
+   "ok": {
+    "target": "/work/a/b/c",
+    "relative": "a/b/c"
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/work",
+  "requested": "a/../../work/b",
+  "expect": {
+   "ok": {
+    "target": "/work/b",
+    "relative": "b"
+   }
+  }
+ },
+ {
+  "check": "workspace",
+  "root": "/",
+  "requested": "x",
+  "expect": {
+   "error": "Path is outside the workspace"
+  }
+ },
+ {
+  "check": "seatbelt",
+  "mode": "workspace-write",
+  "writable": [
+   "/work",
+   "/tmp"
+  ],
+  "network": true,
+  "expect": "(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (literal \"/dev/null\") (literal \"/dev/zero\") (regex #\"^/dev/tty\") (regex #\"^/dev/fd/\") (literal \"/dev/dtracehelper\"))\n(allow file-write* (subpath \"/work\") (subpath \"/tmp\"))\n"
+ },
+ {
+  "check": "seatbelt",
+  "mode": "workspace-write",
+  "writable": [
+   "/work",
+   "/tmp"
+  ],
+  "network": false,
+  "expect": "(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (literal \"/dev/null\") (literal \"/dev/zero\") (regex #\"^/dev/tty\") (regex #\"^/dev/fd/\") (literal \"/dev/dtracehelper\"))\n(allow file-write* (subpath \"/work\") (subpath \"/tmp\"))\n(deny network*)\n(allow network* (local unix-socket))\n"
+ },
+ {
+  "check": "seatbelt",
+  "mode": "read-only",
+  "writable": [
+   "/work",
+   "/tmp",
+   "/private/tmp"
+  ],
+  "network": true,
+  "expect": "(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (literal \"/dev/null\") (literal \"/dev/zero\") (regex #\"^/dev/tty\") (regex #\"^/dev/fd/\") (literal \"/dev/dtracehelper\"))\n(allow file-write* (subpath \"/tmp\") (subpath \"/private/tmp\"))\n(deny file-write* (subpath \"/work\"))\n"
+ },
+ {
+  "check": "seatbelt",
+  "mode": "read-only",
+  "writable": [
+   "/tmp/work",
+   "/tmp"
+  ],
+  "network": false,
+  "expect": "(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (literal \"/dev/null\") (literal \"/dev/zero\") (regex #\"^/dev/tty\") (regex #\"^/dev/fd/\") (literal \"/dev/dtracehelper\"))\n(allow file-write* (subpath \"/tmp\"))\n(deny file-write* (subpath \"/tmp/work\"))\n(deny network*)\n(allow network* (local unix-socket))\n"
+ },
+ {
+  "check": "seatbelt",
+  "mode": "workspace-write",
+  "writable": [
+   "/a \"quoted\"/b\\c"
+  ],
+  "network": true,
+  "expect": "(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (literal \"/dev/null\") (literal \"/dev/zero\") (regex #\"^/dev/tty\") (regex #\"^/dev/fd/\") (literal \"/dev/dtracehelper\"))\n(allow file-write* (subpath \"/a \\\"quoted\\\"/b\\\\c\"))\n"
+ },
+ {
+  "check": "seatbelt",
+  "mode": "read-only",
+  "writable": [],
+  "network": true,
+  "expect": "(version 1)\n(allow default)\n(deny file-write*)\n(allow file-write* (literal \"/dev/null\") (literal \"/dev/zero\") (regex #\"^/dev/tty\") (regex #\"^/dev/fd/\") (literal \"/dev/dtracehelper\"))\n(deny file-write* (subpath \"/nonexistent\"))\n"
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "mkdir: /etc/x: Operation not permitted",
+  "mode": "workspace-write",
+  "network": true,
+  "expect": "(The sandbox allows writes only inside the workspace. If this command must write elsewhere, call code with sandbox: \"off\"; that asks the user first.)"
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "touch: Permission denied",
+  "mode": "read-only",
+  "network": true,
+  "expect": "(The sandbox allows writes only inside the workspace — none in read-only mode. If this command must write elsewhere, call code with sandbox: \"off\"; that asks the user first.)"
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "EROFS: read-only file system",
+  "mode": "workspace-write",
+  "network": false,
+  "expect": "(The sandbox allows writes only inside the workspace. If this command must write elsewhere, call code with sandbox: \"off\"; that asks the user first.)"
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "some other error",
+  "mode": "workspace-write",
+  "network": true,
+  "expect": null
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "curl: could not resolve host",
+  "mode": "workspace-write",
+  "network": true,
+  "expect": null
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "curl: Could not resolve host",
+  "mode": "workspace-write",
+  "network": false,
+  "expect": "(The sandbox blocks network access for commands. If this command needs the network, call code with sandbox: \"off\"; that asks the user first.)"
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "connection refused",
+  "mode": "read-only",
+  "network": false,
+  "expect": "(The sandbox blocks network access for commands. If this command needs the network, call code with sandbox: \"off\"; that asks the user first.)"
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "ECONNREFUSED",
+  "mode": "workspace-write",
+  "network": false,
+  "expect": "(The sandbox blocks network access for commands. If this command needs the network, call code with sandbox: \"off\"; that asks the user first.)"
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "",
+  "mode": "workspace-write",
+  "network": false,
+  "expect": null
+ },
+ {
+  "check": "sandboxHint",
+  "stderr": "EACCES and getaddrinfo",
+  "mode": "workspace-write",
+  "network": false,
+  "expect": "(The sandbox allows writes only inside the workspace. If this command must write elsewhere, call code with sandbox: \"off\"; that asks the user first.)"
+ },
+ {
+  "check": "shell",
+  "command": "echo hi",
+  "posix": "/bin/sh",
+  "platform": "linux",
+  "env": {},
+  "expect": {
+   "file": "/bin/sh",
+   "args": [
+    "-c",
+    "echo hi"
+   ],
+   "windowsVerbatimArguments": false
+  }
+ },
+ {
+  "check": "shell",
+  "command": "echo hi",
+  "posix": "/bin/sh",
+  "platform": "darwin",
+  "env": {},
+  "expect": {
+   "file": "/bin/sh",
+   "args": [
+    "-c",
+    "echo hi"
+   ],
+   "windowsVerbatimArguments": false
+  }
+ },
+ {
+  "check": "shell",
+  "command": "echo \"a b\"",
+  "posix": "/bin/sh",
+  "platform": "win32",
+  "env": {},
+  "expect": {
+   "file": "cmd.exe",
+   "args": [
+    "/d",
+    "/s",
+    "/c",
+    "\"echo \"a b\"\""
+   ],
+   "windowsVerbatimArguments": true
+  }
+ },
+ {
+  "check": "shell",
+  "command": "dir",
+  "posix": "/bin/sh",
+  "platform": "win32",
+  "env": {
+   "ComSpec": "C:\\Windows\\cmd.exe"
+  },
+  "expect": {
+   "file": "C:\\Windows\\cmd.exe",
+   "args": [
+    "/d",
+    "/s",
+    "/c",
+    "\"dir\""
+   ],
+   "windowsVerbatimArguments": true
+  }
+ },
+ {
+  "check": "commandEnv",
+  "platform": "linux",
+  "env": {},
+  "expect": {
+   "PATH": "/usr/bin:/bin"
+  }
+ },
+ {
+  "check": "commandEnv",
+  "platform": "darwin",
+  "env": {
+   "PATH": "/a:/b",
+   "HOME": "/h",
+   "SECRET": "x"
+  },
+  "expect": {
+   "PATH": "/a:/b"
+  }
+ },
+ {
+  "check": "commandEnv",
+  "platform": "linux",
+  "env": {
+   "PATH": ""
+  },
+  "expect": {
+   "PATH": "/usr/bin:/bin"
+  }
+ },
+ {
+  "check": "commandEnv",
+  "platform": "win32",
+  "env": {
+   "Path": "C:\\x",
+   "SystemRoot": "C:\\W",
+   "temp": "C:\\t",
+   "API_KEY": "x",
+   "ProgramFiles(x86)": "C:\\p"
+  },
+  "expect": {
+   "Path": "C:\\x",
+   "SystemRoot": "C:\\W",
+   "temp": "C:\\t",
+   "ProgramFiles(x86)": "C:\\p"
+  }
+ },
+ {
+  "check": "sandboxMode",
+  "value": "workspace-write",
+  "expect": "workspace-write"
+ },
+ {
+  "check": "sandboxMode",
+  "value": "read-only",
+  "expect": "read-only"
+ },
+ {
+  "check": "sandboxMode",
+  "value": "off",
+  "expect": "off"
+ },
+ {
+  "check": "sandboxMode",
+  "value": "on",
+  "expect": null
+ },
+ {
+  "check": "sandboxMode",
+  "value": "",
+  "expect": null
+ },
+ {
+  "check": "sandboxMode",
+  "value": null,
+  "expect": null
+ },
+ {
+  "check": "sandboxMode",
+  "value": 1,
+  "expect": null
+ }
+]

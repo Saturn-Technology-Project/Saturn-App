@@ -1,0 +1,267 @@
+// Reading samples: one sample across runs, a person's labels kept apart from scores, and pages while a run still writes.
+// docs/research-contract.md is the contract.
+import assert from "node:assert/strict";
+import { readFile, utimes, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { after, before, test } from "node:test";
+import { bench, posixOnly, until } from "./files-support.mjs";
+
+let saturn;
+before(async () => { saturn = await bench(); });
+after(async () => { await saturn?.stop(); });
+
+const evaluation = { dataset: "ioi", split: "test", sampleSet: "all", scorer: "name-logit", promptFormat: "continuation", chatTemplate: null, generation: {} };
+const line = (id, fields = {}) => `${JSON.stringify({ schemaVersion: 1, sampleId: id, input: "i", output: "o", scores: { s: 1 }, ...fields })}\n`;
+const script = (lines) => `
+import { appendFileSync } from "node:fs";
+for (const text of ${JSON.stringify(lines)}) appendFileSync(process.env.SATURN_RUN_SAMPLES, text);
+`;
+
+/** A project; `run` freezes and runs these lines with this evaluation. */
+async function project() {
+  const folder = await saturn.folder();
+  const made = await saturn.api("POST", "/projects", { path: folder });
+  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const route = `/projects/${made.id}/research`;
+  let count = 0;
+  const run = async (lines, spec = evaluation) => {
+    count += 1;
+    const file = `probe${count}.mjs`;
+    await writeFile(path.join(folder, file), script(lines));
+    const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: `node ${file}`, evaluation: spec });
+    const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+    const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: `c${count}` });
+    return until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  };
+  return { folder, route, run };
+}
+
+test("one sample across runs, with a reason where they cannot be compared", posixOnly, async () => {
+  const { route, run } = await project();
+  const base = await run([line("a", { output: "Mary" }), line("b")]);
+  const tuned = await run([line("a", { output: "John" })]);
+  const templated = await run([line("a", { output: "Hello" })], { ...evaluation, chatTemplate: "chatml" });
+  const missing = await run([line("z")]);
+  const { rows } = await saturn.api("GET", `${route}/samples/a?runs=${[base.id, tuned.id, templated.id, missing.id].join(",")}`);
+  assert.deepEqual(rows.map((row) => row.samples.map((item) => item.output)), [["Mary"], ["John"], ["Hello"], []]);
+  assert.deepEqual(rows.map((row) => row.comparison.result), ["comparable", "comparable", "not_comparable", "comparable"]);
+  assert.deepEqual(rows[2].comparison.differs, ["chatTemplate"]);
+});
+
+test("a label never changes the samples, and is kept in its own file", posixOnly, async () => {
+  const { route, folder, run } = await project();
+  const done = await run([line("a"), line("b")]);
+  const samplesFile = path.join(folder, ".saturn/research/runs", done.id, "samples.jsonl");
+  const before = await readFile(samplesFile, "utf8");
+  const saved = await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a", label: "Wrong name", note: "the scorer missed it" });
+  assert.equal(saved.label, "Wrong name");
+  assert.equal(await readFile(samplesFile, "utf8"), before);
+  assert.deepEqual(await saturn.api("GET", `${route}/runs/${done.id}`), done);
+  const file = JSON.parse(await readFile(path.join(folder, ".saturn/research/labels", `${done.id}.json`), "utf8"));
+  assert.equal(Object.values(file.labels)[0].note, "the scorer missed it");
+  assert.equal((await saturn.call("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a" })).status, 400);
+  assert.equal((await saturn.call("POST", `${route}/runs/${done.id}/labels`, { label: "x" })).status, 400);
+  assert.equal((await saturn.call("POST", `${route}/runs/run_nothere/labels`, { sampleId: "a", label: "x" })).status, 404);
+});
+
+test("relabeling replaces the earlier label, and labels on one sample do not leak to another trial", posixOnly, async () => {
+  const { route, run } = await project();
+  const done = await run([line("a"), line("a", { trial: 1 })]);
+  await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a", label: "First" });
+  await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a", label: "Second" });
+  await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a", trial: 1, label: "Other" });
+  const { labels } = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.deepEqual(Object.values(labels).map((item) => [item.trial, item.label]).sort(), [[0, "Second"], [1, "Other"]]);
+});
+
+test("many labels at once all land", posixOnly, async () => {
+  const { route, run } = await project();
+  const ids = Array.from({ length: 10 }, (_, index) => `s${index}`);
+  const done = await run(ids.map((id) => line(id)));
+  await Promise.all(ids.map((sampleId) => saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId, label: "ok" })));
+  const { labels } = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.equal(Object.keys(labels).length, 10);
+});
+
+test("agreement counts only samples the scorer labeled, in this run", posixOnly, async () => {
+  const { route, run } = await project();
+  const done = await run([line("a", { scorerLabel: "Refused" }), line("b", { scorerLabel: "Refused" }), line("c"), line("d", { scorerLabel: "Refused" })]);
+  const label = (sampleId, value) => saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId, label: value });
+  await label("a", "Refused");
+  await label("b", "Not refused");
+  await label("c", "Refused");
+  await label("missing", "Refused");
+  const { agreement } = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.deepEqual(agreement, { labeled: 4, compared: 2, agreed: 1 });
+});
+
+test("pages read while a run writes never show half a line, and reach every sample once", posixOnly, async () => {
+  const folder = await saturn.folder();
+  await writeFile(path.join(folder, "probe.mjs"), `
+    import { appendFileSync } from "node:fs";
+    const text = "瑪麗".repeat(2000);
+    const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+    for (let index = 0; index < 40; index += 1) {
+      const bytes = Buffer.from(JSON.stringify({ schemaVersion: 1, sampleId: "s" + index, output: text }) + "\\n");
+      // In two writes, so a reader can catch the line unfinished. One line at a time: on a busy computer, lines on
+      // timers of their own would interleave, and the file itself would hold a bad line.
+      appendFileSync(process.env.SATURN_RUN_SAMPLES, bytes.subarray(0, 100));
+      await pause(2);
+      appendFileSync(process.env.SATURN_RUN_SAMPLES, bytes.subarray(100));
+      await pause(6);
+    }
+  `);
+  const made = await saturn.api("POST", "/projects", { path: folder });
+  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const route = `/projects/${made.id}/research`;
+  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } });
+  const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: "x" });
+  const seen = [];
+  let cursor = 0;
+  for (;;) {
+    const current = await saturn.api("GET", `${route}/runs/${started.id}`);
+    const page = await saturn.api("GET", `${route}/runs/${started.id}/samples?cursor=${cursor}&limit=7`);
+    for (const item of page.items) {
+      assert.ok(item.sample, JSON.stringify(item).slice(0, 200));
+      seen.push(item.sample.sampleId);
+      cursor = item.offset + Buffer.byteLength(`${JSON.stringify(item.sample)}\n`);
+    }
+    if (page.next !== null) cursor = page.next;
+    if (!["starting", "running", "stopping"].includes(current.status) && page.next === null && page.items.length === 0) break;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.deepEqual(seen, Array.from({ length: 40 }, (_, index) => `s${index}`));
+});
+
+test("disputed samples are filtered across the whole run, with the same explicit label aliases as agreement", posixOnly, async () => {
+  const { route, run } = await project();
+  const done = await run(Array.from({ length: 5103 }, (_, index) => line(`s${index}`, { scorerLabel: "Wrong", ...(index === 5102 ? { error: { kind: "model" } } : {}) })));
+  const draft = await saturn.api("GET", `${route}/experiments/${done.experimentId}`);
+  await saturn.api("PATCH", `${route}/experiments/${draft.id}`, { expectedRevision: draft.revision, labels: ["Wrong name", "Correct name"], labelAliases: { "Wrong name": "Wrong", "Correct name": "Correct" } });
+  for (const [sampleId, label] of [["s0", " wrong "], ["s5100", "Wrong name"], ["s5101", "Correct name"], ["s5102", "Not wrong"]]) {
+    await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId, label });
+  }
+  const labels = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.deepEqual(labels.agreement, { labeled: 4, compared: 4, agreed: 2 });
+  assert.equal(Object.values(labels.labels).find((item) => item.sampleId === "s5100").agreesWithScorer, true);
+  const first = await saturn.api("GET", `${route}/runs/${done.id}/samples?only=disputed&limit=1`);
+  assert.deepEqual(first.items.map((item) => item.sample.sampleId), ["s5101"]);
+  assert.notEqual(first.next, null);
+  const second = await saturn.api("GET", `${route}/runs/${done.id}/samples?only=disputed&limit=1&cursor=${first.next}`);
+  assert.deepEqual(second.items.map((item) => item.sample.sampleId), ["s5102"]);
+  assert.equal(second.next, null);
+  const errors = await saturn.api("GET", `${route}/runs/${done.id}/samples?only=errors`);
+  assert.deepEqual(errors.items.map((item) => item.sample.sampleId), ["s5102"]);
+  assert.equal((await saturn.call("GET", `${route}/runs/${done.id}/samples?only=unknown`)).status, 400);
+  const bad = await saturn.call("PATCH", `${route}/experiments/${draft.id}`, { expectedRevision: draft.revision + 1, labelAliases: { Bad: 5 } });
+  assert.equal(bad.status, 400);
+});
+
+test("a sealed run's summary is read from its file once, and again when the file changes", posixOnly, async () => {
+  const { route, folder, run } = await project();
+  const done = await run([line("a"), line("b")]);
+  const file = path.join(folder, ".saturn/research/runs", done.id, "samples.jsonl");
+  const stamp = new Date(1_700_000_000_000);
+  await utimes(file, stamp, stamp);
+  const first = await saturn.api("GET", `${route}/runs/${done.id}/summary`);
+  assert.equal(first.models[0].scores.s.mean, 1);
+  const content = await readFile(file, "utf8");
+  await writeFile(file, content.replaceAll('"s":1', '"s":3'));
+  await utimes(file, stamp, stamp);
+  assert.deepEqual(await saturn.api("GET", `${route}/runs/${done.id}/summary`), first, "the same file is not read again");
+  const later = new Date(1_700_000_100_000);
+  await utimes(file, later, later);
+  assert.equal((await saturn.api("GET", `${route}/runs/${done.id}/summary`)).models[0].scores.s.mean, 3, "a changed file is");
+});
+
+test("labels compare with the scorer from one reading of a sealed run, and nothing labeled needs no reading", posixOnly, async () => {
+  const { route, folder, run } = await project();
+  const done = await run([line("a", { scorerLabel: "good" }), line("b", { scorerLabel: "bad" })]);
+  const empty = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.deepEqual(empty.agreement, { labeled: 0, compared: 0, agreed: 0 });
+  await saturn.api("GET", `${route}/runs/${done.id}/summary`);
+  await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a", label: "good" });
+  await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "b", label: "good" });
+  const labeled = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.deepEqual(labeled.agreement, { labeled: 2, compared: 2, agreed: 1 });
+  assert.equal(Object.values(labeled.labels).find((item) => item.sampleId === "b").agreesWithScorer, false);
+  assert.ok(folder);
+});
+
+test("a summary adds up each model's samples, without letting infrastructure errors count as scores", posixOnly, async () => {
+  const { route, folder, run } = await project();
+  const done = await run([
+    line("a", { modelId: "m1", scores: { logit: 1, correct: true, note: "x" } }),
+    line("b", { modelId: "m1", scores: { logit: 3, correct: false } }),
+    line("c", { modelId: "m1", scores: { logit: 100 }, error: { kind: "infrastructure", message: "GPU gone" } }),
+    line("d", { modelId: "m1", scores: { logit: 2 }, error: { kind: "scorer", message: "unsure" } }),
+    line("a", { modelId: "m2", scores: { logit: 5 } }),
+    line("z", { scores: null }),
+  ]);
+  const summary = await saturn.api("GET", `${route}/runs/${done.id}/summary`);
+  assert.equal(summary.versionId, done.versionId);
+  const byModel = Object.fromEntries(summary.models.map((item) => [item.modelId, item]));
+  assert.equal(byModel.m1.samples, 4);
+  assert.deepEqual(byModel.m1.errors, { infrastructure: 1, scorer: 1 });
+  assert.deepEqual(byModel.m1.scores.logit, { mean: 2, count: 3, notNumbers: 0 });
+  assert.deepEqual(byModel.m1.scores.correct, { mean: 0.5, count: 2, notNumbers: 0 });
+  assert.deepEqual(byModel.m1.scores.note, { mean: null, count: 0, notNumbers: 1 });
+  assert.equal(byModel.m2.scores.logit.mean, 5);
+  assert.equal(byModel.null.samples, 1);
+  // Sealed: what is written later does not change it.
+  const file = path.join(folder, ".saturn/research/runs", done.id, "samples.jsonl");
+  await writeFile(file, await readFile(file, "utf8") + line("late", { modelId: "m2", scores: { logit: 500 } }));
+  const again = await saturn.api("GET", `${route}/runs/${done.id}/summary`);
+  assert.equal(again.models.find((item) => item.modelId === "m2").scores.logit.mean, 5);
+  assert.equal((await saturn.call("GET", `${route}/runs/run_nothere/summary`)).status, 404);
+});
+
+test("a counterexample is a record that names its run and sample", async () => {
+  const { route } = await project();
+  assert.equal((await saturn.call("POST", `${route}/counterexamples`, { note: "no sample" })).status, 400);
+  const kept = await saturn.api("POST", `${route}/counterexamples`, { runId: "run_x", sampleId: "a", note: "indirect" });
+  assert.equal((await saturn.api("GET", `${route}/counterexamples`)).items[0].id, kept.id);
+});
+
+test("a run that measures a different number of samples than the last comparable run of its experiment is warned about", posixOnly, async () => {
+  const { folder, route } = await project();
+  let experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", evaluation });
+  const run = async (lines) => {
+    await writeFile(path.join(folder, "probe.mjs"), script(lines));
+    const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+    const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: crypto.randomUUID() });
+    return until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  };
+  const first = await run([line("a"), line("b")]);
+  assert.equal(first.samplesPerModel, 2);
+  assert.deepEqual(first.warnings, []);
+  const same = await run([line("a"), line("b"), line("x", { output: "changed" })].slice(0, 2).concat([]));
+  assert.deepEqual(same.warnings, []);
+  const more = await run([line("a"), line("b"), line("c")]);
+  assert.equal(more.samplesPerModel, 3);
+  assert.equal(more.warnings.length, 1, JSON.stringify(more.warnings));
+  assert.match(more.warnings[0], new RegExp(`Measured 3 samples per model where ${same.id}.*measured 2`));
+  experiment = await saturn.api("PATCH", `${route}/experiments/${experiment.id}`, { expectedRevision: experiment.revision, evaluation: { ...evaluation, sampleSet: "one" } });
+  const apart = await run([line("a")]);
+  assert.deepEqual(apart.warnings, []);
+});
+
+test("a failed run is neither warned about nor compared with", posixOnly, async () => {
+  const { folder, route } = await project();
+  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", evaluation });
+  const run = async (lines, exit = 0) => {
+    await writeFile(path.join(folder, "probe.mjs"), `${script(lines)}\nprocess.exit(${exit});\n`);
+    const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+    const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: crypto.randomUUID() });
+    return until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  };
+  const whole = await run([line("a"), line("b"), line("c")]);
+  assert.equal(whole.status, "completed");
+  const partial = await run([line("a")], 1);
+  assert.equal(partial.status, "failed");
+  assert.equal(partial.samplesPerModel, 1);
+  assert.deepEqual(partial.warnings, [], "a partial run is not a different evaluation");
+  const after = await run([line("a"), line("b"), line("c")]);
+  assert.deepEqual(after.warnings, [], "compared with the last whole run, not the failed one");
+});

@@ -1,0 +1,792 @@
+{
+  "safari tools": [
+    {
+      "tool": "browser_navigate",
+      "arguments": {
+        "url": "93.184.216.34/page"
+      },
+      "status": "completed",
+      "result": {
+        "url": "https://93.184.216.34/page",
+        "title": "Demo page",
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_navigate",
+      "arguments": {
+        "url": "http://127.0.0.1:4700/"
+      },
+      "status": "failed",
+      "reason": "That address is not allowed"
+    },
+    {
+      "tool": "browser_navigate",
+      "arguments": {
+        "url": "http://localhost/"
+      },
+      "status": "failed",
+      "reason": "That address is not allowed"
+    },
+    {
+      "tool": "browser_snapshot",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_click",
+      "arguments": {
+        "id": 2
+      },
+      "status": "completed",
+      "result": {
+        "clicked": true,
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_click",
+      "arguments": {
+        "selector": "#missing"
+      },
+      "status": "failed",
+      "reason": "Nothing matches the selector #missing"
+    },
+    {
+      "tool": "browser_click",
+      "arguments": {},
+      "status": "failed",
+      "reason": "Give an element id from the snapshot, or a CSS selector."
+    },
+    {
+      "tool": "browser_type",
+      "arguments": {
+        "selector": "#q",
+        "text": "hello",
+        "submit": true
+      },
+      "status": "completed",
+      "result": {
+        "typed": 5,
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_type",
+      "arguments": {
+        "id": 2,
+        "text": "kept",
+        "clear": false
+      },
+      "status": "completed",
+      "result": {
+        "typed": 4,
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_type",
+      "arguments": {
+        "text": "ab"
+      },
+      "status": "completed",
+      "result": {
+        "typed": 2,
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_press",
+      "arguments": {
+        "key": "cmd+a"
+      },
+      "status": "completed",
+      "result": {
+        "pressed": "cmd+a",
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_press",
+      "arguments": {
+        "key": "Enter"
+      },
+      "status": "completed",
+      "result": {
+        "pressed": "Enter",
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_scroll",
+      "arguments": {
+        "direction": "up",
+        "pixels": 50
+      },
+      "status": "completed",
+      "result": {
+        "scrolled": "up",
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_scroll",
+      "arguments": {
+        "direction": "sideways",
+        "pixels": 9000
+      },
+      "status": "completed",
+      "result": {
+        "scrolled": "down",
+        "snapshot": "[1] heading name=\"Demo\"\n[2] button name=\"Go\""
+      }
+    },
+    {
+      "tool": "browser_evaluate",
+      "arguments": {
+        "expression": "6 * 7"
+      },
+      "status": "completed",
+      "result": {
+        "value": 42
+      }
+    },
+    {
+      "tool": "browser_evaluate",
+      "arguments": {
+        "expression": "boom"
+      },
+      "status": "failed",
+      "reason": "Error: boom"
+    },
+    {
+      "tool": "browser_evaluate",
+      "arguments": {
+        "expression": "  "
+      },
+      "status": "failed",
+      "reason": "Give a JavaScript expression"
+    },
+    {
+      "tool": "browser_screenshot",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "image": "data:image/png;base64,iVBORw0KGgo=",
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "tool": "browser_screenshot",
+      "arguments": {
+        "file": "shots/home.jpg"
+      },
+      "status": "completed",
+      "result": {
+        "file": "<data>/workspace/shots/home.jpg",
+        "bytes": 8
+      }
+    },
+    {
+      "tool": "browser_record_stop",
+      "arguments": {},
+      "status": "failed",
+      "reason": "Not recording."
+    }
+  ],
+  "safari closing": [
+    {
+      "tool": "browser_close",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "closed": true
+      }
+    }
+  ],
+  "safari commands": [
+    {
+      "method": "POST",
+      "route": "/session",
+      "body": {
+        "capabilities": {
+          "alwaysMatch": {
+            "browserName": "safari"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/window/rect",
+      "body": {
+        "width": 1280,
+        "height": 860
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/url",
+      "body": {
+        "url": "https://93.184.216.34/page"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/element",
+      "body": {
+        "using": "css selector",
+        "value": "[data-saturn-ref=\"2\"]"
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "const el = arguments[0]; el.scrollIntoView({ block: 'center', inline: 'center' }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };",
+        "args": [
+          {
+            "element-6066-11e4-a52f-4a8f-b8c4-f3bc2b7a1b40": "e1"
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "(() => {\n  if (window.__saturnCursor) return;\n  const make = () => {\n    if (document.getElementById(\"__saturn_cursor\")) return document.getElementById(\"__saturn_cursor\");\n    const cursor = document.createElement(\"div\");\n    cursor.id = \"__saturn_cursor\";\n    cursor.setAttribute(\"aria-hidden\", \"true\");\n    cursor.style.cssText = \"position:fixed;left:0;top:0;width:22px;height:22px;z-index:2147483647;pointer-events:none;transition:transform .28s cubic-bezier(.2,.8,.2,1);transform:translate(-40px,-40px);\";\n    cursor.innerHTML = '<svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\"><path d=\"M3 2l15 8-6.5 1.6L8.6 18z\" fill=\"#111\" stroke=\"#fff\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg>';\n    (document.body || document.documentElement).appendChild(cursor);\n    return cursor;\n  };\n  window.__saturnCursor = {\n    move(x, y) { make().style.transform = \"translate(\" + (x - 3) + \"px,\" + (y - 2) + \"px)\"; },\n    click(x, y) {\n      this.move(x, y);\n      const ring = document.createElement(\"div\");\n      ring.setAttribute(\"aria-hidden\", \"true\");\n      ring.style.cssText = \"position:fixed;left:\" + (x - 14) + \"px;top:\" + (y - 14) + \"px;width:28px;height:28px;border-radius:50%;border:2px solid #4f8cff;z-index:2147483646;pointer-events:none;opacity:.9;transition:transform .45s ease-out,opacity .45s ease-out;\";\n      (document.body || document.documentElement).appendChild(ring);\n      requestAnimationFrame(() => { ring.style.transform = \"scale(1.8)\"; ring.style.opacity = \"0\"; });\n      setTimeout(() => ring.remove(), 500);\n    },\n  };\n})();; window.__saturnCursor.move(arguments[0], arguments[1]);",
+        "args": [
+          300,
+          230
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "window.__saturnCursor && window.__saturnCursor.click(arguments[0], arguments[1]);",
+        "args": [
+          300,
+          230
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/element/e1/click",
+      "body": {}
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/element",
+      "body": {
+        "using": "css selector",
+        "value": "#missing"
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/element",
+      "body": {
+        "using": "css selector",
+        "value": "#q"
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "const el = arguments[0]; el.scrollIntoView({ block: 'center', inline: 'center' }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };",
+        "args": [
+          {
+            "element-6066-11e4-a52f-4a8f-b8c4-f3bc2b7a1b40": "e1"
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "(() => {\n  if (window.__saturnCursor) return;\n  const make = () => {\n    if (document.getElementById(\"__saturn_cursor\")) return document.getElementById(\"__saturn_cursor\");\n    const cursor = document.createElement(\"div\");\n    cursor.id = \"__saturn_cursor\";\n    cursor.setAttribute(\"aria-hidden\", \"true\");\n    cursor.style.cssText = \"position:fixed;left:0;top:0;width:22px;height:22px;z-index:2147483647;pointer-events:none;transition:transform .28s cubic-bezier(.2,.8,.2,1);transform:translate(-40px,-40px);\";\n    cursor.innerHTML = '<svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\"><path d=\"M3 2l15 8-6.5 1.6L8.6 18z\" fill=\"#111\" stroke=\"#fff\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg>';\n    (document.body || document.documentElement).appendChild(cursor);\n    return cursor;\n  };\n  window.__saturnCursor = {\n    move(x, y) { make().style.transform = \"translate(\" + (x - 3) + \"px,\" + (y - 2) + \"px)\"; },\n    click(x, y) {\n      this.move(x, y);\n      const ring = document.createElement(\"div\");\n      ring.setAttribute(\"aria-hidden\", \"true\");\n      ring.style.cssText = \"position:fixed;left:\" + (x - 14) + \"px;top:\" + (y - 14) + \"px;width:28px;height:28px;border-radius:50%;border:2px solid #4f8cff;z-index:2147483646;pointer-events:none;opacity:.9;transition:transform .45s ease-out,opacity .45s ease-out;\";\n      (document.body || document.documentElement).appendChild(ring);\n      requestAnimationFrame(() => { ring.style.transform = \"scale(1.8)\"; ring.style.opacity = \"0\"; });\n      setTimeout(() => ring.remove(), 500);\n    },\n  };\n})();; window.__saturnCursor.move(arguments[0], arguments[1]);",
+        "args": [
+          300,
+          230
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "window.__saturnCursor && window.__saturnCursor.click(arguments[0], arguments[1]);",
+        "args": [
+          300,
+          230
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/element/e1/clear",
+      "body": {}
+    },
+    {
+      "method": "POST",
+      "route": "/element/e1/value",
+      "body": {
+        "text": "hello"
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/actions",
+      "body": {
+        "actions": [
+          {
+            "type": "key",
+            "id": "keyboard",
+            "actions": [
+              {
+                "type": "keyDown",
+                "value": ""
+              },
+              {
+                "type": "keyUp",
+                "value": ""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "route": "/actions"
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/element",
+      "body": {
+        "using": "css selector",
+        "value": "[data-saturn-ref=\"2\"]"
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "const el = arguments[0]; el.scrollIntoView({ block: 'center', inline: 'center' }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };",
+        "args": [
+          {
+            "element-6066-11e4-a52f-4a8f-b8c4-f3bc2b7a1b40": "e1"
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "(() => {\n  if (window.__saturnCursor) return;\n  const make = () => {\n    if (document.getElementById(\"__saturn_cursor\")) return document.getElementById(\"__saturn_cursor\");\n    const cursor = document.createElement(\"div\");\n    cursor.id = \"__saturn_cursor\";\n    cursor.setAttribute(\"aria-hidden\", \"true\");\n    cursor.style.cssText = \"position:fixed;left:0;top:0;width:22px;height:22px;z-index:2147483647;pointer-events:none;transition:transform .28s cubic-bezier(.2,.8,.2,1);transform:translate(-40px,-40px);\";\n    cursor.innerHTML = '<svg width=\"22\" height=\"22\" viewBox=\"0 0 22 22\"><path d=\"M3 2l15 8-6.5 1.6L8.6 18z\" fill=\"#111\" stroke=\"#fff\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/></svg>';\n    (document.body || document.documentElement).appendChild(cursor);\n    return cursor;\n  };\n  window.__saturnCursor = {\n    move(x, y) { make().style.transform = \"translate(\" + (x - 3) + \"px,\" + (y - 2) + \"px)\"; },\n    click(x, y) {\n      this.move(x, y);\n      const ring = document.createElement(\"div\");\n      ring.setAttribute(\"aria-hidden\", \"true\");\n      ring.style.cssText = \"position:fixed;left:\" + (x - 14) + \"px;top:\" + (y - 14) + \"px;width:28px;height:28px;border-radius:50%;border:2px solid #4f8cff;z-index:2147483646;pointer-events:none;opacity:.9;transition:transform .45s ease-out,opacity .45s ease-out;\";\n      (document.body || document.documentElement).appendChild(ring);\n      requestAnimationFrame(() => { ring.style.transform = \"scale(1.8)\"; ring.style.opacity = \"0\"; });\n      setTimeout(() => ring.remove(), 500);\n    },\n  };\n})();; window.__saturnCursor.move(arguments[0], arguments[1]);",
+        "args": [
+          300,
+          230
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "window.__saturnCursor && window.__saturnCursor.click(arguments[0], arguments[1]);",
+        "args": [
+          300,
+          230
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/element/e1/value",
+      "body": {
+        "text": "kept"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/actions",
+      "body": {
+        "actions": [
+          {
+            "type": "key",
+            "id": "keyboard",
+            "actions": [
+              {
+                "type": "keyDown",
+                "value": "a"
+              },
+              {
+                "type": "keyUp",
+                "value": "a"
+              },
+              {
+                "type": "keyDown",
+                "value": "b"
+              },
+              {
+                "type": "keyUp",
+                "value": "b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "route": "/actions"
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/actions",
+      "body": {
+        "actions": [
+          {
+            "type": "key",
+            "id": "keyboard",
+            "actions": [
+              {
+                "type": "keyDown",
+                "value": ""
+              },
+              {
+                "type": "keyDown",
+                "value": "a"
+              },
+              {
+                "type": "keyUp",
+                "value": "a"
+              },
+              {
+                "type": "keyUp",
+                "value": ""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "route": "/actions"
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/actions",
+      "body": {
+        "actions": [
+          {
+            "type": "key",
+            "id": "keyboard",
+            "actions": [
+              {
+                "type": "keyDown",
+                "value": ""
+              },
+              {
+                "type": "keyUp",
+                "value": ""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "route": "/actions"
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "window.scrollBy(arguments[0], arguments[1]);",
+        "args": [
+          0,
+          -100
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "window.scrollBy(arguments[0], arguments[1]);",
+        "args": [
+          0,
+          5000
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/execute/async",
+      "body": {
+        "script": "const done = arguments[arguments.length - 1]; try { Promise.resolve((0, eval)(arguments[0])).then((value) => { try { done({ ok: JSON.parse(JSON.stringify(value === undefined ? null : value)) }); } catch { done({ ok: String(value) }); } }, (error) => done({ error: String(error && error.stack || error) })); } catch (error) { done({ error: String(error && error.stack || error) }); }",
+        "args": [
+          "6 * 7"
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/async",
+      "body": {
+        "script": "const done = arguments[arguments.length - 1]; try { Promise.resolve((0, eval)(arguments[0])).then((value) => { try { done({ ok: JSON.parse(JSON.stringify(value === undefined ? null : value)) }); } catch { done({ ok: String(value) }); } }, (error) => done({ error: String(error && error.stack || error) })); } catch (error) { done({ error: String(error && error.stack || error) }); }",
+        "args": [
+          "boom"
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "route": ""
+    },
+    {
+      "method": "POST",
+      "route": "/session",
+      "body": {
+        "capabilities": {
+          "alwaysMatch": {
+            "browserName": "safari"
+          }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/window/rect",
+      "body": {
+        "width": 1280,
+        "height": 860
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/url"
+    },
+    {
+      "method": "GET",
+      "route": "/title"
+    },
+    {
+      "method": "POST",
+      "route": "/execute/sync",
+      "body": {
+        "script": "\nconst limit = arguments[0];\nconst lines = [];\nlet next = 1;\ndocument.querySelectorAll(\"[data-saturn-ref]\").forEach((el) => el.removeAttribute(\"data-saturn-ref\"));\nconst implicit = (el) => {\n  const tag = el.tagName.toLowerCase();\n  const type = (el.getAttribute(\"type\") || \"\").toLowerCase();\n  if (tag === \"a\" && el.hasAttribute(\"href\")) return \"link\";\n  if (tag === \"button\" || (tag === \"input\" && [\"button\", \"submit\", \"reset\"].includes(type))) return \"button\";\n  if (tag === \"input\" && type === \"checkbox\") return \"checkbox\";\n  if (tag === \"input\" && type === \"radio\") return \"radio\";\n  if (tag === \"input\" && type === \"search\") return \"searchbox\";\n  if (tag === \"input\" && type === \"range\") return \"slider\";\n  if (tag === \"input\" && type !== \"hidden\") return \"textbox\";\n  if (tag === \"textarea\") return \"textbox\";\n  if (tag === \"select\") return \"combobox\";\n  if (tag === \"option\") return \"option\";\n  if (/^h[1-6]$/.test(tag)) return \"heading\";\n  if (tag === \"img\") return \"image\";\n  if (tag === \"summary\") return \"button\";\n  return \"\";\n};\nconst visible = (el) => {\n  const style = getComputedStyle(el);\n  if (style.display === \"none\" || style.visibility === \"hidden\") return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 || rect.height > 0;\n};\nconst nameOf = (el) => {\n  const label = el.getAttribute(\"aria-label\") || el.getAttribute(\"alt\") || el.getAttribute(\"title\") || \"\";\n  if (label) return label;\n  if (el.id) { const forLabel = document.querySelector(\"label[for='\" + CSS.escape(el.id) + \"']\"); if (forLabel) return forLabel.innerText; }\n  if ([\"INPUT\", \"TEXTAREA\", \"SELECT\"].includes(el.tagName)) return el.getAttribute(\"placeholder\") || \"\";\n  return (el.innerText || \"\").replace(/\\s+/g, \" \");\n};\nconst walk = (el, depth) => {\n  if (lines.length >= limit || el.id === \"__saturn_cursor\" || el.getAttribute(\"aria-hidden\") === \"true\") return;\n  if (!visible(el)) return;\n  const role = el.getAttribute(\"role\") || implicit(el);\n  let shown = false;\n  if (role) {\n    const id = next++;\n    el.setAttribute(\"data-saturn-ref\", String(id));\n    const parts = [\"[\" + id + \"] \" + role];\n    const name = nameOf(el).trim();\n    if (name) parts.push(\"name=\" + JSON.stringify(name.slice(0, 120)));\n    if (\"value\" in el && el.value !== undefined && el.value !== \"\" && role !== \"button\" && role !== \"option\") parts.push(\"value=\" + JSON.stringify(String(el.value).slice(0, 120)));\n    if (el.checked) parts.push(\"checked=true\");\n    if (el.disabled) parts.push(\"disabled=true\");\n    if (document.activeElement === el) parts.push(\"focused=true\");\n    lines.push(\"  \".repeat(Math.min(depth, 12)) + parts.join(\" \"));\n    shown = true;\n    if ([\"link\", \"button\", \"heading\", \"option\"].includes(role)) return;\n  } else {\n    const own = [...el.childNodes].filter((node) => node.nodeType === 3).map((node) => node.textContent.trim()).join(\" \").trim();\n    if (own && [\"P\", \"LI\", \"TD\", \"TH\", \"SPAN\", \"DIV\", \"LABEL\", \"DT\", \"DD\", \"PRE\", \"CODE\", \"STRONG\", \"EM\", \"B\"].includes(el.tagName)) {\n      lines.push(\"  \".repeat(Math.min(depth, 12)) + \"text \" + JSON.stringify(own.slice(0, 160)));\n    }\n  }\n  for (const child of el.children) walk(child, shown ? depth + 1 : depth);\n};\nif (document.body) walk(document.body, 0);\nif (lines.length >= limit) lines.push(\"… (more elements; scroll or navigate to see the rest)\");\nreturn lines.join(\"\\n\") || \"(empty page)\";\n",
+        "args": [
+          400
+        ]
+      }
+    },
+    {
+      "method": "DELETE",
+      "route": ""
+    }
+  ]
+}

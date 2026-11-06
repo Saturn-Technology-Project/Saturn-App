@@ -1,10 +1,11 @@
-# Fails the build unless the installer and Saturn.exe carry an Authenticode signature, and, when the
+# Fails the build unless the installer and the app's program carry an Authenticode signature, and, when the
 # repository's certificate was used, unless it is that certificate (by SHA-1 thumbprint).
 param([string]$Release = 'desktop/release', [string]$Expected = '')
 $ErrorActionPreference = 'Stop'
 $paths = @()
 $paths += Get-ChildItem -Path $Release -Filter '*.exe' | ForEach-Object { $_.FullName }
-$paths += Join-Path $Release 'win-unpacked\Saturn.exe'
+# The app's own program, as the bundler signed it before packing it.
+$paths += Join-Path 'target/release' 'saturn-desktop.exe'
 foreach ($path in $paths) {
   $signature = Get-AuthenticodeSignature -FilePath $path
   if (-not $signature.SignerCertificate) { throw "$path is not signed" }

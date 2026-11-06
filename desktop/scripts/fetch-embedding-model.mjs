@@ -1,6 +1,6 @@
-// Downloads the built-in embedding model (the code index's default) into .staging/models, for electron-builder to
-// ship as Resources/models, so the index works offline with no other app. Files are checked against pinned
-// sha256 sums; a file already in place with the right sum is not downloaded again.
+// Downloads the built-in embedding model (the code index's default) into .staging/models, for the Tauri bundle to
+// ship as the app's models resource (src-tauri/tauri.package.json), so the index works offline with no other app. The
+// model and tokenizer are checked against pinned sha256 sums; a file already in place with the right sum is not downloaded again.
 //
 //   node scripts/fetch-embedding-model.mjs
 import { createHash } from "node:crypto";

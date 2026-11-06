@@ -1,4 +1,6 @@
-export const RUNTIME_ORIGIN = "http://127.0.0.1:4700";
+/** Where the runtime listens: what the desktop bridge says (the port can move), or the default. */
+export const RUNTIME_ORIGIN =
+  (globalThis as { saturnDesktop?: { runtimeOrigin?: () => string } }).saturnDesktop?.runtimeOrigin?.() ?? "http://127.0.0.1:4700";
 
 /** The session token the desktop preload exposes; the runtime rejects requests without it. Read once, then cached. */
 let cachedToken: string | null = null;

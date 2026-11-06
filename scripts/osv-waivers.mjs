@@ -18,11 +18,10 @@ const IGNORE_UNTIL = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().g
 
 /** Why a development-only dependency of a shipped part does not ship. */
 const DEV_ONLY = {
-  desktop: "A development dependency of the desktop app (build and dev tooling such as electron-builder, Vite and wait-on); electron-builder packages production dependencies only.",
-  runtime: "A development dependency of the runtime (tests, type checking, lint); the packaged runtime contains production dependencies only.",
+  desktop: "A development dependency of the desktop app (build and dev tooling such as the Tauri CLI and Vite); the app bundles what the interface imports, and these are not among it.",
 };
-/** Development dependencies that ship anyway: Electron is the app itself. */
-const SHIPS_ANYWAY = new Set(["electron"]);
+/** Development dependencies that ship anyway. */
+const SHIPS_ANYWAY = new Set();
 
 function lockFiles() {
   const patterns = [":(glob)**/package-lock.json", ":(glob)**/Cargo.lock"];

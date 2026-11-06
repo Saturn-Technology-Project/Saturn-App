@@ -1,0 +1,1997 @@
+{
+  "finding apps": [
+    {
+      "tool": "computer_apps",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "apps": [
+          {
+            "name": "Notes",
+            "pid": 22,
+            "bundle_id": "com.apple.Notes",
+            "frontmost": true,
+            "target_id": "app_22"
+          },
+          {
+            "name": "Mail",
+            "pid": 11,
+            "bundle_id": "com.apple.mail",
+            "frontmost": false,
+            "target_id": "app_11"
+          }
+        ],
+        "count": 2
+      }
+    },
+    {
+      "tool": "computer_resolve_app",
+      "arguments": {
+        "pid": 11
+      },
+      "status": "completed",
+      "result": {
+        "resolved": true,
+        "name": "Mail",
+        "pid": 11,
+        "bundle_id": "com.apple.mail",
+        "target_id": "app_11"
+      }
+    },
+    {
+      "tool": "computer_resolve_app",
+      "arguments": {
+        "app_name": "notes"
+      },
+      "status": "completed",
+      "result": {
+        "resolved": true,
+        "name": "Notes",
+        "pid": 22,
+        "bundle_id": "com.apple.Notes",
+        "target_id": "app_22"
+      }
+    },
+    {
+      "tool": "computer_resolve_app",
+      "arguments": {
+        "bundle_id": "COM.APPLE.MAIL"
+      },
+      "status": "completed",
+      "result": {
+        "resolved": true,
+        "name": "Mail",
+        "pid": 11,
+        "bundle_id": "com.apple.mail",
+        "target_id": "app_11"
+      }
+    },
+    {
+      "tool": "computer_resolve_app",
+      "arguments": {
+        "app_path": "/Applications/Mail.app"
+      },
+      "status": "completed",
+      "result": {
+        "resolved": true,
+        "name": "Mail",
+        "pid": 11,
+        "bundle_id": "com.apple.mail",
+        "target_id": "app_11"
+      }
+    },
+    {
+      "tool": "computer_resolve_app",
+      "arguments": {},
+      "status": "failed",
+      "reason": "Give exactly one of pid, bundle_id, app_path or app_name."
+    },
+    {
+      "tool": "computer_resolve_app",
+      "arguments": {
+        "pid": 11,
+        "app_name": "Mail"
+      },
+      "status": "failed",
+      "reason": "Give exactly one of pid, bundle_id, app_path or app_name."
+    },
+    {
+      "tool": "computer_resolve_app",
+      "arguments": {
+        "pid": 999
+      },
+      "status": "failed",
+      "reason": "No running app matches pid 999."
+    }
+  ],
+  "finding apps asked": [
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('AppKit');\n    const front = $.NSWorkspace.sharedWorkspace.frontmostApplication;\n    const frontPid = front ? front.processIdentifier : -1;\n    const list = $.NSWorkspace.sharedWorkspace.runningApplications;\n    const out = [];\n    // The bridge hands NSInteger properties back as strings, hence Number().\n    for (let i = 0; i < Number(list.count); i++) {\n      const a = list.objectAtIndex(i);\n      if (Number(a.activationPolicy) !== 0) continue; // NSApplicationActivationPolicyRegular\n      out.push({ name: ObjC.unwrap(a.localizedName) || '', pid: Number(a.processIdentifier), bundle_id: ObjC.unwrap(a.bundleIdentifier) || '', frontmost: Number(a.processIdentifier) === Number(frontPid) });\n    }\n    return JSON.stringify(out);\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('AppKit');\n    const front = $.NSWorkspace.sharedWorkspace.frontmostApplication;\n    const frontPid = front ? front.processIdentifier : -1;\n    const list = $.NSWorkspace.sharedWorkspace.runningApplications;\n    const out = [];\n    // The bridge hands NSInteger properties back as strings, hence Number().\n    for (let i = 0; i < Number(list.count); i++) {\n      const a = list.objectAtIndex(i);\n      if (Number(a.activationPolicy) !== 0) continue; // NSApplicationActivationPolicyRegular\n      out.push({ name: ObjC.unwrap(a.localizedName) || '', pid: Number(a.processIdentifier), bundle_id: ObjC.unwrap(a.bundleIdentifier) || '', frontmost: Number(a.processIdentifier) === Number(frontPid) });\n    }\n    return JSON.stringify(out);\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('AppKit');\n    const front = $.NSWorkspace.sharedWorkspace.frontmostApplication;\n    const frontPid = front ? front.processIdentifier : -1;\n    const list = $.NSWorkspace.sharedWorkspace.runningApplications;\n    const out = [];\n    // The bridge hands NSInteger properties back as strings, hence Number().\n    for (let i = 0; i < Number(list.count); i++) {\n      const a = list.objectAtIndex(i);\n      if (Number(a.activationPolicy) !== 0) continue; // NSApplicationActivationPolicyRegular\n      out.push({ name: ObjC.unwrap(a.localizedName) || '', pid: Number(a.processIdentifier), bundle_id: ObjC.unwrap(a.bundleIdentifier) || '', frontmost: Number(a.processIdentifier) === Number(frontPid) });\n    }\n    return JSON.stringify(out);\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('AppKit');\n    const front = $.NSWorkspace.sharedWorkspace.frontmostApplication;\n    const frontPid = front ? front.processIdentifier : -1;\n    const list = $.NSWorkspace.sharedWorkspace.runningApplications;\n    const out = [];\n    // The bridge hands NSInteger properties back as strings, hence Number().\n    for (let i = 0; i < Number(list.count); i++) {\n      const a = list.objectAtIndex(i);\n      if (Number(a.activationPolicy) !== 0) continue; // NSApplicationActivationPolicyRegular\n      out.push({ name: ObjC.unwrap(a.localizedName) || '', pid: Number(a.processIdentifier), bundle_id: ObjC.unwrap(a.bundleIdentifier) || '', frontmost: Number(a.processIdentifier) === Number(frontPid) });\n    }\n    return JSON.stringify(out);\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('AppKit');\n    const front = $.NSWorkspace.sharedWorkspace.frontmostApplication;\n    const frontPid = front ? front.processIdentifier : -1;\n    const list = $.NSWorkspace.sharedWorkspace.runningApplications;\n    const out = [];\n    // The bridge hands NSInteger properties back as strings, hence Number().\n    for (let i = 0; i < Number(list.count); i++) {\n      const a = list.objectAtIndex(i);\n      if (Number(a.activationPolicy) !== 0) continue; // NSApplicationActivationPolicyRegular\n      out.push({ name: ObjC.unwrap(a.localizedName) || '', pid: Number(a.processIdentifier), bundle_id: ObjC.unwrap(a.bundleIdentifier) || '', frontmost: Number(a.processIdentifier) === Number(frontPid) });\n    }\n    return JSON.stringify(out);\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('AppKit');\n    const front = $.NSWorkspace.sharedWorkspace.frontmostApplication;\n    const frontPid = front ? front.processIdentifier : -1;\n    const list = $.NSWorkspace.sharedWorkspace.runningApplications;\n    const out = [];\n    // The bridge hands NSInteger properties back as strings, hence Number().\n    for (let i = 0; i < Number(list.count); i++) {\n      const a = list.objectAtIndex(i);\n      if (Number(a.activationPolicy) !== 0) continue; // NSApplicationActivationPolicyRegular\n      out.push({ name: ObjC.unwrap(a.localizedName) || '', pid: Number(a.processIdentifier), bundle_id: ObjC.unwrap(a.bundleIdentifier) || '', frontmost: Number(a.processIdentifier) === Number(frontPid) });\n    }\n    return JSON.stringify(out);\n  }",
+        "{}"
+      ]
+    }
+  ],
+  "starting an app": [
+    {
+      "tool": "computer_resolve_app",
+      "arguments": {
+        "app_name": "Calculator"
+      },
+      "status": "completed",
+      "result": {
+        "resolved": true,
+        "name": "Calculator",
+        "pid": 33,
+        "bundle_id": "com.apple.calculator",
+        "target_id": "app_33"
+      }
+    }
+  ],
+  "starting an app asked": [
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('AppKit');\n    const front = $.NSWorkspace.sharedWorkspace.frontmostApplication;\n    const frontPid = front ? front.processIdentifier : -1;\n    const list = $.NSWorkspace.sharedWorkspace.runningApplications;\n    const out = [];\n    // The bridge hands NSInteger properties back as strings, hence Number().\n    for (let i = 0; i < Number(list.count); i++) {\n      const a = list.objectAtIndex(i);\n      if (Number(a.activationPolicy) !== 0) continue; // NSApplicationActivationPolicyRegular\n      out.push({ name: ObjC.unwrap(a.localizedName) || '', pid: Number(a.processIdentifier), bundle_id: ObjC.unwrap(a.bundleIdentifier) || '', frontmost: Number(a.processIdentifier) === Number(frontPid) });\n    }\n    return JSON.stringify(out);\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "open",
+      "args": [
+        "-g",
+        "-a",
+        "Calculator"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('AppKit');\n    const front = $.NSWorkspace.sharedWorkspace.frontmostApplication;\n    const frontPid = front ? front.processIdentifier : -1;\n    const list = $.NSWorkspace.sharedWorkspace.runningApplications;\n    const out = [];\n    // The bridge hands NSInteger properties back as strings, hence Number().\n    for (let i = 0; i < Number(list.count); i++) {\n      const a = list.objectAtIndex(i);\n      if (Number(a.activationPolicy) !== 0) continue; // NSApplicationActivationPolicyRegular\n      out.push({ name: ObjC.unwrap(a.localizedName) || '', pid: Number(a.processIdentifier), bundle_id: ObjC.unwrap(a.bundleIdentifier) || '', frontmost: Number(a.processIdentifier) === Number(frontPid) });\n    }\n    return JSON.stringify(out);\n  }",
+        "{}"
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "tool": "computer_screenshot",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "image": "data:image/jpeg;base64,BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+        "width": 1280,
+        "height": 800,
+        "scope": "screen",
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 1728,
+          "height": 1117
+        },
+        "timestamp": "<now>"
+      }
+    },
+    {
+      "tool": "computer_screenshot",
+      "arguments": {
+        "target": {
+          "scope": "screen"
+        }
+      },
+      "status": "completed",
+      "result": {
+        "image": "data:image/jpeg;base64,BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+        "width": 1280,
+        "height": 800,
+        "scope": "screen",
+        "region": {
+          "x": 0,
+          "y": 0,
+          "width": 1728,
+          "height": 1117
+        },
+        "timestamp": "<now>"
+      }
+    },
+    {
+      "tool": "computer_screenshot",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        }
+      },
+      "status": "completed",
+      "result": {
+        "image": "data:image/jpeg;base64,BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+        "width": 1280,
+        "height": 800,
+        "scope": "app",
+        "region": {
+          "x": 100,
+          "y": 50,
+          "width": 640,
+          "height": 400
+        },
+        "pid": 22,
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0",
+        "timestamp": "<now>"
+      }
+    },
+    {
+      "tool": "computer_screenshot",
+      "arguments": {
+        "target": {
+          "target_id": "app_22"
+        }
+      },
+      "status": "completed",
+      "result": {
+        "image": "data:image/jpeg;base64,BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+        "width": 1280,
+        "height": 800,
+        "scope": "app",
+        "region": {
+          "x": 100,
+          "y": 50,
+          "width": 640,
+          "height": 400
+        },
+        "pid": 22,
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0",
+        "timestamp": "<now>"
+      }
+    },
+    {
+      "tool": "computer_screenshot",
+      "arguments": {
+        "target": {
+          "scope": "app"
+        }
+      },
+      "status": "failed",
+      "reason": "An app target needs the pid or target_id from computer_apps or computer_resolve_app."
+    }
+  ],
+  "screenshots asked": [
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const b = $.CGDisplayBounds($.CGMainDisplayID());\n    return JSON.stringify({ width: Math.round(b.size.width), height: Math.round(b.size.height) });\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "screencapture",
+      "args": [
+        "-x",
+        "-C",
+        "-t",
+        "png",
+        "-m",
+        "<tmp>/saturn-shot.png"
+      ]
+    },
+    {
+      "program": "sips",
+      "args": [
+        "-z",
+        "800",
+        "1280",
+        "-s",
+        "format",
+        "jpeg",
+        "-s",
+        "formatOptions",
+        "70",
+        "<tmp>/saturn-shot.png",
+        "--out",
+        "<tmp>/saturn-shot.jpg"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const b = $.CGDisplayBounds($.CGMainDisplayID());\n    return JSON.stringify({ width: Math.round(b.size.width), height: Math.round(b.size.height) });\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "screencapture",
+      "args": [
+        "-x",
+        "-C",
+        "-t",
+        "png",
+        "-m",
+        "<tmp>/saturn-shot.png"
+      ]
+    },
+    {
+      "program": "sips",
+      "args": [
+        "-z",
+        "800",
+        "1280",
+        "-s",
+        "format",
+        "jpeg",
+        "-s",
+        "formatOptions",
+        "70",
+        "<tmp>/saturn-shot.png",
+        "--out",
+        "<tmp>/saturn-shot.jpg"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const proc = Application('System Events').processes.whose({ unixId: p.pid })[0];\n    const windows = proc.windows();\n    if (!windows.length) throw new Error('The app has no open window');\n    const position = windows[0].position(), size = windows[0].size();\n    return JSON.stringify({ x: position[0], y: position[1], width: size[0], height: size[1] });\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "screencapture",
+      "args": [
+        "-x",
+        "-C",
+        "-t",
+        "png",
+        "-R",
+        "100,50,640,400",
+        "<tmp>/saturn-shot.png"
+      ]
+    },
+    {
+      "program": "sips",
+      "args": [
+        "-z",
+        "800",
+        "1280",
+        "-s",
+        "format",
+        "jpeg",
+        "-s",
+        "formatOptions",
+        "70",
+        "<tmp>/saturn-shot.png",
+        "--out",
+        "<tmp>/saturn-shot.jpg"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const proc = Application('System Events').processes.whose({ unixId: p.pid })[0];\n    const windows = proc.windows();\n    if (!windows.length) throw new Error('The app has no open window');\n    const position = windows[0].position(), size = windows[0].size();\n    return JSON.stringify({ x: position[0], y: position[1], width: size[0], height: size[1] });\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "screencapture",
+      "args": [
+        "-x",
+        "-C",
+        "-t",
+        "png",
+        "-R",
+        "100,50,640,400",
+        "<tmp>/saturn-shot.png"
+      ]
+    },
+    {
+      "program": "sips",
+      "args": [
+        "-z",
+        "800",
+        "1280",
+        "-s",
+        "format",
+        "jpeg",
+        "-s",
+        "formatOptions",
+        "70",
+        "<tmp>/saturn-shot.png",
+        "--out",
+        "<tmp>/saturn-shot.jpg"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    }
+  ],
+  "input": [
+    {
+      "tool": "computer_click",
+      "arguments": {
+        "x": 640,
+        "y": 400
+      },
+      "status": "completed",
+      "result": {
+        "action": "click",
+        "x": 640,
+        "y": 400,
+        "screen": {
+          "x": 864,
+          "y": 559
+        },
+        "button": "left",
+        "count": 1,
+        "success": true,
+        "image": "data:image/jpeg;base64,BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "tool": "computer_click",
+      "arguments": {
+        "x": 5000,
+        "y": -3,
+        "button": "right",
+        "count": 9,
+        "target": {
+          "scope": "screen"
+        }
+      },
+      "status": "completed",
+      "result": {
+        "action": "click",
+        "x": 5000,
+        "y": -3,
+        "screen": {
+          "x": 1727,
+          "y": 0
+        },
+        "button": "right",
+        "count": 3,
+        "success": true,
+        "image": "data:image/jpeg;base64,BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "tool": "computer_click",
+      "arguments": {
+        "x": 640,
+        "y": 400,
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0",
+        "click_count": 2,
+        "button": "bad"
+      },
+      "status": "completed",
+      "result": {
+        "action": "click",
+        "x": 640,
+        "y": 400,
+        "screen": {
+          "x": 420,
+          "y": 250
+        },
+        "button": "left",
+        "count": 2,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_click",
+      "arguments": {
+        "x": 1,
+        "y": 1,
+        "target": {
+          "scope": "app",
+          "pid": 22
+        }
+      },
+      "status": "failed",
+      "reason": "With an app target, pass the coordinate_token from the latest computer_screenshot of this app."
+    },
+    {
+      "tool": "computer_click",
+      "arguments": {
+        "x": 1,
+        "y": 1,
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "coordinate_token": "not-a-token"
+      },
+      "status": "failed",
+      "reason": "coordinate_token is not valid. Take a new computer_screenshot of this app and use its coordinate_token."
+    },
+    {
+      "tool": "computer_click",
+      "arguments": {
+        "x": 1,
+        "y": 1,
+        "target": {
+          "scope": "app",
+          "pid": 11
+        },
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0"
+      },
+      "status": "failed",
+      "reason": "coordinate_token belongs to another app or screenshot. Take a new computer_screenshot of this app."
+    },
+    {
+      "tool": "computer_move",
+      "arguments": {
+        "x": 10.6,
+        "y": "20",
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0"
+      },
+      "status": "completed",
+      "result": {
+        "action": "move",
+        "x": 11,
+        "y": 20,
+        "screen": {
+          "x": 106,
+          "y": 60
+        },
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_drag",
+      "arguments": {
+        "from": {
+          "x": 0,
+          "y": 0
+        },
+        "to": {
+          "x": 1280,
+          "y": 800
+        },
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0",
+        "button": "middle"
+      },
+      "status": "completed",
+      "result": {
+        "action": "drag",
+        "from": {
+          "x": 100,
+          "y": 50
+        },
+        "to": {
+          "x": 740,
+          "y": 450
+        },
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_drag",
+      "arguments": {
+        "start_x": 10,
+        "start_y": 20,
+        "end_x": 30,
+        "end_y": 40
+      },
+      "status": "completed",
+      "result": {
+        "action": "drag",
+        "from": {
+          "x": 14,
+          "y": 28
+        },
+        "to": {
+          "x": 41,
+          "y": 56
+        },
+        "success": true,
+        "image": "data:image/jpeg;base64,BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "tool": "computer_scroll",
+      "arguments": {
+        "x": 1,
+        "y": 2,
+        "direction": "up",
+        "amount": 99,
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0"
+      },
+      "status": "completed",
+      "result": {
+        "action": "scroll",
+        "direction": "up",
+        "amount": 50,
+        "screen": {
+          "x": 101,
+          "y": 51
+        },
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_scroll",
+      "arguments": {
+        "x": 1,
+        "y": 2,
+        "direction": "left",
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0"
+      },
+      "status": "completed",
+      "result": {
+        "action": "scroll",
+        "direction": "left",
+        "amount": 3,
+        "screen": {
+          "x": 101,
+          "y": 51
+        },
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_scroll",
+      "arguments": {
+        "x": 1,
+        "y": 2,
+        "direction": "sideways",
+        "amount": 0,
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "coordinate_token": "eyJwaWQiOjIyLCJ4IjoxMDAsInkiOjUwLCJ3aWR0aCI6NjQwLCJoZWlnaHQiOjQwMH0"
+      },
+      "status": "completed",
+      "result": {
+        "action": "scroll",
+        "direction": "down",
+        "amount": 1,
+        "screen": {
+          "x": 101,
+          "y": 51
+        },
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_key",
+      "arguments": {
+        "key": "cmd+shift+s",
+        "target": {
+          "scope": "app",
+          "pid": 22
+        }
+      },
+      "status": "completed",
+      "result": {
+        "action": "key",
+        "key": "cmd+shift+s",
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_key",
+      "arguments": {
+        "key": "Return"
+      },
+      "status": "completed",
+      "result": {
+        "action": "key",
+        "key": "Return",
+        "success": true,
+        "image": "data:image/jpeg;base64,BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH",
+        "width": 1280,
+        "height": 800
+      }
+    },
+    {
+      "tool": "computer_key",
+      "arguments": {
+        "key": "F5",
+        "target": {
+          "scope": "app",
+          "pid": 22
+        }
+      },
+      "status": "completed",
+      "result": {
+        "action": "key",
+        "key": "F5",
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_key",
+      "arguments": {
+        "key": ""
+      },
+      "status": "failed",
+      "reason": "No key given"
+    },
+    {
+      "tool": "computer_key",
+      "arguments": {
+        "key": "hyper+x"
+      },
+      "status": "failed",
+      "reason": "Unknown modifier \"hyper\". Use cmd, ctrl, alt or shift."
+    },
+    {
+      "tool": "computer_key",
+      "arguments": {
+        "key": "ctrl+banana"
+      },
+      "status": "failed",
+      "reason": "Unknown key \"banana\". Use a single character or a name like Return, Tab, Escape, Up or F5."
+    },
+    {
+      "tool": "computer_type",
+      "arguments": {
+        "text": "hello\nworld",
+        "target": {
+          "scope": "app",
+          "pid": 22
+        }
+      },
+      "status": "completed",
+      "result": {
+        "action": "type",
+        "length": 11,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_type",
+      "arguments": {
+        "text": "你好",
+        "target": {
+          "scope": "app",
+          "pid": 22
+        }
+      },
+      "status": "completed",
+      "result": {
+        "action": "type",
+        "length": 2,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_type",
+      "arguments": {
+        "text": "no target"
+      },
+      "status": "failed",
+      "reason": "Screen-scope typing is refused: type into an app target (from computer_apps or computer_resolve_app)."
+    },
+    {
+      "tool": "computer_type",
+      "arguments": {
+        "text": "",
+        "target": {
+          "scope": "app",
+          "pid": 22
+        }
+      },
+      "status": "failed",
+      "reason": "No text given"
+    },
+    {
+      "tool": "computer_start_control",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "active": true,
+        "display": "primary",
+        "message": "Display control acquired"
+      }
+    },
+    {
+      "tool": "computer_release_control",
+      "arguments": {},
+      "status": "completed",
+      "result": {
+        "active": false,
+        "message": "Display control released"
+      }
+    },
+    {
+      "tool": "computer_wait",
+      "arguments": {
+        "ms": 5,
+        "reason": "page load"
+      },
+      "status": "completed",
+      "result": {
+        "elapsed_ms": 0,
+        "reason": "page load"
+      }
+    },
+    {
+      "tool": "computer_wait",
+      "arguments": {
+        "duration_ms": "nope"
+      },
+      "status": "completed",
+      "result": {
+        "elapsed_ms": 0
+      }
+    }
+  ],
+  "input asked": [
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const b = $.CGDisplayBounds($.CGMainDisplayID());\n    return JSON.stringify({ width: Math.round(b.size.width), height: Math.round(b.size.height) });\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    // CGEventType and CGMouseButton values (CGEventTypes.h).\n    const kinds = { left: [1, 2, 6, 0], right: [3, 4, 7, 1], middle: [25, 26, 27, 2] }[p.button || 'left'];\n    const post = (type, x, y, clicks) => {\n      const e = $.CGEventCreateMouseEvent($(), type, $.CGPointMake(x, y), kinds[3]);\n      if (clicks) $.CGEventSetIntegerValueField(e, 1, clicks); // kCGMouseEventClickState\n      $.CGEventPost(0, e); // kCGHIDEventTap\n    };\n    const pause = (s) => delay(s);\n    post(5, p.x, p.y, 0); // move there first, so hover state and the click target agree\n    if (p.kind === 'move') return 'null';\n    if (p.kind === 'click') {\n      const count = Math.max(1, Math.min(3, p.count || 1));\n      for (let i = 1; i <= count; i++) { post(kinds[0], p.x, p.y, i); post(kinds[1], p.x, p.y, i); if (i < count) pause(0.05); }\n      return 'null';\n    }\n    post(kinds[0], p.x, p.y, 1);\n    const steps = 12;\n    for (let i = 1; i <= steps; i++) { pause(0.015); post(kinds[2], p.x + (p.to.x - p.x) * i / steps, p.y + (p.to.y - p.y) * i / steps, 1); }\n    post(kinds[1], p.to.x, p.to.y, 1);\n    return 'null';\n  }",
+        "{\"kind\":\"click\",\"x\":864,\"y\":559,\"button\":\"left\",\"count\":1}"
+      ]
+    },
+    {
+      "program": "screencapture",
+      "args": [
+        "-x",
+        "-C",
+        "-t",
+        "png",
+        "-m",
+        "<tmp>/saturn-shot.png"
+      ]
+    },
+    {
+      "program": "sips",
+      "args": [
+        "-z",
+        "800",
+        "1280",
+        "-s",
+        "format",
+        "jpeg",
+        "-s",
+        "formatOptions",
+        "70",
+        "<tmp>/saturn-shot.png",
+        "--out",
+        "<tmp>/saturn-shot.jpg"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const b = $.CGDisplayBounds($.CGMainDisplayID());\n    return JSON.stringify({ width: Math.round(b.size.width), height: Math.round(b.size.height) });\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    // CGEventType and CGMouseButton values (CGEventTypes.h).\n    const kinds = { left: [1, 2, 6, 0], right: [3, 4, 7, 1], middle: [25, 26, 27, 2] }[p.button || 'left'];\n    const post = (type, x, y, clicks) => {\n      const e = $.CGEventCreateMouseEvent($(), type, $.CGPointMake(x, y), kinds[3]);\n      if (clicks) $.CGEventSetIntegerValueField(e, 1, clicks); // kCGMouseEventClickState\n      $.CGEventPost(0, e); // kCGHIDEventTap\n    };\n    const pause = (s) => delay(s);\n    post(5, p.x, p.y, 0); // move there first, so hover state and the click target agree\n    if (p.kind === 'move') return 'null';\n    if (p.kind === 'click') {\n      const count = Math.max(1, Math.min(3, p.count || 1));\n      for (let i = 1; i <= count; i++) { post(kinds[0], p.x, p.y, i); post(kinds[1], p.x, p.y, i); if (i < count) pause(0.05); }\n      return 'null';\n    }\n    post(kinds[0], p.x, p.y, 1);\n    const steps = 12;\n    for (let i = 1; i <= steps; i++) { pause(0.015); post(kinds[2], p.x + (p.to.x - p.x) * i / steps, p.y + (p.to.y - p.y) * i / steps, 1); }\n    post(kinds[1], p.to.x, p.to.y, 1);\n    return 'null';\n  }",
+        "{\"kind\":\"click\",\"x\":1727,\"y\":0,\"button\":\"right\",\"count\":3}"
+      ]
+    },
+    {
+      "program": "screencapture",
+      "args": [
+        "-x",
+        "-C",
+        "-t",
+        "png",
+        "-m",
+        "<tmp>/saturn-shot.png"
+      ]
+    },
+    {
+      "program": "sips",
+      "args": [
+        "-z",
+        "800",
+        "1280",
+        "-s",
+        "format",
+        "jpeg",
+        "-s",
+        "formatOptions",
+        "70",
+        "<tmp>/saturn-shot.png",
+        "--out",
+        "<tmp>/saturn-shot.jpg"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    // CGEventType and CGMouseButton values (CGEventTypes.h).\n    const kinds = { left: [1, 2, 6, 0], right: [3, 4, 7, 1], middle: [25, 26, 27, 2] }[p.button || 'left'];\n    const post = (type, x, y, clicks) => {\n      const e = $.CGEventCreateMouseEvent($(), type, $.CGPointMake(x, y), kinds[3]);\n      if (clicks) $.CGEventSetIntegerValueField(e, 1, clicks); // kCGMouseEventClickState\n      $.CGEventPost(0, e); // kCGHIDEventTap\n    };\n    const pause = (s) => delay(s);\n    post(5, p.x, p.y, 0); // move there first, so hover state and the click target agree\n    if (p.kind === 'move') return 'null';\n    if (p.kind === 'click') {\n      const count = Math.max(1, Math.min(3, p.count || 1));\n      for (let i = 1; i <= count; i++) { post(kinds[0], p.x, p.y, i); post(kinds[1], p.x, p.y, i); if (i < count) pause(0.05); }\n      return 'null';\n    }\n    post(kinds[0], p.x, p.y, 1);\n    const steps = 12;\n    for (let i = 1; i <= steps; i++) { pause(0.015); post(kinds[2], p.x + (p.to.x - p.x) * i / steps, p.y + (p.to.y - p.y) * i / steps, 1); }\n    post(kinds[1], p.to.x, p.to.y, 1);\n    return 'null';\n  }",
+        "{\"kind\":\"click\",\"x\":420,\"y\":250,\"button\":\"left\",\"count\":2}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    // CGEventType and CGMouseButton values (CGEventTypes.h).\n    const kinds = { left: [1, 2, 6, 0], right: [3, 4, 7, 1], middle: [25, 26, 27, 2] }[p.button || 'left'];\n    const post = (type, x, y, clicks) => {\n      const e = $.CGEventCreateMouseEvent($(), type, $.CGPointMake(x, y), kinds[3]);\n      if (clicks) $.CGEventSetIntegerValueField(e, 1, clicks); // kCGMouseEventClickState\n      $.CGEventPost(0, e); // kCGHIDEventTap\n    };\n    const pause = (s) => delay(s);\n    post(5, p.x, p.y, 0); // move there first, so hover state and the click target agree\n    if (p.kind === 'move') return 'null';\n    if (p.kind === 'click') {\n      const count = Math.max(1, Math.min(3, p.count || 1));\n      for (let i = 1; i <= count; i++) { post(kinds[0], p.x, p.y, i); post(kinds[1], p.x, p.y, i); if (i < count) pause(0.05); }\n      return 'null';\n    }\n    post(kinds[0], p.x, p.y, 1);\n    const steps = 12;\n    for (let i = 1; i <= steps; i++) { pause(0.015); post(kinds[2], p.x + (p.to.x - p.x) * i / steps, p.y + (p.to.y - p.y) * i / steps, 1); }\n    post(kinds[1], p.to.x, p.to.y, 1);\n    return 'null';\n  }",
+        "{\"kind\":\"move\",\"x\":106,\"y\":60}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    // CGEventType and CGMouseButton values (CGEventTypes.h).\n    const kinds = { left: [1, 2, 6, 0], right: [3, 4, 7, 1], middle: [25, 26, 27, 2] }[p.button || 'left'];\n    const post = (type, x, y, clicks) => {\n      const e = $.CGEventCreateMouseEvent($(), type, $.CGPointMake(x, y), kinds[3]);\n      if (clicks) $.CGEventSetIntegerValueField(e, 1, clicks); // kCGMouseEventClickState\n      $.CGEventPost(0, e); // kCGHIDEventTap\n    };\n    const pause = (s) => delay(s);\n    post(5, p.x, p.y, 0); // move there first, so hover state and the click target agree\n    if (p.kind === 'move') return 'null';\n    if (p.kind === 'click') {\n      const count = Math.max(1, Math.min(3, p.count || 1));\n      for (let i = 1; i <= count; i++) { post(kinds[0], p.x, p.y, i); post(kinds[1], p.x, p.y, i); if (i < count) pause(0.05); }\n      return 'null';\n    }\n    post(kinds[0], p.x, p.y, 1);\n    const steps = 12;\n    for (let i = 1; i <= steps; i++) { pause(0.015); post(kinds[2], p.x + (p.to.x - p.x) * i / steps, p.y + (p.to.y - p.y) * i / steps, 1); }\n    post(kinds[1], p.to.x, p.to.y, 1);\n    return 'null';\n  }",
+        "{\"kind\":\"drag\",\"x\":100,\"y\":50,\"to\":{\"x\":740,\"y\":450},\"button\":\"middle\"}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const b = $.CGDisplayBounds($.CGMainDisplayID());\n    return JSON.stringify({ width: Math.round(b.size.width), height: Math.round(b.size.height) });\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    // CGEventType and CGMouseButton values (CGEventTypes.h).\n    const kinds = { left: [1, 2, 6, 0], right: [3, 4, 7, 1], middle: [25, 26, 27, 2] }[p.button || 'left'];\n    const post = (type, x, y, clicks) => {\n      const e = $.CGEventCreateMouseEvent($(), type, $.CGPointMake(x, y), kinds[3]);\n      if (clicks) $.CGEventSetIntegerValueField(e, 1, clicks); // kCGMouseEventClickState\n      $.CGEventPost(0, e); // kCGHIDEventTap\n    };\n    const pause = (s) => delay(s);\n    post(5, p.x, p.y, 0); // move there first, so hover state and the click target agree\n    if (p.kind === 'move') return 'null';\n    if (p.kind === 'click') {\n      const count = Math.max(1, Math.min(3, p.count || 1));\n      for (let i = 1; i <= count; i++) { post(kinds[0], p.x, p.y, i); post(kinds[1], p.x, p.y, i); if (i < count) pause(0.05); }\n      return 'null';\n    }\n    post(kinds[0], p.x, p.y, 1);\n    const steps = 12;\n    for (let i = 1; i <= steps; i++) { pause(0.015); post(kinds[2], p.x + (p.to.x - p.x) * i / steps, p.y + (p.to.y - p.y) * i / steps, 1); }\n    post(kinds[1], p.to.x, p.to.y, 1);\n    return 'null';\n  }",
+        "{\"kind\":\"drag\",\"x\":14,\"y\":28,\"to\":{\"x\":41,\"y\":56},\"button\":\"left\"}"
+      ]
+    },
+    {
+      "program": "screencapture",
+      "args": [
+        "-x",
+        "-C",
+        "-t",
+        "png",
+        "-m",
+        "<tmp>/saturn-shot.png"
+      ]
+    },
+    {
+      "program": "sips",
+      "args": [
+        "-z",
+        "800",
+        "1280",
+        "-s",
+        "format",
+        "jpeg",
+        "-s",
+        "formatOptions",
+        "70",
+        "<tmp>/saturn-shot.png",
+        "--out",
+        "<tmp>/saturn-shot.jpg"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    $.CGEventPost(0, $.CGEventCreateMouseEvent($(), 5, $.CGPointMake(p.x, p.y), 0));\n    for (let i = 0; i < Math.max(Math.abs(p.dy), Math.abs(p.dx)); i++) {\n      const e = $.CGEventCreateScrollWheelEvent2($(), 1, 2, i < Math.abs(p.dy) ? Math.sign(p.dy) : 0, i < Math.abs(p.dx) ? Math.sign(p.dx) : 0, 0);\n      $.CGEventPost(0, e);\n      delay(0.02);\n    }\n    return 'null';\n  }",
+        "{\"x\":101,\"y\":51,\"dx\":0,\"dy\":50}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    $.CGEventPost(0, $.CGEventCreateMouseEvent($(), 5, $.CGPointMake(p.x, p.y), 0));\n    for (let i = 0; i < Math.max(Math.abs(p.dy), Math.abs(p.dx)); i++) {\n      const e = $.CGEventCreateScrollWheelEvent2($(), 1, 2, i < Math.abs(p.dy) ? Math.sign(p.dy) : 0, i < Math.abs(p.dx) ? Math.sign(p.dx) : 0, 0);\n      $.CGEventPost(0, e);\n      delay(0.02);\n    }\n    return 'null';\n  }",
+        "{\"x\":101,\"y\":51,\"dx\":3,\"dy\":0}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('CoreGraphics');\n    const p = JSON.parse(argv[0]);\n    $.CGEventPost(0, $.CGEventCreateMouseEvent($(), 5, $.CGPointMake(p.x, p.y), 0));\n    for (let i = 0; i < Math.max(Math.abs(p.dy), Math.abs(p.dx)); i++) {\n      const e = $.CGEventCreateScrollWheelEvent2($(), 1, 2, i < Math.abs(p.dy) ? Math.sign(p.dy) : 0, i < Math.abs(p.dx) ? Math.sign(p.dx) : 0, 0);\n      $.CGEventPost(0, e);\n      delay(0.02);\n    }\n    return 'null';\n  }",
+        "{\"x\":101,\"y\":51,\"dx\":0,\"dy\":-1}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const se = Application('System Events');\n    const using = p.modifiers.length ? { using: p.modifiers } : {};\n    if (p.code !== undefined) se.keyCode(p.code, using); else se.keystroke(p.key, using);\n    return 'null';\n  }",
+        "{\"key\":\"s\",\"modifiers\":[\"command down\",\"shift down\"]}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const se = Application('System Events');\n    const using = p.modifiers.length ? { using: p.modifiers } : {};\n    if (p.code !== undefined) se.keyCode(p.code, using); else se.keystroke(p.key, using);\n    return 'null';\n  }",
+        "{\"key\":\"Return\",\"code\":36,\"modifiers\":[]}"
+      ]
+    },
+    {
+      "program": "screencapture",
+      "args": [
+        "-x",
+        "-C",
+        "-t",
+        "png",
+        "-m",
+        "<tmp>/saturn-shot.png"
+      ]
+    },
+    {
+      "program": "sips",
+      "args": [
+        "-z",
+        "800",
+        "1280",
+        "-s",
+        "format",
+        "jpeg",
+        "-s",
+        "formatOptions",
+        "70",
+        "<tmp>/saturn-shot.png",
+        "--out",
+        "<tmp>/saturn-shot.jpg"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const se = Application('System Events');\n    const using = p.modifiers.length ? { using: p.modifiers } : {};\n    if (p.code !== undefined) se.keyCode(p.code, using); else se.keystroke(p.key, using);\n    return 'null';\n  }",
+        "{\"key\":\"F5\",\"code\":96,\"modifiers\":[]}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const se = Application('System Events');\n    if (/^[\\x20-\\x7e\\n\\t]*$/.test(p.text)) {\n      const lines = p.text.split('\\n');\n      lines.forEach((line, i) => { if (line) se.keystroke(line); if (i < lines.length - 1) se.keyCode(36); });\n      return 'null';\n    }\n    const app = Application.currentApplication(); app.includeStandardAdditions = true;\n    let saved = null; try { saved = app.theClipboard(); } catch (e) {}\n    app.setTheClipboardTo(p.text);\n    se.keystroke('v', { using: ['command down'] });\n    delay(0.25);\n    if (saved !== null) { try { app.setTheClipboardTo(saved); } catch (e) {} }\n    return 'null';\n  }",
+        "{\"text\":\"hello\\nworld\"}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const se = Application('System Events');\n    if (/^[\\x20-\\x7e\\n\\t]*$/.test(p.text)) {\n      const lines = p.text.split('\\n');\n      lines.forEach((line, i) => { if (line) se.keystroke(line); if (i < lines.length - 1) se.keyCode(36); });\n      return 'null';\n    }\n    const app = Application.currentApplication(); app.includeStandardAdditions = true;\n    let saved = null; try { saved = app.theClipboard(); } catch (e) {}\n    app.setTheClipboardTo(p.text);\n    se.keystroke('v', { using: ['command down'] });\n    delay(0.25);\n    if (saved !== null) { try { app.setTheClipboardTo(saved); } catch (e) {} }\n    return 'null';\n  }",
+        "{\"text\":\"你好\"}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    }
+  ],
+  "element tree first": {
+    "snapshot_id": "snap",
+    "pid": 22,
+    "count": 3,
+    "text": "[1] TextField name=\"Title\" value=\"hello\" settable actions=show-menu\n[2] Group (+12 descendants omitted)\n  [3] Button name=\"Save \\\"it\\\"\" actions=press,show-default-ui\nsnapshot_id=snap\nThis tree is partial: the app answered slowly or an element holds many children. Expand an element with snapshot_id and its id to read inside it. For a web page, the browser tools (browser_snapshot) read it much faster."
+  },
+  "element tree": [
+    {
+      "tool": "computer_set_value",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 1,
+        "value": "new"
+      },
+      "status": "completed",
+      "result": {
+        "action": "set_value",
+        "element_id": 1,
+        "length": 3,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_app_action",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 3,
+        "action": "show-menu"
+      },
+      "status": "completed",
+      "result": {
+        "action": "show-menu",
+        "element_id": 3,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_app_action",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 3
+      },
+      "status": "completed",
+      "result": {
+        "action": "press",
+        "element_id": 3,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_app_action",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 3,
+        "action": "AXRaise"
+      },
+      "status": "completed",
+      "result": {
+        "action": "raise",
+        "element_id": 3,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_type",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 1,
+        "text": "typed"
+      },
+      "status": "completed",
+      "result": {
+        "action": "type",
+        "length": 5,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_app_state",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 2
+      },
+      "status": "completed",
+      "result": {
+        "snapshot_id": "snap",
+        "pid": 22,
+        "count": 1,
+        "text": "  [4] Button name=\"Inner\"\nsnapshot_id=snap"
+      }
+    },
+    {
+      "tool": "computer_app_action",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 4
+      },
+      "status": "completed",
+      "result": {
+        "action": "press",
+        "element_id": 4,
+        "success": true
+      }
+    },
+    {
+      "tool": "computer_set_value",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 99,
+        "value": "x"
+      },
+      "status": "failed",
+      "reason": "Element 99 is not in snapshot snap. Read computer_app_state again."
+    },
+    {
+      "tool": "computer_set_value",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 11
+        },
+        "snapshot_id": "snap",
+        "element_id": 1,
+        "value": "x"
+      },
+      "status": "failed",
+      "reason": "This snapshot is stale or unknown. Read computer_app_state again and use the new ids."
+    },
+    {
+      "tool": "computer_set_value",
+      "arguments": {
+        "target": {
+          "scope": "app",
+          "pid": 22
+        },
+        "snapshot_id": "snap",
+        "element_id": 1,
+        "value": "x"
+      },
+      "status": "failed",
+      "reason": "This snapshot is stale or unknown. Read computer_app_state again and use the new ids."
+    },
+    {
+      "tool": "computer_set_value",
+      "arguments": {
+        "snapshot_id": "snap",
+        "element_id": 1,
+        "value": "x"
+      },
+      "status": "failed",
+      "reason": "computer_set_value needs an app target."
+    },
+    {
+      "tool": "computer_app_action",
+      "arguments": {
+        "snapshot_id": "snap",
+        "element_id": 1
+      },
+      "status": "failed",
+      "reason": "computer_app_action needs an app target."
+    },
+    {
+      "tool": "computer_app_state",
+      "arguments": {},
+      "status": "failed",
+      "reason": "computer_app_state needs an app target (from computer_apps or computer_resolve_app)."
+    }
+  ],
+  "element tree asked": [
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const started = Date.now();\n    const late = () => Date.now() - started > p.budget;\n    const proc = Application('System Events').processes.whose({ unixId: p.pid })[0];\n    if (!proc.windows().length) throw new Error('The app has no open window');\n    let root = proc.windows[0];\n    for (const i of p.root) root = root.uiElements[i];\n    const settableRoles = ['AXTextField', 'AXTextArea', 'AXComboBox', 'AXSearchField', 'AXSecureTextField', 'AXSlider', 'AXCheckBox', 'AXRadioButton', 'AXPopUpButton'];\n    const safe = (f, fallback) => { try { const v = f(); return v === null || v === undefined ? fallback : v; } catch (e) { return fallback; } };\n    const text = (v) => typeof v === 'string' ? v : (typeof v === 'number' || typeof v === 'boolean') ? String(v) : '';\n    const out = [];\n    let truncated = false;\n    const add = (parent, i, role, name, title, desc, value, actions) => {\n      const node = { path: parent.path.concat([i]), depth: parent.depth + 1, role: role || 'AXUnknown',\n        name: text(name) || text(title) || text(desc), value: text(value).slice(0, 200),\n        actions: (actions || []).filter((a) => a !== 'AXPress' && a !== 'AXShowDefaultUI'),\n        settable: settableRoles.indexOf(role) >= 0, omitted: 0 };\n      out.push(node);\n      return node;\n    };\n    let level = [{ el: root, path: p.root, depth: 0, node: null }];\n    while (level.length && out.length < p.limit && !truncated) {\n      const next = [];\n      for (const parent of level) {\n        if (out.length >= p.limit || parent.depth >= p.depth) break;\n        if (late()) { truncated = true; break; }\n        const kids = parent.el.uiElements;\n        const count = safe(() => kids.length, 0);\n        if (!count) continue;\n        if (count > p.wide) {\n          if (parent.node) { parent.node.omitted += count; continue; }\n          // The element being expanded is itself huge: its first children, one at a time, within the budget.\n          for (let i = 0; i < Math.min(count, p.wide); i++) {\n            if (out.length >= p.limit || late()) { truncated = true; break; }\n            const kid = kids[i];\n            const node = add(parent, i, safe(() => kid.role(), ''), safe(() => kid.name(), ''), safe(() => kid.title(), ''), safe(() => kid.description(), ''), safe(() => kid.value(), ''), safe(() => kid.actions.name(), []));\n            next.push({ el: kid, path: node.path, depth: node.depth, node });\n          }\n          if (out.length) out[out.length - 1].omitted += Math.max(0, count - p.wide);\n          continue;\n        }\n        const roles = safe(() => kids.role(), []);\n        if (!roles.length) continue;\n        const names = safe(() => kids.name(), []), descs = safe(() => kids.description(), []), titles = safe(() => kids.title(), []);\n        const values = safe(() => kids.value(), []), actions = safe(() => kids.actions.name(), []);\n        for (let i = 0; i < roles.length; i++) {\n          if (out.length >= p.limit) { out[out.length - 1].omitted += roles.length - i; break; }\n          const node = add(parent, i, roles[i], names[i], titles[i], descs[i], values[i], actions[i]);\n          next.push({ el: kids[i], path: node.path, depth: node.depth, node });\n        }\n      }\n      level = next;\n    }\n    return JSON.stringify({ nodes: out, truncated });\n  }",
+        "{\"pid\":22,\"root\":[],\"limit\":250,\"depth\":12,\"budget\":18000,\"wide\":150}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    let el = Application('System Events').processes.whose({ unixId: p.pid })[0].windows[0];\n    for (const i of p.path) el = el.uiElements[i];\n    try { el.focused = true; } catch (e) {}\n    if (!p.focusOnly) el.value = p.value;\n    return 'null';\n  }",
+        "{\"pid\":22,\"path\":[0],\"value\":\"new\",\"focusOnly\":false}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    let el = Application('System Events').processes.whose({ unixId: p.pid })[0].windows[0];\n    for (const i of p.path) el = el.uiElements[i];\n    el.actions.byName(p.action).perform();\n    return 'null';\n  }",
+        "{\"pid\":22,\"path\":[1,0],\"action\":\"AXShowMenu\"}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    let el = Application('System Events').processes.whose({ unixId: p.pid })[0].windows[0];\n    for (const i of p.path) el = el.uiElements[i];\n    el.actions.byName(p.action).perform();\n    return 'null';\n  }",
+        "{\"pid\":22,\"path\":[1,0],\"action\":\"AXPress\"}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    let el = Application('System Events').processes.whose({ unixId: p.pid })[0].windows[0];\n    for (const i of p.path) el = el.uiElements[i];\n    el.actions.byName(p.action).perform();\n    return 'null';\n  }",
+        "{\"pid\":22,\"path\":[1,0],\"action\":\"AXRaise\"}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    ObjC.import('AppKit');\n    const p = JSON.parse(argv[0]);\n    const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(p.pid);\n    if (!app || app.isNil()) throw new Error('No running app with pid ' + p.pid);\n    app.activateWithOptions(2); // NSApplicationActivateIgnoringOtherApps\n    delay(0.3);\n    return 'null';\n  }",
+        "{\"pid\":22}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    let el = Application('System Events').processes.whose({ unixId: p.pid })[0].windows[0];\n    for (const i of p.path) el = el.uiElements[i];\n    try { el.focused = true; } catch (e) {}\n    if (!p.focusOnly) el.value = p.value;\n    return 'null';\n  }",
+        "{\"pid\":22,\"path\":[0],\"value\":\"\",\"focusOnly\":true}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const se = Application('System Events');\n    if (/^[\\x20-\\x7e\\n\\t]*$/.test(p.text)) {\n      const lines = p.text.split('\\n');\n      lines.forEach((line, i) => { if (line) se.keystroke(line); if (i < lines.length - 1) se.keyCode(36); });\n      return 'null';\n    }\n    const app = Application.currentApplication(); app.includeStandardAdditions = true;\n    let saved = null; try { saved = app.theClipboard(); } catch (e) {}\n    app.setTheClipboardTo(p.text);\n    se.keystroke('v', { using: ['command down'] });\n    delay(0.25);\n    if (saved !== null) { try { app.setTheClipboardTo(saved); } catch (e) {} }\n    return 'null';\n  }",
+        "{\"text\":\"typed\"}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    const started = Date.now();\n    const late = () => Date.now() - started > p.budget;\n    const proc = Application('System Events').processes.whose({ unixId: p.pid })[0];\n    if (!proc.windows().length) throw new Error('The app has no open window');\n    let root = proc.windows[0];\n    for (const i of p.root) root = root.uiElements[i];\n    const settableRoles = ['AXTextField', 'AXTextArea', 'AXComboBox', 'AXSearchField', 'AXSecureTextField', 'AXSlider', 'AXCheckBox', 'AXRadioButton', 'AXPopUpButton'];\n    const safe = (f, fallback) => { try { const v = f(); return v === null || v === undefined ? fallback : v; } catch (e) { return fallback; } };\n    const text = (v) => typeof v === 'string' ? v : (typeof v === 'number' || typeof v === 'boolean') ? String(v) : '';\n    const out = [];\n    let truncated = false;\n    const add = (parent, i, role, name, title, desc, value, actions) => {\n      const node = { path: parent.path.concat([i]), depth: parent.depth + 1, role: role || 'AXUnknown',\n        name: text(name) || text(title) || text(desc), value: text(value).slice(0, 200),\n        actions: (actions || []).filter((a) => a !== 'AXPress' && a !== 'AXShowDefaultUI'),\n        settable: settableRoles.indexOf(role) >= 0, omitted: 0 };\n      out.push(node);\n      return node;\n    };\n    let level = [{ el: root, path: p.root, depth: 0, node: null }];\n    while (level.length && out.length < p.limit && !truncated) {\n      const next = [];\n      for (const parent of level) {\n        if (out.length >= p.limit || parent.depth >= p.depth) break;\n        if (late()) { truncated = true; break; }\n        const kids = parent.el.uiElements;\n        const count = safe(() => kids.length, 0);\n        if (!count) continue;\n        if (count > p.wide) {\n          if (parent.node) { parent.node.omitted += count; continue; }\n          // The element being expanded is itself huge: its first children, one at a time, within the budget.\n          for (let i = 0; i < Math.min(count, p.wide); i++) {\n            if (out.length >= p.limit || late()) { truncated = true; break; }\n            const kid = kids[i];\n            const node = add(parent, i, safe(() => kid.role(), ''), safe(() => kid.name(), ''), safe(() => kid.title(), ''), safe(() => kid.description(), ''), safe(() => kid.value(), ''), safe(() => kid.actions.name(), []));\n            next.push({ el: kid, path: node.path, depth: node.depth, node });\n          }\n          if (out.length) out[out.length - 1].omitted += Math.max(0, count - p.wide);\n          continue;\n        }\n        const roles = safe(() => kids.role(), []);\n        if (!roles.length) continue;\n        const names = safe(() => kids.name(), []), descs = safe(() => kids.description(), []), titles = safe(() => kids.title(), []);\n        const values = safe(() => kids.value(), []), actions = safe(() => kids.actions.name(), []);\n        for (let i = 0; i < roles.length; i++) {\n          if (out.length >= p.limit) { out[out.length - 1].omitted += roles.length - i; break; }\n          const node = add(parent, i, roles[i], names[i], titles[i], descs[i], values[i], actions[i]);\n          next.push({ el: kids[i], path: node.path, depth: node.depth, node });\n        }\n      }\n      level = next;\n    }\n    return JSON.stringify({ nodes: out, truncated });\n  }",
+        "{\"pid\":22,\"root\":[1],\"limit\":250,\"depth\":12,\"budget\":18000,\"wide\":150}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run(argv) {\n    const p = JSON.parse(argv[0]);\n    let el = Application('System Events').processes.whose({ unixId: p.pid })[0].windows[0];\n    for (const i of p.path) el = el.uiElements[i];\n    el.actions.byName(p.action).perform();\n    return 'null';\n  }",
+        "{\"pid\":22,\"path\":[1,0],\"action\":\"AXPress\"}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    },
+    {
+      "program": "osascript",
+      "args": [
+        "-l",
+        "JavaScript",
+        "-e",
+        "function run() {\n    ObjC.import('CoreGraphics');\n    const session = ObjC.castRefToObject($.CGSessionCopyCurrentDictionary());\n    const locked = session.objectForKey('CGSSessionScreenIsLocked');\n    return JSON.stringify(!!(locked && !locked.isNil() && locked.boolValue));\n  }",
+        "{}"
+      ]
+    }
+  ]
+}

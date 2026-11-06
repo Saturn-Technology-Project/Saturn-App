@@ -1,0 +1,26 @@
+{
+  "model_7ca531f853e2e602": {
+    "source": "EleutherAI/pythia-160m",
+    "revision": "step100000",
+    "commit": "c507d0e63f5a7a833b1b1866116a04cc3e74dc70",
+    "originalModelId": "model_3009cbd909ebc62a"
+  },
+  "model_39149a6665328b80": {
+    "source": "EleutherAI/pythia-160m",
+    "revision": "step120000",
+    "commit": "3df7d2c5532755f7022704e07dea87f35eeaf0e1",
+    "originalModelId": "model_c84828620d489a99"
+  },
+  "model_6985f699e1072167": {
+    "source": "EleutherAI/pythia-160m",
+    "revision": "step130000",
+    "commit": "0b59d0757b8e89b8f5acb201425d1a9964ecf77f",
+    "originalModelId": "model_a18eb24afc8a4a95"
+  },
+  "model_ec6a628a0f0ca3eb": {
+    "source": "EleutherAI/pythia-160m",
+    "revision": "step143000",
+    "commit": "b56d9bee36300031aeea723b73c4d62ac7fa71a2",
+    "originalModelId": "model_9a965613851335b9"
+  }
+}

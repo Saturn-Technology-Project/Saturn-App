@@ -2,14 +2,14 @@
 // resolve to https://registry.npmjs.org/ and carry a sha512 integrity, so `npm ci` installs exactly the bytes that
 // were reviewed. Git, tarball-URL, http and file dependencies are refused unless listed below with a reason.
 //
-//   node scripts/check-lockfiles.mjs [lockfile ...]   (default: runtime and desktop)
+//   node scripts/check-lockfiles.mjs [lockfile ...]   (default: the desktop app)
 import { readFileSync } from "node:fs";
 
 const REGISTRY = "https://registry.npmjs.org/";
 /** Packages allowed to come from elsewhere, by lock path, with why. Empty means none. */
 const EXCEPTIONS = {};
 
-const files = process.argv.slice(2).length ? process.argv.slice(2) : ["runtime/package-lock.json", "desktop/package-lock.json"];
+const files = process.argv.slice(2).length ? process.argv.slice(2) : ["desktop/package-lock.json"];
 let problems = 0;
 for (const file of files) {
   const lock = JSON.parse(readFileSync(file, "utf8"));

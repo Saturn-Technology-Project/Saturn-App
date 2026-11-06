@@ -1,3 +1,5 @@
+import { t } from "./i18n.ts";
+
 export type ResponseStyle = "concise" | "professional" | "detailed";
 export type Autonomy =
   | "default"
@@ -36,7 +38,7 @@ export type Model = {
   effort?: Effort;
 };
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
-export const EFFORT_LABELS: Record<Effort, string> = { low: "Low", medium: "Medium", high: "High", xhigh: "Extra High", max: "Max" };
+export const EFFORT_LABELS: Record<Effort, string> = { low: t("Low"), medium: t("Medium"), high: t("High"), xhigh: t("Extra High"), max: t("Max") };
 /** LM Studio and DeepSeek have no effort control. */
 export function supportsEffort(provider?: string): boolean {
   return provider !== "lmstudio" && provider !== "deepseek";
@@ -88,7 +90,7 @@ export function splitCommandLine(text: string): string[] {
       started = true;
     }
   }
-  if (quote) throw new Error("The command has an unclosed quote.");
+  if (quote) throw new Error(t("The command has an unclosed quote."));
   if (started) parts.push(current);
   return parts;
 }
@@ -117,11 +119,16 @@ export type Project = {
   isDefault?: boolean;
 };
 
+/** How much a chat's agent may do: Ask only reads, Approve asks about each change, Auto works on the project and asks before what is sensitive, and Agent asks nothing. */
+export type ChatMode = "manual" | "pair" | "delegate" | "delegate_auto";
+
 export type Conversation = {
   id: string;
   agentId: string;
   /** The project folder this chat works in. */
   projectId?: string;
+  /** How much this chat's agent may change. A task has none: its worktree keeps it apart until it is merged. */
+  chatMode?: ChatMode;
   /** Set while the chat works in its own git worktree and branch. */
   worktree?: { branch: string; base: string };
   /** The pull request Saturn opened from this chat, and what following it found. */
@@ -228,6 +235,8 @@ export type Run = {
   mode?: RunMode;
   /** Saturn sent this message itself (an automatic fix round after verification). */
   automatic?: boolean;
+  /** Started because tasks this chat started reported back: their chats' ids. */
+  fromTasks?: string[];
   /** The project's check command after this turn's changes. */
   /** Before this turn, earlier turns were folded into the chat's summary to fit the model's context. */
   compacted?: { turns: number; at: string };
@@ -474,3 +483,13 @@ export type RunSummary = {
   updatedAt?: string;
 };
 
+
+/** What removing a connection means for the agents using it, in words, for asking first. `replacement` is null when nothing takes over. */
+export function removalQuestion(name: string, users: string[], kind: "model" | "server", replacement: string | null): string {
+  if (!users.length) return t("Remove {name}?", { name });
+  const one = users.length === 1;
+  const who = one ? users[0] : users.length === 2 ? t("{first} and {second}", { first: users[0], second: users[1] }) : t("{first} and {count} other agents", { first: users[0], count: users.length - 1 });
+  if (kind === "server") return one ? t("Remove {name}? {who} uses it and will no longer have its tools.", { name, who }) : t("Remove {name}? {who} use it and will no longer have its tools.", { name, who });
+  if (replacement) return one ? t("Remove {name}? {who} uses it and will move to {replacement}.", { name, who, replacement }) : t("Remove {name}? {who} use it and will move to {replacement}.", { name, who, replacement });
+  return one ? t("Remove {name}? {who} uses it and will have no model until you connect another.", { name, who }) : t("Remove {name}? {who} use it and will have no model until you connect another.", { name, who });
+}

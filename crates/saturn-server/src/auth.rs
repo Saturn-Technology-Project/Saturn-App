@@ -27,7 +27,7 @@ pub fn load_or_create_token(data_dir: &Path, from_launcher: Option<&str>) -> io:
     fs::create_dir_all(data_dir)?;
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(io::Error::other)?;
-    let token: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+    let token = saturn_domain::research::hex(&bytes);
     write_private(&file, &token)?;
     Ok(token)
 }

@@ -1,0 +1,33 @@
+<script>(() => {
+  const go = (url) => parent.postMessage({ saturnNavigate: String(url) }, "*");
+  document.addEventListener("click", (event) => {
+    const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    if (!link || event.defaultPrevented || link.target === "_blank" || /^(javascript|mailto|tel):/i.test(link.getAttribute("href") || "")) return;
+    const url = new URL(link.href, document.baseURI);
+    if (url.hash && url.href.split("#")[0] === document.baseURI.split("#")[0]) return;
+    event.preventDefault();
+    go(url.href);
+  }, true);
+  const formUrl = (form, submitter) => {
+    const url = new URL(form.action || document.baseURI, document.baseURI);
+    url.search = new URLSearchParams(new FormData(form, submitter)).toString();
+    return url.href;
+  };
+  const isGet = (form) => (form.method || "get").toLowerCase() === "get";
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !isGet(form)) return;
+    event.preventDefault();
+    go(formUrl(form, event.submitter));
+  }, true);
+  // Scripts that submit a form or open a window themselves (a search box, say) skip the submit event.
+  const submit = HTMLFormElement.prototype.submit;
+  HTMLFormElement.prototype.submit = function () {
+    if (isGet(this)) go(formUrl(this));
+    else submit.call(this);
+  };
+  window.open = (url) => {
+    if (url) go(new URL(String(url), document.baseURI).href);
+    return null;
+  };
+})();</script>

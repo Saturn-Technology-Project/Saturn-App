@@ -1,3 +1,4 @@
+import { t } from "./i18n.ts";
 import type { PermissionRule } from "./model";
 
 /** The rule offered on "Always allow": a command prefix, a folder of files, or any call of the tool. */
@@ -25,8 +26,8 @@ export function describeRule(rule: PermissionRule): string {
 
 /** What a pattern means for a tool, for the hint under the input. */
 export function patternHint(tool: string): string {
-  if (tool === "code") return "A command prefix: a trailing * covers any arguments (npm test *). Chains are judged one command at a time.";
-  if (tool === "files") return "An action and a path glob: write src/**, read, delete *.md.";
-  if (tool === "*") return "Any tool; the pattern matches the call's first text argument, or * for every call.";
-  return "Matched against the call's first text argument (a URL, a path, a name), or * for every call.";
+  if (tool === "code") return t("A command prefix: a trailing * covers any arguments (npm test *). Chains are judged one command at a time.");
+  if (tool === "files") return t("An action and a path glob: write src/**, read, delete *.md.");
+  if (tool === "*") return t("Any tool; the pattern matches the call's first text argument, or * for every call.");
+  return t("Matched against the call's first text argument (a URL, a path, a name), or * for every call.");
 }

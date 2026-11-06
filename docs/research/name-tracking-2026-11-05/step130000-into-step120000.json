@@ -1,0 +1,2400 @@
+{
+  "source": "step130000",
+  "target": "step120000",
+  "selection": "target baseline candidate margin <= 0",
+  "layers": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "samples": [
+    {
+      "sampleId": "sample-0028",
+      "input": "When Mike and Sarah went to the store, Sarah gave a drink to",
+      "expected": " Mike",
+      "baseline": {
+        "margin": -0.19012451171875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.1548964977264404
+      },
+      "donor": {
+        "margin": 1.06982421875,
+        "correct": true,
+        "top": " Mike",
+        "topCorrect": true,
+        "expectedLogProb": -1.3721612691879272
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.592010498046875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.388916492462158
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -0.37030029296875,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.0632474422454834
+        },
+        {
+          "layer": 1,
+          "margin": 1.1185302734375,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.2014470100402832
+        },
+        {
+          "layer": 2,
+          "margin": 1.51708984375,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.0114778280258179
+        },
+        {
+          "layer": 3,
+          "margin": 2.099395751953125,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -0.8211058974266052
+        },
+        {
+          "layer": 4,
+          "margin": 1.946807861328125,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -0.8907329440116882
+        },
+        {
+          "layer": 5,
+          "margin": 2.083160400390625,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -0.8513501286506653
+        },
+        {
+          "layer": 6,
+          "margin": 0.9288330078125,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.423264503479004
+        },
+        {
+          "layer": 7,
+          "margin": 1.512786865234375,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.064383625984192
+        },
+        {
+          "layer": 8,
+          "margin": 1.927490234375,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -0.9758927822113037
+        },
+        {
+          "layer": 9,
+          "margin": 1.099609375,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.2876954078674316
+        },
+        {
+          "layer": 10,
+          "margin": 0.868621826171875,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.5603424310684204
+        },
+        {
+          "layer": 11,
+          "margin": 0.886962890625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.1337947845458984
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 0.60601806640625,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.7490992546081543
+      }
+    },
+    {
+      "sampleId": "sample-0029",
+      "input": "When Mike and Sarah went to the park, Sarah gave a drink to",
+      "expected": " Mike",
+      "baseline": {
+        "margin": -0.309051513671875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.6150729656219482
+      },
+      "donor": {
+        "margin": 0.78314208984375,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -1.8355945348739624
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.69549560546875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.8555662631988525
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -0.54827880859375,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.587733268737793
+        },
+        {
+          "layer": 1,
+          "margin": 0.808807373046875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.666015625
+        },
+        {
+          "layer": 2,
+          "margin": 1.28509521484375,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.3810985088348389
+        },
+        {
+          "layer": 3,
+          "margin": 1.822967529296875,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.1544243097305298
+        },
+        {
+          "layer": 4,
+          "margin": 1.7655029296875,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.2795578241348267
+        },
+        {
+          "layer": 5,
+          "margin": 1.623016357421875,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.3250343799591064
+        },
+        {
+          "layer": 6,
+          "margin": 0.763702392578125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9081224203109741
+        },
+        {
+          "layer": 7,
+          "margin": 1.221221923828125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.534841775894165
+        },
+        {
+          "layer": 8,
+          "margin": 1.646087646484375,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.350540041923523
+        },
+        {
+          "layer": 9,
+          "margin": 0.7584228515625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.7584714889526367
+        },
+        {
+          "layer": 10,
+          "margin": 0.596282958984375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.0271968841552734
+        },
+        {
+          "layer": 11,
+          "margin": 0.6273193359375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.61725115776062
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 0.423797607421875,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.118066310882568
+      }
+    },
+    {
+      "sampleId": "sample-0031",
+      "input": "When Mike and Sarah went to the school, Sarah gave a drink to",
+      "expected": " Mike",
+      "baseline": {
+        "margin": -0.07470703125,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.597076892852783
+      },
+      "donor": {
+        "margin": 0.5531005859375,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.101978063583374
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.525604248046875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.868105411529541
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -0.207275390625,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5208563804626465
+        },
+        {
+          "layer": 1,
+          "margin": 0.99652099609375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.734910249710083
+        },
+        {
+          "layer": 2,
+          "margin": 1.44415283203125,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.4889142513275146
+        },
+        {
+          "layer": 3,
+          "margin": 1.73834228515625,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.338941216468811
+        },
+        {
+          "layer": 4,
+          "margin": 1.822540283203125,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.408011794090271
+        },
+        {
+          "layer": 5,
+          "margin": 1.56524658203125,
+          "correct": true,
+          "top": " Mike",
+          "topCorrect": true,
+          "expectedLogProb": -1.4557855129241943
+        },
+        {
+          "layer": 6,
+          "margin": 0.608856201171875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.0736701488494873
+        },
+        {
+          "layer": 7,
+          "margin": 1.189971923828125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.6533973217010498
+        },
+        {
+          "layer": 8,
+          "margin": 1.470306396484375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.6126893758773804
+        },
+        {
+          "layer": 9,
+          "margin": 0.61602783203125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.042229175567627
+        },
+        {
+          "layer": 10,
+          "margin": 0.410369873046875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.2885067462921143
+        },
+        {
+          "layer": 11,
+          "margin": 0.4278564453125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.9014480113983154
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 0.2757568359375,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.32850456237793
+      }
+    },
+    {
+      "sampleId": "sample-0033",
+      "input": "When Emma and James went to the park, James gave a drink to",
+      "expected": " Emma",
+      "baseline": {
+        "margin": -0.053985595703125,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.3288681507110596
+      },
+      "donor": {
+        "margin": 2.02978515625,
+        "correct": true,
+        "top": " Emma",
+        "topCorrect": true,
+        "expectedLogProb": -1.0212653875350952
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": 0.13665771484375,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.29373836517334
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": 0.5802001953125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.896328330039978
+        },
+        {
+          "layer": 1,
+          "margin": 1.535064697265625,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.324442744255066
+        },
+        {
+          "layer": 2,
+          "margin": 1.428131103515625,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.3217254877090454
+        },
+        {
+          "layer": 3,
+          "margin": 1.846588134765625,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.0508453845977783
+        },
+        {
+          "layer": 4,
+          "margin": 1.575103759765625,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.2679800987243652
+        },
+        {
+          "layer": 5,
+          "margin": 1.57708740234375,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.2115697860717773
+        },
+        {
+          "layer": 6,
+          "margin": 0.643829345703125,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.6976896524429321
+        },
+        {
+          "layer": 7,
+          "margin": 0.827362060546875,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.5556401014328003
+        },
+        {
+          "layer": 8,
+          "margin": 1.740814208984375,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.1302688121795654
+        },
+        {
+          "layer": 9,
+          "margin": 1.768310546875,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.1326286792755127
+        },
+        {
+          "layer": 10,
+          "margin": 1.70196533203125,
+          "correct": true,
+          "top": " Emma",
+          "topCorrect": true,
+          "expectedLogProb": -1.395845890045166
+        },
+        {
+          "layer": 11,
+          "margin": 1.09674072265625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.147984743118286
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 0.410064697265625,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.888878107070923
+      }
+    },
+    {
+      "sampleId": "sample-0089",
+      "input": "When Rose and Jack went to the park, Jack gave a drink to",
+      "expected": " Rose",
+      "baseline": {
+        "margin": -0.09307861328125,
+        "correct": false,
+        "top": " Jack",
+        "topCorrect": false,
+        "expectedLogProb": -1.8449935913085938
+      },
+      "donor": {
+        "margin": 3.519775390625,
+        "correct": true,
+        "top": " Rose",
+        "topCorrect": true,
+        "expectedLogProb": -0.7310574054718018
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.48785400390625,
+        "correct": false,
+        "top": " Jack",
+        "topCorrect": false,
+        "expectedLogProb": -2.074566125869751
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -0.179351806640625,
+          "correct": false,
+          "top": " Jack",
+          "topCorrect": false,
+          "expectedLogProb": -1.789804458618164
+        },
+        {
+          "layer": 1,
+          "margin": 0.4952392578125,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.3554123640060425
+        },
+        {
+          "layer": 2,
+          "margin": 0.386749267578125,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.4307652711868286
+        },
+        {
+          "layer": 3,
+          "margin": 0.080810546875,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.4640967845916748
+        },
+        {
+          "layer": 4,
+          "margin": 0.074127197265625,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.5596449375152588
+        },
+        {
+          "layer": 5,
+          "margin": 0.55194091796875,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.304190754890442
+        },
+        {
+          "layer": 6,
+          "margin": 0.514556884765625,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.3851737976074219
+        },
+        {
+          "layer": 7,
+          "margin": 0.98468017578125,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.1101658344268799
+        },
+        {
+          "layer": 8,
+          "margin": 2.257110595703125,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -0.8624998927116394
+        },
+        {
+          "layer": 9,
+          "margin": 2.964691162109375,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -0.7072652578353882
+        },
+        {
+          "layer": 10,
+          "margin": 2.709564208984375,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -0.9720391631126404
+        },
+        {
+          "layer": 11,
+          "margin": 2.329559326171875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8204344511032104
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 1.721527099609375,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.258378505706787
+      }
+    },
+    {
+      "sampleId": "sample-0090",
+      "input": "When Rose and Jack went to the office, Jack gave a drink to",
+      "expected": " Rose",
+      "baseline": {
+        "margin": -0.557647705078125,
+        "correct": false,
+        "top": " Jack",
+        "topCorrect": false,
+        "expectedLogProb": -1.9426929950714111
+      },
+      "donor": {
+        "margin": 2.92620849609375,
+        "correct": true,
+        "top": " Rose",
+        "topCorrect": true,
+        "expectedLogProb": -0.7461299896240234
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.74249267578125,
+        "correct": false,
+        "top": " Jack",
+        "topCorrect": false,
+        "expectedLogProb": -2.067023277282715
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -0.628631591796875,
+          "correct": false,
+          "top": " Jack",
+          "topCorrect": false,
+          "expectedLogProb": -1.9301860332489014
+        },
+        {
+          "layer": 1,
+          "margin": 0.033966064453125,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.425466537475586
+        },
+        {
+          "layer": 2,
+          "margin": -0.213348388671875,
+          "correct": false,
+          "top": " Jack",
+          "topCorrect": false,
+          "expectedLogProb": -1.5804378986358643
+        },
+        {
+          "layer": 3,
+          "margin": -0.48486328125,
+          "correct": false,
+          "top": " Jack",
+          "topCorrect": false,
+          "expectedLogProb": -1.589813470840454
+        },
+        {
+          "layer": 4,
+          "margin": -0.429718017578125,
+          "correct": false,
+          "top": " Jack",
+          "topCorrect": false,
+          "expectedLogProb": -1.631102204322815
+        },
+        {
+          "layer": 5,
+          "margin": -0.260894775390625,
+          "correct": false,
+          "top": " Jack",
+          "topCorrect": false,
+          "expectedLogProb": -1.5526983737945557
+        },
+        {
+          "layer": 6,
+          "margin": 0.23480224609375,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.3852859735488892
+        },
+        {
+          "layer": 7,
+          "margin": 0.24615478515625,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.3870649337768555
+        },
+        {
+          "layer": 8,
+          "margin": 1.6461181640625,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -0.9661109447479248
+        },
+        {
+          "layer": 9,
+          "margin": 2.262725830078125,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -0.8029735088348389
+        },
+        {
+          "layer": 10,
+          "margin": 2.113037109375,
+          "correct": true,
+          "top": " Rose",
+          "topCorrect": true,
+          "expectedLogProb": -1.0354087352752686
+        },
+        {
+          "layer": 11,
+          "margin": 1.786041259765625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8445985317230225
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 1.3411865234375,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.2754530906677246
+      }
+    },
+    {
+      "sampleId": "sample-0101",
+      "input": "When Dan and Lucy went to the park, Lucy gave a drink to",
+      "expected": " Dan",
+      "baseline": {
+        "margin": -0.414306640625,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.182727813720703
+      },
+      "donor": {
+        "margin": 4.1473388671875,
+        "correct": true,
+        "top": " Dan",
+        "topCorrect": true,
+        "expectedLogProb": -1.2470481395721436
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": 0.79315185546875,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.8482232093811035
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": 1.074951171875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5013647079467773
+        },
+        {
+          "layer": 1,
+          "margin": 2.41424560546875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.0091984272003174
+        },
+        {
+          "layer": 2,
+          "margin": 2.854034423828125,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.728377103805542
+        },
+        {
+          "layer": 3,
+          "margin": 3.7659912109375,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.4969309568405151
+        },
+        {
+          "layer": 4,
+          "margin": 3.865936279296875,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.5800718069076538
+        },
+        {
+          "layer": 5,
+          "margin": 3.967620849609375,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.4887322187423706
+        },
+        {
+          "layer": 6,
+          "margin": 3.5513916015625,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.5805644989013672
+        },
+        {
+          "layer": 7,
+          "margin": 3.89990234375,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.4250991344451904
+        },
+        {
+          "layer": 8,
+          "margin": 3.088531494140625,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.622178554534912
+        },
+        {
+          "layer": 9,
+          "margin": 4.34698486328125,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.1055725812911987
+        },
+        {
+          "layer": 10,
+          "margin": 3.43621826171875,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.6978731155395508
+        },
+        {
+          "layer": 11,
+          "margin": 3.77886962890625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.095130443572998
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 2.605499267578125,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.8908228874206543
+      }
+    },
+    {
+      "sampleId": "sample-0103",
+      "input": "When Dan and Lucy went to the school, Lucy gave a drink to",
+      "expected": " Dan",
+      "baseline": {
+        "margin": -0.257965087890625,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.311178207397461
+      },
+      "donor": {
+        "margin": 3.45391845703125,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -1.7092965841293335
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": 0.5289306640625,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.125324249267578
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": 1.042877197265625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.854264497756958
+        },
+        {
+          "layer": 1,
+          "margin": 1.96722412109375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.377312183380127
+        },
+        {
+          "layer": 2,
+          "margin": 2.481475830078125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.053481101989746
+        },
+        {
+          "layer": 3,
+          "margin": 3.297637939453125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8456494808197021
+        },
+        {
+          "layer": 4,
+          "margin": 3.349822998046875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9233657121658325
+        },
+        {
+          "layer": 5,
+          "margin": 3.384033203125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8361799716949463
+        },
+        {
+          "layer": 6,
+          "margin": 2.47259521484375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.133749485015869
+        },
+        {
+          "layer": 7,
+          "margin": 2.833526611328125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.946014165878296
+        },
+        {
+          "layer": 8,
+          "margin": 2.395660400390625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.0434794425964355
+        },
+        {
+          "layer": 9,
+          "margin": 3.744781494140625,
+          "correct": true,
+          "top": " Dan",
+          "topCorrect": true,
+          "expectedLogProb": -1.4290715456008911
+        },
+        {
+          "layer": 10,
+          "margin": 2.818634033203125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.0744152069091797
+        },
+        {
+          "layer": 11,
+          "margin": 3.14208984375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.612609386444092
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 2.162322998046875,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.278740406036377
+      }
+    },
+    {
+      "sampleId": "sample-0105",
+      "input": "When Helen and Chris went to the park, Chris gave a drink to",
+      "expected": " Helen",
+      "baseline": {
+        "margin": -0.26190185546875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.837092876434326
+      },
+      "donor": {
+        "margin": 1.30767822265625,
+        "correct": true,
+        "top": " Helen",
+        "topCorrect": true,
+        "expectedLogProb": -1.4586859941482544
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": 0.308929443359375,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.6718928813934326
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": 0.091949462890625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5946710109710693
+        },
+        {
+          "layer": 1,
+          "margin": 0.751922607421875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.178725004196167
+        },
+        {
+          "layer": 2,
+          "margin": 0.60809326171875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.1050992012023926
+        },
+        {
+          "layer": 3,
+          "margin": 1.62408447265625,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.52662193775177
+        },
+        {
+          "layer": 4,
+          "margin": 1.5260009765625,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.6017738580703735
+        },
+        {
+          "layer": 5,
+          "margin": 1.25732421875,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.650322437286377
+        },
+        {
+          "layer": 6,
+          "margin": 0.94744873046875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9121984243392944
+        },
+        {
+          "layer": 7,
+          "margin": 1.20599365234375,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.706008791923523
+        },
+        {
+          "layer": 8,
+          "margin": 1.39276123046875,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.5097016096115112
+        },
+        {
+          "layer": 9,
+          "margin": 1.023040771484375,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.7394717931747437
+        },
+        {
+          "layer": 10,
+          "margin": 0.40283203125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.222001552581787
+        },
+        {
+          "layer": 11,
+          "margin": -0.021270751953125,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -3.1380012035369873
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": -0.333099365234375,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.588128566741943
+      }
+    },
+    {
+      "sampleId": "sample-0107",
+      "input": "When Helen and Chris went to the school, Chris gave a drink to",
+      "expected": " Helen",
+      "baseline": {
+        "margin": -0.0723876953125,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.939943790435791
+      },
+      "donor": {
+        "margin": 1.52996826171875,
+        "correct": true,
+        "top": " Helen",
+        "topCorrect": true,
+        "expectedLogProb": -1.7049857378005981
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": 0.51239013671875,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.7843751907348633
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": 0.2451171875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.7803146839141846
+        },
+        {
+          "layer": 1,
+          "margin": 0.94183349609375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.3921031951904297
+        },
+        {
+          "layer": 2,
+          "margin": 0.838287353515625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.386549234390259
+        },
+        {
+          "layer": 3,
+          "margin": 1.868316650390625,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.7730063199996948
+        },
+        {
+          "layer": 4,
+          "margin": 2.07879638671875,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.7019447088241577
+        },
+        {
+          "layer": 5,
+          "margin": 1.691986083984375,
+          "correct": true,
+          "top": " Helen",
+          "topCorrect": true,
+          "expectedLogProb": -1.814902663230896
+        },
+        {
+          "layer": 6,
+          "margin": 1.0277099609375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.3110194206237793
+        },
+        {
+          "layer": 7,
+          "margin": 1.5484619140625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9563215970993042
+        },
+        {
+          "layer": 8,
+          "margin": 1.312347412109375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8605586290359497
+        },
+        {
+          "layer": 9,
+          "margin": 1.460205078125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8886889219284058
+        },
+        {
+          "layer": 10,
+          "margin": 0.48956298828125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5591824054718018
+        },
+        {
+          "layer": 11,
+          "margin": 0.178741455078125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -3.4452686309814453
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": -0.183837890625,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.8086018562316895
+      }
+    },
+    {
+      "sampleId": "sample-0112",
+      "input": "When Grace and Luke went to the store, Luke gave a drink to",
+      "expected": " Grace",
+      "baseline": {
+        "margin": -0.7484130859375,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.906825542449951
+      },
+      "donor": {
+        "margin": 2.25445556640625,
+        "correct": true,
+        "top": " Grace",
+        "topCorrect": true,
+        "expectedLogProb": -1.1090344190597534
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.927520751953125,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.270951747894287
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -1.007171630859375,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -3.107950210571289
+        },
+        {
+          "layer": 1,
+          "margin": -0.429107666015625,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.715435028076172
+        },
+        {
+          "layer": 2,
+          "margin": -0.28839111328125,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.6221559047698975
+        },
+        {
+          "layer": 3,
+          "margin": -0.117828369140625,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.472849130630493
+        },
+        {
+          "layer": 4,
+          "margin": -0.412689208984375,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.643155336380005
+        },
+        {
+          "layer": 5,
+          "margin": -0.569122314453125,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.667571544647217
+        },
+        {
+          "layer": 6,
+          "margin": 0.1007080078125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.4984941482543945
+        },
+        {
+          "layer": 7,
+          "margin": 0.251617431640625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.3843510150909424
+        },
+        {
+          "layer": 8,
+          "margin": 0.397308349609375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.0510811805725098
+        },
+        {
+          "layer": 9,
+          "margin": 1.1566162109375,
+          "correct": true,
+          "top": " Grace",
+          "topCorrect": true,
+          "expectedLogProb": -1.5618535280227661
+        },
+        {
+          "layer": 10,
+          "margin": 1.188140869140625,
+          "correct": true,
+          "top": " Grace",
+          "topCorrect": true,
+          "expectedLogProb": -1.7775789499282837
+        },
+        {
+          "layer": 11,
+          "margin": 1.421051025390625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.3384451866149902
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 0.919921875,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.003103256225586
+      }
+    },
+    {
+      "sampleId": "sample-0113",
+      "input": "When Grace and Luke went to the park, Luke gave a drink to",
+      "expected": " Grace",
+      "baseline": {
+        "margin": -1.01812744140625,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.39206600189209
+      },
+      "donor": {
+        "margin": 1.44561767578125,
+        "correct": true,
+        "top": " Grace",
+        "topCorrect": true,
+        "expectedLogProb": -1.6204884052276611
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.815093994140625,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.639596939086914
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -0.992645263671875,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -3.5041379928588867
+        },
+        {
+          "layer": 1,
+          "margin": -0.577484130859375,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -3.150629997253418
+        },
+        {
+          "layer": 2,
+          "margin": -0.4150390625,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -3.0218024253845215
+        },
+        {
+          "layer": 3,
+          "margin": 0.20758056640625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.607485771179199
+        },
+        {
+          "layer": 4,
+          "margin": 0.1282958984375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.7052934169769287
+        },
+        {
+          "layer": 5,
+          "margin": -0.03302001953125,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.688438892364502
+        },
+        {
+          "layer": 6,
+          "margin": 0.17218017578125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.814842462539673
+        },
+        {
+          "layer": 7,
+          "margin": 0.654083251953125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.4633240699768066
+        },
+        {
+          "layer": 8,
+          "margin": 0.014678955078125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.413820743560791
+        },
+        {
+          "layer": 9,
+          "margin": 0.62847900390625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9636342525482178
+        },
+        {
+          "layer": 10,
+          "margin": 0.671417236328125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.1805760860443115
+        },
+        {
+          "layer": 11,
+          "margin": 0.6690673828125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.9291999340057373
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 0.381622314453125,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.454163551330566
+      }
+    },
+    {
+      "sampleId": "sample-0114",
+      "input": "When Grace and Luke went to the office, Luke gave a drink to",
+      "expected": " Grace",
+      "baseline": {
+        "margin": -0.551666259765625,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.790700912475586
+      },
+      "donor": {
+        "margin": 2.02655029296875,
+        "correct": true,
+        "top": " Grace",
+        "topCorrect": true,
+        "expectedLogProb": -1.1766189336776733
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.602996826171875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.0796618461608887
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -0.73907470703125,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.9908838272094727
+        },
+        {
+          "layer": 1,
+          "margin": 0.000823974609375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.495270252227783
+        },
+        {
+          "layer": 2,
+          "margin": 0.148284912109375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.3694329261779785
+        },
+        {
+          "layer": 3,
+          "margin": -0.52362060546875,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.638247013092041
+        },
+        {
+          "layer": 4,
+          "margin": -0.41827392578125,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.675420045852661
+        },
+        {
+          "layer": 5,
+          "margin": -0.15167236328125,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.480729579925537
+        },
+        {
+          "layer": 6,
+          "margin": 0.439971923828125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.4008584022521973
+        },
+        {
+          "layer": 7,
+          "margin": -0.02960205078125,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5985374450683594
+        },
+        {
+          "layer": 8,
+          "margin": 0.141357421875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.2349119186401367
+        },
+        {
+          "layer": 9,
+          "margin": 0.958892822265625,
+          "correct": true,
+          "top": " Grace",
+          "topCorrect": true,
+          "expectedLogProb": -1.7165926694869995
+        },
+        {
+          "layer": 10,
+          "margin": 1.03533935546875,
+          "correct": true,
+          "top": " Grace",
+          "topCorrect": true,
+          "expectedLogProb": -1.8750280141830444
+        },
+        {
+          "layer": 11,
+          "margin": 1.220977783203125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.4047088623046875
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 0.76373291015625,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.074683666229248
+      }
+    },
+    {
+      "sampleId": "sample-0115",
+      "input": "When Grace and Luke went to the school, Luke gave a drink to",
+      "expected": " Grace",
+      "baseline": {
+        "margin": -0.9569091796875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.2610912322998047
+      },
+      "donor": {
+        "margin": 1.50262451171875,
+        "correct": true,
+        "top": " Grace",
+        "topCorrect": true,
+        "expectedLogProb": -1.6142959594726562
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.986907958984375,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.554255485534668
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": -1.178131103515625,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -3.5435831546783447
+        },
+        {
+          "layer": 1,
+          "margin": -0.529510498046875,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -3.1116533279418945
+        },
+        {
+          "layer": 2,
+          "margin": -0.332763671875,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.893916130065918
+        },
+        {
+          "layer": 3,
+          "margin": -0.051025390625,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.6545581817626953
+        },
+        {
+          "layer": 4,
+          "margin": 0.112030029296875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.661824941635132
+        },
+        {
+          "layer": 5,
+          "margin": 0.2493896484375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5150146484375
+        },
+        {
+          "layer": 6,
+          "margin": -0.158935546875,
+          "correct": false,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.955979347229004
+        },
+        {
+          "layer": 7,
+          "margin": 0.484893798828125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5803909301757812
+        },
+        {
+          "layer": 8,
+          "margin": 0.0941162109375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.3796656131744385
+        },
+        {
+          "layer": 9,
+          "margin": 0.625244140625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9874566793441772
+        },
+        {
+          "layer": 10,
+          "margin": 0.651611328125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.2243447303771973
+        },
+        {
+          "layer": 11,
+          "margin": 0.729736328125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.938413619995117
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 0.422607421875,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.452014446258545
+      }
+    },
+    {
+      "sampleId": "sample-0120",
+      "input": "When Jane and Steve went to the store, Steve gave a drink to",
+      "expected": " Jane",
+      "baseline": {
+        "margin": -0.213348388671875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.1634562015533447
+      },
+      "donor": {
+        "margin": 2.4666748046875,
+        "correct": true,
+        "top": " Jane",
+        "topCorrect": true,
+        "expectedLogProb": -1.1852216720581055
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.18426513671875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.203734874725342
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": 0.0169677734375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.851780414581299
+        },
+        {
+          "layer": 1,
+          "margin": 0.6092529296875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.544421911239624
+        },
+        {
+          "layer": 2,
+          "margin": 0.36468505859375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5719876289367676
+        },
+        {
+          "layer": 3,
+          "margin": 1.0008544921875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.11130952835083
+        },
+        {
+          "layer": 4,
+          "margin": 0.951812744140625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.1133246421813965
+        },
+        {
+          "layer": 5,
+          "margin": 1.74273681640625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.749465823173523
+        },
+        {
+          "layer": 6,
+          "margin": 0.6181640625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.3851919174194336
+        },
+        {
+          "layer": 7,
+          "margin": 1.232635498046875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.132913827896118
+        },
+        {
+          "layer": 8,
+          "margin": 1.723052978515625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8009872436523438
+        },
+        {
+          "layer": 9,
+          "margin": 2.128082275390625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.6645729541778564
+        },
+        {
+          "layer": 10,
+          "margin": 2.086669921875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.7344461679458618
+        },
+        {
+          "layer": 11,
+          "margin": 1.90289306640625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.4943671226501465
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 1.63153076171875,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.820692539215088
+      }
+    },
+    {
+      "sampleId": "sample-0121",
+      "input": "When Jane and Steve went to the park, Steve gave a drink to",
+      "expected": " Jane",
+      "baseline": {
+        "margin": -0.1009521484375,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.336899518966675
+      },
+      "donor": {
+        "margin": 2.372802734375,
+        "correct": true,
+        "top": " Jane",
+        "topCorrect": true,
+        "expectedLogProb": -1.4212162494659424
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": -0.002410888671875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.321859836578369
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": 0.217559814453125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.9616785049438477
+        },
+        {
+          "layer": 1,
+          "margin": 0.79248046875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.662647247314453
+        },
+        {
+          "layer": 2,
+          "margin": 0.5333251953125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.6942615509033203
+        },
+        {
+          "layer": 3,
+          "margin": 1.150177001953125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.2471680641174316
+        },
+        {
+          "layer": 4,
+          "margin": 0.97784423828125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.330017328262329
+        },
+        {
+          "layer": 5,
+          "margin": 1.49542236328125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.03670072555542
+        },
+        {
+          "layer": 6,
+          "margin": 0.577789306640625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5767178535461426
+        },
+        {
+          "layer": 7,
+          "margin": 1.2359619140625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.2935142517089844
+        },
+        {
+          "layer": 8,
+          "margin": 1.6982421875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9696696996688843
+        },
+        {
+          "layer": 9,
+          "margin": 2.0447998046875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8853521347045898
+        },
+        {
+          "layer": 10,
+          "margin": 2.062164306640625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9513977766036987
+        },
+        {
+          "layer": 11,
+          "margin": 1.813323974609375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.763676166534424
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 1.55517578125,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -4.031505584716797
+      }
+    },
+    {
+      "sampleId": "sample-0122",
+      "input": "When Jane and Steve went to the office, Steve gave a drink to",
+      "expected": " Jane",
+      "baseline": {
+        "margin": -0.049041748046875,
+        "correct": false,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.983035087585449
+      },
+      "donor": {
+        "margin": 2.2408447265625,
+        "correct": true,
+        "top": " Jane",
+        "topCorrect": true,
+        "expectedLogProb": -1.2720791101455688
+      },
+      "selfPatchMaxErrors": {
+        "0": 0.0,
+        "11": 0.0,
+        "embedding": 0.0
+      },
+      "embedding": {
+        "margin": 0.060516357421875,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -2.9298110008239746
+      },
+      "byLayer": [
+        {
+          "layer": 0,
+          "margin": 0.296142578125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5993618965148926
+        },
+        {
+          "layer": 1,
+          "margin": 1.004302978515625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.239245891571045
+        },
+        {
+          "layer": 2,
+          "margin": 0.750701904296875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.2906088829040527
+        },
+        {
+          "layer": 3,
+          "margin": 1.288787841796875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.8943415880203247
+        },
+        {
+          "layer": 4,
+          "margin": 1.123931884765625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.9582703113555908
+        },
+        {
+          "layer": 5,
+          "margin": 1.637969970703125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.7406026124954224
+        },
+        {
+          "layer": 6,
+          "margin": 0.78985595703125,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.2291464805603027
+        },
+        {
+          "layer": 7,
+          "margin": 1.36138916015625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.016552686691284
+        },
+        {
+          "layer": 8,
+          "margin": 1.3355712890625,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.98184335231781
+        },
+        {
+          "layer": 9,
+          "margin": 2.01971435546875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.7109112739562988
+        },
+        {
+          "layer": 10,
+          "margin": 1.890106201171875,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -1.829475998878479
+        },
+        {
+          "layer": 11,
+          "margin": 1.700927734375,
+          "correct": true,
+          "top": " the",
+          "topCorrect": false,
+          "expectedLogProb": -2.5774292945861816
+        }
+      ],
+      "legacyLastLayer": {
+        "margin": 1.48773193359375,
+        "correct": true,
+        "top": " the",
+        "topCorrect": false,
+        "expectedLogProb": -3.892035484313965
+      }
+    }
+  ],
+  "controls": [],
+  "restoredByLayer": [
+    {
+      "layer": 0,
+      "margin": 8,
+      "top1": 0
+    },
+    {
+      "layer": 1,
+      "margin": 14,
+      "top1": 4
+    },
+    {
+      "layer": 2,
+      "margin": 13,
+      "top1": 6
+    },
+    {
+      "layer": 3,
+      "margin": 13,
+      "top1": 8
+    },
+    {
+      "layer": 4,
+      "margin": 14,
+      "top1": 8
+    },
+    {
+      "layer": 5,
+      "margin": 13,
+      "top1": 8
+    },
+    {
+      "layer": 6,
+      "margin": 16,
+      "top1": 5
+    },
+    {
+      "layer": 7,
+      "margin": 16,
+      "top1": 6
+    },
+    {
+      "layer": 8,
+      "margin": 17,
+      "top1": 7
+    },
+    {
+      "layer": 9,
+      "margin": 17,
+      "top1": 9
+    },
+    {
+      "layer": 10,
+      "margin": 17,
+      "top1": 7
+    },
+    {
+      "layer": 11,
+      "margin": 16,
+      "top1": 0
+    }
+  ],
+  "embeddingRestored": {
+    "margin": 6,
+    "top1": 0
+  }
+}
