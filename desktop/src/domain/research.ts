@@ -893,6 +893,8 @@ export type OpenTarget = { kind: "sample"; runId: string; sampleId?: string; onl
 /** What a project's workbench reopens to. */
 export interface ResearchSession {
   file?: string;
+  /** The Workspace's open folders, so its file tree reopens as it was. */
+  treeOpen?: string[];
   experimentId?: string;
   runId?: string;
   /** A draft not saved yet, with the revision it was based on. */

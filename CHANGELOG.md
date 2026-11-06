@@ -65,6 +65,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Changed
 
+- **The Workspace's files are a tree.** Folders open and close in place instead of replacing the list, and stay open the next time; the open file's folders open by themselves; names sort as you read them (`run2` before `run10`), with folders first and dot files last; folders tools fill, such as `node_modules` and `.venv`, are faded; new files show after the assistant or a run makes them, or when you come back to the window; Find a file searches the whole project; and the arrow keys, Home, End and Enter move through it.
 - **Releases come from `main`.** Every push to `main` is checked and packaged for macOS and Windows, and a new version in `desktop/package.json` and `Cargo.toml` is tagged and published automatically, with its notes from this changelog. The next version is 0.4.0.
 - **Saturn is now licensed under the Apache License 2.0**, in place of MIT. It is still free and open source; Apache 2.0 adds an explicit patent grant. Code released under MIT before this change stays available under MIT.
 - **A new look.** Menus and the command palette are frosted, without showing what is behind the window. Color now means something: a state, what the assistant wrote, a kind of data, code. Everything else is neutral. Menus, dialogs and buttons look the same across screens, and keyboard focus stays inside a dialog and returns where it was when it closes.

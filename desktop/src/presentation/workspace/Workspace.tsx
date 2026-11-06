@@ -11,8 +11,8 @@ import {
   type ModelNode,
   type Question,
   type SampleItem,
-  type SourceEntry,
 } from "../../domain/research.js";
+import { EMPTY_TREE, foldersToRead, keyMove, refreshed, revealed, toggled, treeRows, type TreeEntry, type TreeState } from "../../domain/file-tree.js";
 import { t } from "../../domain/i18n.js";
 import { isNotebookPath, NOTEBOOK_SIZE_LIMIT } from "../../domain/notebook.js";
 import { LookInside } from "../samples/LookInside.js";
@@ -37,9 +37,10 @@ const FINDING_LABELS: Record<FindingKind, string> = { observation: t("Observatio
 /** The panels under the editor, by the name each shows: the tabs show these names. */
 const PANEL = { run: t("Run"), resources: t("Resources"), samples: t("Samples"), findings: t("Findings"), activations: t("Activations"), artifacts: t("Artifacts"), terminal: t("Terminal") };
 const PANELS = Object.values(PANEL);
-const NOTE_FILES = /\.(md|txt|pdf|ipynb)$/i;
 type Panel = string;
 /** A file or a list entry in the sidebar and the sample list: monospaced, left aligned, and it wraps rather than cuts. */
+/** One row of the file tree: indented by depth, the open file marked. */
+const TREE_ROW = "flex min-h-[26px] w-full cursor-default items-center gap-1.5 rounded-md pr-2 text-left font-mono text-xs text-muted-foreground outline-none select-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 const ENTRY = "h-auto min-h-7 w-full flex-wrap justify-start gap-x-2 gap-y-0.5 px-2 py-[3px] text-left font-mono text-xs font-normal whitespace-normal [overflow-wrap:anywhere]";
 /** Output as plain monospaced text that wraps. */
 const OUTPUT_TEXT = "font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]";
@@ -77,8 +78,14 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const projectId = props.project.id;
   const { notify, onFocus } = props;
   const session = useRef(service.loadSession(projectId));
-  const [folder, setFolder] = useState(".");
-  const [entries, setEntries] = useState<SourceEntry[]>([]);
+  const [tree, setTree] = useState<TreeState>(() => {
+    const opened: TreeState = { ...EMPTY_TREE, open: session.current.treeOpen ?? [] };
+    return session.current.file ? revealed(opened, session.current.file) : opened;
+  });
+  const [focusedRow, setFocusedRow] = useState(0);
+  const [fileQuery, setFileQuery] = useState("");
+  const [foundFiles, setFoundFiles] = useState<string[] | null>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<OpenFile | null>(null);
   const content = useRef("");
   const [dirty, setDirty] = useState(false);
@@ -107,16 +114,78 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     [projectId],
   );
 
-  const showFolder = useCallback(
-    async (path: string) => {
-      const view = await service.readSource(projectId, path);
-      if (view.kind === "directory") {
-        setFolder(view.path);
-        setEntries(view.entries.filter((entry) => entry.path !== ".saturn"));
+  /** A folder's entries, or null when it is gone or is not a folder. */
+  const readFolder = useCallback(
+    async (path: string): Promise<TreeEntry[] | null> => {
+      try {
+        const view = await service.readSource(projectId, path);
+        return view.kind === "directory" ? view.entries : null;
+      } catch {
+        return null;
       }
     },
     [projectId],
   );
+
+  // Open folders are read when they are first shown.
+  const pending = foldersToRead(tree).join("\n");
+  useEffect(() => {
+    if (!pending) return undefined;
+    let live = true;
+    const paths = pending.split("\n");
+    void Promise.all(paths.map(async (path) => [path, await readFolder(path)] as const)).then((read) => {
+      if (live) setTree((current) => refreshed(current, Object.fromEntries(read)));
+    });
+    return () => {
+      live = false;
+    };
+  }, [pending, readFolder]);
+
+  // Which folders are open is kept on this device, so the tree reopens as it was.
+  useEffect(() => {
+    if (JSON.stringify(session.current.treeOpen ?? []) !== JSON.stringify(tree.open)) remember({ treeOpen: [...tree.open] });
+  }, [tree.open, remember]);
+
+  // A turn of the assistant, a run, or another program may add, move or remove files: what is shown is read again.
+  const shownTree = useRef(tree);
+  shownTree.current = tree;
+  const readShownFolders = useCallback(() => {
+    const shown = Object.keys(shownTree.current.folders);
+    void Promise.all(shown.map(async (path) => [path, await readFolder(path)] as const)).then((read) => setTree((latest) => refreshed(latest, Object.fromEntries(read))));
+  }, [readFolder]);
+  useEffect(() => {
+    const stopFiles = desktop.live.onChange(readShownFolders);
+    const stopRecords = desktop.live.onResearchChange(readShownFolders);
+    // Files changed outside Saturn, in a terminal or an editor, show when the window comes back.
+    window.addEventListener("focus", readShownFolders);
+    return () => {
+      stopFiles();
+      stopRecords();
+      window.removeEventListener("focus", readShownFolders);
+    };
+  }, [readShownFolders]);
+
+  // Finding a file by name searches the whole project, not only the folders read so far.
+  useEffect(() => {
+    const query = fileQuery.trim();
+    if (!query) {
+      // Back to the tree, which may have missed files made meanwhile.
+      setFoundFiles(null);
+      readShownFolders();
+      return undefined;
+    }
+    let live = true;
+    const timer = window.setTimeout(() => {
+      desktop.projects
+        .files(projectId, query)
+        .then((paths) => live && setFoundFiles(paths))
+        .catch(() => live && setFoundFiles([]));
+    }, 150);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [fileQuery, projectId, readShownFolders]);
 
   const openFile = useCallback(
     async (path: string) => {
@@ -130,6 +199,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
         setConflict(false);
         setSelection(null);
         setOpen((current) => ({ path, initial: content.current, revision: view.revision, generation: (current?.generation ?? 0) + 1 }));
+        setTree((current) => revealed(current, path));
         remember({ file: path });
       } catch (error) {
         notify(messageOf(error));
@@ -174,7 +244,6 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     let live = true;
     void (async () => {
       try {
-        await showFolder(".");
         const drafts = (await service.experiments(projectId)).items;
         const chosen = drafts.find((item) => item.id === session.current.experimentId) ?? drafts.at(-1) ?? null;
         if (!live) return;
@@ -329,25 +398,57 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   }
 
   const selected = samples.find((item) => item.offset === selectedOffset) ?? null;
-  const parentFolder = folder === "." ? null : folder.split("/").slice(0, -1).join("/") || ".";
-
   useEffect(() => {
     onFocus({ file: open?.path ?? null, selection, run, errorOutput, sample: selected });
   }, [errorOutput, onFocus, open?.path, run, selected, selection]);
 
-  const notes = entries.filter((entry) => entry.kind === "file" && NOTE_FILES.test(entry.name));
-  const code = entries.filter((entry) => !notes.includes(entry));
-  const fileButton = (entry: SourceEntry) => (
-    <Button
-      variant="ghost"
-      size="small"
-      key={entry.path}
-      className={classes(ENTRY, open?.path === entry.path && "bg-muted")}
-      aria-current={open?.path === entry.path ? "true" : undefined}
-      onClick={() => void (entry.kind === "directory" ? showFolder(entry.path).catch((error: unknown) => notify(messageOf(error))) : openFile(entry.path))}
-    >
-      <span>{entry.kind === "directory" ? `${entry.name}/` : entry.name}</span>
-    </Button>
+  const rows = treeRows(tree);
+  const focused = Math.min(focusedRow, Math.max(rows.length - 1, 0));
+  const toggleFolder = (path: string, opened?: boolean) => setTree((current) => toggled(current, path, opened));
+  const focusRow = (index: number) => {
+    setFocusedRow(index);
+    treeRef.current?.querySelectorAll<HTMLElement>("[role=treeitem]")[index]?.focus();
+  };
+  const onTreeKey = (event: React.KeyboardEvent) => {
+    const move = keyMove(rows, focused, event.key);
+    if (move.kind === "none") return;
+    event.preventDefault();
+    if (move.kind === "focus") focusRow(move.index);
+    else if (move.kind === "toggle") toggleFolder(move.path, move.open);
+    else void openFile(move.path);
+  };
+  const fileTree = (
+    <div ref={treeRef} role="tree" aria-label={t("Files")} className="flex flex-col" onKeyDown={onTreeKey}>
+      {rows.map((row, index) => {
+        const isFolder = row.entry.kind === "directory";
+        const current = open?.path === row.entry.path;
+        return (
+          <div
+            key={row.entry.path}
+            role="treeitem"
+            aria-level={row.depth}
+            aria-expanded={isFolder ? row.expanded : undefined}
+            aria-selected={current}
+            tabIndex={index === focused ? 0 : -1}
+            title={row.entry.path}
+            className={classes(TREE_ROW, current && "bg-muted text-foreground", row.generated && "opacity-55")}
+            style={{ paddingLeft: 6 + (row.depth - 1) * 12 }}
+            onFocus={() => setFocusedRow(index)}
+            onClick={() => {
+              setFocusedRow(index);
+              if (isFolder) toggleFolder(row.entry.path);
+              else void openFile(row.entry.path);
+            }}
+          >
+            <span aria-hidden="true" className="w-3 flex-none text-center text-muted-foreground">
+              {isFolder ? (row.expanded ? "▾" : "▸") : ""}
+            </span>
+            <span className="min-w-0 truncate">{row.entry.name}</span>
+            {row.loading ? <span className="ml-auto flex-none text-[10px] text-muted-foreground">{t("Loading…")}</span> : null}
+          </div>
+        );
+      })}
+    </div>
   );
   const files = (
     <nav className="flex flex-1 flex-col gap-px overflow-auto bg-panel px-2 py-2.5" aria-label={t("Project")} data-tour="workspace-files">
@@ -367,20 +468,24 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           {sidebar.models.length === 1 ? t("Lineage · 1 node") : t("Lineage · {count} nodes", { count: sidebar.models.length })}
         </Button>
       </section>
-      {notes.length ? (
-        <section className="mb-3 flex flex-col gap-px">
-          <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">{t("Library")}</div>
-          {notes.map(fileButton)}
-        </section>
-      ) : null}
-      <section className="mb-3 flex flex-col gap-px">
-        <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">{folder === "." ? t("Code") : folder}</div>
-        {parentFolder ? (
-          <Button variant="ghost" size="small" className={ENTRY} onClick={() => void showFolder(parentFolder).catch((error: unknown) => notify(messageOf(error)))}>
-            ..
-          </Button>
-        ) : null}
-        {code.map(fileButton)}
+      <section className="mb-3 flex min-h-0 flex-col gap-1">
+        <div className="mb-0.5 px-1.5 text-[11px] font-semibold text-muted-foreground">{t("Files")}</div>
+        <Input className="h-7 text-xs" value={fileQuery} placeholder={t("Find a file")} aria-label={t("Find a file")} onChange={(event) => setFileQuery(event.target.value)} />
+        {foundFiles ? (
+          foundFiles.length ? (
+            <div className="flex flex-col gap-px" role="list" aria-label={t("Files found")}>
+              {foundFiles.map((path) => (
+                <button type="button" role="listitem" key={path} title={path} className={classes(TREE_ROW, open?.path === path && "bg-muted text-foreground")} onClick={() => void openFile(path)}>
+                  <span className="min-w-0 truncate">{path}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="px-1.5 text-xs text-muted-foreground">{t("No file matches.")}</div>
+          )
+        ) : (
+          fileTree
+        )}
       </section>
       {sidebar.drafts.length ? (
         <section className="mb-3 flex flex-col gap-px">

@@ -21,7 +21,6 @@ export default {
   Models: "模型",
   "Lineage · 1 node": "譜系 · 1 個節點",
   "Lineage · {count} nodes": "譜系 · {count} 個節點",
-  Library: "文獻庫",
   Code: "程式碼",
   Experiments: "實驗",
   Results: "結果",
@@ -322,4 +321,7 @@ export default {
   "An output Saturn does not understand. It is kept in the file.": "Saturn 無法理解的輸出，已保留在檔案中。",
   "Some of this cell's output was left out.": "這個儲存格的部分輸出沒有顯示。",
   "An output Saturn does not understand ({type}). It is kept in the file.": "Saturn 無法理解的輸出（{type}），已保留在檔案中。",
+  "Find a file": "尋找檔案",
+  "Files found": "找到的檔案",
+  "No file matches.": "沒有符合的檔案。",
 } satisfies Dictionary;
