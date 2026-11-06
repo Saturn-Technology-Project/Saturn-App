@@ -99,6 +99,22 @@ pub fn in_own_group(command: &mut Command) {
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
+/// Whether any process of the group is still there, asked of the system directly. (`/bin/kill -0 -<group>` reads the
+/// group as an option on Linux, so it always said no.)
+#[cfg(unix)]
+pub fn group_alive(pid: u32) -> bool {
+    i32::try_from(pid)
+        .ok()
+        .and_then(rustix::process::Pid::from_raw)
+        .is_some_and(|group| rustix::process::test_kill_process_group(group).is_ok())
+}
+
+/// Process groups are not tracked this way on Windows.
+#[cfg(windows)]
+pub fn group_alive(_pid: u32) -> bool {
+    false
+}
+
 /// Asks the group to end. Sends nothing when the group is gone.
 #[cfg(unix)]
 pub fn terminate(pid: u32) {

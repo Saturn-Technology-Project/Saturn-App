@@ -168,13 +168,7 @@ pub(super) async fn end_group(pid: u32) {
 
 /// Whether any process of the group is still there.
 pub(super) fn group_exists(pid: u32) -> bool {
-    std::process::Command::new("/bin/kill")
-        .args(["-0", &format!("-{pid}")])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
+    saturn_tools::group_alive(pid)
 }
 
 /// Whichever test hook holds a run at a moment a crash could happen.
