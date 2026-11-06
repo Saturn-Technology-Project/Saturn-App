@@ -3,18 +3,21 @@
 <!-- Saturn gives this file to every agent working in this project (Codex reads it by itself too; CLAUDE.md points
      Claude Code here). Keep it short: what is not obvious from the code. -->
 
-Saturn is a desktop workbench for AI research, with coding agents (API models, local models, Claude Code, Codex) that work on
-the user's own projects. Three parts:
+Saturn is a desktop workbench for AI research: questions, frozen experiments, runs, samples and findings kept as files in a
+project's `.saturn/research`, with a research assistant (on API models, local models, Claude Code or Codex) that works on
+them through `research_*` tools in the chat's mode. Three parts:
 
 - `crates/`: the Rust runtime, one workspace with `Cargo.lock` at the root. `saturn-server` is the local HTTP API
-  (axum, `127.0.0.1:4700`, data in `~/.saturn-app`), `saturn-cli` the `saturn` command, `saturn-core` the agent loop.
+  (axum, `127.0.0.1:4700`, data in `~/.saturn-app`), `saturn-cli` the `saturn` command, `saturn-core` the research
+  records and runs (`src/research/`, with the assistant's tools and bundled skills) and the agent loop.
 - `desktop/`: the React (Vite) interface in a Tauri 2 shell (`desktop/src-tauri`), shown in the system web view, not
   Chromium. It has its own `package.json` and lock file, and reaches the runtime only through
   `src/infrastructure/runtime-client.ts`.
 - `contract/`: what the runtime must do over HTTP, tested against the real programs. `contract/routes.json` lists every
   route. `contract/cases` were recorded from the old TypeScript runtime (git tag `archive/ts-runtime`) and are frozen.
 
-Also `scripts/` (lock-file check, SBOM, `eval/` task evals) and `docs/` (threat model, known advisories).
+Also `scripts/` (lock-file check, SBOM, `eval/` task evals) and `docs/` (threat model, known advisories, the research
+contract, workflow and skills).
 
 ## Commands
 - Install: `npm install --prefix desktop` (the root has no dependencies). Rust as pinned in `rust-toolchain.toml`, Node

@@ -2,7 +2,7 @@
 
 [中文](#安全政策)
 
-Saturn runs AI agents that execute commands, edit files and control apps on your computer, and it holds your model providers' API keys. We treat reports about any of that seriously and thank everyone who reports responsibly.
+Saturn is a workbench for AI research on your computer. It runs your experiments, keeps your research records, and has a research assistant: an AI agent that can execute commands, edit files and control apps within the folders and the mode you allow. It also holds your model providers' API keys. We treat reports about any of that seriously and thank everyone who reports responsibly.
 
 ## Reporting a vulnerability
 
@@ -12,7 +12,7 @@ Include what you can of:
 
 - the affected component (the desktop app, the runtime, the CLI or the SDK) and version (Settings → About, or the release tag);
 - the steps to reproduce, or a proof of concept;
-- the impact as you see it (for example: a web page or file makes an agent run a command without approval, another local program or a website calls the runtime's API, a sandboxed command writes outside the workspace, a key leaves the machine);
+- the impact as you see it (for example: a web page or file makes an agent run a command without approval, another local program or a website calls the runtime's API, a sandboxed command writes outside the workspace, a key leaves the machine, an imported research bundle writes outside `.saturn/research` or runs something, the assistant sets a verdict or a label);
 - whether, and when, you plan to disclose it.
 
 ## What happens next
@@ -44,7 +44,7 @@ Please test only against your own installation and accounts, do not access other
 
 [English](#security-policy)
 
-Saturn 執行的 AI Agent 會在你的電腦上執行指令、修改檔案與操作 App，並保管你的模型供應商 API 金鑰。我們認真看待與這些相關的每一份回報，也感謝每一位負責任揭露的人。
+Saturn 是在你電腦上的 AI 研究工作台。它執行你的實驗、保存你的研究紀錄，並有一位研究助理：一個能在你允許的資料夾與模式內執行指令、修改檔案與操作 App 的 AI Agent。它也保管你的模型供應商 API 金鑰。我們認真看待與這些相關的每一份回報，也感謝每一位負責任揭露的人。
 
 ## 回報漏洞
 
@@ -54,7 +54,7 @@ Saturn 執行的 AI Agent 會在你的電腦上執行指令、修改檔案與操
 
 - 受影響的元件（桌面應用程式、Runtime、CLI 或 SDK）與版本（設定 → About，或發布的 tag）；
 - 重現步驟或概念驗證；
-- 你認為的影響（例如：網頁或檔案讓 Agent 未經核准就執行指令、其他本機程式或網站呼叫了 Runtime 的 API、沙箱中的指令寫到工作目錄之外、金鑰離開了這台電腦）；
+- 你認為的影響（例如：網頁或檔案讓 Agent 未經核准就執行指令、其他本機程式或網站呼叫了 Runtime 的 API、沙箱中的指令寫到工作目錄之外、金鑰離開了這台電腦、匯入的研究包寫到 `.saturn/research` 之外或執行了東西、研究助理設定了判定或標註）；
 - 你是否、以及何時打算公開。
 
 ## 接下來

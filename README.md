@@ -4,11 +4,11 @@
 
 # Saturn
 
-**A local-first workbench for AI research.**
+**A workbench for AI research, on your own computer.**
 
-Bring your own models, scope every agent to the folders you grant, and keep each tool call, file edit and network request inspectable, reviewable and reversible.
+Read the method, write the code yourself, run the experiment and read every sample. Saturn keeps your questions, models, experiments, samples and findings together as plain files, and its research assistant does as much as you allow, no more.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.99-000000.svg?logo=rust&logoColor=white)
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB.svg?logo=tauri&logoColor=white)
@@ -16,100 +16,83 @@ Bring your own models, scope every agent to the folders you grant, and keep each
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Saturn-Technology-Project/Saturn-App/badge)](https://scorecard.dev/viewer/?uri=github.com/Saturn-Technology-Project/Saturn-App)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15780/badge)](https://www.bestpractices.dev/projects/15780)
 
-[Features](#features) · [Install](#install) · [Architecture](#architecture) · [Models](#models) · [Security](#security-and-trust) · [API](#local-api) · [中文](README_ZH.md)
+[A study in Saturn](#a-study-in-saturn) · [Screens](#the-screens) · [Assistant](#the-research-assistant) · [Install](#install) · [Models](#models) · [Security](#security-and-trust) · [API](#local-api) · [中文](README_ZH.md)
 
 </div>
 
 ---
 
+![Saturn's Experiments screen: IOI accuracy of five Pythia-160m checkpoints](docs/images/experiments-en.jpg)
+
+<sub>A real run: indirect object identification on five Pythia-160m checkpoints, 200 prompts each. The hypothesis stays undecided until you judge it.</sub>
+
 ## Why Saturn
 
-Most agent products run the control plane in a vendor cloud, or hand a model an unrestricted shell. Saturn keeps the control plane on your machine:
+AI research goes wrong in quiet ways: a score compared across two different evaluations, a test split read once too often, a number nobody can trace back to the code that made it, a conclusion an assistant wrote for you. Saturn is built against those:
 
-- **Local-first and verifiable.** The runtime is a loopback-only HTTP service on `127.0.0.1`. State, credentials and telemetry are files on disk, and every HTTP(S) request the runtime sends is logged ([how to verify](#security-and-trust)).
-- **Model-agnostic.** Anthropic, OpenAI, Google and DeepSeek over their APIs with your keys; Claude Code and Codex on your existing subscriptions through their official programs; or fully offline models served by LM Studio.
-- **Least privilege by default.** Agents are confined to granted folders, side-effecting actions go through an approval policy, and every edit is checkpointed and revertible per step.
+- **Your research, not a chat.** Questions, hypotheses, experiments, versions, runs, samples, labels and findings each have a place, kept as plain files in the project's `.saturn/research` folder. Read them, diff them, commit them with your code.
+- **Fair by construction.** An experiment is frozen into a version with its code, data and settings. Only runs measured the same way share a chart; anything else is listed apart with what differs. A score splits into what the scorer judged, what you disputed and what was excluded as an error.
+- **You decide.** A run that finishes says only that it executed. Verdicts, labels, locks and merges are yours, and the assistant's findings are always marked as its suggestions.
+- **Local and verifiable.** The runtime listens only on `127.0.0.1`, there is no Saturn backend, and every HTTP request it sends is in a network log you can read ([how to verify](#security-and-trust)). Use API keys, your Claude or ChatGPT plan, or an offline model.
 
-### Saturn, Claude Code and Codex
+## A study in Saturn
 
-What Saturn's own agent loop does (for API and local models; agents on Claude Code or Codex get those programs' own versions), next to the two programs. "—" means not checked for this table.
+1. **Ask.** Write the question, then the hypotheses with their predictions, before any result.
+2. **Write the code.** In the Workspace, beside the files, with the run, its cost, its samples, your findings and a terminal underneath. Notebooks open as cells.
+3. **Freeze and run.** An experiment names its command, its data and scorer files, its models and how it is evaluated. Freezing makes a version; a changed file or setting makes a new one, and the data and scorer of a frozen version are locked against agents. Runs happen here or on an SSH host you configured, and survive a crash with their samples readable.
+4. **Read.** Every sample, across every model that saw it, with the scorer's word beside your label. Compare two runs sample by sample: what improved, what regressed, by category. Keep counterexamples.
+5. **Look inside.** Read activations at every layer, patch a clean prompt into a corrupted one against a random control, and read a layer through a sparse autoencoder.
+6. **Conclude.** Write what you found, tied to the runs it rests on, and set the hypothesis's verdict yourself.
 
-| | Saturn | Claude Code | Codex |
-|---|---|---|---|
-| Runs on your machine, any provider or a local model | Yes: Anthropic, OpenAI, Google, DeepSeek, LM Studio | Anthropic models | OpenAI models, local through `--oss` |
-| Permission rules (allow, ask, deny by pattern) | Yes, with `.claude/settings.json` rules read too | Yes | Approval modes |
-| OS sandbox for commands | macOS, Linux (bubblewrap); none on Windows | Yes | Yes |
-| Context compaction | Yes, and `/compact` | Yes | Yes |
-| Sub-agents | Yes (`delegate`) | Yes | — |
-| Background commands | Yes | Yes | — |
-| Hooks | Yes (`pre_tool`, `post_tool`, `stop`; Claude Code's format read) | Yes | — |
-| Skills and slash commands | Yes (`SKILL.md`, `.claude/commands` read) | Yes | — |
-| Plugins | Yes (Claude Code's layout installs as is) | Yes | — |
-| Headless CLI | `saturn run` | `claude -p` | `codex exec` |
-| SDK | [`@saturn-app/sdk`](https://github.com/Saturn-Technology-Project/Saturn-SDK) (TypeScript, local) | Agent SDK | Codex SDK |
-| Pull request follow-up (fix failing checks) | Runtime only, at most two rounds | Yes, in Claude Code on the web | — |
-| Desktop app and editor | Research workbench with a code editor | Desktop app, IDE extensions | IDE extension, app |
-| Computer use, browser; multi-agent groups and schedules through the runtime | Yes | — | — |
-| Measured | Task evals (`scripts/eval`), nightly when a key is set | Anthropic's evaluations | OpenAI's evaluations |
+A run's program needs nothing from Saturn but an environment variable: it appends one JSON line per sample to `SATURN_RUN_SAMPLES` ([the protocol](docs/research-contract.md)). Results you already have can be imported, marked as imported. [`docs/research-workflow.md`](docs/research-workflow.md) shows how to bring an existing workflow in.
 
-Saturn is younger than both and has had far less real-world use; the evals are how changes to its loop are checked.
+## The screens
 
-## Features
+| Screen | What it holds |
+|---|---|
+| **Home** | Where the work stopped, what changed since you last looked, and what still needs a decision: undecided hypotheses, failed or interrupted runs, refusals |
+| **Workspace** | The project's files and a code editor; under it the run, Resources (time, processor, memory, GPUs, sample rate), samples, findings, activations, outputs and a terminal. Reopening restores the file, the unsaved draft and the run |
+| **Lineage** | Checkpoints and their fine-tuned branches, with a score followed along the line |
+| **Experiments** | Questions, hypotheses, frozen versions and runs; the score chart that only puts comparable runs together; imports, paired comparisons, research bundles, remote runs and analysis outputs |
+| **Samples** | One sample across the models that saw it, labels that never touch the score, agreement with the scorer, and counterexamples |
+| **Data** | Every file an experiment reads, whether it changed since it was frozen, how often test data was read, and rows two files share |
+| **Inspect** | Activations, patching, layer sweeps, two models on one prompt, and sparse-autoencoder features, on a run or in an inspection session of its own |
+| **Tasks** | Long work handed to an agent in its own git worktree: what it may touch, its progress and approvals, its diff, then merge or discard |
+| **Protection** | Refusals and unexplained changes in one place, and what each backend can and cannot enforce |
+| **Environment** | The Python, packages and devices runs use; kits to install (interpretability, post-training, analysis, notebooks); the SSH host for remote runs |
 
-The interface is built around research. Groups, schedules and pull request follow-up remain in the runtime and its API, without screens of their own.
+Settings holds models, MCP servers and skills, usage, memory, permissions, hooks, plugins, telemetry, logs and the interface language (English or Traditional Chinese). Commands (⌘K) reach everything from the keyboard, and a tour boxes each part of the interface on first launch.
+
+## The research assistant
+
+The assistant sits beside every screen (⌘J), knows which one you are on and what each is for, and can walk you through something, boxing each place while you do the work. Each chat has a mode, chosen beside the assistant's name:
+
+| Mode | What the assistant may do |
+|---|---|
+| **Ask** | Only read and explain. You write the code |
+| **Approve** | Propose changes; each change or command waits for your approval |
+| **Auto** | Work in the chat, on the project itself, asking before anything sensitive |
+| **Agent** | Work on the project and ask nothing. Work to keep apart goes to a task in its own worktree |
+
+In every mode, verdicts, labels, locks, the policy, the SSH host and merging stay yours. Modes and locks are a workflow constraint, not a security boundary: a shell in a task can still write a locked file, and Saturn records it afterwards under Protection. [`docs/research-contract.md`](docs/research-contract.md) says exactly what each backend enforces.
+
+**Tools and skills.** The assistant works on the same records you see through twelve `research_*` tools: read anything, make questions, hypotheses, experiments and models, freeze and run (here or on the SSH host), wait for a run, set up the Python environment, look inside models, import results and bundles, keep analysis outputs, run notebook cells, and start and follow tasks. Forty-nine bundled skills teach it how, from scoping a question and writing hypotheses to leakage audits, layer sweeps and a final report; it reads the one it needs with `research_skill`, and a project's own skill of the same name comes first. [`docs/research-skills.md`](docs/research-skills.md) lists them.
+
+**On any backend.** The assistant runs on an API model, on Claude Code with your Claude plan, on Codex with your ChatGPT plan, or on a local model in LM Studio. The research tools reach all of them.
+
+**Underneath.** The assistant is an agent with the runtime's full toolkit, which also serves tasks:
 
 | | |
 |---|---|
-| 🤖 **Agents** | Per-agent system prompt, model, reasoning effort, tool set and approval policy. Agent, Ask (read-only) and Plan modes per message. |
-| 🌿 **Isolated worktrees** | Run a task in its own git worktree and branch, in the background. Merge, keep or discard it; resolve conflicts with the agent; open a pull request from the branch. |
-| 📎 **Context** | `@`-mention files, folders, git changes and URLs; paste screenshots; per-project rules from `AGENTS.md` and similar files; semantic code search backed by a bundled on-device embedding model. |
-| ✅ **Verification loop** | After a turn edits files, the project's check command (typecheck, lint, tests) runs, and failures go back to the agent for up to two automatic fix rounds. |
-| 🔍 **Review** | Per-turn diffs with inline comments sent back to the agent, editable plans, a summary card per turn, terminal output, and replayable browser recordings. |
-| ↩️ **Checkpoints** | Every file edit is recorded. Keep or revert a turn, or restore the workspace to any individual step. |
-| 📚 **Skills** | Folders with a `SKILL.md` (name, description, instructions) in a project's `.agents/skills`, `.saturn/skills` or `.claude/skills`, or your `~/.saturn-app/skills`. Agents see only the names and descriptions and load a skill when a task calls for it; type `/name` in the composer to use one yourself. |
-| 🧩 **Plugins** | One folder that bundles skills, `/` commands, hooks and MCP servers, installed from a folder or a git URL in **Settings → Plugins** and turned on or off as a unit. Claude Code plugins (`.claude-plugin/plugin.json`) install as they are. Installing runs nothing: a plugin's hooks and local MCP servers each wait for your approval. |
-| ⌨️ **Slash commands** | `/` in the composer lists Saturn's own commands (`/compact`, `/plan`, `/ask`, `/new`), the chat's skills, and prompt templates from a project's `.saturn/commands` or `.claude/commands` or your `~/.saturn-app/commands` (`$ARGUMENTS` is what follows the name). The chat shows what you typed; the expansion goes to the agent. |
-| 🪆 **Sub-agents** | An agent hands a self-contained task (a wide search, an investigation, a subtask) to a sub-agent with a fresh context and gets back only its answer; several run in parallel, read-only by default, nested under the step that started them, with the same approvals and checkpoints as the chat. |
-| 🛠️ **Tools** | Filesystem, shell (with background commands: a dev server or watcher keeps running across turns, readable and stoppable from the Terminal tab), web fetch, a browser you watch the agent use (live in the chat's Browser tab with its cursor, a visible Chrome window with Saturn's own profile, or a Safari automation window on macOS after turning on Develop → Allow Remote Automation once; Settings → General → Agent browser; Saturn ships no browser of its own, so the first two need Chrome or a relative such as Chromium or Edge, and the tool says so when there is none), multi-step planning, computer use on macOS and Windows, GitHub, automations, and any [MCP](https://modelcontextprotocol.io) server from the built-in marketplace. |
-| 🔬 **Research workbench** | Questions, hypotheses, frozen experiment versions, runs, samples and findings, kept as plain files in the project's `.saturn/research`. Write code yourself beside an experiment, follow a model from checkpoint to policy, compare one sample across runs, and label it without touching its score. A run records what it really computed, including uncommitted code, and survives a crash with its samples readable. A research assistant can carry out a study itself through its [research tools and skills](docs/research-skills.md), on any backend: design it, train, evaluate, read samples and report, leaving verdicts, labels and merging to you. Each chat is Ask, Approve, Auto or Agent, which sets how much the assistant may do. These modes are a workflow constraint, not a security boundary, and [`docs/research-contract.md`](docs/research-contract.md) says exactly what each backend can enforce. Experiment runs work on macOS and Linux, not yet on Windows. |
-| 💸 **Usage and cost** | Token counts and cost at list price, per model and per agent, over any time range. |
-| 📈 **Observability** | OpenTelemetry traces, metrics and logs, an outbound network log, and optional OTLP export (JSON over HTTP) to your own collector. |
+| 🛠️ **Tools** | Files, a shell with background commands, web fetch, a browser you can watch, computer use on macOS and Windows, GitHub, and any [MCP](https://modelcontextprotocol.io) server |
+| 🌿 **Tasks in worktrees** | A task runs in its own git worktree and branch; at most four at once per project. You review its diff, then merge or discard it |
+| ↩️ **Checkpoints** | Every file edit is recorded, including files a shell command changes. Keep or revert a turn, or restore any single step |
+| 🔐 **Permissions and sandbox** | Agents work only in folders you grant. Rules allow, ask or deny by tool and pattern; commands run in an OS sandbox on macOS and Linux |
+| 📚 **Skills, commands, hooks, plugins** | `SKILL.md` folders in a project or `~/.saturn-app/skills`, `/` commands, hooks before and after tool calls, and plugins that bundle them (Claude Code's layout installs as is). A project's hooks and local MCP servers run only after you approve them |
+| 📎 **Context** | `@`-mention files, folders and URLs, attach the current file or selection, semantic code search with an on-device embedding model, and memory notes the assistant keeps between chats |
+| 💸 **Usage and observability** | Tokens and cost per model, OpenTelemetry traces, metrics and logs, and the outbound network log |
 
-**Reviewing samples.** Disputed and error views filter the whole run before paging. In Experiments, map custom label names to the scorer's words (for example, “Wrong name” → “Wrong”); the same rule drives agreement statistics and review warnings, while original labels and scores stay intact.
-
-**Run counters.** Resources warns when a program rewrites an already counted samples prefix, recounts the current file, and starts throughput again. Experiment programs should append complete JSONL lines.
-
-**Environment jobs.** Creation, package installs and lock-file syncs default to a 30-minute deadline, adjustable in Environment. A timeout stops the whole process group, keeps the output and allows a retry. The API accepts `timeoutSeconds` from 1 to 86400.
-
-**Existing results.** Home and Experiments can preview and import project JSONL/JSON/CSV/TSV results, with explicit column
-mapping and numeric score columns, without rewriting training code or first creating a hypothesis. Trainer state JSON
-imports its `log_history` as separate training metrics. Sources remain unchanged, unknown provenance stays unknown, and
-imported versions cannot be executed. Experiments plots training metrics by step, separately from evaluation samples.
-
-**Behavior changes.** Experiments compares sealed samples across runs or selected models, showing improvements,
-regressions, missing/error counts and category slices. Uncertainty groups repeated trials by sample ID and is omitted
-when evaluation conditions are unknown or different. Save the whole regression cohort and reopen its membership later.
-
-**Persistent remote jobs.** Configure an existing SSH host and working tree in Environment, with this version of
-`saturn-server` installed there. Start a frozen version in Experiments: its detached Rust worker keeps going when Saturn
-closes and reconnects on restart. Stop and the wall-clock deadline end its process group; disconnected cancellation stays
-pending. Code/data are not uploaded, remote source identity is explicitly qualified, and checkpoint resume is handled by
-the original training program through `SATURN_RESUME_FROM`. Explicit training runs may finish with metrics alone.
-
-**Explore directly and keep analysis outputs.** Inspect can start from selected models and the project's Python, without
-a completed experiment. A session preserves its model references and interpreter choice. Keep PNG/JPEG/WebP figures,
-analysis JSON or notebook snapshots with hashes; large activation/SAE stores remain explicit references. Workspace,
-Experiments and Inspect expose these outputs. Scripts can write a plain `artifacts.jsonl` manifest; importing a remote
-run's small outputs checks them over SSH. No Python SDK is required, and previews execute neither code nor HTML.
-
-**Portable evidence.** Home and Experiments export a project bundle and escaped Markdown/HTML reports, including raw
-samples, human labels, logs, training metrics, Inspect results, saved source objects and analysis snapshots. Preview and
-import a bundle already copied into another project; hashes and paths are checked before publication, and conflicting
-files are never replaced. Imported execution contexts are read-only archives and never reconnect to remote workers.
-Weights, datasets, scorers and environments remain explicit external dependencies: this preserves evidence, not a
-guarantee of reproducibility. Bundles hold at most 5,000 files and 64 MiB of decoded evidence. Publication is staged;
-after a process crash, retry the same import to reuse identical files and finish it. Permissions and remote settings
-are not restored. See the [workflow guide](docs/research-workflow.md) for formats, setup and limits.
+Samples, model output, papers and web pages are data to the assistant, never instructions, and are marked that way in its context.
 
 ## Install
 
@@ -164,6 +147,7 @@ Release builds come from the [release workflow](.github/workflows/release.yml): 
 - **Computer use** runs on macOS (accessibility APIs) and Windows (SendInput and UI Automation); see [Computer use](#computer-use).
 - **Claude Code** on Windows requires [Git for Windows](https://git-scm.com/downloads/win), which provides the Bash it executes commands in.
 - On Windows, the `code` tool and the Terminal panel run commands under `cmd.exe`.
+- **Experiment runs** work on macOS and Linux, not yet on Windows. Remote runs need a Linux or macOS host.
 - **Windows has been type-checked, not run,** as of the rewrite in Rust and Tauri: not in CI and not on real hardware. What this file says about Windows is what the code does, not what has been seen working.
 
 ## Architecture
@@ -174,7 +158,7 @@ flowchart LR
     D["Saturn Desktop<br/><sub>Tauri + React · system web view</sub>"]
     R["Saturn Runtime<br/><sub>Rust · 127.0.0.1:4700</sub>"]
     S[("~/.saturn-app<br/><sub>state · keys · workspace</sub>")]
-    P["Project folders"]
+    P["Project folders<br/><sub>code · .saturn/research</sub>"]
     D -- "HTTP + bearer token" --> R
     R --> S
     R -- "granted paths only" --> P
@@ -183,11 +167,12 @@ flowchart LR
   R -- "official programs" --> C["Claude Code · Codex"]
   R --> L["LM Studio<br/><sub>local inference</sub>"]
   R --> X["MCP servers"]
+  R -- "SSH" --> H["Your remote host<br/><sub>detached worker</sub>"]
 ```
 
 | Component | Responsibility |
 |---|---|
-| **Saturn Runtime** (`crates/`) | The control plane: model adapters, the agent loop, tool execution, MCP clients, the approval policy, checkpoints, worktrees, usage accounting, telemetry and persistence. `saturn-server` is the HTTP API and `saturn-cli` the `saturn` command. It needs no desktop app and runs headless. |
+| **Saturn Runtime** (`crates/`) | The control plane: research records, frozen versions and runs, comparisons, inspection helpers, remote workers, and the assistant's agent loop with its model adapters, tools, MCP clients, approval policy, checkpoints, worktrees, usage accounting, telemetry and persistence. `saturn-server` is the HTTP API and `saturn-cli` the `saturn` command. It needs no desktop app and runs headless. |
 | **Saturn Desktop** (`desktop/`) | The React interface in a Tauri 2 shell (`desktop/src-tauri`): the research screens (Home, Workspace, Lineage, Experiments, Samples, Data, Inspect, Tasks, Protection, Environment), the research assistant and settings, in English and Traditional Chinese. It reaches the runtime only through its HTTP API. |
 | **Contract** (`contract/`) | Tests of what the runtime must do over HTTP, run against the real `saturn-server` and `saturn` programs. |
 
@@ -195,9 +180,10 @@ Runtime and desktop follow the same layered architecture; dependencies point inw
 
 ```
 crates/                                   desktop/src/
-  saturn-domain   entities, policies        domain/          view models and rules
-  saturn-core     use cases, the agent      application/     use cases over the API
-                  loop
+  saturn-domain   entities, policies,       domain/          view models and rules
+                  research records
+  saturn-core     use cases, research,      application/     use cases over the API
+                  the agent loop
   saturn-llm, -mcp, -tools, -store,         infrastructure/  HTTP client
   -browser, -computer, -embed, -telemetry
   saturn-server   HTTP routes               presentation/    React components
@@ -208,7 +194,7 @@ crates/                                   desktop/src/
 
 Launching Saturn starts its own runtime and keeps it running: it restarts one that dies, and refuses to use another Saturn already on the port (set `SATURN_RUNTIME_PORT` to use a runtime you started yourself). The window shows where the runtime stands until it answers. Closing the last window stops the runtime it started. The runtime holds a pipe from the app and stops when the pipe closes, so it does not outlive an app that crashed or was force-quit.
 
-**Context.** A chat's earlier turns are sent within a budget sized to the model's context window (half of it; a connection can state its own `contextTokens`). When they outgrow it, the oldest turns are summarized by the same model into the chat's running summary, which later turns ride on; the chat shows `⤵ n earlier turns folded` where it happened. The header's **Context · n%** chip shows how full the chat is, and clicking it, or sending `/compact`, folds the turns now. Claude Code and Codex manage their own context.
+**Context.** An assistant chat's earlier turns are sent within a budget sized to the model's context window (half of it; a connection can state its own `contextTokens`). When they outgrow it, the oldest turns are summarized by the same model into the chat's running summary, which later turns ride on; the chat shows `⤵ n earlier turns folded` where it happened. The header's **Context · n%** chip shows how full the chat is, and clicking it, or sending `/compact`, folds the turns now. Claude Code and Codex manage their own context.
 
 ## Models
 
@@ -276,9 +262,9 @@ This is our reading of OpenAI's published terms, not legal advice; OpenAI's term
 
 You can also use an embedding model served by LM Studio (default `text-embedding-nomic-embed-text-v1.5`) or OpenAI.
 
-**Chat and agent models through LM Studio.** Two settings decide whether a local model works as a Saturn agent:
+**The assistant on a local model, through LM Studio.** Two settings decide whether a local model can be the research assistant:
 
-- **Tool calling.** Agents act through tools, so the model must be trained for function calling (LM Studio marks these models with a tool icon). Models without it answer, but never act.
+- **Tool calling.** The assistant acts through tools, so the model must be trained for function calling (LM Studio marks these models with a tool icon). Models without it answer, but never act.
 - **Context length of 32K or more.** Saturn's system prompt and tool definitions alone exceed LM Studio's default 8K load, which fails with *"tokens to keep … greater than the context length"*. Load the model with a larger context in LM Studio, or:
 
 ```bash
@@ -287,13 +273,13 @@ lms load qwen/qwen3.5-4b --context-length 32768
 
 **Tested models.** Each model ran three agent tasks twice through Saturn's own tools (read a file and answer from it; write a script, run it and report its output; fix a bug and verify the fix with a command), Results are checked on disk, not taken from the model's reply. Tested on 2026-10-21 on an Apple M1 Pro with 16 GB, LM Studio 0.4.26, 4-bit weights, 32K context:
 
-| Model | Size | Agent tasks | Median task | Use it for |
+| Model | Size | Tool tasks | Median task | Use it for |
 |---|---|---|---|---|
-| Qwen3.5 4B (`qwen/qwen3.5-4b`) | 3.1 GB | 6/6 | 29 s | Agents on 16 GB machines: fastest and smallest |
-| Gemma 4 E4B (`google/gemma-4-e4b`) | 6.9 GB | 6/6 | 48 s | Agents |
-| Ministral 3 8B (`mistralai/ministral-3-8b`) | 6.1 GB | 6/6 | 65 s | Agents |
-| Qwen3.5 9B (`qwen/qwen3.5-9b`) | 6.0 GB | 6/6 | 71 s | Agents |
-| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | n/a | Not for agents: unreliable tool use |
+| Qwen3.5 4B (`qwen/qwen3.5-4b`) | 3.1 GB | 6/6 | 29 s | The assistant on 16 GB machines: fastest and smallest |
+| Gemma 4 E4B (`google/gemma-4-e4b`) | 6.9 GB | 6/6 | 48 s | The assistant |
+| Ministral 3 8B (`mistralai/ministral-3-8b`) | 6.1 GB | 6/6 | 65 s | The assistant |
+| Qwen3.5 9B (`qwen/qwen3.5-9b`) | 6.0 GB | 6/6 | 71 s | The assistant |
+| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | n/a | Not for the assistant: unreliable tool use |
 
 Reasoning models (Qwen3.5, Gemma 4) think before every completion, so expect longer tasks. These are small tasks on one machine; larger models (Qwen3.6 27B, Qwen3-Coder 30B and up) need 32 GB or more and were not tested.
 
@@ -301,7 +287,7 @@ Reasoning models (Qwen3.5, Gemma 4) think before every completion, so expect lon
 
 Saturn executes code on your machine and holds your provider credentials, so its trust model should not depend on taking our word for it. The [threat model](docs/threat-model.md) says what Saturn defends against, and what it does not, with the code behind each control; [`SECURITY.md`](SECURITY.md) says how to report a problem. This section documents the data inventory, every egress path, and how to verify each claim with standard tooling, without reading the source.
 
-**Summary:** there is no Saturn backend. Credentials, conversations and telemetry are local files under `~/.saturn-app`. Outbound traffic goes only to endpoints you configure (model providers, and the sites, APIs and MCP servers your agents use), and every request is observable.
+**Summary:** there is no Saturn backend. Research records are files in your project; credentials, conversations and telemetry are local files under `~/.saturn-app`. Outbound traffic goes only to endpoints you configure (model providers, and the sites, APIs and MCP servers your agents use), and every request is observable.
 
 ### Data at rest
 
@@ -310,6 +296,7 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 | Data | Location | Notes |
 |---|---|---|
 | API keys and OAuth tokens | `secrets.json` | Encrypted at rest with AES-256-GCM under a random 256-bit key held by the OS key store: the macOS Keychain, Windows DPAPI, or the Secret Service (libsecret) on Linux; a mode `0600` key file only where none is available. Mode `0600` (Windows has no such mode: there the file has the permissions of your user profile's folder). Plaintext files from earlier versions are encrypted on first launch. |
+| Research records | the project's `.saturn/research` | Plain JSON and JSONL, next to your code. Your own to commit or not. |
 | Agents, conversations, projects, settings | `state.json` | Plain JSON. |
 | Telemetry (traces, metrics, logs) | In memory and `telemetry.json` | Exported only if you configure an OTLP endpoint. |
 | Outbound request log | `network.log` | JSON Lines: timestamp, method, host, path, and whether the host is this computer. Query strings and bodies are never recorded. Above 5 MB it moves to `network.log.1`. |
@@ -322,9 +309,10 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 
 | Destination | Trigger | Payload |
 |---|---|---|
-| Your model provider (Anthropic, OpenAI, Google, DeepSeek) | Agent turns | The conversation, files you or the agent attach, tool results. The key goes only to that provider. |
+| Your model provider (Anthropic, OpenAI, Google, DeepSeek) | Assistant and task turns | The conversation, files you or the agent attach, tool results. The key goes only to that provider. |
 | Anthropic / OpenAI via Claude Code and Codex | Turns on those providers | Their official CLIs talk to their own vendor under your subscription. Saturn never reads or forwards those credentials. |
 | Sites, APIs and MCP servers | When an agent fetches a URL, drives the browser, calls GitHub, or uses an MCP server you added | Whatever that tool call needs. Remote MCP servers are reached over HTTP(S); a local one runs only after you approve its exact command, and its own traffic is its business. The web and browser tools refuse private, link-local and loopback addresses (SSRF protection). |
+| Your SSH host | Only for remote runs, on the host you configured | SSH through your own configuration and host keys: the run's command, its status and its outputs. Saturn stores no SSH credentials. |
 | GitHub Releases | App startup | The update check (`latest.json` of the `updates` release), and the package when there is a newer version. Only in builds made with Saturn's updater key. The app makes these requests, not the runtime, so they are not in the network log. Disable with `SATURN_NO_UPDATES=1`. |
 | Hugging Face | Only if you select an embedding model that is not bundled | The model download. Unlike the bundled model, it is not checked against a pinned hash. |
 | `registry.npmjs.org` | Only when you press **Download** for Claude Code or Codex | The official program's npm package, the exact version pinned in Saturn, verified against a pinned sha512. |
@@ -367,7 +355,7 @@ Every HTTP(S) request the runtime sends goes through one function that records i
 
 #### 3. Run air-gapped
 
-Connect a local model in [LM Studio](https://lmstudio.ai) (one that supports tool calling, loaded with a 32K context; see [Local models](#local-models)), block Saturn in your firewall, and keep working: agents and the code index run offline.
+Connect a local model in [LM Studio](https://lmstudio.ai) (one that supports tool calling, loaded with a 32K context; see [Local models](#local-models)), block Saturn in your firewall, and keep working: experiments, the assistant and the code index run offline.
 
 #### 4. Inspect data at rest
 
@@ -495,7 +483,7 @@ Windows asks for no permission. A single helper process (Windows PowerShell runn
 
 ### Driving Saturn with another agent
 
-Saturn can itself be operated by a computer-use agent such as [agent-desktop](https://github.com/vercel-labs/agent-desktop) or Claude computer use. Every control in the window has a role and a name in the accessibility tree: icon buttons are labelled, chats and agents in the sidebar are buttons that answer Enter and Space, and modals are dialogs named after their title. An agent can therefore find "New Agent", "Settings" or a chat by name instead of by pixels.
+Saturn can itself be operated by a computer-use agent such as [agent-desktop](https://github.com/vercel-labs/agent-desktop) or Claude computer use. Every control in the window has a role and a name in the accessibility tree: icon buttons are labelled, the screens in the rail are buttons that answer Enter and Space, the window's title names the screen and project, and modals are dialogs named after their title. An agent can therefore find "Experiments", "Assistant" or "Settings" by name instead of by pixels.
 
 Drive it through the accessibility tree, for example `agent-desktop snapshot --app Saturn`. The app opens no DevTools port.
 
@@ -517,7 +505,7 @@ Drive it through the accessibility tree, for example `agent-desktop snapshot --a
 
 ## Command line
 
-**Settings → General → Command Line** installs `saturn` in `~/.local/bin`. It runs the app's own CLI against the running Saturn, so it always matches the app:
+**Settings → General → Command Line** installs `saturn` in `~/.local/bin`. It runs the app's own CLI against the running Saturn, so it always matches the app. It starts turns of the runtime's agents (the research assistant is one) from a terminal or a script:
 
 ```bash
 saturn run "fix the failing test" --agent Saturn --project .
@@ -547,16 +535,20 @@ The same rule applies: an agent on Claude (via Claude Code) is refused, since th
 
 ## Local API
 
-The desktop app is a client of the same HTTP API, and so can your scripts be:
+The desktop app is a client of the same HTTP API, and so can your scripts be. [`contract/routes.json`](contract/routes.json) lists every route; the most used:
 
 ```bash
 TOKEN=$(cat ~/.saturn-app/runtime-token)
-curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/projects
 ```
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness probe (unauthenticated) |
+| `GET` `POST` `PATCH` | `/projects/:id/research/:collection` · `/:item` | Research records: questions, hypotheses, experiments, versions, models, findings, counterexamples, inspection sessions, outputs |
+| `POST` | `/projects/:id/research/experiments/:item/versions` · `/versions/:id/runs` · `/remote/runs` | Freeze an experiment, start a run here or on the SSH host |
+| `GET` | `/projects/:id/research/runs/:run` · `/samples` · `/summary` · `/metrics` · `/resources` · `/log` | A run, its samples, scores, training metrics, resources and logs |
+| `POST` | `/projects/:id/research/comparisons` · `/imports` · `/bundles/export` · `/bundles/import` | Paired comparisons, imported results and research bundles |
 | `GET` `POST` | `/agents` | List or create agents |
 | `POST` | `/agents/:id/runs` | Start a turn (`mode`, `images` and project options) |
 | `GET` | `/runs` · `/runs/:id` | Active and recent turns; one turn's output, reasoning, tool calls and approvals |
@@ -607,10 +599,11 @@ Before opening a pull request:
 
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
-- For the research workbench: a PDF reader, a debugger, language servers and a real terminal
+- A PDF reader for papers beside the code, a debugger and language servers in the Workspace
+- Experiment runs on Windows
 
 How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-[MIT](LICENSE) © 2026 Rick Weng
+[Apache License 2.0](LICENSE) © 2026 Rick Weng. See [`NOTICE`](NOTICE).

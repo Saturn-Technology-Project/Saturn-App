@@ -4,11 +4,11 @@
 
 # Saturn
 
-**本機優先的 AI 研究工作台。**
+**在你自己的電腦上進行 AI 研究的工作台。**
 
-自帶模型、以授權資料夾限縮每個 Agent 的權限，每一次工具呼叫、檔案修改與網路請求都可檢視、可審查、可回復。
+讀懂方法、親手寫程式、執行實驗、讀過每一個樣本。Saturn 把你的問題、模型、實驗、樣本與發現以純文字檔保存在一起，研究助理只做你允許的事，不會更多。
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg)
 ![Rust](https://img.shields.io/badge/Rust-1.99-000000.svg?logo=rust&logoColor=white)
 ![Tauri](https://img.shields.io/badge/Tauri-2-24C8DB.svg?logo=tauri&logoColor=white)
@@ -16,89 +16,83 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Saturn-Technology-Project/Saturn-App/badge)](https://scorecard.dev/viewer/?uri=github.com/Saturn-Technology-Project/Saturn-App)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15780/badge)](https://www.bestpractices.dev/projects/15780)
 
-[功能](#功能) · [安裝](#安裝) · [架構](#架構) · [模型](#模型) · [安全](#安全與信任) · [API](#本機-api) · [English](README.md)
+[在 Saturn 中做一項研究](#在-saturn-中做一項研究) · [畫面](#畫面) · [研究助理](#研究助理) · [安裝](#安裝) · [模型](#模型) · [安全](#安全與信任) · [API](#本機-api) · [English](README.md)
 
 </div>
 
 ---
 
+![Saturn 的實驗畫面：五個 Pythia-160m checkpoint 的 IOI 準確率](docs/images/experiments-zh.jpg)
+
+<sub>一次真實的執行：在五個 Pythia-160m checkpoint 上做間接受詞辨識（indirect object identification），每個 200 個提示。在你判定之前，假說都維持未判定。</sub>
+
 ## 為什麼是 Saturn
 
-多數 Agent 產品把控制平面放在廠商雲端，或是直接把不受限的 shell 交給模型。Saturn 把控制平面留在你的電腦上：
+AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比較、測試集被讀了太多次、一個數字沒人能追溯到產生它的程式、一個由助理替你寫下的結論。Saturn 就是為了防範這些而設計的：
 
-- **本機優先，且可驗證。** Runtime 是只綁定 `127.0.0.1` 的 HTTP 服務。狀態、憑證與遙測都是磁碟上的檔案，Runtime 送出的每一筆 HTTP(S) 請求都有紀錄（[驗證方式](#安全與信任)）。
-- **不綁定模型供應商。** Anthropic、OpenAI、Google、DeepSeek 以你的 API 金鑰呼叫；Claude Code 與 Codex 透過官方程式使用你既有的訂閱方案；或以 LM Studio 執行完全離線的本機模型。
-- **預設最小權限。** Agent 只能存取授權的資料夾，有副作用的操作須經過核准策略，每次修改都有檢查點，可逐步回復。
+- **你的研究，不是一段對話。** 問題、假說、實驗、版本、執行、樣本、標籤與發現各有其位置，以純文字檔保存在專案的 `.saturn/research` 資料夾。可以閱讀、比對差異，並與程式碼一起提交。
+- **設計上就公平。** 實驗會連同程式、資料與設定凍結成一個版本。只有以相同方式量測的執行才會放在同一張圖表上；其他的另外列出，並標明哪裡不同。分數會拆成評分器的判斷、你提出異議的部分，以及因錯誤而排除的部分。
+- **由你決定。** 執行完成只代表它跑完了。判定、標籤、鎖定與合併都由你決定，研究助理的發現一律標示為它的建議。
+- **本機且可驗證。** Runtime 只監聽 `127.0.0.1`，沒有 Saturn 後端，它送出的每一筆 HTTP 請求都記錄在你可以閱讀的網路紀錄中（[驗證方式](#安全與信任)）。可使用 API 金鑰、你的 Claude 或 ChatGPT 方案，或離線模型。
 
-### Saturn、Claude Code 與 Codex
+## 在 Saturn 中做一項研究
 
-Saturn 自己的 Agent 迴圈（API 模型與本機模型；使用 Claude Code 或 Codex 的 Agent 則用那兩個程式自己的機制）與兩者的比較。「—」表示本表未查證。
+1. **提問。** 在得到任何結果之前，先寫下問題，再寫下假說與它們的預測。
+2. **寫程式。** 在工作區中，檔案就在旁邊，下方是執行、它的成本、樣本、你的發現與終端機。Notebook 會以儲存格開啟。
+3. **凍結並執行。** 實驗指定它的指令、資料與評分器檔案、模型，以及評估方式。凍結會產生一個版本；檔案或設定一有變更就產生新版本，凍結版本的資料與評分器會被鎖定，Agent 無法修改。執行可以在本機進行，或在你設定的 SSH 主機上進行；當機後執行仍會保留，樣本也仍可讀取。
+4. **閱讀。** 每一個樣本，橫跨所有看過它的模型，評分器的判斷就在你的標籤旁。逐樣本比較兩次執行：哪些改善、哪些退步，並依類別區分。保留反例。
+5. **看進模型內部。** 讀取每一層的激活值，把乾淨提示修補（patch）到被破壞的提示中並與隨機對照比較，以及透過稀疏自編碼器（sparse autoencoder）解讀某一層。
+6. **下結論。** 寫下你的發現，連結到它所依據的執行，並親自設定假說的判定。
 
-| | Saturn | Claude Code | Codex |
-|---|---|---|---|
-| 在你的電腦上執行，任何供應商或本機模型 | 是：Anthropic、OpenAI、Google、DeepSeek、LM Studio | Anthropic 模型 | OpenAI 模型，可用 `--oss` 跑本機模型 |
-| 權限規則（依樣式允許、詢問、拒絕） | 是，也會讀 `.claude/settings.json` 的規則 | 是 | 核准模式 |
-| 指令的作業系統沙箱 | macOS、Linux（bubblewrap）；Windows 沒有 | 是 | 是 |
-| 上下文壓縮 | 是，含 `/compact` | 是 | 是 |
-| 子 Agent | 是（`delegate`） | 是 | — |
-| 背景指令 | 是 | 是 | — |
-| Hooks | 是（`pre_tool`、`post_tool`、`stop`；可讀 Claude Code 格式） | 是 | — |
-| Skills 與斜線指令 | 是（`SKILL.md`，可讀 `.claude/commands`） | 是 | — |
-| Plugins | 是（Claude Code 的格式可直接安裝） | 是 | — |
-| 無介面 CLI | `saturn run` | `claude -p` | `codex exec` |
-| SDK | [`@saturn-app/sdk`](https://github.com/Saturn-Technology-Project/Saturn-SDK)（TypeScript，本機） | Agent SDK | Codex SDK |
-| Pull request 追蹤（修正失敗的檢查） | 僅限 Runtime，最多兩輪 | 是，在網頁版 Claude Code | — |
-| 桌面應用程式與編輯器 | 內建程式編輯器的研究工作台 | 桌面應用程式、IDE 擴充套件 | IDE 擴充套件、App |
-| 電腦操作、瀏覽器；透過 Runtime 使用多 Agent 群組與排程 | 是 | — | — |
-| 評測 | 任務評測（`scripts/eval`），設定金鑰後每夜執行 | Anthropic 自己的評測 | OpenAI 自己的評測 |
+執行的程式除了一個環境變數之外，不需要 Saturn 的任何東西：它為每個樣本在 `SATURN_RUN_SAMPLES` 附加一行 JSON（[協定](docs/research-contract.md)）。你已有的結果可以匯入，並標示為匯入。[`docs/research-workflow.md`](docs/research-workflow.md) 說明如何接入既有的工作流程。
 
-Saturn 比兩者都年輕，實際使用也少得多；評測是用來檢查它的 Agent 迴圈改動的方法。
+## 畫面
 
-## 功能
+| 畫面 | 內容 |
+|---|---|
+| **首頁** | 工作停在哪裡、上次查看後有什麼變化，以及還有哪些需要決定：未判定的假說、失敗或中斷的執行、被拒絕的操作 |
+| **工作區** | 專案的檔案與程式碼編輯器；下方是執行、資源（時間、處理器、記憶體、GPU、樣本速率）、樣本、發現、激活值、輸出與終端機。重新開啟時會還原檔案、未儲存的草稿與執行 |
+| **譜系** | Checkpoint 與其微調分支，並沿著這條線追蹤一個分數 |
+| **實驗** | 問題、假說、凍結的版本與執行；只把可比較的執行放在一起的分數圖表；匯入、成對比較、研究包、遠端執行與分析輸出 |
+| **樣本** | 一個樣本在看過它的各個模型上的結果、從不影響分數的標籤、與評分器的一致程度，以及反例 |
+| **資料** | 實驗讀取的每一個檔案、凍結後是否變更、測試資料被讀取的次數，以及兩個檔案共有的資料列 |
+| **檢視** | 激活值、修補、逐層掃描、同一提示上的兩個模型，以及稀疏自編碼器特徵，可在某次執行上進行，或在獨立的檢視 session 中進行 |
+| **任務** | 交給 Agent 在獨立 git worktree 中進行的長時間工作：它可以動哪些東西、進度與核准、它的 diff，然後合併或捨棄 |
+| **防護** | 被拒絕的操作與無法解釋的變更集中在一處，以及每個後端能與不能強制執行什麼 |
+| **環境** | 執行使用的 Python、套件與裝置；可安裝的套件組（可解釋性、後訓練、分析、Notebook）；遠端執行用的 SSH 主機 |
 
-介面以研究流程為核心。群組、排程與 pull request 追蹤仍在 runtime 和 API 中，但沒有專屬畫面。
+設定包含模型、MCP 伺服器與 skills、用量、記憶、權限、hooks、plugins、遙測、紀錄，以及介面語言（英文或繁體中文）。指令面板（⌘K）可用鍵盤到達任何地方，首次啟動時導覽會逐一框出介面的每個部分。
+
+## 研究助理
+
+研究助理就在每個畫面旁（⌘J），知道你在哪個畫面、每個畫面的用途，也能一步步帶你操作，框出每個位置，由你自己動手。每個對話都有一個模式，在研究助理的名稱旁選擇：
+
+| 模式 | 研究助理可以做什麼 |
+|---|---|
+| **Ask** | 只能閱讀與解釋。程式由你來寫 |
+| **Approve** | 提出變更；每項變更或指令都等你核准 |
+| **Auto** | 在對話中直接處理專案本身，敏感操作前先詢問 |
+| **Agent** | 處理專案，什麼都不問。需要分開進行的工作交給在獨立 worktree 中的任務 |
+
+在任何模式下，判定、標籤、鎖定、策略、SSH 主機與合併都由你決定。模式與鎖定是工作流程約束，不是安全邊界：任務中的 shell 仍可寫入被鎖定的檔案，Saturn 會事後記錄在防護中。[`docs/research-contract.md`](docs/research-contract.md) 精確說明每個後端強制執行什麼。
+
+**工具與 Skill。** 研究助理透過十二個 `research_*` 工具處理與你看到的相同紀錄：讀取任何內容；建立問題、假說、實驗與模型；凍結並執行（本機或 SSH 主機上）；等待執行完成；設定 Python 環境；看進模型內部；匯入結果與研究包；保存分析輸出；執行 Notebook 儲存格；以及啟動並追蹤任務。四十九個內建 skill 教它怎麼做，從界定問題範圍、撰寫假說，到資料洩漏稽核、逐層掃描與最終報告；它以 `research_skill` 讀取需要的那一個，專案自己的同名 skill 優先。[`docs/research-skills.md`](docs/research-skills.md) 列出全部 skill。
+
+**任何後端皆可。** 研究助理可以在 API 模型上執行，也可以在使用你 Claude 方案的 Claude Code、使用你 ChatGPT 方案的 Codex，或 LM Studio 中的本機模型上執行。研究工具在所有後端上都能使用。
+
+**底層。** 研究助理是一個擁有 Runtime 完整工具組的 Agent，任務也使用同一套工具組：
 
 | | |
 |---|---|
-| 🤖 **Agent** | 每個 Agent 各自設定 system prompt、模型、推理強度、工具集與核准策略。每則訊息可切換 Agent、Ask（唯讀）與 Plan 模式。 |
-| 🌿 **隔離 worktree** | 任務在獨立的 git worktree 與分支中於背景執行。可合併、保留或捨棄；由 Agent 協助解決衝突；直接從分支開 pull request。 |
-| 📎 **上下文** | 以 `@` 引用檔案、資料夾、git 變更與網址；貼上截圖；從 `AGENTS.md` 等檔案載入專案規則；以內建的裝置端嵌入模型做語意程式碼搜尋。 |
-| ✅ **驗證迴圈** | 回合修改檔案後，自動執行專案的檢查指令（型別檢查、lint、測試），失敗時回饋給 Agent，最多自動修正兩輪。 |
-| 🔍 **審查** | 每回合的 diff 可逐行留言並回送 Agent，計畫可編輯，每回合有摘要卡片、終端機輸出，以及可重播的瀏覽器錄影。 |
-| ↩️ **檢查點** | 每次檔案修改都有紀錄。可保留或回復整個回合，或將工作區還原到任一步驟。 |
-| 📚 **Skills** | 含 `SKILL.md`（名稱、說明、步驟）的資料夾，放在專案的 `.agents/skills`、`.saturn/skills` 或 `.claude/skills`，或你的 `~/.saturn-app/skills`。Agent 只看到名稱與說明，任務需要時才載入；你也可以在輸入框打 `/名稱` 直接使用。 |
-| 🧩 **Plugins** | 把 skills、`/` 指令、hooks 與 MCP 伺服器打包在一個資料夾，在 **設定 → Plugins** 從資料夾或 git URL 安裝，整組開啟或關閉。Claude Code 的 plugin（`.claude-plugin/plugin.json`）可直接安裝。安裝時不會執行任何東西：plugin 的 hooks 與本機 MCP 伺服器都要各自經你核准。 |
-| ⌨️ **斜線指令** | 在輸入框打 `/` 會列出 Saturn 內建指令（`/compact`、`/plan`、`/ask`、`/new`）、對話可用的 skills，以及專案 `.saturn/commands`、`.claude/commands` 或你的 `~/.saturn-app/commands` 中的提示範本（`$ARGUMENTS` 會換成指令名稱後的內容）。對話只顯示你輸入的內容，展開後的內容會送給 Agent。 |
-| 🪆 **子 Agent** | Agent 可把獨立的任務（大範圍搜尋、調查、子任務）交給擁有全新上下文的子 Agent，只取回它的答案；可多個平行執行，預設唯讀，巢狀顯示在啟動它的步驟下，核准與檢查點與對話相同。 |
-| 🛠️ **工具** | 檔案系統、shell（支援背景指令：dev server 或 watcher 可跨回合持續執行，在 Terminal 分頁讀取輸出或停止）、網頁擷取、看得見 Agent 操作的瀏覽器（在聊天的 Browser 分頁即時顯示，連同 Agent 的游標；或用 Saturn 專用設定檔的可見 Chrome 視窗，或 macOS 上的 Safari 自動化視窗（需先在 Safari 開啟一次「開發 → 允許遠端自動化」），在設定 → 一般 → Agent 瀏覽器切換；Saturn 不附帶瀏覽器，前兩種需要 Chrome 或 Chromium、Edge 等同類瀏覽器，找不到時工具會說明）、多步驟規劃、macOS 與 Windows 電腦操作、GitHub、自動化，以及內建市集中的任何 [MCP](https://modelcontextprotocol.io) 伺服器。 |
-| 🔬 **研究工作台** | 研究問題、假說、凍結的實驗版本、執行、樣本與結論，都以純文字檔保存在專案的 `.saturn/research`。可在實驗旁親手寫程式、追蹤模型從 checkpoint 到 policy 的變化、跨執行比較同一個樣本，標註也不會改動原本的分數。每次執行都會記錄實際計算的內容（包含未提交的程式），當機後樣本仍可讀取。研究助理可以透過[研究工具與 Skill](docs/research-skills.md) 自行完成一項研究，任何後端都適用：設計、訓練、評估、讀樣本並撰寫報告，判定、標註與合併則留給你。每個對話可設為 Ask、Approve、Auto 或 Agent，決定研究助理可以做多少。這些模式是工作流程約束，不是安全邊界，各後端能做到什麼寫在 [`docs/research-contract.md`](docs/research-contract.md)。實驗執行支援 macOS 與 Linux，Windows 尚未支援。 |
-| 💸 **用量與成本** | 依模型與 Agent 統計任意期間的 token 數與牌價成本。 |
-| 📈 **可觀測性** | OpenTelemetry trace、metric 與 log，對外網路請求紀錄，並可選擇以 OTLP（HTTP 上的 JSON）匯出到自己的 collector。 |
+| 🛠️ **工具** | 檔案、支援背景指令的 shell、網頁擷取、看得見操作的瀏覽器、macOS 與 Windows 上的電腦操作、GitHub，以及任何 [MCP](https://modelcontextprotocol.io) 伺服器 |
+| 🌿 **worktree 中的任務** | 任務在自己的 git worktree 與分支中執行；每個專案最多同時四個。你審查它的 diff，然後合併或捨棄 |
+| ↩️ **檢查點** | 每次檔案修改都有紀錄，包括 shell 指令改動的檔案。可保留或回復一個回合，或還原任一單一步驟 |
+| 🔐 **權限與沙箱** | Agent 只在你授權的資料夾內工作。規則依工具與樣式允許、詢問或拒絕；在 macOS 與 Linux 上，指令於作業系統沙箱中執行 |
+| 📚 **Skills、指令、hooks、plugins** | 專案或 `~/.saturn-app/skills` 中的 `SKILL.md` 資料夾、`/` 指令、工具呼叫前後的 hooks，以及把它們打包在一起的 plugins（Claude Code 的格式可直接安裝）。專案的 hooks 與本機 MCP 伺服器只在你核准後才會執行 |
+| 📎 **上下文** | 以 `@` 引用檔案、資料夾與網址，附加目前的檔案或選取範圍，以裝置端嵌入模型做語意程式碼搜尋，以及研究助理在對話之間保留的記憶筆記 |
+| 💸 **用量與可觀測性** | 依模型統計的 token 數與成本、OpenTelemetry trace、metric 與 log，以及對外網路紀錄 |
 
-**審查樣本。** Disputed 與 Errors 先篩選整個 run，再分頁顯示。在 Experiments 可設定自訂標籤與 scorer 用詞的對應（例如「Wrong name → Wrong」）；一致度統計、爭議篩選與警示共用同一套規則，原始標籤與分數不變。
-
-**執行統計。** 程式若覆寫已計數的樣本前綴，Resources 會警示、重新計算目前檔案，並重新起算產出速率。實驗程式應以 append 方式寫入完整 JSONL 行。
-
-**環境工作。** 建立環境、安裝套件與同步鎖定檔預設 30 分鐘逾時，可在 Environment 調整。逾時會停止整個行程群組、保留輸出，之後可重試；API 的 `timeoutSeconds` 範圍為 1–86400 秒。
-
-**既有結果。** Home 與 Experiments 可預覽並匯入專案內的 JSONL／JSON／CSV／TSV，以明確欄位對應與數值評分欄位接入舊結果，不需要改訓練程式或先建假說。
-Trainer state JSON 的 `log_history` 會另存為訓練指標。來源檔不變，未知的來源資訊仍保持未知，匯入版本不能直接執行；Experiments 按 step 畫出訓練指標，與評估樣本分開。
-
-**行為變化。** Experiments 可比較 run 或指定模型的封存樣本，分開顯示改善、退步、缺失、錯誤與分類切片。
-不確定性按樣本 ID 合併重複 trial，評估條件未知或不同時不提供推論區間。可保存整個退步集合，之後重新查看其成員。
-
-**持久遠端作業。** 在 Environment 設定已有的 SSH 主機與專案資料夾，遠端需先安裝同版本 `saturn-server`。
-Experiments 可啟動凍結版本；獨立 Rust worker 在 Saturn 關閉後繼續運作，重開時重連。Stop 與執行期限會結束行程群組；斷線時的取消維持待確認。
-程式與資料不會自動上傳，遠端來源是否等同本機會明確標示；原訓練程式透過 `SATURN_RESUME_FROM` 負責恢復 checkpoint。明確標為 training 的 run 可只產出訓練指標。
-
-**直接探索與保存分析產物。** Inspect 可從選定模型與專案 Python 建立 session，不必先完成實驗；session 保留當時的模型參考與直譯器選擇。
-PNG／JPEG／WebP 圖表、分析 JSON 與 Notebook 可保存帶雜湊的快照，大型 activation／SAE 儲存則保留為明確參照。
-Workspace、Experiments、Inspect 都可查看；腳本只需寫一般 `artifacts.jsonl`，匯入遠端小型產物時會透過 SSH 檢查內容。不必安裝 Saturn Python SDK，預覽不執行程式或 HTML。
-
-**可攜研究證據。** Home 與 Experiments 可匯出整個專案的研究包，以及經過文字跳脫的 Markdown／HTML 報告，包含原始樣本、人工標籤、日誌、訓練指標、Inspect 結果、已保存的程式物件與分析快照。
-將研究包複製到另一個專案後，可先驗證再匯入；發布檔案前檢查雜湊與路徑，有內容衝突就拒絕覆寫。匯入的執行脈絡是唯讀封存，不會重連遠端 worker。
-權重、資料集、評分器與環境仍明列為外部依賴；保存證據不代表保證重現。每包最多 5,000 個檔案、解碼後 64 MiB。
-匯入先暫存再發布；若程式中途崩潰，可重試同一研究包，重用相同檔案並完成剩餘部分。權限與遠端設定不會還原。格式、設定與限制見[工作流程指南](docs/research-workflow.md)。
+樣本、模型輸出、論文與網頁對研究助理來說都是資料，絕不是指令，在它的上下文中也如此標示。
 
 ## 安裝
 
@@ -110,7 +104,7 @@ macOS 版本尚未以 Apple Developer ID 簽章：首次開啟時請到 **系統
 
 **更新。** Saturn 啟動時會檢查新版本，在背景下載，並在你結束 App 時安裝。改寫為 Rust 與 Tauri 之前的版本無法更新到這一版：請手動安裝一次。`~/.saturn-app` 中的資料可繼續使用，之後的版本會自行更新。
 
-首次啟動時，導覽會在實際介面上逐一框出每個部分並說明用途，接著幫你選擇專案資料夾、連接模型、寫下第一個問題；之後可在指令面板（⌘K）用「Take the tour」再看一次。研究助理（⌘J）也了解整個工作台：可以問它某個畫面的用途或某件事怎麼做，它能一步步帶你操作，框出每個位置，由你自己動手。Claude Code 與 Codex 不在安裝程式裡：Saturn 會使用你已安裝的版本，或在你第一次需要時下載官方程式（見[模型](#模型)）。
+首次啟動時，導覽會在實際介面上逐一框出每個部分並說明用途，接著幫你選擇專案資料夾、連接模型、寫下第一個問題；之後可在指令面板（⌘K）用「瀏覽導覽」再看一次。研究助理（⌘J）也了解整個工作台：可以問它某個畫面的用途或某件事怎麼做，它能一步步帶你操作，框出每個位置，由你自己動手。Claude Code 與 Codex 不在安裝程式裡：Saturn 會使用你已安裝的版本，或在你第一次需要時下載官方程式（見[模型](#模型)）。
 
 ## 從原始碼建置
 
@@ -153,6 +147,7 @@ npm run archive                     # 下載檔與校驗碼，輸出至 desktop/
 - **電腦操作**支援 macOS（輔助使用 API）與 Windows（SendInput 與 UI Automation）；見[電腦操作](#電腦操作)。
 - Windows 上的 **Claude Code** 需要 [Git for Windows](https://git-scm.com/downloads/win)，它提供 Claude Code 執行指令所用的 Bash。
 - Windows 上的 `code` 工具與終端機面板以 `cmd.exe` 執行指令。
+- **實驗執行**支援 macOS 與 Linux，Windows 尚未支援。遠端執行需要 Linux 或 macOS 主機。
 - **改寫為 Rust 與 Tauri 之後，Windows 只做過型別檢查，尚未實際執行：** CI 與實體機器上都還沒有。本文關於 Windows 的說明是程式碼的行為，不是實際看過它運作。
 
 ## 架構
@@ -163,7 +158,7 @@ flowchart LR
     D["Saturn Desktop<br/><sub>Tauri + React · 系統網頁檢視</sub>"]
     R["Saturn Runtime<br/><sub>Rust · 127.0.0.1:4700</sub>"]
     S[("~/.saturn-app<br/><sub>狀態 · 金鑰 · 工作區</sub>")]
-    P["專案資料夾"]
+    P["專案資料夾<br/><sub>程式碼 · .saturn/research</sub>"]
     D -- "HTTP + bearer token" --> R
     R --> S
     R -- "僅限授權路徑" --> P
@@ -172,11 +167,12 @@ flowchart LR
   R -- "官方程式" --> C["Claude Code · Codex"]
   R --> L["LM Studio<br/><sub>本機推論</sub>"]
   R --> X["MCP 伺服器"]
+  R -- "SSH" --> H["你的遠端主機<br/><sub>獨立的 worker</sub>"]
 ```
 
 | 元件 | 職責 |
 |---|---|
-| **Saturn Runtime**（`crates/`） | 控制平面：模型轉接層、Agent 迴圈、工具執行、MCP client、核准策略、檢查點、worktree、用量計算、遙測與持久化。`saturn-server` 是 HTTP API，`saturn-cli` 是 `saturn` 指令。不需要桌面應用程式，可 headless 執行。 |
+| **Saturn Runtime**（`crates/`） | 控制平面：研究紀錄、凍結的版本與執行、比較、檢視輔助程式、遠端 worker，以及研究助理的 Agent 迴圈與其模型轉接層、工具、MCP client、核准策略、檢查點、worktree、用量計算、遙測與持久化。`saturn-server` 是 HTTP API，`saturn-cli` 是 `saturn` 指令。不需要桌面應用程式，可 headless 執行。 |
 | **Saturn Desktop**（`desktop/`） | Tauri 2 外殼（`desktop/src-tauri`）中的 React 介面：研究畫面（首頁、工作區、譜系、實驗、樣本、資料、檢視、任務、防護、環境）、研究助理與設定，提供英文與繁體中文。只透過 HTTP API 與 Runtime 溝通。 |
 | **合約測試**（`contract/`） | 檢驗 Runtime 透過 HTTP 必須做到的事，對實際的 `saturn-server` 與 `saturn` 程式執行。 |
 
@@ -184,8 +180,10 @@ Runtime 與桌面應用程式採用相同的分層架構，相依方向朝內，
 
 ```
 crates/                                   desktop/src/
-  saturn-domain   實體、策略                domain/          檢視模型與規則
-  saturn-core     使用案例、Agent 迴圈      application/     呼叫 API 的使用案例
+  saturn-domain   實體、策略、              domain/          檢視模型與規則
+                  研究紀錄
+  saturn-core     使用案例、研究、          application/     呼叫 API 的使用案例
+                  Agent 迴圈
   saturn-llm、-mcp、-tools、-store、        infrastructure/  HTTP client
   -browser、-computer、-embed、-telemetry
   saturn-server   HTTP 路由                 presentation/    React 元件
@@ -194,9 +192,9 @@ crates/                                   desktop/src/
 
 ### 生命週期
 
-啟動 Saturn 會啟動自己的 Runtime 並持續看顧：Runtime 當掉會自動重啟，若該埠已被另一個 Saturn 占用則會拒絕沿用（想沿用自己啟動的 Runtime，請設定 `SATURN_RUNTIME_PORT`）。Runtime 就緒前，視窗會顯示它的狀態，再開啟研究工作台。關閉最後一個視窗會停止它所啟動的 Runtime。Runtime 持有一條來自 App 的管線，管線關閉就停止，所以 App 當掉或被強制結束時，Runtime 也不會繼續存活。
+啟動 Saturn 會啟動自己的 Runtime 並持續看顧：Runtime 當掉會自動重啟，若該埠已被另一個 Saturn 占用則會拒絕沿用（想沿用自己啟動的 Runtime，請設定 `SATURN_RUNTIME_PORT`）。Runtime 回應之前，視窗會顯示它目前的狀態。關閉最後一個視窗會停止它所啟動的 Runtime。Runtime 持有一條來自 App 的管線，管線關閉就停止，所以 App 當掉或被強制結束時，Runtime 也不會繼續存活。
 
-**上下文。** 對話較早的回合會在依模型 context window 計算的預算內送出（視窗的一半；模型連線可自行指定 `contextTokens`）。超過預算時，最舊的回合會由同一個模型摘要成對話的累積摘要，之後的回合都以它為基礎；對話中會在發生處顯示「⤵ 已將 n 個較早回合併入摘要」。標頭的 **Context · n%** 標籤顯示對話的用量，點它或送出 `/compact` 可立即摘要。Claude Code 與 Codex 自行管理各自的上下文。
+**上下文。** 研究助理對話中較早的回合會在依模型 context window 計算的預算內送出（視窗的一半；模型連線可自行指定 `contextTokens`）。超過預算時，最舊的回合會由同一個模型摘要成對話的累積摘要，之後的回合都以它為基礎；對話中會在發生處顯示「⤵ 已將 n 個較早回合併入摘要」。標頭的 **Context · n%** 標籤顯示對話的用量，點它或送出 `/compact` 可立即摘要。Claude Code 與 Codex 自行管理各自的上下文。
 
 ## 模型
 
@@ -264,9 +262,9 @@ Saturn 如何遵循 OpenAI 的[使用條款](https://openai.com/policies/terms-o
 
 也可以改用 LM Studio 提供的嵌入模型（預設 `text-embedding-nomic-embed-text-v1.5`）或 OpenAI。
 
-**透過 LM Studio 使用聊天與 Agent 模型。** 本機模型能不能當 Saturn 的 Agent，取決於兩件事：
+**透過 LM Studio 以本機模型擔任研究助理。** 本機模型能不能當研究助理，取決於兩項設定：
 
-- **工具呼叫。** Agent 透過工具做事，模型必須受過 function calling 訓練（LM Studio 以工具圖示標示）。不支援的模型會回答，但不會動手。
+- **工具呼叫。** 研究助理透過工具做事，模型必須受過 function calling 訓練（LM Studio 以工具圖示標示）。不支援的模型會回答，但不會動手。
 - **32K 以上的 context。** 光是 Saturn 的系統提示與工具定義就超過 LM Studio 預設載入的 8K，會出現 *「tokens to keep … greater than the context length」* 錯誤。請在 LM Studio 以較大的 context 載入，或執行：
 
 ```bash
@@ -275,21 +273,21 @@ lms load qwen/qwen3.5-4b --context-length 32768
 
 **實測模型。** 每個模型透過 Saturn 自己的工具，把三項 Agent 任務各跑兩次（讀檔並依內容回答；寫程式、執行並回報輸出；修 bug 並用指令驗證）。結果以磁碟上的實際狀態判定，不採信模型的自述。測試日期 2026-10-21，Apple M1 Pro 16 GB，LM Studio 0.4.26，4-bit 權重，32K context：
 
-| 模型 | 大小 | Agent 任務 | 任務中位數 | 適合 |
+| 模型 | 大小 | 工具任務 | 任務中位數 | 適合 |
 |---|---|---|---|---|
-| Qwen3.5 4B（`qwen/qwen3.5-4b`） | 3.1 GB | 6/6 | 29 秒 | 16 GB 機器的 Agent：最快也最小 |
-| Gemma 4 E4B（`google/gemma-4-e4b`） | 6.9 GB | 6/6 | 48 秒 | Agent |
-| Ministral 3 8B（`mistralai/ministral-3-8b`） | 6.1 GB | 6/6 | 65 秒 | Agent |
-| Qwen3.5 9B（`qwen/qwen3.5-9b`） | 6.0 GB | 6/6 | 71 秒 | Agent |
-| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | 不適用 | 不適合 Agent：工具呼叫不穩定 |
+| Qwen3.5 4B（`qwen/qwen3.5-4b`） | 3.1 GB | 6/6 | 29 秒 | 16 GB 機器上的研究助理：最快也最小 |
+| Gemma 4 E4B（`google/gemma-4-e4b`） | 6.9 GB | 6/6 | 48 秒 | 研究助理 |
+| Ministral 3 8B（`mistralai/ministral-3-8b`） | 6.1 GB | 6/6 | 65 秒 | 研究助理 |
+| Qwen3.5 9B（`qwen/qwen3.5-9b`） | 6.0 GB | 6/6 | 71 秒 | 研究助理 |
+| Qwen2.5-Coder 7B | 4.3 GB | 3/6 | 不適用 | 不適合當研究助理：工具呼叫不穩定 |
 
 推理模型（Qwen3.5、Gemma 4）每次補全前都會先思考，任務會比較久。這些是在單一機器上的小型任務；更大的模型（Qwen3.6 27B、Qwen3-Coder 30B 以上）需要 32 GB 以上記憶體，沒有實測。
 
 ## 安全與信任
 
-Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的信任基礎不該建立在「相信我們」之上。本節列出資料清單、每一條對外連線路徑，以及如何用標準工具逐項驗證，不需閱讀原始碼。[威脅模型](docs/threat-model.md)說明 Saturn 防範什麼、不防範什麼，以及每項控制背後的程式碼；[`SECURITY.md`](SECURITY.md) 說明如何回報問題。
+Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的信任基礎不該建立在「相信我們」之上。[威脅模型](docs/threat-model.md)說明 Saturn 防範什麼、不防範什麼，以及每項控制背後的程式碼；[`SECURITY.md`](SECURITY.md) 說明如何回報問題。本節列出資料清單、每一條對外連線路徑，以及如何用標準工具逐項驗證，不需閱讀原始碼。
 
-**摘要：** Saturn 沒有後端服務。憑證、對話與遙測都是 `~/.saturn-app` 下的本機檔案。對外流量只會送往你設定的端點（模型供應商，以及 Agent 使用的網站、API 與 MCP 伺服器），且每一筆請求都可觀測。
+**摘要：** Saturn 沒有後端服務。研究紀錄是你專案中的檔案；憑證、對話與遙測都是 `~/.saturn-app` 下的本機檔案。對外流量只會送往你設定的端點（模型供應商，以及 Agent 使用的網站、API 與 MCP 伺服器），且每一筆請求都可觀測。
 
 ### 靜態資料
 
@@ -298,6 +296,7 @@ Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的�
 | 資料 | 位置 | 說明 |
 |---|---|---|
 | API 金鑰與 OAuth token | `secrets.json` | 以 AES-256-GCM 靜態加密，256 位元的隨機金鑰由作業系統金鑰庫保管：macOS 鑰匙圈、Windows DPAPI，或 Linux 的 Secret Service（libsecret）；只有在沒有金鑰庫時才改用權限 `0600` 的金鑰檔。檔案權限 `0600`（Windows 沒有這種權限：檔案沿用你使用者設定檔資料夾的權限）。舊版的明文檔案會在首次啟動時自動加密。 |
+| 研究紀錄 | 專案的 `.saturn/research` | 純 JSON 與 JSONL，就在你的程式碼旁。要不要提交由你決定。 |
 | Agent、對話、專案、設定 | `state.json` | 純 JSON。 |
 | 遙測（trace、metric、log） | 記憶體與 `telemetry.json` | 只有在你設定 OTLP 端點時才會匯出。 |
 | 對外請求紀錄 | `network.log` | JSON Lines：時間戳記、方法、主機、路徑，以及主機是否為本機。從不記錄查詢字串與內容。超過 5 MB 時移至 `network.log.1`。 |
@@ -310,9 +309,10 @@ Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的�
 
 | 目的地 | 觸發時機 | 傳送內容 |
 |---|---|---|
-| 你的模型供應商（Anthropic、OpenAI、Google、DeepSeek） | Agent 回合 | 對話內容、你或 Agent 附加的檔案、工具結果。金鑰只送往該供應商。 |
+| 你的模型供應商（Anthropic、OpenAI、Google、DeepSeek） | 研究助理與任務的回合 | 對話內容、你或 Agent 附加的檔案、工具結果。金鑰只送往該供應商。 |
 | 經由 Claude Code 與 Codex 連至 Anthropic / OpenAI | 使用這兩個供應商的回合 | 官方 CLI 以你的訂閱方案連線至各自廠商。Saturn 從不讀取或轉送這些憑證。 |
 | 網站、API 與 MCP 伺服器 | Agent 擷取網址、操作瀏覽器、呼叫 GitHub，或使用你新增的 MCP 伺服器時 | 該次工具呼叫所需的內容。遠端 MCP 伺服器透過 HTTP(S) 連線；本機伺服器須在你核准確切指令後才會執行，其自身的網路流量由該程式負責。web 與瀏覽器工具會拒絕私有、link-local 與 loopback 位址（SSRF 防護）。 |
+| 你的 SSH 主機 | 僅在遠端執行時，連往你設定的主機 | 透過你自己的 SSH 設定與主機金鑰：執行的指令、狀態與輸出。Saturn 不儲存任何 SSH 憑證。 |
 | GitHub Releases | App 啟動時 | 更新檢查（`updates` release 的 `latest.json`），有新版本時下載套件。僅限以 Saturn 更新金鑰建置的版本。這些請求由 App 發出，不是 Runtime，所以不在網路紀錄中。設定 `SATURN_NO_UPDATES=1` 可停用。 |
 | Hugging Face | 僅在你選用未內建的嵌入模型時 | 下載該模型。與內建模型不同，不會以固定雜湊驗證。 |
 | `registry.npmjs.org` | 僅在你按下 Claude Code 或 Codex 的 **下載** 時 | 官方程式的 npm 套件，即 Saturn 固定的確切版本，並以固定的 sha512 驗證。 |
@@ -355,7 +355,7 @@ Runtime 送出的每一筆 HTTP(S) 請求都經過同一個記錄它的函式，
 
 #### 3. 離線執行
 
-在 [LM Studio](https://lmstudio.ai) 連接本機模型（需支援工具呼叫，並以 32K context 載入；見[本機模型](#本機模型)），用防火牆封鎖 Saturn，照常使用：Agent 與程式碼索引都能離線運作。
+在 [LM Studio](https://lmstudio.ai) 連接本機模型（需支援工具呼叫，並以 32K context 載入；見[本機模型](#本機模型)），用防火牆封鎖 Saturn，照常使用：實驗、研究助理與程式碼索引都能離線運作。
 
 #### 4. 檢查靜態資料
 
@@ -483,7 +483,7 @@ Windows 不需要任何權限。所有動作由單一輔助程序處理（Window
 
 ### 讓其他 Agent 操作 Saturn
 
-Saturn 本身也可以被電腦操作 Agent 操控，例如 [agent-desktop](https://github.com/vercel-labs/agent-desktop) 或 Claude computer use。視窗中每個控制項在輔助使用樹裡都有角色與名稱：圖示按鈕都有標籤，側邊欄的對話與 Agent 是可以用 Enter 和空白鍵觸發的按鈕，對話框以標題命名。Agent 因此能依名稱找到「New Agent」、「Settings」或某個對話，而不是靠像素。
+Saturn 本身也可以被電腦操作 Agent 操控，例如 [agent-desktop](https://github.com/vercel-labs/agent-desktop) 或 Claude computer use。視窗中每個控制項在輔助使用樹裡都有角色與名稱：圖示按鈕都有標籤，側欄中的各個畫面是可以用 Enter 和空白鍵觸發的按鈕，視窗標題寫出目前的畫面與專案，對話框以標題命名。Agent 因此能依名稱找到「實驗」、「助理」或「設定」，而不是靠像素。
 
 透過輔助使用樹操作，例如 `agent-desktop snapshot --app Saturn`。App 不會開啟 DevTools 連接埠。
 
@@ -505,7 +505,7 @@ Saturn 本身也可以被電腦操作 Agent 操控，例如 [agent-desktop](http
 
 ## 命令列
 
-**設定 → 一般 → Command Line** 會在 `~/.local/bin` 安裝 `saturn`。它對正在執行的 Saturn 執行 App 自己的 CLI，所以版本永遠與 App 一致：
+**設定 → 一般 → Command Line** 會在 `~/.local/bin` 安裝 `saturn`。它對正在執行的 Saturn 執行 App 自己的 CLI，所以版本永遠與 App 一致。它從終端機或腳本啟動 Runtime 中 Agent 的回合（研究助理也是其中之一）：
 
 ```bash
 saturn run "fix the failing test" --agent Saturn --project .
@@ -535,16 +535,20 @@ console.log(run.status, run.output);
 
 ## 本機 API
 
-桌面應用程式是同一個 HTTP API 的用戶端，你的腳本也可以是：
+桌面應用程式是同一個 HTTP API 的用戶端，你的腳本也可以是。[`contract/routes.json`](contract/routes.json) 列出所有路由；最常用的如下：
 
 ```bash
 TOKEN=$(cat ~/.saturn-app/runtime-token)
-curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/agents
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/projects
 ```
 
 | 方法 | 路徑 | 用途 |
 |---|---|---|
 | `GET` | `/health` | 存活檢查（不需驗證） |
+| `GET` `POST` `PATCH` | `/projects/:id/research/:collection` · `/:item` | 研究紀錄：問題、假說、實驗、版本、模型、發現、反例、檢視 session、輸出 |
+| `POST` | `/projects/:id/research/experiments/:item/versions` · `/versions/:id/runs` · `/remote/runs` | 凍結實驗，在本機或 SSH 主機上開始執行 |
+| `GET` | `/projects/:id/research/runs/:run` · `/samples` · `/summary` · `/metrics` · `/resources` · `/log` | 一次執行及其樣本、分數、訓練指標、資源與紀錄 |
+| `POST` | `/projects/:id/research/comparisons` · `/imports` · `/bundles/export` · `/bundles/import` | 成對比較、匯入的結果與研究包 |
 | `GET` `POST` | `/agents` | 列出或建立 Agent |
 | `POST` | `/agents/:id/runs` | 開始一個回合（`mode`、`images` 與專案選項） |
 | `GET` | `/runs` · `/runs/:id` | 進行中與最近的回合；單一回合的輸出、推理、工具呼叫與核准 |
@@ -595,10 +599,11 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
-- 研究工作台的 PDF 閱讀器、debugger、語言伺服器與真實終端機
+- 在程式碼旁閱讀論文的 PDF 閱讀器，以及工作區中的 debugger 與語言伺服器
+- Windows 上的實驗執行
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。
 
 ## 授權
 
-[MIT](LICENSE) © 2026 Rick Weng
+[Apache License 2.0](LICENSE) © 2026 Rick Weng。見 [`NOTICE`](NOTICE)。

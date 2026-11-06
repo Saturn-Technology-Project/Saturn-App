@@ -8,6 +8,8 @@ What Saturn protects, from whom, how, and what it deliberately leaves to you. It
 
 Saturn is a desktop app (Tauri with the system's web view, `desktop/`), a client of one local **runtime** (`crates/`): a Rust HTTP server on `127.0.0.1:4700` that runs the agent loop, calls model providers, executes tools and keeps all state in `~/.saturn-app`. The `saturn` CLI and the [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) (its own repository) are clients of the same API. There is no Saturn server: nothing is sent to Saturn's developers.
 
+Saturn is a workbench for AI research. A project's research records (questions, hypotheses, experiments, frozen versions, runs, samples, labels, findings) are files in the project's `.saturn/research` folder. Runs execute the project's own programs, on this computer or on an SSH host the user configured; the research assistant is an agent that works on those records through `research_*` tools, in the chat's mode (Ask, Approve, Auto, Agent).
+
 An agent turn: the runtime sends the conversation and tool definitions to a model; the model asks for tool calls (read or write files, run shell commands, fetch pages, drive a browser, control desktop apps, call GitHub or MCP servers); the runtime decides each call against permission rules and the approval policy, runs it (shell commands inside an OS sandbox), records file changes in a checkpoint, and sends the results back.
 
 ## What it protects
@@ -17,6 +19,7 @@ An agent turn: the runtime sends the conversation and tool definitions to a mode
 | Model provider API keys, OAuth tokens, MCP server secrets | `~/.saturn-app/secrets.json`, AES-256-GCM, key in the OS key store |
 | The user's files, and the computer itself (commands run as the user) | Granted project folders; the whole machine for commands outside the sandbox and for computer use |
 | Accounts tools can reach | GitHub (a token the user provides), signed-in sites in the agent browser's own profile |
+| Research records and their integrity: what a run computed, which data and scorer a version froze, who set a verdict or a label | The project's `.saturn/research`; frozen inputs are hashed and locked against agents |
 | Conversations, memory, code index, telemetry | `~/.saturn-app`, local files |
 | Claude Code and Codex sign-ins | Their own config folders; Saturn never reads them |
 
@@ -41,7 +44,7 @@ Loopback is not a trust boundary: any local process, and any web page through th
 
 - The runtime listens on `127.0.0.1` only, rejects non-loopback `Host` headers (DNS rebinding) and gives non-local `Origin`s no cross-origin access (CORS) (`crates/saturn-server/src/guards.rs`).
 - Every route needs `Authorization: Bearer <token>`; the token is in `~/.saturn-app/runtime-token`, mode `0600` (Windows has no such mode: the file has the permissions of the user profile's folder). Exceptions: `/health`; `/oauth/callback` (the provider's redirect); `/agent-mcp`, which takes a running Codex turn's own short-lived token instead (`crates/saturn-server/src/guards.rs`, `answer_agent_mcp` in `crates/saturn-core/src/agent_sessions.rs`).
-- The desktop shell reads the token and gives it to the interface through a script that runs in the main frame only and only on the interface's own origin, so no frame and no other page sees it; the shell's own commands are allowed only to the interface's address. Pages it shows from the internet are sandboxed frames without the app's origin (`desktop/src-tauri/src/main.rs`, `desktop/src-tauri/src/bridge.js`, `desktop/src/presentation/Inspector.tsx`).
+- The desktop shell reads the token and gives it to the interface through a script that runs in the main frame only and only on the interface's own origin, so no frame and no other page sees it; the shell's own commands are allowed only to the interface's address. The interface embeds no web page and sets no HTML from content: model output is rendered as text and Markdown, and kept outputs as text or images, never executed (`desktop/src-tauri/src/main.rs`, `desktop/src-tauri/src/bridge.js`, `desktop/src/presentation/FormattedOutput.tsx`, `desktop/src/presentation/experiments/Artifacts.tsx`).
 
 Out of scope: a process already running as the same user can read the token file and the OS key store, as it can for any app.
 
@@ -51,12 +54,21 @@ Out of scope: a process already running as the same user can read the token file
 - **Local MCP servers** start only after the user has seen and allowed their exact command, arguments and variables, with a minimal environment that never includes Saturn's own (`crates/saturn-mcp/src/local.rs`, `crates/saturn-core/src/catalog.rs`).
 - **Skills and rules files** (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) are instructions to the model, treated like any other untrusted content (threat 1).
 
-### 4. Credentials
+### 4. Research evidence and remote hosts
+
+- **Samples, model output, imported results and bundles are data.** They reach the assistant marked as data, outside its instructions; text in them is never a command (threat 1 still applies to what the model does with them) (`desktop/src/domain/assistant.ts`, `crates/saturn-core/src/research/data.rs`).
+- **The person's decisions are not tools.** Verdicts, labels, the lock policy, the SSH host and merging have no agent tool; an agent's findings are always recorded as its suggestions, and a hypothesis it makes cannot be changed afterwards (`crates/saturn-core/src/research/agent.rs`, `crates/saturn-domain/src/research.rs`).
+- **Frozen inputs are locked against agents.** File tools refuse to write a frozen version's data and scorer; a shell can still write them, and Saturn records the change afterwards under Protection, so this is a workflow constraint, not a security boundary (`crates/saturn-core/src/research/policy.rs`, `crates/saturn-core/src/research/checks.rs`).
+- **A bundle brings evidence, never authority.** Import checks every file's size and hash, rejects symlinks and paths outside the research namespaces, refuses conflicting contents, and restores no permissions, credentials or settings; imported versions and sessions never execute and imported remote jobs never reconnect (`crates/saturn-core/src/research/bundles.rs`).
+- **Remote runs use the user's SSH, not Saturn's.** Saturn stores no SSH credentials; it runs `ssh` with batch authentication and the user's own host verification, and reconnects only to jobs this computer started, recorded in its own data folder (`crates/saturn-core/src/research/remote.rs`).
+- **Notebook kernels and environment jobs run code as the user**, like any command; for agents they are write tools, so an Ask chat cannot reach them and an Approve chat asks first (`crates/saturn-core/src/research/notebooks.rs`, `crates/saturn-core/src/research/environment.rs`).
+
+### 5. Credentials
 
 - Keys are encrypted at rest; the key is in the macOS Keychain, Windows DPAPI or the Linux Secret Service, passed to system tools on stdin (`crates/saturn-store/src/key_store.rs`, `crates/saturn-store/src/secrets.rs`).
 - A key goes only to its own provider (`crates/saturn-llm/src/broker.rs`). Subscription sign-ins (Claude Code, Codex) stay in those programs' folders; Saturn never reads or forwards them (`crates/saturn-core/src/claude_code.rs`, `crates/saturn-core/src/codex.rs`).
 
-### 5. Supply chain and updates
+### 6. Supply chain and updates
 
 - No npm install scripts in the desktop app; npm lock file, registry signatures and an audit in CI; crates from crates.io only, with checksums in `Cargo.lock` and `cargo deny` in CI; GitHub Actions pinned to commit SHAs (`.github/workflows/supply-chain.yml`, `deny.toml`).
 - Claude Code and Codex downloads are checked against pinned SHA-512 hashes (`crates/saturn-core/src/agent-programs.json`, `crates/saturn-core/src/agent_programs.rs`); the bundled embedding model and tokenizer against SHA-256 when the release is built (`desktop/scripts/fetch-embedding-model.mjs`).
@@ -115,7 +127,7 @@ Why Saturn's security requirements are met: each requirement, the argument, and 
 | Server-side request forgery (CWE-918) | Public-address checks after resolution and on redirects | R4 |
 | Cross-site request forgery and missing authentication (CWE-352, CWE-306) | Bearer token on every route, Origin and Host checks | R2 |
 | Cleartext storage and exposure of credentials (CWE-312, CWE-532) | Encryption at rest, no secrets in logs or URLs | R3 |
-| Untrusted content executing in the app (CWE-79) | Web pages shown in the app are sandboxed frames without the app's origin; agent output is rendered as text and Markdown, not executed | `desktop/src/presentation/Inspector.tsx` |
+| Untrusted content executing in the app (CWE-79) | The interface embeds no web page and sets no HTML from content; model output and kept outputs are rendered as text, Markdown or images, never executed | `desktop/src/presentation/FormattedOutput.tsx`, `desktop/src/presentation/experiments/Artifacts.tsx` |
 | Inclusion of untrusted functionality (CWE-829) | Fingerprint approval of hooks, plugins and local MCP servers; pinned hashes for downloads | R5, R6 |
 
 ## Review scope
@@ -131,7 +143,8 @@ For an external audit, in priority order.
 | 2 | SSRF and fetching: public address checks, DNS rebinding, redirects, the Browser tab proxy | `crates/saturn-domain/src/skills/public_address.rs`, `crates/saturn-tools/src/public_host.rs`, `web.rs`, `crates/saturn-server/src/routes_admin.rs` |
 | 2 | Hooks, plugins and local MCP servers: approval by fingerprint, environment passed | `crates/saturn-core/src/hooks.rs`, `plugins.rs`, `catalog.rs`, `crates/saturn-mcp/src/local.rs` |
 | 2 | Credential storage and use | `crates/saturn-store/src/key_store.rs`, `secrets.rs`, `crates/saturn-llm/src/broker.rs`, `crates/saturn-server/src/auth.rs` |
-| 2 | Desktop app: the Tauri shell and its bridge, frames showing web content, permission requests, the updater | `desktop/src-tauri/src/main.rs`, `bridge.js`, `ui.rs`, `permissions.rs`, `update.rs`, `desktop/src/presentation/Inspector.tsx` |
+| 2 | Desktop app: the Tauri shell and its bridge, its content security policy, permission requests, the updater | `desktop/src-tauri/src/main.rs`, `bridge.js`, `ui.rs`, `permissions.rs`, `update.rs` |
+| 2 | Research evidence: bundle import, artifact snapshots, imports, remote workers and the SSH exchange | `crates/saturn-core/src/research/bundles.rs`, `artifacts.rs`, `imports.rs`, `remote.rs` |
 | 3 | Agent browser and computer use: profile isolation, what reaches the model | `crates/saturn-browser/src/chrome.rs`, `safari.rs`, `crates/saturn-computer/src/lib.rs`, `macos.rs`, `windows.rs` |
 | 3 | Checkpoints and revert: writes outside the folder, path traversal | `crates/saturn-core/src/checkpoints.rs` |
 | 3 | Release and supply-chain workflows, downloads of Claude Code and Codex | `.github/workflows/`, `crates/saturn-core/src/agent-programs.json`, `agent_programs.rs` |
@@ -150,6 +163,8 @@ Saturn 保護什麼、防範誰、如何防範，以及刻意交由你決定的�
 
 Saturn 是一個桌面應用程式（Tauri 與系統的網頁檢視，`desktop/`），是本機 **Runtime**（`crates/`）的 client：一個在 `127.0.0.1:4700` 的 Rust HTTP 伺服器，負責執行 Agent 迴圈、呼叫模型供應商、執行工具，所有狀態存在 `~/.saturn-app`。`saturn` CLI 與 [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)（獨立的 repository）也是同一套 API 的 client。Saturn 沒有伺服器，不會傳送任何資料給 Saturn 的開發者。
 
+Saturn 是 AI 研究工作台。專案的研究紀錄（問題、假說、實驗、凍結的版本、執行、樣本、標註、發現）都是專案 `.saturn/research` 資料夾裡的檔案。執行跑的是專案自己的程式，在這台電腦或使用者設定的 SSH 主機上；研究助理是一個 Agent，依對話的模式（Ask、Approve、Auto、Agent）透過 `research_*` 工具處理這些紀錄。
+
 Agent 的一個回合：Runtime 把對話與工具定義送給模型；模型要求呼叫工具（讀寫檔案、執行 shell 指令、擷取網頁、操作瀏覽器、操作桌面 App、呼叫 GitHub 或 MCP 伺服器）；Runtime 依權限規則與核准策略決定每個呼叫，執行它（shell 指令在作業系統沙箱中），把檔案變更記錄在檢查點，再把結果送回模型。
 
 ## 保護的資產
@@ -159,6 +174,7 @@ Agent 的一個回合：Runtime 把對話與工具定義送給模型；模型要
 | 模型供應商 API 金鑰、OAuth token、MCP 伺服器的機密 | `~/.saturn-app/secrets.json`，AES-256-GCM，金鑰在作業系統金鑰庫 |
 | 使用者的檔案，以及電腦本身（指令以使用者身分執行） | 授權的專案資料夾；沙箱外的指令與電腦操作則是整台電腦 |
 | 工具能觸及的帳號 | GitHub（使用者提供的 token）、Agent 瀏覽器自有設定檔中登入的網站 |
+| 研究紀錄及其完整性：一次執行實際算了什麼、版本凍結了哪些資料與評分器、判定與標註由誰設定 | 專案的 `.saturn/research`；凍結的輸入有雜湊值，並對 Agent 鎖定 |
 | 對話、記憶、程式碼索引、遙測 | `~/.saturn-app` 的本機檔案 |
 | Claude Code 與 Codex 的登入 | 各自的設定資料夾；Saturn 從不讀取 |
 
@@ -183,7 +199,7 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 
 - Runtime 只監聽 `127.0.0.1`，拒絕非 loopback 的 `Host` 標頭（DNS rebinding），並且不給非本機的 `Origin` 任何跨來源存取（CORS）（`crates/saturn-server/src/guards.rs`）。
 - 每個路由都需要 `Authorization: Bearer <token>`；token 存於 `~/.saturn-app/runtime-token`，權限 `0600`（Windows 沒有這種權限：檔案沿用使用者設定檔資料夾的權限）。例外：`/health`；`/oauth/callback`（供應商的重新導向）；`/agent-mcp`，改用執行中 Codex 回合自己的短期 token（`crates/saturn-server/src/guards.rs`、`crates/saturn-core/src/agent_sessions.rs` 的 `answer_agent_mcp`）。
-- 桌面外殼讀取 token，並透過只在主 frame、且只在介面自己的 origin 上執行的腳本交給介面，所以沒有任何 iframe 或其他頁面看得到；外殼自己的指令只開放給介面的位址。它顯示的網路頁面放在沒有 App origin 的沙箱 frame 中（`desktop/src-tauri/src/main.rs`、`desktop/src-tauri/src/bridge.js`、`desktop/src/presentation/Inspector.tsx`）。
+- 桌面外殼讀取 token，並透過只在主 frame、且只在介面自己的 origin 上執行的腳本交給介面，所以沒有任何 iframe 或其他頁面看得到；外殼自己的指令只開放給介面的位址。介面不嵌入任何網頁，也不從內容設定 HTML：模型輸出以文字與 Markdown 呈現，保存的產出以文字或圖片呈現，都不會被執行（`desktop/src-tauri/src/main.rs`、`desktop/src-tauri/src/bridge.js`、`desktop/src/presentation/FormattedOutput.tsx`、`desktop/src/presentation/experiments/Artifacts.tsx`）。
 
 範圍外：已經以同一使用者身分執行的程式能讀取 token 檔與作業系統金鑰庫，這對任何 App 都一樣。
 
@@ -193,12 +209,21 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 - **本機 MCP 伺服器**要在使用者看過並允許其確切的指令、參數與變數後才會啟動，且只拿到最小的環境變數，從不包含 Saturn 自己的（`crates/saturn-mcp/src/local.rs`、`crates/saturn-core/src/catalog.rs`）。
 - **Skills 與規則檔**（`AGENTS.md`、`CLAUDE.md`、`SKILL.md`）是給模型的指示，與其他不可信內容同樣看待（威脅 1）。
 
-### 4. 憑證
+### 4. 研究證據與遠端主機
+
+- **樣本、模型輸出、匯入的結果與研究包都是資料。** 它們以「資料」的標記送到研究助理，放在指示之外；其中的文字永遠不是指令（模型拿它們做什麼，仍適用威脅 1）（`desktop/src/domain/assistant.ts`、`crates/saturn-core/src/research/data.rs`）。
+- **人的決定不是工具。** 判定、標註、鎖定政策、SSH 主機與合併都沒有 Agent 工具；Agent 的發現一律記為它的建議，它建立的假說之後無法更改（`crates/saturn-core/src/research/agent.rs`、`crates/saturn-domain/src/research.rs`）。
+- **凍結的輸入對 Agent 鎖定。** 檔案工具拒絕寫入凍結版本的資料與評分器；shell 仍可能寫入，Saturn 會在事後記錄在「防護」中，所以這是工作流程約束，不是安全邊界（`crates/saturn-core/src/research/policy.rs`、`crates/saturn-core/src/research/checks.rs`）。
+- **研究包只帶來證據，不帶來權限。** 匯入時檢查每個檔案的大小與雜湊值，拒絕符號連結與研究命名空間以外的路徑，拒絕內容衝突，也不還原任何權限、憑證或設定；匯入的版本與工作階段永遠不會執行，匯入的遠端工作永遠不會重新連線（`crates/saturn-core/src/research/bundles.rs`）。
+- **遠端執行用的是使用者的 SSH，不是 Saturn 的。** Saturn 不儲存任何 SSH 憑證；它以批次驗證和使用者自己的主機驗證執行 `ssh`，而且只重新連線到這台電腦啟動、記錄在自己資料資料夾中的工作（`crates/saturn-core/src/research/remote.rs`）。
+- **筆記本核心與環境工作以使用者身分執行程式碼**，與任何指令相同；對 Agent 來說它們是寫入工具，所以 Ask 對話碰不到，Approve 對話會先詢問（`crates/saturn-core/src/research/notebooks.rs`、`crates/saturn-core/src/research/environment.rs`）。
+
+### 5. 憑證
 
 - 金鑰靜態加密；加密金鑰存於 macOS 鑰匙圈、Windows DPAPI 或 Linux Secret Service，並經由 stdin 傳給系統工具（`crates/saturn-store/src/key_store.rs`、`crates/saturn-store/src/secrets.rs`）。
 - 每把金鑰只會送到它自己的供應商（`crates/saturn-llm/src/broker.rs`）。訂閱方案的登入（Claude Code、Codex）留在那些程式的資料夾中；Saturn 從不讀取或轉送（`crates/saturn-core/src/claude_code.rs`、`crates/saturn-core/src/codex.rs`）。
 
-### 5. 供應鏈與更新
+### 6. 供應鏈與更新
 
 - 桌面應用程式不執行 npm 安裝腳本；CI 檢查 npm lock 檔、registry 簽章與 audit；crate 只來自 crates.io，以 `Cargo.lock` 的校驗碼固定，CI 執行 `cargo deny`；GitHub Actions 固定到 commit SHA（`.github/workflows/supply-chain.yml`、`deny.toml`）。
 - Claude Code 與 Codex 的下載以固定的 SHA-512 驗證（`crates/saturn-core/src/agent-programs.json`、`crates/saturn-core/src/agent_programs.rs`）；內建的嵌入模型與 tokenizer 在建置發行版時以 SHA-256 驗證（`desktop/scripts/fetch-embedding-model.mjs`）。
@@ -257,7 +282,7 @@ Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗�
 | 伺服器端請求偽造（CWE-918） | 解析後與重新導向時檢查公開位址 | R4 |
 | 跨站請求偽造與缺少驗證（CWE-352、CWE-306） | 每個路由都需要 Bearer token，並檢查 Origin 與 Host | R2 |
 | 憑證以明文儲存或外洩（CWE-312、CWE-532） | 靜態加密，log 與網址中沒有機密 | R3 |
-| 不可信內容在 App 中執行（CWE-79） | App 中顯示的網頁放在沒有 App origin 的沙箱 frame；Agent 的輸出以文字與 Markdown 呈現，不會被執行 | `desktop/src/presentation/Inspector.tsx` |
+| 不可信內容在 App 中執行（CWE-79） | 介面不嵌入任何網頁，也不從內容設定 HTML；模型輸出與保存的產出以文字、Markdown 或圖片呈現，不會被執行 | `desktop/src/presentation/FormattedOutput.tsx`、`desktop/src/presentation/experiments/Artifacts.tsx` |
 | 引入不可信的功能（CWE-829） | 以指紋核准 hooks、外掛與本機 MCP 伺服器；下載檔以固定雜湊驗證 | R5、R6 |
 
 ## 審查範圍
@@ -273,7 +298,8 @@ Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗�
 | 2 | SSRF 與擷取：公開位址檢查、DNS rebinding、重新導向、Browser 分頁代理 | `crates/saturn-domain/src/skills/public_address.rs`、`crates/saturn-tools/src/public_host.rs`、`web.rs`、`crates/saturn-server/src/routes_admin.rs` |
 | 2 | Hooks、外掛與本機 MCP 伺服器：依指紋核准、傳入的環境變數 | `crates/saturn-core/src/hooks.rs`、`plugins.rs`、`catalog.rs`、`crates/saturn-mcp/src/local.rs` |
 | 2 | 憑證的儲存與使用 | `crates/saturn-store/src/key_store.rs`、`secrets.rs`、`crates/saturn-llm/src/broker.rs`、`crates/saturn-server/src/auth.rs` |
-| 2 | 桌面應用程式：Tauri 外殼與其橋接、顯示網路內容的 frame、權限請求、更新程式 | `desktop/src-tauri/src/main.rs`、`bridge.js`、`ui.rs`、`permissions.rs`、`update.rs`、`desktop/src/presentation/Inspector.tsx` |
+| 2 | 桌面應用程式：Tauri 外殼與其橋接、內容安全政策、權限請求、更新程式 | `desktop/src-tauri/src/main.rs`、`bridge.js`、`ui.rs`、`permissions.rs`、`update.rs` |
+| 2 | 研究證據：研究包匯入、產出快照、匯入結果、遠端 worker 與 SSH 交換 | `crates/saturn-core/src/research/bundles.rs`、`artifacts.rs`、`imports.rs`、`remote.rs` |
 | 3 | Agent 瀏覽器與電腦操作：設定檔隔離、哪些內容會送到模型 | `crates/saturn-browser/src/chrome.rs`、`safari.rs`、`crates/saturn-computer/src/lib.rs`、`macos.rs`、`windows.rs` |
 | 3 | 檢查點與還原：寫到資料夾外、路徑穿越 | `crates/saturn-core/src/checkpoints.rs` |
 | 3 | 發布與供應鏈 workflow、Claude Code 與 Codex 的下載 | `.github/workflows/`、`crates/saturn-core/src/agent-programs.json`、`agent_programs.rs` |
