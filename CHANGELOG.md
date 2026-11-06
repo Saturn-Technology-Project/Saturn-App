@@ -81,6 +81,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **The assistant can operate Saturn itself with computer use.** With the computer tools on, it finds Saturn's screens, buttons and fields by name in the accessibility tree instead of only pointing you to them, and it leaves its own Assistant panel alone. Fields that only had a placeholder now have names too.
 - **The assistant can set verdicts, label samples and write conclusions.** It can also edit a hypothesis and change any finding. Each is marked as the assistant's, and Home, Samples and Experiments say who set it. It never changes a verdict or a label you set yourself; it disagrees in a finding instead. Locks, chat modes, merging tasks and loosening a run's sandbox stay with you.
 - **Delete a task.** The Tasks screen has a Delete task button. Before deleting, it tells you whether the task's worktree and branch will be discarded with it. The assistant can clear away a task once it has ended and you have merged or discarded its worktree; merging and discarding stay with you.
 - **Delete an experiment.** Experiments has a Delete button. The experiment moves to the project's `.saturn/research/trash` with its versions, runs and labels, so nothing is erased. The assistant can delete imported experiments, so a wrong import can be replaced instead of kept beside the new one. An experiment that a finding or other record still refers to is not deleted, and Saturn says which records refer to it.

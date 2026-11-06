@@ -590,7 +590,7 @@ function McpPage(props: {
           <>
             <p className="text-[12.5px] text-muted-foreground">{t("An MCP server reached over HTTP(S). Tools are discovered automatically.")}</p>
             <div className="flex gap-2">
-              <Input value={url} placeholder="https://mcp.example.com/mcp" onChange={(event) => setUrl(event.target.value)} />
+              <Input aria-label={t("MCP server address")} value={url} placeholder="https://mcp.example.com/mcp" onChange={(event) => setUrl(event.target.value)} />
               <Button variant="default" type="button" disabled={!url.trim()} onClick={() => void addMcp()}>
                 {t("Connect MCP")}
               </Button>
@@ -602,9 +602,9 @@ function McpPage(props: {
               {t("A server Saturn starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is used, so ~, $VARIABLES and pipes are not expanded: write full paths.")}
             </p>
             <div className="mt-2 grid gap-2">
-              <Input value={commandName} placeholder={t("Name (optional)")} onChange={(event) => setCommandName(event.target.value)} />
-              <Input value={commandText} placeholder="npx -y @modelcontextprotocol/server-filesystem /Users/you/Documents" onChange={(event) => setCommandText(event.target.value)} />
-              <Textarea className="resize-y font-mono text-xs field-sizing-fixed" value={envText} rows={2} placeholder={t("Environment variables, one per line (optional)\nGITHUB_TOKEN=…")} onChange={(event) => setEnvText(event.target.value)} />
+              <Input aria-label={t("Server name")} value={commandName} placeholder={t("Name (optional)")} onChange={(event) => setCommandName(event.target.value)} />
+              <Input aria-label={t("Command")} value={commandText} placeholder="npx -y @modelcontextprotocol/server-filesystem /Users/you/Documents" onChange={(event) => setCommandText(event.target.value)} />
+              <Textarea aria-label={t("Environment variables")} className="resize-y font-mono text-xs field-sizing-fixed" value={envText} rows={2} placeholder={t("Environment variables, one per line (optional)\nGITHUB_TOKEN=…")} onChange={(event) => setEnvText(event.target.value)} />
               <Button variant="default" className="justify-self-start" type="button" disabled={!commandText.trim()} onClick={() => void addLocal()}>
                 {t("Add Local Server")}
               </Button>
@@ -656,7 +656,7 @@ function McpPage(props: {
       <Card>
         <div className="text-xs font-medium text-muted-foreground">{t("Connect Knowledge URL")}</div>
         <div className="flex gap-2">
-          <Input value={ragUrl} placeholder="http://127.0.0.1:4200/search" onChange={(event) => setRagUrl(event.target.value)} />
+          <Input aria-label={t("Knowledge URL")} value={ragUrl} placeholder="http://127.0.0.1:4200/search" onChange={(event) => setRagUrl(event.target.value)} />
           <Button variant="default" type="button" disabled={!ragUrl.trim()} onClick={() => void addRag()}>
             {t("Connect Knowledge")}
           </Button>
@@ -1549,6 +1549,7 @@ function ProjectSettingsTab(props: {
           <div className="flex flex-col gap-2.5">
             <RowDescription>{t("Custom instructions for agents working in this project (.cursorrules / AGENTS.md).")}</RowDescription>
             <Textarea
+              aria-label={t("Project Rules & Custom Instructions")}
               className="resize-y font-mono text-xs field-sizing-fixed"
               rows={7}
               value={rules}
