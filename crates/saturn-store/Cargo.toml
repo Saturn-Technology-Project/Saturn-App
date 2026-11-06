@@ -10,7 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc"] }
 base64 = "0.22"
 saturn-domain = { path = "../saturn-domain" }
 getrandom = { version = "0.3", features = ["std"] }
