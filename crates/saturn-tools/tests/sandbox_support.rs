@@ -53,6 +53,8 @@ fn macos_uses_seatbelt() {
     );
 }
 
+// Unix paths, for the macOS and Linux sandboxes; Windows has neither.
+#[cfg(unix)]
 #[test]
 fn the_workspace_extra_folders_and_caches_stay_writable() {
     let home = tempfile::tempdir().expect("a temporary folder");

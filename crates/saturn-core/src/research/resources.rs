@@ -106,7 +106,21 @@ struct FileStamp {
     identity: (u64, u64, i64, i64),
 }
 
+/// How long after a change a file's times may not yet tell it from the next change: Windows keeps file times by a
+/// clock that moves in steps of up to about 16 ms, so two quick writes of the same size can leave the same stamp.
+const RACY: std::time::Duration = std::time::Duration::from_secs(2);
+
 impl FileStamp {
+    /// Whether the file changed so recently that an equal stamp does not show it is unchanged; it is then read to check.
+    fn racy(&self) -> bool {
+        // A time ahead of the clock counts as recent too.
+        self.modified.is_none_or(|modified| {
+            SystemTime::now()
+                .duration_since(modified)
+                .map_or(true, |age| age < RACY)
+        })
+    }
+
     /// The metadata that changes when samples are edited or the file is replaced.
     fn from(metadata: &std::fs::Metadata) -> Self {
         #[cfg(unix)]
@@ -134,7 +148,7 @@ fn count_lines(path: &Path, mut counted: Counted) -> Counted {
         return counted;
     };
     let stamp = FileStamp::from(&metadata);
-    if counted.stamp == Some(stamp) {
+    if counted.stamp == Some(stamp) && !stamp.racy() {
         return counted;
     }
     let mut hash = Sha256::new();
@@ -309,6 +323,27 @@ impl Kernel {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn a_fresh_rewrite_with_an_equal_stamp_is_still_read() {
+        // As on Windows, where two quick writes of the same size can leave the same size and time.
+        let folder = std::env::temp_dir().join(saturn_domain::new_id("research_racy").unwrap());
+        std::fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("samples.jsonl");
+        let line = |name: &str, tokens: u64| {
+            format!(
+                "{}\n",
+                json!({"sampleId": name, "usage": {"inputTokens": tokens}})
+            )
+        };
+        std::fs::write(&path, line("a", 10)).unwrap();
+        let mut before = count_lines(&path, Counted::default());
+        std::fs::write(&path, line("b", 20)).unwrap();
+        before.stamp = Some(FileStamp::from(&std::fs::metadata(&path).unwrap()));
+        let after = count_lines(&path, before);
+        assert_eq!((after.lines, after.input_tokens), (1, 20));
+        std::fs::remove_dir_all(&folder).unwrap();
+    }
 
     #[test]
     fn counts_follow_truncation_same_size_and_larger_rewrites() {

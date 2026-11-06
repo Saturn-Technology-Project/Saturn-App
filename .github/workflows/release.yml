@@ -7,12 +7,16 @@ name: Release
 #                pull requests must pass.
 #   2. version   reads the version from desktop/package.json (Cargo.toml must agree). It releases when that version is
 #                newer than every v* tag; an older one fails, an existing one only packages.
-#   3. macos, windows   build, test on that system, package, sign and attest. The files are kept as workflow artifacts.
-#   4. release   only for a new version: tags the commit v<version> and publishes the release, with its notes from
+#   3. macos-test, windows-test   the Rust tests (and on macOS the HTTP contract) on that system, beside the check.
+#   4. macos, windows   package, sign and attest, once the check and that system's tests pass. The files are kept as
+#                workflow artifacts. A failure here is run again on its own with "Re-run failed jobs".
+#   5. release   only for a new version: tags the commit v<version> and publishes the release, with its notes from
 #                .github/release-notes.md and the CHANGELOG section for the version (or Unreleased).
 #
 # To release: raise the version in desktop/package.json and Cargo.toml (and their lock files), and merge to main.
 # Pushing a v* tag that matches the files, or running the workflow by hand, does the same.
+#
+# Run by hand, "platforms" can test and package one system alone, to try a fix; a release needs both.
 #
 # Versions below 1.0.0 and versions with a suffix (v1.2.0-rc.1) are published as pre-releases.
 
@@ -26,6 +30,11 @@ on:
         description: "Publish the release if the version is new (off: only check and package)"
         type: boolean
         default: true
+      platforms:
+        description: "Which systems to test and package; a release needs both"
+        type: choice
+        options: [both, macos, windows]
+        default: both
 
 concurrency:
   # One release run at a time per branch or tag; a newer push to main waits rather than cancelling a publish.
@@ -68,16 +77,65 @@ jobs:
             node scripts/release-version.mjs
           fi
 
+  # Each system is tested and packaged in jobs of their own, so a packaging or signing failure can be run again on its
+  # own ("Re-run failed jobs") without the tests, and the tests run beside the check rather than after it.
+  macos-test:
+    name: macOS (arm64) · test
+    if: inputs.platforms != 'windows'
+    # GitHub no longer runs macos-14 jobs. The app still supports macOS 12 and later (minimumSystemVersion).
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Desktop dependencies
+        run: npm ci --ignore-scripts --prefix desktop
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      # Only the test jobs keep a build cache. The package jobs build from clean, so nothing a cache holds reaches a
+      # signed download.
+      - name: Rust build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: release-test-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: release-test-${{ runner.os }}-
+
+      - name: Git identity for the tests
+        run: |
+          git config --global user.name "Saturn CI"
+          git config --global user.email "ci@saturn.invalid"
+
+      - name: Rust tests
+        run: cargo test --locked --no-fail-fast
+
+      - name: The HTTP contract
+        run: |
+          cargo build --locked -p saturn-server -p saturn-cli
+          node --test --test-timeout=120000 --test-force-exit contract/*.test.mjs
+
+      - name: Type checks
+        run: npm run typecheck
+
   macos:
-    name: macOS (arm64)
-    needs: [check, version]
-    runs-on: macos-14
+    name: macOS (arm64) · package
+    needs: [check, version, macos-test]
+    runs-on: macos-15
     permissions:
       contents: read
       # Build provenance: anyone can check a download was built by this workflow from this repository.
       id-token: write
       attestations: write
-    timeout-minutes: 180
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -94,18 +152,6 @@ jobs:
 
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
-
-      - name: Git identity for the tests
-        run: |
-          git config --global user.name "Saturn CI"
-          git config --global user.email "ci@saturn.invalid"
-
-      - name: Tests and type checks
-        run: |
-          cargo test --locked
-          cargo build --locked -p saturn-server -p saturn-cli
-          node --test contract/*.test.mjs
-          npm run typecheck
 
       - name: Package Saturn.app
         working-directory: desktop
@@ -146,17 +192,61 @@ jobs:
             desktop/release/*.sigstore.json
           if-no-files-found: error
 
+  windows-test:
+    name: Windows (x64) · test
+    if: inputs.platforms != 'macos'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      # Keep the sources byte-for-byte as committed (LF): the packaged app and the tests expect it.
+      - name: No line-ending conversion
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Desktop dependencies
+        run: npm ci --ignore-scripts --prefix desktop
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      # Only the test jobs keep a build cache. The package jobs build from clean, so nothing a cache holds reaches a
+      # signed download.
+      - name: Rust build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: release-test-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: release-test-${{ runner.os }}-
+
+      - name: Git identity for the tests
+        run: |
+          git config --global user.name "Saturn CI"
+          git config --global user.email "ci@saturn.invalid"
+
+      - name: Rust tests
+        run: cargo test --locked --no-fail-fast
+
+      - name: Type checks
+        run: npm run typecheck
+
   windows:
-    name: Windows (x64)
-    needs: [check, version]
+    name: Windows (x64) · package
+    needs: [check, version, windows-test]
     runs-on: windows-latest
     permissions:
       contents: read
       id-token: write
       attestations: write
-    timeout-minutes: 180
+    timeout-minutes: 120
     steps:
-      # Keep the sources byte-for-byte as committed (LF): the packaged app and the tests expect it.
       - name: No line-ending conversion
         run: git config --global core.autocrlf false
 
@@ -177,19 +267,6 @@ jobs:
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
 
-      - name: Git identity for the tests
-        run: |
-          git config --global user.name "Saturn CI"
-          git config --global user.email "ci@saturn.invalid"
-
-      - name: Tests and type checks
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
-          cargo test --locked
-          npm run typecheck
-
       - name: Code-signing certificate (self-signed)
         shell: pwsh
         env:
@@ -207,9 +284,16 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
+          # The sign command names the script by its whole path, with no variable in it: Tauri runs it from
+          # desktop/src-tauri, and NSIS runs it again inside makensis for the uninstaller, where "$" starts NSIS's own
+          # variables.
+          $script = (Join-Path $env:GITHUB_WORKSPACE '.github/scripts/sign-windows-file.ps1') -replace '\\', '/'
+          $signing = Join-Path $env:RUNNER_TEMP 'tauri.signing.json'
+          @{ bundle = @{ windows = @{ signCommand = "pwsh -NoProfile -File $script -File %1" } } } | ConvertTo-Json -Depth 4 | Set-Content -Path $signing
+          Get-Content $signing
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
           $updater = (node scripts/updater-config.mjs) -split ' ' | Where-Object { $_ }
-          npm run package -- --bundles nsis --config src-tauri/tauri.signing.json @updater
+          npm run package -- --bundles nsis --config $signing @updater
           npm run archive
 
       - name: Check the signatures

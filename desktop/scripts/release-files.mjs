@@ -17,6 +17,20 @@ const release = path.join(desktop, "release");
 const { version } = JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8"));
 mkdirSync(release, { recursive: true });
 
+/** Runs hdiutil, again after a pause when it fails: macOS can hold freshly written files for a moment ("Resource busy"). */
+function diskImage(args) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      execFileSync("hdiutil", args, { stdio: "inherit" });
+      return;
+    } catch (error) {
+      if (attempt === 5) throw error;
+      console.log(`hdiutil failed; trying again (${attempt + 1} of 5)`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, attempt * 5000);
+    }
+  }
+}
+
 function sha256(file) {
   const sum = createHash("sha256").update(readFileSync(file)).digest("hex");
   writeFileSync(`${file}.sha256`, `${sum}  ${path.basename(file)}\n`);
@@ -48,7 +62,7 @@ if (process.platform === "darwin") {
     execFileSync("ditto", [app, path.join(staging, "Saturn.app")]);
     symlinkSync("/Applications", path.join(staging, "Applications"));
     rmSync(`${base}.dmg`, { force: true });
-    execFileSync("hdiutil", ["create", "-volname", "Saturn", "-srcfolder", staging, "-ov", "-format", "ULMO", "-fs", "HFS+", `${base}.dmg`], { stdio: "inherit" });
+    diskImage(["create", "-volname", "Saturn", "-srcfolder", staging, "-ov", "-format", "ULMO", "-fs", "HFS+", `${base}.dmg`]);
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
