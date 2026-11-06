@@ -45,7 +45,10 @@ describes its evaluation, with no data or scorer files behind it), or fewer than
 
 Use an existing Linux or macOS SSH host. Install the same Saturn revision's `saturn-server` there, and put code, data,
 Python and dependencies in the remote project first. Saturn does not provision machines or upload that tree.
-Configure the host alias or `user@host`, absolute working directory and worker program in **Environment**. SSH uses
+Configure the host alias or `user@host`, absolute working directory and worker program in **Environment**. The
+remote command runs in SSH's non-interactive environment, whose `PATH` is usually only the system's (`/usr/bin:/bin`
+and the like, without Homebrew or a Python manager): name programs by absolute path, such as the project's
+`.venv/bin/python`, or set them in the remote shell's startup file. SSH uses
 your existing configuration and host verification, with batch authentication; Saturn saves no SSH credentials.
 
 Freeze a local experiment, then use **Experiments → Run on the configured SSH host**. The detached Rust worker owns

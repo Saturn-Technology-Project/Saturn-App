@@ -586,7 +586,14 @@ pub async fn worker_entry(mode: &str, directory: Option<&str>) -> Result<(), Cor
     if mode == "--research-worker-execute" {
         let folder =
             Path::new(directory.ok_or_else(|| CoreError::new(400, "Missing job directory."))?);
-        let result = execute_worker(folder).await;
+        // Out of the SSH session first: when that connection closes, the system ends what is still in its session.
+        let result = match saturn_tools::leave_session() {
+            Ok(()) => execute_worker(folder).await,
+            Err(error) => Err(CoreError::new(
+                500,
+                format!("The worker could not leave the SSH session: {error}"),
+            )),
+        };
         if result.is_err() {
             write_whole(&folder.join("state.json"), &pretty(&json!({ "schemaVersion": 1, "status": "failed", "endedAt": iso_time(now_millis()), "error": "The remote command could not be started or recorded." }))?).await?;
         }
@@ -739,18 +746,28 @@ async fn worker_rpc(request: &Value) -> Result<Value, CoreError> {
         let cancel = request["cancel"] == true;
         write_whole(&state_file, &pretty(&json!({ "schemaVersion": 1, "status": if cancel { "stopped" } else { "starting" }, "createdAt": now, "endedAt": if cancel { json!(now) } else { Value::Null } }))?).await?;
         if !cancel {
-            let mut child = Command::new("nohup");
+            // Started directly, not through nohup: macOS's nohup refuses to run inside an SSH session ("can't detach
+            // from console"). The worker leaves the session itself, which also takes it out of reach of hangups.
+            let mut child = Command::new(std::env::current_exe()?);
             launch_env(&mut child);
             child
-                .arg(std::env::current_exe()?)
                 .arg("--research-worker-execute")
                 .arg(&folder)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
-            in_own_group(&mut child);
+            // Not in its own group: it leaves the session itself, which a group leader cannot do.
             if child.spawn().is_err() {
                 write_whole(&state_file, &pretty(&json!({ "schemaVersion": 1, "status": "failed", "endedAt": iso_time(now_millis()), "error": "The detached worker could not be started." }))?).await?;
+            } else {
+                // Answer only once it has left this SSH session, or the session could end it first.
+                let claimed = folder.join("execute.claim");
+                for _ in 0..100 {
+                    if tokio::fs::try_exists(&claimed).await.unwrap_or(false) {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
             }
         }
     }

@@ -67,6 +67,21 @@ pub fn in_own_group(command: &mut Command) {
     command.process_group(0);
 }
 
+/// Leaves the session this process was started in, so that the end of that session, such as an SSH connection
+/// closing, does not end it. It must not lead a process group, or the system refuses.
+#[cfg(unix)]
+pub fn leave_session() -> std::io::Result<()> {
+    rustix::process::setsid()
+        .map(|_| ())
+        .map_err(std::io::Error::from)
+}
+
+/// Windows has no sessions to leave.
+#[cfg(windows)]
+pub fn leave_session() -> std::io::Result<()> {
+    Ok(())
+}
+
 /// Keeps a short-lived program from opening a console window on Windows.
 #[cfg(unix)]
 pub fn no_window(_command: &mut Command) {}
