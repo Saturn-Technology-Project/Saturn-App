@@ -17,6 +17,7 @@
   "DELETE /projects/:id/hooks/approve",
   "DELETE /projects/:id/index",
   "DELETE /projects/:id/permissions/approve",
+  "DELETE /projects/:id/research/:collection/:item",
   "DELETE /storage/snapshots",
   "DELETE /storage/snapshots/:id",
   "DELETE /telemetry",

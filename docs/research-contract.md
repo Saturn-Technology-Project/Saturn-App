@@ -175,6 +175,16 @@ and the run is `failed` with `refused: true` and the files named. The snapshot's
 program's report and what changed come back with the outputs, and the evidence says `executor: "ssh"`: the host
 observed it, and Saturn here only received what the host recorded.
 
+## Deleting an experiment
+
+`DELETE .../research/experiments/:id?expectedRevision=N` moves the experiment, its versions, their runs (each run's
+folder) and their labels to `.saturn/research/trash/<time>-<id>/`, with a `deleted.json` saying what moved, when, by
+whom and how to put it back. Nothing is erased. It is refused while a run of it is going, at a revision other than the
+one given, and while another record (a finding, a counterexample, a saved set, an inspection session, an analysis
+output, a question, hypothesis or model) names the experiment, a version or a run: the answer names those records. Only
+experiments can be deleted. The assistant can delete an imported experiment through `research_write` with
+`delete: true`; one frozen or run in the project is the person's to delete.
+
 ## Importing completed results
 
 `POST .../research/imports/preview` reads a project file without creating records. `POST .../research/imports`

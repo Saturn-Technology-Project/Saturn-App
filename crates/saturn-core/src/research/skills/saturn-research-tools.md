@@ -40,6 +40,10 @@ Leave out `id` to make a record. To change one, pass `id` and `expectedRevision`
 | `findings` | `text`, `runIds`. Always recorded as your suggestion |
 | `counterexamples` | `runId`, `sampleId`, `note` |
 
+To delete an imported experiment, pass `collection: "experiments"`, `id`, `expectedRevision` and `delete: true`. It
+moves, with its versions and runs, to the records' trash. An experiment frozen or run here is the person's to delete, in
+Experiments, and one that a finding or other record refers to is not moved: the answer names those records.
+
 ## Running: `research_run`
 - `action: "freeze"`, `experiment`: the version for the experiment as it is now. The same content returns the same version (`new: false`).
 - `action: "start"`, `version`, `attempt`: returns at once. A repeated call with the same attempt starts nothing. Use a new `attempt` to run a version again.

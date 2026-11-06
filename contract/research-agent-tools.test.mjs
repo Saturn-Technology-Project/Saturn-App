@@ -407,3 +407,18 @@ test("the tools reach Claude Code, which sees them and calls them like any other
     await programs.stop();
   }
 });
+
+test("the assistant can delete an imported experiment, but one frozen here is the person's", posixOnly, async () => {
+  const setup = await bed({ "old.jsonl": '{"id":"a","prompt":"in","answer":"out","accuracy":1}\n', "probe.mjs": "" });
+  const made = await saturn.api("POST", `${setup.route}/imports`, { path: "old.jsonl", columns: { sampleId: "id", input: "prompt", output: "answer" }, scoreColumns: ["accuracy"] });
+  const deleted = await call(setup, "research_write", { collection: "experiments", id: made.version.experimentId, expectedRevision: 1, delete: true });
+  assert.deepEqual(deleted.runs, [made.run.id]);
+  assert.equal((await saturn.call("GET", `${setup.route}/experiments/${made.version.experimentId}`)).status, 404);
+
+  const own = await call(setup, "research_write", { collection: "experiments", fields: { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } } });
+  await call(setup, "research_run", { action: "freeze", experiment: own.id });
+  const refused = (await setup.turn([["research_write", { collection: "experiments", id: own.id, expectedRevision: own.revision, delete: true }]])).actions[0];
+  assert.notEqual(refused.status, "completed");
+  assert.match(JSON.stringify(refused), /person's to delete/);
+  assert.equal((await saturn.api("GET", `${setup.route}/experiments/${own.id}`)).id, own.id);
+});

@@ -36,6 +36,7 @@ import { classes } from "../ui/base/classes.js";
 import { Loading, messageOf } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
 
+import { DeleteExperiment } from "./DeleteExperiment.js";
 import { Evidence } from "./Evidence.js";
 import { Mechanism } from "./Mechanism.js";
 import { ScoreChart } from "./ScoreChart.js";
@@ -222,6 +223,7 @@ export function Experiments(props: ScreenProps) {
         <h1 className="text-(length:--text-title) font-semibold">{t("Experiments")}</h1>
         {draft ? (
           <div className="flex flex-wrap gap-2">
+            <DeleteExperiment projectId={projectId} experiment={draft} onDeleted={() => { setSelected(null); void refresh(); }} />
             <Button variant="outline" data-tour="experiments-export" onClick={() => void exportRecord()}>{t("Export summary JSON")}</Button>
             <Button data-tour="experiments-freeze" onClick={() => void freeze()}>{t("New version")}</Button>
           </div>

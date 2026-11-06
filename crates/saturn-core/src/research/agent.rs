@@ -384,6 +384,19 @@ impl Kernel {
     /// Makes or changes a record, under the rules for what an agent may write.
     async fn research_write(&self, project: &str, arguments: &Value) -> Result<Value, String> {
         let collection = needed(arguments, "collection")?;
+        if arguments.get("delete").and_then(Value::as_bool) == Some(true) {
+            if collection != "experiments" {
+                return Err("Only an experiment can be deleted.".to_owned());
+            }
+            let expected = arguments
+                .get("expectedRevision")
+                .and_then(Value::as_u64)
+                .ok_or("Deleting needs the \"expectedRevision\" of the experiment you read.")?;
+            return self
+                .research_delete_experiment(project, needed(arguments, "id")?, Some(expected), true)
+                .await
+                .map_err(said);
+        }
         let fields = arguments
             .get("fields")
             .cloned()

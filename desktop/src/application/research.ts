@@ -165,6 +165,11 @@ export class ResearchService {
     return this.send(`${this.route(project)}/experiments/${draft.id}`, "PATCH", { ...fields, expectedRevision: draft.revision });
   }
 
+  /** Moves an experiment, its versions and runs to the records' trash, if it is still at the revision shown. */
+  deleteExperiment(project: string, draft: ExperimentDraft): Promise<{ deleted: string; versions: string[]; runs: string[]; trash: string }> {
+    return this.send(`${this.route(project)}/experiments/${draft.id}?expectedRevision=${draft.revision}`, "DELETE");
+  }
+
   freeze(project: string, experiment: string): Promise<FrozenVersion> {
     return this.send(`${this.route(project)}/experiments/${experiment}/versions`, "POST");
   }

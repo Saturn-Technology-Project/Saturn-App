@@ -613,4 +613,8 @@ export default {
   "pinned revision, weights not checked here": "已固定修訂版本，權重未在此核對",
   weights: "權重",
   "{seed}, applied to {libraries}": "{seed}（已套用於 {libraries}）",
+  "Delete experiment": "刪除實驗",
+  "Delete “{title}”?": "要刪除「{title}」嗎？",
+  "The experiment, its versions, runs and labels move to .saturn/research/trash in the project. Nothing is erased, and you can move them back by hand.": "實驗連同它的版本、執行與標註會移到專案的 .saturn/research/trash。不會真的抹除，需要時可以手動移回。",
+  "Deleting…": "刪除中…",
 } satisfies Dictionary;

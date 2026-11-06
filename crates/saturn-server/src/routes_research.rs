@@ -51,6 +51,23 @@ async fn update(
         .await?)
 }
 
+/// Deletes a record. Only an experiment can be deleted: it moves, with its versions and runs, to the records' trash.
+async fn remove(
+    State(kernel): Shared,
+    Path((project, collection, id)): Path<(String, String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    if collection != "experiments" {
+        return Err(saturn_core::CoreError::new(405, "Only an experiment can be deleted.").into());
+    }
+    let expected = query
+        .get("expectedRevision")
+        .and_then(|revision| revision.parse().ok());
+    ok(kernel
+        .research_delete_experiment(&project, &id, expected, false)
+        .await?)
+}
+
 async fn freeze(
     State(kernel): Shared,
     Path((project, experiment)): Path<(String, String)>,
@@ -622,7 +639,7 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
         )
         .route(
             "/projects/{id}/research/{collection}/{item}",
-            get(record).patch(update),
+            get(record).patch(update).delete(remove),
         )
         .route(
             "/projects/{id}/research/experiments/{item}/versions",

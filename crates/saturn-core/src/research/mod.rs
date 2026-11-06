@@ -24,6 +24,7 @@ mod snapshot;
 mod source;
 mod tables;
 mod task_reports;
+mod trash;
 
 pub use data::DataOverlapRequest;
 pub use labels::RunDigest;

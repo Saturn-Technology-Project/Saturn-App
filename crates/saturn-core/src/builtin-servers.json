@@ -3429,7 +3429,7 @@
     "toolId": "research_write",
     "serverId": "research",
     "category": "write",
-    "description": "Make or change a research record. Leave out id to make one. Collections: questions (title), hypotheses (title, questionId, made only, never changed), experiments (title, command, cwd, inputs, evaluation, models, seeds, envNames, questionId, hypothesisId), models (source, weightsRevision, name, parentId, referenceId, trainingData, producedBy), findings (text, runIds), counterexamples (runId, sampleId, note). What you write as a finding is recorded as your suggestion. You cannot set a verdict or a label: those are the person's.",
+    "description": "Make or change a research record. Leave out id to make one. Collections: questions (title), hypotheses (title, questionId, made only, never changed), experiments (title, command, cwd, inputs, evaluation, models, seeds, envNames, questionId, hypothesisId), models (source, weightsRevision, name, parentId, referenceId, trainingData, producedBy), findings (text, runIds), counterexamples (runId, sampleId, note). What you write as a finding is recorded as your suggestion. You cannot set a verdict or a label: those are the person's. delete: true with collection experiments, id and expectedRevision moves an imported experiment, its versions and runs to the records' trash; an experiment frozen or run here is the person's to delete, and one that other records still refer to is not moved.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3454,11 +3454,14 @@
       },
       "fields": {
        "type": "object"
+      },
+      "delete": {
+       "type": "boolean",
+       "description": "With collection experiments, id and expectedRevision: move this imported experiment to the trash."
       }
      },
      "required": [
-      "collection",
-      "fields"
+      "collection"
      ]
     }
    },

@@ -93,3 +93,39 @@ test("an explicit training command can finish with metrics alone, while malforme
   const bad = await saturn.api("POST", `${route}/versions/${next.id}/runs`, { clientId: "bad-metrics" });
   assert.equal((await until("invalid metrics", () => saturn.api("GET", `${route}/runs/${bad.id}`), (run) => !["starting", "running"].includes(run.status))).status, "protocol_error");
 });
+
+/** An imported experiment, made from a one-sample JSONL file. */
+async function imported(name = "old.jsonl") {
+  const content = '{"id":"a","prompt":"in","answer":"out","accuracy":0.5}\n';
+  const bed = await setup(name, content);
+  const request = { path: name, columns: { sampleId: "id", input: "prompt", output: "answer" }, scoreColumns: ["accuracy"] };
+  const made = await saturn.api("POST", `${bed.route}/imports`, request);
+  return { ...bed, made };
+}
+
+test("deleting an experiment moves it, its versions and runs to the trash, and only at the revision read", async () => {
+  const { folder, route, made } = await imported();
+  const experiment = made.version.experimentId;
+  assert.equal((await saturn.call("DELETE", `${route}/experiments/${experiment}?expectedRevision=7`)).status, 409, "a stale revision deletes nothing");
+  assert.equal((await saturn.call("DELETE", `${route}/findings/finding_000000000000`)).status, 405);
+  const deleted = await saturn.api("DELETE", `${route}/experiments/${experiment}?expectedRevision=1`);
+  assert.deepEqual(deleted.runs, [made.run.id]);
+  assert.equal((await saturn.call("GET", `${route}/experiments/${experiment}`)).status, 404);
+  assert.equal((await saturn.call("GET", `${route}/runs/${made.run.id}`)).status, 404);
+  assert.deepEqual((await saturn.api("GET", `${route}/experiments`)).items, []);
+  // Nothing is erased: the files are in the trash, with a note on how to put them back.
+  const trash = path.join(folder, deleted.trash);
+  const note = JSON.parse(await readFile(path.join(trash, "deleted.json"), "utf8"));
+  assert.equal(note.by, "person");
+  assert.ok(note.moved.includes(`runs/${made.run.id}`));
+  assert.ok((await readFile(path.join(trash, "runs", made.run.id, "samples.jsonl"), "utf8")).includes('"a"'));
+});
+
+test("an experiment other records refer to is not deleted, and they are named", async () => {
+  const { route, made } = await imported();
+  const finding = await saturn.api("POST", `${route}/findings`, { text: "It held", kind: "observation", runIds: [made.run.id] });
+  const refused = await saturn.call("DELETE", `${route}/experiments/${made.version.experimentId}`);
+  assert.equal(refused.status, 409);
+  assert.match(refused.body.error, new RegExp(finding.id));
+  assert.equal((await saturn.api("GET", `${route}/runs/${made.run.id}`)).id, made.run.id);
+});
