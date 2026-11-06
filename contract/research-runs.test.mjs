@@ -505,7 +505,12 @@ test("a process id now used by something else is not ended", posixOnly, async ()
     assert.equal(run.process, "gone");
     assert.equal(alive(pid), true, "the other process was left alone");
   } finally {
-    process.kill(-pid, "SIGKILL");
+    // The program may have ended on its own by now; the runtime is stopped either way, or the file never ends.
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch {
+      // Already gone.
+    }
     await second.stop();
     await rm(home, { recursive: true, force: true });
   }
