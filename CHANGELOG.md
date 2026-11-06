@@ -22,6 +22,9 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **A committed link that leads out of the project no longer passes as verified.** A run read whatever the link pointed to, while its evidence said every input was verified. Such a link is now listed as uncontrolled, with its target and the target's hash at the start, and a target that changes during the run is recorded as changed.
+- **A run whose inputs changed while it ran is no longer compared as if it measured its version.** Paired comparisons, the score chart and the same sample across runs now say it is not comparable, and name the inputs that changed.
+- **A research bundle keeps each run's evidence.** Exports now carry `evidence.json`, the program's `report.jsonl` and a remote run's `snapshot.json`, so an imported run still shows what was expected, observed and reported.
 - **A run's evidence lists the models the program reported as source and revision**, one per line, instead of raw JSON running off the edge.
 - **On Linux, runs are monitored and ended properly.** Saturn thought every process group had already ended, so resource readings stopped at once, and stopping a run or an environment job could leave its child processes running.
 - **`main`, `latest` and short commits no longer count as pinned weights.** Only a full commit or hash pins a model; anything else is shown as floating, since the name can come to mean other weights. Freezing an experiment whose model is named this way makes a new version once.

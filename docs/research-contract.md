@@ -104,6 +104,8 @@ and no generated row identity. Missing sides, input mismatches, errors and other
 Delta is right minus left; the chosen score direction decides improvement. The mean weights each sample ID equally
 after averaging its trials. The conservative 95% paired t interval treats sample IDs as independent, assumes approximately
 normal prompt means, has no multiple-comparison correction, and does not express uncertainty across training seeds.
+A run whose inputs changed while it ran (`inputsChanged`) no longer measured what its version froze: a comparison with
+it is `not_comparable`, naming the changed inputs, here, in the score chart and when one sample is read across runs.
 Unknown or different evaluation conditions, or fewer than two independent sample IDs, omit the interval. Differences
 remain descriptive. Category slices use the left sample's metadata when present.
 
@@ -147,6 +149,10 @@ edited:
 - On systems without copy-on-write, a data file over 1 GiB is linked instead and checked before and after the run.
 - Top-level entries of the project that the version does not hold (except `.git` and `.saturn`) are linked and listed
   as uncontrolled.
+- A link the version holds (committed, or saved as uncommitted) that leads out of the snapshot reads whatever is at its
+  target, which the version never fixed. It is listed as uncontrolled with its `target`, and, for a file, the target's
+  hash when the run started; the inputs verdict is then `partial`, and a target that changed by the end makes it
+  `changed`.
 - The snapshot's files are read-only, and in the sandbox (below) so is the whole snapshot. Without the sandbox this is
   file permissions only: a program can still replace a file, which the check at the end records, and files it writes
   in its working folder are moved to `runs/<id>/written/` when it ends.
