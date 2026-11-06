@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
 import {
+  byAssistant,
   comparisonText,
   DEFAULT_LABELS,
   EVALUATION_FIELD_NAMES,
@@ -269,7 +270,8 @@ export function Experiments(props: ScreenProps) {
                 <>
                   <strong className={classes(HEADLINE, VERDICT_TEXT[hypothesis.verdict])}>{VERDICT_LABELS[hypothesis.verdict]}</strong>
                   <div className={MUTED}>{hypothesis.title}</div>
-                  <Choice label={t("Only you set this")} className="max-w-[220px]" value={hypothesis.verdict} options={VERDICTS.map((verdict) => ({ value: verdict, label: VERDICT_LABELS[verdict] }))} onChange={(chosen) => void service.setVerdict(projectId, hypothesis, chosen as Verdict).then(refresh).catch((error: unknown) => props.notify(messageOf(error)))} />
+                  {hypothesis.verdict !== "undecided" && byAssistant(hypothesis) ? <Badge tone="violet">{t("Set by the assistant")}</Badge> : null}
+                  <Choice label={t("Verdict")} className="max-w-[220px]" value={hypothesis.verdict} options={VERDICTS.map((verdict) => ({ value: verdict, label: VERDICT_LABELS[verdict] }))} onChange={(chosen) => void service.setVerdict(projectId, hypothesis, chosen as Verdict).then(refresh).catch((error: unknown) => props.notify(messageOf(error)))} />
                 </>
               ) : (
                 <div className={MUTED}>{t("Choose the hypothesis this experiment tests, above.")}</div>
@@ -323,13 +325,13 @@ export function Experiments(props: ScreenProps) {
             {findings.length === 0 ? <span className={MUTED}>{t("None linked to this experiment's runs yet.")}</span> : null}
             {findings.map((finding: Finding) => (
               <Badge key={finding.id} tone={FINDING_TONES[finding.kind]} title={finding.text}>
-                {FINDING_LABELS[finding.kind]}{finding.kind === "ai_suggestion" ? ` · ${t("marked")}` : finding.kind === "conclusion" ? ` · ${t("yours")}` : ""}{finding.runIds?.[0] ? ` · ${finding.runIds[0]}` : ""}
+                {FINDING_LABELS[finding.kind]} · {byAssistant(finding) ? t("by the assistant") : t("yours")}{finding.runIds?.[0] ? ` · ${finding.runIds[0]}` : ""}
               </Badge>
             ))}
           </div>
           {[...findings].reverse().slice(0, 3).map((finding) => (
             <Card key={finding.id} className="mb-2 gap-1 border-0 bg-panel px-3.5 py-3">
-              <div className={MUTED}>{FINDING_LABELS[finding.kind]}</div>
+              <div className={MUTED}>{FINDING_LABELS[finding.kind]} · {byAssistant(finding) ? t("by the assistant") : t("yours")}</div>
               <div className="text-sm">{finding.text}</div>
             </Card>
           ))}

@@ -27,6 +27,7 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
   if (!chosen) return null;
 
   const order = new Map(lineageOrder(models).map((item, position) => [item.model.id, position]));
+  const changedInputs = (runId: string) => props.runs.find((run) => run.id === runId)?.inputsChanged ?? [];
   const bars: Bar[] = summaries.flatMap((summary) =>
     [...summary.models].sort((left, right) => (order.get(left.modelId ?? "") ?? Infinity) - (order.get(right.modelId ?? "") ?? Infinity)).map((model) => {
       const node = models.find((item) => item.id === model.modelId);
@@ -38,8 +39,11 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
         mean: model.scores[chosen]?.mean ?? null,
         count: model.scores[chosen]?.count ?? 0,
         errors: Object.values(model.errors).reduce((sum, count) => sum + count, 0),
-        // The newest run's version is what the rest are compared with, whatever it states.
-        comparison: summary.versionId === summaries.at(-1)?.versionId ? { result: "comparable", differs: [], missing: [] } : (comparisons[summary.versionId] ?? null),
+        // The newest run's version is what the rest are compared with, whatever it states. A run whose inputs changed
+        // while it ran stands apart: it no longer measured what its version froze.
+        comparison: changedInputs(summary.runId).length
+          ? { result: "not_comparable" as const, differs: [t("inputs, changed during the run ({paths})", { paths: changedInputs(summary.runId).join(", ") })], missing: [] }
+          : summary.versionId === summaries.at(-1)?.versionId ? { result: "comparable" as const, differs: [], missing: [] } : (comparisons[summary.versionId] ?? null),
       };
     }),
   );

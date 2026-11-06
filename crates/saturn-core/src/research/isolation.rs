@@ -146,12 +146,23 @@ pub(super) struct Placement {
     pub sources: Vec<PathBuf>,
 }
 
-/// The folders the snapshot's links lead to that lie in one of `sources`: what the run reads there by link, such as
-/// an environment folder, which it may still read. Links into the credential folders stay hidden.
-fn link_targets(tree: &Path, sources: &[PathBuf], hidden: &[PathBuf]) -> Vec<PathBuf> {
+/// What the snapshot's links lead to that the run may read, wherever it lies: a folder of the project such as an
+/// environment, or a file elsewhere that a committed link names. Either is listed as uncontrolled with the snapshot;
+/// reading it here keeps the program's view the same on every system (on Linux `/tmp` is otherwise the sandbox's own).
+/// Links into Saturn's data or the credential folders stay hidden.
+fn link_targets(
+    tree: &Path,
+    sources: &[PathBuf],
+    data: &[PathBuf],
+    hidden: &[PathBuf],
+) -> Vec<PathBuf> {
     let sources: Vec<PathBuf> = sources
         .iter()
         .filter_map(|source| std::fs::canonicalize(source).ok())
+        .collect();
+    let data: Vec<PathBuf> = data
+        .iter()
+        .filter_map(|path| std::fs::canonicalize(path).ok())
         .collect();
     let hidden: Vec<PathBuf> = hidden
         .iter()
@@ -171,7 +182,9 @@ fn link_targets(tree: &Path, sources: &[PathBuf], hidden: &[PathBuf]) -> Vec<Pat
                 let Ok(target) = std::fs::canonicalize(item.path()) else {
                     continue;
                 };
-                if sources.iter().any(|source| target.starts_with(source))
+                let in_project = sources.iter().any(|source| target.starts_with(source));
+                let in_data = data.iter().any(|folder| target.starts_with(folder));
+                if (in_project || !in_data)
                     && !hidden.iter().any(|secret| target.starts_with(secret))
                     && !found.contains(&target)
                 {
@@ -274,8 +287,9 @@ pub(super) async fn command(
         let tree = placement.tree.clone();
         let sources = placement.sources.clone();
         let secrets = credentials.clone();
+        let saturn = data.to_vec();
         let mut visible =
-            tokio::task::spawn_blocking(move || link_targets(&tree, &sources, &secrets))
+            tokio::task::spawn_blocking(move || link_targets(&tree, &sources, &saturn, &secrets))
                 .await
                 .unwrap_or_default();
         visible.insert(0, placement.tree.clone());
@@ -427,6 +441,48 @@ mod tests {
             !recorded.to_string().contains("named"),
             "only names are recorded"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_run_reads_what_its_links_name_but_never_saturns_data_or_credentials() {
+        let root = tempfile::tempdir().expect("a temporary folder");
+        let real = std::fs::canonicalize(root.path()).expect("it exists");
+        let project = real.join("project");
+        let data = real.join("saturn-data");
+        let keys = real.join("home/.ssh");
+        let elsewhere = real.join("elsewhere");
+        let tree = real.join("tree");
+        for folder in [&project.join(".venv"), &data, &keys, &elsewhere, &tree] {
+            std::fs::create_dir_all(folder).expect("a folder");
+        }
+        for (name, content) in [
+            (elsewhere.join("set.jsonl"), "{}"),
+            (data.join("state.json"), "{}"),
+            (keys.join("id"), "key"),
+        ] {
+            std::fs::write(name, content).expect("a file");
+        }
+        let link = |target: &Path, name: &str| {
+            std::os::unix::fs::symlink(target, tree.join(name)).expect("a link")
+        };
+        link(&project.join(".venv"), ".venv");
+        link(&elsewhere.join("set.jsonl"), "set.jsonl");
+        link(&data.join("state.json"), "state.json");
+        link(&keys.join("id"), "id");
+        let found = link_targets(
+            &tree,
+            std::slice::from_ref(&project),
+            std::slice::from_ref(&data),
+            std::slice::from_ref(&keys),
+        );
+        assert!(found.contains(&project.join(".venv")), "{found:?}");
+        assert!(
+            found.contains(&elsewhere.join("set.jsonl")),
+            "a committed link's outside target, as on every system: {found:?}"
+        );
+        assert!(!found.contains(&data.join("state.json")), "{found:?}");
+        assert!(!found.contains(&keys.join("id")), "{found:?}");
     }
 
     #[test]

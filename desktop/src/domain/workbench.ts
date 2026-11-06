@@ -66,7 +66,7 @@ export function tourSteps(t: Words = english): TourStep[] {
       target: "rail-Home",
       screen: "Home",
       title: t("Home: where the work stands"),
-      text: t("The question you are on, its hypotheses and their verdicts, what changed since you last looked, and what is still open. A verdict is yours to set; a run that finishes says only that it executed."),
+      text: t("The question you are on, its hypotheses and their verdicts, what changed since you last looked, and what is still open. You or the assistant set a verdict, and it says which of you did; a run that finishes says only that it executed."),
     },
     {
       id: "workspace",
@@ -189,7 +189,7 @@ export function guidePlaces(t: Words = english): GuidePlace[] {
     { id: "commands", title: t("Commands"), hint: t("Open every command here, or with ⌘K.") },
     { id: "settings", title: t("Settings"), hint: t("Connect models, MCP servers and more here.") },
     { id: "home-questions", screen: "Home", title: t("Questions"), hint: t("Write down the question this project is trying to answer.") },
-    { id: "home-hypotheses", screen: "Home", title: t("Hypotheses"), hint: t("Add a hypothesis, and set its verdict when you have evidence. Only you set it.") },
+    { id: "home-hypotheses", screen: "Home", title: t("Hypotheses"), hint: t("Add a hypothesis, and set its verdict when you have evidence. A verdict the assistant set is marked as its own.") },
     { id: "workspace-files", screen: "Workspace", title: t("Project files"), hint: t("Open a file to write it.") },
     { id: "workspace-command", screen: "Workspace", title: t("The experiment's command"), hint: t("Type the command that runs the experiment, starting with its Python.") },
     { id: "workspace-run", screen: "Workspace", title: t("Run"), hint: t("Run freezes a version and starts the command.") },
@@ -263,7 +263,7 @@ ${screens}
 Research records are plain files under .saturn/research in the project: questions, hypotheses, experiments, versions, models, findings, labels and runs/<id>/samples.jsonl. An experiment's program writes one JSON line per sample to the path in SATURN_RUN_SAMPLES, with sampleId, modelId, input, output, scores and error, and optionally expected, alternative, scorerLabel and usage. docs/research-contract.md in Saturn's repository is the full contract.
 
 ## Walking someone through it
-You cannot click anything or press any button here: the person does the work, and you show them where. To show a place, write its mark on a line of its own at the step it belongs to:
+Without computer use you cannot click anything or press any button here: the person does the work, and you show them where. To show a place, write its mark on a line of its own at the step it belongs to:
 
 [[saturn:show experiments-freeze]]
 
@@ -273,8 +273,11 @@ ${places}
 ## Doing research yourself
 You have research_* tools that work on the same records the person sees. They can make questions, hypotheses, experiments and models, freeze and run experiments here or on the configured SSH host, read samples and results, compare runs sample by sample, import existing results and bundles, keep analysis outputs, run notebook cells, set up the Python environment and look inside models. Skills tell you how: call research_skill with no name to list them, and read research-autopilot before carrying out a whole study. You can also start a task with research_task_start: another agent on its own in a separate worktree, which you follow with research_task_read and, once the person has merged or discarded it, can clear away with research_task_delete. Read the skill for what you are about to do. If a tool is refused because of this chat's mode, say so and name the mode that would allow it.
 
+## Operating Saturn yourself
+When this chat has the computer_* tools and the person asks you to do something in Saturn, you may operate Saturn itself as you would any app. Find it with computer_apps (the app named Saturn), and read its window with computer_app_state: every control has a role and a name, the screens are buttons in the rail named after them (Home, Experiments, Samples and so on), the window's title names the screen and project, and dialogs are named after their title. Act by those names, not by pixels. Prefer the research_* tools for what they do; use the interface for what only it does, or when the person wants to watch. Never click in the Assistant panel itself, which holds this conversation, and do not close or quit Saturn. In the interface, the same things stay with the person as below.
+
 ## What stays with the person
-Verdicts, labels, modes, releasing a lock and merging a task are theirs. You may record a suggestion as a finding, with the evidence. Say so rather than offering to do them. If something is not on their screen because a condition is not met, say what to do first. If you are not sure the interface works a certain way, say so instead of guessing.`;
+You may set a hypothesis's verdict, label samples and write conclusions, from evidence you name in a finding; each is recorded as yours. Never overwrite a verdict or a label the person set: disagree in a finding. Modes, releasing a lock, merging a task and loosening a run's sandbox are theirs: say so rather than offering to do them. If something is not on their screen because a condition is not met, say what to do first. If you are not sure the interface works a certain way, say so instead of guessing.`;
 }
 
 /** What is on screen now, sent with each message. It describes the interface and asks nothing. */

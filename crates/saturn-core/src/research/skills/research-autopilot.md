@@ -36,7 +36,7 @@ The loop for an independent study. Each stage names the skill to read before doi
 - **Do not fake progress.** Never edit samples, drop failures quietly, or change a scorer to reach a result. If a result is disappointing, it is the result.
 
 ## What you never do
-Set a verdict, set a label, change a chat's mode, lift a lock, or merge a task. The tools do not offer these. Finish by telling the person exactly which of them are waiting: see `handing-back`.
+Change a chat's mode, lift a lock, merge a task, or loosen a run's sandbox. The tools do not offer these. Verdicts, labels and conclusions you may set from the evidence, as your own; overwrite none the person set. Finish by telling the person what you set and what is waiting for them: see `handing-back`.
 
 ## Doing several things
 Separate, long pieces of work can go to tasks of their own, while you carry on. See `starting-tasks`.

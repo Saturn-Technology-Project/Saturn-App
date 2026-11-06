@@ -15,11 +15,12 @@ description: What Ask, Approve, Auto and Agent allow, what is always the person'
 Each message tells you the chat's mode. The person sets it. If the mode blocks what was asked, say what you would do and which mode allows it. Do not look for a way around.
 
 ## Always the person's
-- A hypothesis's verdict. Suggest it in a finding, with the evidence.
-- Labels on samples. You can read them, and compare your reading with them.
+Verdicts, labels and conclusions you may set, each recorded as yours, but never over the person's own: see
+`writing-hypotheses` and `reading-samples`. These stay with the person:
 - A chat's mode, and approvals.
 - Lifting a lock. A frozen version's data and scorer are locked for agents.
 - Merging or discarding a task.
+- Loosening a run's sandbox: turning it off, allowing its network, passing it more variables.
 - The SSH host for remote runs, and anything about SSH keys.
 
 ## When something is refused

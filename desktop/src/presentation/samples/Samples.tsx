@@ -57,9 +57,14 @@ const ABOUT = "gap-1.5 border-0 bg-panel px-3.5 py-3";
 const DETAIL_ROW = "flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-sm wrap-anywhere";
 const FACTOR_LABELS: Record<string, string> = { dataset: t("Data"), split: t("Split"), sampleSet: t("Sample set"), scorer: t("Scorer"), promptFormat: t("Prompt format"), chatTemplate: t("Chat template") };
 
-/** The label a person gave a line, if any. */
+/** The label saved on a line, if any, with who set it. */
+function savedLabel(labels: RunLabels | null, line: SampleLine) {
+  return Object.values(labels?.labels ?? {}).find((item) => item.sampleId === line.sampleId && item.trial === (line.trial ?? 0) && (item.modelId ?? null) === (line.modelId ?? null));
+}
+
+/** The label a line has, if any. */
 function labelOf(labels: RunLabels | null, line: SampleLine): string | undefined {
-  return Object.values(labels?.labels ?? {}).find((item) => item.sampleId === line.sampleId && item.trial === (line.trial ?? 0) && (item.modelId ?? null) === (line.modelId ?? null))?.label;
+  return savedLabel(labels, line)?.label;
 }
 
 /** Whether a person's label and the scorer's own word disagree. */
@@ -439,6 +444,10 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                                 );
                               })}
                             </div>
+                            {(() => {
+                              const saved = savedLabel(labelsFor(row.runId), line);
+                              return saved?.by === "assistant" ? <div className={MUTED} title={saved.note ?? undefined}>{t("Labelled by the assistant")}{saved.note ? `: ${saved.note}` : ""}</div> : null;
+                            })()}
                             {disputed(labelsFor(row.runId), line) ? <div className={WARNING}>{t("Disagrees with the scorer. Both are kept.")}</div> : null}
                           </div>
                         </div>

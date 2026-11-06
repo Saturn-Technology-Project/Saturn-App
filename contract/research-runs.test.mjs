@@ -2,7 +2,7 @@
 // docs/research-contract.md is the contract. The stand-in experiments are small Node scripts.
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -32,7 +32,7 @@ setInterval(() => appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringif
 /** A new allowed project, in the given bench, with an experiment that runs this script. */
 async function setup(script, { on = saturn, folder: given, inputs = {}, fields = {} } = {}) {
   const folder = given ?? await on.folder();
-  await writeFile(path.join(folder, "probe.mjs"), script);
+  if (script !== null) await writeFile(path.join(folder, "probe.mjs"), script);
   const made = await on.api("POST", "/projects", { path: folder });
   await on.api("POST", `/projects/${made.id}/access`, {});
   const route = `/projects/${made.id}/research`;
@@ -209,6 +209,50 @@ test("without the sandbox, an input replaced during the run is recorded as chang
   assert.deepEqual(evidence.observed.afterRun.changed, ["set.jsonl"]);
 });
 
+test("a committed link out of the project is uncontrolled, and its target changing during the run is caught", posixOnly, async () => {
+  const folder = await saturn.folder();
+  const outside = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-outside-")));
+  await writeFile(path.join(outside, "set.jsonl"), "{\"v\":1}\n");
+  await mkdir(path.join(folder, "data"));
+  await symlink(path.join(outside, "set.jsonl"), path.join(folder, "data", "set.jsonl"));
+  // The program reads through the link, then waits until the test has changed what it points to. It waits in its own
+  // run folder, which it can see on every system, and never longer than 20 seconds, so a failure leaves nothing behind.
+  await writeFile(path.join(folder, "probe.mjs"), `
+    import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+    const read = readFileSync("data/set.jsonl", "utf8");
+    writeFileSync(process.env.SATURN_RUN_DIRECTORY + "/read", "");
+    const go = process.env.SATURN_RUN_DIRECTORY + "/go";
+    for (const until = Date.now() + 20000; !existsSync(go) && Date.now() < until;) await new Promise((resolve) => setTimeout(resolve, 50));
+    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    console.log(read.trim());
+  `);
+  commitAll(folder);
+  const bed = await setup(null, { folder });
+  const started = await start(bed);
+  const evidence = await until("the run's evidence", () => saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`), (item) => item.recorded && item.observed?.snapshot);
+  const link = evidence.observed.snapshot.uncontrolled.find((item) => item.path === "data/set.jsonl");
+  assert.ok(link, `the link is listed as uncontrolled: ${JSON.stringify(evidence.observed.snapshot.uncontrolled)}`);
+  assert.equal(link.kind, "linked file");
+  assert.equal(link.target, path.join(outside, "set.jsonl"));
+  assert.equal(link.sha256, sha("{\"v\":1}\n"));
+  assert.equal(evidence.verdicts.inputs, "partial", "not verified: the version never fixed what the link reads");
+  const reading = await until("the program to read the link, or the run to end", async () => {
+    if (existsSync(path.join(runFolder(bed, started.id), "read"))) return "read";
+    const now = await saturn.api("GET", `${bed.route}/runs/${started.id}`);
+    return ["starting", "running", "stopping"].includes(now.status) ? null : now;
+  });
+  assert.equal(reading, "read", `the program could not read through the link: ${JSON.stringify(reading)}\n${await readFile(path.join(runFolder(bed, started.id), "stderr.log"), "utf8").catch(() => "")}`);
+  await writeFile(path.join(outside, "set.jsonl"), "{\"v\":2}\n");
+  await writeFile(path.join(runFolder(bed, started.id), "go"), "");
+  const run = await ended(bed, started.id);
+  assert.equal(run.status, "completed", `${JSON.stringify(run)}\n${await readFile(path.join(runFolder(bed, started.id), "stderr.log"), "utf8").catch(() => "")}`);
+  assert.equal((await readFile(path.join(runFolder(bed, started.id), "stdout.log"), "utf8")).trim(), "{\"v\":1}", "it read the target as it was at the start");
+  assert.deepEqual(run.inputsChanged, ["data/set.jsonl"]);
+  const after = await saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`);
+  assert.equal(after.verdicts.inputs, "changed");
+  await rm(outside, { recursive: true, force: true });
+});
+
 test("a run started before the project was edited runs the version it was given", posixOnly, async () => {
   const release = path.join(await saturn.folder(), "release");
   const { home, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "before-process", SATURN_RESEARCH_TEST_RELEASE: release });
@@ -340,13 +384,15 @@ test("a change to a record is announced on the live updates, and is not in the a
   const reader = response.body.getReader();
   await saturn.api("POST", `${bed.route}/questions`, { title: "Announced" });
   let seen = "";
-  const deadline = Date.now() + 10_000;
-  while (!seen.includes("event: research") && Date.now() < deadline) {
-    const { value, done } = await reader.read();
+  // A read that never gets an event is cancelled at the deadline, rather than holding the stream and the test open.
+  const deadline = setTimeout(() => reader.cancel().catch(() => undefined), 10_000);
+  while (!seen.includes("event: research")) {
+    const { value, done } = await reader.read().catch(() => ({ done: true }));
     if (done) break;
     seen += Buffer.from(value).toString();
   }
-  await reader.cancel();
+  clearTimeout(deadline);
+  await reader.cancel().catch(() => undefined);
   assert.match(seen, /event: research/);
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.doesNotMatch(await readFile(path.join(saturn.runtime.dataDir, "state.json"), "utf8"), /Announced/);
@@ -459,7 +505,12 @@ test("a process id now used by something else is not ended", posixOnly, async ()
     assert.equal(run.process, "gone");
     assert.equal(alive(pid), true, "the other process was left alone");
   } finally {
-    process.kill(-pid, "SIGKILL");
+    // The program may have ended on its own by now; the runtime is stopped either way, or the file never ends.
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch {
+      // Already gone.
+    }
     await second.stop();
     await rm(home, { recursive: true, force: true });
   }

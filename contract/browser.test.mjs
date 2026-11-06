@@ -368,7 +368,8 @@ test("a real Chrome: the tools read and work a page, the live view streams it, a
     assert.match(refused.answers[0].reason, /not allowed/);
     assert.equal((await api(runtime, "GET", "/browser")).open, false);
 
-    await run([["browser_evaluate", { expression: `location.href = ${JSON.stringify(url)}` }]]);
+    const opened = await run([["browser_evaluate", { expression: `location.href = ${JSON.stringify(url)}` }]]);
+    assert.notEqual(opened.answers[0].status, "failed", `the browser opens: ${JSON.stringify(opened.answers[0])}`);
     const shown = await until("the page", () => api(runtime, "GET", "/browser"), (state) => state.title === "Demo page");
     assert.deepEqual(shown, { open: true, mode: "saturn", url, title: "Demo page" });
 

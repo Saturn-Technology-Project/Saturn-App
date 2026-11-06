@@ -150,6 +150,17 @@ impl Kernel {
                 ));
             }
         }
+        // A run whose inputs changed while it ran no longer stands for its version: what it measured is unknown.
+        let changed: Vec<String> = [&left.run, &right.run]
+            .iter()
+            .flat_map(|run| inputs_changed(run))
+            .collect();
+        if !changed.is_empty() {
+            comparison["result"] = json!("not_comparable");
+            if let Some(differs) = comparison["differs"].as_array_mut() {
+                differs.push(json!(changed_inputs_text(&changed)));
+            }
+        }
         let inference = comparison["result"] == "comparable";
         let higher = request
             .get("higherIsBetter")
@@ -215,4 +226,20 @@ impl Kernel {
         };
         Ok(result)
     }
+}
+
+/// What differs about a run whose inputs changed while it ran, in the words a comparison lists.
+pub(super) fn changed_inputs_text(changed: &[String]) -> String {
+    format!("inputs, changed during the run ({})", changed.join(", "))
+}
+
+/// The inputs a run reports as changed while it ran, by path.
+pub(super) fn inputs_changed(run: &Value) -> Vec<String> {
+    run.get("inputsChanged")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::to_owned)
+        .collect()
 }

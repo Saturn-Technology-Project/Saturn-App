@@ -101,7 +101,8 @@ export default {
   Execution: "執行狀態",
   "Not run": "未執行",
   "{finished} of {count} runs have results. Execution says nothing about whether the hypothesis holds.": "{count} 次執行中有 {finished} 次有結果。執行狀態無法說明假說是否成立。",
-  "Only you set this": "判定（僅能由你設定）",
+  "by the assistant": "研究助理所寫",
+  "Labelled by the assistant": "由研究助理標註",
   "Choose the hypothesis this experiment tests, above.": "在上方選擇這個實驗要檢驗的假說。",
   "Where the score comes from": "分數的來源",
   "The newest run with results, {run}.": "來自最新一次有結果的執行：{run}。",
@@ -115,7 +116,6 @@ export default {
   "{count} infrastructure, excluded": "{count} 個基礎設施錯誤（已排除）",
   "Does the mechanism change too?": "機制也改變了嗎？",
   "None linked to this experiment's runs yet.": "這個實驗的執行尚未連結任何發現。",
-  marked: "已標示",
   yours: "你的",
   "Saved with run {run} and its exact conditions.": "會與執行 {run} 及其完整條件一併儲存。",
   "Saved with this experiment.": "會與這個實驗一併儲存。",
@@ -630,4 +630,5 @@ export default {
   "Without the sandbox the program can read and write anything your account can, and gets every environment variable, including keys.": "不使用沙箱時，程式可以讀寫你帳號能存取的所有內容，並取得所有環境變數，包括金鑰。",
   "Environment variables to pass, comma separated": "要傳入的環境變數，以逗號分隔",
   "Only these, and variables that say where things are (PATH, HOME, HF_HOME, CUDA_VISIBLE_DEVICES and the like), reach the program. Their names are recorded with each run, never their values.": "程式只會取得這些變數，以及標示路徑與裝置的變數（如 PATH、HOME、HF_HOME、CUDA_VISIBLE_DEVICES）。每次執行只記錄變數名稱，不記錄變數值。",
+  "inputs, changed during the run ({paths})": "輸入（執行中有變動：{paths}）",
 } satisfies Dictionary;

@@ -3429,7 +3429,7 @@
     "toolId": "research_write",
     "serverId": "research",
     "category": "write",
-    "description": "Make or change a research record. Leave out id to make one. Collections: questions (title), hypotheses (title, questionId, made only, never changed), experiments (title, command, cwd, inputs, evaluation, models, seeds, envNames, sandbox: {isolated, network}, questionId, hypothesisId; you may block the network, but turning the sandbox off, allowing the network or adding to envNames is the person's), models (source, weightsRevision, name, parentId, referenceId, trainingData, producedBy), findings (text, runIds), counterexamples (runId, sampleId, note). What you write as a finding is recorded as your suggestion. You cannot set a verdict or a label: those are the person's. delete: true with collection experiments, id and expectedRevision moves an imported experiment, its versions and runs to the records' trash; an experiment frozen or run here is the person's to delete, and one that other records still refer to is not moved.",
+    "description": "Make or change a research record. Leave out id to make one. Collections: questions (title), hypotheses (title, questionId, verdict: undecided, supported, refuted or inconclusive), experiments (title, command, cwd, inputs, evaluation, models, seeds, envNames, sandbox: {isolated, network}, questionId, hypothesisId; you may block the network, but turning the sandbox off, allowing the network or adding to envNames is the person's), models (source, weightsRevision, name, parentId, referenceId, trainingData, producedBy), findings (text, runIds, kind: ai_suggestion by default, observation or conclusion), counterexamples (runId, sampleId, note), labels (runId, sampleId, modelId, trial, label: one of the experiment's labels, note; sets one sample's label). A verdict, finding or label you set is recorded as yours, and the person can change it. Set a verdict or a conclusion only from evidence you name in a finding. delete: true with collection experiments, id and expectedRevision moves an imported experiment, its versions and runs to the records' trash; an experiment frozen or run here is the person's to delete, and one that other records still refer to is not moved.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3441,7 +3441,8 @@
         "experiments",
         "models",
         "findings",
-        "counterexamples"
+        "counterexamples",
+        "labels"
        ]
       },
       "id": {

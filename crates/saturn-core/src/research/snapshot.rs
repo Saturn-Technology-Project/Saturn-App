@@ -54,6 +54,39 @@ pub(super) fn files_in(root: &Path) -> Vec<String> {
     found
 }
 
+/// The links under `root` whose targets lie outside it, by path relative to it, with the target as the link names
+/// it. Links that stay inside are part of the snapshot like any file.
+fn outward_links(root: &Path) -> Vec<(String, String)> {
+    let Ok(inside) = std::fs::canonicalize(root) else {
+        return Vec::new();
+    };
+    let mut found = Vec::new();
+    let mut pending = vec![PathBuf::new()];
+    while let Some(relative) = pending.pop() {
+        let Ok(reading) = std::fs::read_dir(root.join(&relative)) else {
+            continue;
+        };
+        for item in reading.flatten() {
+            let Ok(kind) = item.file_type() else { continue };
+            let path = relative.join(item.file_name());
+            if kind.is_dir() {
+                pending.push(path);
+            } else if kind.is_symlink() {
+                let target = std::fs::read_link(item.path())
+                    .map(|target| target.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                let leaves = std::fs::canonicalize(item.path())
+                    .map_or(true, |resolved| !resolved.starts_with(&inside));
+                if leaves {
+                    found.push((path.to_string_lossy().into_owned(), target));
+                }
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
 /// Copies a file, copy-on-write where the file system can (APFS, Btrfs, XFS), and creates its folders.
 fn copy_into(from: &Path, to: &Path) -> std::io::Result<()> {
     if let Some(parent) = to.parent() {
@@ -384,6 +417,44 @@ pub(super) async fn fill(
             };
             uncontrolled.push(json!({ "path": name, "kind": kind }));
         }
+        // A link the version itself holds (committed, or saved as uncommitted) that leads out of the snapshot reads
+        // whatever is at its target now, which the version never fixed: listed as uncontrolled, with the target's
+        // content as it was when the run started, so a change during the run is caught too.
+        let made: Vec<String> = uncontrolled
+            .iter()
+            .map(|item| text(item, "path").to_owned())
+            .chain(
+                inputs
+                    .iter()
+                    .filter(|input| text(input, "how") == "linked")
+                    .map(|input| text(input, "path").to_owned()),
+            )
+            .collect();
+        let outward = {
+            let tree = tree.to_path_buf();
+            tokio::task::spawn_blocking(move || outward_links(&tree))
+                .await
+                .map_err(|error| CoreError::new(500, error.to_string()))?
+        };
+        for (path, target) in outward {
+            if made.contains(&path) {
+                continue;
+            }
+            let resolved = tree.join(&path);
+            let kind = match tokio::fs::metadata(&resolved).await {
+                Ok(info) if info.is_dir() => "linked folder",
+                Ok(_) => "linked file",
+                Err(_) => "broken link",
+            };
+            let mut item = json!({ "path": path, "kind": kind, "target": target });
+            if kind == "linked file"
+                && let Ok((sha256, size)) = hash_file(&resolved).await
+            {
+                item["sha256"] = json!(sha256);
+                item["size"] = json!(size);
+            }
+            uncontrolled.push(item);
+        }
         uncontrolled.sort_by(|left, right| text(left, "path").cmp(text(right, "path")));
 
         // Every file the run is given, by hash: what it read is checked against this when it ends.
@@ -461,6 +532,25 @@ pub(super) async fn close(
                 .map(|(sha256, _)| sha256)
                 .unwrap_or_default();
             if now != text(input, "sha256") && !changed.iter().any(|known| known == path) {
+                changed.push(path.to_owned());
+            }
+        }
+        // A link out of the snapshot whose target's content was taken at the start: still the same at the end?
+        for item in observed
+            .get("uncontrolled")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let Some(before) = item.get("sha256").and_then(Value::as_str) else {
+                continue;
+            };
+            let path = text(item, "path");
+            let now = hash_file(&tree.join(path))
+                .await
+                .map(|(sha256, _)| sha256)
+                .unwrap_or_default();
+            if now != before && !changed.iter().any(|known| known == path) {
                 changed.push(path.to_owned());
             }
         }

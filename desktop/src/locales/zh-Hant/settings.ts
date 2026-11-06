@@ -357,4 +357,8 @@ export default {
     "若要登入，請在終端機中執行這個指令，並保持視窗開啟，直到顯示你已登入。這張卡片會自動更新。",
   " If the browser says it can't connect to localhost, that terminal sign-in had already ended: run the command again and use the new browser page.":
     "如果瀏覽器無法連線到 localhost，表示終端機中的登入已結束。請再次執行指令，並使用新開啟的瀏覽器頁面。",
+  "MCP server address": "MCP 伺服器網址",
+  "Server name": "伺服器名稱",
+  "Environment variables": "環境變數",
+  "Knowledge URL": "知識庫網址",
 } satisfies Dictionary;

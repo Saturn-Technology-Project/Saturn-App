@@ -153,18 +153,42 @@ test("a start repeated in one turn starts once, and a new attempt runs the versi
   assert.notEqual(second.run.id, first.run.id);
 });
 
-test("what is the person's has no way through the tools", async () => {
-  const setup = await bed();
-  const hypothesis = await call(setup, "research_write", { collection: "hypotheses", fields: { title: "H" } });
-  assert.match(await refused(setup, "research_write", { collection: "hypotheses", fields: { title: "H", verdict: "supported" } }), /person's/);
-  assert.match(await refused(setup, "research_write", { collection: "hypotheses", id: hypothesis.id, expectedRevision: 1, fields: { verdict: "supported" } }), /does not change/);
-  assert.match(await refused(setup, "research_write", { collection: "findings", fields: { text: "T", kind: "conclusion" } }), /conclusion is the person's/);
+test("the assistant sets verdicts, conclusions and labels, each recorded as its own, and the person can change them", posixOnly, async () => {
+  const program = `import { appendFileSync } from "node:fs"; appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "s1", modelId: "m", input: "in", output: "out", scores: { ok: 1 }, error: null }) + "\\n");`;
+  const setup = await bed({ "probe.mjs": program });
+  const hypothesis = await call(setup, "research_write", { collection: "hypotheses", fields: { title: "H", verdict: "supported" } });
+  assert.equal(hypothesis.verdict, "supported");
+  assert.equal(hypothesis.verdictBy, "assistant");
+  const edited = await call(setup, "research_write", { collection: "hypotheses", id: hypothesis.id, expectedRevision: 1, fields: { title: "H, sharper", verdict: "refuted" } });
+  assert.deepEqual([edited.title, edited.verdict, edited.verdictBy], ["H, sharper", "refuted", "assistant"]);
+  const byPerson = await saturn.api("PATCH", `${setup.route}/hypotheses/${hypothesis.id}`, { expectedRevision: 2, verdict: "inconclusive" });
+  assert.equal(byPerson.verdictBy, "person", "the person's change is theirs again");
+
+  const conclusion = await call(setup, "research_write", { collection: "findings", fields: { text: "T", kind: "conclusion" } });
+  assert.deepEqual([conclusion.kind, conclusion.by], ["conclusion", "assistant"]);
+  assert.equal((await call(setup, "research_write", { collection: "findings", fields: { text: "S" } })).kind, "ai_suggestion", "a finding with no kind is still a suggestion");
+  const theirs = await saturn.api("POST", `${setup.route}/findings`, { text: "Mine", kind: "conclusion", by: "assistant" });
+  assert.equal(theirs.by, undefined, "what the person writes in the app is theirs, whatever it says");
+  const changed = await call(setup, "research_write", { collection: "findings", id: theirs.id, expectedRevision: 1, fields: { text: "Changed" } });
+  assert.deepEqual([changed.text, changed.changedBy], ["Changed", "assistant"]);
+
+  const experiment = await call(setup, "research_write", { collection: "experiments", fields: { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] }, labels: ["Good", "Bad"] } });
+  const { version } = await call(setup, "research_run", { action: "freeze", experiment: experiment.id });
+  const { run } = await call(setup, "research_run", { action: "start", version: version.id });
+  assert.equal((await call(setup, "research_wait", { run: run.id, seconds: 60 })).run.status, "completed");
+  assert.match(await refused(setup, "research_write", { collection: "labels", fields: { runId: run.id, sampleId: "s1", modelId: "m", label: "Correct" } }), /Good, Bad/);
+  const label = await call(setup, "research_write", { collection: "labels", fields: { runId: run.id, sampleId: "s1", modelId: "m", label: "Good", note: "matches" } });
+  assert.deepEqual([label.label, label.by], ["Good", "assistant"]);
+  const relabeled = await saturn.api("POST", `${setup.route}/runs/${run.id}/labels`, { sampleId: "s1", modelId: "m", label: "Bad" });
+  assert.equal(relabeled.by, "person");
+  assert.match(await refused(setup, "research_write", { collection: "labels", fields: { runId: run.id, sampleId: "s1", modelId: "m", label: "Good" } }), /person labelled/);
+  assert.match(await refused(setup, "research_write", { collection: "hypotheses", id: hypothesis.id, expectedRevision: 3, fields: { verdict: "supported" } }), /person set this verdict/);
+  assert.equal((await call(setup, "research_write", { collection: "hypotheses", id: hypothesis.id, expectedRevision: 3, fields: { title: "H, clearer" } })).verdict, "inconclusive", "it may still edit the wording");
+
+  // Still the person's: records that are never written, and the controls that have no tool.
   assert.match(await refused(setup, "research_write", { collection: "versions", fields: {} }), /cannot make records/);
-  const theirs = await saturn.api("POST", `${setup.route}/findings`, { text: "Mine", kind: "conclusion" });
-  assert.match(await refused(setup, "research_write", { collection: "findings", id: theirs.id, expectedRevision: 1, fields: { text: "Changed" } }), /the person's/);
-  assert.equal((await saturn.api("GET", `${setup.route}/hypotheses/${hypothesis.id}`)).verdict, "undecided");
   const tools = (await saturn.api("GET", "/connections/mcp")).find((item) => item.id === "research").tools.map((tool) => tool.toolId);
-  for (const tool of tools) assert.doesNotMatch(tool, /label|verdict|policy|mode|merge/);
+  for (const tool of tools) assert.doesNotMatch(tool, /policy|mode|merge|lock/);
 });
 
 test("a change needs the revision it read, and a stale one changes nothing", async () => {

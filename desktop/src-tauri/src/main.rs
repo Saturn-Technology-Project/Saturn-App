@@ -17,6 +17,9 @@ use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindow, Webvie
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 pub(crate) const MAIN_WINDOW: &str = "main";
+/// The window the assistant's pointer is drawn in, and the title computer use knows it by and passes over.
+pub(crate) const POINTER_WINDOW: &str = "pointer";
+const POINTER_TITLE: &str = "Saturn pointer";
 const BACKGROUND: tauri::window::Color = tauri::window::Color(0x19, 0x19, 0x19, 0xff);
 
 /// Where the interface is served, known once it is up.
@@ -208,6 +211,46 @@ pub(crate) fn show_main_window(app: &AppHandle) {
     }
 }
 
+/// Opens the window Saturn draws the assistant's pointer in while it uses the computer: over the whole main display,
+/// transparent, letting every click through, on every desktop, and kept out of screenshots so the assistant never sees
+/// its own pointer. It shows nothing until the assistant acts.
+fn open_pointer_window(app: &AppHandle) {
+    if app.get_webview_window(POINTER_WINDOW).is_some() {
+        return;
+    }
+    let Ok(Some(monitor)) = app.primary_monitor() else {
+        return;
+    };
+    let scale = monitor.scale_factor();
+    let size = monitor.size().to_logical::<f64>(scale);
+    let position = monitor.position().to_logical::<f64>(scale);
+    let mut interface = interface_url();
+    let script = bridge_script(&app.state::<Runtime>(), &interface);
+    interface.set_fragment(Some("pointer"));
+    let built = WebviewWindowBuilder::new(app, POINTER_WINDOW, WebviewUrl::External(interface))
+        .title(POINTER_TITLE)
+        .initialization_script(script)
+        .position(position.x, position.y)
+        .inner_size(size.width, size.height)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .resizable(false)
+        .always_on_top(true)
+        .visible_on_all_workspaces(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .focusable(false)
+        .content_protected(true)
+        .build();
+    match built {
+        Ok(window) => {
+            let _ = window.set_ignore_cursor_events(true);
+        }
+        Err(error) => eprintln!("Could not open the pointer window: {error}"),
+    }
+}
+
 /// Allows the commands to Saturn's own pages, at the exact port the interface got.
 fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
     let capability = serde_json::json!({
@@ -253,7 +296,10 @@ async fn start_up(app: AppHandle, layout: Layout) {
         eprintln!("Could not allow the interface's commands: {error}");
     }
     let handle = app.clone();
-    let _ = app.run_on_main_thread(move || show_main_window(&handle));
+    let _ = app.run_on_main_thread(move || {
+        show_main_window(&handle);
+        open_pointer_window(&handle);
+    });
 }
 
 fn main() {

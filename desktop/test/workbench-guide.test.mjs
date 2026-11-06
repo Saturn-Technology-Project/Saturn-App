@@ -48,8 +48,12 @@ test("the assistant is told every screen and place, and that the person does the
   const told = assistantInstructions();
   for (const screen of SCREENS) assert.ok(told.includes(`${screen}:`), screen);
   for (const place of GUIDE_PLACES) assert.ok(told.includes(`- ${place.id}:`), place.id);
-  assert.match(told, /cannot click/);
-  assert.match(told, /Verdicts, labels, modes/);
+  assert.match(told, /Without computer use you cannot click/);
+  assert.match(told, /you may operate Saturn itself/);
+  assert.match(told, /Never click in the Assistant panel itself/);
+  assert.match(told, /set a hypothesis's verdict, label samples and write conclusions/);
+  assert.match(told, /Never overwrite a verdict or a label the person set/);
+  assert.match(told, /Modes, releasing a lock, merging a task and loosening a run's sandbox are theirs/);
   assert.equal(TOUR_STEPS.filter((step) => told.includes(step.text)).length, TOUR_STEPS.length - 2, "the same words as the tour");
 });
 

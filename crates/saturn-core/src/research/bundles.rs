@@ -26,7 +26,7 @@ const COLLECTIONS: [&str; 10] = [
     "inspection_sessions",
     "artifacts",
 ];
-const STREAMS: [&str; 7] = [
+const STREAMS: [&str; 10] = [
     "samples.jsonl",
     "metrics.jsonl",
     "artifacts.jsonl",
@@ -34,6 +34,9 @@ const STREAMS: [&str; 7] = [
     "stdout.log",
     "stderr.log",
     "run.json",
+    "evidence.json",
+    "report.jsonl",
+    "snapshot.json",
 ];
 const MAX_DATA: usize = 64 * 1024 * 1024;
 const MAX_BUNDLE: u64 = 96 * 1024 * 1024;

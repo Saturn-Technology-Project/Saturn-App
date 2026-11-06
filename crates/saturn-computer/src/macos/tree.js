@@ -4,7 +4,8 @@ function run(argv) {
     const late = () => Date.now() - started > p.budget;
     const proc = Application('System Events').processes.whose({ unixId: p.pid })[0];
     if (!proc.windows().length) throw new Error('The app has no open window');
-    let root = proc.windows[0];
+    const pick = (proc) => { const all = proc.windows(); for (let i = 0; i < all.length; i++) { try { if (all[i].name() !== 'Saturn pointer') return proc.windows[i]; } catch (e) { return proc.windows[i]; } } return proc.windows[0]; };
+    let root = pick(proc);
     for (const i of p.root) root = root.uiElements[i];
     const settableRoles = ['AXTextField', 'AXTextArea', 'AXComboBox', 'AXSearchField', 'AXSecureTextField', 'AXSlider', 'AXCheckBox', 'AXRadioButton', 'AXPopUpButton'];
     const safe = (f, fallback) => { try { const v = f(); return v === null || v === undefined ? fallback : v; } catch (e) { return fallback; } };

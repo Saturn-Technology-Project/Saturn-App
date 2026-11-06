@@ -7,7 +7,7 @@ description: Write findings tied to runs, with evidence and uncertainty. Read wh
 ```
 research_write { collection: "findings", fields: { text: "...", runIds: ["..."] } }
 ```
-Yours are always recorded as AI suggestions, and show that way to the person. Only a person records a conclusion.
+A finding with no `kind` is recorded as an AI suggestion. Give `kind: "conclusion"` only when the evidence is in and named, and `kind: "observation"` for what you measured without drawing a conclusion. Every finding you write or change is marked as yours (`by` or `changedBy: "assistant"`), and the person can change it.
 
 ## A good finding
 - **Says one thing**, and names the runs it rests on.
@@ -17,7 +17,7 @@ Yours are always recorded as AI suggestions, and show that way to the person. On
 
 ```
 Measured: on run run_ab12 (ioi-test, n=500), the SFT checkpoint's mean logit difference was +0.42 above its parent (95% CI 0.31 to 0.53).
-Suggests: hypothesis H1 is supported. The verdict is yours.
+Suggests: hypothesis H1 is supported (verdict set to supported, resting on this finding).
 Limits: one seed. 12% of samples use templates that also appear in training. I read 40 samples; 6 were right for an unclear reason.
 ```
 

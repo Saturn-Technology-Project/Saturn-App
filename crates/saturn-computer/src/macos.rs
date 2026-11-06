@@ -272,10 +272,60 @@ pub(crate) async fn accessibility_tree(
 ) -> Result<Tree, Failure> {
     let params = json!({ "pid": pid, "root": root, "limit": limit, "depth": 12, "budget": TREE_BUDGET_MS, "wide": 150 });
     let timeout = Duration::from_millis(TREE_BUDGET_MS) + TIMEOUT;
-    let read = jxa(include_str!("macos/tree.js"), &params, timeout).await?;
+    let mut tree = read_tree(&params, timeout).await?;
+    // WebKit builds a web view's tree only once something asks for it: the first read of a window holding one (Saturn
+    // itself, Safari, any WebKit app) finds an empty group where the page will be. It is read again once it is built.
+    for _ in 0..WEB_VIEW_RETRIES {
+        if !root.is_empty() || !web_view_unbuilt(&tree.nodes) {
+            break;
+        }
+        tokio::time::sleep(WEB_VIEW_WAIT).await;
+        let again = read_tree(&params, timeout).await?;
+        if again.nodes.len() > tree.nodes.len() {
+            tree = again;
+        }
+    }
+    Ok(tree)
+}
+
+/// How often a window whose web view has not built its tree yet is read again, and how long to wait each time.
+const WEB_VIEW_RETRIES: usize = 3;
+const WEB_VIEW_WAIT: Duration = Duration::from_millis(400);
+
+/// One read of a front window's tree.
+async fn read_tree(params: &Value, timeout: Duration) -> Result<Tree, Failure> {
+    let read = jxa(include_str!("macos/tree.js"), params, timeout).await?;
     Ok(Tree {
         nodes: read["nodes"].as_array().cloned().unwrap_or_default(),
         truncated: js::truthy(read.get("truncated")),
+    })
+}
+
+/// Whether a window's tree looks like a web view that has not built its tree yet: an unnamed group or scroll area near
+/// the window with nothing in it, in a tree of only a few elements.
+pub(crate) fn web_view_unbuilt(nodes: &[Value]) -> bool {
+    if nodes.len() > 24 {
+        return false;
+    }
+    let path = |node: &Value| -> Vec<i64> {
+        node["path"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_i64)
+            .collect()
+    };
+    let paths: Vec<Vec<i64>> = nodes.iter().map(path).collect();
+    nodes.iter().zip(&paths).any(|(node, own)| {
+        let role = node["role"].as_str().unwrap_or_default();
+        let empty_name = node["name"].as_str().is_none_or(str::is_empty);
+        let leaf = !paths
+            .iter()
+            .any(|other| other.len() > own.len() && other.starts_with(own));
+        matches!(role, "AXGroup" | "AXScrollArea")
+            && empty_name
+            && leaf
+            && node["depth"].as_u64().is_some_and(|depth| depth <= 3)
     })
 }
 
@@ -389,4 +439,50 @@ pub(crate) async fn launch_app(
             .unwrap_or_default();
         Failure::plain(format!("Could not open {named}: {}", failure.message))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn node(path: &[i64], role: &str, name: &str) -> Value {
+        json!({ "path": path, "depth": path.len(), "role": role, "name": name })
+    }
+
+    #[test]
+    fn a_web_view_not_built_yet_is_an_empty_group_near_the_window() {
+        // Saturn's window on the first read: the traffic lights, and two nested groups with nothing in them.
+        let first = [
+            node(&[0], "AXButton", ""),
+            node(&[1], "AXButton", ""),
+            node(&[2], "AXButton", ""),
+            node(&[3], "AXGroup", ""),
+            node(&[3, 0], "AXGroup", ""),
+        ];
+        assert!(web_view_unbuilt(&first));
+    }
+
+    #[test]
+    fn a_built_page_or_a_plain_native_window_is_read_once() {
+        let built = [
+            node(&[0], "AXButton", ""),
+            node(&[3], "AXGroup", ""),
+            node(&[3, 0], "AXGroup", ""),
+            node(&[3, 0, 0], "AXScrollArea", ""),
+            node(&[3, 0, 0, 0], "AXWebArea", "Home – Saturn"),
+            node(&[3, 0, 0, 0, 0], "AXButton", "Home"),
+        ];
+        assert!(!web_view_unbuilt(&built));
+        let native = [
+            node(&[0], "AXButton", ""),
+            node(&[1], "AXTextField", "Name"),
+            node(&[2], "AXGroup", "Options"),
+        ];
+        assert!(
+            !web_view_unbuilt(&native),
+            "a named group is the app's own, not a page being built"
+        );
+        let many: Vec<Value> = (0..30).map(|i| node(&[i], "AXGroup", "")).collect();
+        assert!(!web_view_unbuilt(&many), "a large tree is read as it is");
+    }
 }

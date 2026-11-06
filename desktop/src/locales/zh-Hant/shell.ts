@@ -20,8 +20,8 @@ export default {
   "Saturn is organized around your research, not around chats: questions, code, models, experiments, samples, data, long tasks, protection and the environment. ⌘1 to ⌘9 switch to the first nine.":
     "Saturn 以你的研究為核心，而不是對話：問題、程式碼、模型、實驗、樣本、資料、長時間任務、防護與環境。按 ⌘1 到 ⌘9 可切換到前九個畫面。",
   "Home: where the work stands": "首頁：研究進度",
-  "The question you are on, its hypotheses and their verdicts, what changed since you last looked, and what is still open. A verdict is yours to set; a run that finishes says only that it executed.":
-    "你正在研究的問題、相關假說與判定、上次查看後的變更，以及尚待處理的事項。判定只由你設定；執行完成只代表程式已跑完。",
+  "The question you are on, its hypotheses and their verdicts, what changed since you last looked, and what is still open. You or the assistant set a verdict, and it says which of you did; a run that finishes says only that it executed.":
+    "你正在研究的問題、相關假說與判定、上次查看後的變更，以及尚待處理的事項。判定可由你或研究助理設定，並標示是誰設定的；執行完成只代表程式已跑完。",
   "Workspace: code beside its results": "工作區：程式碼與結果並列",
   "Open a file, write it, and run the experiment's command. Below the editor: the run, what it cost, its samples, your findings, a look inside the model, and a terminal.":
     "開啟並編輯檔案，然後執行實驗指令。編輯器下方會顯示這次執行、花費、樣本、你的發現、模型內部檢視，以及終端機。",
@@ -69,7 +69,7 @@ export default {
   "Questions": "問題",
   "Write down the question this project is trying to answer.": "寫下這個專案想回答的問題。",
   "Hypotheses": "假說",
-  "Add a hypothesis, and set its verdict when you have evidence. Only you set it.": "新增假說，並在取得證據後設定判定。只有你能設定判定。",
+  "Add a hypothesis, and set its verdict when you have evidence. A verdict the assistant set is marked as its own.": "新增假說，有證據時設定判定。研究助理設定的判定會標示為它設定的。",
   "Project files": "專案檔案",
   "Open a file to write it.": "開啟檔案即可編輯。",
   "The experiment's command": "實驗指令",
@@ -281,7 +281,8 @@ export default {
   "None": "無",
   "New question": "新問題",
   "Add": "新增",
-  "A verdict is yours to set. A run that completes says only that it executed.": "判定只由你設定。執行完成只代表程式已跑完。",
+  "You or the assistant set a verdict, and it says which of you did. A run that completes says only that it executed.": "判定可由你或研究助理設定，並標示是誰設定的。執行完成只代表程式已跑完。",
+  "Set by the assistant": "由研究助理設定",
   "Verdict": "判定",
   "New hypothesis": "新假說",
 
@@ -497,4 +498,5 @@ export default {
   "Delete this task? Its worktree and branch {branch} are discarded with it, including anything not merged.": "要刪除這個任務嗎？它的 worktree 與分支 {branch} 會一併捨棄，包括尚未合併的內容。",
   "Delete this task? Its conversation is removed; its worktree was already merged or discarded.": "要刪除這個任務嗎？會移除它的對話；它的 worktree 已經合併或捨棄。",
   "Delete task": "刪除任務",
+  "Saturn · typing…": "Saturn · 輸入中…",
 } satisfies Dictionary;

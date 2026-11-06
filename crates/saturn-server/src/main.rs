@@ -20,6 +20,17 @@ use tokio::io::AsyncReadExt;
 
 /// How long connections get to finish once the runtime is stopping.
 const LAST_CONNECTIONS: std::time::Duration = std::time::Duration::from_secs(2);
+/// How long stopping may take in all: a step that hangs must not keep the runtime, and whoever waits on it, running.
+const STOP_LIMIT: std::time::Duration = std::time::Duration::from_secs(10);
+/// Which step of stopping is under way, so a runtime that has to give up says where it was held.
+static STOPPING_STEP: std::sync::Mutex<&str> = std::sync::Mutex::new("");
+
+/// Notes the step of stopping that starts now.
+fn stopping_step(step: &'static str) {
+    if let Ok(mut current) = STOPPING_STEP.lock() {
+        *current = step;
+    }
+}
 /// The largest request body, which leaves room for a message's images.
 const BODY_LIMIT: usize = 10 * 1024 * 1024;
 
@@ -173,13 +184,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             stop_requested().await;
+            // However the steps below go, the runtime is gone within the limit, and says which step held it.
+            tokio::spawn(async {
+                tokio::time::sleep(STOP_LIMIT).await;
+                let step = STOPPING_STEP.lock().map(|step| *step).unwrap_or_default();
+                eprintln!(
+                    "Saturn Runtime: stopping took longer than {} s, at {step}; exiting",
+                    STOP_LIMIT.as_secs()
+                );
+                std::process::exit(0);
+            });
             // What runs on the runtime's behalf ends with it. A client still listening must not hold it open.
+            stopping_step("jobs");
             stopping.jobs.stop_all(None);
+            stopping_step("research runs");
             stopping.research_end_runs().await;
+            stopping_step("notebooks");
             stopping.research_notebooks_stop_all().await;
+            stopping_step("agent programs");
             stopping.stop_programs();
+            stopping_step("the browser");
             stopping.browser.close().await;
+            stopping_step("telemetry");
             saturn_telemetry::stop().await;
+            stopping_step("last connections");
             tokio::spawn(async {
                 tokio::time::sleep(LAST_CONNECTIONS).await;
                 std::process::exit(0);
