@@ -464,7 +464,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     </div>
   );
   const files = (
-    <nav className="flex flex-1 flex-col gap-px overflow-auto bg-panel px-2 py-2.5" aria-label={t("Project")} data-tour="workspace-files">
+    <nav className="flex min-h-0 flex-1 flex-col gap-px overflow-auto bg-panel px-2 py-2.5 [&>*]:shrink-0" aria-label={t("Project")} data-tour="workspace-files">
       {sidebar.questions.length ? (
         <section className="mb-3 flex flex-col gap-px">
           <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">{t("Questions")}</div>
@@ -481,7 +481,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           {sidebar.models.length === 1 ? t("Lineage · 1 node") : t("Lineage · {count} nodes", { count: sidebar.models.length })}
         </Button>
       </section>
-      <section className="mb-3 flex min-h-0 flex-col gap-1">
+      <section className="mb-3 flex flex-col gap-1">
         <div className="mb-0.5 px-1.5 text-[11px] font-semibold text-muted-foreground">{t("Files")}</div>
         <Input className="h-7 text-xs" value={fileQuery} placeholder={t("Find a file")} aria-label={t("Find a file")} onChange={(event) => setFileQuery(event.target.value)} />
         {foundFiles ? (
