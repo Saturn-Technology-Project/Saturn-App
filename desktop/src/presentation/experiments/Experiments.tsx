@@ -44,6 +44,7 @@ import { RunSandbox } from "./RunSandbox.js";
 import { ScoreChart } from "./ScoreChart.js";
 import { ImportResults } from "./ImportResults.js";
 import { TrainingMetrics } from "./TrainingMetrics.js";
+import { ExperimentTitle } from "./ExperimentTitle.js";
 import { ComparisonPanel } from "./ComparisonPanel.js";
 import { RemoteRun } from "../environment/RemoteExecution.js";
 import { Artifacts } from "./Artifacts.js";
@@ -249,6 +250,7 @@ export function Experiments(props: ScreenProps) {
       )) : null}
       {draft ? (
         <>
+          <ExperimentTitle key={`${draft.id}:${draft.revision}`} title={draft.title} onRename={(title) => change({ title })} />
           <div className="mt-3 mb-4 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2" data-tour="experiments-links">
             <Choice label={t("Question")} className={STAT} value={draft.questionId ?? NOT_SET} options={[{ value: NOT_SET, label: t("Not set") }, ...(value?.questions ?? []).map((item: Question) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ questionId: chosen === NOT_SET ? undefined : chosen })} />
             <Choice label={t("Hypothesis")} className={STAT} value={draft.hypothesisId ?? NOT_SET} options={[{ value: NOT_SET, label: t("Not set") }, ...(value?.hypotheses ?? []).map((item: Hypothesis) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ hypothesisId: chosen === NOT_SET ? undefined : chosen })} />

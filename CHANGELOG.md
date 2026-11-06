@@ -2,6 +2,12 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **An experiment can be renamed.** The experiment page now shows the experiment's name above its question and hypothesis, and changing it there renames it; its versions and runs stay with it. A blank name is not saved, and a change made meanwhile elsewhere, by the assistant for one, is reported rather than overwritten.
+
 ## 0.4.1 (2026-11-07)
 
 ### Changed
