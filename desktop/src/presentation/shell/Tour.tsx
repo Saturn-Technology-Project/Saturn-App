@@ -8,7 +8,7 @@ import { Notice } from "../ui/base/Notice.js";
 import { Textarea } from "../ui/base/Textarea.js";
 import { messageOf } from "../ui/Parts.js";
 import type { Screen } from "./navigation.js";
-import { tourSteps } from "../../domain/workbench.js";
+import { tourSteps, type TourStep } from "../../domain/workbench.js";
 import { followTourTarget, type TourBox } from "./tour-focus.js";
 
 /** Where the boxed element is on screen. */
@@ -49,6 +49,8 @@ export function Tour(props: {
   onFinish: () => Promise<void>;
   /** Something its last step opened is over it: Escape belongs to that. */
   covered: boolean;
+  /** The steps to walk, the whole tour unless told otherwise. */
+  steps?: TourStep[];
 }) {
   const { project, go, covered } = props;
   const coveredNow = useRef(covered);
@@ -59,8 +61,9 @@ export function Tour(props: {
   const [question, setQuestion] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const step = TOUR_STEPS[at];
-  const last = at === TOUR_STEPS.length - 1;
+  const steps = props.steps ?? TOUR_STEPS;
+  const step = steps[at];
+  const last = at === steps.length - 1;
 
   // A new step never reuses the preceding rectangle. Follow actual layout frames, including delayed panels and resize.
   useLayoutEffect(() => {
@@ -112,7 +115,7 @@ export function Tour(props: {
         }}
       >
         <div className="text-[11px] text-muted-foreground">
-          {t("{step} of {count}", { step: at + 1, count: TOUR_STEPS.length })}
+          {t("{step} of {count}", { step: at + 1, count: steps.length })}
         </div>
         <h2 id="lab-tour-title" className="m-0! text-[15px] font-semibold">{step.title}</h2>
         <p className="text-xs leading-normal text-muted-foreground">{step.text}</p>

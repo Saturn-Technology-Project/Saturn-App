@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
-import { isWorkScreen, screenLabels, statusText, windowTitle } from "../../domain/workbench.js";
+import { firstLaunchSteps, isWorkScreen, screenLabels, statusText, windowTitle } from "../../domain/workbench.js";
 import type { Model, Profile, Project } from "../../domain/model.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
@@ -20,6 +20,7 @@ import { ScreenSwitch } from "./ScreenSwitch.js";
 import { SettingsHost } from "./SettingsHost.js";
 import { Tour } from "./Tour.js";
 import { useNotifications } from "./useNotifications.js";
+import { onAskAssistant } from "../../application/assistant-requests.js";
 
 /** A screen's row in the rail. Its icon is the same color as its name; where you are is marked by a lighter row. */
 const RAIL_ITEM = "flex h-[34px] w-full flex-none cursor-pointer appearance-none items-center gap-2.5 rounded-[7px] border-0 bg-transparent px-2.5 text-[12.5px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-muted aria-[current=page]:bg-(--selected) aria-[current=page]:font-semibold max-[1080px]:h-[38px] max-[1080px]:justify-center max-[1080px]:px-0 [&>svg]:flex-none";
@@ -50,6 +51,9 @@ function storedTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+/** The short tour the first launch shows; asking for the tour in Commands walks the whole of it. */
+const FIRST_LAUNCH = firstLaunchSteps(t);
+
 /** The workbench: one project at a time, its screens, and what every screen shares. */
 export function ResearchApp() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -78,6 +82,9 @@ export function ResearchApp() {
   const toggleAssistant = useCallback(() => {
     (isWorkScreen(screen) ? setAssistantAtWork : setAssistantElsewhere)((open) => !open);
   }, [screen]);
+
+  // A request for the assistant from a screen opens the panel there, where the request waits in its box.
+  useEffect(() => onAskAssistant(() => (isWorkScreen(screen) ? setAssistantAtWork : setAssistantElsewhere)(true), false), [screen]);
 
   // The window's own title, which is what computer use and assistive technology find it by.
   const title = windowTitle(SCREEN_LABELS[screen], project?.name ?? null);
@@ -270,7 +277,7 @@ export function ResearchApp() {
       {touring ? (
         // Out of sight, not gone, under what its last step opens: it picks up where it was when that closes.
         <div hidden={settings || Boolean(accessRequest)}>
-          <Tour covered={settings || Boolean(accessRequest)} project={project?.access ? project : null} models={models} go={go} onAddProject={addProject} onOpenSettings={() => setSettings(true)} onFinish={finishTour} />
+          <Tour covered={settings || Boolean(accessRequest)} steps={tour ? undefined : FIRST_LAUNCH} project={project?.access ? project : null} models={models} go={go} onAddProject={addProject} onOpenSettings={() => setSettings(true)} onFinish={finishTour} />
         </div>
       ) : null}
     </div>

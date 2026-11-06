@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
 import { changedSince, lastActive, reviewProgress, runHasResults, runStatusLabel, type Hypothesis, type Verdict } from "../../domain/research.js";
@@ -12,6 +12,7 @@ import { useRecords } from "../ui/useRecords.js";
 import { Heading, Row } from "./Row.js";
 import { ImportResults } from "../experiments/ImportResults.js";
 import { ResearchBundle } from "../experiments/ResearchBundle.js";
+import { FirstStudy } from "./FirstStudy.js";
 
 const service = desktop.research;
 const VERDICTS: Verdict[] = ["undecided", "supported", "refuted", "inconclusive"];
@@ -42,12 +43,26 @@ export function Home(props: ScreenProps) {
         events: (await service.events(projectId)).items,
         review: last ? reviewProgress(await service.summary(projectId, last.id), await service.labels(projectId, last.id)) : null,
         lastWithResults: last,
+        experiments: (await service.experiments(projectId)).items,
+        // A project whose environment cannot be read is treated as not checked yet.
+        environment: await service.environment(projectId).catch(() => null),
       };
     },
     props.notify,
   );
   const [question, setQuestion] = useState("");
   const [hypothesis, setHypothesis] = useState("");
+  const [studyHidden, setStudyHidden] = useState(() => Boolean(session.firstStudyHidden));
+  const fields = { question: useRef<HTMLInputElement>(null), hypothesis: useRef<HTMLInputElement>(null) };
+  const focusField = (field: "question" | "hypothesis") => {
+    const input = fields[field].current;
+    input?.scrollIntoView({ block: "center", behavior: "smooth" });
+    input?.focus({ preventScroll: true });
+  };
+  const hideStudy = () => {
+    setStudyHidden(true);
+    service.saveSession(projectId, { ...service.loadSession(projectId), firstStudyHidden: true });
+  };
 
   async function act(action: () => Promise<unknown>) {
     try {
@@ -82,6 +97,23 @@ export function Home(props: ScreenProps) {
   return (
     <Page title={lastQuestion ? lastQuestion.title : t("Start {project}", { project: props.project.name })} lead={lastFinding ? t("Latest note: {text}", { text: lastFinding.text }) : t("Write down the question this project is trying to answer, then work on it.")}>
       {active ? <div className={MUTED}>{t("Last active {time}", { time: when(active) })}</div> : null}
+      {value && !studyHidden ? (
+        <FirstStudy
+          progress={{
+            environmentChecked: Boolean(value.environment?.python && value.environment.report),
+            questions: value.questions.length,
+            hypotheses: value.hypotheses.length,
+            experiments: value.experiments.filter((item) => !item.imported).length,
+            imported: value.runs.filter((run) => run.imported).length,
+            runsWithResults: value.runs.filter((run) => !run.imported && runHasResults(run.status)).length,
+            labeled: value.review?.labeled ?? 0,
+            findings: value.findings.length,
+          }}
+          go={props.go}
+          onField={focusField}
+          onHide={hideStudy}
+        />
+      ) : null}
       <ImportResults projectId={projectId} onImported={() => { void refresh(); props.go("Experiments"); }} notify={props.notify} />
       <ResearchBundle projectId={projectId} notify={props.notify} go={props.go} onImported={() => void refresh()} />
       <div className="mt-3.5 flex flex-wrap items-end gap-2">
@@ -166,7 +198,7 @@ export function Home(props: ScreenProps) {
         }}
       >
         <Field label={t("New question")} className="flex-[1_1_160px]">
-          <Input value={question} onChange={(event) => setQuestion(event.target.value)} />
+          <Input ref={fields.question} value={question} onChange={(event) => setQuestion(event.target.value)} />
         </Field>
         <Button type="submit" variant="outline" disabled={!question.trim()}>
           {t("Add")}
@@ -194,7 +226,7 @@ export function Home(props: ScreenProps) {
         }}
       >
         <Field label={t("New hypothesis")} className="flex-[1_1_160px]">
-          <Input value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} />
+          <Input ref={fields.hypothesis} value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} />
         </Field>
         <Button type="submit" variant="outline" disabled={!hypothesis.trim()}>
           {t("Add")}

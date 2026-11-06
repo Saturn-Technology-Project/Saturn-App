@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { onAskAssistant } from "../../application/assistant-requests.js";
 import { desktop } from "../../application/desktop.js";
 import { errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
 import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../../domain/chat-mode.js";
@@ -48,6 +49,16 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   const box = useRef<HTMLTextAreaElement>(null);
   const log = useFollow<HTMLDivElement>(threadId);
   const conversation = useConversation(agent?.id ?? null, threadId, notify);
+
+  // Another screen may put a request in the box: the person reads it, changes it if they like, and sends it.
+  useEffect(
+    () =>
+      onAskAssistant((prompt) => {
+        setText(prompt);
+        window.requestAnimationFrame(() => box.current?.focus());
+      }),
+    [],
+  );
 
   const load = useCallback(async () => {
     try {

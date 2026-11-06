@@ -147,6 +147,24 @@ export function tourSteps(t: Words = english): TourStep[] {
   ];
 }
 
+/**
+ * The first launch's tour: what Saturn is, where the screens are, the assistant, and the project to start in. Home's
+ * checklist takes it from there; the whole tour stays in Commands.
+ */
+export function firstLaunchSteps(t: Words = english): TourStep[] {
+  const steps = tourSteps(t);
+  const pick = (id: string) => steps.find((step) => step.id === id)!;
+  return [
+    {
+      ...pick("welcome"),
+      text: t("Read the method, write the code yourself, run the experiment and read every sample, on your own computer. Three short steps show where things are; then a checklist on Home takes you through your first study. The whole tour is in Commands (⌘K) as \"Take the tour\"."),
+    },
+    pick("rail"),
+    pick("assistant"),
+    pick("start"),
+  ];
+}
+
 /** The tour in English, which is also what the assistant is told about each screen. */
 export const TOUR_STEPS: TourStep[] = tourSteps();
 
