@@ -52,7 +52,17 @@ export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keep
     // A child that never started has no process to wait for.
     if (child.pid !== undefined) {
       child.kill("SIGTERM");
-      await exited;
+      // The runtime gives itself ten seconds to stop; one still there long after is ended, and what it said is shown,
+      // so a test file never hangs on it.
+      let timer;
+      const late = await Promise.race([exited.then(() => false), new Promise((resolve) => { timer = setTimeout(() => resolve(true), 20_000); })]);
+      clearTimeout(timer);
+      if (late) {
+        child.kill("SIGKILL");
+        await exited;
+        if (!keepData) await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+        throw new Error(`The runtime did not stop within 20 s of being asked:\n${output.slice(-4000)}`);
+      }
     }
     if (!keepData) await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   };

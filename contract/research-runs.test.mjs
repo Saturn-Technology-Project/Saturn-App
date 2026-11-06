@@ -384,13 +384,15 @@ test("a change to a record is announced on the live updates, and is not in the a
   const reader = response.body.getReader();
   await saturn.api("POST", `${bed.route}/questions`, { title: "Announced" });
   let seen = "";
-  const deadline = Date.now() + 10_000;
-  while (!seen.includes("event: research") && Date.now() < deadline) {
-    const { value, done } = await reader.read();
+  // A read that never gets an event is cancelled at the deadline, rather than holding the stream and the test open.
+  const deadline = setTimeout(() => reader.cancel().catch(() => undefined), 10_000);
+  while (!seen.includes("event: research")) {
+    const { value, done } = await reader.read().catch(() => ({ done: true }));
     if (done) break;
     seen += Buffer.from(value).toString();
   }
-  await reader.cancel();
+  clearTimeout(deadline);
+  await reader.cancel().catch(() => undefined);
   assert.match(seen, /event: research/);
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.doesNotMatch(await readFile(path.join(saturn.runtime.dataDir, "state.json"), "utf8"), /Announced/);
