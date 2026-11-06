@@ -177,6 +177,11 @@ impl Supervised {
         Self { stop, done }
     }
 
+    /// Whether the program has ended by itself.
+    pub fn ended(&self) -> bool {
+        self.done.is_finished()
+    }
+
     /// Ends the program and waits until it has.
     pub async fn end(self) {
         let _ = self.stop.send(());
