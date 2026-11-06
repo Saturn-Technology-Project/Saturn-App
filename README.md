@@ -59,7 +59,7 @@ A run's program needs nothing from Saturn but an environment variable: it append
 | **Inspect** | Activations, patching, layer sweeps, two models on one prompt, and sparse-autoencoder features, on a run or in an inspection session of its own |
 | **Tasks** | Long work handed to an agent in its own git worktree: what it may touch, its progress and approvals, its diff, then merge or discard |
 | **Protection** | Refusals and unexplained changes in one place, and what each backend can and cannot enforce |
-| **Environment** | The Python, packages and devices runs use; kits to install (interpretability, post-training, analysis, notebooks); the SSH host for remote runs |
+| **Environment** | The Python, packages and devices runs use; kits to install (interpretability, post-training, analysis, notebooks); the SSH host for remote runs, where Connect finds Saturn's worker and installs it when it is missing |
 
 Settings holds models, MCP servers and skills, usage, memory, permissions, hooks, plugins, telemetry, logs and the interface language (English or Traditional Chinese). Commands (⌘K) reach everything from the keyboard, and a tour boxes each part of the interface on first launch.
 

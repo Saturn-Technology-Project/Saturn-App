@@ -2,6 +2,16 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **Saturn installs its own worker on an SSH host.** In Environment, Connect finds this version's worker on the host and uses it; when it is missing or another version, Install worker puts the right one in `~/.saturn/worker/<version>` in your home folder, with no administrator rights. It is this computer's own program when the host is the same kind of system, and otherwise the release's Linux worker (x86-64 or ARM), used only if it matches the hash built into this Saturn, and hashed again on the host. Releases now carry these workers. The assistant can see whether the worker is ready; installing stays yours.
+
+### Changed
+
+- **A worker of another Saturn version is refused.** Every request now carries Saturn's version, and a check compares it, so a host can no longer run jobs with a worker that does not match the app.
+
 ## 0.4.1 (2026-11-07)
 
 ### Changed
