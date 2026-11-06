@@ -71,7 +71,8 @@ jobs:
   macos:
     name: macOS (arm64)
     needs: [check, version]
-    runs-on: macos-14
+    # GitHub no longer runs macos-14 jobs. The app still supports macOS 12 and later (minimumSystemVersion).
+    runs-on: macos-15
     permissions:
       contents: read
       # Build provenance: anyone can check a download was built by this workflow from this repository.
