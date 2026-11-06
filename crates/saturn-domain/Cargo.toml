@@ -16,7 +16,7 @@ jiff = { version = "0.2", default-features = false, features = ["std"] }
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-sha2 = "0.10"
+sha2 = "0.11"
 # The line diff behind the reviews of agent edits.
 similar = { version = "3", default-features = false }
 url = "2"

@@ -13,7 +13,8 @@ name: Release
 #   5. release   only for a new version: tags the commit v<version> and publishes the release, with its notes from
 #                .github/release-notes.md and the CHANGELOG section for the version (or Unreleased).
 #
-# To release: raise the version in desktop/package.json and Cargo.toml (and their lock files), and merge to main.
+# To release: node scripts/set-version.mjs <version> (Cargo.toml, desktop/package.json and their lock files), give the
+# CHANGELOG that version's section, and merge to main.
 # Pushing a v* tag that matches the files, or running the workflow by hand, does the same.
 #
 # Run by hand, "platforms" can test and package one system alone, to try a fix; a release needs both.
