@@ -25,10 +25,12 @@ use crate::{CoreError, Kernel, locked};
 const GRACE: Duration = Duration::from_secs(3);
 /// How many bad lines a run records.
 const PROBLEMS_KEPT: usize = 20;
-/// Written by the process itself, so a process is known even if the runtime dies right after starting it.
+/// The process's id and start time, written by Saturn as soon as it starts, so a runtime that dies later still knows
+/// which process was the run's.
 const IDENTITY_FILE: &str = "process.identity";
-/// Starts the command with the process's own id and start time on record. `exec` keeps both.
-const WRAPPER: &str = r#"{ echo $$; LC_ALL=C ps -o lstart= -p $$ 2>/dev/null; } > "$SATURN_RUN_DIRECTORY/process.identity.tmp" && mv "$SATURN_RUN_DIRECTORY/process.identity.tmp" "$SATURN_RUN_DIRECTORY/process.identity" || rm -f "$SATURN_RUN_DIRECTORY/process.identity.tmp"; exec /bin/sh -c "$SATURN_RUN_COMMAND""#;
+/// Starts the command. Saturn alone writes the identity: the program cannot run `ps` in the macOS sandbox, and in the
+/// Linux one its own id is not the one Saturn started, so a second writer could only replace the right record.
+const WRAPPER: &str = r#"exec /bin/sh -c "$SATURN_RUN_COMMAND""#;
 
 /// A run this runtime started and has not finished.
 #[derive(Debug)]
@@ -138,7 +140,7 @@ async fn process_start_time(pid: u32) -> Option<String> {
     (!printed.is_empty()).then_some(printed)
 }
 
-/// The process id and start time a run's process wrote for itself.
+/// The process id and start time on record for a run's process.
 async fn recorded_identity(directory: &Path) -> Option<(u32, String)> {
     let text = tokio::fs::read_to_string(directory.join(IDENTITY_FILE))
         .await
@@ -391,7 +393,7 @@ impl Kernel {
             }
         };
         let pid = child.id().unwrap_or(0);
-        // Recorded from here too: in the macOS sandbox the program cannot run `ps`, which macOS installs setuid.
+        // Recorded at once, before anything else can stop the runtime.
         if let Some(started) = process_start_time(pid).await {
             let _ = write_whole(
                 &directory.join(IDENTITY_FILE),
