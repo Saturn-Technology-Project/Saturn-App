@@ -1,5 +1,5 @@
 # cargo deny check: the Rust counterpart of scripts/check-lockfiles.mjs and npm audit. Crates come from crates.io only,
-# advisories fail the build, and licenses must be ones Saturn can ship under MIT.
+# advisories fail the build, and licenses must be ones Saturn can ship under Apache-2.0.
 [advisories]
 yanked = "deny"
 # Unmaintained, with no known vulnerability and no version to move to yet; each is pulled in by a dependency, not chosen by Saturn.
