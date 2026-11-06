@@ -34,6 +34,8 @@ function run(command, args, { input = "", env = {}, cwd = scratch } = {}) {
     child.stderr.on("data", (chunk) => { err += chunk; });
     child.once("error", reject);
     child.once("close", (code) => resolve({ code, out, err }));
+    // A command that ends before reading its input closes the pipe; that is its answer, not a failure of the test.
+    child.stdin.on("error", () => undefined);
     child.stdin.end(input);
   });
 }
