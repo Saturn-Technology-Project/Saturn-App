@@ -536,6 +536,33 @@ pub(crate) fn stream_of(
     )
 }
 
+/// Where the assistant's computer use is about to act, as it happens, for the pointer Saturn draws on the screen.
+async fn computer_pointer(State(kernel): Shared) -> Response {
+    let (tx, rx) = mpsc::channel(16);
+    let mut pointer = kernel.computer.pointer();
+    tokio::spawn(async move {
+        let _ = tx
+            .send(Event::default().retry(Duration::from_secs(2)).comment(""))
+            .await;
+        loop {
+            tokio::select! {
+                () = tx.closed() => return,
+                place = pointer.recv() => match place {
+                    Ok(place) => {
+                        if tx.send(event("pointer", &place)).await.is_err() {
+                            return;
+                        }
+                    }
+                    // A drawing that fell behind skips to where the pointer is now.
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
+                },
+            }
+        }
+    });
+    stream_of(rx).into_response()
+}
+
 /// Live updates: which runs changed, and whether anything else did.
 async fn events(State(kernel): Shared) -> Response {
     let (tx, rx) = mpsc::channel(32);
@@ -729,6 +756,7 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         )
         .route("/browser", get(browser_state))
         .route("/browser/live", get(browser_live))
+        .route("/computer/pointer", get(computer_pointer))
         .route("/runs/{id}/stop", post(stop_run))
         .route("/runs/{id}/wake", post(wake_run))
         .route("/runs/{id}/events", get(run_events))

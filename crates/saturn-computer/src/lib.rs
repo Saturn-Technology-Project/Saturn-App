@@ -352,7 +352,12 @@ pub struct Computer {
     granted: Mutex<Option<Granted>>,
     snapshots: Mutex<Vec<Snapshot>>,
     snapshot_count: AtomicU64,
+    /// Where the assistant is about to act, for whoever draws its pointer on the screen.
+    pointer: tokio::sync::broadcast::Sender<Value>,
 }
+
+/// How long the pointer is shown arriving before the action lands, when something draws it.
+const POINTER_LEAD: Duration = Duration::from_millis(220);
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex
@@ -389,7 +394,23 @@ impl Computer {
             granted: Mutex::new(None),
             snapshots: Mutex::new(Vec::new()),
             snapshot_count: AtomicU64::new(0),
+            pointer: tokio::sync::broadcast::channel(64).0,
         }
+    }
+
+    /// Where the assistant acts, as it happens: `{kind, x, y, to?, at}` in screen points, for its pointer on screen.
+    pub fn pointer(&self) -> tokio::sync::broadcast::Receiver<Value> {
+        self.pointer.subscribe()
+    }
+
+    /// Says where the next action lands and, when something draws the pointer, gives it a moment to arrive there.
+    async fn point(&self, mut place: Value) {
+        if self.pointer.receiver_count() == 0 {
+            return;
+        }
+        place["at"] = json!(now_millis());
+        let _ = self.pointer.send(place);
+        tokio::time::sleep(POINTER_LEAD).await;
     }
 
     fn helps(&self) -> (&'static str, &'static str, &'static str) {
@@ -463,6 +484,11 @@ impl Computer {
     }
 
     async fn mouse(&self, input: Value) -> Result<(), Failure> {
+        let mut place = json!({ "kind": input["kind"], "x": input["x"], "y": input["y"] });
+        if input.get("to").is_some() {
+            place["to"] = input["to"].clone();
+        }
+        self.point(place).await;
         match &self.desktop {
             Desktop::Mac => macos::mouse(&input).await,
             Desktop::Windows(helper) => helper.mouse(&input).await,
@@ -882,6 +908,8 @@ impl Computer {
             "right" => -amount,
             _ => 0,
         };
+        self.point(json!({ "kind": "scroll", "x": screen_x, "y": screen_y }))
+            .await;
         match &self.desktop {
             Desktop::Mac => macos::scroll(screen_x, screen_y, dx, dy).await?,
             Desktop::Windows(helper) => helper.scroll(screen_x, screen_y, dx, dy).await?,
@@ -929,6 +957,8 @@ impl Computer {
             let path = self.element(args, pid)?;
             self.set_element(pid, &path, "", true).await?;
         }
+        // Where the text goes is wherever the last click left the focus: the pointer only says it is typing.
+        self.point(json!({ "kind": "type" })).await;
         self.type_keys(value).await?;
         Ok(json!({ "action": "type", "length": js::length(value), "success": true }))
     }

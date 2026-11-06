@@ -39,7 +39,7 @@ if (script.includes("AXIsProcessTrusted")) say({ accessibility: config.accessibi
 else if (script.includes("CGSessionCopyCurrentDictionary")) say(config.locked);
 else if (script.includes("CGDisplayBounds")) say({ width: 1728, height: 1117 });
 else if (script.includes("frontmostApplication")) say([{ name: "Mail", pid: 11, bundle_id: "com.apple.mail", frontmost: false }, { name: "Notes", pid: 22, bundle_id: "com.apple.Notes", frontmost: true }, ...(config.launched ? [{ name: "Calculator", pid: 33, bundle_id: "com.apple.calculator", frontmost: false }] : [])]);
-else if (script.includes("windows[0].position")) say({ x: 100, y: 50, width: 640, height: 400 });
+else if (script.includes("front.position")) say({ x: 100, y: 50, width: 640, height: 400 });
 else if (script.includes("settableRoles")) say({
   truncated: params.root.length === 0 && config.truncated === true,
   nodes: params.root.length
@@ -340,4 +340,42 @@ test("a locked screen and missing permissions are said plainly, and the settings
   assert.deepEqual(await api("GET", "/computer/permissions"), { platform: "darwin", required: true, accessibility: false, screenRecording: false, error: "broken" });
   await configure({});
   assert.deepEqual(await api("GET", "/computer/permissions"), { platform: "darwin", required: true, accessibility: true, screenRecording: true });
+});
+
+test("the pointer stream says where each action lands, before it lands, so Saturn can draw the assistant's cursor", macOnly, async () => {
+  await configure({});
+  const token = (await readFile(path.join(runtime.dataDir, "runtime-token"), "utf8")).trim();
+  const stop = new AbortController();
+  const response = await fetch(`${runtime.origin}/computer/pointer`, { headers: { authorization: `Bearer ${token}` }, signal: stop.signal });
+  assert.match(response.headers.get("content-type"), /text\/event-stream/);
+  const places = [];
+  const reading = (async () => {
+    let buffer = "";
+    const decoder = new TextDecoder();
+    for await (const chunk of response.body) {
+      buffer += decoder.decode(chunk, { stream: true });
+      for (let end = buffer.indexOf("\n\n"); end >= 0; end = buffer.indexOf("\n\n")) {
+        const data = /^data: ?(.*)$/m.exec(buffer.slice(0, end))?.[1];
+        buffer = buffer.slice(end + 2);
+        if (data) places.push(JSON.parse(data));
+      }
+    }
+  })().catch(() => undefined);
+  try {
+    const answers = await run([
+      ["computer_click", { x: 640, y: 400 }],
+      ["computer_drag", { start_x: 10, start_y: 20, end_x: 30, end_y: 40 }],
+      ["computer_scroll", { x: 100, y: 100, direction: "down" }],
+    ]);
+    const click = answers[0].result;
+    const deadline = Date.now() + 5000;
+    while (places.length < 3 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.deepEqual(places.map((place) => place.kind), ["click", "drag", "scroll"]);
+    assert.deepEqual([places[0].x, places[0].y], [click.screen.x, click.screen.y], "the same screen point the click used");
+    assert.deepEqual(places[1].to, answers[1].result.to);
+    assert.ok(places.every((place) => Number.isFinite(place.at)));
+  } finally {
+    stop.abort();
+    await reading;
+  }
 });

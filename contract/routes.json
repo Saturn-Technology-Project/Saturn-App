@@ -34,6 +34,7 @@
   "GET /codex/status",
   "GET /commands",
   "GET /computer/permissions",
+  "GET /computer/pointer",
   "GET /connections/:kind",
   "GET /connections/mcp",
   "GET /connections/models",
