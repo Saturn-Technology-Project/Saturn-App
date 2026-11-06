@@ -52,8 +52,6 @@ const SEGMENTS = "flex gap-0.5 rounded-lg border border-border bg-card p-0.5";
 /** Code-like text that keeps its line breaks. */
 const TEXT = "font-mono text-xs wrap-anywhere whitespace-pre-wrap";
 /** A table's heading cell and body cell. */
-const HEAD = "px-2 py-1.5 text-left font-medium whitespace-nowrap text-muted-foreground";
-const CELL = "border-t border-border p-2 align-top wrap-anywhere";
 /** One of the cards about a sample, and a fact in it with its value. */
 const ABOUT = "gap-1.5 border-0 bg-panel px-3.5 py-3";
 const DETAIL_ROW = "flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-sm wrap-anywhere";
@@ -403,45 +401,52 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                   {allRuns ? t("This run only") : t("Every run that saw it ({count})", { count: runs.length })}
                 </Button>
               </div>
-              <div className="overflow-x-auto" role="region" aria-label={t("Sample comparisons")} data-tour="samples-labels" tabIndex={0}>
-                <table className="w-full min-w-[760px] border-collapse text-xs" aria-label={t("{sample} in each model", { sample: current.sampleId })}>
-                  <thead>
-                    <tr><th scope="col" className={HEAD}>{t("Model")}</th>{allRuns ? <th scope="col" className={HEAD}>{t("Run")}</th> : null}<th scope="col" className={HEAD}>{t("Output")}</th><th scope="col" className={HEAD}>{t("Scores")}</th><th scope="col" className={HEAD}>{t("Scorer")}</th><th scope="col" className={HEAD}>{t("Your label")}</th></tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) =>
-                      row.samples.length === 0 ? (
-                        <tr key={row.runId}><td colSpan={allRuns ? 7 : 6} className={classes(CELL, MUTED)}><code>{row.runId}</code> {t("has no such sample.")}</td></tr>
-                      ) : (
-                        row.samples.map((line) => (
-                          <tr key={`${row.runId}-${line.trial ?? 0}-${line.modelId ?? ""}`}>
-                            <td className={CELL}>{modelName(line.modelId)}{row.comparison.result !== "comparable" && row.runId !== runId ? <div className={WARNING}>{t("Not measured the same way")}</div> : null}</td>
-                            {allRuns ? <td className={CELL}><code>{row.runId}</code> <span className={MUTED}>v{version(row.versionId)?.number ?? "?"}</span></td> : null}
-                            <td className={CELL}><pre className={TEXT}>{sampleText(line.output)}</pre></td>
-                            <td className={CELL}><div className={TEXT}>{line.scores ? Object.entries(line.scores).map(([name, score]) => <div key={name}>{name} = {String(score)}</div>) : <span className={MUTED}>{t("None")}</span>}</div></td>
-                            <td className={CELL}>
-                              {line.scorerLabel ?? <span className={MUTED}>{t("No word")}</span>}
-                              {line.error ? <div className={WARNING}>{t("{kind} error", { kind: line.error.kind })}{line.error.message ? `: ${line.error.message}` : ""}</div> : null}
-                            </td>
-                            <td className={CELL}>
-                              <div className={classes(SEGMENTS, "w-max")} role="group" aria-label={t("Your label for {model} in {run}", { model: modelName(line.modelId), run: row.runId })}>
-                                {choicesFor(row.runId).map((item) => {
-                                  const chosen = labelOf(labelsFor(row.runId), line) === item;
-                                  return (
-                                    <Button key={item} size="small" variant={chosen ? "default" : "ghost"} aria-pressed={chosen} onClick={() => void label(row.runId, line, item)}>
-                                      {LABEL_NAMES[item] ?? item}
-                                    </Button>
-                                  );
-                                })}
+              {/* One block per model and run: what it said gets the full width, and what was scored sits above it. */}
+              <div className="flex flex-col gap-2" role="list" aria-label={t("{sample} in each model", { sample: current.sampleId })} data-tour="samples-labels">
+                {rows.map((row) =>
+                  row.samples.length === 0 ? (
+                    <div key={row.runId} role="listitem" className={classes("rounded-lg border border-border px-3 py-2", MUTED)}><code>{row.runId}</code> {t("has no such sample.")}</div>
+                  ) : (
+                    row.samples.map((line) => (
+                      <article key={`${row.runId}-${line.trial ?? 0}-${line.modelId ?? ""}`} role="listitem" className="flex flex-col gap-2 rounded-lg border border-border px-3 py-2.5">
+                        <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+                          <div className="flex min-w-0 flex-1 flex-col gap-1">
+                            <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                              <strong className="text-sm font-semibold">{modelName(line.modelId)}</strong>
+                              {allRuns ? <span className={MUTED}><code>{row.runId}</code> · v{version(row.versionId)?.number ?? "?"}</span> : null}
+                              <span className={MUTED}>{t("Scorer")}: {line.scorerLabel ?? t("No word")}</span>
+                            </div>
+                            {line.scores ? (
+                              <div className="flex flex-wrap gap-1" aria-label={t("Scores")}>
+                                {Object.entries(line.scores).map(([name, score]) => (
+                                  <span key={name} className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] whitespace-nowrap">
+                                    <span className="text-muted-foreground">{name}</span> {String(score)}
+                                  </span>
+                                ))}
                               </div>
-                              {disputed(labelsFor(row.runId), line) ? <div className={WARNING}>{t("Disagrees with the scorer. Both are kept.")}</div> : null}
-                            </td>
-                          </tr>
-                        ))
-                      ),
-                    )}
-                  </tbody>
-                </table>
+                            ) : <span className={MUTED}>{t("No score on this line.")}</span>}
+                            {row.comparison.result !== "comparable" && row.runId !== runId ? <div className={WARNING}>{t("Not measured the same way")}</div> : null}
+                            {line.error ? <div className={WARNING}>{t("{kind} error", { kind: line.error.kind })}{line.error.message ? `: ${line.error.message}` : ""}</div> : null}
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <div className={classes(SEGMENTS, "flex-wrap justify-end")} role="group" aria-label={t("Your label for {model} in {run}", { model: modelName(line.modelId), run: row.runId })}>
+                              {choicesFor(row.runId).map((item) => {
+                                const chosen = labelOf(labelsFor(row.runId), line) === item;
+                                return (
+                                  <Button key={item} size="small" variant={chosen ? "default" : "ghost"} aria-pressed={chosen} onClick={() => void label(row.runId, line, item)}>
+                                    {LABEL_NAMES[item] ?? item}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                            {disputed(labelsFor(row.runId), line) ? <div className={WARNING}>{t("Disagrees with the scorer. Both are kept.")}</div> : null}
+                          </div>
+                        </div>
+                        <pre className={classes(TEXT, "m-0 max-h-[28rem] overflow-auto rounded-md bg-panel px-3 py-2")}>{sampleText(line.output)}</pre>
+                      </article>
+                    ))
+                  ),
+                )}
               </div>
 
               <h2 className={SECTION}>{t("Scoring rationale")}</h2>

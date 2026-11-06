@@ -14,7 +14,7 @@ export function MenuContent({ className, ...props }: MenuPrimitive.Popup.Props) 
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner sideOffset={4} className="isolate z-50">
-        <MenuPrimitive.Popup data-slot="menu-content" className={classes("glass max-h-(--available-height) min-w-36 overflow-y-auto rounded-md p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none", className)} {...props} />
+        <MenuPrimitive.Popup data-slot="menu-content" className={classes("bg-popover max-h-(--available-height) min-w-36 overflow-y-auto rounded-md p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none", className)} {...props} />
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>
   );

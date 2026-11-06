@@ -22,7 +22,7 @@ export function SelectContent({ className, children, ...props }: SelectPrimitive
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner sideOffset={4} alignItemWithTrigger={false} className="isolate z-50">
-        <SelectPrimitive.Popup data-slot="select-content" className={classes("relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md glass text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1", className)} {...props}>
+        <SelectPrimitive.Popup data-slot="select-content" className={classes("relative isolate z-50 max-h-(--available-height) w-max max-w-[min(20rem,var(--available-width))] min-w-[max(9rem,var(--anchor-width))] origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1", className)} {...props}>
           <SelectPrimitive.List>{children}</SelectPrimitive.List>
         </SelectPrimitive.Popup>
       </SelectPrimitive.Positioner>
@@ -44,7 +44,7 @@ export function SelectGroup(props: { label: string; children: ReactNode }) {
 export function SelectItem({ className, children, hint, ...props }: SelectPrimitive.Item.Props & { hint?: string }) {
   return (
     <SelectPrimitive.Item data-slot="select-item" className={classes("relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2", className)} {...props}>
-      <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">{children}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemText className="block min-w-0 flex-1 truncate">{children}</SelectPrimitive.ItemText>
       {hint ? <span className="text-xs whitespace-normal text-muted-foreground">{hint}</span> : null}
       <SelectPrimitive.ItemIndicator render={<span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />}>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>
