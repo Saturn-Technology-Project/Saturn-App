@@ -78,40 +78,26 @@ fn seatbelt_leaves_the_network_alone_when_it_is_allowed() {
 }
 
 #[test]
-fn bubblewrap_hides_before_it_binds_and_keeps_the_records_folder_read_only_but_its_other_entries() {
+fn bubblewrap_hides_before_it_binds_and_binds_protected_folders_read_only() {
     let (_root, confinement) = sample();
     let records = &confinement.writable[0];
-    std::fs::write(records.join("samples.jsonl"), "").expect("a file");
-    std::fs::create_dir(records.join("written")).expect("a folder");
     let args = bubblewrap_confinement(&confinement, &confinement.visible[0]);
     let index = |flag: &str, path: &PathBuf| {
         let path = path.to_string_lossy().into_owned();
         args.windows(2)
-            .position(|pair| pair[0] == flag && pair[1] == path)
+            .rposition(|pair| pair[0] == flag && pair[1] == path)
             .unwrap_or_else(|| panic!("{flag} {path} is not in {args:?}"))
     };
-    let has = |flag: &str, path: &PathBuf| {
-        let path = path.to_string_lossy().into_owned();
-        args.windows(2)
-            .any(|pair| pair[0] == flag && pair[1] == path)
-    };
     let project_hidden = index("--tmpfs", &confinement.hidden[0]);
-    let tree_bound = index("--ro-bind-try", &confinement.visible[0]);
-    let records_read_only = index("--ro-bind-try", records);
-    let samples_writable = index("--bind-try", &records.join("samples.jsonl"));
-    assert!(project_hidden < tree_bound && project_hidden < records_read_only);
-    assert!(records_read_only < samples_writable);
-    assert!(has("--bind-try", &records.join("written")));
-    // Saturn renames a new run.json over the old one, which would detach a mount on the file itself.
-    assert!(!has("--bind-try", &records.join("run.json")));
-    assert!(!has("--ro-bind-try", &records.join("run.json")));
-    assert!(
-        !has("--bind-try", records),
-        "the records folder itself takes no new files"
-    );
+    let records_bound = index("--bind-try", records);
+    let tree_protected = index("--ro-bind-try", &confinement.protected[1]);
+    assert!(project_hidden < records_bound && records_bound < tree_protected);
+    // A file bound over itself would be detached the first time Saturn renames a new record over it.
+    let run_file = confinement.protected[0].to_string_lossy().into_owned();
+    assert!(!args.contains(&run_file), "{args:?}");
     let remounted = index("--remount-ro", &confinement.hidden[0]);
     assert!(
-        samples_writable < remounted,
+        tree_protected < remounted,
         "a write into the hidden project fails"
     );
     assert!(args.iter().any(|arg| arg == "--unshare-net"));

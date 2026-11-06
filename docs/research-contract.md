@@ -166,8 +166,10 @@ In the sandbox the program:
 - writes its records (`SATURN_RUN_SAMPLES` and the others, in `runs/<id>/`), `SATURN_RUN_OUTPUT` (`runs/<id>/written/`),
   its own `TMPDIR`, and the shared caches (`~/.cache`, `~/.npm`, `~/.cargo/registry`, `~/Library/Caches` and the like).
   On macOS it may also write the system's shared temporary folders; on Linux `/tmp` is its own;
-- cannot write `run.json`, `evidence.json` or `resources.jsonl` (on a remote host, the job's `start.json`,
-  `state.json`, `snapshot.json` and claims);
+- on macOS, cannot write `run.json`, `evidence.json` or `resources.jsonl` (on a remote host, the job's `start.json`,
+  `state.json`, `snapshot.json` and claims). On Linux it can: bubblewrap keeps a file read-only only until it is
+  replaced by a rename, which is how Saturn saves every record. Its own run's records are the most it can change;
+  other runs' records are hidden from it;
 - cannot read the project's or worktree's own files, its `.git` and `.saturn` (other runs' records included), Saturn's
   data folders, or the credential folders (`~/.ssh`, `~/.aws`, `~/.azure`, `~/.gnupg`, `~/.kube`, `~/.docker`,
   `~/.config/gcloud`, `~/.config/gh`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc`, `~/.codex`,
