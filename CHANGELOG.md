@@ -2,6 +2,13 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## 0.4.1 (2026-11-07)
+
+### Changed
+
+- **Newer versions of the libraries that encrypt saved keys, hash records, read the local search model and talk to the agent browser.** aes-gcm 0.11 encrypts and decrypts exactly as before, so keys saved by earlier versions still open; sha2 0.11 gives the same hashes, so research records and their evidence still check out; tokenizers 0.23 reads the built-in search model the same way, so local search finds what it found before; and tokio-tungstenite 0.30 carries the agent browser's connection to Chrome.
+- **The file dialog and the single-window check on the desktop use the latest Tauri plugins** (dialog 2.8.4, single-instance 2.5.5).
+
 ## 0.4.0 (2026-11-06)
 
 ### Security
