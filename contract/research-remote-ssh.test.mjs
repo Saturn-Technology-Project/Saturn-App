@@ -89,6 +89,12 @@ test("over a real SSH session a detached job starts, outlives the session, and s
   const ended = await until("the job to end", async () => (await api("GET", `${route}/runs/${run.id}`)).body, (item) => !["starting", "running", "stopping"].includes(item.status), 60);
   assert.equal(ended.status, "completed", ended.remoteError);
   assert.equal(ended.samples, 6);
+  // The job's processor and memory were read on the host, and came back with its outputs.
+  const resources = (await api("GET", `${route}/runs/${run.id}/resources`)).body;
+  assert.ok(resources.points.length >= 1, JSON.stringify(resources));
+  assert.ok(resources.points.some((point) => point.memoryBytes > 0), "the job's own memory was read");
+  assert.equal(resources.system.host, "testhost", "the readings say which host they came from");
+  assert.ok(resources.system.cpus > 0);
 });
 
 test("over a real SSH session, stop ends the remote process", { skip }, async () => {

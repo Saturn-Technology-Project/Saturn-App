@@ -372,6 +372,15 @@ and `gpus` (each GPU's name, utilization and memory from `nvidia-smi`, or null w
 with `{"runId","status","system":{"cpus","platform"},"points":[...]}`, the newest 900 points. The readings are what
 the system said; nothing is derived from them.
 
+A remote run is sampled the same way on its host: the detached worker samples the job's process group into
+`resources.jsonl` in the job's folder, stops before it writes the job's final state, and the file comes back with the
+other outputs. The run records the host's `remoteSystem` (`cpus`, `platform`), and `system` in the answer is that, with
+`host` naming the configured host.
+
+`GET .../research/source?path=` opens a PDF or an image (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`) as
+`{"kind":"document","path","mime","size","revision","data"}`, its bytes in base64, up to 32 MiB, to be shown and never
+edited. Any other file that is not text is still refused with 415.
+
 Resource points also carry `samplesRewrites`, the number of times an already counted prefix was changed or truncated.
 An unchanged file uses a metadata check; when it changes, the consumed prefix is verified by streaming SHA-256 before
 adding new complete lines. A changed prefix restarts line/token counts from the current file and the interface warns

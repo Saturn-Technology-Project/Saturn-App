@@ -3,6 +3,8 @@
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
+use base64::{Engine, engine::general_purpose::STANDARD};
+
 use saturn_domain::research::{MAX_SAMPLE_LINE, is_id, labels_agree, sample_identity, sha256_hex};
 use saturn_domain::skills::workspace::Workspace;
 use saturn_tools::file::inside_workspace;
@@ -17,6 +19,22 @@ use crate::{CoreError, Kernel};
 const OPEN_LIMIT: u64 = 2 * 1024 * 1024;
 /// The largest notebook the editor opens: its stored images are most of it, and it still fits a save's request.
 const NOTEBOOK_OPEN_LIMIT: u64 = 8 * 1024 * 1024;
+/// The largest paper or figure the Workspace shows.
+const DOCUMENT_LIMIT: u64 = 32 * 1024 * 1024;
+
+/// The documents the Workspace shows rather than edits, by extension: papers and figures.
+fn document_type(relative: &str) -> Option<&'static str> {
+    let extension = relative.rsplit_once('.')?.1.to_ascii_lowercase();
+    Some(match extension.as_str() {
+        "pdf" => "application/pdf",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        _ => return None,
+    })
+}
 /// How much of a run's log is returned: its end.
 const LOG_TAIL: u64 = 64 * 1024;
 const DEFAULT_PAGE: usize = 50;
@@ -58,6 +76,16 @@ impl Kernel {
             .map_err(|_| CoreError::new(404, "No such file or folder"))?;
         if info.is_dir() {
             return read_folder_entries(&target, &relative).await;
+        }
+        // A paper or a figure is shown as it is, never edited: its bytes, base64, with its type.
+        if let Some(mime) = document_type(&relative) {
+            if info.len() > DOCUMENT_LIMIT {
+                return Err(CoreError::new(413, "This file is too large to show here."));
+            }
+            let bytes = tokio::fs::read(&target).await?;
+            return Ok(
+                json!({ "kind": "document", "path": relative, "mime": mime, "size": bytes.len(), "revision": sha256_hex(&bytes), "data": STANDARD.encode(&bytes) }),
+            );
         }
         let limit = if relative.to_ascii_lowercase().ends_with(".ipynb") {
             NOTEBOOK_OPEN_LIMIT

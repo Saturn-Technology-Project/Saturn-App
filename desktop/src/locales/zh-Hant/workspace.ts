@@ -326,4 +326,13 @@ export default {
   "No file matches.": "沒有符合的檔案。",
   "A task reported back": "任務回報",
   "{count} tasks reported back": "{count} 個任務回報",
+  "Measured on {host}, where the run ran.": "取自 {host}，也就是這次執行所在的主機。",
+  "nvidia-smi is not on that host": "那台主機上沒有 nvidia-smi",
+  "Read only": "唯讀",
+  "Page {page} of {count}": "第 {page} 頁，共 {count} 頁",
+  "1 page": "1 頁",
+  "{count} pages": "{count} 頁",
+  "Zoom out": "縮小",
+  "Zoom in": "放大",
+  "This PDF could not be shown: {reason}": "無法顯示這份 PDF：{reason}",
 } satisfies Dictionary;

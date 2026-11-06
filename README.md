@@ -51,7 +51,7 @@ A run's program needs nothing from Saturn but an environment variable: it append
 | Screen | What it holds |
 |---|---|
 | **Home** | Where the work stopped, what changed since you last looked, and what still needs a decision: undecided hypotheses, failed or interrupted runs, refusals |
-| **Workspace** | The project's files and a code editor; under it the run, Resources (time, processor, memory, GPUs, sample rate), samples, findings, activations, outputs and a terminal. Reopening restores the file, the unsaved draft and the run |
+| **Workspace** | The project's files as a tree and a code editor; papers (PDF) and figures open beside the code. Under it the run, Resources (time, processor, memory, GPUs, sample rate, read on the SSH host for a remote run), samples, findings, activations, outputs and a terminal. Reopening restores the file, the unsaved draft and the run |
 | **Lineage** | Checkpoints and their fine-tuned branches, with a score followed along the line |
 | **Experiments** | Questions, hypotheses, frozen versions and runs; the score chart that only puts comparable runs together; imports, paired comparisons, research bundles, remote runs and analysis outputs |
 | **Samples** | One sample across the models that saw it, labels that never touch the score, agreement with the scorer, and counterexamples |
@@ -418,7 +418,7 @@ Build logs are public on the [Actions](../../actions/workflows/release.yml) page
 
 ### Supply chain
 
-Saturn's download is built from about 360 Rust crates (what `cargo tree` reports for the app, the runtime and `saturn` on macOS, without compile-time-only crates), three npm packages (React, ReactDOM and scheduler; the rest of `desktop/package-lock.json` is build tooling) and a machine-learning model. The web view is the operating system's. `Cargo.lock` lists more, 642 crates from crates.io, because it covers every platform and the build and test tools. Each one is pinned and checked, and the checks run in public CI.
+Saturn's download is built from about 360 Rust crates (what `cargo tree` reports for the app, the runtime and `saturn` on macOS, without compile-time-only crates), four npm packages (React, ReactDOM, scheduler and pdf.js, which draws PDFs; the rest of `desktop/package-lock.json` is build tooling) and a machine-learning model. The web view is the operating system's. `Cargo.lock` lists more, 642 crates from crates.io, because it covers every platform and the build and test tools. Each one is pinned and checked, and the checks run in public CI.
 
 **What gets installed**
 
@@ -599,7 +599,7 @@ Before opening a pull request:
 
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
-- A PDF reader for papers beside the code, a debugger and language servers in the Workspace
+- A debugger and language servers in the Workspace
 - Experiment runs on Windows
 
 How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).

@@ -3,6 +3,7 @@
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 
 use saturn_domain::research::is_id;
@@ -189,62 +190,74 @@ fn count_lines(path: &Path, mut counted: Counted) -> Counted {
 }
 
 /// This computer, as the readings are measured against it.
-fn system() -> Value {
+pub(super) fn system() -> Value {
     json!({
         "cpus": std::thread::available_parallelism().map(usize::from).unwrap_or(0),
         "platform": std::env::consts::OS,
     })
 }
 
+/// Samples a process group every two seconds into `resources.jsonl` in its folder, until the group is gone or `stop`
+/// is set. A local run and a remote worker's job are sampled alike, so their readings read alike.
+pub(super) async fn sample_until(pid: u32, directory: PathBuf, stop: Option<Arc<AtomicBool>>) {
+    let started = Instant::now();
+    let samples = directory.join("samples.jsonl");
+    let file = directory.join(FILE);
+    let stopped = || {
+        stop.as_ref()
+            .is_some_and(|flag| flag.load(Ordering::SeqCst))
+    };
+    let mut counted = Counted::default();
+    let mut gpu_present = true;
+    loop {
+        if !group_exists(pid) || stopped() {
+            break;
+        }
+        let usage = group_usage(pid).await;
+        let gpu = if gpu_present { gpus().await } else { None };
+        gpu_present = gpu.is_some();
+        let path = samples.clone();
+        let before = counted;
+        counted = tokio::task::spawn_blocking(move || count_lines(&path, before))
+            .await
+            .unwrap_or(counted);
+        // A worker writes its final state once sampling has stopped, so nothing is added after it.
+        if stopped() {
+            break;
+        }
+        let point = json!({
+            "at": iso_time(now_millis()),
+            "elapsedMs": started.elapsed().as_millis() as u64,
+            "cpuPercent": usage.map(|(cpu, _, _)| cpu),
+            "memoryBytes": usage.map(|(_, memory, _)| memory),
+            "processes": usage.map(|(_, _, count)| count),
+            "samplesBytes": counted.read,
+            "samplesLines": counted.lines,
+            "samplesRewrites": counted.rewrites,
+            "inputTokens": counted.input_tokens,
+            "outputTokens": counted.output_tokens,
+            "deviceMemoryBytes": counted.device_memory,
+            "gpus": gpu,
+        });
+        let line = format!("{point}\n");
+        let target = file.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            use std::io::Write;
+            std::fs::OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(target)
+                .and_then(|mut handle| handle.write_all(line.as_bytes()))
+        })
+        .await;
+        tokio::time::sleep(EVERY).await;
+    }
+}
+
 impl Kernel {
     /// Samples a run's group until it is gone, appending to the run's folder. Started when the run starts.
     pub(super) fn sample_resources(self: &Arc<Self>, pid: u32, directory: PathBuf) {
-        let started = Instant::now();
-        let samples = directory.join("samples.jsonl");
-        let file = directory.join(FILE);
-        tokio::spawn(async move {
-            let mut counted = Counted::default();
-            let mut gpu_present = true;
-            loop {
-                if !group_exists(pid) {
-                    break;
-                }
-                let usage = group_usage(pid).await;
-                let gpu = if gpu_present { gpus().await } else { None };
-                gpu_present = gpu.is_some();
-                let path = samples.clone();
-                let before = counted;
-                counted = tokio::task::spawn_blocking(move || count_lines(&path, before))
-                    .await
-                    .unwrap_or(counted);
-                let point = json!({
-                    "at": iso_time(now_millis()),
-                    "elapsedMs": started.elapsed().as_millis() as u64,
-                    "cpuPercent": usage.map(|(cpu, _, _)| cpu),
-                    "memoryBytes": usage.map(|(_, memory, _)| memory),
-                    "processes": usage.map(|(_, _, count)| count),
-                    "samplesBytes": counted.read,
-                    "samplesLines": counted.lines,
-                    "samplesRewrites": counted.rewrites,
-                    "inputTokens": counted.input_tokens,
-                    "outputTokens": counted.output_tokens,
-                    "deviceMemoryBytes": counted.device_memory,
-                    "gpus": gpu,
-                });
-                let line = format!("{point}\n");
-                let target = file.clone();
-                let _ = tokio::task::spawn_blocking(move || {
-                    use std::io::Write;
-                    std::fs::OpenOptions::new()
-                        .append(true)
-                        .create(true)
-                        .open(target)
-                        .and_then(|mut handle| handle.write_all(line.as_bytes()))
-                })
-                .await;
-                tokio::time::sleep(EVERY).await;
-            }
-        });
+        tokio::spawn(sample_until(pid, directory, None));
     }
 
     /// What a run has cost so far, or cost in all: the newest points, and this computer.
@@ -271,10 +284,22 @@ impl Kernel {
         })
         .await
         .map_err(|error| CoreError::new(500, error.to_string()))?;
+        // A remote run's readings were taken on its host, and say so.
+        let computer = match record
+            .get("remoteSystem")
+            .filter(|system| system.is_object())
+        {
+            Some(remote) => {
+                let mut remote = remote.clone();
+                remote["host"] = record["remote"]["host"].clone();
+                remote
+            }
+            None => system(),
+        };
         Ok(json!({
             "runId": run,
             "status": text(&record, "status"),
-            "system": system(),
+            "system": computer,
             "points": points,
         }))
     }

@@ -77,6 +77,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **Read papers and figures in the Workspace.** A PDF opens beside your code, drawn page by page with zoom, and PNG, JPEG, GIF, WebP and SVG figures open as images. They are shown, never edited, up to 32 MB.
+- **See what a remote run costs, on its host.** The Resources tab of a run on your SSH host shows its processor, memory and GPUs as read on that host, sampled every two seconds by the remote worker and synced back with the run's outputs, and says which host they came from.
 - **Tasks tell the assistant when they are done.** When a task the assistant started finishes, fails, is stopped or waits for your decision, the chat that started it hears of it in a turn of its own, like a sub-agent telling the agent that started it: the assistant reads the report and tells you what came of it, within the chat's mode. The chat shows it as a task report, not as your message.
 - **The research assistant can use the newer research workflow.** It can preview and import existing results, compare two runs sample by sample and keep the regressions, keep figures and analysis outputs, export and import research bundles, open inspection sessions, run notebook cells, read training metrics, and check and run on the SSH host you configured. Seven new skills teach these. An Ask chat only reads, and the SSH host, verdicts, labels, locks and merging stay yours.
 - **Saturn in Traditional Chinese.** Settings → General → Language shows the interface in 繁體中文 or English, or follows the system (Traditional Chinese for zh-TW, zh-HK and other Traditional settings). Messages from the runtime, models and agents, and the documentation, stay as they are.

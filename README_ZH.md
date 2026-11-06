@@ -51,7 +51,7 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 | 畫面 | 內容 |
 |---|---|
 | **首頁** | 工作停在哪裡、上次查看後有什麼變化，以及還有哪些需要決定：未判定的假說、失敗或中斷的執行、被拒絕的操作 |
-| **工作區** | 專案的檔案與程式碼編輯器；下方是執行、資源（時間、處理器、記憶體、GPU、樣本速率）、樣本、發現、激活值、輸出與終端機。重新開啟時會還原檔案、未儲存的草稿與執行 |
+| **工作區** | 樹狀的專案檔案與程式碼編輯器；論文（PDF）與圖片可在程式碼旁開啟。下方是執行、資源（時間、處理器、記憶體、GPU、樣本速率；遠端執行時取自 SSH 主機）、樣本、發現、激活值、輸出與終端機。重新開啟時會還原檔案、未儲存的草稿與執行 |
 | **譜系** | Checkpoint 與其微調分支，並沿著這條線追蹤一個分數 |
 | **實驗** | 問題、假說、凍結的版本與執行；只把可比較的執行放在一起的分數圖表；匯入、成對比較、研究包、遠端執行與分析輸出 |
 | **樣本** | 一個樣本在看過它的各個模型上的結果、從不影響分數的標籤、與評分器的一致程度，以及反例 |
@@ -418,7 +418,7 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<v
 
 ### 供應鏈
 
-Saturn 的下載檔由約 360 個 Rust crate（`cargo tree` 對 macOS 上的 App、Runtime 與 `saturn` 列出的數量，不含只在編譯時使用的 crate）、三個 npm 套件（React、ReactDOM 與 scheduler；`desktop/package-lock.json` 其餘都是建置工具）與一個機器學習模型組成。網頁檢視是作業系統的。`Cargo.lock` 列得更多（642 個來自 crates.io 的 crate），因為它涵蓋所有平台與建置、測試工具。每一項都經過固定與檢查，檢查都在公開的 CI 上執行。
+Saturn 的下載檔由約 360 個 Rust crate（`cargo tree` 對 macOS 上的 App、Runtime 與 `saturn` 列出的數量，不含只在編譯時使用的 crate）、四個 npm 套件（React、ReactDOM、scheduler 與繪製 PDF 的 pdf.js；`desktop/package-lock.json` 其餘都是建置工具）與一個機器學習模型組成。網頁檢視是作業系統的。`Cargo.lock` 列得更多（642 個來自 crates.io 的 crate），因為它涵蓋所有平台與建置、測試工具。每一項都經過固定與檢查，檢查都在公開的 CI 上執行。
 
 **安裝的內容**
 
@@ -599,7 +599,7 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
-- 在程式碼旁閱讀論文的 PDF 閱讀器，以及工作區中的 debugger 與語言伺服器
+- 工作區中的 debugger 與語言伺服器
 - Windows 上的實驗執行
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。

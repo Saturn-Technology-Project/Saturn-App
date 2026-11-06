@@ -183,7 +183,9 @@ export interface SourceEntry {
 
 export type SourceView =
   | { kind: "directory"; path: string; entries: SourceEntry[] }
-  | { kind: "file"; path: string; content: string; revision: string };
+  | { kind: "file"; path: string; content: string; revision: string }
+  /** A paper or a figure, shown rather than edited: its bytes in base64, with their type. */
+  | { kind: "document"; path: string; mime: string; size: number; revision: string; data: string };
 
 export interface SampleLine {
   sampleId: string;
@@ -758,7 +760,8 @@ export interface ResourcePoint {
 export interface RunResources {
   runId: string;
   status: RunStatus;
-  system: { cpus: number; platform: string };
+  /** The computer the readings were taken on: this one, or a remote run's host. */
+  system: { cpus: number; platform: string; host?: string };
   points: ResourcePoint[];
 }
 
@@ -893,6 +896,8 @@ export type OpenTarget = { kind: "sample"; runId: string; sampleId?: string; onl
 /** What a project's workbench reopens to. */
 export interface ResearchSession {
   file?: string;
+  /** The first-study checklist on Home was put away for this project. */
+  firstStudyHidden?: boolean;
   /** The Workspace's open folders, so its file tree reopens as it was. */
   treeOpen?: string[];
   experimentId?: string;

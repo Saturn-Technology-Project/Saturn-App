@@ -4,7 +4,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -20,12 +20,13 @@ use super::{pretty, write_whole};
 use crate::records::text;
 use crate::{CoreError, Kernel, locked};
 
-const OUTPUTS: [&str; 5] = [
+const OUTPUTS: [&str; 6] = [
     "samples.jsonl",
     "metrics.jsonl",
     "artifacts.jsonl",
     "stdout.log",
     "stderr.log",
+    "resources.jsonl",
 ];
 const OUTPUT_LIMIT: u64 = 64 * 1024 * 1024;
 const CHUNK: u64 = 128 * 1024;
@@ -526,6 +527,9 @@ impl Kernel {
             Value::Null
         };
         current["remoteSource"] = state["source"].clone();
+        if state["system"].is_object() {
+            current["remoteSystem"] = state["system"].clone();
+        }
         current["updatedAt"] = json!(iso_time(now_millis()));
         let complete = finished(remote_status) && response["more"] == false;
         if complete {
@@ -881,9 +885,16 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
     let mut child = command.spawn()?;
     let pid = child.id().unwrap_or(0);
     let mut guard = EndOnDrop::new(child.id());
+    // The job's processor, memory and GPUs, sampled on this host as a local run is, and synced back with the outputs.
+    let stop_sampling = Arc::new(AtomicBool::new(false));
+    let sampler = tokio::spawn(super::resources::sample_until(
+        pid,
+        folder.to_path_buf(),
+        Some(Arc::clone(&stop_sampling)),
+    ));
     let begin = tokio::time::Instant::now();
     let limit = Duration::from_secs(spec["timeoutSeconds"].as_u64().unwrap_or(3600));
-    let mut state = json!({ "schemaVersion": 1, "status": "running", "startedAt": iso_time(now_millis()), "source": source });
+    let mut state = json!({ "schemaVersion": 1, "status": "running", "startedAt": iso_time(now_millis()), "source": source, "system": super::resources::system() });
     let (status, code) = loop {
         state["heartbeatMs"] = json!(now_millis());
         write_whole(&folder.join("state.json"), &pretty(&state)?).await?;
@@ -911,6 +922,8 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
     };
     super::runs::end_group(pid).await;
     guard.finished();
+    stop_sampling.store(true, Ordering::SeqCst);
+    let _ = sampler.await;
     state["status"] = json!(status);
     state["exitCode"] = json!(code);
     state["endedAt"] = json!(iso_time(now_millis()));

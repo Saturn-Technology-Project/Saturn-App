@@ -34,6 +34,23 @@ test("a folder lists its entries without Saturn's records or git's folder", asyn
   assert.equal((await open(route, ".git/config")).status, 403);
 });
 
+test("a paper or a figure opens as a document to show, with its bytes and type", async () => {
+  const pdf = Buffer.from("%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  const { route, folder } = await project({ "papers/attention.PDF": pdf, "figures/loss.png": png });
+  const paper = (await open(route, "papers/attention.PDF")).body;
+  assert.equal(paper.kind, "document");
+  assert.equal(paper.mime, "application/pdf");
+  assert.equal(paper.size, pdf.length);
+  assert.deepEqual(Buffer.from(paper.data, "base64"), pdf);
+  assert.equal(paper.revision, sha(pdf));
+  const figure = (await open(route, "figures/loss.png")).body;
+  assert.equal(figure.mime, "image/png");
+  const binary = path.join(folder, "weights.bin");
+  await writeFile(binary, Buffer.from([0xff, 0xfe, 0x00]));
+  assert.equal((await open(route, "weights.bin")).status, 415, "other binary files still are not opened");
+});
+
 test("a save needs the revision it was opened at, so it cannot overwrite a change it has not seen", async () => {
   const { route, folder } = await project({ "probe.py": "one\n" });
   const opened = (await open(route, "probe.py")).body;

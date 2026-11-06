@@ -45,6 +45,7 @@ export function Resources(props: { projectId: string; run: ExperimentRun; notify
   return (
     <div className="flex flex-col gap-2.5 py-2">
       {last.samplesRewrites ? <Notice tone="wait">{last.samplesRewrites === 1 ? t("samples.jsonl was rewritten 1 time. Counts restarted from the current file. A run must append samples; earlier file contents may have been lost.") : t("samples.jsonl was rewritten {count} times. Counts restarted from the current file. A run must append samples; earlier file contents may have been lost.", { count: last.samplesRewrites })}</Notice> : null}
+      {read.system.host ? <div className="text-xs text-muted-foreground">{t("Measured on {host}, where the run ran.", { host: read.system.host })}</div> : null}
       <div className="mt-3 mb-4 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2">
         <Stat label={active ? t("Running for") : t("Ran for")} value={durationText(last.elapsedMs)} />
         <Stat label={t("Processor")} value={last.cpuPercent === null ? "—" : `${last.cpuPercent.toFixed(0)}%`} hint={t("of {total}% on {cpus} cores, {processes} processes", { total: read.system.cpus * 100, cpus: read.system.cpus, processes: last.processes ?? 0 })} />
@@ -62,7 +63,7 @@ export function Resources(props: { projectId: string; run: ExperimentRun; notify
           />
         ) : null}
         {last.deviceMemoryBytes !== null ? <Stat label={t("Device memory")} value={bytesText(last.deviceMemoryBytes)} hint={t("peak {value}, as the program reported", { value: bytesText(peakDevice) })} /> : null}
-        {gpu ? <Stat label={gpu.name} value={gpu.utilizationPercent === null ? "—" : `${gpu.utilizationPercent.toFixed(0)}%`} hint={t("{used} of {total}", { used: bytesText(gpu.memoryUsedBytes), total: bytesText(gpu.memoryTotalBytes) })} /> : <Stat label="GPU" value={t("None seen")} hint={read.system.platform === "macos" ? t("Apple GPUs are not reported by the system") : t("nvidia-smi is not on this computer")} />}
+        {gpu ? <Stat label={gpu.name} value={gpu.utilizationPercent === null ? "—" : `${gpu.utilizationPercent.toFixed(0)}%`} hint={t("{used} of {total}", { used: bytesText(gpu.memoryUsedBytes), total: bytesText(gpu.memoryTotalBytes) })} /> : <Stat label="GPU" value={t("None seen")} hint={read.system.platform === "macos" ? t("Apple GPUs are not reported by the system") : read.system.host ? t("nvidia-smi is not on that host") : t("nvidia-smi is not on this computer")} />}
       </div>
       <div className="flex flex-wrap gap-x-6 gap-y-3">
         <Sparkline label={t("Processor %")} points={points} pick={(point) => point.cpuPercent} />

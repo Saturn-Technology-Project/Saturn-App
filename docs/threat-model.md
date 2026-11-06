@@ -44,7 +44,7 @@ Loopback is not a trust boundary: any local process, and any web page through th
 
 - The runtime listens on `127.0.0.1` only, rejects non-loopback `Host` headers (DNS rebinding) and gives non-local `Origin`s no cross-origin access (CORS) (`crates/saturn-server/src/guards.rs`).
 - Every route needs `Authorization: Bearer <token>`; the token is in `~/.saturn-app/runtime-token`, mode `0600` (Windows has no such mode: the file has the permissions of the user profile's folder). Exceptions: `/health`; `/oauth/callback` (the provider's redirect); `/agent-mcp`, which takes a running Codex turn's own short-lived token instead (`crates/saturn-server/src/guards.rs`, `answer_agent_mcp` in `crates/saturn-core/src/agent_sessions.rs`).
-- The desktop shell reads the token and gives it to the interface through a script that runs in the main frame only and only on the interface's own origin, so no frame and no other page sees it; the shell's own commands are allowed only to the interface's address. The interface embeds no web page and sets no HTML from content: model output is rendered as text and Markdown, and kept outputs as text or images, never executed (`desktop/src-tauri/src/main.rs`, `desktop/src-tauri/src/bridge.js`, `desktop/src/presentation/FormattedOutput.tsx`, `desktop/src/presentation/experiments/Artifacts.tsx`).
+- The desktop shell reads the token and gives it to the interface through a script that runs in the main frame only and only on the interface's own origin, so no frame and no other page sees it; the shell's own commands are allowed only to the interface's address. The interface embeds no web page and sets no HTML from content: model output is rendered as text and Markdown, and kept outputs as text or images, never executed. A project PDF is drawn page by page onto canvases by pdf.js in a worker from the app's own files, with no frame and no plugin, so the policy keeps `object-src 'none'` and allows no frames (`desktop/src/presentation/workspace/PdfView.tsx`) (`desktop/src-tauri/src/main.rs`, `desktop/src-tauri/src/bridge.js`, `desktop/src/presentation/FormattedOutput.tsx`, `desktop/src/presentation/experiments/Artifacts.tsx`).
 
 Out of scope: a process already running as the same user can read the token file and the OS key store, as it can for any app.
 
@@ -127,7 +127,7 @@ Why Saturn's security requirements are met: each requirement, the argument, and 
 | Server-side request forgery (CWE-918) | Public-address checks after resolution and on redirects | R4 |
 | Cross-site request forgery and missing authentication (CWE-352, CWE-306) | Bearer token on every route, Origin and Host checks | R2 |
 | Cleartext storage and exposure of credentials (CWE-312, CWE-532) | Encryption at rest, no secrets in logs or URLs | R3 |
-| Untrusted content executing in the app (CWE-79) | The interface embeds no web page and sets no HTML from content; model output and kept outputs are rendered as text, Markdown or images, never executed | `desktop/src/presentation/FormattedOutput.tsx`, `desktop/src/presentation/experiments/Artifacts.tsx` |
+| Untrusted content executing in the app (CWE-79) | The interface embeds no web page and sets no HTML from content; model output and kept outputs are rendered as text, Markdown or images, never executed; a project PDF is drawn onto canvases by pdf.js, with no frame or plugin | `desktop/src/presentation/FormattedOutput.tsx`, `desktop/src/presentation/experiments/Artifacts.tsx` |
 | Inclusion of untrusted functionality (CWE-829) | Fingerprint approval of hooks, plugins and local MCP servers; pinned hashes for downloads | R5, R6 |
 
 ## Review scope
@@ -199,7 +199,7 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 
 - Runtime 只監聽 `127.0.0.1`，拒絕非 loopback 的 `Host` 標頭（DNS rebinding），並且不給非本機的 `Origin` 任何跨來源存取（CORS）（`crates/saturn-server/src/guards.rs`）。
 - 每個路由都需要 `Authorization: Bearer <token>`；token 存於 `~/.saturn-app/runtime-token`，權限 `0600`（Windows 沒有這種權限：檔案沿用使用者設定檔資料夾的權限）。例外：`/health`；`/oauth/callback`（供應商的重新導向）；`/agent-mcp`，改用執行中 Codex 回合自己的短期 token（`crates/saturn-server/src/guards.rs`、`crates/saturn-core/src/agent_sessions.rs` 的 `answer_agent_mcp`）。
-- 桌面外殼讀取 token，並透過只在主 frame、且只在介面自己的 origin 上執行的腳本交給介面，所以沒有任何 iframe 或其他頁面看得到；外殼自己的指令只開放給介面的位址。介面不嵌入任何網頁，也不從內容設定 HTML：模型輸出以文字與 Markdown 呈現，保存的產出以文字或圖片呈現，都不會被執行（`desktop/src-tauri/src/main.rs`、`desktop/src-tauri/src/bridge.js`、`desktop/src/presentation/FormattedOutput.tsx`、`desktop/src/presentation/experiments/Artifacts.tsx`）。
+- 桌面外殼讀取 token，並透過只在主 frame、且只在介面自己的 origin 上執行的腳本交給介面，所以沒有任何 iframe 或其他頁面看得到；外殼自己的指令只開放給介面的位址。介面不嵌入任何網頁，也不從內容設定 HTML：模型輸出以文字與 Markdown 呈現，保存的產出以文字或圖片呈現，都不會被執行。專案裡的 PDF 由 pdf.js 在 App 自己檔案中的 worker 裡逐頁繪製到畫布上，不使用框架或外掛，所以政策維持 `object-src 'none'` 且不允許任何框架（`desktop/src/presentation/workspace/PdfView.tsx`）（`desktop/src-tauri/src/main.rs`、`desktop/src-tauri/src/bridge.js`、`desktop/src/presentation/FormattedOutput.tsx`、`desktop/src/presentation/experiments/Artifacts.tsx`）。
 
 範圍外：已經以同一使用者身分執行的程式能讀取 token 檔與作業系統金鑰庫，這對任何 App 都一樣。
 
@@ -282,7 +282,7 @@ Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗�
 | 伺服器端請求偽造（CWE-918） | 解析後與重新導向時檢查公開位址 | R4 |
 | 跨站請求偽造與缺少驗證（CWE-352、CWE-306） | 每個路由都需要 Bearer token，並檢查 Origin 與 Host | R2 |
 | 憑證以明文儲存或外洩（CWE-312、CWE-532） | 靜態加密，log 與網址中沒有機密 | R3 |
-| 不可信內容在 App 中執行（CWE-79） | 介面不嵌入任何網頁，也不從內容設定 HTML；模型輸出與保存的產出以文字、Markdown 或圖片呈現，不會被執行 | `desktop/src/presentation/FormattedOutput.tsx`、`desktop/src/presentation/experiments/Artifacts.tsx` |
+| 不可信內容在 App 中執行（CWE-79） | 介面不嵌入任何網頁，也不從內容設定 HTML；模型輸出與保存的產出以文字、Markdown 或圖片呈現，不會被執行；專案的 PDF 由 pdf.js 繪製到畫布上，不使用框架或外掛 | `desktop/src/presentation/FormattedOutput.tsx`、`desktop/src/presentation/experiments/Artifacts.tsx` |
 | 引入不可信的功能（CWE-829） | 以指紋核准 hooks、外掛與本機 MCP 伺服器；下載檔以固定雜湊驗證 | R5、R6 |
 
 ## 審查範圍

@@ -28,6 +28,7 @@ import { messageOf, Tabs } from "../ui/Parts.js";
 import { Split } from "../ui/Split.js";
 import { NotebookEditor } from "./NotebookEditor.js";
 import { Resources } from "./Resources.js";
+import { DocumentView } from "./DocumentView.js";
 import { SourceEditor } from "./SourceEditor.js";
 import { Terminal } from "./Terminal.js";
 import { Artifacts } from "../experiments/Artifacts.js";
@@ -58,6 +59,8 @@ interface OpenFile {
   revision: string | null;
   /** Moves on when the editor must take new content from outside. */
   generation: number;
+  /** A paper or a figure, shown and never edited. */
+  document?: { mime: string; data: string };
 }
 
 /** What the workspace is looking at, which the assistant can be given. */
@@ -191,6 +194,16 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     async (path: string) => {
       try {
         const view = await service.readSource(projectId, path);
+        if (view.kind === "document") {
+          content.current = "";
+          setDirty(false);
+          setConflict(false);
+          setSelection(null);
+          setOpen((current) => ({ path, initial: "", revision: view.revision, generation: (current?.generation ?? 0) + 1, document: { mime: view.mime, data: view.data } }));
+          setTree((current) => revealed(current, path));
+          remember({ file: path });
+          return;
+        }
         if (view.kind !== "file") return;
         const draft = session.current.draft;
         const restored = draft && draft.file === path && draft.revision === view.revision ? draft.content : null;
@@ -286,7 +299,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
       service
         .readSource(projectId, path)
         .then((view) => {
-          if (view.kind === "file" && view.revision !== revision) void openFile(path);
+          if ((view.kind === "file" || view.kind === "document") && view.revision !== revision) void openFile(path);
         })
         .catch(() => {});
     });
@@ -294,7 +307,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
 
   const save = useCallback(
     async (force = false) => {
-      if (!open) return true;
+      if (!open || open.document) return true;
       if (isNotebookPath(open.path) && new TextEncoder().encode(content.current).length > NOTEBOOK_SIZE_LIMIT) {
         notify(t("This notebook is over 8 MB with its outputs, so it would not open again. Clear its outputs, then save."));
         return false;
@@ -599,7 +612,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
       <Split id="files" side="left" size={210} minimum={140} label={t("Files")} pane={files}>
         <div className="flex min-h-[42px] flex-none flex-wrap items-center gap-2.5 border-b border-border px-2.5 py-[5px]">
           <code className="max-w-[260px] truncate text-xs">{open?.path ?? t("No file open")}</code>
-          {open ? <span className={MUTED}>{saving ? t("Saving…") : dirty ? t("Not saved") : t("Saved")}</span> : null}
+          {open ? <span className={MUTED}>{open.document ? t("Read only") : saving ? t("Saving…") : dirty ? t("Not saved") : t("Saved")}</span> : null}
           <Input className="w-auto min-w-[140px] flex-[1_1_200px] font-mono text-xs" aria-label={t("Command that runs the experiment")} data-tour="workspace-command" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} />
           {run && isRunActive(run.status) ? (
             <Button variant="outline" onClick={() => void stopRun()}>
@@ -623,7 +636,9 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           </Notice>
         ) : null}
         <Split id="lower" side="bottom" size={220} minimum={100} label={t("Results")} pane={lower}>
-          {open && isNotebookPath(open.path) ? (
+          {open?.document ? (
+            <DocumentView key={`${open.path}:${open.generation}`} path={open.path} mime={open.document.mime} data={open.document.data} />
+          ) : open && isNotebookPath(open.path) ? (
             <NotebookEditor
               key={open.path}
               projectId={projectId}
