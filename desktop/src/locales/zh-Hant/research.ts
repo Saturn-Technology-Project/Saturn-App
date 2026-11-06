@@ -612,4 +612,5 @@ export default {
   "revision can change, weights not checked": "修訂版本可能變動，權重未核對",
   "pinned revision, weights not checked here": "已固定修訂版本，權重未在此核對",
   weights: "權重",
+  "{seed}, applied to {libraries}": "{seed}（已套用於 {libraries}）",
 } satisfies Dictionary;

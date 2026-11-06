@@ -37,6 +37,14 @@ function howText(how: string): string {
   return t("copied");
 }
 
+/** A reported seed as its value and where the program says it applied it, or "Unknown" when it did not report one. */
+function seedText(seed: Record<string, unknown> | null | undefined): string {
+  if (!seed) return t("Unknown (not reported)");
+  const value = seed.value === undefined ? "?" : String(seed.value);
+  const applied = Array.isArray(seed.applied) && seed.applied.length ? seed.applied.join(", ") : null;
+  return applied ? t("{seed}, applied to {libraries}", { seed: value, libraries: applied }) : value;
+}
+
 /** A value the program reported, or "Unknown" when it did not. */
 function reportedText(value: unknown): string {
   if (value === null || value === undefined) return t("Unknown (not reported)");
@@ -115,7 +123,7 @@ export function Evidence(props: { projectId: string; runId: string }) {
         </section>
         <section>
           <div className={LABEL}>{t("Reported by the program")}</div>
-          <div className={MUTED}>{t("Seed")}: {reportedText(reported?.seed)}</div>
+          <div className={MUTED}>{t("Seed")}: {seedText(reported?.seed)}</div>
           <div className={MUTED}>{t("Models")}: {reported?.models.length ? reported.models.map((model) => JSON.stringify(model)).join("; ") : t("Unknown (not reported)")}</div>
           <div className={MUTED}>{t("Resumed from")}: {reportedText(reported?.resume)}</div>
           {reported?.problems.length ? <div className="text-xs text-wait">{reported.problems.join(" ")}</div> : null}
