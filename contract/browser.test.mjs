@@ -64,9 +64,10 @@ async function api(runtime, method, route, body) {
   return answer.body;
 }
 
-async function until(what, read, done = Boolean) {
+async function until(what, read, done = Boolean, seconds = 20) {
   let value;
-  for (let attempt = 0; attempt < 500; attempt += 1) {
+  const deadline = Date.now() + seconds * 1000;
+  while (Date.now() < deadline) {
     value = await read();
     if (done(value)) return value;
     await new Promise((resolve) => setTimeout(resolve, 40));
@@ -95,7 +96,8 @@ async function toolRunner(runtime) {
   return async (steps) => {
     queue.push(...steps);
     const started = await api(runtime, "POST", `/agents/${agent.id}/runs`, { input: "go" });
-    const run = await until("the run", () => api(runtime, "GET", `/runs/${started.id}`), (item) => !["queued", "running", "waiting_approval"].includes(item.status));
+    // A step may start the browser, which has thirty seconds to start and fifteen for a page to load.
+    const run = await until("the run", () => api(runtime, "GET", `/runs/${started.id}`), (item) => !["queued", "running", "waiting_approval"].includes(item.status), 90);
     assert.equal(run.status, "completed", run.error);
     assert.equal(run.actions.length, steps.length);
     return { id: run.id, answers: run.actions.map((action, index) => ({ tool: steps[index][0], arguments: steps[index][1], status: action.status, ...(action.result === undefined ? {} : { result: action.result }), ...(action.reason === undefined ? {} : { reason: action.reason }) })) };
