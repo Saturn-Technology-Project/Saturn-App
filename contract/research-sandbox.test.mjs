@@ -27,20 +27,26 @@ after(async () => {
   await rm(home, { recursive: true, force: true });
 });
 
-const sample = `${JSON.stringify({ schemaVersion: 1, sampleId: "a", input: "in", output: "out", scores: { s: 1 }, error: null })}\n`;
+/** The names of the actions each generated script tries, in order, kept out of the script itself. */
+const actionNames = new Map();
 
 /**
- * A script that tries each named action and records whether it worked, then writes one sample. Each action is the
- * body of an async function given `fs` (node:fs/promises) and `env`.
+ * A script that tries each named action and records whether it worked, by position, then writes one sample. Each
+ * action is the body of an async function given `fs` (node:fs/promises) and `env`; the names stay with the test.
  */
-const tries = (actions) => `
+const tries = (actions) => {
+  const bodies = Object.values(actions);
+  const script = `
 import * as fs from "node:fs/promises";
 const env = process.env;
-const results = {};
-${Object.entries(actions).map(([name, body]) => `try { results[${JSON.stringify(name)}] = await (async () => { ${body} })() ?? true; } catch (error) { results[${JSON.stringify(name)}] = "refused: " + (error.code ?? error.message); }`).join("\n")}
+const results = [];
+${bodies.map((body) => `try { results.push(await (async () => { ${body} })() ?? true); } catch (error) { results.push("refused: " + (error.code ?? error.message)); }`).join("\n")}
 await fs.writeFile(env.SATURN_RUN_OUTPUT + "/results.json", JSON.stringify(results));
-await fs.appendFile(env.SATURN_RUN_SAMPLES, ${JSON.stringify(sample)});
+await fs.appendFile(env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "a", input: "in", output: "out", scores: { s: 1 }, error: null }) + "\\n");
 `;
+  actionNames.set(script, Object.keys(actions));
+  return script;
+};
 
 /** A project whose experiment runs `script`, with these experiment fields. */
 async function setup(script, fields = {}) {
@@ -64,7 +70,9 @@ async function run(bed) {
   const ended = await until(`run ${started.id} to end`, () => saturn.api("GET", `${bed.route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
   const evidence = await saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`);
   const directory = path.join(bed.folder, ".saturn/research/runs", started.id);
-  const results = JSON.parse(await readFile(path.join(directory, "written", "results.json"), "utf8").catch(() => "{}"));
+  const recorded = JSON.parse(await readFile(path.join(directory, "written", "results.json"), "utf8").catch(() => "[]"));
+  const script = await readFile(path.join(bed.folder, "probe.mjs"), "utf8");
+  const results = Object.fromEntries((actionNames.get(script) ?? []).map((name, index) => [name, recorded[index]]));
   return { run: ended, evidence, results, directory };
 }
 
