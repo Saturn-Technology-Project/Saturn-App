@@ -36,6 +36,8 @@ fn position(profile: &str, needle: &str) -> usize {
         .unwrap_or_else(|| panic!("{needle} is not in\n{profile}"))
 }
 
+// Unix paths, for the macOS and Linux sandboxes; Windows has neither.
+#[cfg(unix)]
 #[test]
 fn seatbelt_reopens_only_what_the_program_may_reach_after_closing_the_rest() {
     let (_root, confinement) = sample();
@@ -123,6 +125,8 @@ fn the_credential_folders_include_ssh_keys_and_cloud_logins() {
     }
 }
 
+// Unix paths, for the macOS and Linux sandboxes; Windows has neither.
+#[cfg(unix)]
 #[test]
 fn a_token_in_a_shared_cache_stays_hidden_after_the_cache_is_opened() {
     let root = tempfile::tempdir().expect("a temporary folder");
