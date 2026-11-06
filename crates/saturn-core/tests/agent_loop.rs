@@ -240,6 +240,8 @@ async fn a_written_file_is_reviewed_and_reverted_with_its_original_bytes() {
     );
 }
 
+// Its commands are sh; on Windows they run in cmd.exe, where hooks and checks are not yet tested.
+#[cfg(unix)]
 #[tokio::test]
 async fn a_command_s_changes_join_the_checkpoint_in_a_git_folder_and_outside_one() {
     for in_git in [true, false] {
@@ -314,6 +316,8 @@ async fn restoring_to_a_step_puts_back_what_that_step_and_later_ones_wrote() {
     assert_eq!(read(&setup.folder.join("file.txt")).as_deref(), Some("one"));
 }
 
+// Its commands are sh; on Windows they run in cmd.exe, where hooks and checks are not yet tested.
+#[cfg(unix)]
 #[tokio::test]
 async fn a_pre_tool_hook_blocks_asks_and_allows() {
     let blocked = setup(
@@ -358,6 +362,8 @@ async fn a_pre_tool_hook_blocks_asks_and_allows() {
     assert_eq!(run["actions"][0]["status"], "completed");
 }
 
+// Its commands are sh; on Windows they run in cmd.exe, where hooks and checks are not yet tested.
+#[cfg(unix)]
 #[tokio::test]
 async fn a_hook_gets_the_call_on_stdin_and_a_post_tool_hook_can_add_feedback() {
     let setup = setup(
@@ -382,6 +388,8 @@ async fn a_hook_gets_the_call_on_stdin_and_a_post_tool_hook_can_add_feedback() {
     assert_eq!(input["run_id"], run["id"]);
 }
 
+// Its commands are sh; on Windows they run in cmd.exe, where hooks and checks are not yet tested.
+#[cfg(unix)]
 #[tokio::test]
 async fn a_project_s_hooks_run_only_once_that_exact_set_is_allowed() {
     let setup = setup(
@@ -422,6 +430,8 @@ async fn a_project_s_hooks_run_only_once_that_exact_set_is_allowed() {
     assert!(marker.exists());
 }
 
+// Its commands are sh; on Windows they run in cmd.exe, where hooks and checks are not yet tested.
+#[cfg(unix)]
 #[tokio::test]
 async fn a_stop_hook_sends_the_turn_back_at_most_twice() {
     let setup = setup(Vec::new(), "bypass").await;
@@ -444,6 +454,8 @@ async fn a_stop_hook_sends_the_turn_back_at_most_twice() {
     );
 }
 
+// Its commands are sh; on Windows they run in cmd.exe, where hooks and checks are not yet tested.
+#[cfg(unix)]
 #[tokio::test]
 async fn a_failing_check_goes_back_to_the_agent_after_it_changed_files() {
     let setup = setup(
@@ -489,6 +501,8 @@ async fn a_failing_check_goes_back_to_the_agent_after_it_changed_files() {
     .await;
 }
 
+// Its commands are sh; on Windows they run in cmd.exe, where hooks and checks are not yet tested.
+#[cfg(unix)]
 #[tokio::test]
 async fn stopping_a_run_ends_its_command_and_keeps_what_the_command_changed() {
     let setup = setup(vec![json!([call("code", json!({ "command": "echo partial > partial.txt; echo $$ > pid.txt; sleep 30; echo late > late.txt" }))])], "bypass").await;

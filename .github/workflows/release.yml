@@ -102,9 +102,9 @@ jobs:
 
       - name: Tests and type checks
         run: |
-          cargo test --locked
+          cargo test --locked --no-fail-fast
           cargo build --locked -p saturn-server -p saturn-cli
-          node --test contract/*.test.mjs
+          node --test --test-timeout=120000 --test-force-exit contract/*.test.mjs
           npm run typecheck
 
       - name: Package Saturn.app
@@ -187,7 +187,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
-          cargo test --locked
+          cargo test --locked --no-fail-fast
           npm run typecheck
 
       - name: Code-signing certificate (self-signed)
