@@ -6,6 +6,8 @@ import {
   comparisonText,
   DEFAULT_LABELS,
   EVALUATION_FIELD_NAMES,
+  isRunActive,
+  metricsRun,
   runHasResults,
   runStatusLabel,
   scoreSources,
@@ -116,6 +118,7 @@ export function Experiments(props: ScreenProps) {
   const runs = (value?.runs ?? []).filter((item) => item.experimentId === draft?.id);
   const finished = runs.filter((run) => runHasResults(run.status));
   const newest = finished.at(-1) ?? null;
+  const plotted = metricsRun(runs);
   const question = value?.questions.find((item) => item.id === draft?.questionId);
   const hypothesis = value?.hypotheses.find((item) => item.id === draft?.hypothesisId);
   const findings = (value?.findings ?? []).filter((item) => item.runIds?.some((id) => runs.some((run) => run.id === id)));
@@ -282,7 +285,7 @@ export function Experiments(props: ScreenProps) {
           </div>
 
           <ScoreChart projectId={projectId} runs={finished} versions={versions} models={value?.models ?? []} summaries={results.summaries} comparisons={results.comparisons} />
-          {newest ? <TrainingMetrics key={newest.id} projectId={projectId} runId={newest.id} notify={props.notify} /> : null}
+          {plotted ? <TrainingMetrics key={plotted.id} projectId={projectId} runId={plotted.id} live={isRunActive(plotted.status)} notify={props.notify} /> : null}
 
           {sources && newest ? (
             <>

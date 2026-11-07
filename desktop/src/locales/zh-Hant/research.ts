@@ -165,6 +165,8 @@ export default {
   "Experiment name": "實驗名稱",
   "An experiment needs a name.": "實驗需要名稱。",
   Rename: "重新命名",
+  "Waiting for the run's first training metrics…": "正在等待這次執行的第一筆訓練指標…",
+  "The run is still going: new metrics appear as it writes them.": "執行仍在進行：程式寫入新指標時會即時顯示。",
   "Reading the run's samples…": "正在載入執行的樣本…",
   "The scorer marked nothing wrong for {model} in this run.": "這次執行中，評分器沒有將 {model} 的任何樣本判為錯誤。",
   "The samples carry no expected token, so nothing says what restored means. Have the program write expected on each line.": "樣本沒有預期 token，因此無法判斷怎樣才算恢復。請讓程式在每一行寫入「expected」。",

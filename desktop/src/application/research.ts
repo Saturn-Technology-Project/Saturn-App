@@ -30,7 +30,7 @@ import type {
 } from "../domain/research.js";
 import type { DataList, DataOverlap, DataPage, DataProfile } from "../domain/data.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
-import type { ResearchImportRequest, ResearchImportPreview, TrainingMetric } from "../domain/research.js";
+import type { ResearchImportRequest, ResearchImportPreview, TrainingMetricsPage } from "../domain/research.js";
 import type { PairedComparison, PairedComparisonRequest } from "../domain/research.js";
 import type { CounterexampleSet } from "../domain/research.js";
 import type { RemoteTarget, RunEvidence } from "../domain/research.js";
@@ -104,7 +104,7 @@ export class ResearchService {
   }
 
   /** Reads a page of training metrics using byte offsets. */
-  metrics(project: string, run: string, cursor = 0): Promise<{ items: TrainingMetric[]; next: number | null }> {
+  metrics(project: string, run: string, cursor = 0): Promise<TrainingMetricsPage> {
     return this.runtime.request(`${this.route(project)}/runs/${run}/metrics?cursor=${cursor}`);
   }
 
