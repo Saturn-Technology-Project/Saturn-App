@@ -326,6 +326,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
           </div>
         ))}
         <div className={DETAIL_ROW}><span className={MUTED}>{t("Infrastructure errors")}</span><span>{run.infrastructureErrors ?? 0}</span></div>
+        {run.sealIntact === false ? <div className={WARNING}>{t("The samples changed after the run was sealed. They no longer stand for its results.")}</div> : null}
       </Card>
 
       <Card className={ABOUT}>

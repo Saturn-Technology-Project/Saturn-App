@@ -429,6 +429,9 @@ test("samples changed after the seal are caught wherever the run is read", posix
   assert.equal((await saturn.api("GET", `${bed.route}/runs/${run.id}`)).sealIntact, false);
   const samples = await saturn.api("GET", `${bed.route}/runs/${run.id}/samples`);
   assert.equal(samples.sealIntact, false);
+  // The list the Experiments and Workspace screens read says so too, not only the single run.
+  const listed = (await saturn.api("GET", `${bed.route}/runs`)).items.find((item) => item.id === run.id);
+  assert.equal(listed.sealIntact, false);
 });
 
 test("stopping a run stops it, keeps its samples, and is stopped rather than completed", posixOnly, async () => {

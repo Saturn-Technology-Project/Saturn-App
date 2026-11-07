@@ -679,6 +679,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
                 {run.exitCode !== undefined && run.exitCode !== null ? t(", exit code {code}", { code: run.exitCode }) : ""}
               </div>
               {run.inputsChanged?.length ? <div className={WARNING}>{t("Changed during the run: {inputs}", { inputs: run.inputsChanged.join(", ") })}</div> : null}
+              {run.sealIntact === false ? <div className={WARNING}>{t("The samples changed after the run was sealed. They no longer stand for its results.")}</div> : null}
               {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
               {run.status === "interrupted" && run.process === "unconfirmed" ? <div className={WARNING}>{t("Its process could not be confirmed, so it was not ended.")}</div> : null}
               {run.error ? <div className={WARNING}>{run.error}</div> : null}
