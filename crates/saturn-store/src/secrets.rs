@@ -59,7 +59,7 @@ pub fn encrypt_with_iv(
     let plaintext = serde_json::to_vec(secrets)?;
     let mut sealed = cipher(key)
         .encrypt(
-            Nonce::from_slice(iv),
+            &Nonce::from(*iv),
             Payload {
                 msg: &plaintext,
                 aad: ASSOCIATED_DATA,
@@ -101,9 +101,11 @@ pub fn decrypt(envelope: &Envelope, key: &Key) -> io::Result<Secrets> {
         ));
     }
     sealed.extend_from_slice(&tag);
+    let nonce = Nonce::try_from(iv.as_slice())
+        .map_err(|_| io::Error::other("the secrets file has a malformed IV or tag"))?;
     let plaintext = cipher(key)
         .decrypt(
-            Nonce::from_slice(&iv),
+            &nonce,
             Payload {
                 msg: &sealed,
                 aad: ASSOCIATED_DATA,

@@ -2,6 +2,12 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **Training metrics follow a run while it goes.** The experiment page showed a training run's curve only once the run had finished. It now shows the run still going, adds each metric as the program writes it, and reads the last ones when the run ends; before the first metric it says it is waiting. A long run's curve stays quick to draw.
+
 ## 0.4.1 (2026-11-07)
 
 ### Changed
