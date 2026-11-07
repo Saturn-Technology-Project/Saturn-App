@@ -1165,7 +1165,7 @@ function General(props: {
                   ? t("Agents browse in a visible window of your Chrome (or Edge, Brave), with Saturn's own profile: your logins and tabs stay out of it. You watch the cursor there.")
                   : agentBrowser === "safari"
                     ? t("Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.")
-                    : t("Agents browse in Saturn's own browser, without a window, shown live with the agent's cursor in the Browser tab of the research assistant.")}
+                    : t("Agents browse in Saturn's own browser, without a window, shown live with the agent's cursor in a Browser tab of the Workspace.")}
               </RowDescription>
             </RowText>
             <Pills

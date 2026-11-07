@@ -190,8 +190,8 @@ export default {
     "代理會在可見的 Chrome（或 Edge、Brave）視窗中瀏覽，並使用 Saturn 專用的設定檔，不會帶入你的登入狀態與分頁。你可以在該視窗中看到游標。",
   "Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.":
     "代理會在 Safari 自動化視窗（網址列有條紋）中瀏覽，不會帶入你的登入狀態；代理工作時你無法點選該視窗。請先在 Safari 中開啟一次「開發 → 允許遠端自動化」。瀏覽器分頁大約每秒更新一次畫面。",
-  "Agents browse in Saturn's own browser, without a window, shown live with the agent's cursor in the Browser tab of the research assistant.":
-    "代理會在 Saturn 自己的瀏覽器中瀏覽（不開視窗），畫面連同代理的游標會即時顯示在研究助理的「瀏覽器」分頁。",
+  "Agents browse in Saturn's own browser, without a window, shown live with the agent's cursor in a Browser tab of the Workspace.":
+    "代理會在 Saturn 自己的瀏覽器中瀏覽（不開視窗），畫面連同代理的游標會即時顯示在 Workspace 的「瀏覽器」分頁。",
   "Light or dark appearance.": "淺色或深色外觀。",
   Language: "語言",
   "The interface's language. Saturn reloads to show it.": "介面語言。Saturn 會重新載入以套用。",
