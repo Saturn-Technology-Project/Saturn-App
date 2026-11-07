@@ -18,7 +18,8 @@ import {
   type Question,
   type SampleItem,
 } from "../../domain/research.js";
-import { EMPTY_TREE, foldersToRead, keyMove, refreshed, revealed, toggled, treeRows, type TreeEntry, type TreeState } from "../../domain/file-tree.js";
+import { EMPTY_TREE, foldersToRead, keyMove, parentOf, refreshed, revealed, toggled, treeRows, type TreeEntry, type TreeState } from "../../domain/file-tree.js";
+import { newFileContent, renamedFileSession } from "../../domain/workspace-files.js";
 import { t } from "../../domain/i18n.js";
 import { isNotebookPath, NOTEBOOK_SIZE_LIMIT } from "../../domain/notebook.js";
 import { LookInside } from "../samples/LookInside.js";
@@ -38,6 +39,7 @@ import { DocumentView } from "./DocumentView.js";
 import { SourceEditor } from "./SourceEditor.js";
 import { languageOf } from "../../domain/code-languages.js";
 import { Terminal } from "./Terminal.js";
+import { FileActionDialog, type FileAction } from "./FileActionDialog.js";
 import { Artifacts } from "../experiments/Artifacts.js";
 import { RunControls } from "../experiments/RunControls.js";
 import { AgentBrowserView, useAgentBrowser } from "../assistant/AgentBrowser.js";
@@ -52,7 +54,7 @@ const PANELS = Object.values(PANEL);
 type Panel = string;
 /** A file or a list entry in the sidebar and the sample list: monospaced, left aligned, and it wraps rather than cuts. */
 /** One row of the file tree: indented by depth, the open file marked. */
-const TREE_ROW = "flex min-h-[26px] w-full cursor-default items-center gap-1.5 rounded-md pr-2 text-left font-mono text-xs text-muted-foreground outline-none select-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+const TREE_ROW = "group flex min-h-[26px] w-full cursor-default items-center gap-1.5 rounded-md pr-2 text-left font-mono text-xs text-muted-foreground outline-none select-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
 /** A sample in the list: one line, its id's start giving way so the end, where ids tend to differ, stays in view. */
 const SAMPLE_ENTRY = "relative flex h-7 w-full flex-none cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2.5 text-left text-xs before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full";
 /** A heading inside a sample's preview. */
@@ -109,6 +111,8 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const [focusedRow, setFocusedRow] = useState(0);
   const [fileQuery, setFileQuery] = useState("");
   const [foundFiles, setFoundFiles] = useState<string[] | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(session.current.file ?? null);
+  const [fileAction, setFileAction] = useState<FileAction | null>(null);
   const treeRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<OpenFile | null>(null);
   const content = useRef("");
@@ -193,7 +197,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   shownTree.current = tree;
   const readShownFolders = useCallback(() => {
     const shown = Object.keys(shownTree.current.folders);
-    void Promise.all(shown.map(async (path) => [path, await readFolder(path)] as const)).then((read) => setTree((latest) => refreshed(latest, Object.fromEntries(read))));
+    return Promise.all(shown.map(async (path) => [path, await readFolder(path)] as const)).then((read) => setTree((latest) => refreshed(latest, Object.fromEntries(read))));
   }, [readFolder]);
   useEffect(() => {
     const stopFiles = desktop.live.onChange(readShownFolders);
@@ -231,6 +235,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
 
   const openFile = useCallback(
     async (path: string) => {
+      setSelectedPath(path);
       // The tab being left keeps its unsaved text, read now, before the editor changes.
       const leaving = editing.current;
       if (leaving.open && leaving.open.path !== path && leaving.dirty && !leaving.open.document) {
@@ -268,6 +273,44 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     },
     [notify, projectId, remember],
   );
+
+  /** A rename keeps the buffer in memory, including unsaved edits, while its saved file moves on disk. */
+  function beginRename(path: string) {
+    if (saving) return;
+    const current = editing.current.open;
+    const revision = current?.path === path ? current.revision : unsaved.current.get(path)?.revision;
+    setFileAction({ kind: "rename", path, revision });
+  }
+
+  /** Creates a file or moves its saved bytes, then updates every local reference without discarding a draft. */
+  async function applyFileAction(path: string) {
+    if (!fileAction) return;
+    if (fileAction.kind === "create") {
+      const made = await service.writeSource(projectId, path, newFileContent(path), null);
+      path = made.path;
+      setFileQuery("");
+      await openFile(path);
+    } else {
+      const from = fileAction.path;
+      const moved = await service.renameSource(projectId, from, path, fileAction.revision);
+      path = moved.path;
+      const kept = unsaved.current.get(from);
+      if (kept) { unsaved.current.delete(from); unsaved.current.set(path, kept); }
+      const current = editing.current;
+      if (current.open?.path === from) {
+        const next = { ...current.open, path, initial: content.current, revision: moved.revision ?? current.open.revision, generation: current.open.generation + 1 };
+        editing.current = { ...current, open: next };
+        setOpen(next);
+        setConflict(false);
+      }
+      setTabs((current) => current.map((tab) => tab === from ? path : tab));
+      remember(renamedFileSession(session.current, from, path));
+      setSelectedPath(path);
+      setFileQuery("");
+    }
+    setTree((current) => revealed(current, path));
+    await readShownFolders();
+  }
 
   const refreshRun = useCallback(
     async (runId: string) => {
@@ -518,6 +561,10 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     treeRef.current?.querySelectorAll<HTMLElement>("[role=treeitem]")[index]?.focus();
   };
   const onTreeKey = (event: React.KeyboardEvent) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    if (event.key === "F2" && rows[focused]?.entry.kind === "file") {
+      event.preventDefault(); beginRename(rows[focused].entry.path); return;
+    }
     const move = keyMove(rows, focused, event.key);
     if (move.kind === "none") return;
     event.preventDefault();
@@ -541,9 +588,10 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
             title={row.entry.path}
             className={classes(TREE_ROW, current && "bg-muted text-foreground", row.generated && "opacity-55")}
             style={{ paddingLeft: 6 + (row.depth - 1) * 12 }}
-            onFocus={() => setFocusedRow(index)}
+            onFocus={() => { setFocusedRow(index); setSelectedPath(row.entry.path); }}
             onClick={() => {
               setFocusedRow(index);
+              setSelectedPath(row.entry.path);
               if (isFolder) toggleFolder(row.entry.path);
               else void openFile(row.entry.path);
             }}
@@ -552,6 +600,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               {isFolder ? (row.expanded ? "▾" : "▸") : ""}
             </span>
             <span className="min-w-0 truncate">{row.entry.name}</span>
+            {!isFolder ? <button type="button" className="ml-auto flex-none cursor-pointer rounded px-1 text-muted-foreground opacity-0 hover:bg-muted focus-visible:opacity-100 group-hover:opacity-100" aria-label={t("Rename {file}", { file: row.entry.path })} title={t("Rename file")} disabled={saving} onClick={(event) => { event.stopPropagation(); beginRename(row.entry.path); }}>✎</button> : null}
             {row.loading ? <span className="ml-auto flex-none text-[10px] text-muted-foreground">{t("Loading…")}</span> : null}
           </div>
         );
@@ -586,7 +635,17 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
         </Button>
       </section>
       <section className="mb-3 flex flex-col gap-1">
-        <div className="mb-0.5 px-1.5 text-[11px] font-semibold text-muted-foreground">{t("Files")}</div>
+        <div className="mb-0.5 flex items-center justify-between gap-1 px-1.5 text-[11px] font-semibold text-muted-foreground">
+          <span>{t("Files")}</span>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="small" className="h-6 px-1.5" title={t("New file")} aria-label={t("New file")} disabled={saving} onClick={() => {
+              const selected = rows.find((row) => row.entry.path === selectedPath)?.entry;
+              const folder = selected?.kind === "directory" ? selected.path : parentOf(selectedPath ?? open?.path ?? "");
+              setFileAction({ kind: "create", path: folder === "." ? "" : `${folder}/` });
+            }}>＋</Button>
+            <Button variant="ghost" size="small" className="h-6 px-1.5" title={t("Rename file")} aria-label={t("Rename file")} disabled={saving || !selectedPath || rows.some((row) => row.entry.path === selectedPath && row.entry.kind === "directory")} onClick={() => { if (selectedPath) beginRename(selectedPath); }}>✎</Button>
+          </div>
+        </div>
         <Input className="h-7 text-xs" value={fileQuery} placeholder={t("Find a file")} aria-label={t("Find a file")} onChange={(event) => setFileQuery(event.target.value)} />
         {foundFiles ? (
           foundFiles.length ? (
@@ -797,6 +856,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
+      {fileAction ? <FileActionDialog key={`${fileAction.kind}:${fileAction.path}`} action={fileAction} onSubmit={applyFileAction} onClose={() => setFileAction(null)} /> : null}
       <h1 className="sr-only">{open ? t("Workspace: {path}", { path: open.path }) : t("Workspace")}</h1>
       <Split id="files" side="left" size={210} minimum={140} label={t("Files")} pane={files}>
         {/* The centre's tabs: each open file, then the assistant's browser; the saved state of the file shown on the right. */}

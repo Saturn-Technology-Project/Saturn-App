@@ -16,6 +16,31 @@ use crate::{TEXT_LIMIT, ToolResult, clip, either, text};
 const LEADS_OUT: &str = "Path is outside the workspace (a symbolic link leads out of it)";
 const TOO_LARGE: &str = "File is too large";
 
+/// Moves a regular file without ever replacing a destination created by another writer.
+pub fn rename_without_replacing(from: &Path, to: &Path) -> std::io::Result<()> {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        rustix::fs::renameat_with(
+            rustix::fs::CWD,
+            from,
+            rustix::fs::CWD,
+            to,
+            rustix::fs::RenameFlags::NOREPLACE,
+        )?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        // A hard link reserves the new name exclusively, retaining bytes and permissions on Windows too.
+        std::fs::hard_link(from, to)?;
+        if let Err(error) = std::fs::remove_file(from) {
+            let _ = std::fs::remove_file(to);
+            return Err(error);
+        }
+        Ok(())
+    }
+}
+
 /// What a checkpoint's capture returns.
 pub type CaptureFuture<'a> = Pin<Box<dyn Future<Output = std::io::Result<()>> + Send + 'a>>;
 

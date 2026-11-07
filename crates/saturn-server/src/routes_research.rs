@@ -203,6 +203,19 @@ async fn write_source(State(kernel): Shared, Path(project): Path<String>, body: 
         .await?)
 }
 
+/// A person's rename from the Workspace; its destination is never overwritten.
+async fn rename_source(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    ok(kernel
+        .research_source_rename(
+            &project,
+            given(&body, "path").unwrap_or(""),
+            given(&body, "newPath").unwrap_or(""),
+            given(&body, "expectedRevision"),
+        )
+        .await?)
+}
+
 async fn samples(
     State(kernel): Shared,
     Path((project, id)): Path<(String, String)>,
@@ -719,6 +732,7 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             "/projects/{id}/research/source",
             get(read_source).put(write_source),
         )
+        .route("/projects/{id}/research/source/rename", post(rename_source))
         .route("/projects/{id}/research/runs/{run}/samples", get(samples))
         .route("/projects/{id}/research/runs/{run}/log", get(log))
         .route("/projects/{id}/research/runs/{run}/evidence", get(evidence))

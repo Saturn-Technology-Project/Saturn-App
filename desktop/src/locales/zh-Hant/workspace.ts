@@ -133,6 +133,12 @@ export default {
   "{label} over time, now {now}": "{label} 趨勢，目前 {now}",
 
   // Editor and terminal
+  "New file": "新增檔案",
+  "Rename file": "重新命名檔案",
+  "Rename {file}": "重新命名 {file}",
+  "Create file": "建立檔案",
+  "File path": "檔案路徑",
+  "Enter a path relative to the project. Existing files are never replaced.": "輸入相對於專案的路徑，不會覆蓋既有檔案。",
   "Source file": "原始檔",
   "Exit code {code}": "結束代碼 {code}",
   "Running…": "執行中…",

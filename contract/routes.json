@@ -203,6 +203,7 @@
   "POST /projects/:id/research/runs/:run/pause",
   "POST /projects/:id/research/runs/:run/resume",
   "POST /projects/:id/research/runs/:run/stop",
+  "POST /projects/:id/research/source/rename",
   "POST /projects/:id/research/versions/:version/runs",
   "POST /projects/:id/terminal",
   "POST /runs/:id/actions/:action/allow-always",

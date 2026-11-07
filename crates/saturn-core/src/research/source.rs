@@ -149,6 +149,94 @@ impl Kernel {
         Ok(json!({ "path": relative, "revision": sha256_hex(content.as_bytes()) }))
     }
 
+    /// Renames one regular source file without overwriting a destination; an open editor supplies its last revision.
+    pub async fn research_source_rename(
+        &self,
+        project: &str,
+        requested: &str,
+        new_path: &str,
+        expected: Option<&str>,
+    ) -> Result<Value, CoreError> {
+        if requested.trim().is_empty() || new_path.trim().is_empty() {
+            return Err(CoreError::new(
+                400,
+                "Name the source file and its new path.",
+            ));
+        }
+        let source = self.research_source(project, None)?;
+        let lock = self.records_lock(&source);
+        let _writing = lock.lock().await;
+        let (from, previous) = self.source_path(project, requested, None).await?;
+        let (to, relative) = self.source_path(project, new_path, None).await?;
+        // A directory alias could otherwise disguise git metadata or research records as an ordinary file.
+        for path in [&from, &to] {
+            let mut checked = source.clone();
+            for part in path
+                .strip_prefix(&source)
+                .map_err(|_| CoreError::new(403, "This path is outside the project."))?
+                .components()
+            {
+                checked.push(part);
+                if super::is_link(&checked).await {
+                    return Err(CoreError::new(
+                        403,
+                        "Symbolic links are not renamed or replaced here.",
+                    ));
+                }
+            }
+        }
+        let info = tokio::fs::symlink_metadata(&from)
+            .await
+            .map_err(|_| CoreError::new(404, "No such file"))?;
+        if info.file_type().is_symlink()
+            || tokio::fs::symlink_metadata(&to)
+                .await
+                .is_ok_and(|info| info.file_type().is_symlink())
+        {
+            return Err(CoreError::new(
+                403,
+                "Symbolic links are not renamed or replaced here.",
+            ));
+        }
+        if !info.is_file() {
+            return Err(CoreError::new(
+                400,
+                "Choose a file to rename, not a folder.",
+            ));
+        }
+        if let Some(expected) = expected {
+            let (current, _) = super::freeze::hash_file(&from).await?;
+            if current != expected {
+                return Err(CoreError::new(
+                    409,
+                    "This file changed since it was opened. Reload it before renaming.",
+                ));
+            }
+        }
+        if from != to {
+            if let Some(parent) = to.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            tokio::task::spawn_blocking(move || {
+                saturn_tools::file::rename_without_replacing(&from, &to)
+            })
+            .await
+            .map_err(|error| CoreError::new(500, error.to_string()))?
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::AlreadyExists {
+                    CoreError::new(
+                        409,
+                        "A file or folder already has that name. Choose another name.",
+                    )
+                } else {
+                    CoreError::from(error)
+                }
+            })?;
+        }
+        self.research_changed();
+        Ok(json!({ "path": relative, "previousPath": previous, "revision": expected }))
+    }
+
     /// A page of a run's samples from a byte offset. An ended run's page stops at what its seal counted; a running
     /// run's stops before an unfinished line.
     pub async fn research_samples(

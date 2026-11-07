@@ -160,8 +160,13 @@ export class ResearchService {
   }
 
   /** Saves a file if it is still at `expectedRevision`; the runtime answers 409 if it is not. */
-  writeSource(project: string, path: string, content: string, expectedRevision: string | null): Promise<{ revision: string }> {
+  writeSource(project: string, path: string, content: string, expectedRevision: string | null): Promise<{ path: string; revision: string }> {
     return this.send(`${this.route(project)}/source`, "PUT", { path, content, expectedRevision });
+  }
+
+  /** Renames without replacing an existing path; an editor's revision protects its unsaved buffer from stale moves. */
+  renameSource(project: string, path: string, newPath: string, expectedRevision?: string | null): Promise<{ path: string; previousPath: string; revision: string | null }> {
+    return this.send(`${this.route(project)}/source/rename`, "POST", { path, newPath, expectedRevision });
   }
 
   experiments(project: string): Promise<RecordList<ExperimentDraft>> {

@@ -6,6 +6,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **Workspace files can be created and renamed from the file tree.** New files open immediately, including empty notebooks. Renaming keeps open tabs and unsaved edits, checks an open file's revision, and refuses to overwrite an existing name. F2 renames a focused file.
+
 - **A training run that lists its checkpoints can register its analysis outputs again.** The checkpoint entries a program writes to its artifacts manifest, for resuming, made "artifacts from run" refuse the whole manifest. They are now passed over, and the figures and JSON beside them are registered.
 - **Samples changed after a run was sealed are flagged wherever the run is listed.** The warning on the Experiments page never showed, because the list of runs did not check the seal; only the run's own Evidence did. The list, the Workspace's run tab and the Samples page now say so too.
 - **The skills no longer tell a program to write where the sandbox refuses.** The checkpoint, pretraining and task skills said to save into the project folder, which a sandboxed run cannot write; they now say `SATURN_RUN_OUTPUT`, and a project folder only when the person has turned the sandbox off. The starter program writes its files to `SATURN_RUN_OUTPUT` as its own rules say, and the list of run variables is complete.

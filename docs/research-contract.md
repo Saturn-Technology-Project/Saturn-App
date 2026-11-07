@@ -535,6 +535,13 @@ A remote run is sampled the same way on its host: the detached worker samples th
 other outputs. The run records the host's `remoteSystem` (`cpus`, `platform`), and `system` in the answer is that, with
 `host` naming the configured host.
 
+The Workspace creates a file with `PUT .../research/source`, a new `path`, `content` and a null `expectedRevision`;
+an existing file is a conflict. `POST .../research/source/rename` takes `path`, `newPath` and, for an open editor,
+`expectedRevision`. A stale revision or existing destination gets 409. Only regular files move; links (including
+directory aliases), paths outside the granted project, git metadata and research records are refused. File bytes and
+permissions are preserved, including binary files. The UI carries tabs and unsaved drafts to the new name; imports and
+experiment input references are not rewritten.
+
 `GET .../research/source?path=` opens a PDF or an image (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`) as
 `{"kind":"document","path","mime","size","revision","data"}`, its bytes in base64, up to 32 MiB, to be shown and never
 edited. Any other file that is not text is still refused with 415.
