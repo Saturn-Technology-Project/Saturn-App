@@ -154,6 +154,9 @@ starting → running ⇄ paused
   run, the list of runs, a run's samples or its summary checks the seal again: `sealIntact: false` means the samples
   changed after the run ended, and they no longer stand for its results. The summary still gives the figures the
   changed file adds up to, beside the flag; a paired comparison refuses such a run.
+- `GET .../runs/{id}/output` lists the files the program wrote to `SATURN_RUN_OUTPUT` (its `written/` folder), and with
+  `path` answers one file's text up to 256 KiB (`binary: true` and no text for a file with NUL bytes). A path that leads
+  out of the folder, or through a link, is refused with 403. Nothing in the folder is run.
 - A running run holds its worktree: discarding it, or the chat that owns it, gets 409.
 - Process identity is implemented for macOS and Linux. On Windows, starting a run says it is not supported yet.
 
@@ -342,6 +345,11 @@ One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`.
   worded labels mean the same thing. Editing the map updates review comparisons for that experiment, including
   earlier labels, without changing the saved labels or scores. The labels response adds `agreesWithScorer` to each
   entry: true, false, or null when no matching sample with a scorer word was found.
+- A label with `rater` (a short plain name) goes in that rater's own set in the labels file (`raters.<name>`), beside
+  the adjudicated labels, and the response lists `raters` with how many each did. `GET .../runs/{id}/labels/agreement`
+  measures them: Cohen's kappa for each pair of raters on the samples both labelled, Fleiss' kappa over the samples
+  every rater labelled, and each rater's (and the adjudicated labels') agreement and kappa against the scorer's word,
+  all through the experiment's aliases. It changes nothing.
 - `GET .../runs/{id}/samples` accepts `only=all|disputed|errors` before paging, so a dispute anywhere in the run is
   reachable, including beyond 5,000 lines. `cursor` and `next` remain absolute byte positions in the samples file.
   Disputed filtering and agreement use the same Rust rule and experiment vocabulary; error filtering uses `error`.
@@ -389,7 +397,10 @@ environment that ran the experiment; a command that starts with anything else is
   `expected` on the sample line it is the log-probability of `expected`'s first token read through the final norm and
   the unembedding; without one it is the residual stream's norm. `top` is the token the model ends on. The model is the
   one the sample line names unless `modelId` says otherwise; its weights are as the version pinned them, else as the
-  project's model record says.
+  project's model record says. With `save`, a project path (`.npz` is added when missing, and Saturn's records and
+  git's folder are refused), the helper also writes every layer's raw residual stream there, `layer_<n>` arrays of
+  tokens × hidden with `tokens` (and `patched_layer_<n>` for a patch), and the answer's `saved` gives the path, hash and
+  size, so a run can declare the file as data. A reading with `save` is its own saved result.
 - `POST /projects/{id}/research/interventions` with `{"runId","sampleId","sourceModelId","targetModelId","layer"}`
   runs the source model on the same input, replaces the residual stream leaving `layer` of the target with the source's,
   and answers in the same shape with `patched: {"layer","sourceModelId","layers","top"}`. Everything up to that layer is
@@ -440,10 +451,12 @@ accept the same compare/prompts/features actions as a run's inspections, with ev
 record later does not change a session. Floating weights, mutable local model contents and changes inside an installed
 Python environment remain limitations. Session observations use `inspectionIds`, not fictitious run IDs.
 
-`POST .../research/artifacts/register` takes a project `path`, `kind` (`figure`, `json`, `notebook`, `reference`), optional
-`runId`/`inspectionId` and metadata. A snapshot saves at most 16 MiB in content-addressed `artifact_data/<sha256>`;
-its immutable record retains the original path/hash/size. JSON and nbformat 4 notebooks are validated; figures need a
-PNG/JPEG/WebP signature. HTML and SVG are not rendered. The content endpoint verifies the saved hash and reports when
+`POST .../research/artifacts/register` takes a project `path`, `kind` (`figure`, `json`, `notebook`, `document`,
+`reference`), optional `runId`/`inspectionId` and metadata. A snapshot saves at most 16 MiB in content-addressed
+`artifact_data/<sha256>`; its immutable record retains the original path/hash/size. JSON and nbformat 4 notebooks are
+validated; figures need a PNG/JPEG/WebP signature; a document is a PDF by its signature or UTF-8 text (`text/markdown`,
+`text/x-tex` or `text/plain` by its name), and HTML or SVG offered as one is refused with 415. HTML and SVG are not
+rendered. The content endpoint verifies the saved hash and reports when
 the source changed or cannot be checked. Opening a notebook explicitly opens its original editable project file.
 
 A reference copies no contents. A project file reference records its measured hash/size; an external https/s3/hf/ssh URI
@@ -541,8 +554,9 @@ interpreter last said about itself), `checkedAt`, and `lockFiles`, the pinning f
 (`uv.lock`, `poetry.lock`, `Pipfile.lock`, `requirements.txt`, `requirements.lock`, `pyproject.toml`,
 `environment.yml`) with their `sha256` and `size`, looked up at the time of asking. `PUT` with `{"python"}` sets the
 interpreter; empty forgets it. `POST .../environment/check` runs a script with the interpreter that reports its
-version, platform, processor count, the versions of the packages research code leans on, and the devices torch can
-see (CUDA names, MPS), and keeps the report. No interpreter, one that cannot start, or one whose report cannot be read
+version, platform, processor count, the versions of the packages research code leans on, the devices torch can
+see (CUDA names, MPS), and `programs`: for git, uv, elan, lake, lean, tectonic, latexmk, pdflatex and pandoc, where
+each is on the interpreter's PATH and the first line of its `--version`, or null, and keeps the report. No interpreter, one that cannot start, or one whose report cannot be read
 answers 422 with what to do. Looking inside uses this interpreter when an experiment's command does not start with
 one. The record lives in `.saturn/research/environment.json`, and the lock files are not changed by Saturn.
 

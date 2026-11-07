@@ -184,6 +184,16 @@ impl Kernel {
                 .map(newest_readings)
                 .map_err(said),
             "labels" => self.research_labels(project, run()?).await.map_err(said),
+            "agreement" => self
+                .research_label_agreement(project, run()?)
+                .await
+                .map_err(said),
+            "output" => {
+                let path = Some(text(arguments, "path")).filter(|path| !path.is_empty());
+                self.research_run_output(project, run()?, path)
+                    .await
+                    .map_err(said)
+            }
             "compare" => self
                 .research_compare(
                     project,

@@ -3254,7 +3254,7 @@
     "toolId": "research_read",
     "serverId": "research",
     "category": "read",
-    "description": "Read a project's research: what=status (everything at a glance), list or record (collection, id), runs, run, summary, evidence (run: what the version expected, what Saturn observed, what the program reported, and three verdicts), samples (run, cursor, limit, only=all|disputed|errors), log (run, stream=stdout|stderr), resources, labels, compare (left and right are version ids), sample_across (sample, runs), events, environment, policy, inside_list, inside (run, sample, model), data_list (every data input, its hash, whether it changed, who read it), data_profile (path, split: rows, columns, missing, common values), data_overlap (left and right are data files, columns, leftSplit, rightSplit: identical rows between two files, exact duplicates only), data_preview (path, split, cursor, limit: the rows themselves), metrics (run, cursor: training metrics a program logged), paired (left and right are {runId, modelId?}, scorer, only=all|improved|regressed|unchanged|missing, sliceField, higherIsBetter: sample by sample, with improvements, regressions, missing samples, slices and an interval only when the two were measured the same way; saves nothing), remote (the SSH host the person configured, and remote runs), session_inside (session: what an inspection session read), artifact (id: a kept output's content, never run), notebook (path: whether its kernel is running and what it ran), import_preview (path, format=jsonl|json|csv|tsv|trainer, columns, scoreColumns: how a JSONL, JSON, CSV or TSV result file would come in, changing nothing), bundle_preview (path: what a project bundle holds and what would conflict, changing nothing).",
+    "description": "Read a project's research: what=status (everything at a glance), list or record (collection, id), runs, run, summary, evidence (run: what the version expected, what Saturn observed, what the program reported, and three verdicts), samples (run, cursor, limit, only=all|disputed|errors), log (run, stream=stdout|stderr), resources, labels, compare (left and right are version ids), sample_across (sample, runs), events, environment, policy, inside_list, inside (run, sample, model), data_list (every data input, its hash, whether it changed, who read it), data_profile (path, split: rows, columns, missing, common values), data_overlap (left and right are data files, columns, leftSplit, rightSplit: identical rows between two files, exact duplicates only), data_preview (path, split, cursor, limit: the rows themselves), metrics (run, cursor: training metrics a program logged), paired (left and right are {runId, modelId?}, scorer, only=all|improved|regressed|unchanged|missing, sliceField, higherIsBetter: sample by sample, with improvements, regressions, missing samples, slices and an interval only when the two were measured the same way; saves nothing), remote (the SSH host the person configured, and remote runs), session_inside (session: what an inspection session read), artifact (id: a kept output's content, never run), notebook (path: whether its kernel is running and what it ran), import_preview (path, format=jsonl|json|csv|tsv|trainer, columns, scoreColumns: how a JSONL, JSON, CSV or TSV result file would come in, changing nothing), bundle_preview (path: what a project bundle holds and what would conflict, changing nothing), output (run, and path for one file: what the program wrote to SATURN_RUN_OUTPUT, the files or one file's text up to 256 KiB, never run), agreement (run: how the run's raters agree with each other, with the adjudicated labels and with the scorer, as Cohen's and Fleiss' kappa).",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3290,7 +3290,9 @@
         "artifact",
         "notebook",
         "import_preview",
-        "bundle_preview"
+        "bundle_preview",
+        "output",
+        "agreement"
        ]
       },
       "collection": {
@@ -3429,7 +3431,7 @@
     "toolId": "research_write",
     "serverId": "research",
     "category": "write",
-    "description": "Make or change a research record. Leave out id to make one. Collections: questions (title), hypotheses (title, questionId, verdict: undecided, supported, refuted or inconclusive), experiments (title, command, cwd, inputs, evaluation, models, seeds, envNames, sandbox: {isolated, network}, questionId, hypothesisId; you may block the network, but turning the sandbox off, allowing the network or adding to envNames is the person's), models (source, weightsRevision, name, parentId, referenceId, trainingData, producedBy), findings (text, runIds, kind: ai_suggestion by default, observation or conclusion), counterexamples (runId, sampleId, note), labels (runId, sampleId, modelId, trial, label: one of the experiment's labels, note; sets one sample's label). A verdict, finding or label you set is recorded as yours, and the person can change it. Set a verdict or a conclusion only from evidence you name in a finding. delete: true with collection experiments, id and expectedRevision moves an imported experiment, its versions and runs to the records' trash; an experiment frozen or run here is the person's to delete, and one that other records still refer to is not moved.",
+    "description": "Make or change a research record. Leave out id to make one. Collections: questions (title), hypotheses (title, questionId, verdict: undecided, supported, refuted or inconclusive), experiments (title, command, cwd, inputs, evaluation, models, seeds, envNames, sandbox: {isolated, network}, questionId, hypothesisId; you may block the network, but turning the sandbox off, allowing the network or adding to envNames is the person's), models (source, weightsRevision, name, parentId, referenceId, trainingData, producedBy), findings (text, runIds, kind: ai_suggestion by default, observation or conclusion), counterexamples (runId, sampleId, note), labels (runId, sampleId, modelId, trial, label: one of the experiment's labels, note; sets one sample's label; with rater, a short name, the label goes in that rater's own set beside the adjudicated labels, for measuring agreement, and is recorded as entered by you). A verdict, finding or label you set is recorded as yours, and the person can change it. Set a verdict or a conclusion only from evidence you name in a finding. delete: true with collection experiments, id and expectedRevision moves an imported experiment, its versions and runs to the records' trash; an experiment frozen or run here is the person's to delete, and one that other records still refer to is not moved.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3515,7 +3517,7 @@
     "toolId": "research_environment_action",
     "serverId": "research",
     "category": "write",
-    "description": "Set up the project's Python. action=check reports the interpreter, packages and devices. action=create makes .venv (python, withCore, timeoutSeconds). action=install adds a kit (core, interpretability, training, analysis, notebooks), packages, or sync=true from the lock file (timeoutSeconds). action=set chooses an interpreter (python). action=stop ends the job. Create and install run as a job: read what=environment to follow it.",
+    "description": "Set up the project's Python. action=check reports the interpreter, packages, devices, and which programs are on its PATH with their versions (git, uv, elan, lake, lean, tectonic, latexmk, pdflatex, pandoc). action=create makes .venv (python, withCore, timeoutSeconds). action=install adds a kit (core, interpretability, training, analysis, notebooks), packages, or sync=true from the lock file (timeoutSeconds). action=set chooses an interpreter (python). action=stop ends the job. Create and install run as a job: read what=environment to follow it.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3560,7 +3562,7 @@
     "toolId": "research_inspect",
     "serverId": "research",
     "category": "write",
-    "description": "Look inside a model on a run's samples or your own prompts, with the Python the experiment's command starts with. action=activations (runId, sampleId, modelId) reads each layer. action=patch (runId, sampleId, sourceModelId, targetModelId, layer) replaces the residual stream leaving a layer with the source's. action=sweep (runId, sampleIds up to 32, sourceModelId, targetModelId, layers) patches every layer. action=compare (runId, modelId, otherModelId, input, expected) reads two models on a prompt of your own. action=prompts (runId, modelId, clean, corrupted, expected, alternative) restores each layer and position of a corrupted prompt from a clean one with the same number of tokens, beside a random control. action=features (runId, modelId, prompt, layer, and saeRelease with saeId, or saePath; optionally expected, alternative and ablate) reads the residual stream leaving a layer through a sparse autoencoder: the strongest features per token and how well it was rebuilt, and with ablate a feature's id, how the margin moves beside a random feature of similar activation and beside splicing the unmodified reconstruction. A feature has an id, not a name. Results are saved with the run. action=session (modelIds, title, cwd) opens an inspection session for exploring models without a scored run; compare, prompts and features then take sessionId in place of runId and keep their readings with the session.",
+    "description": "Look inside a model on a run's samples or your own prompts, with the Python the experiment's command starts with. action=activations (runId, sampleId, modelId) reads each layer; with save, a project path for an .npz, it also keeps the raw residual stream of every layer there (tokens × hidden per layer, with the tokens), outside Saturn's records, so a run can declare it as data and train a probe or build a direction on it. action=patch (runId, sampleId, sourceModelId, targetModelId, layer) replaces the residual stream leaving a layer with the source's. action=sweep (runId, sampleIds up to 32, sourceModelId, targetModelId, layers) patches every layer. action=compare (runId, modelId, otherModelId, input, expected) reads two models on a prompt of your own. action=prompts (runId, modelId, clean, corrupted, expected, alternative) restores each layer and position of a corrupted prompt from a clean one with the same number of tokens, beside a random control. action=features (runId, modelId, prompt, layer, and saeRelease with saeId, or saePath; optionally expected, alternative and ablate) reads the residual stream leaving a layer through a sparse autoencoder: the strongest features per token and how well it was rebuilt, and with ablate a feature's id, how the margin moves beside a random feature of similar activation and beside splicing the unmodified reconstruction. A feature has an id, not a name. Results are saved with the run. action=session (modelIds, title, cwd) opens an inspection session for exploring models without a scored run; compare, prompts and features then take sessionId in place of runId and keep their readings with the session.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3630,6 +3632,10 @@
       "saePath": {
        "type": "string"
       },
+      "save": {
+       "type": "string",
+       "description": "For activations: a project path (.npz) to keep every layer's raw residual stream at."
+      },
       "ablate": {
        "type": "integer"
       },
@@ -3665,7 +3671,7 @@
     "toolId": "research_evidence",
     "serverId": "research",
     "category": "write",
-    "description": "Bring evidence in or take it out. action=import (path, format, columns, scoreColumns, evaluation, title, expectedSha256 from the preview) brings a JSONL, JSON, CSV or TSV result file in as a run marked imported: it keeps unknown provenance unknown and never gets an interval of its own; preview it first with research_read what=import_preview. action=bundle_export (path, optional) writes the project's evidence and Markdown and HTML reports as a bundle. action=bundle_import (path) brings a bundle in without overwriting different evidence; preview it with research_read what=bundle_preview. Credentials, permissions and live remote jobs never come with a bundle. action=artifact_register (kind=figure|json|notebook|reference, path or uri, title, runId or inspectionId, metadata) keeps a figure, analysis JSON or notebook snapshot with its hash, or names a large store by reference; nothing in it is run. action=artifacts_from_run (runId) snapshots what the run listed in SATURN_RUN_ARTIFACTS. action=save_counterexamples (the paired fields, only, title) keeps every sample of a paired comparison, regressions by default, as a counterexample set.",
+    "description": "Bring evidence in or take it out. action=import (path, format, columns, scoreColumns, evaluation, title, expectedSha256 from the preview) brings a JSONL, JSON, CSV or TSV result file in as a run marked imported: it keeps unknown provenance unknown and never gets an interval of its own; preview it first with research_read what=import_preview. action=bundle_export (path, optional) writes the project's evidence and Markdown and HTML reports as a bundle. action=bundle_import (path) brings a bundle in without overwriting different evidence; preview it with research_read what=bundle_preview. Credentials, permissions and live remote jobs never come with a bundle. action=artifact_register (kind=figure|json|notebook|document|reference, path or uri, title, runId or inspectionId, metadata) keeps a figure, analysis JSON, notebook, or document (a PDF, or Markdown, TeX or plain text: a model card, a paper, a compile log) snapshot with its hash, or names a large store by reference; nothing in it is run. action=artifacts_from_run (runId) snapshots what the run listed in SATURN_RUN_ARTIFACTS. action=save_counterexamples (the paired fields, only, title) keeps every sample of a paired comparison, regressions by default, as a counterexample set.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3692,6 +3698,7 @@
         "figure",
         "json",
         "notebook",
+        "document",
         "reference"
        ]
       },
