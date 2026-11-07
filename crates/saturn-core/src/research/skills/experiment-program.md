@@ -22,7 +22,7 @@ An experiment is a command. Saturn runs it and reads one JSON object per line fr
 import json, os, sys
 
 path = os.environ["SATURN_RUN_SAMPLES"]
-output_folder = os.environ["SATURN_RUN_DIRECTORY"]
+output_folder = os.environ["SATURN_RUN_OUTPUT"]
 
 def write_sample(out, **fields):
     line = {"schemaVersion": 1, "trial": 0, "error": None, **fields}

@@ -32,4 +32,4 @@ Measure the logit difference, normalized: `(patched - corrupted) / (clean - corr
 - **Direct logit attribution** shows what writes to the logits, and not what it depends on. Combine with patching.
 
 ## As a run
-Use the same sample line format: each pair is a `sampleId`, with the result in `scores`. Larger outputs such as heatmaps go in `SATURN_RUN_DIRECTORY`. See `experiment-program`. Keep `torch.inference_mode()` on and the cache small: full caches take a lot of memory, so use `names_filter`.
+Use the same sample line format: each pair is a `sampleId`, with the result in `scores`. Larger outputs such as heatmaps go in `SATURN_RUN_OUTPUT`. See `experiment-program`. Keep `torch.inference_mode()` on and the cache small: full caches take a lot of memory, so use `names_filter`.

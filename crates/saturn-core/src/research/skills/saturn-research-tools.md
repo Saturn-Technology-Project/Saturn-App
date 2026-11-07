@@ -72,4 +72,4 @@ Experiments, and one that a finding or other record refers to is not moved: the 
 With no name, lists them. A project's own skill of the same name is used first.
 
 ## Your program and the run
-A run's command gets `SATURN_RUN_SAMPLES`, `SATURN_RUN_DIRECTORY`, `SATURN_RUN_ID`, `SATURN_RUN_VERSION` and `SATURN_RUN_TOKEN`. See `experiment-program`.
+A run's command gets where to write: `SATURN_RUN_SAMPLES`, `SATURN_RUN_METRICS`, `SATURN_RUN_ARTIFACTS` and `SATURN_RUN_REPORT` (one JSON object per line each), `SATURN_RUN_OUTPUT` (its files) and `SATURN_RUN_DIRECTORY` (the run's folder, which holds them all); what it is: `SATURN_RUN_ID`, `SATURN_RUN_VERSION`, `SATURN_RUN_TOKEN`, `SATURN_RUN_SEED` and `SATURN_RUN_SEEDS`; and, when it resumes a run, `SATURN_RESUME_FROM`, `SATURN_RESUME_RUN` and `SATURN_RESUME_DIRECTORY`. See `experiment-program`, `run-provenance` and `pause-and-resume`.

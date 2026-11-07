@@ -13,7 +13,7 @@ Parameters and steps decide everything. On one consumer device, think small: ten
 - Warm up the learning rate linearly, then decay it by cosine. Start near 3e-4 for small transformers, and find it with a short sweep.
 - Clip gradients at 1.0. Use mixed precision where available.
 - Evaluate on held-out text on a fixed schedule, with a fixed number of fixed batches, so values compare.
-- Save checkpoints on a schedule, to `SATURN_RUN_DIRECTORY` or a git-ignored folder.
+- Save checkpoints on a schedule, to `SATURN_RUN_OUTPUT`, and list each in `SATURN_RUN_ARTIFACTS`. See `checkpoints-and-lineage`.
 
 ## Write samples as you train
 A run needs valid sample lines. Write one per evaluation:
