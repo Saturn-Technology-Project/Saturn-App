@@ -543,8 +543,57 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     </nav>
   );
 
+  // The bar speaks of the run of the experiment it is on, and of that run's version.
+  const shown = runOfExperiment(run, experiment?.id ?? null);
+  const shownVersion = shown ? sidebar.versions.find((item) => item.id === shown.versionId) : undefined;
+
   const lower = (
     <div className="flex min-h-0 flex-1 flex-col bg-panel" data-tour="workspace-panels">
+      {/* The experiment bar, above what the run gives: which experiment, its command, and the button that freezes and runs it. */}
+      <div className="flex flex-none flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-border px-2.5 py-1.5" role="group" aria-label={t("Run an experiment")}>
+        <span className="text-[11px] font-semibold text-muted-foreground">{t("Experiment")}</span>
+        <Choice
+          ariaLabel={t("Experiment")}
+          className="w-auto"
+          triggerClassName="h-7 w-44 max-w-full"
+          value={experiment?.id ?? NEW_EXPERIMENT}
+          options={[...[...sidebar.drafts].reverse().map((item) => ({ value: item.id, label: item.title })), { value: NEW_EXPERIMENT, label: t("New experiment") }]}
+          onChange={(id) => void chooseExperiment(id === NEW_EXPERIMENT ? null : id)}
+        />
+        <label className="flex h-7 min-w-[160px] flex-[1_1_220px] items-center gap-1.5 rounded-md border border-input bg-background px-2 focus-within:ring-2 focus-within:ring-ring/40">
+          <span aria-hidden="true" className="font-mono text-xs text-muted-foreground select-none">$</span>
+          <input className="h-full min-w-0 flex-1 border-0 bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground" aria-label={t("Command that runs the experiment")} data-tour="workspace-command" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !busy && !(run && isRunActive(run.status))) void startRun(); }} />
+        </label>
+        {shown && isRunActive(shown.status) ? (
+          <div className="flex flex-wrap items-center gap-2" aria-live="polite">
+            <span className="flex items-center gap-1.5 text-xs">
+              <span className={classes("size-2 flex-none rounded-full", shown.status === "paused" ? "bg-wait" : "animate-pulse bg-good")} aria-hidden="true" />
+              {runStatusLabel(shown.status)}
+              <span className="text-muted-foreground">
+                {shownVersion ? ` · v${shownVersion.number}` : ""} · {t("{count} samples", { count: shown.samples ?? samples.length })}
+              </span>
+            </span>
+            <RunControls compact projectId={projectId} run={shown} changed={() => void refreshRun(shown.id)} notify={notify} />
+          </div>
+        ) : (
+          <>
+            <Button size="small" data-tour="workspace-run" disabled={busy} title={t("Freezes the code and settings as a version (the last one, when nothing changed) and runs it once.")} onClick={() => void startRun()}>
+              <span aria-hidden="true">▶</span> {busy ? t("Starting…") : t("Freeze and run")}
+            </Button>
+            {shown ? (
+              <span className="text-xs text-muted-foreground">
+                {t("Last run: {status}", { status: runStatusLabel(shown.status) })}
+                {shownVersion ? ` · v${shownVersion.number}` : ""}
+              </span>
+            ) : null}
+          </>
+        )}
+        {experiment ? (
+          <Button variant="ghost" size="small" className="text-muted-foreground" onClick={() => { service.open(projectId, { kind: "experiment", experimentId: experiment.id }); props.go("Experiments"); }}>
+            {t("Open in Experiments")}
+          </Button>
+        ) : null}
+      </div>
       <div className="flex-none border-b border-border px-2 py-1.5">
         <Tabs label={t("Results")} tabs={PANELS} current={panel} onChoose={setPanel} />
       </div>
@@ -637,59 +686,10 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     </div>
   );
 
-  // The bar speaks of the run of the experiment it is on, and of that run's version.
-  const shown = runOfExperiment(run, experiment?.id ?? null);
-  const shownVersion = shown ? sidebar.versions.find((item) => item.id === shown.versionId) : undefined;
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       <h1 className="sr-only">{open ? t("Workspace: {path}", { path: open.path }) : t("Workspace")}</h1>
       <Split id="files" side="left" size={210} minimum={140} label={t("Files")} pane={files}>
-        {/* The experiment bar: which experiment, its command, and the one button that freezes it and runs it. */}
-        <div className="flex flex-none flex-wrap items-center gap-2 border-b border-border bg-panel px-2.5 py-2" role="group" aria-label={t("Run an experiment")}>
-          <span className="text-[11px] font-semibold text-muted-foreground">{t("Experiment")}</span>
-          <Choice
-            ariaLabel={t("Experiment")}
-            className="w-auto"
-            triggerClassName="h-8 w-48 max-w-full"
-            value={experiment?.id ?? NEW_EXPERIMENT}
-            options={[...[...sidebar.drafts].reverse().map((item) => ({ value: item.id, label: item.title })), { value: NEW_EXPERIMENT, label: t("New experiment") }]}
-            onChange={(id) => void chooseExperiment(id === NEW_EXPERIMENT ? null : id)}
-          />
-          <label className="flex h-8 min-w-[160px] flex-[1_1_220px] items-center gap-1.5 rounded-md border border-input bg-background px-2 focus-within:ring-2 focus-within:ring-ring/40">
-            <span aria-hidden="true" className="font-mono text-xs text-muted-foreground select-none">$</span>
-            <input className="h-full min-w-0 flex-1 border-0 bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground" aria-label={t("Command that runs the experiment")} data-tour="workspace-command" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !busy && !(run && isRunActive(run.status))) void startRun(); }} />
-          </label>
-          {shown && isRunActive(shown.status) ? (
-            <div className="flex flex-wrap items-center gap-2" aria-live="polite">
-              <span className="flex items-center gap-1.5 text-xs">
-                <span className={classes("size-2 flex-none rounded-full", shown.status === "paused" ? "bg-wait" : "animate-pulse bg-good")} aria-hidden="true" />
-                {runStatusLabel(shown.status)}
-                <span className="text-muted-foreground">
-                  {shownVersion ? ` · v${shownVersion.number}` : ""} · {t("{count} samples", { count: shown.samples ?? samples.length })}
-                </span>
-              </span>
-              <RunControls compact projectId={projectId} run={shown} changed={() => void refreshRun(shown.id)} notify={notify} />
-            </div>
-          ) : (
-            <>
-              {shown ? (
-                <span className="text-xs text-muted-foreground">
-                  {t("Last run: {status}", { status: runStatusLabel(shown.status) })}
-                  {shownVersion ? ` · v${shownVersion.number}` : ""}
-                </span>
-              ) : null}
-              <Button data-tour="workspace-run" disabled={busy} title={t("Freezes the code and settings as a version (the last one, when nothing changed) and runs it once.")} onClick={() => void startRun()}>
-                <span aria-hidden="true">▶</span> {busy ? t("Starting…") : t("Freeze and run")}
-              </Button>
-            </>
-          )}
-          {experiment ? (
-            <Button variant="ghost" size="small" className="text-muted-foreground" onClick={() => { service.open(projectId, { kind: "experiment", experimentId: experiment.id }); props.go("Experiments"); }}>
-              {t("Open in Experiments")}
-            </Button>
-          ) : null}
-        </div>
         <div className="flex min-h-8 flex-none items-center gap-2.5 border-b border-border px-2.5 py-1">
           <code className="max-w-[360px] truncate text-xs">{open?.path ?? t("No file open")}</code>
           {open ? <span className={MUTED}>{open.document ? t("Read only") : saving ? t("Saving…") : dirty ? t("Not saved") : t("Saved")}</span> : null}
