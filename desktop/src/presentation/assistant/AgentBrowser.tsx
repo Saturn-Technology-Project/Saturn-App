@@ -34,19 +34,20 @@ export function useAgentBrowser(): { state: AgentBrowserState | null; frame: Age
   return { state, frame };
 }
 
-/** The agent's browser, live and read-only: its address and its page with the agent's cursor. A window of Chrome or Safari
- * that the agent drives is said to be where it is, with its page here when the runtime sends one. */
-export function AgentBrowserView(props: { state: AgentBrowserState | null; frame: AgentBrowserFrame | null; onBack: () => void }) {
+/** The agent's browser, live and read-only: its address and its page with the cursor the agent moves, clicks and types
+ * with. A window of Chrome or Safari that the agent drives is said to be where it is, with its page here when the runtime
+ * sends one. */
+export function AgentBrowserView(props: { state: AgentBrowserState | null; frame: AgentBrowserFrame | null; back: { label: string; onClick: () => void } }) {
   const { state, frame } = props;
   const url = frame?.url ?? state?.url ?? "";
   // The page fits the panel, or shows at its own size to be read, scrolling in the panel.
   const [actual, setActual] = useState(false);
   if (!state?.open) {
     return (
-      <div className="m-auto flex max-w-[240px] flex-col items-center gap-2 p-4 text-center text-xs text-muted-foreground">
-        <p className="m-0">{t("The assistant's browser is closed. When the assistant opens a page, it shows here live.")}</p>
-        <button type="button" className="cursor-pointer border-0 bg-transparent text-info hover:underline" onClick={props.onBack}>
-          {t("Back to the chat")}
+      <div className="m-auto flex max-w-[300px] flex-col items-center gap-2 p-4 text-center text-xs text-muted-foreground">
+        <p className="m-0">{t("The assistant's browser is closed. When the assistant opens a page, it shows here live, with the cursor it points, clicks and types with.")}</p>
+        <button type="button" className="cursor-pointer border-0 bg-transparent text-info hover:underline" onClick={props.back.onClick}>
+          {props.back.label}
         </button>
       </div>
     );

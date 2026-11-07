@@ -51,7 +51,7 @@ A run's program needs nothing from Saturn but an environment variable: it append
 | Screen | What it holds |
 |---|---|
 | **Home** | Where the work stopped, what changed since you last looked, and what still needs a decision: undecided hypotheses, failed or interrupted runs, refusals |
-| **Workspace** | The project's files as a tree and a code editor; papers (PDF) and figures open beside the code. Under it the results' tabs with an experiment bar beside them (which experiment, its command, and **Freeze and run**, which keeps the code as a version and starts it, then pauses or stops it there): the run, Resources (time, processor, memory, GPUs, sample rate, read on the SSH host for a remote run), samples, findings, activations, outputs and a terminal. Reopening restores the file, the unsaved draft and the run |
+| **Workspace** | The project's files as a tree and a code editor with a tab for each open file, and a tab with the assistant's browser live; papers (PDF) and figures open beside the code. Under it the results' tabs with an experiment bar beside them (which experiment, its command, and **Freeze and run**, which keeps the code as a version and starts it, then pauses or stops it there): the run, Resources (time, processor, memory, GPUs, sample rate, read on the SSH host for a remote run), samples, findings, activations, outputs and a terminal. Reopening restores the file, the unsaved draft and the run |
 | **Lineage** | Checkpoints and their fine-tuned branches, with a score followed along the line |
 | **Experiments** | Questions, hypotheses, frozen versions and runs, with **Run** for the newest version as it was frozen and **Edit in Workspace** for the code; the score chart that only puts comparable runs together; imports, paired comparisons, research bundles, remote runs and analysis outputs |
 | **Samples** | One sample across the models that saw it, labels that never touch the score, agreement with the scorer, and counterexamples |
@@ -116,7 +116,7 @@ In every mode, locks, the policy, the SSH host, merging and loosening a run's sa
 
 | | |
 |---|---|
-| 🛠️ **Tools** | Files, a shell with background commands, web fetch, a browser you watch live in the assistant's Browser tab, computer use on macOS and Windows, GitHub, and any [MCP](https://modelcontextprotocol.io) server |
+| 🛠️ **Tools** | Files, a shell with background commands, web fetch, a browser you watch live, with its cursor, in a Workspace tab, computer use on macOS and Windows, GitHub, and any [MCP](https://modelcontextprotocol.io) server |
 | 🌿 **Tasks in worktrees** | A task runs in its own git worktree and branch; at most four at once per project. You review its diff, then merge or discard it |
 | ↩️ **Checkpoints** | Every file edit is recorded, including files a shell command changes. Keep or revert a turn, or restore any single step |
 | 🔐 **Permissions and sandbox** | Agents work only in folders you grant. Rules allow, ask or deny by tool and pattern; commands run in an OS sandbox on macOS and Linux |

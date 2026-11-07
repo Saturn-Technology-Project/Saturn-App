@@ -6,7 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
-- **The assistant's browser can be watched again.** Since the research interface, an agent browsing in Saturn's own browser (the default) did so out of sight: the Browser tab its settings spoke of was gone. The research assistant now has Chat and Browser tabs, and turns to Browser by itself when it opens a page, showing the page live with its cursor and address. The page fits the panel or shows at its actual size, and the chat stays where it was.
+- **The assistant's browser can be watched again, in the Workspace.** Since the research interface, an agent browsing in Saturn's own browser (the default) did so out of sight: the Browser tab its settings spoke of was gone. The Workspace now opens a Browser tab beside your files when the assistant opens a page, showing the page live with the cursor the assistant points, clicks and types with; the page fits or shows at its actual size. While you are elsewhere, the assistant panel says it is browsing and leads there.
 
 ### Changed
 
@@ -18,6 +18,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **Tabs in the Workspace.** Every file you open gets a tab above the editor; switching keeps a tab's unsaved text, marked with a dot, and closing one with changes asks first. The tabs reopen with the project.
 - **Local models through MLX.** On a Mac with Apple silicon, choose MLX in Settings → Models to use a model served by `mlx_lm.server` (`pip install mlx-lm`), with no LM Studio in between. Saturn lists the models the server can load; like an LM Studio model, it needs no key and costs nothing, and it must support tool calling to act as the research assistant.
 - **Saturn installs its own worker on an SSH host.** In Environment, Connect finds this version's worker on the host and uses it; when it is missing or another version, Install worker puts the right one in `~/.saturn/worker/<version>` in your home folder, with no administrator rights. It is this computer's own program when the host is the same kind of system, and otherwise the release's Linux worker (x86-64 or ARM), used only if it matches the hash built into this Saturn, and hashed again on the host. Releases now carry these workers. The assistant can see whether the worker is ready; installing stays yours.
 - **A run can be paused and continued.** A running experiment can be held where it is and let go on later, from its row in Experiments or by the assistant. It keeps its memory, and the GPU's, while paused, and the run says how long it spent paused. A paused run can still be stopped.

@@ -7,6 +7,7 @@ import {
   runStatusLabel,
   sampleIdParts,
   sampleText,
+  tabAfterClosing,
   scoreText,
   type ExperimentDraft,
   type ExperimentRun,
@@ -38,6 +39,9 @@ import { SourceEditor } from "./SourceEditor.js";
 import { Terminal } from "./Terminal.js";
 import { Artifacts } from "../experiments/Artifacts.js";
 import { RunControls } from "../experiments/RunControls.js";
+import { AgentBrowserView, useAgentBrowser } from "../assistant/AgentBrowser.js";
+import { askToConfirm } from "../../infrastructure/confirm.js";
+import { browserHost } from "../../domain/model.js";
 
 const service = desktop.research;
 const FINDING_LABELS: Record<FindingKind, string> = { observation: t("Observation"), ai_suggestion: t("AI suggestion"), conclusion: t("Conclusion") };
@@ -108,6 +112,23 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const [open, setOpen] = useState<OpenFile | null>(null);
   const content = useRef("");
   const [dirty, setDirty] = useState(false);
+  // The files open as tabs, in the order they were opened; one of them is in the editor. A tab left with unsaved text
+  // keeps it here until it is shown again, saved or closed.
+  const [tabs, setTabs] = useState<string[]>(() => session.current.tabs ?? (session.current.file ? [session.current.file] : []));
+  const unsaved = useRef(new Map<string, { content: string; revision: string | null }>());
+  const editing = useRef<{ open: OpenFile | null; dirty: boolean }>({ open: null, dirty: false });
+  editing.current = { open, dirty };
+  // The centre shows a file, or the assistant's browser live as a tab of its own, which comes up when the assistant opens a
+  // page and stays until it is closed.
+  const [centre, setCentre] = useState<"editor" | "browser">("editor");
+  const [browserTab, setBrowserTab] = useState(false);
+  const browser = useAgentBrowser();
+  const browsing = Boolean(browser.state?.open);
+  useEffect(() => {
+    if (!browsing) return;
+    setBrowserTab(true);
+    setCentre("browser");
+  }, [browsing]);
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [selection, setSelection] = useState<WorkspaceFocus["selection"]>(null);
@@ -132,6 +153,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     },
     [projectId],
   );
+  useEffect(() => remember({ tabs }), [remember, tabs]);
 
   /** A folder's entries, or null when it is gone or is not a folder. */
   const readFolder = useCallback(
@@ -208,6 +230,13 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
 
   const openFile = useCallback(
     async (path: string) => {
+      // The tab being left keeps its unsaved text, read now, before the editor changes.
+      const leaving = editing.current;
+      if (leaving.open && leaving.open.path !== path && leaving.dirty && !leaving.open.document) {
+        unsaved.current.set(leaving.open.path, { content: content.current, revision: leaving.open.revision });
+      }
+      setCentre("editor");
+      setTabs((current) => (current.includes(path) ? current : [...current, path]));
       try {
         const view = await service.readSource(projectId, path);
         if (view.kind === "document") {
@@ -222,7 +251,9 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
         }
         if (view.kind !== "file") return;
         const draft = session.current.draft;
-        const restored = draft && draft.file === path && draft.revision === view.revision ? draft.content : null;
+        const kept = unsaved.current.get(path);
+        unsaved.current.delete(path);
+        const restored = kept && kept.revision === view.revision ? kept.content : draft && draft.file === path && draft.revision === view.revision ? draft.content : null;
         content.current = restored ?? view.content;
         setDirty(restored !== null && restored !== view.content);
         setConflict(false);
@@ -390,6 +421,29 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     },
     [open, remember],
   );
+
+  /** Closes a file's tab, asking first when it holds unsaved text; the next tab, or the one before, takes its place. */
+  async function closeTab(path: string) {
+    const active = open?.path === path;
+    if ((active ? dirty : unsaved.current.has(path)) && !(await askToConfirm(t("{file} has changes that are not saved. Close it and lose them?", { file: path })))) return;
+    unsaved.current.delete(path);
+    const next = tabAfterClosing(tabs, path);
+    setTabs((current) => current.filter((item) => item !== path));
+    if (!active) return;
+    if (next) {
+      // Nothing of the closed file is kept: its text was given up above.
+      setDirty(false);
+      editing.current = { open: null, dirty: false };
+      await openFile(next);
+      return;
+    }
+    content.current = "";
+    setDirty(false);
+    setConflict(false);
+    setSelection(null);
+    setOpen(null);
+    remember({ file: undefined, draft: undefined });
+  }
 
   async function startRun() {
     if (!command.trim()) {
@@ -743,9 +797,47 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     <div className="flex min-h-0 min-w-0 flex-1">
       <h1 className="sr-only">{open ? t("Workspace: {path}", { path: open.path }) : t("Workspace")}</h1>
       <Split id="files" side="left" size={210} minimum={140} label={t("Files")} pane={files}>
-        <div className="flex min-h-8 flex-none items-center gap-2.5 border-b border-border px-2.5 py-1">
-          <code className="max-w-[360px] truncate text-xs">{open?.path ?? t("No file open")}</code>
-          {open ? <span className={MUTED}>{open.document ? t("Read only") : saving ? t("Saving…") : dirty ? t("Not saved") : t("Saved")}</span> : null}
+        {/* The centre's tabs: each open file, then the assistant's browser; the saved state of the file shown on the right. */}
+        <div className="flex min-h-8 flex-none items-stretch border-b border-border">
+          <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={t("Open files")}>
+            {tabs.map((path) => {
+              const current = centre === "editor" && open?.path === path;
+              const changed = current ? dirty : unsaved.current.has(path);
+              return (
+                <div key={path} className={classes("group flex max-w-[200px] min-w-0 flex-none items-center border-r border-border text-xs", current ? "bg-background text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground")}>
+                  <button type="button" role="tab" aria-selected={current} title={path} className="flex min-w-0 cursor-pointer items-center gap-1.5 self-stretch border-0 bg-transparent py-1 pr-1 pl-2.5 font-mono text-inherit" onClick={() => (current ? undefined : void openFile(path))}>
+                    <span className="truncate">{path.split("/").pop()}</span>
+                    {changed ? <span className="size-1.5 flex-none rounded-full bg-wait" aria-label={t("Not saved")} /> : null}
+                  </button>
+                  <button type="button" className="mr-1 flex size-4 flex-none cursor-pointer items-center justify-center rounded border-0 bg-transparent text-[11px] text-muted-foreground opacity-60 group-hover:opacity-100 hover:bg-muted hover:text-foreground" aria-label={t("Close {file}", { file: path })} onClick={() => void closeTab(path)}>
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+            {browserTab ? (
+              <div className={classes("group flex flex-none items-center border-r border-border text-xs", centre === "browser" ? "bg-background text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground")}>
+                <button type="button" role="tab" aria-selected={centre === "browser"} title={browser.frame?.url ?? browser.state?.url} className="flex cursor-pointer items-center gap-1.5 self-stretch border-0 bg-transparent py-1 pr-1 pl-2.5 text-inherit" onClick={() => setCentre("browser")}>
+                  {browsing ? <span className="size-1.5 flex-none animate-pulse rounded-full bg-good" aria-hidden="true" /> : null}
+                  {t("Browser")}
+                  {browserHost(browser.frame?.url ?? browser.state?.url) ? <span className="max-w-[120px] truncate text-muted-foreground">· {browserHost(browser.frame?.url ?? browser.state?.url)}</span> : null}
+                </button>
+                <button type="button" className="mr-1 flex size-4 flex-none cursor-pointer items-center justify-center rounded border-0 bg-transparent text-[11px] text-muted-foreground opacity-60 group-hover:opacity-100 hover:bg-muted hover:text-foreground" aria-label={t("Close the browser tab")} title={browsing ? t("Hides the tab; the assistant keeps browsing. Browser, on the right, shows it again.") : undefined} onClick={() => { setBrowserTab(false); setCentre("editor"); }}>
+                  ×
+                </button>
+              </div>
+            ) : null}
+            {!tabs.length && !browserTab ? <span className="self-center px-2.5 text-xs text-muted-foreground">{t("No file open")}</span> : null}
+          </div>
+          <div className="flex flex-none items-center gap-2 px-2.5">
+            {centre === "editor" && open ? <span className={MUTED}>{open.document ? t("Read only") : saving ? t("Saving…") : dirty ? t("Not saved") : t("Saved")}</span> : null}
+            {!browserTab ? (
+              <button type="button" className="flex cursor-pointer items-center gap-1.5 rounded border-0 bg-transparent px-1 text-[11px] text-muted-foreground hover:text-foreground" title={t("Show the assistant's browser here")} onClick={() => { setBrowserTab(true); setCentre("browser"); }}>
+                {browsing ? <span className="size-1.5 animate-pulse rounded-full bg-good" aria-hidden="true" /> : null}
+                {t("Browser")}
+              </button>
+            ) : null}
+          </div>
         </div>
         {conflict && open ? (
           <Notice tone="wait" role="alert" className="flex flex-wrap items-center gap-2.5 rounded-none border-x-0 whitespace-normal">
@@ -759,6 +851,9 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           </Notice>
         ) : null}
         <Split id="lower" side="bottom" size={220} minimum={100} label={t("Results")} pane={lower}>
+          {centre === "browser" ? <AgentBrowserView state={browser.state} frame={browser.frame} back={{ label: t("Back to the editor"), onClick: () => setCentre("editor") }} /> : null}
+          {/* The editor stays mounted behind the browser, so its text, place and undo history are kept. */}
+          <div className={classes("min-h-0 flex-1 flex-col", centre === "editor" ? "flex" : "hidden")}>
           {open?.document ? (
             <DocumentView key={`${open.path}:${open.generation}`} path={open.path} mime={open.document.mime} data={open.document.data} />
           ) : open && isNotebookPath(open.path) ? (
@@ -786,6 +881,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           ) : (
             <div className="m-auto p-6 text-muted-foreground">{t("Open a file to write it yourself.")}</div>
           )}
+          </div>
         </Split>
       </Split>
     </div>

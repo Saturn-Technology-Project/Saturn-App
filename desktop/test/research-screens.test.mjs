@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { browserHost, removalQuestion } from "../src/domain/model.ts";
-import { bytesText, changedSince, changeRereadsList, comparisonFactors, devicesText, durationText, earlierSweeps, heldFixed, kitState, labelsOf, lastActive, mechanismOf, readSamplePages, restoredByLayer, reviewProgress, runnableVersion, runOfExperiment, scoreSources, scorerSaysWrong, sweepMeasure, throughput } from "../src/domain/research.ts";
+import { bytesText, changedSince, changeRereadsList, comparisonFactors, devicesText, durationText, earlierSweeps, heldFixed, kitState, labelsOf, lastActive, mechanismOf, readSamplePages, restoredByLayer, reviewProgress, runnableVersion, runOfExperiment, scoreSources, tabAfterClosing, scorerSaysWrong, sweepMeasure, throughput } from "../src/domain/research.ts";
 
 test("removing a connection says who uses it and what becomes of them", () => {
   assert.equal(removalQuestion("A", [], "model", "B"), "Remove A?");
@@ -166,4 +166,11 @@ test("the browser tab names the host of the assistant's page, and nothing for a 
   assert.equal(browserHost("about:blank"), "");
   assert.equal(browserHost(""), "");
   assert.equal(browserHost(undefined), "");
+});
+
+test("closing a tab shows the one that took its place, or the one before the last", () => {
+  assert.equal(tabAfterClosing(["a", "b", "c"], "b"), "c");
+  assert.equal(tabAfterClosing(["a", "b", "c"], "c"), "b");
+  assert.equal(tabAfterClosing(["a"], "a"), undefined);
+  assert.equal(tabAfterClosing(["a", "b"], "z"), undefined, "a tab that is not there changes nothing");
 });
