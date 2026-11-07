@@ -41,6 +41,7 @@ export default {
   "Run the experiment to see what it costs.": "執行實驗以查看資源用量。",
   "Choose a sample under Samples, then look inside it here.": "在「樣本」中選擇樣本，即可在這裡檢視。",
   "Choose a sample to see it here.": "選擇一個樣本，即可在這裡查看。",
+  "All {count} questions": "全部 {count} 個問題",
   "Workspace: {path}": "工作區：{path}",
   Workspace: "工作區",
   Files: "檔案",

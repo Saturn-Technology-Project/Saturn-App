@@ -51,8 +51,8 @@ const SAMPLE_ENTRY = "relative flex h-7 w-full flex-none cursor-pointer items-ce
 const SAMPLE_LABEL = "mb-1 text-[11px] font-medium text-muted-foreground";
 /** A sample's input or output: plain text in a box of its own. */
 const SAMPLE_TEXT = "m-0 rounded-md border border-border bg-panel px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]";
-/** A question in the sidebar: a card of its own, up to three lines, so one question never runs into the next. */
-const QUESTION_ENTRY = "h-auto w-full justify-start rounded-md border border-border bg-card px-2.5 py-2 text-left text-xs leading-snug font-normal whitespace-normal hover:bg-muted";
+/** A question in the sidebar: up to three lines behind a rule of its own, so one question never runs into the next. */
+const QUESTION_ENTRY = "group flex w-full cursor-pointer gap-2 rounded-md border-0 bg-transparent px-1.5 py-1.5 text-left text-foreground hover:bg-muted";
 const ENTRY = "h-auto min-h-7 w-full flex-wrap justify-start gap-x-2 gap-y-0.5 px-2 py-[3px] text-left font-mono text-xs font-normal whitespace-normal [overflow-wrap:anywhere]";
 /** Output as plain monospaced text that wraps. */
 const OUTPUT_TEXT = "font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]";
@@ -477,13 +477,22 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const files = (
     <nav className="flex min-h-0 flex-1 flex-col gap-px overflow-auto bg-panel px-2 py-2.5 [&>*]:shrink-0" aria-label={t("Project")} data-tour="workspace-files">
       {sidebar.questions.length ? (
-        <section className="mb-3 flex flex-col gap-1.5">
-          <div className="mb-0.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">{t("Questions")}</div>
+        <section className="mb-3 flex flex-col gap-0.5">
+          <div className="mb-1 flex items-baseline justify-between gap-2 px-1.5 text-[11px] font-semibold text-muted-foreground">
+            <span>{t("Questions")}</span>
+            <span className="font-normal tabular-nums">{sidebar.questions.length}</span>
+          </div>
           {[...sidebar.questions].reverse().slice(0, 3).map((item) => (
-            <Button variant="ghost" size="small" key={item.id} className={QUESTION_ENTRY} title={item.title} onClick={() => props.go("Home")}>
-              <span className="line-clamp-3 [overflow-wrap:anywhere]">{item.title}</span>
-            </Button>
+            <button type="button" key={item.id} className={QUESTION_ENTRY} title={item.title} onClick={() => props.go("Home")}>
+              <span className="w-0.5 flex-none self-stretch rounded-full bg-muted-foreground/30 group-hover:bg-primary" aria-hidden="true" />
+              <span className="line-clamp-3 min-w-0 text-[12px] leading-normal [overflow-wrap:anywhere]">{item.title}</span>
+            </button>
           ))}
+          {sidebar.questions.length > 3 ? (
+            <button type="button" className="cursor-pointer self-start border-0 bg-transparent px-1.5 text-[11px] text-muted-foreground hover:text-foreground" onClick={() => props.go("Home")}>
+              {t("All {count} questions", { count: sidebar.questions.length })}
+            </button>
+          ) : null}
         </section>
       ) : null}
       <section className="mb-3 flex flex-col gap-px">
