@@ -11,7 +11,7 @@ pub struct LlmProvider {
 }
 
 /// The providers, without the model lists the settings page shows.
-const LLM_PROVIDERS: [LlmProvider; 7] = [
+const LLM_PROVIDERS: [LlmProvider; 8] = [
     LlmProvider {
         id: "openai",
         label: "OpenAI",
@@ -54,10 +54,21 @@ const LLM_PROVIDERS: [LlmProvider; 7] = [
         needs_key: false,
         base_url: "http://127.0.0.1:1234",
     },
+    LlmProvider {
+        id: "mlx",
+        label: "MLX",
+        needs_key: false,
+        base_url: "http://127.0.0.1:8080",
+    },
 ];
 
 pub fn llm_provider(id: &str) -> Option<&'static LlmProvider> {
     LLM_PROVIDERS.iter().find(|provider| provider.id == id)
+}
+
+/// Providers whose models run on this computer, through a model server the user started: they take no key and cost nothing.
+pub fn runs_locally(provider: &str) -> bool {
+    matches!(provider, "lmstudio" | "mlx")
 }
 
 /// Providers that run on the user's own subscription through the vendor's official program. Saturn never sends an API
@@ -216,9 +227,9 @@ pub fn deep_seek_peak(at: i64) -> bool {
     (1..=5).contains(&day) && ((1..4).contains(&hour) || (6..10).contains(&hour))
 }
 
-/// The price of one call, or `None` when it has no official price. LM Studio runs locally and costs nothing.
+/// The price of one call, or `None` when it has no official price. A local model costs nothing.
 pub fn price_call(call: &CallToPrice) -> Option<PricedCall> {
-    if call.provider == "lmstudio" {
+    if runs_locally(call.provider) {
         return Some(PricedCall {
             input_rate: 0.0,
             output_rate: 0.0,
@@ -275,7 +286,7 @@ pub fn price_call(call: &CallToPrice) -> Option<PricedCall> {
 
 /// A model's price in words, for the usage page; `None` when it has no list price.
 pub fn describe_price(provider: &str, model: &str, at: i64) -> Option<String> {
-    if provider == "lmstudio" {
+    if runs_locally(provider) {
         return Some("Local · free".to_owned());
     }
     let price = pricing(provider, model)?;

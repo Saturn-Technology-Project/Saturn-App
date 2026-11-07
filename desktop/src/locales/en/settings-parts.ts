@@ -16,8 +16,8 @@ export default {
     "Follow checkpoints and their fine-tuned branches, read the same sample across them, and look inside to see what changed.",
   "In each chat, the assistant only reads, proposes changes for you to approve, or works on a task apart until you merge it.":
     "In each chat, the assistant only reads, proposes changes for you to approve, or works on a separate task until you merge it.",
-  "Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local LM Studio model.":
-    "Use Claude with your Claude plan, Codex with your ChatGPT plan, API keys for Anthropic, OpenAI, Google, and DeepSeek, or a local model in LM Studio.",
+  "Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local model in LM Studio or MLX.":
+    "Use Claude with your Claude plan, Codex with your ChatGPT plan, API keys for Anthropic, OpenAI, Google, and DeepSeek, or a local model in LM Studio or MLX.",
   "An agent works in a folder only after you allow it, and you can take that back at any time. Its edits can be reviewed and reverted.":
     "An agent works in a folder only after you allow it, and you can revoke that at any time. You can review and revert its edits.",
   "Stays on this computer": "Stays on your computer",

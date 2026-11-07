@@ -110,7 +110,7 @@ In every mode, locks, the policy, the SSH host, merging and loosening a run's sa
 
 **Tools and skills.** The assistant works on the same records you see through thirteen `research_*` tools: read anything, make questions, hypotheses, experiments and models, freeze and run (here or on the SSH host), pause and resume runs here, wait for a run, set up the Python environment, look inside models, import results and bundles, keep analysis outputs, run notebook cells, and start, follow and clear away tasks. Fifty-one bundled skills teach it how, from scoping a question and writing hypotheses to leakage audits, layer sweeps and a final report; it reads the one it needs with `research_skill`, and a project's own skill of the same name comes first. [`docs/research-skills.md`](docs/research-skills.md) lists them.
 
-**On any backend.** The assistant runs on an API model, on Claude Code with your Claude plan, on Codex with your ChatGPT plan, or on a local model in LM Studio. The research tools reach all of them.
+**On any backend.** The assistant runs on an API model, on Claude Code with your Claude plan, on Codex with your ChatGPT plan, or on a local model in LM Studio or MLX. The research tools reach all of them.
 
 **Underneath.** The assistant is an agent with the runtime's full toolkit, which also serves tasks:
 
@@ -197,7 +197,7 @@ flowchart LR
   end
   R -- "HTTPS" --> M["Model APIs<br/><sub>Anthropic · OpenAI · Google · DeepSeek</sub>"]
   R -- "official programs" --> C["Claude Code · Codex"]
-  R --> L["LM Studio<br/><sub>local inference</sub>"]
+  R --> L["LM Studio · MLX<br/><sub>local inference</sub>"]
   R --> X["MCP servers"]
   R -- "SSH" --> H["Your remote host<br/><sub>detached worker</sub>"]
 ```
@@ -239,6 +239,7 @@ Launching Saturn starts its own runtime and keeps it running: it restarts one th
 | Google Gemini | API key | Thinking level (3.x and later) or thinking budget (2.5) |
 | DeepSeek | API key | |
 | LM Studio | None | Any locally served model, fully offline |
+| MLX | None | Models `mlx_lm.server` serves on a Mac with Apple silicon, fully offline |
 
 API keys are stored encrypted in `~/.saturn-app/secrets.json` (AES-256-GCM, key in the OS key store; see [Data at rest](#data-at-rest)), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider.
 
@@ -314,6 +315,15 @@ lms load qwen/qwen3.5-4b --context-length 32768
 | Qwen2.5-Coder 7B | 4.3 GB | 3/6 | n/a | Not for the assistant: unreliable tool use |
 
 Reasoning models (Qwen3.5, Gemma 4) think before every completion, so expect longer tasks. These are small tasks on one machine; larger models (Qwen3.6 27B, Qwen3-Coder 30B and up) need 32 GB or more and were not tested.
+
+**The assistant on a local model, through MLX.** On a Mac with Apple silicon, Saturn can also use [MLX](https://github.com/ml-explore/mlx-lm)'s own server instead of LM Studio:
+
+```bash
+pip install mlx-lm
+mlx_lm.server --model mlx-community/Qwen3-8B-4bit
+```
+
+Then choose **MLX** in **Settings → Models**. Saturn lists the models the server can load (the one it was started with and the MLX models in your Hugging Face cache) and asks it at `http://127.0.0.1:8080` unless you change the address. The same rule holds: the model must support tool calling to act. Saturn was tested against a stand-in that answers as `mlx_lm.server` does, not yet against the server itself, and the models above were measured in LM Studio, not through MLX.
 
 ## Security and trust
 
@@ -446,7 +456,7 @@ Build logs are public on the [Actions](../../actions/workflows/release.yml) page
 
 - Issue Saturn dedicated API keys with spend limits, so they can be rotated or revoked independently.
 - Prefer the **Default** approval policy (prompt on risky actions) over full autonomy, and grant only the project folders a task needs.
-- For code that must never leave the machine, use a local model through LM Studio.
+- For code that must never leave the machine, use a local model through LM Studio or MLX.
 
 ### Supply chain
 

@@ -1,5 +1,5 @@
 import { t } from "./i18n.ts";
-import type { Agent, Autonomy, Model, Run, RunAction, RunThought } from "./model.js";
+import { runsLocally, type Agent, type Autonomy, type Model, type Run, type RunAction, type RunThought } from "./model.ts";
 
 export type PlanStep = {
   step: string;
@@ -84,7 +84,7 @@ export function replaceRevised(list: Run[], run: Run, removed: string[]): Run[] 
 export function modelLabel(models: Model[], agent: Agent | null): string {
   const model = models.find((item) => item.id === agent?.modelConnectionId);
   if (!model) return "None";
-  if (model.provider === "lmstudio") return model.name;
+  if (runsLocally(model.provider)) return model.name;
   return model.hasSecret ? model.name : `${model.name} · no key`;
 }
 

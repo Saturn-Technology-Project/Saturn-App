@@ -34,7 +34,7 @@ const FEATURES: { title: string; body: string }[] = [
   },
   {
     title: t("Your models"),
-    body: t("Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local LM Studio model."),
+    body: t("Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local model in LM Studio or MLX."),
   },
   {
     title: t("Projects are real folders"),
