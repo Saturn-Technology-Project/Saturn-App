@@ -22,6 +22,17 @@ pub async fn complete_raw(http: &Http, request: &RawRequest) -> Result<RawStream
     complete_raw_local(http, request, SERVER).await
 }
 
+/// Whether a model's name marks it as an embedding or reranking model: one with "embed" or "rerank" in it, or one of the
+/// families that are only that (bge, e5, gte), as in `mlx-community/bge-m3-mlx-fp16`.
+fn is_embedding_model(id: &str) -> bool {
+    let name = id.rsplit('/').next().unwrap_or(id).to_lowercase();
+    name.contains("embed")
+        || name.contains("rerank")
+        || ["bge-", "e5-", "multilingual-e5-", "gte-"]
+            .iter()
+            .any(|family| name.starts_with(family))
+}
+
 /// The models `mlx_lm.server` can load: the one it was started with and those in the Hugging Face cache. Embedding models are
 /// left out, as they cannot chat.
 pub async fn list_models(http: &Http, base_url: &str) -> Result<Vec<String>, LlmError> {
@@ -36,7 +47,7 @@ pub async fn list_models(http: &Http, base_url: &str) -> Result<Vec<String>, Llm
         .into_iter()
         .flatten()
         .filter_map(|item| item["id"].as_str())
-        .filter(|id| !id.to_lowercase().contains("embed"))
+        .filter(|id| !is_embedding_model(id))
         .map(str::to_owned)
         .collect())
 }
