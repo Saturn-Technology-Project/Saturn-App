@@ -21,7 +21,7 @@ There are none: no known advisory is left open in what the macOS and Windows bui
 
 ## Adding an entry
 
-An advisory goes here only after a review shows it cannot be fixed now (no patch, or the patch needs an upstream change) and its exposure is understood. Each entry records the advisory, where the package is, why it stays open, and what closes it. Dismiss the Dependabot alert with the matching reason and link back to this file. Remove the entry in the same change that ships the fix.
+An advisory goes here only after a review shows it cannot be fixed now (no patch, or the patch needs an upstream change) and its exposure is understood. Each entry records the advisory, where the package is, why it stays open, and what closes it. List its id in `deny.toml` (for `cargo deny`, when it reaches the platforms that check covers) and in [`osv-scanner.toml`](../osv-scanner.toml) with a date to look at it again (for OSV-Scanner and OpenSSF Scorecard); `scripts/advisories.test.mjs` fails when the lists differ or a date has passed. Dismiss the Dependabot alert with the matching reason and link back to this file. Remove the entry in the same change that ships the fix.
 
 ---
 
@@ -48,4 +48,4 @@ An advisory goes here only after a review shows it cannot be fixed now (no patch
 
 ## 新增一筆
 
-只有在審視後確認目前無法修補（沒有修補版本，或修補需要上游變更），且清楚其曝險範圍時，公告才會列入這裡。每筆都要記錄公告、套件位置、暫不處理的原因與結案條件。以相符的理由關閉對應的 Dependabot 警示，並連回本檔。修補出貨時，在同一個變更中移除該筆。
+只有在審視後確認目前無法修補（沒有修補版本，或修補需要上游變更），且清楚其曝險範圍時，公告才會列入這裡。每筆都要記錄公告、套件位置、暫不處理的原因與結案條件。把它的編號列進 `deny.toml`（給 `cargo deny`，在它檢查的平台上會遇到時）與 [`osv-scanner.toml`](../osv-scanner.toml)，並附上重新檢視的日期（給 OSV-Scanner 與 OpenSSF Scorecard）；清單不一致或日期已過時，`scripts/advisories.test.mjs` 會失敗。以相符的理由關閉對應的 Dependabot 警示，並連回本檔。修補出貨時，在同一個變更中移除該筆。

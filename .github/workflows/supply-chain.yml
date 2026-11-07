@@ -64,6 +64,9 @@ jobs:
           tool: cargo-deny@0.20.2
       - run: cargo deny --locked check
 
+      - name: The advisories left open are the same for cargo deny, OSV and Scorecard, and for people
+        run: node --test scripts/advisories.test.mjs
+
       - name: The route checklist matches the runtime
         run: node scripts/contract-routes.mjs --check
 

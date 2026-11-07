@@ -1,0 +1,39 @@
+# The advisories in Cargo.lock that are reviewed and left open, for OSV-Scanner and OpenSSF Scorecard: the same list as
+# deny.toml and docs/known-advisories.md, which say why and what closes each one. None is in what the macOS and Windows
+# builds ship. Each lapses on its date, so it is looked at again rather than forgotten; scripts/advisories.test.mjs keeps
+# the three lists the same.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0429"
+ignoreUntil = 2027-05-07
+reason = "glib 0.18 (unsound VariantStrIter, GHSA-wrw7-89jp-8q8g): Linux builds of the Tauri shell only, through muda and gtk; Saturn has no Linux package"
+
+[[IgnoredVulns]]
+id = "GHSA-wrw7-89jp-8q8g"
+ignoreUntil = 2027-05-07
+reason = "The GitHub id of RUSTSEC-2024-0429, glib 0.18: Linux builds of the Tauri shell only"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0436"
+ignoreUntil = 2027-05-07
+reason = "paste (unmaintained), a build-time macro of tokenizers in saturn-embed; no code of it ships"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0370"
+ignoreUntil = 2027-05-07
+reason = "proc-macro-error (unmaintained), a build-time macro of glib on the Linux path of the Tauri shell"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0370"
+ignoreUntil = 2027-05-07
+reason = "zvariant (unmaintained), Linux only, through tauri-plugin-single-instance's zbus 5"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0371"
+ignoreUntil = 2027-05-07
+reason = "zbus_names (unmaintained), Linux only, through tauri-plugin-single-instance's zbus 5"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0372"
+ignoreUntil = 2027-05-07
+reason = "zvariant_derive (unmaintained), Linux only, through tauri-plugin-single-instance's zbus 5"
