@@ -1113,4 +1113,19 @@ impl Kernel {
             .map(|item| json!({ "id": text(item, "id"), "label": text(item, "id") }))
             .collect()
     }
+
+    /// The models `mlx_lm.server` can load; an empty list while it is not running, since the settings form polls this.
+    pub async fn mlx_models(&self, base_url: &str) -> Vec<Value> {
+        let url = if base_url.is_empty() {
+            "http://127.0.0.1:8080"
+        } else {
+            base_url
+        };
+        saturn_llm::mlx::list_models(self.broker.http(), url)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|id| json!({ "id": id, "label": id }))
+            .collect()
+    }
 }

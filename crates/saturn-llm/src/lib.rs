@@ -7,6 +7,7 @@ pub mod deepseek;
 pub mod gemini;
 pub mod http;
 pub mod lmstudio;
+pub mod mlx;
 pub mod openai;
 pub mod shared;
 

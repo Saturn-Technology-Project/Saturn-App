@@ -51,11 +51,12 @@ pub const MAX_PARALLEL_DELEGATIONS: usize = 6;
 /// The reason recorded when the user turns down an approval; the run continues and is not counted as failed.
 pub(crate) const DENIED_BY_USER: &str = "Denied by the user";
 /// Providers whose adapter sends a user's images to the model. DeepSeek's API takes text only.
-const SEES_IMAGES: [&str; 6] = [
+const SEES_IMAGES: [&str; 7] = [
     "claude",
     "openai",
     "gemini",
     "lmstudio",
+    "mlx",
     "claude-code",
     "codex",
 ];
