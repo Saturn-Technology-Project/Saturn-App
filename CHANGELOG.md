@@ -4,6 +4,11 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+### Changed
+
+- **Samples name the model a line is about.** A line that names no model used to show "Unnamed model". It now shows the version's model when the version has only one, the model's id when that id is not recorded under Models, and otherwise "Model not recorded", with a note on how to fix it. The runs table names models the same way.
+- **"Scorer: no word" is gone from every sample line.** The scorer's word is shown only when the program wrote one; the scores are beside it either way.
+
 ### Added
 
 - **An experiment can be renamed.** The experiment page now shows the experiment's name above its question and hypothesis, and changing it there renames it; its versions and runs stay with it. A blank name is not saved, and a change made meanwhile elsewhere, by the assistant for one, is reported rather than overwritten.

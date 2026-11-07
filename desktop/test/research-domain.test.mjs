@@ -11,7 +11,7 @@ test("project-wide analysis outputs remain reachable when a run or inspection se
   assert.deepEqual(artifactsInContext(items, "r", undefined, true).map((item) => item.id), ["project", "run", "session", "other"]);
   assert.deepEqual(artifactsInContext(items).map((item) => item.id), ["project", "run", "session", "other"]);
 });
-import { ablationStanding, ablationText, comparisonText, controlCeiling, featurePeaks, featuresText, lineageOrder, lineageRows, metricsRun, plotPoints, promptPatchText, readingDifference, reconstructionIsPoor, runHasResults, sampleIdParts, scoreText, signedText, strongestPatch } from "../src/domain/research.ts";
+import { ablationStanding, ablationText, comparisonText, controlCeiling, featurePeaks, featuresText, lineageOrder, lineageRows, metricsRun, plotPoints, promptPatchText, sampleModel, readingDifference, reconstructionIsPoor, runHasResults, sampleIdParts, scoreText, signedText, strongestPatch } from "../src/domain/research.ts";
 
 const model = (id, parentId) => ({ id, parentId, source: id, floating: false, revision: 1, createdAt: "", updatedAt: "" });
 
@@ -130,6 +130,22 @@ test("an observation on features gives ids, the control and the splice, and call
 test("two readings differ cell by cell, over the layers both have", () => {
   const left = [{ layer: 0, values: [1, 2] }, { layer: 1, values: [3, 3] }];
   assert.deepEqual(readingDifference(left, [{ layer: 0, values: [0.5, 2.5] }]), [{ layer: 0, values: [0.5, -0.5] }]);
+});
+
+test("a sample's model is named from its line, or from the version when the line does not say, and never just unnamed", () => {
+  const models = [{ id: "m1", name: "Base", source: "gpt2" }, { id: "m2", name: "", source: "local/ckpt" }];
+  const bound = (...ids) => ({ models: ids.map((modelId) => ({ modelId, source: `src-${modelId}` })) });
+  assert.deepEqual(sampleModel("m1", bound("m1"), models), { name: "Base" });
+  assert.deepEqual(sampleModel("m2", bound("m2"), models), { name: "local/ckpt" }, "a model without a name goes by its source");
+  assert.equal(sampleModel("gone", bound("m1"), models).name, "gone", "an id with no record is shown as it is");
+  assert.match(sampleModel("gone", bound("m1"), models).note, /No model with this id/);
+  assert.equal(sampleModel(undefined, bound("m1"), models).name, "Base", "the version's one model");
+  assert.equal(sampleModel(null, bound("m9"), models).name, "src-m9", "or its source when it has no record");
+  const many = sampleModel(undefined, bound("m1", "m2"), models);
+  assert.equal(many.name, "Model not recorded");
+  assert.match(many.note, /has 2\. Have the program write modelId/);
+  assert.match(sampleModel(undefined, bound(), models).note, /names none/);
+  assert.match(sampleModel(undefined, undefined, models).note, /names none/);
 });
 
 test("the training metrics follow the run still going, or else show the newest finished one", () => {
