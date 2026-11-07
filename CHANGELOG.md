@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **An experiment can be renamed.** The experiment page now shows the experiment's name above its question and hypothesis, and changing it there renames it; its versions and runs stay with it. A blank name is not saved, and a change made meanwhile elsewhere, by the assistant for one, is reported rather than overwritten.
 - **Training metrics follow a run while it goes.** The experiment page showed a training run's curve only once the run had finished. It now shows the run still going, adds each metric as the program writes it, and reads the last ones when the run ends; before the first metric it says it is waiting. A long run's curve stays quick to draw.
 
 ## 0.4.1 (2026-11-07)
