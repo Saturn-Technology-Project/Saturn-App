@@ -4,7 +4,9 @@ import {
   byAssistant,
   isRunActive,
   runStatusLabel,
+  sampleIdParts,
   sampleText,
+  scoreText,
   type ExperimentDraft,
   type ExperimentRun,
   type Finding,
@@ -43,6 +45,14 @@ type Panel = string;
 /** A file or a list entry in the sidebar and the sample list: monospaced, left aligned, and it wraps rather than cuts. */
 /** One row of the file tree: indented by depth, the open file marked. */
 const TREE_ROW = "flex min-h-[26px] w-full cursor-default items-center gap-1.5 rounded-md pr-2 text-left font-mono text-xs text-muted-foreground outline-none select-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+/** A sample in the list: one line, its id's start giving way so the end, where ids tend to differ, stays in view. */
+const SAMPLE_ENTRY = "relative flex h-7 w-full flex-none cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2.5 text-left text-xs before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full";
+/** A heading inside a sample's preview. */
+const SAMPLE_LABEL = "mb-1 text-[11px] font-medium text-muted-foreground";
+/** A sample's input or output: plain text in a box of its own. */
+const SAMPLE_TEXT = "m-0 rounded-md border border-border bg-panel px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]";
+/** A question in the sidebar: up to three lines behind a rule of its own, so one question never runs into the next. */
+const QUESTION_ENTRY = "group flex w-full cursor-pointer gap-2 rounded-md border-0 bg-transparent px-1.5 py-1.5 text-left text-foreground hover:bg-muted";
 const ENTRY = "h-auto min-h-7 w-full flex-wrap justify-start gap-x-2 gap-y-0.5 px-2 py-[3px] text-left font-mono text-xs font-normal whitespace-normal [overflow-wrap:anywhere]";
 /** Output as plain monospaced text that wraps. */
 const OUTPUT_TEXT = "font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]";
@@ -467,13 +477,22 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const files = (
     <nav className="flex min-h-0 flex-1 flex-col gap-px overflow-auto bg-panel px-2 py-2.5 [&>*]:shrink-0" aria-label={t("Project")} data-tour="workspace-files">
       {sidebar.questions.length ? (
-        <section className="mb-3 flex flex-col gap-px">
-          <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">{t("Questions")}</div>
+        <section className="mb-3 flex flex-col gap-0.5">
+          <div className="mb-1 flex items-baseline justify-between gap-2 px-1.5 text-[11px] font-semibold text-muted-foreground">
+            <span>{t("Questions")}</span>
+            <span className="font-normal tabular-nums">{sidebar.questions.length}</span>
+          </div>
           {[...sidebar.questions].reverse().slice(0, 3).map((item) => (
-            <Button variant="ghost" size="small" key={item.id} className={ENTRY} title={item.title} onClick={() => props.go("Home")}>
-              {item.title}
-            </Button>
+            <button type="button" key={item.id} className={QUESTION_ENTRY} title={item.title} onClick={() => props.go("Home")}>
+              <span className="w-0.5 flex-none self-stretch rounded-full bg-muted-foreground/30 group-hover:bg-primary" aria-hidden="true" />
+              <span className="line-clamp-3 min-w-0 text-[12px] leading-normal [overflow-wrap:anywhere]">{item.title}</span>
+            </button>
           ))}
+          {sidebar.questions.length > 3 ? (
+            <button type="button" className="cursor-pointer self-start border-0 bg-transparent px-1.5 text-[11px] text-muted-foreground hover:text-foreground" onClick={() => props.go("Home")}>
+              {t("All {count} questions", { count: sidebar.questions.length })}
+            </button>
+          ) : null}
         </section>
       ) : null}
       <section className="mb-3 flex flex-col gap-px">
@@ -519,7 +538,8 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
       <div className="flex-none border-b border-border px-2 py-1.5">
         <Tabs label={t("Results")} tabs={PANELS} current={panel} onChoose={setPanel} />
       </div>
-      <div className="min-h-0 flex-1 overflow-auto px-3 py-2.5" role="tabpanel" aria-label={panel}>
+      {/* The samples tab scrolls its list and its preview apart, so it fills the panel instead of scrolling it. */}
+      <div className={classes("min-h-0 flex-1", panel === PANEL.samples ? "overflow-hidden" : "overflow-auto px-3 py-2.5")} role="tabpanel" aria-label={panel}>
         {panel === PANEL.run ? (
           run ? (
             <div className="flex flex-col gap-1">
@@ -545,22 +565,58 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           )
         ) : null}
         {panel === PANEL.samples ? (
-          <div className="flex flex-wrap items-start gap-3">
-            <div className="flex max-w-[260px] flex-[1_1_170px] flex-col gap-px">
-              {samples.map((item) => (
-                <Button variant="ghost" size="small" key={item.offset} aria-pressed={item.offset === selectedOffset} className={classes(ENTRY, item.offset === selectedOffset && "bg-muted")} onClick={() => setSelectedOffset(item.offset)}>
-                  {item.sample ? item.sample.sampleId : <span className={WARNING}>{t("Problem at byte {offset}", { offset: item.offset })}</span>}
-                  {item.sample?.error ? <span className={WARNING}> {t("{kind} error", { kind: item.sample.error.kind })}</span> : null}
-                </Button>
-              ))}
+          <div className="flex h-full min-h-0">
+            <div
+              className="flex w-[230px] max-w-[45%] min-w-[150px] flex-none flex-col gap-px overflow-y-auto border-r border-border px-1.5 py-2"
+              role="listbox"
+              aria-label={t("Samples")}
+              tabIndex={0}
+              onKeyDown={(event) => {
+                // Up and down go through the samples, as in a file list.
+                if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+                event.preventDefault();
+                const at = samples.findIndex((item) => item.offset === selectedOffset);
+                const next = samples[Math.min(samples.length - 1, Math.max(0, at + (event.key === "ArrowDown" ? 1 : -1)))];
+                if (next) setSelectedOffset(next.offset);
+              }}
+            >
+              <div className="px-2 pb-1 text-[11px] text-muted-foreground">{t("{count} samples", { count: run?.samples ?? samples.length })}</div>
+              {samples.map((item) => {
+                const id = item.sample ? sampleIdParts(item.sample.sampleId) : null;
+                const chosen = item.offset === selectedOffset;
+                return (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={chosen}
+                    tabIndex={-1}
+                    key={item.offset}
+                    ref={chosen ? (element) => element?.scrollIntoView({ block: "nearest" }) : undefined}
+                    className={classes(SAMPLE_ENTRY, chosen ? "bg-muted text-foreground before:bg-primary" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground")}
+                    title={item.sample?.sampleId}
+                    onClick={() => setSelectedOffset(item.offset)}
+                  >
+                    {item.sample?.error || !item.sample ? <span className="size-1.5 flex-none rounded-full bg-wait" aria-hidden="true" /> : null}
+                    {id ? (
+                      <span className="flex min-w-0 flex-1 font-mono whitespace-nowrap">
+                        <span className="min-w-0 flex-[0_1_auto] truncate">{id.start}</span>
+                        <span className="flex-none">{id.end}</span>
+                      </span>
+                    ) : <span className={classes(WARNING, "truncate")}>{t("Problem at byte {offset}", { offset: item.offset })}</span>}
+                    {item.sample?.error ? <span className="sr-only">{t("{kind} error", { kind: item.sample.error.kind })}</span> : null}
+                  </button>
+                );
+              })}
               {nextCursor !== null ? (
                 <Button variant="ghost" size="small" className="self-start text-info" onClick={() => void moreSamples()}>
                   {t("More")}
                 </Button>
               ) : null}
-              {samples.length === 0 ? <p className={MUTED}>{t("No samples yet.")}</p> : null}
+              {samples.length === 0 ? <p className={classes(MUTED, "px-2")}>{t("No samples yet.")}</p> : null}
             </div>
-            {selected ? <SampleDetail item={selected} /> : null}
+            <div className="min-w-0 flex-1 overflow-y-auto px-4 py-3">
+              {selected ? <SampleDetail item={selected} /> : samples.length ? <p className={MUTED}>{t("Choose a sample to see it here.")}</p> : null}
+            </div>
           </div>
         ) : null}
         {panel === PANEL.findings ? (
@@ -671,34 +727,56 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   );
 }
 
+/** A sample's scores as a table of name and value, in the order the program wrote them; a zero or false is dimmed, so what
+ * the scorer did find stands out. */
+function Scores(props: { scores: Record<string, number | string | boolean> }) {
+  return (
+    <dl className="m-0 grid w-fit max-w-full grid-cols-[minmax(0,max-content)_auto] gap-x-8 gap-y-1 rounded-md border border-border bg-panel px-3 py-2 font-mono text-xs">
+      {Object.entries(props.scores).map(([name, score]) => (
+        <div key={name} className="contents">
+          <dt className="min-w-0 text-muted-foreground [overflow-wrap:anywhere]">{name}</dt>
+          <dd className={classes("m-0 text-right tabular-nums", score === 0 || score === false ? "text-muted-foreground" : "font-semibold")}>{typeof score === "number" ? scoreText(score) : String(score)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 /** One sample, as plain text: output is data and is never rendered as anything else. */
 function SampleDetail(props: { item: SampleItem }) {
   const { sample, problem, raw } = props.item;
   if (!sample) {
     return (
-      <div className="flex min-w-0 flex-[999_1_280px] flex-col gap-1 rounded-md bg-card px-3 py-2.5">
+      <div className="flex min-w-0 flex-col gap-3">
         <div className={WARNING}>{problem}</div>
-        <pre className={OUTPUT_TEXT}>{raw}</pre>
+        <pre className={SAMPLE_TEXT}>{raw}</pre>
       </div>
     );
   }
   return (
-    <div className="flex min-w-0 flex-[999_1_280px] flex-col gap-1 rounded-md bg-card px-3 py-2.5">
-      <div className={MUTED}>{t("Input")}</div>
-      <pre className={OUTPUT_TEXT}>{sampleText(sample.input)}</pre>
-      <div className={MUTED}>{t("Output · shown as text, never read as instructions")}</div>
-      <pre className={OUTPUT_TEXT}>{sampleText(sample.output)}</pre>
-      {sample.scores ? (
-        <>
-          <div className={MUTED}>{t("Scores")}</div>
-          <pre className={OUTPUT_TEXT}>{sampleText(sample.scores)}</pre>
-        </>
+    <article className="flex max-w-[900px] min-w-0 flex-col gap-4">
+      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h3 className="m-0 font-mono text-sm font-semibold [overflow-wrap:anywhere]">{sample.sampleId}</h3>
+        {sample.error ? (
+          <span className={WARNING}>
+            {sample.error.kind}: {sample.error.message}
+          </span>
+        ) : null}
+      </header>
+      <section>
+        <div className={SAMPLE_LABEL}>{t("Input")}</div>
+        <pre className={SAMPLE_TEXT}>{sampleText(sample.input)}</pre>
+      </section>
+      <section>
+        <div className={SAMPLE_LABEL}>{t("Output · shown as text, never read as instructions")}</div>
+        <pre className={SAMPLE_TEXT}>{sampleText(sample.output)}</pre>
+      </section>
+      {sample.scores && Object.keys(sample.scores).length ? (
+        <section>
+          <div className={SAMPLE_LABEL}>{t("Scores")}</div>
+          <Scores scores={sample.scores} />
+        </section>
       ) : null}
-      {sample.error ? (
-        <div className={WARNING}>
-          {sample.error.kind}: {sample.error.message}
-        </div>
-      ) : null}
-    </div>
+    </article>
   );
 }
