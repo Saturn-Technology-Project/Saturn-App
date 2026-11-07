@@ -44,7 +44,7 @@ export function RunControls(props: { projectId: string; run: ExperimentRun; chan
   if (props.compact) {
     // In a bar: the buttons alone, for a run that is going; what it carried and how long it paused are on its row.
     return (
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-none gap-1">
         {run.status === "running" ? <Button variant="outline" size="small" disabled={busy} onClick={() => void act(() => service.pauseRun(projectId, run.id))}>{t("Pause")}</Button> : null}
         {run.status === "paused" ? <Button variant="outline" size="small" disabled={busy} onClick={() => void act(() => service.continueRun(projectId, run.id))}>{t("Continue")}</Button> : null}
         {run.status === "running" || run.status === "paused" ? <Button variant="outline" size="small" disabled={busy} onClick={() => void act(() => service.stopRun(projectId, run.id))}>{t("Stop")}</Button> : null}

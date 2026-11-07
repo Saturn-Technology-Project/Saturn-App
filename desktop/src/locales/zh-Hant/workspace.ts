@@ -49,7 +49,6 @@ export default {
   Saved: "已儲存",
   "Command that runs the experiment": "執行實驗的指令",
   "New experiment": "新實驗",
-  "Last run: {status}": "上次執行：{status}",
   "Freezes the code and settings as a version (the last one, when nothing changed) and runs it once.": "把目前的程式碼與設定凍結成一個版本（內容沒變就沿用上一版），再執行一次。",
   "Freeze and run": "凍結並執行",
   "Open in Experiments": "在實驗頁開啟",
