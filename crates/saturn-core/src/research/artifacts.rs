@@ -298,6 +298,11 @@ impl Kernel {
                     "Each artifact manifest entry must be an object.",
                 ));
             }
+            // A checkpoint entry is for resuming the run (see `runs::newest_checkpoint`), not an analysis output: a
+            // training program lists both in the one manifest, and its checkpoints are not snapshotted here.
+            if request["kind"] == "checkpoint" {
+                continue;
+            }
             request["runId"] = json!(run_id);
             prepared.push(
                 self.prepare_artifact(project, &request, Some(&root))

@@ -46,7 +46,8 @@ test("a run's plain JSONL artifact manifest is imported atomically and idempoten
   const { run } = await saturn.api("POST", `${route}/imports`, { path: "old.jsonl" });
   const outputs = path.join(folder, ".saturn/research/runs", run.id);
   await writeFile(path.join(outputs, "analysis.json"), '{"values":[1]}');
-  await writeFile(path.join(outputs, "artifacts.jsonl"), '{"path":"analysis.json","kind":"json"}\n');
+  // A training program lists its checkpoints in the same manifest, for resuming; they are not analysis outputs.
+  await writeFile(path.join(outputs, "artifacts.jsonl"), '{"kind":"checkpoint","path":"checkpoints/step-100","step":100}\n{"path":"analysis.json","kind":"json"}\n');
   const first = await saturn.api("POST", `${route}/artifacts/from-run`, { runId: run.id });
   const second = await saturn.api("POST", `${route}/artifacts/from-run`, { runId: run.id });
   assert.equal(first.items.length, 1); assert.equal(first.items[0].id, second.items[0].id);
