@@ -189,13 +189,15 @@ impl Kernel {
         Ok(page)
     }
 
-    /// The end of a run's log.
+    /// The end of a run's log: the last 64 KiB, or fewer bytes when `tail` says so (the assistant asks for less).
     pub async fn research_run_log(
         &self,
         project: &str,
         id: &str,
         stream: &str,
+        tail: Option<u64>,
     ) -> Result<Value, CoreError> {
+        let tail = tail.map_or(LOG_TAIL, |asked| asked.clamp(1024, LOG_TAIL));
         if !is_id(id) || !matches!(stream, "stdout" | "stderr") {
             return Err(CoreError::new(404, "No such log"));
         }
@@ -209,7 +211,7 @@ impl Kernel {
                 Err(error) => return Err(error),
             };
             let size = file.metadata()?.len();
-            file.seek(SeekFrom::Start(size.saturating_sub(LOG_TAIL)))?;
+            file.seek(SeekFrom::Start(size.saturating_sub(tail)))?;
             let mut bytes = Vec::new();
             file.read_to_end(&mut bytes)?;
             Ok(bytes)
@@ -233,7 +235,9 @@ impl Kernel {
         project: &str,
         id: &str,
         requested: Option<&str>,
+        limit: Option<u64>,
     ) -> Result<Value, CoreError> {
+        let limit = limit.map_or(OUTPUT_READ, |asked| asked.clamp(1024, OUTPUT_READ));
         if !is_id(id) {
             return Err(CoreError::new(404, "No such run"));
         }
@@ -279,7 +283,7 @@ impl Kernel {
         let mut bytes = Vec::new();
         tokio::fs::File::open(&path)
             .await?
-            .take(OUTPUT_READ)
+            .take(limit)
             .read_to_end(&mut bytes)
             .await?;
         let binary = bytes.contains(&0);
@@ -287,7 +291,7 @@ impl Kernel {
             "runId": id,
             "path": relative,
             "size": info.len(),
-            "truncated": info.len() > OUTPUT_READ,
+            "truncated": info.len() > limit,
             "binary": binary,
             "text": if binary { Value::Null } else { json!(String::from_utf8_lossy(&bytes)) },
         }))

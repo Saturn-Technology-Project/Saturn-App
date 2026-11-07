@@ -226,7 +226,7 @@ async fn log(
     Query(query): Query<HashMap<String, String>>,
 ) -> Answer {
     let stream = query.get("stream").map_or("stdout", String::as_str);
-    ok(kernel.research_run_log(&project, &id, stream).await?)
+    ok(kernel.research_run_log(&project, &id, stream, None).await?)
 }
 
 async fn evidence(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
@@ -256,7 +256,7 @@ async fn output(
     Query(query): Query<HashMap<String, String>>,
 ) -> Answer {
     ok(kernel
-        .research_run_output(&project, &run, query.get("path").map(String::as_str))
+        .research_run_output(&project, &run, query.get("path").map(String::as_str), None)
         .await?)
 }
 
