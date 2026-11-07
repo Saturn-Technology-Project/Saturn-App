@@ -2,6 +2,25 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Fixed
+
+- **A training run that lists its checkpoints can register its analysis outputs again.** The checkpoint entries a program writes to its artifacts manifest, for resuming, made "artifacts from run" refuse the whole manifest. They are now passed over, and the figures and JSON beside them are registered.
+- **Samples changed after a run was sealed are flagged wherever the run is listed.** The warning on the Experiments page never showed, because the list of runs did not check the seal; only the run's own Evidence did. The list, the Workspace's run tab and the Samples page now say so too.
+- **The skills no longer tell a program to write where the sandbox refuses.** The checkpoint, pretraining and task skills said to save into the project folder, which a sandboxed run cannot write; they now say `SATURN_RUN_OUTPUT`, and a project folder only when the person has turned the sandbox off. The starter program writes its files to `SATURN_RUN_OUTPUT` as its own rules say, and the list of run variables is complete.
+- **The documents match the runtime on remote runs:** the worker is started without nohup, the host checks every file of the version before running (the old "not certified identical" wording is gone from the docs and from the worker's note), the worker is installed from Environment rather than by hand, a run on the host gets only `SATURN_RESUME_FROM`, and a project's skill can also live in `.agents/skills` or `.claude/skills`.
+
+### Changed
+
+- **The assistant's answers are drawn as Markdown.** Headings, lists, quotes, tables, links, bold and inline code show as such instead of as raw marks; fenced code stays a copyable snippet. A link opens in your browser.
+- **A run's evidence shows more of what it records.** Expected: the version's inputs by role, its models with whether each revision pins the weights (a commit or hash) or is a name such as `main` that can move, and what it resumes from. Observed: the platform or host and its working folder, start, end, duration and exit code, the host's commit, where the sandbox let the program write and how many folders it hid, what a resumed run took over, and whether the snapshot was checked after the run. Reported: the settings and the restore the program described, in words rather than raw JSON, and how many report lines it wrote. The sealed samples' hash, size and count are at the bottom.
+- **An experiment's seeds can be set in Experiments**, beside the sandbox, as a comma separated list; they are passed as `SATURN_RUN_SEED` and `SATURN_RUN_SEEDS` and frozen into each version. A paused run says since when.
+
+### Added
+
+- **Sixteen more bundled skills for the research assistant**, on what a safety lab evaluates and how it finishes work: red teaming, safety benchmarks, behavioral evaluations (sycophancy, deception, sandbagging, reward hacking), agentic evaluations; linear probes, steering vectors, circuit discovery and the tuned lens; reward models and RL, ablation studies, scaling and efficiency (scaling fits, distillation, quantization) and model cards; human evaluation with inter-rater agreement, replication review, data provenance and paper writing.
+
 ## 0.5.0 (2026-11-07)
 
 ### Fixed
