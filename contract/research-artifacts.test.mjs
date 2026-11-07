@@ -69,3 +69,18 @@ test("artifact readers refuse path escapes, links, HTML and incorrectly named im
     assert.equal((await saturn.call("POST", `${route}/artifacts/register`, { path: "link.json", kind: "json" })).status, 403);
   }
 });
+
+test("a document artifact keeps a PDF or a text file such as a model card, and refuses HTML", async () => {
+  const { folder, route } = await setup();
+  await writeFile(path.join(folder, "card.md"), "# Model card\n\nTrained on …");
+  const card = await saturn.api("POST", `${route}/artifacts/register`, { path: "card.md", kind: "document" });
+  assert.equal(card.mime, "text/markdown"); assert.equal(card.packaged, true);
+  await writeFile(path.join(folder, "paper.pdf"), "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n");
+  const paper = await saturn.api("POST", `${route}/artifacts/register`, { path: "paper.pdf", kind: "document" });
+  assert.equal(paper.mime, "application/pdf");
+  assert.equal((await saturn.api("GET", `${route}/artifacts/${paper.id}/content`)).mime, "application/pdf");
+  await writeFile(path.join(folder, "page.html"), "<!doctype html><p>no</p>");
+  assert.equal((await saturn.call("POST", `${route}/artifacts/register`, { path: "page.html", kind: "document" })).status, 415);
+  await writeFile(path.join(folder, "main.tex"), "\\documentclass{article}");
+  assert.equal((await saturn.api("POST", `${route}/artifacts/register`, { path: "main.tex", kind: "document" })).mime, "text/x-tex");
+});

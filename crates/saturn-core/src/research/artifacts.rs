@@ -35,6 +35,35 @@ fn image_type(bytes: &[u8]) -> Option<&'static str> {
     }
 }
 
+/// What a document is, by its bytes and its name: a PDF by its signature, else text that is not HTML, named by its
+/// extension. HTML is refused because a preview of it would be a page, not a document.
+fn document_type(bytes: &[u8], path: &str) -> Result<&'static str, CoreError> {
+    if bytes.starts_with(b"%PDF-") {
+        return Ok("application/pdf");
+    }
+    let text = std::str::from_utf8(bytes)
+        .map_err(|_| CoreError::new(415, "A document is a PDF or UTF-8 text."))?;
+    let start = text
+        .trim_start()
+        .get(..64)
+        .unwrap_or(text.trim_start())
+        .to_lowercase();
+    if start.starts_with("<!doctype") || start.starts_with("<html") || start.starts_with("<svg") {
+        return Err(CoreError::new(
+            415,
+            "HTML and SVG are not previewed; keep them as references.",
+        ));
+    }
+    let lower = path.to_lowercase();
+    Ok(if lower.ends_with(".md") || lower.ends_with(".markdown") {
+        "text/markdown"
+    } else if lower.ends_with(".tex") || lower.ends_with(".bib") {
+        "text/x-tex"
+    } else {
+        "text/plain"
+    })
+}
+
 /// External references are descriptive only and must not carry access tokens or passwords.
 fn reference_uri(value: &str) -> Result<(), CoreError> {
     let url = url::Url::parse(value)
@@ -63,10 +92,10 @@ impl Kernel {
         run_root: Option<&Path>,
     ) -> Result<Prepared, CoreError> {
         let kind = text(request, "kind");
-        if !["figure", "json", "notebook", "reference"].contains(&kind) {
+        if !["figure", "json", "notebook", "document", "reference"].contains(&kind) {
             return Err(CoreError::new(
                 400,
-                "kind must be figure, json, notebook or reference.",
+                "kind must be figure, json, notebook, document or reference.",
             ));
         }
         if request
@@ -177,6 +206,8 @@ impl Kernel {
             image_type(&bytes).ok_or_else(|| {
                 CoreError::new(415, "Only PNG, JPEG and WebP figures can be previewed.")
             })?
+        } else if kind == "document" {
+            document_type(&bytes, &relative)?
         } else {
             let value: Value = serde_json::from_slice(&bytes)
                 .map_err(|_| CoreError::new(415, "This output is not valid JSON."))?;
