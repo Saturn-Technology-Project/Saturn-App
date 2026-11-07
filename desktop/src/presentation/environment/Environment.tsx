@@ -261,9 +261,24 @@ export function Environment(props: ScreenProps) {
               ))}
             </tbody>
           </Table>
+          {report.programs ? (
+            <Table label={t("Programs on the interpreter's PATH")}>
+              <thead>
+                <tr><th scope="col">{t("Program")}</th><th scope="col">{t("Version")}</th></tr>
+              </thead>
+              <tbody>
+                {Object.entries(report.programs).map(([name, found]) => (
+                  <tr key={name}>
+                    <td><code>{name}</code>{found ? <span className="ml-2 text-xs text-muted-foreground">{found.path}</span> : null}</td>
+                    <td>{found ? (found.version ?? t("found, no version said")) : <span className="text-xs text-muted-foreground">{t("Not on PATH")}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          ) : null}
         </>
       ) : (
-        <p className="text-xs text-muted-foreground">{t("Not checked yet. Check asks the interpreter for its version, the packages research code leans on, and the devices torch can see.")}</p>
+        <p className="text-xs text-muted-foreground">{t("Not checked yet. Check asks the interpreter for its version, the packages research code leans on, the devices torch can see, and which programs are on its PATH.")}</p>
       )}
 
       <Heading data-tour="environment-locks">{t("What pins it")}</Heading>

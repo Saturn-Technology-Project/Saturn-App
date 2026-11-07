@@ -165,7 +165,7 @@ export default {
   "Give the path of the Python that runs your experiments, start an experiment's command with it, or create the managed environment above.": "Enter the path to the Python that runs your experiments, start an experiment's command with it, or create the managed environment above.",
   "What it has": "What's installed",
   "Checked": "Last checked",
-  "Not checked yet. Check asks the interpreter for its version, the packages research code leans on, and the devices torch can see.": "Not checked yet. Checking asks the interpreter for its version, the packages research code depends on, and the devices torch can see.",
+  "Not checked yet. Check asks the interpreter for its version, the packages research code leans on, the devices torch can see, and which programs are on its PATH.": "Not checked yet. Checking asks the interpreter for its version, the packages research code depends on, the devices torch can see, and which programs are on its PATH.",
   "No lock file at the project's root. A uv.lock, requirements.txt or pyproject.toml here would be listed with its hash, and can be made part of what a version freezes.":
     "No lock file in the project root. A uv.lock, requirements.txt, or pyproject.toml there is listed with its hash and can be frozen with each version.",
   "A lock file frozen with a version makes a change to it a new version, so two runs with different environments never read as the same.":

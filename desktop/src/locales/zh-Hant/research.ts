@@ -283,7 +283,7 @@ export default {
   "External and unavailable dependencies": "外部與無法取得的依賴",
   "Analysis outputs recorded. Original files were left unchanged.": "已儲存分析產出。原始檔案不會變更。",
   "Analysis outputs ({count})": "分析產出（{count}）",
-  "Keep figures, JSON from TransformerLens/NNsight/SAELens, or notebooks with a content hash. Snapshots are limited to 16 MiB; large activation stores and weights remain references. Previews do not run code or HTML.": "以內容雜湊儲存圖表、TransformerLens/NNsight/SAELens 的 JSON 或筆記本。快照上限為 16 MiB；大型激活值儲存與權重會以參照保存。預覽不會執行程式碼或 HTML。",
+  "Keep figures, JSON from TransformerLens/NNsight/SAELens, notebooks, or documents (a PDF, a model card, a paper) with a content hash. Snapshots are limited to 16 MiB; large activation stores and weights remain references. Previews do not run code or HTML.": "保存圖表、TransformerLens／NNsight／SAELens 的 JSON、notebook，或文件（PDF、model card、論文），並附內容雜湊。快照上限 16 MiB；大型激活儲存與權重維持為參照。預覽不會執行程式碼或 HTML。",
   "Browse outputs": "瀏覽產出",
   "This run or session": "這次執行或工作階段",
   "All project outputs": "專案的所有產出",
@@ -694,4 +694,9 @@ export default {
   "{count} samples, {size}": "{count} 個樣本，{size}",
   "Seeds, comma separated": "種子，以逗號分隔",
   "Passed to the program as SATURN_RUN_SEED (the first) and SATURN_RUN_SEEDS (all), and frozen into each version. Whether the program applied them is for its report to say; the run's evidence shows both.": "以 SATURN_RUN_SEED（第一個）和 SATURN_RUN_SEEDS（全部）傳給程式，並凍結進每個版本。程式有沒有套用，要由它的回報來說；執行的證據會兩者都顯示。",
+  "Document (PDF, Markdown, text)": "文件（PDF、Markdown、文字）",
+  "Raters: {raters}": "標記者：{raters}",
+  "{left} and {right}: {agreed} of {items} agree, κ = {kappa}": "{left} 與 {right}：{items} 筆中 {agreed} 筆一致，κ = {kappa}",
+  "All {count} raters, Fleiss' κ = {kappa} on {items} samples": "全部 {count} 位標記者在 {items} 筆樣本上的 Fleiss κ = {kappa}",
+  "{rater} against the scorer: κ = {kappa} on {count}": "{rater} 對評分器：{count} 筆上 κ = {kappa}",
 } satisfies Dictionary;

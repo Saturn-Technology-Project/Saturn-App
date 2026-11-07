@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
-import { sampleIdParts,
+import { type LabelAgreement, sampleIdParts,
   changeRereadsList,
   comparisonFactors,
   labelsOf,
@@ -90,6 +90,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
   const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [labels, setLabels] = useState<RunLabels | null>(null);
   const [summary, setSummary] = useState<RunSummary | null>(null);
+  const [agreement, setAgreement] = useState<LabelAgreement | null>(null);
   const [sampleId, setSampleId] = useState<string | null>(null);
   const [rows, setRows] = useState<AcrossRow[]>([]);
   const [otherLabels, setOtherLabels] = useState<Record<string, RunLabels>>({});
@@ -128,6 +129,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
     setNextCursor(null);
     setLabels(null);
     setSummary(null);
+    setAgreement(null);
     setLoadingMore(false);
     if (!runId) return undefined;
     void (async () => {
@@ -137,6 +139,11 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
         if (!live()) return;
         setLabels(labeled);
         setSummary(summed);
+        // Several raters' labels are compared only when there are several: the figures take a reading of the samples.
+        if ((labeled.raters?.length ?? 0) >= 2) {
+          const agreed = await service.labelAgreement(projectId, runId);
+          if (live()) setAgreement(agreed);
+        }
         await readSamplePages((cursor) => service.samples(projectId, runId, cursor, only, PAGE_LINES), {
           live,
           onPage: (page) => {
@@ -336,6 +343,14 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
         </div>
         <div className="text-sm">{t("{labeled} of {total} reviewed", { labeled: progress.labeled, total: progress.total })}</div>
         <div className={MUTED}>{labels?.agreement.compared ? t("{agreed} of {compared} with a scorer label agree with it.", { agreed: labels.agreement.agreed, compared: labels.agreement.compared }) : t("Agreement with the scorer appears as you label.")}</div>
+        {labels?.raters?.length ? <div className={MUTED}>{t("Raters: {raters}", { raters: labels.raters.map((rater) => `${rater.name} (${rater.labeled})`).join(", ") })}</div> : null}
+        {agreement?.pairs.map((pair) => (
+          <div key={pair.raters.join("+")} className={MUTED}>{t("{left} and {right}: {agreed} of {items} agree, κ = {kappa}", { left: pair.raters[0], right: pair.raters[1], agreed: pair.agreed, items: pair.items, kappa: pair.kappa === null ? "—" : pair.kappa.toFixed(2) })}</div>
+        ))}
+        {agreement?.fleiss && agreement.fleiss.raters > 2 ? <div className={MUTED}>{t("All {count} raters, Fleiss' κ = {kappa} on {items} samples", { count: agreement.fleiss.raters, kappa: agreement.fleiss.kappa === null ? "—" : agreement.fleiss.kappa.toFixed(2), items: agreement.fleiss.items })}</div> : null}
+        {agreement?.versusScorer.filter((item) => item.rater !== "adjudicated" && item.compared).map((item) => (
+          <div key={item.rater} className={MUTED}>{t("{rater} against the scorer: κ = {kappa} on {count}", { rater: item.rater, kappa: item.kappa === null ? "—" : item.kappa.toFixed(2), count: item.compared })}</div>
+        ))}
       </Card>
 
       {current && sampleId ? (

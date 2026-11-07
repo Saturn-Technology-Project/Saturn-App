@@ -20,7 +20,7 @@ import type {
   Question,
   ResearchEvent,
   ResearchPolicy,
-  RunLabels,
+  LabelAgreement, RunLabels,
   RunResources,
   RunSummary,
   ResearchSession,
@@ -282,6 +282,11 @@ export class ResearchService {
 
   labels(project: string, run: string): Promise<RunLabels> {
     return this.runtime.request(`${this.route(project)}/runs/${run}/labels`);
+  }
+
+  /** How the run's raters agree with each other, the adjudicated labels and the scorer. */
+  labelAgreement(project: string, run: string): Promise<LabelAgreement> {
+    return this.runtime.request(`${this.route(project)}/runs/${run}/labels/agreement`);
   }
 
   setLabel(project: string, run: string, sample: { sampleId: string; trial?: number; modelId?: string | null }, label: string): Promise<unknown> {

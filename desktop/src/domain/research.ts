@@ -99,7 +99,7 @@ export interface InspectionSession extends ResearchRecord {
 
 /** An immutable analysis output, or an explicitly unpackaged reference to a larger store. */
 export interface ResearchArtifact extends ResearchRecord {
-  title: string; kind: "figure" | "json" | "notebook" | "reference"; packaged: boolean;
+  title: string; kind: "figure" | "json" | "notebook" | "document" | "reference"; packaged: boolean;
   sha256: string | null; size?: number; mime?: string; sourcePath?: string; sourceScope?: string; uri?: string;
   runId?: string | null; inspectionId?: string | null; metadata?: unknown; hashVerified: boolean;
 }
@@ -396,6 +396,19 @@ export interface AcrossRow {
 export interface RunLabels {
   labels: Record<string, { sampleId: string; trial: number; modelId?: string | null; label: string; note?: string; by?: SetBy; agreesWithScorer?: boolean | null }>;
   agreement: { labeled: number; compared: number; agreed: number };
+  /** The raters who labelled apart from the adjudicated labels, and how many samples each did. */
+  raters?: { name: string; labeled: number }[];
+}
+
+/** How a run's raters agree: with each other (kappa per pair, and Fleiss' over all), with the adjudicated labels and with the scorer. */
+export interface LabelAgreement {
+  runId: string;
+  raters: { name: string; labeled: number }[];
+  pairs: { raters: [string, string]; items: number; agreed: number; kappa: number | null }[];
+  fleiss: { raters: number; items: number; kappa: number | null } | null;
+  versusAdjudicated: { rater: string; compared: number; agreed: number; kappa: number | null }[];
+  versusScorer: { rater: string; compared: number; agreed: number; kappa: number | null }[];
+  note: string;
 }
 
 export interface ResearchPolicy {
@@ -1011,6 +1024,8 @@ export interface EnvironmentReport {
   cpus: number | null;
   packages: Record<string, string | null>;
   devices: { torch: string | null; reason?: string; cuda?: boolean; cudaDevices?: string[]; mps?: boolean };
+  /** Programs research work leans on besides Python (git, uv, elan, lake, lean, tectonic, latexmk, pdflatex, pandoc), as found on the interpreter's PATH. */
+  programs?: Record<string, { path: string; version: string | null } | null>;
 }
 
 /** The compute an environment can offer, in words. */

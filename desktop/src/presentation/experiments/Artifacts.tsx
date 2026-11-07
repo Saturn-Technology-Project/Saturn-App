@@ -10,6 +10,8 @@ import { Input } from "../ui/base/Input.js";
 import { Notice } from "../ui/base/Notice.js";
 import { messageOf } from "../ui/Parts.js";
 import { useRecords } from "../ui/useRecords.js";
+import { FormattedOutput } from "../FormattedOutput.js";
+import { PdfView } from "../workspace/PdfView.js";
 
 /** Analysis outputs from scripts and notebooks are kept beside their sources, without executing previews. */
 export function Artifacts(props: { projectId: string; runId?: string; inspectionId?: string; notify: (message: string) => void; go: (screen: Screen) => void }) {
@@ -38,14 +40,16 @@ export function Artifacts(props: { projectId: string; runId?: string; inspection
     finally { setBusy(false); }
   }
   let shown = "";
+  let pdf: Uint8Array | null = null;
   if (content && selected?.kind !== "figure") {
     const bytes = Uint8Array.from(atob(content.data), (character) => character.charCodeAt(0));
-    shown = new TextDecoder().decode(bytes).slice(0, 100_000);
+    if (content.mime === "application/pdf") pdf = bytes;
+    else shown = new TextDecoder().decode(bytes).slice(0, 100_000);
   }
   return <details className="my-3 rounded-lg border border-border p-3"><summary className="cursor-pointer text-sm font-medium">{t("Analysis outputs ({count})", { count: items.length })}</summary>
-    <p className="my-2 text-xs text-muted-foreground">{t("Keep figures, JSON from TransformerLens/NNsight/SAELens, or notebooks with a content hash. Snapshots are limited to 16 MiB; large activation stores and weights remain references. Previews do not run code or HTML.")}</p>
+    <p className="my-2 text-xs text-muted-foreground">{t("Keep figures, JSON from TransformerLens/NNsight/SAELens, notebooks, or documents (a PDF, a model card, a paper) with a content hash. Snapshots are limited to 16 MiB; large activation stores and weights remain references. Previews do not run code or HTML.")}</p>
     {props.runId || props.inspectionId ? <div className="mb-2"><Choice label={t("Browse outputs")} value={all ? "all" : "context"} options={[{ value: "context", label: t("This run or session") }, { value: "all", label: t("All project outputs") }]} onChange={(value) => { setAll(value === "all"); setSelected(null); setContent(null); }} />{all ? <p className="mt-1 text-xs text-muted-foreground">{t("New outputs are still linked to the current run or session.")}</p> : null}</div> : null}
-    <div className="flex flex-wrap items-end gap-2"><Choice label={t("Output kind")} value={kind} options={[{ value: "json", label: t("Analysis JSON") }, { value: "figure", label: "PNG / JPEG / WebP" }, { value: "notebook", label: t("Notebook snapshot") }, { value: "reference", label: t("External or large-file reference") }]} onChange={(value) => setKind(value as ResearchArtifact["kind"])} />
+    <div className="flex flex-wrap items-end gap-2"><Choice label={t("Output kind")} value={kind} options={[{ value: "json", label: t("Analysis JSON") }, { value: "figure", label: "PNG / JPEG / WebP" }, { value: "notebook", label: t("Notebook snapshot") }, { value: "document", label: t("Document (PDF, Markdown, text)") }, { value: "reference", label: t("External or large-file reference") }]} onChange={(value) => setKind(value as ResearchArtifact["kind"])} />
       <Field label={t("Project file")} className="min-w-48 flex-1"><Input value={path} placeholder="analysis/results.json" onChange={(event) => setPath(event.target.value)} /></Field>
       {kind === "reference" ? <Field label={t("External URI instead of a file")} className="min-w-48 flex-1"><Input value={uri} placeholder="s3://bucket/activations" onChange={(event) => setUri(event.target.value)} /></Field> : null}
       <Button disabled={busy || (!path && !uri)} onClick={() => void register(false)}>{t("Keep output")}</Button>
@@ -57,7 +61,8 @@ export function Artifacts(props: { projectId: string; runId?: string; inspection
       {content?.sourceChanged ? <Notice tone="wait">{t("The original source changed or is unavailable. This preview is the saved snapshot.")}</Notice> : null}
       {content && content.sourceChanged === null ? <Notice>{t("Copied from the remote host. Its source there is not compared again.")}</Notice> : null}
       {content && selected.kind === "figure" ? <img className="mt-2 max-h-96 max-w-full object-contain" alt={selected.title} src={`data:${content.mime};base64,${content.data}`} /> : null}
-      {shown ? <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-xs">{shown}</pre> : null}
+      {pdf && selected.kind === "document" ? <div className="mt-2 flex h-96 min-h-0 flex-col overflow-hidden rounded-md border border-border"><PdfView path={selected.title} bytes={pdf} /></div> : null}
+      {shown && content?.mime === "text/markdown" ? <div className="mt-2 max-h-96 overflow-auto text-sm">{<FormattedOutput text={shown} />}</div> : shown ? <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap text-xs">{shown}</pre> : null}
       {content && selected.kind !== "figure" ? <p className="mt-1 text-xs text-muted-foreground">{t("Text preview shows at most 100,000 characters; the saved snapshot keeps all bytes.")}</p> : null}
       {selected.kind === "notebook" && selected.sourcePath && selected.sourceScope === "project" ? <Button className="mt-2" variant="outline" onClick={() => { desktop.research.open(props.projectId, { kind: "file", path: selected.sourcePath! }); props.go("Workspace"); }}>{t("Open original notebook in Workspace")}</Button> : null}
     </section> : null}
