@@ -11,7 +11,7 @@ test("project-wide analysis outputs remain reachable when a run or inspection se
   assert.deepEqual(artifactsInContext(items, "r", undefined, true).map((item) => item.id), ["project", "run", "session", "other"]);
   assert.deepEqual(artifactsInContext(items).map((item) => item.id), ["project", "run", "session", "other"]);
 });
-import { ablationStanding, ablationText, comparisonText, controlCeiling, featurePeaks, featuresText, lineageOrder, lineageRows, metricsRun, plotPoints, promptPatchText, sampleModel, readingDifference, reconstructionIsPoor, runHasResults, sampleIdParts, scoreText, signedText, strongestPatch } from "../src/domain/research.ts";
+import { ablationStanding, ablationText, canResume, comparisonText, controlCeiling, featurePeaks, featuresText, isRunActive, lineageOrder, lineageRows, promptPatchText, readingDifference, reconstructionIsPoor, runHasResults, sampleIdParts, scoreText, signedText, strongestPatch, metricsRun, plotPoints, sampleModel } from "../src/domain/research.ts";
 
 const model = (id, parentId) => ({ id, parentId, source: id, floating: false, revision: 1, createdAt: "", updatedAt: "" });
 
@@ -130,6 +130,16 @@ test("an observation on features gives ids, the control and the splice, and call
 test("two readings differ cell by cell, over the layers both have", () => {
   const left = [{ layer: 0, values: [1, 2] }, { layer: 1, values: [3, 3] }];
   assert.deepEqual(readingDifference(left, [{ layer: 0, values: [0.5, 2.5] }]), [{ layer: 0, values: [0.5, -0.5] }]);
+});
+
+test("a paused run is still going, and only a local run that ended before its work was done can be resumed", () => {
+  assert.equal(isRunActive("paused"), true);
+  assert.equal(runHasResults("paused"), false);
+  const run = (status, fields = {}) => ({ status, ...fields });
+  assert.deepEqual(["stopped", "interrupted", "failed"].map((status) => canResume(run(status))), [true, true, true]);
+  assert.deepEqual(["running", "paused", "completed", "protocol_error"].map((status) => canResume(run(status))), [false, false, false, false]);
+  assert.equal(canResume(run("failed", { remote: { host: "gpu" } })), false, "a remote run is started again on its host");
+  assert.equal(canResume(run("stopped", { imported: true })), false, "an imported run was never run here");
 });
 
 test("a sample's model is named from its line, or from the version when the line does not say, and never just unnamed", () => {

@@ -21,7 +21,7 @@ impl Kernel {
     /// Loads only a run's sealed bytes, rejecting changed contents and ambiguous model identities.
     async fn comparison_side(&self, project: &str, side: &Value) -> Result<Side, CoreError> {
         let run = self.research_run(project, text(side, "runId")).await?;
-        if matches!(text(&run, "status"), "starting" | "running" | "stopping") {
+        if saturn_domain::research::run_is_active(text(&run, "status")) {
             return Err(CoreError::new(
                 409,
                 "Compare completed or interrupted results, not a changing run.",

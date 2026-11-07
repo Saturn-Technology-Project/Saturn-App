@@ -9,7 +9,7 @@ description: Diagnose failed, interrupted and protocol-error runs without repeat
 |---|---|---|
 | `failed` | Exit code not 0. Samples kept | `what: "log", stream: "stderr"` |
 | `protocol_error` | A bad line, a repeated identity, a partial last line, or no valid line | The run's `problems`, with the line number |
-| `interrupted` | The runtime stopped while it ran | Whether samples are complete; start a new run |
+| `interrupted` | The runtime stopped while it ran | Whether samples are complete; resume it |
 | `stopped` | It was stopped | Who stopped it, and why |
 
 ## Common causes
@@ -33,4 +33,4 @@ A retry with nothing changed is only justified for a known transient cause, such
 Do not hide them. They are part of the record, and a finding says why a run is invalid. An error line stays an error: never rewrite samples to make a run look clean, and never drop failures from a mean without saying so.
 
 ## Interrupted runs
-A run left running when the runtime restarts becomes `interrupted`, and cannot resume as the same run. Start a new one. For long training, write checkpoints, so that the new run continues from one. See `checkpoints-and-lineage`.
+A run left running when the runtime restarts becomes `interrupted`, and cannot go on as the same run. Resume it: a new run of the same version keeps the samples it finished, or restores its last checkpoint. For long training, write and list checkpoints, so that there is one to continue from. See `pause-and-resume` and `checkpoints-and-lineage`.

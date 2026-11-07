@@ -52,7 +52,9 @@ Experiments, and one that a finding or other record refers to is not moved: the 
 - `action: "freeze"`, `experiment`: the version for the experiment as it is now. The same content returns the same version (`new: false`).
 - `action: "start"`, `version`, `attempt`: returns at once. A repeated call with the same attempt starts nothing. Use a new `attempt` to run a version again.
 - `action: "stop"`, `run`.
-- `research_wait`, `run`, `seconds`: up to 600 at a time.
+- `action: "pause"` and `action: "continue"`, `run`: hold a running run where it is, and let it go on.
+- `action: "resume"`, `run`, `attempt`, optional `checkpoint` and `step`: a new run of the same version taking over from one that stopped, was interrupted or failed. See `pause-and-resume`.
+- `research_wait`, `run`, `seconds`: up to 600 at a time. It returns at once when the run is paused.
 
 ## Environment: `research_environment_action`
 `check`, `create`, `install`, `set`, `stop`. Create and install are jobs: follow them with `what: "environment"`.

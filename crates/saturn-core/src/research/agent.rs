@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use saturn_domain::js;
 use saturn_domain::research::{
-    TASK_PREFIX, agent_change, agent_record, task_mode, task_refusal, task_title,
+    TASK_PREFIX, agent_change, agent_record, run_is_active, task_mode, task_refusal, task_title,
 };
 use saturn_domain::skill_files::parse_skill;
 use serde_json::{Value, json};
@@ -43,11 +43,6 @@ fn fitted(answer: Value) -> Value {
         "note": "This answer was too long and was cut. Read a smaller part: a cursor and limit, one record, or the summary.",
         "text": js::prefix(&whole, LONGEST_ANSWER),
     })
-}
-
-/// Whether a research run is still going.
-fn is_active(status: &str) -> bool {
-    matches!(status, "starting" | "running" | "stopping")
 }
 
 /// The newest of a run's resource readings.
@@ -360,13 +355,22 @@ impl Kernel {
                     "cancelled" | "failed" | "completed"
                 )
             });
-            if !is_active(text(&run, "status")) || stopped || Instant::now() >= deadline {
+            // A paused run does not move until someone continues it, so waiting longer would only use the turn.
+            let paused = run["status"] == "paused";
+            if !run_is_active(text(&run, "status"))
+                || paused
+                || stopped
+                || Instant::now() >= deadline
+            {
                 break run;
             }
             tokio::time::sleep(WAIT_STEP).await;
         };
-        let ended = !is_active(text(&run, "status"));
+        let ended = !run_is_active(text(&run, "status"));
         let mut answer = json!({ "run": run, "ended": ended });
+        if run["status"] == "paused" {
+            answer["paused"] = json!(true);
+        }
         if ended {
             answer["summary"] = self
                 .research_summary(project, id)
@@ -497,6 +501,35 @@ impl Kernel {
                 .research_stop_run(project, needed(arguments, "run")?)
                 .await
                 .map_err(said),
+            "pause" => self
+                .research_pause_run(project, needed(arguments, "run")?)
+                .await
+                .map_err(said),
+            "continue" => self
+                .research_continue_run(project, needed(arguments, "run")?)
+                .await
+                .map_err(said),
+            "resume" => {
+                let resumed = needed(arguments, "run")?;
+                let attempt = arguments
+                    .get("attempt")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1);
+                // The same resume of the same run in one turn starts once, however often the call is repeated.
+                let client = format!("assistant-{}-resume-{resumed}-{attempt}", text(turn, "id"));
+                let (run, new) = self
+                    .research_resume_run(
+                        project,
+                        resumed,
+                        &client,
+                        arguments.get("checkpoint").and_then(Value::as_str),
+                        arguments.get("step").and_then(Value::as_u64),
+                        thread,
+                    )
+                    .await
+                    .map_err(said)?;
+                Ok(json!({ "run": run, "new": new }))
+            }
             other => Err(format!("research_run has no action \"{other}\".")),
         }
     }

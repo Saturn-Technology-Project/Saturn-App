@@ -149,6 +149,37 @@ async fn stop_run(State(kernel): Shared, Path((project, id)): Path<(String, Stri
     ok(kernel.research_stop_run(&project, &id).await?)
 }
 
+async fn pause_run(State(kernel): Shared, Path((project, id)): Path<(String, String)>) -> Answer {
+    ok(kernel.research_pause_run(&project, &id).await?)
+}
+
+async fn continue_run(
+    State(kernel): Shared,
+    Path((project, id)): Path<(String, String)>,
+) -> Answer {
+    ok(kernel.research_continue_run(&project, &id).await?)
+}
+
+/// Starts a new run that takes over from this one, which stopped, was interrupted or failed.
+async fn resume_run(
+    State(kernel): Shared,
+    Path((project, id)): Path<(String, String)>,
+    body: Body,
+) -> Answer {
+    let body = body_of(body);
+    let (run, new) = kernel
+        .research_resume_run(
+            &project,
+            &id,
+            given(&body, "clientId").unwrap_or(""),
+            given(&body, "checkpoint"),
+            body.get("step").and_then(Value::as_u64),
+            given(&body, "threadId"),
+        )
+        .await?;
+    if new { created(run) } else { ok(run) }
+}
+
 async fn read_source(
     State(kernel): Shared,
     Path(project): Path<String>,
@@ -662,6 +693,15 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
         .route("/projects/{id}/research/runs", get(runs))
         .route("/projects/{id}/research/runs/{run}", get(run))
         .route("/projects/{id}/research/runs/{run}/stop", post(stop_run))
+        .route("/projects/{id}/research/runs/{run}/pause", post(pause_run))
+        .route(
+            "/projects/{id}/research/runs/{run}/continue",
+            post(continue_run),
+        )
+        .route(
+            "/projects/{id}/research/runs/{run}/resume",
+            post(resume_run),
+        )
         .route(
             "/projects/{id}/research/versions/{version}/runs",
             post(start_run),

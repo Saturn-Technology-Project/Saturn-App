@@ -153,6 +153,37 @@ test("a start repeated in one turn starts once, and a new attempt runs the versi
   assert.notEqual(second.run.id, first.run.id);
 });
 
+test("the assistant pauses a run, waits and is told it is paused, continues it, and resumes one that failed", posixOnly, async () => {
+  // Writes a sample every 50 ms; the first time it fails at the sixth, resumed it skips what is there and finishes ten.
+  const setup = await bed({ "probe.mjs": `
+    import { appendFileSync, existsSync, readFileSync } from "node:fs";
+    const file = process.env.SATURN_RUN_SAMPLES;
+    const done = new Set(existsSync(file) ? readFileSync(file, "utf8").split("\\n").filter(Boolean).map((line) => JSON.parse(line).sampleId) : []);
+    for (let index = 0; index < 10; index += 1) {
+      const id = "s" + index;
+      if (done.has(id)) continue;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      appendFileSync(file, JSON.stringify({ schemaVersion: 1, sampleId: id, input: "in", output: "out", scores: { s: 1 }, error: null }) + "\\n");
+      if (!process.env.SATURN_RESUME_RUN && index === 5) process.exit(1);
+    }
+  ` });
+  const experiment = await call(setup, "research_write", { collection: "experiments", fields: { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } } });
+  const { version } = await call(setup, "research_run", { action: "freeze", experiment: experiment.id });
+  const { run } = await call(setup, "research_run", { action: "start", version: version.id });
+  await until("the run to be going", () => saturn.api("GET", `${setup.route}/runs/${run.id}`), (item) => item.status === "running");
+  assert.equal((await call(setup, "research_run", { action: "pause", run: run.id })).status, "paused");
+  const waited = await call(setup, "research_wait", { run: run.id, seconds: 60 });
+  assert.deepEqual([waited.run.status, waited.paused, waited.ended], ["paused", true, false], "a paused run is reported at once, not waited on");
+  assert.equal((await call(setup, "research_run", { action: "continue", run: run.id })).status, "running");
+  const failed = await call(setup, "research_wait", { run: run.id, seconds: 60 });
+  assert.equal(failed.run.status, "failed");
+  const { run: resumed } = await call(setup, "research_run", { action: "resume", run: run.id });
+  assert.deepEqual([resumed.resumes, resumed.carried.samples], [run.id, 6]);
+  const finished = await call(setup, "research_wait", { run: resumed.id, seconds: 60 });
+  assert.deepEqual([finished.run.status, finished.run.samples], ["completed", 10]);
+  assert.match(await refused(setup, "research_run", { action: "resume", run: resumed.id }), /this one is completed/);
+});
+
 test("the assistant sets verdicts, conclusions and labels, each recorded as its own, and the person can change them", posixOnly, async () => {
   const program = `import { appendFileSync } from "node:fs"; appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "s1", modelId: "m", input: "in", output: "out", scores: { ok: 1 }, error: null }) + "\\n");`;
   const setup = await bed({ "probe.mjs": program });

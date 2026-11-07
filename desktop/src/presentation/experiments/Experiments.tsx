@@ -47,6 +47,7 @@ import { RunSandbox } from "./RunSandbox.js";
 import { ScoreChart } from "./ScoreChart.js";
 import { ImportResults } from "./ImportResults.js";
 import { TrainingMetrics } from "./TrainingMetrics.js";
+import { RunControls } from "./RunControls.js";
 import { ExperimentTitle } from "./ExperimentTitle.js";
 import { ComparisonPanel } from "./ComparisonPanel.js";
 import { RemoteRun } from "../environment/RemoteExecution.js";
@@ -434,7 +435,8 @@ export function Experiments(props: ScreenProps) {
                         {run.inputsChanged?.length ? t("{status}, {count} inputs changed during it", { status: runStatusLabel(run.status), count: run.inputsChanged.length }) : runStatusLabel(run.status)}
                         {run.archived ? <span className="ml-1 text-muted-foreground">· {t("imported archive")}</span> : null}
                         {run.imported ? <Badge tone="wait" className="ml-1" title={t("Imported from a file. Saturn did not run it, and its model, data and scorer are only described.")}>{t("Imported, not run here")}</Badge> : null}
-                        {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? t("pending")}{run.resumeFrom ? ` · ${t("resume {run}", { run: run.resumeFrom })}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{["starting", "running", "stopping"].includes(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>{t("Request stop")}</Button> : null}</div> : null}
+                        {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? t("pending")}{run.resumeFrom ? ` · ${t("resume {run}", { run: run.resumeFrom })}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{isRunActive(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>{t("Request stop")}</Button> : null}</div> : null}
+                        <RunControls projectId={projectId} run={run} changed={() => void refresh()} notify={props.notify} />
                         {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
                         {run.sealIntact === false ? <div className={WARNING}>{t("The samples changed after the run was sealed. They no longer stand for its results.")}</div> : null}
                         {run.imported ? null : (

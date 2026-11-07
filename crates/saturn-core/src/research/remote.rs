@@ -307,7 +307,7 @@ impl Kernel {
         let lock = self.records_lock(&records);
         let _writing = lock.lock().await;
         let mut run = self.research_run(project, id).await?;
-        if !matches!(text(&run, "status"), "starting" | "running" | "stopping") {
+        if !saturn_domain::research::run_is_active(text(&run, "status")) {
             return Ok(run);
         }
         run["status"] = json!("stopping");
@@ -400,7 +400,7 @@ impl Kernel {
         let lock = self.records_lock(&records);
         let _writing = lock.lock().await;
         let mut run = self.research_run(project, id).await?;
-        if !matches!(text(&run, "status"), "starting" | "running" | "stopping") {
+        if !saturn_domain::research::run_is_active(text(&run, "status")) {
             return Ok(());
         }
         // Not started here, or its job is gone: it may have run, so it is interrupted rather than failed.
@@ -444,7 +444,7 @@ impl Kernel {
     /// Pulls append-only streams in bounded chunks and publishes completion only after they have all arrived.
     async fn sync_remote(&self, project: &str, id: &str) -> Result<bool, CoreError> {
         let run = self.research_run(project, id).await?;
-        if !matches!(text(&run, "status"), "starting" | "running" | "stopping") {
+        if !saturn_domain::research::run_is_active(text(&run, "status")) {
             return Ok(true);
         }
         let version = self
@@ -939,6 +939,7 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
             .map(|name| folder.join(name))
             .collect(),
             sources: vec![workdir.clone()],
+            readable: Vec::new(),
         };
         let data = super::isolation::data_folders(&super::isolation::home().join(".saturn-app"));
         super::isolation::command(

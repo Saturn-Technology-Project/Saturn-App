@@ -45,6 +45,11 @@ pub fn writable(collection: &str) -> bool {
         && !matches!(collection, "versions" | "inspection_sessions" | "artifacts")
 }
 
+/// Whether a run with this status can still change: it has not ended. A paused run is still going; it only waits.
+pub fn run_is_active(status: &str) -> bool {
+    matches!(status, "starting" | "running" | "paused" | "stopping")
+}
+
 /// Whether a text can be a record's id, and so a file's name: no separators, no dots.
 pub fn is_id(text: &str) -> bool {
     !text.is_empty()
