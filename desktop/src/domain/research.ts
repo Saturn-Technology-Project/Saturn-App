@@ -1033,7 +1033,17 @@ export function changeRereadsList(only: "all" | "disputed" | "errors"): boolean 
 }
 
 /** Where a screen was asked to open: a sample in a run, or a file. */
-export type OpenTarget = { kind: "sample"; runId: string; sampleId?: string; only?: "disputed" | "errors" | "all" } | { kind: "file"; path: string };
+export type OpenTarget = { kind: "sample"; runId: string; sampleId?: string; only?: "disputed" | "errors" | "all" } | { kind: "file"; path: string } | { kind: "experiment"; experimentId: string };
+
+/** The version a run on this computer starts from: the newest one frozen here that nothing has archived. */
+export function runnableVersion<T extends Pick<FrozenVersion, "archived" | "imported">>(versions: readonly T[]): T | undefined {
+  return versions.filter((item) => !item.archived && !item.imported).at(-1);
+}
+
+/** The run an experiment bar speaks of: the one it holds when that run belongs to its experiment, or to none chosen yet. */
+export function runOfExperiment<T extends Pick<ExperimentRun, "experimentId">>(run: T | null, experimentId: string | null): T | null {
+  return run && (!experimentId || run.experimentId === experimentId) ? run : null;
+}
 
 /** What a project's workbench reopens to. */
 export interface ResearchSession {

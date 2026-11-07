@@ -192,7 +192,7 @@ export function guidePlaces(t: Words = english): GuidePlace[] {
     { id: "home-hypotheses", screen: "Home", title: t("Hypotheses"), hint: t("Add a hypothesis, and set its verdict when you have evidence. A verdict the assistant set is marked as its own.") },
     { id: "workspace-files", screen: "Workspace", title: t("Project files"), hint: t("Open a file to write it.") },
     { id: "workspace-command", screen: "Workspace", title: t("The experiment's command"), hint: t("Type the command that runs the experiment, starting with its Python.") },
-    { id: "workspace-run", screen: "Workspace", title: t("Run"), hint: t("Run freezes a version and starts the command.") },
+    { id: "workspace-run", screen: "Workspace", title: t("Freeze and run"), hint: t("Freeze and run keeps the code and settings as a version and starts the command. Experiments holds every version and run.") },
     { id: "workspace-panels", screen: "Workspace", title: t("Results"), hint: t("Read the run, what it costs, its samples, your findings, activations and a terminal here.") },
     { id: "lineage-add", screen: "Lineage", title: t("Add a model"), hint: t("Add a checkpoint with its source and revision, and its parent if it has one.") },
     { id: "lineage-details", screen: "Lineage", title: t("The selected model"), hint: t("Read what was measured on it, branch from it, and keep a note."), when: t("a model exists") },

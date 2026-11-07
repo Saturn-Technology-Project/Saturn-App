@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { removalQuestion } from "../src/domain/model.ts";
-import { bytesText, changedSince, changeRereadsList, comparisonFactors, devicesText, durationText, earlierSweeps, heldFixed, kitState, labelsOf, lastActive, mechanismOf, readSamplePages, restoredByLayer, reviewProgress, scoreSources, scorerSaysWrong, sweepMeasure, throughput } from "../src/domain/research.ts";
+import { bytesText, changedSince, changeRereadsList, comparisonFactors, devicesText, durationText, earlierSweeps, heldFixed, kitState, labelsOf, lastActive, mechanismOf, readSamplePages, restoredByLayer, reviewProgress, runnableVersion, runOfExperiment, scoreSources, scorerSaysWrong, sweepMeasure, throughput } from "../src/domain/research.ts";
 
 test("removing a connection says who uses it and what becomes of them", () => {
   assert.equal(removalQuestion("A", [], "model", "B"), "Remove A?");
@@ -146,4 +146,16 @@ test("the sample list reads every page, stops at its limit or when no longer wan
   const stopped = await readSamplePages(async (cursor) => { wanted = false; return pages[cursor]; }, { live: () => wanted });
   assert.equal(stopped.items.length, 0, "a page for a list no longer shown is dropped");
   assert.deepEqual(["all", "errors", "disputed"].map(changeRereadsList), [false, false, true]);
+});
+
+test("a run here starts from the newest version frozen here, and an experiment bar speaks only of its own experiment's run", () => {
+  const version = (id, fields = {}) => ({ id, ...fields });
+  assert.equal(runnableVersion([version("v1"), version("v2"), version("v3", { archived: true })]).id, "v2", "an archived version is not run");
+  assert.equal(runnableVersion([version("v1"), version("v2", { imported: true })]).id, "v1", "nor one that came from elsewhere");
+  assert.equal(runnableVersion([]), undefined);
+  const run = { id: "r", experimentId: "e1" };
+  assert.equal(runOfExperiment(run, "e1"), run);
+  assert.equal(runOfExperiment(run, "e2"), null, "another experiment's run is not this one's");
+  assert.equal(runOfExperiment(run, null), run, "before an experiment is chosen, the run there is");
+  assert.equal(runOfExperiment(null, "e1"), null);
 });

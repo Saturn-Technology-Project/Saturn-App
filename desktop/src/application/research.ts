@@ -417,10 +417,12 @@ export class ResearchService {
     await this.writeSource(project, path, content, null);
   }
 
-  /** Asks a screen to open on something: the Samples screen reads it when it shows, the workspace follows it at once. */
+  /** Asks a screen to open on something: the Samples screen reads it when it shows, the workspace follows it at once. An
+   * experiment is the one both Experiments and the workspace's experiment bar are on. */
   open(project: string, target: OpenTarget): void {
     const session = this.loadSession(project);
     if (target.kind === "sample") this.saveSession(project, { ...session, review: target });
+    else if (target.kind === "experiment") this.saveSession(project, { ...session, experimentId: target.experimentId });
     else this.saveSession(project, { ...session, file: target.path });
     window.dispatchEvent(new CustomEvent<OpenTarget>("saturn-research-open", { detail: target }));
   }
