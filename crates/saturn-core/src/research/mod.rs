@@ -25,6 +25,7 @@ mod snapshot;
 mod source;
 mod tables;
 mod task_reports;
+mod templates;
 mod trash;
 mod workers;
 
