@@ -108,7 +108,7 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 
 在任何模式下，鎖定、策略、SSH 主機、合併與放寬執行沙箱都由你決定，你親自設定的判定與標籤也是。模式與鎖定是工作流程約束，不是安全邊界：任務中的 shell 仍可寫入被鎖定的檔案，Saturn 會事後記錄在防護中。[`docs/research-contract.md`](docs/research-contract.md) 精確說明每個後端強制執行什麼。
 
-**工具與 Skill。** 研究助理透過十三個 `research_*` 工具處理與你看到的相同紀錄：讀取任何內容；建立問題、假說、實驗與模型；凍結並執行（本機或 SSH 主機上）；暫停與續跑本機的執行；等待執行完成；設定 Python 環境；看進模型內部；匯入結果與研究包；保存分析輸出；執行 Notebook 儲存格；以及啟動、追蹤並清除任務。六十八個內建 skill 教它怎麼做，從界定問題範圍、撰寫假說，到資料洩漏稽核、逐層掃描與最終報告；它以 `research_skill` 讀取需要的那一個，專案自己的同名 skill 優先。[`docs/research-skills.md`](docs/research-skills.md) 列出全部 skill。
+**工具與 Skill。** 研究助理透過十四個 `research_*` 工具處理與你看到的相同紀錄：讀取任何內容；建立問題、假說、實驗與模型；凍結並執行（本機或 SSH 主機上）；暫停與續跑本機的執行；等待執行完成；設定 Python 環境；看進模型內部；匯入結果與研究包；保存分析輸出；執行 Notebook 儲存格；以及啟動、追蹤並清除任務。六十八個內建 skill 教它怎麼做，從界定問題範圍、撰寫假說，到資料洩漏稽核、逐層掃描與最終報告；它以 `research_skill` 讀取需要的那一個，專案自己的同名 skill 優先。[`docs/research-skills.md`](docs/research-skills.md) 列出全部 skill。
 
 **任何後端皆可。** 研究助理可以在 API 模型上執行，也可以在使用你 Claude 方案的 Claude Code、使用你 ChatGPT 方案的 Codex，或 LM Studio、MLX 中的本機模型上執行。研究工具在所有後端上都能使用。
 

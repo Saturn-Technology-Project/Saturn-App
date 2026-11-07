@@ -2,6 +2,8 @@
 
 The skills that ship with Saturn, in `crates/saturn-core/src/research/skills`. They teach a research assistant to carry out a study through the [research tools](research-contract.md#what-an-agent-does-with-the-records). The assistant reads them with `research_skill`, on any backend, and starts with `research-autopilot`.
 
+Beside the skills, `research_template` hands out programs to start from: `saturn_run.py`, the SDK an experiment imports to write its records, and one runnable template per kind of study. The assistant copies one into the project and changes it; the copy is the project's own program.
+
 To change one for a project, put a skill of the same name in the project's `.agents/skills/<name>/SKILL.md` (or `.saturn/skills` or `.claude/skills`): a project's skill is used first, then one in Saturn's own `skills` folder for every project, then an enabled plugin's, and the bundled one last.
 
 ## Running a study

@@ -654,13 +654,32 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
   no claim about who changed it, since the user may have edited the file. A file changed and restored between checks
   is not detected.
 
+## What is a tool, and what is the assistant's
+
+A fixed tool is for what must be the same in every study, or what only the runtime can vouch for: the records and their
+revisions, freezing and the snapshot, running in the sandbox and the evidence, sealing and comparing, labels and their
+agreement, reading a model's layers with the experiment's own Python, importing and bundling. Those are Rust (or a
+helper the runtime ships and hashes), tested in `contract/`, and the assistant cannot change them.
+
+The science is the assistant's, as a program in the project: what the model is asked, how the answer is scored, how
+training goes, which attacks are tried, which direction is added to which layer. A tool would fix one method where
+methods change by the month, and would put the computation outside the version the evidence describes. So Saturn hands
+out starting points instead, through `research_template`: a small SDK (`saturn_run.py`) that writes the records the way
+the contract above reads them, and one template per kind of study the skills teach. A copy in the project is the
+project's own file, frozen with each version, hashed in the evidence and read by the sandbox like any other input.
+
+What the assistant gets back is also bounded, so a turn does not drown in a record: a log's last 8 KiB and 32 KiB of
+an output file unless it asks for more, a run's evidence with the snapshot's file count rather than its list unless it
+asks for the files, findings cut to 240 characters in `status`, and 50 samples at most at a time.
+
 ## What an agent does with the records
 
-An agent with the built-in `research` server, which an agent has only when its list names it, has thirteen tools, on every backend. `docs/research-skills.md` lists the skills that teach them.
+An agent with the built-in `research` server, which an agent has only when its list names it, has fourteen tools, on every backend. `docs/research-skills.md` lists the skills that teach them.
 
 | Tool | Reads or writes | What it does |
 |---|---|---|
 | `research_skill` | Reads | Lists or reads a skill. A project's or user's skill of the same name comes first |
+| `research_template` | Reads | Lists or reads a program to start from: `saturn_run`, the SDK an experiment imports to write samples, metrics, reports and checkpoints right, and one runnable template per kind of study (`eval_harness`, `red_team`, `trajectory`, `lean_check`, `probe_train`, `steering_sweep`, `train_loop`, `compile_paper`). The agent writes a copy into the project with its file tools; it is then the project's program |
 | `research_read` | Reads | Status, records, runs, summaries, samples (50 at most at a time), logs, resources, training metrics, labels, comparisons by condition and sample by sample (`paired`, which saves nothing), events, the environment, the policy, saved readings, the SSH host and remote runs, inspection sessions, kept outputs, a notebook kernel's state, previews of an import or a bundle, and the project's data: which files were read (`data_list`), what is in one (`data_profile`, `data_preview`), and what two share (`data_overlap`) |
 | `research_wait` | Reads | Holds the turn until a run ends, for up to 600 seconds at a time, and ends with the turn |
 | `research_write` | Writes | Makes questions, hypotheses, experiments, models, findings and counterexamples, changes them with `expectedRevision`, and deletes an imported experiment (`delete: true`) |
