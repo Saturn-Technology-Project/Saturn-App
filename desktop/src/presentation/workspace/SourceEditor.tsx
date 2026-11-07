@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 import { python } from "@codemirror/lang-python";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { basicSetup, EditorView } from "codemirror";
 import { keymap } from "@codemirror/view";
+import { lean, tex, type EditorLanguage } from "../../domain/code-languages.js";
 import { t } from "../../domain/i18n.js";
 
 const editorTheme = EditorView.theme({
@@ -24,14 +25,23 @@ const codeColors = HighlightStyle.define([
   { tag: [tags.comment, tags.lineComment, tags.blockComment], color: "var(--muted)", fontStyle: "italic" },
   { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.definition(tags.variableName)], color: "var(--code-function)" },
   { tag: [tags.className, tags.typeName, tags.namespace], color: "var(--code-type)" },
-  { tag: tags.invalid, color: "var(--off)" },
+  { tag: [tags.meta, tags.bracket], color: "var(--code-type)" },
+  { tag: tags.invalid, color: "var(--off)", textDecoration: "underline wavy" },
 ]);
+
+/** The grammar for each language the editor highlights: Python's own, and Saturn's readers for TeX and Lean. */
+function grammar(language: EditorLanguage) {
+  if (language === "python") return [python()];
+  if (language === "tex") return [StreamLanguage.define(tex)];
+  if (language === "lean") return [StreamLanguage.define(lean)];
+  return [];
+}
 
 /** A code editor. The undo history and selection live here; a new `documentKey` starts a new document. */
 export function SourceEditor(props: {
   documentKey: string;
   initialContent: string;
-  language: "python" | "plain";
+  language: EditorLanguage;
   onChange: (content: string) => void;
   onSave: () => void;
   /** The selected text and the line it starts on, or nothing. */
@@ -74,7 +84,7 @@ export function SourceEditor(props: {
         basicSetup,
         editorTheme,
         syntaxHighlighting(codeColors),
-        ...(props.language === "python" ? [python()] : []),
+        ...grammar(props.language),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) handlers.current.onChange(update.state.doc.toString());
           if (update.selectionSet) {

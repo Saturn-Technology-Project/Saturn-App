@@ -36,6 +36,7 @@ import { NotebookEditor } from "./NotebookEditor.js";
 import { Resources } from "./Resources.js";
 import { DocumentView } from "./DocumentView.js";
 import { SourceEditor } from "./SourceEditor.js";
+import { languageOf } from "../../domain/code-languages.js";
 import { Terminal } from "./Terminal.js";
 import { Artifacts } from "../experiments/Artifacts.js";
 import { RunControls } from "../experiments/RunControls.js";
@@ -874,7 +875,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
             <SourceEditor
               documentKey={`${open.path}:${open.generation}`}
               initialContent={open.initial}
-              language={open.path.endsWith(".py") ? "python" : "plain"}
+              language={languageOf(open.path)}
               onChange={handleEdit}
               onSave={() => void save()}
               onSelection={setSelection}
