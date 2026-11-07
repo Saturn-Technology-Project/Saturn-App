@@ -3760,7 +3760,7 @@
     "toolId": "research_remote",
     "serverId": "research",
     "category": "write",
-    "description": "Run on the SSH host the person configured in Environment; read it with research_read what=remote. Only the person sets the host. action=check connects and checks Saturn's worker and the working folder there. action=start (version, attempt, timeoutSeconds up to 7 days) runs a frozen version there and returns at once: the job keeps going with Saturn closed, and research_wait follows it as it would a local run. Stop it with research_run action=stop.",
+    "description": "Run on the SSH host the person configured in Environment; read it with research_read what=remote. Only the person sets the host. action=check connects and checks Saturn's worker and the working folder there. action=pair looks for this Saturn's worker on the host and says whether it is ready, missing, another version or broken, and whether it can be installed: installing is the person's, from Environment, so ask them when it is not ready. action=start (version, attempt, timeoutSeconds up to 7 days) runs a frozen version there and returns at once: the job keeps going with Saturn closed, and research_wait follows it as it would a local run. Stop it with research_run action=stop.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3768,6 +3768,7 @@
        "type": "string",
        "enum": [
         "check",
+        "pair",
         "start"
        ]
       },

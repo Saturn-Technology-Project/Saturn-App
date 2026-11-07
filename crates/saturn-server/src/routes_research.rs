@@ -595,6 +595,14 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             post(check_remote_target),
         )
         .route(
+            "/projects/{id}/research/remote/pair",
+            post(pair_remote_worker),
+        )
+        .route(
+            "/projects/{id}/research/remote/install",
+            post(install_remote_worker),
+        )
+        .route(
             "/projects/{id}/research/remote/runs",
             post(start_remote_run),
         )
@@ -827,6 +835,16 @@ async fn set_remote_target(
 /// Checks the installed worker and working directory over SSH.
 async fn check_remote_target(State(kernel): Shared, Path(project): Path<String>) -> Answer {
     ok(kernel.research_remote_check(&project).await?)
+}
+
+/// Finds this version's worker on the host and, when it is ready, makes it the program runs use.
+async fn pair_remote_worker(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_remote_pair(&project, true).await?)
+}
+
+/// Installs this version's worker on the host, as the person asked from Environment.
+async fn install_remote_worker(State(kernel): Shared, Path(project): Path<String>) -> Answer {
+    ok(kernel.research_remote_install(&project).await?)
 }
 
 /// Records a persistent remote launch intent before starting its detached worker.

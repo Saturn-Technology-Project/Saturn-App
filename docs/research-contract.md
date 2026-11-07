@@ -273,10 +273,26 @@ samples remains the execution contract for evaluation runs. The UI reads metrics
 
 ### Persistent SSH jobs
 
-`GET/PUT .../research/remote` reads or saves `host`, absolute remote `workdir`, and `program` (the same version of
-`saturn-server`, installed on that host). `POST .../remote/check` checks the worker without starting compute.
+`GET/PUT .../research/remote` reads or saves `host`, absolute remote `workdir`, and `program` (the worker: this version
+of `saturn-server` on that host). `POST .../remote/check` checks the worker without starting compute.
 Saturn invokes OpenSSH with no terminal, no agent forwarding, BatchMode and a connection deadline. It keeps host-key
 verification and uses the user's SSH configuration; it neither stores keys nor provisions or pays for a machine.
+
+Every request to the worker carries Saturn's version, and a worker of another version refuses it (409); a check also
+compares the worker's version, so a worker from before versions were told is refused too. `POST .../remote/pair` asks
+the host, in one SSH exchange, for `uname -s`, `uname -m`, its home folder and whether
+`~/.saturn/worker/<version>/saturn-server` is there, then checks that worker. It answers `state` (`ready`, `missing`,
+`wrong_version`, `broken`, `unsupported`), the host's `target` (`linux-x64`, `linux-arm64`, `macos-arm64`), the worker's
+`path` and `source`, where an install would take it from. A ready worker becomes the target's `program`. The
+assistant's `research_remote` with `action: "pair"` answers the same and saves nothing.
+
+`POST .../remote/install`, the person's alone, installs that worker and pairs with it. When the host is the same kind
+of system as this computer, the worker is this runtime's own program; otherwise it is the release's
+`saturn-worker-<version>-<target>`, downloaded through the network log and used only if its SHA-256 is the one the
+release workflow built into this runtime (`SATURN_WORKER_SHA256`; a build without it reads the variable from its
+environment, and `SATURN_WORKER_DOWNLOAD` names a mirror, checked the same way). It is sent over the same SSH, written
+beside its place and moved there whole, with mode 700 in the user's home and no administrator rights, then hashed on
+the host; a different hash removes it and fails. A build with no hash for the host's target refuses to install.
 
 `POST .../remote/runs` takes an executable `versionId`, `clientId`, `timeoutSeconds` (1..604800, default 3600), and optional
 `resumeFrom`. The launch intent is stored before SSH. A detached Rust worker, started with nohup in its own group,

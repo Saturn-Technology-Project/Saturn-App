@@ -7,12 +7,13 @@ description: Run a frozen experiment on the SSH host the person configured, leav
 Saturn can start a frozen version on an existing Linux or macOS host over SSH and follow it while Saturn is closed. It does not provision machines or copy the project there.
 
 ## What is the person's
-The host itself: its address, working folder and worker program, set in Environment, with the person's own SSH configuration and host keys. You never set or change it, and you never handle SSH keys or passwords. If no host is configured, say what you would run there and ask the person to set one.
+The host itself: its address and working folder, set in Environment, with the person's own SSH configuration and host keys, and installing Saturn's worker there. You never set or change the host, never install anything on it, and never handle SSH keys or passwords. If no host is configured, say what you would run there and ask the person to set one.
 
 ## Before starting
 1. `research_read` with `what: "remote"`: the configured host, and the remote runs so far.
-2. `research_remote` with `action: "check"`: connects and checks Saturn's worker and the working folder. Read its answer before anything else.
-3. The code, data, Python and packages must already be in the remote folder, at the commit you mean. The host checks every file the version holds before it runs anything: the frozen commit must be in the host's git, and each uncommitted file and declared input must match its hash. The remote command runs with the system `PATH`: name programs by absolute path, such as the project's `.venv/bin/python`.
+2. `research_remote` with `action: "pair"`: whether this Saturn's worker is on the host. `state` is `ready`, `missing`, `wrong_version` (a worker of another Saturn, which refuses to run), `broken` or `unsupported` (only Linux on x86-64 or ARM, and Apple Silicon Macs). Anything but `ready`: tell the person, and ask them to press **Connect** and **Install worker** in Environment. `source` says where an install would take it from; `null` means this build of Saturn cannot install it, and the person installs saturn-server of the same version themselves.
+3. `research_remote` with `action: "check"`: connects to the worker and checks the working folder. Read its answer before anything else.
+4. The code, data, Python and packages must already be in the remote folder, at the commit you mean. The host checks every file the version holds before it runs anything: the frozen commit must be in the host's git, and each uncommitted file and declared input must match its hash. The remote command runs with the system `PATH`: name programs by absolute path, such as the project's `.venv/bin/python`.
 
 ## Start and follow
 - Freeze first: `research_run` with `action: "freeze"`. See `freeze-and-run`.

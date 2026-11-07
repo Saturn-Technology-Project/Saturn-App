@@ -200,6 +200,23 @@ export interface RunEvidence {
 /** An SSH target names a machine and existing working tree, never keys or passwords. */
 export interface RemoteTarget { host: string; workdir: string; program: string }
 
+/** What connecting to the SSH host found of this Saturn's worker there, and whether it can be installed from here. */
+export interface WorkerPairing {
+  host: string;
+  system: string;
+  machine: string;
+  target: string | null;
+  path: string;
+  version: string;
+  state: "ready" | "missing" | "wrong_version" | "broken" | "unsupported";
+  /** Where an install would take the worker from: this computer's own program, or the release's checked download. */
+  source?: "this computer" | "release" | null;
+  /** The version a worker of another version said it is, when it said. */
+  found?: string;
+  reason?: string;
+  installed?: boolean;
+}
+
 /** A file of old results and the column names the person explicitly mapped. */
 export interface ResearchImportRequest {
   path: string;

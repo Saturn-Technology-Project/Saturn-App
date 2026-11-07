@@ -26,6 +26,7 @@ mod source;
 mod tables;
 mod task_reports;
 mod trash;
+mod workers;
 
 pub use data::DataOverlapRequest;
 pub use labels::RunDigest;

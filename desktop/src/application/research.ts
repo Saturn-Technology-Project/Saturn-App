@@ -1,5 +1,6 @@
 import type {
   AcrossRow,
+  WorkerPairing,
   ActivationView,
   FeaturesView,
   ModelCompareView,
@@ -129,6 +130,16 @@ export class ResearchService {
 
   checkRemoteTarget(project: string): Promise<{ protocol: number; platform: string; workdir: string }> {
     return this.send(`${this.route(project)}/remote/check`, "POST");
+  }
+
+  /** Finds this Saturn's worker on the SSH host; a ready one becomes the program runs use. */
+  pairRemoteWorker(project: string): Promise<WorkerPairing> {
+    return this.send(`${this.route(project)}/remote/pair`, "POST");
+  }
+
+  /** Installs this Saturn's worker on the SSH host, as the person asked, and pairs with it. */
+  installRemoteWorker(project: string): Promise<WorkerPairing> {
+    return this.send(`${this.route(project)}/remote/install`, "POST");
   }
 
   /** Records a launch intent; the remote worker persists independently of the desktop and runtime. */

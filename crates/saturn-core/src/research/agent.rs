@@ -827,6 +827,8 @@ impl Kernel {
     ) -> Result<Value, String> {
         match needed(arguments, "action")? {
             "check" => self.research_remote_check(project).await,
+            // A look only: pairing saves nothing for the assistant, and installing is the person's, in Environment.
+            "pair" => self.research_remote_pair(project, false).await,
             "start" => {
                 let version = needed(arguments, "version")?;
                 let attempt = arguments
