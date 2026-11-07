@@ -19,8 +19,8 @@ export default {
   "In each chat, the assistant only reads, proposes changes for you to approve, or works on a task apart until you merge it.":
     "在每個對話中，助理可以只讀取、提出變更等你核准，或在獨立任務中工作，直到你合併為止。",
   "Your models": "你的模型",
-  "Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local LM Studio model.":
-    "透過 Claude 方案使用 Claude、透過 ChatGPT 方案使用 Codex、使用 Anthropic、OpenAI、Google 與 DeepSeek 的 API 金鑰，或使用 LM Studio 的本機模型。",
+  "Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local model in LM Studio or MLX.":
+    "透過 Claude 方案使用 Claude、透過 ChatGPT 方案使用 Codex、使用 Anthropic、OpenAI、Google 與 DeepSeek 的 API 金鑰，或使用 LM Studio 或 MLX 的本機模型。",
   "Projects are real folders": "專案就是真實的資料夾",
   "An agent works in a folder only after you allow it, and you can take that back at any time. Its edits can be reviewed and reverted.":
     "代理必須經你允許才能在資料夾中工作，你也隨時可以撤銷。你可以審閱並還原它的編輯。",

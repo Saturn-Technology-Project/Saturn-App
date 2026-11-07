@@ -1,6 +1,7 @@
 // Settings, connections, projects and the workspace views, whichever language runs them: the routes the apps' settings pages use.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -78,8 +79,39 @@ test("a connection an agent uses cannot be removed, and removing a model turns o
 
 test("providers are listed with their models", async () => {
   const providers = await api("GET", "/llm/providers");
-  assert.deepEqual(providers.map((item) => item.id), ["openai", "claude", "claude-code", "codex", "gemini", "deepseek", "lmstudio"]);
+  assert.deepEqual(providers.map((item) => item.id), ["openai", "claude", "claude-code", "codex", "gemini", "deepseek", "lmstudio", "mlx"]);
   assert.ok(providers[0].models.length > 0);
+  assert.deepEqual(providers.at(-1), { id: "mlx", label: "MLX", needsKey: false, baseUrl: "http://127.0.0.1:8080", models: [] });
+});
+
+test("an MLX model is connected without a key, from the models mlx_lm.server lists", async () => {
+  // A stand-in for mlx_lm.server: its /v1/models lists the models in the Hugging Face cache.
+  const asked = [];
+  const server = createServer((request, response) => {
+    asked.push(request.url);
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({ object: "list", data: [{ id: "mlx-community/Qwen3-8B-4bit", object: "model", created: 1 }, { id: "mlx-community/bge-embed", object: "model", created: 1 }] }));
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const listed = await api("GET", `/llm/mlx/models?baseUrl=${encodeURIComponent(url)}`);
+    assert.deepEqual(listed, [{ id: "mlx-community/Qwen3-8B-4bit", label: "mlx-community/Qwen3-8B-4bit" }], "embedding models are left out");
+    assert.deepEqual(asked, ["/v1/models"]);
+    const model = await api("POST", "/connections/models", { provider: "mlx", model: listed[0].id, baseUrl: url }, 201);
+    assert.deepEqual([model.provider, model.model, model.baseUrl, model.hasSecret], ["mlx", "mlx-community/Qwen3-8B-4bit", url, false]);
+    await api("DELETE", `/connections/models/${model.id}`, undefined, 204);
+  } finally {
+    server.close();
+  }
+  const stopped = await new Promise((resolve) => {
+    const probe = createServer();
+    probe.listen(0, "127.0.0.1", () => {
+      const port = probe.address().port;
+      probe.close(() => resolve(`http://127.0.0.1:${port}`));
+    });
+  });
+  assert.deepEqual(await api("GET", `/llm/mlx/models?baseUrl=${encodeURIComponent(stopped)}`), [], "none while it is not running");
 });
 
 test("an MCP server is added by URL only, and a local one waits for its exact command to be allowed", async () => {

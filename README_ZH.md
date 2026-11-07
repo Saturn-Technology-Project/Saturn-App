@@ -110,7 +110,7 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 
 **工具與 Skill。** 研究助理透過十三個 `research_*` 工具處理與你看到的相同紀錄：讀取任何內容；建立問題、假說、實驗與模型；凍結並執行（本機或 SSH 主機上）；暫停與續跑本機的執行；等待執行完成；設定 Python 環境；看進模型內部；匯入結果與研究包；保存分析輸出；執行 Notebook 儲存格；以及啟動、追蹤並清除任務。五十一個內建 skill 教它怎麼做，從界定問題範圍、撰寫假說，到資料洩漏稽核、逐層掃描與最終報告；它以 `research_skill` 讀取需要的那一個，專案自己的同名 skill 優先。[`docs/research-skills.md`](docs/research-skills.md) 列出全部 skill。
 
-**任何後端皆可。** 研究助理可以在 API 模型上執行，也可以在使用你 Claude 方案的 Claude Code、使用你 ChatGPT 方案的 Codex，或 LM Studio 中的本機模型上執行。研究工具在所有後端上都能使用。
+**任何後端皆可。** 研究助理可以在 API 模型上執行，也可以在使用你 Claude 方案的 Claude Code、使用你 ChatGPT 方案的 Codex，或 LM Studio、MLX 中的本機模型上執行。研究工具在所有後端上都能使用。
 
 **底層。** 研究助理是一個擁有 Runtime 完整工具組的 Agent，任務也使用同一套工具組：
 
@@ -197,7 +197,7 @@ flowchart LR
   end
   R -- "HTTPS" --> M["模型 API<br/><sub>Anthropic · OpenAI · Google · DeepSeek</sub>"]
   R -- "官方程式" --> C["Claude Code · Codex"]
-  R --> L["LM Studio<br/><sub>本機推論</sub>"]
+  R --> L["LM Studio · MLX<br/><sub>本機推論</sub>"]
   R --> X["MCP 伺服器"]
   R -- "SSH" --> H["你的遠端主機<br/><sub>獨立的 worker</sub>"]
 ```
@@ -239,6 +239,7 @@ crates/                                   desktop/src/
 | Google Gemini | API 金鑰 | Thinking level（3.x 起）或 thinking budget（2.5） |
 | DeepSeek | API 金鑰 | |
 | LM Studio | 無 | 任何本機提供的模型，完全離線 |
+| MLX | 無 | Apple 晶片 Mac 上由 `mlx_lm.server` 提供的模型，完全離線 |
 
 API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。
 
@@ -314,6 +315,15 @@ lms load qwen/qwen3.5-4b --context-length 32768
 | Qwen2.5-Coder 7B | 4.3 GB | 3/6 | 不適用 | 不適合當研究助理：工具呼叫不穩定 |
 
 推理模型（Qwen3.5、Gemma 4）每次補全前都會先思考，任務會比較久。這些是在單一機器上的小型任務；更大的模型（Qwen3.6 27B、Qwen3-Coder 30B 以上）需要 32 GB 以上記憶體，沒有實測。
+
+**透過 MLX 以本機模型擔任研究助理。** 在 Apple 晶片的 Mac 上，Saturn 也可以不經 LM Studio，直接使用 [MLX](https://github.com/ml-explore/mlx-lm) 自己的伺服器：
+
+```bash
+pip install mlx-lm
+mlx_lm.server --model mlx-community/Qwen3-8B-4bit
+```
+
+接著在 **設定 → 模型** 選擇 **MLX**。Saturn 會列出伺服器能載入的模型（啟動時指定的模型，以及 Hugging Face 快取中的 MLX 模型），預設連到 `http://127.0.0.1:8080`，也可以改成其他位址。規則相同：模型要支援工具呼叫才能動手。Saturn 是用模擬 `mlx_lm.server` 回應的替身測試的，還沒有對真正的伺服器測試；上面的實測數字來自 LM Studio，不是 MLX。
 
 ## 安全與信任
 
@@ -446,7 +456,7 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<v
 
 - 為 Saturn 發放專用、設有花費上限的 API 金鑰，以便獨立輪替或撤銷。
 - 優先使用 **Default** 核准策略（有風險才詢問）而非完全自主，並只授權任務所需的專案資料夾。
-- 絕不能離開本機的程式碼，請透過 LM Studio 使用本機模型。
+- 絕不能離開本機的程式碼，請透過 LM Studio 或 MLX 使用本機模型。
 
 ### 供應鏈
 

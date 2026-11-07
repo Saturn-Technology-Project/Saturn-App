@@ -177,8 +177,9 @@ export class AdminService {
     return this.runtime.request<LlmProvider[]>("/llm/providers");
   }
 
-  lmStudioModels(baseUrl: string): Promise<LlmChoice[]> {
-    return this.runtime.request<LlmChoice[]>(`/llm/lmstudio/models?baseUrl=${encodeURIComponent(baseUrl)}`);
+  /** The models a local model server at `baseUrl` (LM Studio or mlx_lm.server) offers; none while it is not running. */
+  localModels(provider: "lmstudio" | "mlx", baseUrl: string): Promise<LlmChoice[]> {
+    return this.runtime.request<LlmChoice[]>(`/llm/${provider}/models?baseUrl=${encodeURIComponent(baseUrl)}`);
   }
 
   /** Totals for calls made at or after `from` and before `to` (ISO times); leave both out for all time. */

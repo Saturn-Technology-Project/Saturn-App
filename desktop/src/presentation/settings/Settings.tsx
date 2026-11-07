@@ -6,7 +6,7 @@ import { desktop } from "../../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
-import { EFFORT_LABELS, removalQuestion, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
+import { EFFORT_LABELS, removalQuestion, runsLocally, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
 import type { CodexStatus, ProgramStatus } from "../../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -721,14 +721,23 @@ export function LlmPage(props: {
   }, []);
 
   useEffect(() => {
-    if (providerId !== "lmstudio") return;
+    if (!runsLocally(providerId)) return;
     const url = baseUrl.trim();
-    void desktop.admin.lmStudioModels(url)
+    // A slow answer from the server chosen before must not fill in the models of the one chosen now.
+    let current = true;
+    setStudioModels([]);
+    void desktop.admin.localModels(providerId, url)
       .then((next) => {
+        if (!current) return;
         setStudioModels(next);
-        setModelId((current) => current || next[0]?.id || "");
+        setModelId((chosen) => chosen || next[0]?.id || "");
       })
-      .catch(() => setStudioModels([]));
+      .catch(() => {
+        if (current) setStudioModels([]);
+      });
+    return () => {
+      current = false;
+    };
   }, [providerId, baseUrl]);
 
   function chooseProvider(id: string) {
@@ -744,7 +753,7 @@ export function LlmPage(props: {
       await desktop.admin.createModel({
         provider: providerId,
         model: modelId,
-        baseUrl: providerId === "lmstudio" ? baseUrl : undefined,
+        baseUrl: runsLocally(providerId) ? baseUrl : undefined,
         secret: secret || undefined,
         effort: supportsEffort(providerId) && effort ? effort : undefined,
       });
@@ -768,7 +777,7 @@ export function LlmPage(props: {
     }
   }
 
-  const choices = providerId === "lmstudio" ? studioModels : provider?.models ?? [];
+  const choices = runsLocally(providerId) ? studioModels : provider?.models ?? [];
   const needsKey = provider?.needsKey ?? true;
   const savedKey = props.models.some((item) => item.provider === providerId && item.hasSecret);
 
@@ -776,7 +785,7 @@ export function LlmPage(props: {
     <>
       <SubTitle>{t("Connected models")}</SubTitle>
       {props.models.length === 0 ? (
-        <p className="mb-3.5 text-[12.5px] text-muted-foreground">{t("No models connected yet. Add a cloud or local LM Studio model below.")}</p>
+        <p className="mb-3.5 text-[12.5px] text-muted-foreground">{t("No models connected yet. Add a cloud model below, or a local one in LM Studio or MLX.")}</p>
       ) : (
         props.models.map((item) => {
           return (
@@ -808,10 +817,10 @@ export function LlmPage(props: {
                     </div>
                   ) : null}
                   <Status
-                    ok={item.provider === "lmstudio" || item.provider === "claude-code" || item.provider === "codex" || item.hasSecret}
-                    label={item.provider === "lmstudio" ? t("Local Server") : item.provider === "claude-code" ? t("Claude plan") : item.provider === "codex" ? t("ChatGPT plan") : item.hasSecret ? t("Key stored") : t("No key")}
+                    ok={runsLocally(item.provider) || item.provider === "claude-code" || item.provider === "codex" || item.hasSecret}
+                    label={runsLocally(item.provider) ? t("Local Server") : item.provider === "claude-code" ? t("Claude plan") : item.provider === "codex" ? t("ChatGPT plan") : item.hasSecret ? t("Key stored") : t("No key")}
                   />
-                  {item.provider !== "lmstudio" && item.provider !== "claude-code" && item.provider !== "codex" && editingKey !== item.id ? (
+                  {!runsLocally(item.provider) && item.provider !== "claude-code" && item.provider !== "codex" && editingKey !== item.id ? (
                     <Button
                       variant="outline" size="small"
                       type="button"
@@ -879,9 +888,9 @@ export function LlmPage(props: {
       <Card className="gap-3.5">
         <div className="grid grid-cols-2 gap-3 max-[860px]:grid-cols-1">
           <Choice label={t("Provider")} value={providerId} options={providers.map((item) => ({ value: item.id, label: item.label }))} onChange={chooseProvider} />
-          {providerId === "lmstudio" && choices.length === 0 ? (
+          {runsLocally(providerId) && choices.length === 0 ? (
             <Field label={t("Model")}>
-              <Input id="llm-model" value={modelId} placeholder={t("Model identifier in LM Studio")} onChange={(event) => setModelId(event.target.value)} />
+              <Input id="llm-model" value={modelId} placeholder={providerId === "mlx" ? t("Hugging Face repo or folder of an MLX model") : t("Model identifier in LM Studio")} onChange={(event) => setModelId(event.target.value)} />
             </Field>
           ) : (
             <Choice label={t("Model")} value={modelId} options={choices.map((item) => ({ value: item.id, label: item.label }))} onChange={setModelId} />
@@ -908,6 +917,16 @@ export function LlmPage(props: {
           <Field label={t("LM Studio Endpoint")}>
             <Input id="llm-host" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
           </Field>
+        ) : null}
+        {providerId === "mlx" ? (
+          <div className="flex flex-col gap-1.5">
+            <Field label={t("mlx_lm.server endpoint")}>
+              <Input id="llm-host" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+            </Field>
+            <p className="m-0 text-[12.5px] leading-snug text-muted-foreground">
+              {t("On a Mac with Apple silicon, install it with pip install mlx-lm and start it with mlx_lm.server --model <model>. The models it can load are listed here; to be the research assistant, a model needs tool calling.")}
+            </p>
+          </div>
         ) : null}
 
         {needsKey ? (

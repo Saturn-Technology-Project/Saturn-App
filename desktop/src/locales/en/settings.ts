@@ -63,7 +63,6 @@ export default {
   "Connect Knowledge": "Connect knowledge source",
 
   // Models
-  "No models connected yet. Add a cloud or local LM Studio model below.": "No models connected yet. Add a cloud model or a local LM Studio model below.",
   "Effort for {name}": "Reasoning effort for {name}",
   "Could not change the effort": "Could not change the reasoning effort",
   "Local Server": "Local server",

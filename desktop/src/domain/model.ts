@@ -39,9 +39,13 @@ export type Model = {
 };
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 export const EFFORT_LABELS: Record<Effort, string> = { low: t("Low"), medium: t("Medium"), high: t("High"), xhigh: t("Extra High"), max: t("Max") };
-/** LM Studio and DeepSeek have no effort control. */
+/** Whether a provider's models run on this computer, through LM Studio or MLX: they take no key and cost nothing. */
+export function runsLocally(provider?: string): provider is "lmstudio" | "mlx" {
+  return provider === "lmstudio" || provider === "mlx";
+}
+/** Local models and DeepSeek have no effort control. */
 export function supportsEffort(provider?: string): boolean {
-  return provider !== "lmstudio" && provider !== "deepseek";
+  return !runsLocally(provider) && provider !== "deepseek";
 }
 export type McpTool = { toolId: string; description?: string; category?: "read" | "write"; inputSchema?: Record<string, unknown> };
 export type Mcp = {
