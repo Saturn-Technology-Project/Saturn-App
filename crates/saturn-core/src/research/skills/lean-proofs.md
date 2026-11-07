@@ -9,8 +9,10 @@ around it still does: the statement must mean what was asked, and the proof must
 
 ## The toolchain
 - Lean 4 comes with elan and lake, and Mathlib as a lake dependency. Neither is a Python package, so
-  `research_environment_action` does not install them: ask the person to install elan, and record the lean-toolchain
-  file and `lake-manifest.json` in `inputs.environment`, so the version freezes with the experiment.
+  `research_environment_action` does not install them, but `action: "check"` reports whether `elan`, `lake` and `lean`
+  are on the interpreter's PATH and which versions: check before promising a run. Ask the person to install elan, and
+  record the lean-toolchain file and `lake-manifest.json` in `inputs.environment`, so the version freezes with the
+  experiment.
 - Mathlib's compiled cache is large and slow to build. `lake exe cache get` fetches it once; the sandbox lets a run
   write the shared caches and the project's `.lake` folder only when it is a linked, uncontrolled folder. Build the
   cache before the first run, as a check, not inside the run.
@@ -21,7 +23,8 @@ around it still does: the statement must mean what was asked, and the proof must
 One sample per theorem or file: `sampleId` is the declaration's name, `scores.accepted` is whether `lean` exited 0
 with no error, and `scores.sorry` and `scores.axioms` come from reading the output. `error.kind: "infrastructure"` is
 for a toolchain or timeout failure, not a wrong proof. The checker's messages go to `SATURN_RUN_OUTPUT`, one file per
-sample, so a failure can be read. Give each check a time limit (`timeout` in the command, or `maxHeartbeats` in the
+sample, so a failure can be read: `research_read { what: "output", run }` lists them and, with `path`, reads one.
+Give each check a time limit (`timeout` in the command, or `maxHeartbeats` in the
 file) and record it; a proof that times out is not refuted.
 
 ## What acceptance does not show

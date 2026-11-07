@@ -8,8 +8,8 @@ An output kept in Saturn is a snapshot with its hash, tied to a run or an inspec
 
 ## Register one
 `research_evidence` with `action: "artifact_register"`:
-- `kind`: `figure` (PNG, JPEG or WebP), `json`, `notebook` (version 4), or `reference`.
-- `path` inside the project for the first three, up to 16 MiB. The source is left untouched; a later preview warns if it changed.
+- `kind`: `figure` (PNG, JPEG or WebP), `json`, `notebook` (version 4), `document` (a PDF, or Markdown, TeX or plain text: a model card, a paper, a compile log; never HTML), or `reference`.
+- `path` inside the project for the first four, up to 16 MiB. The source is left untouched; a later preview warns if it changed.
 - `uri` for a `reference`: large activation or SAE stores, weights, buckets. Saturn does not download or contact it. A URI must not carry credentials or a query string.
 - `title`, `runId` or `inspectionId`, and `metadata` (64 KiB at most) such as the method and its settings.
 

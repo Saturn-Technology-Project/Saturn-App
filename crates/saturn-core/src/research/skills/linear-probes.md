@@ -7,9 +7,9 @@ description: Train linear probes on activations to test whether a property is li
 A probe is a small classifier trained on a layer's activations to predict a property of the input. Above chance, it shows the property is linearly readable there. It does not show the model reads it.
 
 ## Getting activations
-- `research_inspect` with `action: "activations"` gives one value per token per layer on a run's sample, read through the logit lens, not the vector itself. It helps choose a layer to look at; it is not enough to train on.
-- To train, write a hook script that saves the residual stream at the chosen positions. The `interpretability` kit has `transformer_lens`; `run_with_cache` with `names_filter` keeps memory down. See `transformer-lens-probes`.
-- Save activations under `SATURN_RUN_OUTPUT` as arrays, one file per layer, never in sample lines. Register them with `research_evidence` action `artifacts_from_run`, or as a `reference` when they are too large to keep. See `analysis-outputs`.
+- `research_inspect` with `action: "activations"` gives one value per token per layer on a run's sample, read through the logit lens, which helps choose a layer. With `save: "activations/<sampleId>.npz"` it also keeps the raw residual stream of every layer (`layer_<n>`, tokens × hidden, with `tokens`) at that project path, hashed in the answer. One call per sample; for hundreds of samples a hook script in a run is quicker.
+- For many samples or chosen positions, write a hook script that saves the residual stream. The `interpretability` kit has `transformer_lens`; `run_with_cache` with `names_filter` keeps memory down. See `transformer-lens-probes`.
+- Declare the saved arrays in the probe experiment's `inputs.data`, so they freeze with the version and the run can read them in the sandbox. Arrays a run writes go under `SATURN_RUN_OUTPUT`, never in sample lines; register them with `research_evidence` action `artifacts_from_run`, or as a `reference` when they are too large to keep. See `analysis-outputs`.
 
 ## Layer and position
 - Sweep layers rather than picking one: train the same probe at every layer and plot accuracy by layer.

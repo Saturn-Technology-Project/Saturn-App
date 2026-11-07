@@ -19,7 +19,8 @@ They live in `.saturn/research` in the project. Your file tools refuse to write 
 - `what: "samples"`, `run`, `cursor`, `limit` (at most 50), `only: all|disputed|errors`. Follow `next` as the next cursor.
 - `what: "compare"`, `left`, `right`: version ids. Answers `comparable`, `not_comparable` or `unknown`.
 - `what: "sample_across"`, `sample`, `runs`: one sample in several runs.
-- `what: "labels"`, `"events"`, `"environment"`, `"policy"`, `"inside_list"`, `"inside"`.
+- `what: "labels"`, `"agreement"` (raters' kappa with each other, the adjudicated labels and the scorer), `"events"`, `"environment"`, `"policy"`, `"inside_list"`, `"inside"`.
+- `what: "output"`, `run`, optional `path`: the files a run's program wrote to `SATURN_RUN_OUTPUT`, or one file's text (256 KiB at most). Nothing in them is run.
 - `what: "data_list"`: every declared data file, its hash, whether it changed, and which runs read it. `what: "data_profile"`, `path`, `split`: its rows and columns. `what: "data_preview"`, `path`: the rows themselves. `what: "data_overlap"`, `left`, `right` (files, here), `columns`, `leftSplit`, `rightSplit`: exact duplicates between two files. See `data-leakage-audit`.
 - `what: "metrics"`, `run`: the training metrics a program logged to `SATURN_RUN_METRICS`. See `training-debugging`.
 - `what: "paired"`, `left`, `right` (`{runId, modelId}`), `scorer`: sample by sample, improvements, regressions and slices. See `paired-comparisons`.
@@ -38,7 +39,7 @@ Leave out `id` to make a record. To change one, pass `id` and `expectedRevision`
 | `experiments` | `title`, `command`, `cwd`, `inputs` (`code`, `data`, `scorer`, `environment`: lists of paths), `evaluation`, `models` (`modelId`, `role`), `seeds`, `envNames`, `sandbox` (`isolated`, `network`), `questionId`, `hypothesisId`, `labels`, `labelAliases` |
 | `models` | `source`, `weightsRevision`, `name`, `parentId`, `referenceId`, `trainingData`, `producedBy`, `note` |
 | `findings` | `text`, `runIds`, `kind` (`ai_suggestion` when left out, `observation`, `conclusion`). Marked as yours |
-| `labels` | `runId`, `sampleId`, `modelId`, `trial`, `label` (one of the experiment's), `note`. Marked as yours |
+| `labels` | `runId`, `sampleId`, `modelId`, `trial`, `label` (one of the experiment's), `note`; with `rater`, a named rater's own label beside the adjudicated one. Marked as yours |
 | `counterexamples` | `runId`, `sampleId`, `note` |
 
 An experiment's runs are sandboxed (see `run-provenance`). You may set `sandbox.network: false`; turning the sandbox
@@ -57,13 +58,13 @@ Experiments, and one that a finding or other record refers to is not moved: the 
 - `research_wait`, `run`, `seconds`: up to 600 at a time. It returns at once when the run is paused.
 
 ## Environment: `research_environment_action`
-`check`, `create`, `install`, `set`, `stop`. Create and install are jobs: follow them with `what: "environment"`.
+`check` (the interpreter, packages, devices, and the programs on its PATH such as `lake` or `tectonic`), `create`, `install`, `set`, `stop`. Create and install are jobs: follow them with `what: "environment"`.
 
 ## Inside a model: `research_inspect`
-`activations`, `patch`, `sweep` on a run's samples, and `compare`, `prompts`, `features` on prompts of your own. `session` opens an inspection session, and `compare`, `prompts`, `features` then take `sessionId` in place of `runId`. See `activation-reading`, `activation-patching`, `layer-sweeps`, `sparse-autoencoders`, `inspection-sessions`.
+`activations` (with `save`, a project path, it also keeps every layer's raw residual stream as an `.npz` there), `patch`, `sweep` on a run's samples, and `compare`, `prompts`, `features` on prompts of your own. `session` opens an inspection session, and `compare`, `prompts`, `features` then take `sessionId` in place of `runId`. See `activation-reading`, `activation-patching`, `layer-sweeps`, `sparse-autoencoders`, `inspection-sessions`.
 
 ## Evidence: `research_evidence`
-`import` results made elsewhere, `bundle_export` and `bundle_import` a project's evidence, `artifact_register` a figure, JSON, notebook or reference, `artifacts_from_run` for what a run listed, and `save_counterexamples` from a paired comparison. See `importing-results`, `research-bundles`, `analysis-outputs`, `paired-comparisons`.
+`import` results made elsewhere, `bundle_export` and `bundle_import` a project's evidence, `artifact_register` a figure, JSON, notebook, document (PDF or text) or reference, `artifacts_from_run` for what a run listed, and `save_counterexamples` from a paired comparison. See `importing-results`, `research-bundles`, `analysis-outputs`, `paired-comparisons`.
 
 ## Elsewhere: `research_remote` and `research_notebook`
 `research_remote`: `check` the configured SSH host, `start` a frozen version there. See `remote-runs`. `research_notebook`: `start`, `run`, `interrupt`, `restart`, `stop` a notebook's kernel. See `notebooks`.

@@ -41,10 +41,11 @@ A LaTeX draft is compiled as a run, so the PDF is tied to the sources that made 
   `inputs.code` and the figures and tables in `inputs.data`. A sandboxed run cannot write beside the sources: compile
   into `SATURN_RUN_OUTPUT` (`tectonic --outdir "$SATURN_RUN_OUTPUT" main.tex`, or `latexmk -outdir=...`), and write one
   sample line saying whether it compiled, with the warning count in `scores`.
-- An artifact is a figure, JSON, notebook or reference, so the PDF itself is not registered: it stays in the run's
-  `written/` folder with the run's record, and a finding names the run, which names the sources by hash. The compile
-  log is JSON-free too; keep it beside the PDF. Copying the PDF into the project is the person's, or a run with the
-  sandbox off; the Workspace shows a PDF in the project.
+- The PDF stays in the run's `written/` folder with the run's record; `research_read { what: "output", run }` lists it
+  and reads the compile log. Register the PDF and the draft as `document` artifacts with `research_evidence`,
+  `action: "artifact_register"`, `kind: "document"`, `runId`: the PDF by its path in the run's manifest through
+  `artifacts_from_run` (`{"path":"written/main.pdf","kind":"document"}`), the `.tex` or `.md` by its project path. Each
+  is kept with its hash, so a finding can name the artifact that a reader opens in Experiments.
 - Saturn does not bring a TeX distribution: ask the person to install tectonic or TeX Live, and name the program in the
   command by absolute path when the shell's `PATH` is bare. A formula in a finding or a chat is written in `$…$` and is
   shown set; the `.tex` file is highlighted in the Workspace.

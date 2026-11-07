@@ -29,8 +29,8 @@ Three layers, each a declared data file in `inputs.data`, so it is frozen and ha
 2. **Templated attacks**: a base request wrapped in a transformation (role play, encoding, a many-turn setup). Keep the
    base request and the template as separate fields, so samples can be sliced by either. Few templates, each named.
 3. **An automated attacker model**: a program that rewrites a request until the target complies or a step budget ends.
-   Pin the attacker's model and revision, log every attempt to `SATURN_RUN_OUTPUT`, and give each target one `sampleId`
-   with the attempts used in `scores`.
+   Pin the attacker's model and revision, log every attempt to `SATURN_RUN_OUTPUT` (read later with
+   `research_read { what: "output", run, path }`), and give each target one `sampleId` with the attempts used in `scores`.
 Each sample's `category` is the harm category, `input` the prompt, `output` the reply. With sampling on, run several
 trials per prompt: a success in one trial of ten is a success, so report the rate per prompt as well as per sample.
 
