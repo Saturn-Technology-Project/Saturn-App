@@ -725,7 +725,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
         </div>
       </div>
       {/* The samples tab scrolls its list and its preview apart, so it fills the panel instead of scrolling it. */}
-      <div className={classes("min-h-0 flex-1", panel === PANEL.samples ? "overflow-hidden" : "overflow-auto px-3 py-2.5")} role="tabpanel" aria-label={panel}>
+      <div className={classes("min-h-0 flex-1", panel === PANEL.samples || panel === PANEL.terminal ? "overflow-hidden" : "overflow-auto px-3 py-2.5")} role="tabpanel" aria-label={panel}>
         {panel === PANEL.run ? (
           run ? (
             <div className="flex flex-col gap-1">
@@ -848,7 +848,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           )
         ) : null}
         <div hidden={panel !== PANEL.terminal} className="h-full">
-          <Terminal folder={props.project.path} />
+          <Terminal folder={props.project.path} active={panel === PANEL.terminal} />
         </div>
       </div>
     </div>

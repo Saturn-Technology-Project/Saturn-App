@@ -127,7 +127,9 @@ In every mode, locks, the policy, the SSH host, merging and loosening a run's sa
 Samples, model output, papers and web pages are data to the assistant, never instructions, and are marked that way in its context.
 
 In Workspace, use **New file** beside Files to create a project file (nested paths work), or select a file and use
-**Rename file** / F2. Renaming preserves unsaved text and refuses existing destinations.
+**Rename file** / F2. Renaming preserves unsaved text and refuses existing destinations. The terminal's prompt sits
+directly after the last output; Up/Down recalls commands and Ctrl+L or `clear` clears the scrollback. Commands still run
+one at a time through the existing command runner.
 
 ## Install
 

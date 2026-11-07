@@ -139,6 +139,8 @@ export default {
   "Create file": "建立檔案",
   "File path": "檔案路徑",
   "Enter a path relative to the project. Existing files are never replaced.": "輸入相對於專案的路徑，不會覆蓋既有檔案。",
+  "Clear terminal": "清除終端機",
+  "Terminal output": "終端機輸出",
   "Source file": "原始檔",
   "Exit code {code}": "結束代碼 {code}",
   "Running…": "執行中…",
