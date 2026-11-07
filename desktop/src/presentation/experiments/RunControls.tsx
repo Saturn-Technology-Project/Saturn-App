@@ -18,7 +18,7 @@ function durationText(seconds: number): string {
  * What can be done to a local run from its row: pause a running one and continue it, stop it, and resume one that
  * ended before its work was done with a new run of the same version. Remote runs keep their own stop request.
  */
-export function RunControls(props: { projectId: string; run: ExperimentRun; changed: () => void; notify: (text: string) => void }) {
+export function RunControls(props: { projectId: string; run: ExperimentRun; changed: () => void; notify: (text: string) => void; compact?: boolean }) {
   const { projectId, run } = props;
   const [busy, setBusy] = useState(false);
   async function act(action: () => Promise<unknown>) {
@@ -40,7 +40,17 @@ export function RunControls(props: { projectId: string; run: ExperimentRun; chan
     </div>
   ) : null;
   const paused = run.pausedSeconds ? <span className="text-muted-foreground"> · {t("paused {time} in all", { time: durationText(run.pausedSeconds) })}</span> : null;
-  if (run.remote || run.imported) return <>{resumed}</>;
+  if (run.remote || run.imported) return props.compact ? null : <>{resumed}</>;
+  if (props.compact) {
+    // In a bar: the buttons alone, for a run that is going; what it carried and how long it paused are on its row.
+    return (
+      <div className="flex flex-none gap-1">
+        {run.status === "running" ? <Button variant="outline" size="small" disabled={busy} onClick={() => void act(() => service.pauseRun(projectId, run.id))}>{t("Pause")}</Button> : null}
+        {run.status === "paused" ? <Button variant="outline" size="small" disabled={busy} onClick={() => void act(() => service.continueRun(projectId, run.id))}>{t("Continue")}</Button> : null}
+        {run.status === "running" || run.status === "paused" ? <Button variant="outline" size="small" disabled={busy} onClick={() => void act(() => service.stopRun(projectId, run.id))}>{t("Stop")}</Button> : null}
+      </div>
+    );
+  }
   return (
     <div className="my-1 flex flex-col gap-1">
       {resumed}

@@ -75,7 +75,6 @@ export default {
   "The experiment's command": "實驗指令",
   "Type the command that runs the experiment, starting with its Python.": "輸入執行實驗的指令，開頭是它使用的 Python 直譯器。",
   "Run": "執行",
-  "Run freezes a version and starts the command.": "執行時會凍結一個版本並啟動指令。",
   "Results": "結果",
   "Read the run, what it costs, its samples, your findings, activations and a terminal here.": "查看這次執行、花費、樣本、你的發現、激活值與終端機。",
   "Add a model": "新增模型",

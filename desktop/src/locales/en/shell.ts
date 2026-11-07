@@ -50,7 +50,6 @@ export default {
   "Open a file to write it.": "Open a file to edit it.",
   "The experiment's command": "Experiment command",
   "Type the command that runs the experiment, starting with its Python.": "Enter the command that runs the experiment, starting with its Python interpreter.",
-  "Run freezes a version and starts the command.": "Running freezes a version and starts the command.",
   "Read the run, what it costs, its samples, your findings, activations and a terminal here.": "See the run, its cost, its samples, your findings, activations, and a terminal.",
   "The selected model": "Selected model",
   "Read what was measured on it, branch from it, and keep a note.": "See its measurements, branch from it, and add a note.",

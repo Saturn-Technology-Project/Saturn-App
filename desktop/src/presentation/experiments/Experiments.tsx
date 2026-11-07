@@ -7,6 +7,7 @@ import {
   DEFAULT_LABELS,
   EVALUATION_FIELD_NAMES,
   isRunActive,
+  runnableVersion,
   metricsRun,
   runHasResults,
   runStatusLabel,
@@ -104,7 +105,14 @@ export function Experiments(props: ScreenProps) {
     hypotheses: (await service.hypotheses(projectId)).items,
     findings: (await service.findings(projectId)).items,
   }), props.notify);
-  const [selected, setSelected] = useState<string | null>(null);
+  // The experiment this page is on is the one the workspace's bar runs: either screen can change it for both.
+  const [selected, setSelected] = useState<string | null>(() => service.loadSession(projectId).experimentId ?? null);
+  function choose(id: string | null) {
+    setSelected(id);
+    if (id) service.saveSession(projectId, { ...service.loadSession(projectId), experimentId: id });
+  }
+  useEffect(() => service.onOpen((target) => target.kind === "experiment" && setSelected(target.experimentId)), []);
+  const [starting, setStarting] = useState(false);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [binding, setBinding] = useState<{ modelId: string; role: ModelRole }>({ modelId: "", role: "base" });
   const [compared, setCompared] = useState<string[]>([]);
@@ -120,6 +128,9 @@ export function Experiments(props: ScreenProps) {
   const runs = (value?.runs ?? []).filter((item) => item.experimentId === draft?.id);
   const finished = runs.filter((run) => runHasResults(run.status));
   const newest = finished.at(-1) ?? null;
+  // The version a run here starts from: the newest one frozen on this computer, which nothing has archived.
+  const runnable = runnableVersion(versions);
+  const going = runs.some((run) => isRunActive(run.status));
   const plotted = metricsRun(runs);
   const question = value?.questions.find((item) => item.id === draft?.questionId);
   const hypothesis = value?.hypotheses.find((item) => item.id === draft?.hypothesisId);
@@ -183,6 +194,21 @@ export function Experiments(props: ScreenProps) {
     }
   }
 
+  /** Runs the newest frozen version here, as it was frozen: nothing is frozen again. */
+  async function runNewest() {
+    const version = runnable;
+    if (!version) return;
+    setStarting(true);
+    try {
+      await service.startRun(projectId, version.id, crypto.randomUUID());
+      await refresh();
+    } catch (error) {
+      props.notify(messageOf(error));
+    } finally {
+      setStarting(false);
+    }
+  }
+
   async function conclude() {
     if (!conclusion.trim()) return;
     try {
@@ -233,12 +259,18 @@ export function Experiments(props: ScreenProps) {
           <div className="flex flex-wrap gap-2">
             <DeleteExperiment projectId={projectId} experiment={draft} onDeleted={() => { setSelected(null); void refresh(); }} />
             <Button variant="outline" data-tour="experiments-export" onClick={() => void exportRecord()}>{t("Export summary JSON")}</Button>
-            <Button data-tour="experiments-freeze" onClick={() => void freeze()}>{t("New version")}</Button>
+            <Button variant="outline" onClick={() => { service.open(projectId, { kind: "experiment", experimentId: draft.id }); props.go("Workspace"); }}>{t("Edit in Workspace")}</Button>
+            <Button variant="outline" data-tour="experiments-freeze" onClick={() => void freeze()}>{t("New version")}</Button>
+            {runnable ? (
+              <Button disabled={starting || going} title={going ? t("A run of this experiment is going: pause or stop it below first.") : t("Runs version {number} as it was frozen.", { number: runnable.number })} onClick={() => void runNewest()}>
+                <span aria-hidden="true">▶</span> {starting ? t("Starting…") : t("Run v{number}", { number: runnable.number })}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
       {exported ? <Notice tone="good" className="my-2">{t("Written to {path} in the project.", { path: exported })}</Notice> : null}
-      <ImportResults projectId={projectId} onImported={(id) => { setSelected(id); void refresh(); }} notify={props.notify} />
+      <ImportResults projectId={projectId} onImported={(id) => { choose(id); void refresh(); }} notify={props.notify} />
       <ResearchBundle projectId={projectId} notify={props.notify} go={props.go} onImported={() => void refresh()} />
       <ComparisonPanel projectId={projectId} runs={value?.runs ?? []} notify={props.notify} go={props.go} />
       {draft ? <RemoteRun projectId={projectId} versions={versions} notify={props.notify} onStarted={() => void refresh()} /> : null}
@@ -247,7 +279,7 @@ export function Experiments(props: ScreenProps) {
       {!value ? <Loading /> : null}
       {value && drafts.length === 0 ? <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("Running a command in the workspace creates the first experiment.")}</p> : null}
       {drafts.length > 1 ? drafts.map((item) => (
-        <Button key={item.id} variant={item.id === draft?.id ? "soft" : "ghost"} aria-pressed={item.id === draft?.id} className="h-auto min-h-8 w-full justify-start gap-3 py-1 text-left" title={item.command} onClick={() => setSelected(item.id)}>
+        <Button key={item.id} variant={item.id === draft?.id ? "soft" : "ghost"} aria-pressed={item.id === draft?.id} className="h-auto min-h-8 w-full justify-start gap-3 py-1 text-left" title={item.command} onClick={() => choose(item.id)}>
           <strong className="max-w-[55%] shrink-0 truncate">{item.title}</strong>
           {item.imported ? <Badge tone="wait" className="shrink-0">{t("Imported")}</Badge> : null}
           <code className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{item.command}</code>

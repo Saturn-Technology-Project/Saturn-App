@@ -3,12 +3,14 @@ import { desktop } from "../../application/desktop.js";
 import {
   byAssistant,
   isRunActive,
+  runOfExperiment,
   runStatusLabel,
   sampleIdParts,
   sampleText,
   scoreText,
   type ExperimentDraft,
   type ExperimentRun,
+  type FrozenVersion,
   type Finding,
   type FindingKind,
   type ModelNode,
@@ -35,6 +37,7 @@ import { DocumentView } from "./DocumentView.js";
 import { SourceEditor } from "./SourceEditor.js";
 import { Terminal } from "./Terminal.js";
 import { Artifacts } from "../experiments/Artifacts.js";
+import { RunControls } from "../experiments/RunControls.js";
 
 const service = desktop.research;
 const FINDING_LABELS: Record<FindingKind, string> = { observation: t("Observation"), ai_suggestion: t("AI suggestion"), conclusion: t("Conclusion") };
@@ -58,6 +61,8 @@ const ENTRY = "h-auto min-h-7 w-full flex-wrap justify-start gap-x-2 gap-y-0.5 p
 const OUTPUT_TEXT = "font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]";
 /** A line of small, quiet text. */
 const MUTED = "text-xs text-muted-foreground";
+/** The experiment bar's choice for an experiment not made yet: the next run makes it. */
+const NEW_EXPERIMENT = "new";
 /** A line of small text about something that needs care. */
 const WARNING = "text-xs text-wait";
 /** Unsaved text is kept on this device up to this size: a notebook's images would not fit, and writing them on every change is slow. */
@@ -118,7 +123,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const [findingKind, setFindingKind] = useState<FindingKind>("observation");
   const [busy, setBusy] = useState(false);
   const [panel, setPanel] = useState<Panel>(PANEL.run);
-  const [sidebar, setSidebar] = useState<{ questions: Question[]; models: ModelNode[]; drafts: ExperimentDraft[] }>({ questions: [], models: [], drafts: [] });
+  const [sidebar, setSidebar] = useState<{ questions: Question[]; models: ModelNode[]; drafts: ExperimentDraft[]; versions: FrozenVersion[] }>({ questions: [], models: [], drafts: [], versions: [] });
 
   const remember = useCallback(
     (changes: Partial<typeof session.current>) => {
@@ -252,16 +257,46 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
 
   // What the sidebar lists beside the files: the project's questions, models and experiments, kept current with the records.
   const refreshSidebar = useCallback(async () => {
-    const [questions, models, drafts] = await Promise.all([service.questions(projectId), service.models(projectId), service.experiments(projectId)]);
-    setSidebar({ questions: questions.items, models: models.items, drafts: drafts.items });
+    const [questions, models, drafts, versions] = await Promise.all([service.questions(projectId), service.models(projectId), service.experiments(projectId), service.versions(projectId)]);
+    setSidebar({ questions: questions.items, models: models.items, drafts: drafts.items, versions: versions.items });
   }, [projectId]);
   useEffect(() => {
     void refreshSidebar().catch(() => {});
     return desktop.live.onResearchChange(() => void refreshSidebar().catch(() => {}));
   }, [refreshSidebar]);
 
-  // Another screen may ask for a file to be opened here.
-  useEffect(() => service.onOpen((target) => target.kind === "file" && void openFile(target.path)), [openFile]);
+  /** Puts the experiment bar on an experiment, with its command and its newest run; null starts a new one on the next run. */
+  const chooseExperiment = useCallback(
+    async (id: string | null) => {
+      try {
+        const drafts = (await service.experiments(projectId)).items;
+        const chosen = drafts.find((item) => item.id === id) ?? null;
+        setExperiment(chosen);
+        setCommand(chosen?.command ?? "");
+        remember({ experimentId: chosen?.id });
+        const newest = chosen ? (await service.runs(projectId)).items.filter((item) => item.experimentId === chosen.id).at(-1) : undefined;
+        setSelectedOffset(null);
+        if (newest) await refreshRun(newest.id);
+        else {
+          setRun(null);
+          setSamples([]);
+        }
+      } catch (error) {
+        notify(messageOf(error));
+      }
+    },
+    [notify, projectId, refreshRun, remember],
+  );
+
+  // Another screen may ask for a file to be opened here, or for an experiment to be the one the bar runs.
+  useEffect(
+    () =>
+      service.onOpen((target) => {
+        if (target.kind === "file") void openFile(target.path);
+        if (target.kind === "experiment") void chooseExperiment(target.experimentId);
+      }),
+    [chooseExperiment, openFile],
+  );
 
   // Reopens what was open: records come from the project, the rest from this device.
   useEffect(() => {
@@ -377,6 +412,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
       remember({ experimentId: draft.id });
       const version = await service.freeze(projectId, draft.id);
       const started = await service.startRun(projectId, version.id, crypto.randomUUID());
+      void refreshSidebar().catch(() => {});
       remember({ runId: started.id });
       setSelectedOffset(null);
       setRun(started);
@@ -390,14 +426,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     }
   }
 
-  async function stopRun() {
-    if (!run) return;
-    try {
-      setRun(await service.stopRun(projectId, run.id));
-    } catch (error) {
-      notify(messageOf(error));
-    }
-  }
+
 
   async function moreSamples() {
     if (!run || nextCursor === null) return;
@@ -524,7 +553,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
         <section className="mb-3 flex flex-col gap-px">
           <div className="mb-1.5 px-1.5 text-[11px] font-semibold text-muted-foreground [overflow-wrap:anywhere]">{t("Experiments")}</div>
           {[...sidebar.drafts].reverse().slice(0, 4).map((item) => (
-            <Button variant="ghost" size="small" key={item.id} className={classes(ENTRY, item.id === experiment?.id && "bg-muted")} title={item.title} onClick={() => props.go("Experiments")}>
+            <Button variant="ghost" size="small" key={item.id} className={classes(ENTRY, item.id === experiment?.id && "bg-muted")} title={item.title} onClick={() => { service.open(projectId, { kind: "experiment", experimentId: item.id }); props.go("Experiments"); }}>
               {item.title}
             </Button>
           ))}
@@ -533,17 +562,63 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     </nav>
   );
 
+  // The bar speaks of the run of the experiment it is on, and of that run's version.
+  const shown = runOfExperiment(run, experiment?.id ?? null);
+  const shownVersion = shown ? sidebar.versions.find((item) => item.id === shown.versionId) : undefined;
+  const runVersion = run ? sidebar.versions.find((item) => item.id === run.versionId) : undefined;
+
   const lower = (
     <div className="flex min-h-0 flex-1 flex-col bg-panel" data-tour="workspace-panels">
-      <div className="flex-none border-b border-border px-2 py-1.5">
+      {/* One row: the results' tabs, then the experiment bar beside them (which experiment, its command, the button that
+          freezes and runs it), which wraps under the tabs when the pane is narrow. */}
+      <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-2 py-1.5">
         <Tabs label={t("Results")} tabs={PANELS} current={panel} onChoose={setPanel} />
+        <div className="ml-auto flex min-w-0 flex-[1_1_300px] items-center justify-end gap-1.5" role="group" aria-label={t("Run an experiment")}>
+          <Choice
+            ariaLabel={t("Experiment")}
+            className="w-auto min-w-0 flex-[0_1_auto]"
+            triggerClassName="h-7 w-32 max-w-full"
+            value={experiment?.id ?? NEW_EXPERIMENT}
+            options={[...[...sidebar.drafts].reverse().map((item) => ({ value: item.id, label: item.title })), { value: NEW_EXPERIMENT, label: t("New experiment") }]}
+            onChange={(id) => void chooseExperiment(id === NEW_EXPERIMENT ? null : id)}
+          />
+          {shown && isRunActive(shown.status) ? (
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2" aria-live="polite">
+              {/* The samples so far are in the Run tab; the bar keeps to what fits beside the tabs. */}
+              <span className="flex min-w-0 items-center gap-1.5 text-xs whitespace-nowrap" title={command}>
+                <span className={classes("size-2 flex-none rounded-full", shown.status === "paused" ? "bg-wait" : "animate-pulse bg-good")} aria-hidden="true" />
+                {runStatusLabel(shown.status)}
+                {shownVersion ? <span className="text-muted-foreground">· v{shownVersion.number}</span> : null}
+              </span>
+              <RunControls compact projectId={projectId} run={shown} changed={() => void refreshRun(shown.id)} notify={notify} />
+            </div>
+          ) : (
+            <>
+              <label className="flex h-7 min-w-[100px] flex-1 items-center gap-1.5 rounded-md border border-input bg-background px-2 focus-within:ring-2 focus-within:ring-ring/40">
+                <span aria-hidden="true" className="font-mono text-xs text-muted-foreground select-none">$</span>
+                <input className="h-full min-w-0 flex-1 border-0 bg-transparent font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground" aria-label={t("Command that runs the experiment")} data-tour="workspace-command" placeholder="python probe.py" title={command} value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !busy) void startRun(); }} />
+              </label>
+              <Button size="small" className="flex-none" data-tour="workspace-run" disabled={busy} title={t("Freezes the code and settings as a version (the last one, when nothing changed) and runs it once.")} onClick={() => void startRun()}>
+                <span aria-hidden="true">▶</span> {busy ? t("Starting…") : t("Freeze and run")}
+              </Button>
+            </>
+          )}
+          {experiment ? (
+            <Button variant="ghost" size="small" className="flex-none px-1.5 text-muted-foreground" title={t("Open in Experiments")} aria-label={t("Open in Experiments")} onClick={() => { service.open(projectId, { kind: "experiment", experimentId: experiment.id }); props.go("Experiments"); }}>
+              <span aria-hidden="true">↗</span>
+            </Button>
+          ) : null}
+        </div>
       </div>
       {/* The samples tab scrolls its list and its preview apart, so it fills the panel instead of scrolling it. */}
       <div className={classes("min-h-0 flex-1", panel === PANEL.samples ? "overflow-hidden" : "overflow-auto px-3 py-2.5")} role="tabpanel" aria-label={panel}>
         {panel === PANEL.run ? (
           run ? (
             <div className="flex flex-col gap-1">
-              <div className="font-semibold">{runStatusLabel(run.status)}</div>
+              <div className="font-semibold">
+                {runStatusLabel(run.status)}
+                {runVersion ? <span className="font-normal text-muted-foreground"> · v{runVersion.number}</span> : null}
+              </div>
               <div className={MUTED}>
                 {t("{count} samples", { count: run.samples ?? samples.length })}
                 {run.infrastructureErrors ? t(", {count} infrastructure errors", { count: run.infrastructureErrors }) : ""}
@@ -668,19 +743,9 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     <div className="flex min-h-0 min-w-0 flex-1">
       <h1 className="sr-only">{open ? t("Workspace: {path}", { path: open.path }) : t("Workspace")}</h1>
       <Split id="files" side="left" size={210} minimum={140} label={t("Files")} pane={files}>
-        <div className="flex min-h-[42px] flex-none flex-wrap items-center gap-2.5 border-b border-border px-2.5 py-[5px]">
-          <code className="max-w-[260px] truncate text-xs">{open?.path ?? t("No file open")}</code>
+        <div className="flex min-h-8 flex-none items-center gap-2.5 border-b border-border px-2.5 py-1">
+          <code className="max-w-[360px] truncate text-xs">{open?.path ?? t("No file open")}</code>
           {open ? <span className={MUTED}>{open.document ? t("Read only") : saving ? t("Saving…") : dirty ? t("Not saved") : t("Saved")}</span> : null}
-          <Input className="w-auto min-w-[140px] flex-[1_1_200px] font-mono text-xs" aria-label={t("Command that runs the experiment")} data-tour="workspace-command" placeholder="python probe.py" value={command} spellCheck={false} onChange={(event) => setCommand(event.target.value)} />
-          {run && isRunActive(run.status) ? (
-            <Button variant="outline" onClick={() => void stopRun()}>
-              {t("Stop")}
-            </Button>
-          ) : (
-            <Button data-tour="workspace-run" disabled={busy} onClick={() => void startRun()}>
-              {busy ? t("Starting…") : t("Run")}
-            </Button>
-          )}
         </div>
         {conflict && open ? (
           <Notice tone="wait" role="alert" className="flex flex-wrap items-center gap-2.5 rounded-none border-x-0 whitespace-normal">
