@@ -49,12 +49,17 @@ pub fn alternating(messages: &[ChatMessage]) -> Vec<ChatMessage> {
 
 /// LM Studio's OpenAI-compatible endpoint (http://host:port/v1) for a connection saved as http://host:port.
 pub fn openai_compatible_url(base_url: &str) -> Result<String, LlmError> {
+    local_server_url(base_url, "LM Studio")
+}
+
+/// The OpenAI-compatible endpoint (http://host:port/v1) of a model server on this computer, named `server` in errors.
+pub(crate) fn local_server_url(base_url: &str, server: &str) -> Result<String, LlmError> {
     let http_url = match base_url.strip_prefix("ws") {
         Some(rest) if rest.starts_with(':') || rest.starts_with("s:") => format!("http{rest}"),
         _ => base_url.to_owned(),
     };
     let mut url = reqwest::Url::parse(&http_url).map_err(|error| {
-        LlmError::new(None, format!("LM Studio's address is not valid: {error}"))
+        LlmError::new(None, format!("{server}'s address is not valid: {error}"))
     })?;
     let path = url.path().trim_end_matches('/').to_owned();
     if !path.ends_with("/v1") {
@@ -65,15 +70,25 @@ pub fn openai_compatible_url(base_url: &str) -> Result<String, LlmError> {
 
 /// One chat call to LM Studio. Local models' chat templates vary in how (and whether) they take tool turns: they get them as text.
 pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, LlmError> {
+    complete_local(http, request, "LM Studio", "lm-studio").await
+}
+
+/// One chat call to a model server on this computer, which takes any key: `placeholder` is sent when the connection has none.
+pub(crate) async fn complete_local(
+    http: &Http,
+    request: &ChatRequest,
+    server: &str,
+    placeholder: &str,
+) -> Result<Completion, LlmError> {
     let local = ChatRequest {
         messages: alternating(&flatten_tool_turns(&request.messages, |_| false)),
-        base_url: openai_compatible_url(&request.base_url)?,
+        base_url: local_server_url(&request.base_url, server)?,
         api_key: Some(
             request
                 .api_key
                 .clone()
                 .filter(|key| !key.is_empty())
-                .unwrap_or_else(|| "lm-studio".to_owned()),
+                .unwrap_or_else(|| placeholder.to_owned()),
         ),
         temperature: request.temperature.map(|value| value.min(1.0)),
         effort: None,
@@ -177,7 +192,19 @@ pub(crate) async fn raw_stream(
 
 /// The model's raw completion of a prompt, from LM Studio's /v1/completions.
 pub async fn complete_raw(http: &Http, request: &RawRequest) -> Result<RawStream, LlmError> {
-    let url = format!("{}/completions", openai_compatible_url(&request.base_url)?);
+    complete_raw_local(http, request, "LM Studio").await
+}
+
+/// The model's raw completion of a prompt, from the /v1/completions of a model server on this computer.
+pub(crate) async fn complete_raw_local(
+    http: &Http,
+    request: &RawRequest,
+    server: &str,
+) -> Result<RawStream, LlmError> {
+    let url = format!(
+        "{}/completions",
+        local_server_url(&request.base_url, server)?
+    );
     let mut body = json!({
         "model": request.model,
         "prompt": request.prompt,

@@ -144,6 +144,12 @@ async fn lm_studio(State(kernel): Shared, Query(query): QueryText) -> Answer {
         .await)
 }
 
+async fn mlx(State(kernel): Shared, Query(query): QueryText) -> Answer {
+    ok(kernel
+        .mlx_models(wanted(&query, "baseUrl").unwrap_or(""))
+        .await)
+}
+
 async fn list_connections(State(kernel): Shared, Path(kind): Path<String>) -> Answer {
     ok(kernel.list_connections(&kind).await?)
 }
@@ -1232,6 +1238,7 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/usage/summary", get(usage_summary))
         .route("/llm/providers", get(providers))
         .route("/llm/lmstudio/models", get(lm_studio))
+        .route("/llm/mlx/models", get(mlx))
         .route("/connections/{kind}", get(list_connections))
         .route("/connections/{kind}/{id}", delete(delete_connection))
         .route(
