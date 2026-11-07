@@ -330,6 +330,21 @@ impl Kernel {
                 "The sample's input is not text, so the model cannot be run on it.",
             ));
         }
+        // The raw residual stream can be kept as a file in the project, for probes and directions to be trained on. It
+        // goes where the request says, inside the project and outside Saturn's records, so a run can declare it as data.
+        let save = match request.get("save").and_then(Value::as_str).map(str::trim) {
+            Some(path) if !path.is_empty() => {
+                let wanted = if path.to_lowercase().ends_with(".npz") {
+                    path.to_owned()
+                } else {
+                    format!("{path}.npz")
+                };
+                let (absolute, relative) = self.source_path(project, &wanted, None).await?;
+                ask["save"] = json!(absolute.to_string_lossy());
+                Some((absolute, relative))
+            }
+            _ => None,
+        };
 
         let source = self.research_source(project, None)?;
         let working_folder = source.join(text(&version, "cwd"));
@@ -373,6 +388,16 @@ impl Kernel {
         })?;
         answer["helperSha256"] = json!(sha256_hex(HELPER.as_bytes()));
         answer["schemaVersion"] = json!(SCHEMA_VERSION);
+        if let Some((absolute, relative)) = save {
+            answer["saved"] = match super::freeze::hash_file(&absolute).await {
+                Ok((sha256, size)) => {
+                    json!({ "path": relative, "format": "npz", "sha256": sha256, "size": size, "note": "One array per layer, `layer_<n>`, of shape tokens × hidden, with `tokens`; `patched_layer_<n>` when a layer was patched. Declare it in an experiment's inputs.data to train on it in a run." })
+                }
+                Err(_) => {
+                    json!({ "path": relative, "missing": true, "note": "The helper wrote no file there." })
+                }
+            };
+        }
         answer["request"] = request.clone();
         answer["key"] = json!(key);
         answer["recordedAt"] = json!(iso_time(now_millis()));
@@ -727,6 +752,7 @@ impl Kernel {
                 "modelId": asked_model(request),
                 "sourceModelId": request.get("sourceModelId"),
                 "layer": request.get("layer"),
+                "save": request.get("save"),
             })
             .to_string()
             .as_bytes(),

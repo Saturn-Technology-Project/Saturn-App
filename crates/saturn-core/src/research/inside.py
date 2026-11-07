@@ -173,6 +173,18 @@ def main():
             "top": tokenizer.decode(patched.logits[0, -1].argmax()),
         }
 
+    save = request.get("save")
+    if save:
+        # The raw residual stream, one array per layer, for probes and directions to be trained on outside this helper.
+        import numpy
+        import os
+        os.makedirs(os.path.dirname(save) or ".", exist_ok=True)
+        arrays = {f"layer_{index}": state[0].float().cpu().numpy() for index, state in enumerate(output.hidden_states)}
+        if patch:
+            arrays.update({f"patched_layer_{index}": state[0].float().cpu().numpy() for index, state in enumerate(patched.hidden_states)})
+        numpy.savez(save, tokens=numpy.array(tokens), **arrays)
+        answer["saved"] = {"path": save, "layers": len(output.hidden_states), "shape": list(output.hidden_states[0][0].shape)}
+
     json.dump(answer, sys.stdout)
 
 

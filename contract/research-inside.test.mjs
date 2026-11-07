@@ -58,6 +58,7 @@ if [ "$1" = "-" ]; then
     const layers = [0, 1].map((layer) => ({ layer, values: request.input.split(" ").map((_, index) => layer + index / 10) }));
     const answer = { sampleId: request.sampleId, modelId: request.modelId, measure: "stand-in", tokens: request.input.split(" "), layers, top: "x",
       patched: request.patch ? { layer: request.patch.layer, sourceModelId: request.patch.modelId, layers, top: "y" } : null, helper: process.argv[2] };
+    if (request.save) { require("node:fs").mkdirSync(require("node:path").dirname(request.save), { recursive: true }); require("node:fs").writeFileSync(request.save, "NPZ"); }
     process.stdout.write(JSON.stringify(answer));
   ' "$2" "$helper"
 else
@@ -383,4 +384,18 @@ test("a command that does not start with a python is refused with what to do", p
   const refused = await saturn.call("POST", `${route}/runs/${started.id}/activations`, { sampleId: "a" });
   assert.equal(refused.status, 422);
   assert.match(refused.body.error, /Python/);
+});
+
+test("the raw residual stream can be kept as an .npz in the project, outside the records, and hashed", posixOnly, async () => {
+  const { folder, route, run } = await project();
+  const saved = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/a" });
+  assert.equal(saved.saved.path, "activations/a.npz");
+  assert.equal(saved.saved.sha256, sha("NPZ"));
+  assert.equal(await readFile(path.join(folder, "activations/a.npz"), "utf8"), "NPZ");
+  const asked = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
+  assert.ok(asked.save.endsWith("/activations/a.npz"));
+  const plain = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  assert.equal(plain.saved, undefined, "a reading without save is its own saved result");
+  assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "../outside.npz" })).status, 403);
+  assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: ".saturn/research/x.npz" })).status, 403);
 });
