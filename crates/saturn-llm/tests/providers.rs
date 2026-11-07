@@ -816,6 +816,10 @@ async fn the_mlx_model_list_is_what_mlx_lm_server_can_load_without_embedding_mod
     let models = json!({ "object": "list", "data": [
         { "id": "mlx-community/Qwen3-8B-4bit", "object": "model", "created": 1 },
         { "id": "mlx-community/nomic-embed-text-v1.5", "object": "model", "created": 1 },
+        { "id": "mlx-community/bge-m3-mlx-fp16", "object": "model", "created": 1 },
+        { "id": "mlx-community/multilingual-e5-small-mlx", "object": "model", "created": 1 },
+        { "id": "mlx-community/Qwen3-Reranker-0.6B", "object": "model", "created": 1 },
+        { "id": "mlx-community/gemma-3-4b-it-4bit", "object": "model", "created": 1 },
     ] });
     let server = fake_server(vec![reply(200, models)]).await;
     let client = http();
@@ -823,7 +827,10 @@ async fn the_mlx_model_list_is_what_mlx_lm_server_can_load_without_embedding_mod
         mlx::list_models(&client, &server.base_url)
             .await
             .expect("a list"),
-        ["mlx-community/Qwen3-8B-4bit"]
+        [
+            "mlx-community/Qwen3-8B-4bit",
+            "mlx-community/gemma-3-4b-it-4bit"
+        ]
     );
     assert_eq!(
         server.sent.lock().expect("not poisoned")[0]["path"],

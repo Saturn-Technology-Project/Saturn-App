@@ -2,7 +2,7 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
-## Unreleased
+## 0.5.0 (2026-11-07)
 
 ### Fixed
 
@@ -12,7 +12,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - **Running an experiment says what it does.** The Workspace's bare command box and Run button are now an experiment bar beside the results' tabs, leaving the editor its room: it names the experiment (or starts a new one), takes the command after a `$`, and **Freeze and run** says that it keeps the code as a version before running it. While the run goes, the bar shows its status and version, with Pause and Stop beside them. **Open in Experiments** and, on the Experiments page, **Edit in Workspace** move between the two on the same experiment, and Experiments can now run its newest version as it was frozen.
 - **The workspace's samples and questions are easier to read.** Each sample id now fits on one line, and a long one keeps its end in view (the full id shows on hover). A sample's scores form a small table instead of raw JSON, with zeros dimmed so what the scorer found stands out. The sidebar's questions sit apart, each behind a thin rule and up to three lines, with how many there are and a link to all of them. The sample list and the sample beside it scroll on their own, and the arrow keys move through the list.
-- **A worker of another Saturn version is refused.** Every request now carries Saturn's version, and a check compares it, so a host can no longer run jobs with a worker that does not match the app.
+- **A worker of another Saturn version is refused.** Every request now carries Saturn's version, and a check compares it, so a host can no longer run jobs with a worker that does not match the app. After upgrading, use **Install worker** in Environment once for each SSH host whose worker came with an earlier version.
 - **Samples name the model a line is about.** A line that names no model used to show "Unnamed model". It now shows the version's model when the version has only one, the model's id when that id is not recorded under Models, and otherwise "Model not recorded", with a note on how to fix it. The runs table names models the same way.
 - **"Scorer: no word" is gone from every sample line.** The scorer's word is shown only when the program wrote one; the scores are beside it either way.
 
