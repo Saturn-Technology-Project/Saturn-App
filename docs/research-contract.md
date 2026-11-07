@@ -151,8 +151,9 @@ starting → running ⇄ paused
   - `SATURN_RESUME_RUN` and `SATURN_RESUME_DIRECTORY` name the resumed run and its folder, which the sandbox lets the
     program read, with the checkpoint. Whether the program skipped and restored anything is for its `resume` report to say.
 - Ending a run seals it: the hash of `samples.jsonl` is recorded, and later writes to the file do not count. Reading a
-  run, its samples or its summary checks the seal again: `sealIntact: false` means the samples changed after the run
-  ended, and they no longer stand for its results.
+  run, the list of runs, a run's samples or its summary checks the seal again: `sealIntact: false` means the samples
+  changed after the run ended, and they no longer stand for its results. The summary still gives the figures the
+  changed file adds up to, beside the flag; a paired comparison refuses such a run.
 - A running run holds its worktree: discarding it, or the chat that owns it, gets 409.
 - Process identity is implemented for macOS and Linux. On Windows, starting a run says it is not supported yet.
 
@@ -229,7 +230,8 @@ sources apart:
   `config` or `resume`. What it did not report is `null` and is never filled in from `expected`.
 
 Three verdicts: `execution` (the run's status), `inputs` (`verified`, `partial`, `changed`, `unverified`) and
-`outputs` (`sealed`, `incomplete`, `changed`, `none`). A run from before evidence was kept answers `recorded: false`.
+`outputs` (`sealed`, `incomplete`, `changed`, `none`, or `pending` while the run is still going). A run from before
+evidence was kept answers `recorded: false`.
 
 A hash confirms which content a file had. It does not show that the program used that content, or that the scorer or
 the conclusion is right.
@@ -295,16 +297,19 @@ beside its place and moved there whole, with mode 700 in the user's home and no 
 the host; a different hash removes it and fails. A build with no hash for the host's target refuses to install.
 
 `POST .../remote/runs` takes an executable `versionId`, `clientId`, `timeoutSeconds` (1..604800, default 3600), and optional
-`resumeFrom`. The launch intent is stored before SSH. A detached Rust worker, started with nohup in its own group,
-owns the command, output streams, cancellation and wall-clock limit. Closing the desktop/runtime only detaches.
+`resumeFrom`. The launch intent is stored before SSH. A detached Rust worker, started directly in its own process
+group with its streams closed (not through nohup, so a host without it works the same), owns the command, output
+streams, cancellation and wall-clock limit. Closing the desktop/runtime only detaches.
 Restarting reconnects active remote runs this runtime started, instead of interrupting them; it records those launches in its own data folder (`remote-launches.json`), never in the project. A run whose remote record came with the project is marked `interrupted` with `remoteError`, and its host is not contacted. Only the first exchange carries the start; a worker without the job answers 410 and the run becomes `interrupted`, never resubmitted. Worker errors keep their status, and 400, 403, 404, 410, 413 and 422 end the run with that message rather than being retried. Retrying a client ID cannot submit another job.
 An explicit stop persists a cancellation request even while disconnected; only the worker's acknowledgement ends it.
 A stale heartbeat is unresponsive, not proof the computation stopped. A dead remote machine/worker is not resubmitted.
 
-Code and data are not uploaded. The worker records its working directory and observed git commit, with an explicit
-warning that these are not certified identical to the local frozen source. `resumeFrom` is passed as
-`SATURN_RESUME_FROM`; the user's framework must restore weights, optimizer, scheduler and RNG state. A resumed attempt
-is a new run. The wall-clock limit stops the process group; it is not a guarantee about a provider's GPU bill.
+Code and data are not uploaded. The worker rebuilds the version from the host's working tree and git and checks every
+file against the version's hashes before the command runs (see the run's evidence above); it records the working
+directory and the commit it observed, and lists what the version does not name as uncontrolled. `resumeFrom` is passed
+as `SATURN_RESUME_FROM`, and only that: the resumed run's folder is not on the host, so `SATURN_RESUME_RUN` and
+`SATURN_RESUME_DIRECTORY` are not set there. The user's framework must restore weights, optimizer, scheduler and RNG
+state. A resumed attempt is a new run. The wall-clock limit stops the process group; it is not a guarantee about a provider's GPU bill.
 
 Samples, metrics, artifact manifest and stdout/stderr are pulled in bounded chunks, at most 64 MiB per stream.
 Completion waits for every chunk and verifies the remote hashes. A transfer failure keeps the run pending/disconnected,

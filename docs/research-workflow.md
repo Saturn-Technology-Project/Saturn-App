@@ -43,9 +43,11 @@ describes its evaluation, with no data or scorer files behind it), or fewer than
 
 ## Leave a remote job running
 
-Use an existing Linux or macOS SSH host. Install the same Saturn revision's `saturn-server` there, and put code, data,
-Python and dependencies in the remote project first. Saturn does not provision machines or upload that tree.
-Configure the host alias or `user@host`, absolute working directory and worker program in **Environment**. The
+Use an existing Linux or macOS SSH host, and put code, data, Python and dependencies in the remote project first.
+Saturn does not provision machines or upload that tree. Configure the host alias or `user@host` and the absolute
+working directory in **Environment**, then **Connect**: Saturn looks for this version's worker on the host, and
+**Install worker** puts it in `~/.saturn/worker/<version>` there when it is missing or of another version, with no
+administrator rights. A worker of another Saturn version is refused. The
 remote command runs in SSH's non-interactive environment, whose `PATH` is usually only the system's (`/usr/bin:/bin`
 and the like, without Homebrew or a Python manager): name programs by absolute path, such as the project's
 `.venv/bin/python`, or set them in the remote shell's startup file. SSH uses
@@ -60,8 +62,10 @@ cannot clear, such as an output over the limit, ends the run with that reason in
 worker may still be computing. Stop remains pending until the worker acknowledges cancellation. A new retry is a new
 run; repeating the same launch ID does not launch another process.
 
-The remote command is qualified by its observed working directory and git commit. It is not certified identical to
-the local frozen files. Remote completion waits for bounded output synchronization and hash verification. A resume
+The remote command runs from a snapshot the worker rebuilds on the host from its working tree and git, checked file by
+file against the version's hashes; a file that differs refuses the run before anything runs, and the evidence names
+it. What the version does not name (a `.venv`, say) is listed as uncontrolled. Remote completion waits for bounded
+output synchronization and hash verification. A resume
 checkpoint is passed as `SATURN_RESUME_FROM`; your framework must load model, optimizer and RNG state itself.
 
 ## Explore directly and keep Python outputs

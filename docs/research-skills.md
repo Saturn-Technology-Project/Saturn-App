@@ -2,7 +2,7 @@
 
 The skills that ship with Saturn, in `crates/saturn-core/src/research/skills`. They teach a research assistant to carry out a study through the [research tools](research-contract.md#what-an-agent-does-with-the-records). The assistant reads them with `research_skill`, on any backend, and starts with `research-autopilot`.
 
-To change one for a project, put a skill of the same name in `.saturn/skills/<name>/SKILL.md`: it is used first.
+To change one for a project, put a skill of the same name in the project's `.agents/skills/<name>/SKILL.md` (or `.saturn/skills` or `.claude/skills`): a project's skill is used first, then one in Saturn's own `skills` folder for every project, then an enabled plugin's, and the bundled one last.
 
 ## Running a study
 
@@ -101,3 +101,47 @@ The audit and the tools skill use `research_read` with `data_list`, `data_profil
 | `study-report` | Write the final report as a file a reader can check against the records. Read when a study is done, or at the point of stopping. |
 | `research-bundles` | Take a project's research evidence to another project as a verified bundle, or bring one in. Read when the person wants to share, archive or move evidence. |
 | `handing-back` | End a stage or study with what the person must decide, stated plainly. Read before finishing any autonomous work. |
+
+## Safety evaluation
+
+What a safety lab measures beyond task scores, and how to do it without trusting one number.
+
+| Skill | What it is for |
+|---|---|
+| `red-teaming` | Evaluate a model against adversarial and jailbreak attacks as an experiment, with a validated refusal scorer and paired attack success rates. Read before any adversarial evaluation. |
+| `safety-benchmarks` | Run published safety and truthfulness suites (HarmBench, StrongREJECT, TruthfulQA, BBQ, toxicity classifiers) through a wrapped harness as runs. Read before running a safety benchmark. |
+| `behavioral-evals` | Measure sycophancy, deception, sandbagging, reward hacking and evaluation awareness with matched control conditions and paired comparisons. Read before testing a model's dispositions. |
+| `agentic-evals` | Evaluate a model that uses tools or acts over many steps: one trajectory per sample, outcome and process scored apart, in its own sandbox. Read before evaluating an agent. |
+
+## Inside a model, further
+
+From a layer to a direction, a probe or a circuit, each with its controls.
+
+| Skill | What it is for |
+|---|---|
+| `linear-probes` | Train linear probes on activations to test whether a property is linearly readable at a layer, with held-out splits and controls. Read before claiming a model represents something. |
+| `steering-vectors` | Build a direction from contrastive prompts or a probe, add it at a layer over a coefficient sweep, and measure effect and side effects together. Read before claiming a direction controls behavior. |
+| `circuit-discovery` | Go from where a behavior lives to which heads and MLPs carry it, with patching, ablations against a named baseline and faithfulness checks. Read before naming the parts of a mechanism. |
+| `tuned-lens` | Read intermediate layers through a translator trained per layer instead of the final unembedding, and compare it with the logit lens. Read before trusting an early-layer reading. |
+
+## Training methods
+
+Beyond SFT and DPO, and the experiments that make a training claim fair.
+
+| Skill | What it is for |
+|---|---|
+| `reward-models-and-rl` | Train a reward model from preference pairs, then optimize a policy against it with PPO or GRPO, watching for reward hacking. Read before any RL post-training. |
+| `ablation-studies` | Design an ablation as a family of matched experiments, one factor removed at a time, read with intervals. Read before removing parts of a method to see what matters. |
+| `scaling-and-efficiency` | Scaling curves on a small grid, distillation and quantization as Saturn experiments with fair evaluation. Read before claiming a trend, a smaller model or a cheaper one. |
+| `model-cards` | Write a model card, datasheet or system card from Saturn's records, claiming only what runs measured. Read before describing a model for others. |
+
+## Finishing the work
+
+What stands between a result and a conclusion others can use.
+
+| Skill | What it is for |
+|---|---|
+| `human-evaluation` | Design a labelling protocol with written guidelines, a pilot, several raters and measured agreement, and check the scorer against it. Read before asking people to label samples. |
+| `replication-review` | Check a finding with a second-reader pass and a pre-registered replication before its conclusion stands. Read before calling a result a conclusion. |
+| `data-provenance` | Record where each dataset came from, its license, personal data, version and transformations, in a datasheet frozen with the version. Read before declaring a data file. |
+| `paper-writing` | Turn a study report into a paper draft whose every number and figure traces to a run, leaving the author's decisions to the person. Read when a study is to be written up for others. |

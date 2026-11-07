@@ -947,7 +947,14 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
         .output()
         .await
         .ok();
-    let source = json!({ "workdir": start["workdir"], "gitCommit": git.filter(|result| result.status.success()).map(|result| String::from_utf8_lossy(&result.stdout).trim().to_owned()), "note": "Remote source is observed, not uploaded or certified identical to local frozen files." });
+    // With a snapshot the source was rebuilt from the host's tree and checked against the version; without one (a
+    // start from before snapshots) it is only observed.
+    let note = if observed.is_null() {
+        "Remote source is observed, not uploaded or certified identical to local frozen files."
+    } else {
+        "Remote source was rebuilt on the host from its working tree and git, and every file in the version was checked against the version's hash before the command ran; what the version does not name is listed as uncontrolled."
+    };
+    let source = json!({ "workdir": start["workdir"], "gitCommit": git.filter(|result| result.status.success()).map(|result| String::from_utf8_lossy(&result.stdout).trim().to_owned()), "note": note });
     // A job with a snapshot runs in the sandbox its version asks for, as a local run does; one sent by a Saturn from
     // before snapshots runs in the working folder, as it did then.
     let (mut command, sandbox) = if observed.is_null() {
