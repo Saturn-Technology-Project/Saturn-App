@@ -440,6 +440,17 @@ test("the assistant can look at prompts of its own, under the same rules", posix
   assert.match(await refused(setup, "research_inspect", { action: "features", runId: "run_0000000000000000", modelId: "m", prompt: "a", layer: 1, saeRelease: "r", saeId: "i", ablate: 3 }), /margin/);
 });
 
+test("the assistant has the skills for pausing, resuming and remote hosts, and pairing only looks", async () => {
+  const setup = await bed();
+  const names = (await call(setup, "research_skill", {})).skills.map((item) => item.name);
+  for (const name of ["pause-and-resume", "remote-runs"]) assert.ok(names.includes(name), `${name} in ${names.join(" ")}`);
+  assert.match((await call(setup, "research_skill", { name: "pause-and-resume" })).instructions, /research_run/);
+  assert.match((await call(setup, "research_skill", { name: "remote-runs" })).instructions, /pair/);
+  // With no host set, pairing says where the person sets one; it never sets one itself.
+  assert.match(await refused(setup, "research_remote", { action: "pair" }), /Set the SSH host and the remote project folder in Environment first/);
+  assert.equal((await saturn.api("GET", `${setup.route}/remote`)).target ?? null, null);
+});
+
 test("a turn with the research tools goes on past the usual limit on tool steps", async () => {
   const setup = await bed();
   const steps = Array.from({ length: 70 }, () => [["research_read", { what: "events" }]]);
@@ -470,8 +481,40 @@ test("the tools reach Claude Code, which sees them and calls them like any other
     assert.ok(offered.includes("research_skill"), offered.join(" "));
     assert.ok(offered.includes("research_run"), offered.join(" "));
     assert.ok(offered.includes("research_task_start"), offered.join(" "));
+    const tools = Object.values(initialize.request.sdkMcpServerManifests)[0].toolsListResult.tools;
+    const actions = (name) => tools.find((tool) => tool.name === name).inputSchema.properties.action.enum;
+    for (const action of ["pause", "continue", "resume"]) assert.ok(actions("research_run").includes(action), `research_run ${action}`);
+    assert.ok(actions("research_remote").includes("pair"), "research_remote pair");
     const questions = await programs.api("GET", `/projects/${project.id}/research/questions`);
     assert.deepEqual(questions.items.map((item) => item.title), ["Asked through the program"]);
+  } finally {
+    await programs.stop();
+  }
+});
+
+test("the tools reach Codex the same, with pausing, resuming and pairing among them", async () => {
+  const programs = await startWithPrograms();
+  try {
+    const home = await realpath(programs.folder);
+    const folder = path.join(home, "project");
+    await mkdir(folder, { recursive: true });
+    const project = await programs.api("POST", "/projects", { path: folder, grant: true });
+    const connection = await programs.api("POST", "/connections/models", { provider: "codex", model: "default" });
+    const agent = await programs.api("POST", "/agents", { name: "Coder", modelConnectionId: connection.id, autonomy: "bypass", mcpConnectionIds: ["research"] });
+    const thread = await programs.api("POST", `/agents/${agent.id}/threads`, { title: "Work", projectId: project.id });
+    await programs.scenario({ steps: [
+      { send: { type: "thread.started", thread_id: "thread-R" } },
+      { skills: { rpc: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "stand-in", version: "1" } } } },
+      { skills: { rpc: "tools/list", id: 2 } },
+      { send: { type: "turn.completed", usage: {} } },
+    ] });
+    const run = await runToEnd(programs, agent.id, { input: "go", threadId: thread.id });
+    assert.equal(run.status, "completed", run.error);
+    const tools = (await programs.journal()).filter((entry) => entry.skills === "tools/list").at(-1).body.result.tools;
+    const actions = (name) => tools.find((tool) => tool.name === name)?.inputSchema.properties.action.enum ?? [];
+    assert.ok(tools.some((tool) => tool.name === "research_skill"), tools.map((tool) => tool.name).join(" "));
+    for (const action of ["pause", "continue", "resume"]) assert.ok(actions("research_run").includes(action), `research_run ${action}`);
+    assert.ok(actions("research_remote").includes("pair"), "research_remote pair");
   } finally {
     await programs.stop();
   }
