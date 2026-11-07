@@ -11,7 +11,7 @@ test("project-wide analysis outputs remain reachable when a run or inspection se
   assert.deepEqual(artifactsInContext(items, "r", undefined, true).map((item) => item.id), ["project", "run", "session", "other"]);
   assert.deepEqual(artifactsInContext(items).map((item) => item.id), ["project", "run", "session", "other"]);
 });
-import { ablationStanding, ablationText, comparisonText, controlCeiling, featurePeaks, featuresText, lineageOrder, lineageRows, promptPatchText, sampleModel, readingDifference, reconstructionIsPoor, runHasResults, sampleIdParts, scoreText, signedText, strongestPatch } from "../src/domain/research.ts";
+import { ablationStanding, ablationText, comparisonText, controlCeiling, featurePeaks, featuresText, lineageOrder, lineageRows, metricsRun, plotPoints, promptPatchText, sampleModel, readingDifference, reconstructionIsPoor, runHasResults, sampleIdParts, scoreText, signedText, strongestPatch } from "../src/domain/research.ts";
 
 const model = (id, parentId) => ({ id, parentId, source: id, floating: false, revision: 1, createdAt: "", updatedAt: "" });
 
@@ -146,4 +146,22 @@ test("a sample's model is named from its line, or from the version when the line
   assert.match(many.note, /has 2\. Have the program write modelId/);
   assert.match(sampleModel(undefined, bound(), models).note, /names none/);
   assert.match(sampleModel(undefined, undefined, models).note, /names none/);
+});
+
+test("the training metrics follow the run still going, or else show the newest finished one", () => {
+  const run = (id, status) => ({ id, status });
+  assert.equal(metricsRun([run("a", "completed"), run("b", "running"), run("c", "failed")]).id, "b");
+  assert.equal(metricsRun([run("a", "completed"), run("b", "starting"), run("c", "running")]).id, "c");
+  assert.equal(metricsRun([run("a", "completed"), run("b", "stopped"), run("c", "failed")]).id, "b", "a failed run has no results to plot");
+  assert.equal(metricsRun([run("a", "failed")]), null);
+  assert.equal(metricsRun([]), null);
+});
+
+test("a long curve is drawn from evenly spaced points, keeping its first and last", () => {
+  const points = Array.from({ length: 10001 }, (_, index) => index);
+  const drawn = plotPoints(points, 2000);
+  assert.equal(drawn.length, 2000);
+  assert.deepEqual([drawn[0], drawn.at(-1)], [0, 10000]);
+  assert.ok(drawn.every((value, index) => index === 0 || value > drawn[index - 1]), "in order, with no point twice");
+  assert.deepEqual(plotPoints([1, 2, 3], 2000), [1, 2, 3], "a short curve keeps every point");
 });
