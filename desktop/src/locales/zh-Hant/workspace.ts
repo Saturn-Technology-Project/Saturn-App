@@ -3,6 +3,20 @@ import type { Dictionary } from "../../domain/i18n";
 
 export default {
   // Workspace
+  "Editor status": "編輯器狀態",
+  Close: "關閉",
+  "Go to line (Ctrl+G)": "跳至行號（Ctrl+G）",
+  "Ln {line}, Col {column}": "第 {line} 行，第 {column} 欄",
+  "{count} selected": "已選取 {count} 字元",
+  "Tabs: {count}": "Tab：{count}",
+  "Spaces: {count}": "空格：{count}",
+  "Editor shortcuts": "編輯快捷鍵",
+  "Language and document completions run locally. Project-wide types and definitions need a language server.": "語言與文件補全在本機執行。整個專案的型別分析與定義跳轉需要語言伺服器。",
+  "Tab: accept completion, next snippet field, or indent. Shift+Tab: previous field or outdent.": "Tab：接受補全、跳到下一個片段欄位或縮排。Shift+Tab：上一個欄位或減少縮排。",
+  "Ctrl+Space: suggestions. Enter: accept. Escape: dismiss, then Tab to leave the editor.": "Ctrl+Space：補全建議。Enter：接受。Escape：關閉，再按 Tab 可離開編輯器。",
+  "Ctrl/Cmd+S: save. Ctrl/Cmd+F: find and replace. Ctrl+G: go to line.": "Ctrl/Cmd+S：儲存。Ctrl/Cmd+F：搜尋與取代。Ctrl+G：跳至行號。",
+  "Ctrl/Cmd+/: comment. Ctrl/Cmd+D: select next match.": "Ctrl/Cmd+/：切換註解。Ctrl/Cmd+D：選取下一個相同文字。",
+  "Alt+Up/Down: move line. Shift+Alt+Up/Down: duplicate line.": "Alt+上下鍵：移動行。Shift+Alt+上下鍵：複製行。",
   Observation: "觀察",
   "AI suggestion": "AI 建議",
   Conclusion: "結論",

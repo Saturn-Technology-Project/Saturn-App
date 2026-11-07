@@ -37,6 +37,7 @@ import { NotebookEditor } from "./NotebookEditor.js";
 import { Resources } from "./Resources.js";
 import { DocumentView } from "./DocumentView.js";
 import { SourceEditor } from "./SourceEditor.js";
+import { EditorDocuments } from "../../domain/code-editor.js";
 import { languageOf } from "../../domain/code-languages.js";
 import { Terminal } from "./Terminal.js";
 import { FileActionDialog, type FileAction } from "./FileActionDialog.js";
@@ -116,6 +117,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const treeRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<OpenFile | null>(null);
   const content = useRef("");
+  const editorDocuments = useRef(new EditorDocuments());
   const [dirty, setDirty] = useState(false);
   // The files open as tabs, in the order they were opened; one of them is in the editor. A tab left with unsaved text
   // keeps it here until it is shown again, saved or closed.
@@ -934,6 +936,8 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           ) : open ? (
             <SourceEditor
               documentKey={`${open.path}:${open.generation}`}
+              cacheKey={open.path}
+              documents={editorDocuments.current}
               initialContent={open.initial}
               language={languageOf(open.path)}
               onChange={handleEdit}

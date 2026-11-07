@@ -4,7 +4,7 @@
 // colors them with the same style as Python.
 
 /** What the Workspace's editor highlights a file as. */
-export type EditorLanguage = "python" | "tex" | "lean" | "plain";
+export type EditorLanguage = "python" | "javascript" | "jsx" | "typescript" | "tsx" | "json" | "rust" | "markdown" | "shell" | "yaml" | "toml" | "tex" | "lean" | "plain";
 
 /** The language a file is in, by its name. */
 export function languageOf(path: string): EditorLanguage {
@@ -12,6 +12,16 @@ export function languageOf(path: string): EditorLanguage {
   if (lower.endsWith(".py") || lower.endsWith(".pyi")) return "python";
   if (lower.endsWith(".tex") || lower.endsWith(".sty") || lower.endsWith(".cls") || lower.endsWith(".bib")) return "tex";
   if (lower.endsWith(".lean")) return "lean";
+  if (/\.(?:js|mjs|cjs)$/.test(lower)) return "javascript";
+  if (lower.endsWith(".jsx")) return "jsx";
+  if (/\.(?:ts|mts|cts)$/.test(lower)) return "typescript";
+  if (lower.endsWith(".tsx")) return "tsx";
+  if (lower.endsWith(".json") || lower.endsWith(".ipynb")) return "json";
+  if (lower.endsWith(".rs")) return "rust";
+  if (/\.(?:md|markdown)$/.test(lower)) return "markdown";
+  if (/\.(?:sh|bash|zsh)$/.test(lower) || /(?:^|\/)\.(?:bashrc|zshrc|profile)$/.test(lower)) return "shell";
+  if (/\.(?:yaml|yml)$/.test(lower)) return "yaml";
+  if (lower.endsWith(".toml")) return "toml";
   return "plain";
 }
 

@@ -131,6 +131,15 @@ In Workspace, use **New file** beside Files to create a project file (nested pat
 directly after the last output; Up/Down recalls commands and Ctrl+L or `clear` clears the scrollback. Commands still run
 one at a time through the existing command runner.
 
+The source editor supports Python, JS/TS (including JSX), Rust, JSON, Markdown, Shell, YAML, TOML, TeX and Lean.
+**Tab** accepts a completion, advances a snippet field, or indents; **Shift+Tab** goes back or outdents. Suggestions
+come from the language and words in the open document, locally, with **Ctrl+Space** to request them. Existing spaces,
+tabs and CRLF line endings are preserved. Switching between recent source tabs keeps undo, cursor and scroll while the
+Workspace stays open; externally changed files start fresh. The status bar shows position, indentation and line endings,
+with **Editor shortcuts** for search/replace, comments, multiple selections and moving lines. Press Escape, then Tab to
+leave the editor using the keyboard. JSON has syntax diagnostics; project-wide type checking and definition navigation
+still need a language server.
+
 ## Install
 
 Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) for macOS on Apple Silicon, and a setup `.exe` for Windows x64. Releases are pre-releases while Saturn is in preview; [`CHANGELOG.md`](CHANGELOG.md) summarizes what changed in each. Each file ships with a SHA-256 checksum and a signed build provenance attestation ([verify a download](#5-verify-the-release-provenance)).

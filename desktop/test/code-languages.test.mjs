@@ -24,7 +24,9 @@ test("a file's language follows its name", () => {
   assert.equal(languageOf("paper/main.tex"), "tex");
   assert.equal(languageOf("refs.bib"), "tex");
   assert.equal(languageOf("Proofs/Basic.lean"), "lean");
-  assert.equal(languageOf("README.md"), "plain");
+  for (const [path, language] of [["README.md", "markdown"], ["train.RS", "rust"], ["app.tsx", "tsx"], ["main.ts", "typescript"], ["view.jsx", "jsx"], ["index.mjs", "javascript"], ["config.json", "json"], ["Cargo.toml", "toml"], ["config.yml", "yaml"], ["run.sh", "shell"], [".zshrc", "shell"], ["data.txt", "plain"]]) {
+    assert.equal(languageOf(path), language, path);
+  }
 });
 
 test("TeX: commands, environments, comments and formulas are told apart", () => {
