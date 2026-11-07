@@ -307,6 +307,11 @@ export type AgentBrowserState = { open: boolean; mode: AgentBrowser; url: string
  * typing wherever the focus is (no point). `at` is when, in milliseconds. */
 export type PointerPlace = { kind: "click" | "move" | "drag" | "scroll" | "type"; x?: number; y?: number; to?: { x: number; y: number }; at: number };
 export type AgentBrowserFrame = { data: string; format?: "jpeg" | "png"; width: number; height: number; url: string; title: string };
+/** The host of the page the agent's browser is on, for its tab; empty for a blank page or none. */
+export function browserHost(url: string | undefined): string {
+  const host = (url ?? "").replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/[/?#].*$/, "");
+  return host === "about:blank" || url === "about:blank" ? "" : host;
+}
 
 export type Profile = {
   name: string;

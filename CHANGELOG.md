@@ -4,6 +4,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+### Fixed
+
+- **The assistant's browser can be watched again.** Since the research interface, an agent browsing in Saturn's own browser (the default) did so out of sight: the Browser tab its settings spoke of was gone. The research assistant now has Chat and Browser tabs, and turns to Browser by itself when it opens a page, showing the page live with its cursor and address. The page fits the panel or shows at its actual size, and the chat stays where it was.
+
 ### Changed
 
 - **Running an experiment says what it does.** The Workspace's bare command box and Run button are now an experiment bar beside the results' tabs, leaving the editor its room: it names the experiment (or starts a new one), takes the command after a `$`, and **Freeze and run** says that it keeps the code as a version before running it. While the run goes, the bar shows its status and version, with Pause and Stop beside them. **Open in Experiments** and, on the Experiments page, **Edit in Workspace** move between the two on the same experiment, and Experiments can now run its newest version as it was frozen.

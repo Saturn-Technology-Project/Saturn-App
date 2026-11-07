@@ -3,7 +3,7 @@ import { onAskAssistant } from "../../application/assistant-requests.js";
 import { desktop } from "../../application/desktop.js";
 import { errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
 import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../../domain/chat-mode.js";
-import type { Agent, ChatMode, ContextItem, Model } from "../../domain/model.js";
+import { browserHost, type Agent, type ChatMode, type ContextItem, type Model } from "../../domain/model.js";
 import { helpRequests, workbenchState, type Screen } from "../../domain/workbench.js";
 import { hiddenContext } from "../../domain/slash.js";
 import { t } from "../../domain/i18n.js";
@@ -16,6 +16,7 @@ import { Textarea } from "../ui/base/Textarea.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { useFollow } from "../ui/useFollow.js";
 import type { WorkspaceFocus } from "../workspace/Workspace.js";
+import { AgentBrowserView, useAgentBrowser } from "./AgentBrowser.js";
 import { Turn } from "./Turn.js";
 import { useConversation } from "./useConversation.js";
 
@@ -43,6 +44,13 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   // Other project files the person picked, by path.
   const [extraFiles, setExtraFiles] = useState<string[]>([]);
   const [picking, setPicking] = useState(false);
+  // The chat, or the assistant's browser live. It turns to the browser by itself when the assistant opens one.
+  const [view, setView] = useState<"chat" | "browser">("chat");
+  const browser = useAgentBrowser();
+  const browsing = Boolean(browser.state?.open);
+  useEffect(() => {
+    if (browsing) setView("browser");
+  }, [browsing]);
   const [fileQuery, setFileQuery] = useState("");
   const [found, setFound] = useState<string[]>([]);
   const reviewing = Boolean(focus?.sample && !focus.file);
@@ -166,12 +174,30 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     <div className="flex min-h-0 flex-1 flex-col bg-panel">
       <div className="flex min-h-10 flex-none items-center justify-between gap-2 border-b border-border px-3 py-1">
         <strong className="flex-none">{t("Research assistant")}</strong>
+        <div className="flex flex-none rounded-md bg-muted p-0.5 text-[11.5px]" role="tablist" aria-label={t("Chat or browser")}>
+          {(["chat", "browser"] as const).map((item) => (
+            <button
+              type="button"
+              role="tab"
+              key={item}
+              aria-selected={view === item}
+              className={classes("flex cursor-pointer items-center gap-1.5 rounded-[5px] border-0 px-2 py-0.5", view === item ? "bg-background text-foreground shadow-sm" : "bg-transparent text-muted-foreground hover:text-foreground")}
+              title={item === "browser" && browsing ? browserHost(browser.frame?.url ?? browser.state?.url) || undefined : undefined}
+              onClick={() => setView(item)}
+            >
+              {item === "browser" && browsing ? <span className="size-1.5 animate-pulse rounded-full bg-good" aria-hidden="true" /> : null}
+              {item === "chat" ? t("Chat") : t("Browser")}
+            </button>
+          ))}
+        </div>
         <div className="ml-auto flex-none" data-tour="assistant-mode">
           <Choice ariaLabel={t("How much the assistant may do in this chat")} triggerClassName={MODE_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label, hint: item.hint }))} onChange={(next) => void chooseMode(next as ChatMode)} />
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5" ref={log} role="log" aria-label={t("Conversation with the research assistant")}>
+      {view === "browser" ? <AgentBrowserView state={browser.state} frame={browser.frame} onBack={() => setView("chat")} /> : null}
+      {/* The chat stays mounted while the browser shows, so its place and what was typed are kept. */}
+      <div className={classes("min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5", view === "chat" ? "flex" : "hidden")} ref={log} role="log" aria-label={t("Conversation with the research assistant")}>
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(comment) => void ask(comment)} />
         ))}

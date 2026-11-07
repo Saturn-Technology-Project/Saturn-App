@@ -116,7 +116,7 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 
 | | |
 |---|---|
-| 🛠️ **工具** | 檔案、支援背景指令的 shell、網頁擷取、看得見操作的瀏覽器、macOS 與 Windows 上的電腦操作、GitHub，以及任何 [MCP](https://modelcontextprotocol.io) 伺服器 |
+| 🛠️ **工具** | 檔案、支援背景指令的 shell、網頁擷取、可在研究助理「瀏覽器」分頁即時觀看的瀏覽器、macOS 與 Windows 上的電腦操作、GitHub，以及任何 [MCP](https://modelcontextprotocol.io) 伺服器 |
 | 🌿 **worktree 中的任務** | 任務在自己的 git worktree 與分支中執行；每個專案最多同時四個。你審查它的 diff，然後合併或捨棄 |
 | ↩️ **檢查點** | 每次檔案修改都有紀錄，包括 shell 指令改動的檔案。可保留或回復一個回合，或還原任一單一步驟 |
 | 🔐 **權限與沙箱** | Agent 只在你授權的資料夾內工作。規則依工具與樣式允許、詢問或拒絕；在 macOS 與 Linux 上，指令於作業系統沙箱中執行 |

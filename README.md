@@ -116,7 +116,7 @@ In every mode, locks, the policy, the SSH host, merging and loosening a run's sa
 
 | | |
 |---|---|
-| 🛠️ **Tools** | Files, a shell with background commands, web fetch, a browser you can watch, computer use on macOS and Windows, GitHub, and any [MCP](https://modelcontextprotocol.io) server |
+| 🛠️ **Tools** | Files, a shell with background commands, web fetch, a browser you watch live in the assistant's Browser tab, computer use on macOS and Windows, GitHub, and any [MCP](https://modelcontextprotocol.io) server |
 | 🌿 **Tasks in worktrees** | A task runs in its own git worktree and branch; at most four at once per project. You review its diff, then merge or discard it |
 | ↩️ **Checkpoints** | Every file edit is recorded, including files a shell command changes. Keep or revert a turn, or restore any single step |
 | 🔐 **Permissions and sandbox** | Agents work only in folders you grant. Rules allow, ask or deny by tool and pattern; commands run in an OS sandbox on macOS and Linux |
