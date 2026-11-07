@@ -6,7 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
-- **The assistant's browser can be watched again, in the Workspace.** Since the research interface, an agent browsing in Saturn's own browser (the default) did so out of sight: the Browser tab its settings spoke of was gone. The Workspace now opens a Browser tab beside your files when the assistant opens a page, showing the page live with the cursor the assistant points, clicks and types with; the page fits or shows at its actual size. While you are elsewhere, the assistant panel says it is browsing and leads there.
+- **The assistant's browser can be watched again, in the Workspace.** Since the research interface, an agent browsing in Saturn's own browser (the default) did so out of sight: the Browser tab its settings spoke of was gone. The Workspace now opens a Browser tab beside your files when the assistant opens a page, showing the page live with the cursor the assistant points, clicks and types with, now a black pointer with Saturn beside it so it is plain whose it is; the page fits or shows at its actual size. While you are elsewhere, the assistant panel says it is browsing and leads there.
 
 ### Changed
 
