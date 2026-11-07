@@ -1,7 +1,9 @@
 //! What the research workbench reads and writes: a project's source files, with a revision so a save cannot overwrite a
 //! change it has not seen, and a run's samples and logs a page at a time.
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+
 use std::path::Path;
+use tokio::io::AsyncReadExt;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 
@@ -216,6 +218,108 @@ impl Kernel {
         .map_err(|error| CoreError::new(500, error.to_string()))??;
         Ok(json!({ "text": String::from_utf8_lossy(&bytes) }))
     }
+}
+
+/// The most of a file a run wrote that is handed back at once.
+const OUTPUT_READ: u64 = 256 * 1024;
+/// The most entries of a run's output folder listed at once.
+const OUTPUT_ENTRIES: usize = 500;
+
+impl Kernel {
+    /// What a run's program wrote to `SATURN_RUN_OUTPUT`: with no path, the files in its `written/` folder; with one,
+    /// that file's text, up to 256 KiB. Reading stays inside the folder, through no link, and runs nothing.
+    pub async fn research_run_output(
+        &self,
+        project: &str,
+        id: &str,
+        requested: Option<&str>,
+    ) -> Result<Value, CoreError> {
+        if !is_id(id) {
+            return Err(CoreError::new(404, "No such run"));
+        }
+        self.research_run(project, id).await?;
+        let records = self.records_folder(project).await?;
+        let written = records.join("runs").join(id).join(super::isolation::OUTPUT);
+        if super::is_link(&written).await {
+            return Err(CoreError::new(
+                403,
+                "The run's output folder is a symbolic link, which Saturn does not follow.",
+            ));
+        }
+        let Some(requested) = requested.filter(|path| !path.trim().is_empty() && *path != ".")
+        else {
+            let mut files = Vec::new();
+            if tokio::fs::try_exists(&written).await? {
+                list_written(&written, &written, &mut files).await?;
+            }
+            let truncated = files.len() > OUTPUT_ENTRIES;
+            files.truncate(OUTPUT_ENTRIES);
+            return Ok(json!({ "runId": id, "files": files, "truncated": truncated }));
+        };
+        let workspace = Workspace::new(&written);
+        let path = inside_workspace(&workspace, requested)
+            .await
+            .map_err(|message| CoreError::new(403, message))?;
+        if super::is_link(&path).await {
+            return Err(CoreError::new(
+                403,
+                "Saturn does not follow a link in a run's output.",
+            ));
+        }
+        let relative = workspace.relative(&path);
+        let info = tokio::fs::metadata(&path).await.map_err(|_| {
+            CoreError::new(404, format!("The run wrote no file called {requested}."))
+        })?;
+        if !info.is_file() {
+            return Err(CoreError::new(
+                400,
+                format!("{requested} is a folder; name a file in it."),
+            ));
+        }
+        let mut bytes = Vec::new();
+        tokio::fs::File::open(&path)
+            .await?
+            .take(OUTPUT_READ)
+            .read_to_end(&mut bytes)
+            .await?;
+        let binary = bytes.contains(&0);
+        Ok(json!({
+            "runId": id,
+            "path": relative,
+            "size": info.len(),
+            "truncated": info.len() > OUTPUT_READ,
+            "binary": binary,
+            "text": if binary { Value::Null } else { json!(String::from_utf8_lossy(&bytes)) },
+        }))
+    }
+}
+
+/// Every file under a run's output folder, by its path from that folder, with its size. Links are listed, not followed.
+async fn list_written(root: &Path, folder: &Path, files: &mut Vec<Value>) -> Result<(), CoreError> {
+    let mut pending = vec![folder.to_path_buf()];
+    while let Some(folder) = pending.pop() {
+        let mut reading = tokio::fs::read_dir(&folder).await?;
+        while let Some(entry) = reading.next_entry().await? {
+            let kind = entry.file_type().await?;
+            let path = entry.path();
+            let relative = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            if kind.is_dir() {
+                pending.push(path);
+            } else {
+                let size = entry.metadata().await.map(|info| info.len()).unwrap_or(0);
+                files.push(json!({ "path": relative, "size": size, "link": kind.is_symlink() }));
+            }
+            if files.len() > OUTPUT_ENTRIES {
+                return Ok(());
+            }
+        }
+    }
+    files.sort_by(|left, right| text(left, "path").cmp(text(right, "path")));
+    Ok(())
 }
 
 /// A folder's entries, folders first, without the records and git's folder.

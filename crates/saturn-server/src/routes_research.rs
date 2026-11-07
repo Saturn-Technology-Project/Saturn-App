@@ -241,6 +241,25 @@ async fn labels(State(kernel): Shared, Path((project, run)): Path<(String, Strin
     ok(kernel.research_labels(&project, &run).await?)
 }
 
+/// How a run's raters agree with each other, the adjudicated labels and the scorer.
+async fn label_agreement(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+) -> Answer {
+    ok(kernel.research_label_agreement(&project, &run).await?)
+}
+
+/// What a run's program wrote to its output folder: the files, or one file's text.
+async fn output(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    ok(kernel
+        .research_run_output(&project, &run, query.get("path").map(String::as_str))
+        .await?)
+}
+
 async fn set_label(
     State(kernel): Shared,
     Path((project, run)): Path<(String, String)>,
@@ -687,6 +706,11 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             "/projects/{id}/research/runs/{run}/labels",
             get(labels).post(set_label),
         )
+        .route(
+            "/projects/{id}/research/runs/{run}/labels/agreement",
+            get(label_agreement),
+        )
+        .route("/projects/{id}/research/runs/{run}/output", get(output))
         .route(
             "/projects/{id}/research/samples/{sample}",
             get(sample_across),
