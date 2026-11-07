@@ -349,6 +349,37 @@ test("a training run resumes from its last checkpoint, which it can read, and it
   assert.deepEqual(metrics.items.map((item) => item.step), [1, 2, 3, 4]);
 });
 
+test("training metrics are read while the run writes them, and a reader goes on from where it stopped", async () => {
+  const metric = (step, loss) => `${JSON.stringify({ schemaVersion: 1, step, values: { loss } })}\n`;
+  const first = metric(1, 2) + metric(2, 1.5);
+  const third = metric(3, 1);
+  // Two whole events and half of a third, then, once the test says go, the rest of the third and a fourth. It waits in
+  // its own run folder, never longer than 20 seconds.
+  const bed = await setup(`
+    import { appendFileSync, existsSync } from "node:fs";
+    appendFileSync(process.env.SATURN_RUN_METRICS, ${JSON.stringify(first + third.slice(0, 12))});
+    const go = process.env.SATURN_RUN_DIRECTORY + "/go";
+    for (const until = Date.now() + 20000; !existsSync(go) && Date.now() < until;) await new Promise((resolve) => setTimeout(resolve, 50));
+    appendFileSync(process.env.SATURN_RUN_METRICS, ${JSON.stringify(third.slice(12) + metric(4, 0.5))});
+    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+  `);
+  const started = await start(bed);
+  const metrics = (cursor = 0) => saturn.api("GET", `${bed.route}/runs/${started.id}/metrics?cursor=${cursor}`);
+  const running = await until("the first metrics, while the run goes on", () => metrics(), (page) => page.items.length === 2);
+  assert.equal((await saturn.api("GET", `${bed.route}/runs/${started.id}`)).status, "running");
+  assert.deepEqual(running.items.map((item) => item.step), [1, 2]);
+  assert.equal(running.next, null, "no further page now");
+  assert.equal(running.end, Buffer.byteLength(first), "the read stops after the last whole event");
+  const waiting = await metrics(running.end);
+  assert.deepEqual([waiting.items, waiting.end], [[], running.end], "half an event is left for later");
+  await writeFile(path.join(runFolder(bed, started.id), "go"), "");
+  const run = await ended(bed, started.id);
+  assert.equal(run.status, "completed", JSON.stringify(run));
+  const rest = await metrics(running.end);
+  assert.deepEqual(rest.items.map((item) => [item.step, item.values.loss]), [[3, 1], [4, 0.5]]);
+  assert.equal(rest.end, Buffer.byteLength(first + third + metric(4, 0.5)));
+});
+
 test("a run started before the project was edited runs the version it was given", posixOnly, async () => {
   const release = path.join(await saturn.folder(), "release");
   const { home, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "before-process", SATURN_RESEARCH_TEST_RELEASE: release });

@@ -213,6 +213,21 @@ test("a change to code, data or the draft makes the next version, and the old on
   assert.equal((await saturn.call("PATCH", `${route}/versions/${first.id}`, { expectedRevision: 1, command: "x" })).status, 405);
 });
 
+test("an experiment can be renamed, but not to nothing and not over a newer change", async () => {
+  const { route } = await project({ "probe.py": "print(1)\n" });
+  const experiment = await draft(route, { code: ["probe.py"] });
+  const version = (await freeze(route, experiment.id)).body;
+  const renamed = await saturn.api("PATCH", `${route}/experiments/${experiment.id}`, { expectedRevision: experiment.revision, title: "Name-logit on the IOI set" });
+  assert.equal(renamed.title, "Name-logit on the IOI set");
+  assert.equal(renamed.revision, experiment.revision + 1);
+  assert.equal((await saturn.api("GET", `${route}/versions/${version.id}`)).experimentId, experiment.id, "its versions stay with it");
+  const blank = await saturn.call("PATCH", `${route}/experiments/${experiment.id}`, { expectedRevision: renamed.revision, title: "  " });
+  assert.equal(blank.status, 400);
+  const stale = await saturn.call("PATCH", `${route}/experiments/${experiment.id}`, { expectedRevision: experiment.revision, title: "Older name" });
+  assert.equal(stale.status, 409);
+  assert.equal((await saturn.api("GET", `${route}/experiments/${experiment.id}`)).title, "Name-logit on the IOI set");
+});
+
 test("outside git, the declared code is saved as copies", async () => {
   const { route, folder } = await project({ "src/probe.py": "print(1)\n", "set.jsonl": "{}\n" });
   const experiment = await draft(route, { code: ["src"], data: ["set.jsonl"] });

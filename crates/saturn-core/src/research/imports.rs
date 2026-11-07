@@ -419,7 +419,7 @@ impl Kernel {
             let file = match std::fs::File::open(path) {
                 Ok(file) => file,
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    return Ok(json!({ "items": [], "next": null }));
+                    return Ok(json!({ "items": [], "next": null, "end": cursor }));
                 }
                 Err(error) => return Err(error.into()),
             };
@@ -458,8 +458,11 @@ impl Kernel {
                 position += count as u64;
                 items.push(value);
             }
+            // `next` says another page is there now; `end` is where the complete lines read so far stop, so a reader
+            // following a running run asks from there for what the program writes next. A line still being written
+            // is left for that later read.
             let next = (items.len() == 200).then_some(position);
-            Ok(json!({ "items": items, "next": next }))
+            Ok(json!({ "items": items, "next": next, "end": position }))
         })
         .await
         .map_err(|error| CoreError::new(500, error.to_string()))?
