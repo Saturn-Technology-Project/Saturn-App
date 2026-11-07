@@ -2,8 +2,8 @@
 // changed since a visit. Node runs the domain file as it is, so only a module without imports can be tested here.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { removalQuestion } from "../src/domain/model.ts";
-import { bytesText, changedSince, changeRereadsList, comparisonFactors, devicesText, durationText, earlierSweeps, heldFixed, kitState, labelsOf, lastActive, mechanismOf, readSamplePages, restoredByLayer, reviewProgress, runnableVersion, runOfExperiment, scoreSources, scorerSaysWrong, sweepMeasure, throughput } from "../src/domain/research.ts";
+import { browserHost, removalQuestion } from "../src/domain/model.ts";
+import { bytesText, changedSince, changeRereadsList, comparisonFactors, devicesText, durationText, earlierSweeps, heldFixed, kitState, labelsOf, lastActive, mechanismOf, readSamplePages, restoredByLayer, reviewProgress, runnableVersion, runOfExperiment, scoreSources, tabAfterClosing, scorerSaysWrong, sweepMeasure, throughput } from "../src/domain/research.ts";
 
 test("removing a connection says who uses it and what becomes of them", () => {
   assert.equal(removalQuestion("A", [], "model", "B"), "Remove A?");
@@ -158,4 +158,19 @@ test("a run here starts from the newest version frozen here, and an experiment b
   assert.equal(runOfExperiment(run, "e2"), null, "another experiment's run is not this one's");
   assert.equal(runOfExperiment(run, null), run, "before an experiment is chosen, the run there is");
   assert.equal(runOfExperiment(null, "e1"), null);
+});
+
+test("the browser tab names the host of the assistant's page, and nothing for a blank one", () => {
+  assert.equal(browserHost("https://arxiv.org/abs/2401.00001?x=1#a"), "arxiv.org");
+  assert.equal(browserHost("http://127.0.0.1:8080/page"), "127.0.0.1:8080");
+  assert.equal(browserHost("about:blank"), "");
+  assert.equal(browserHost(""), "");
+  assert.equal(browserHost(undefined), "");
+});
+
+test("closing a tab shows the one that took its place, or the one before the last", () => {
+  assert.equal(tabAfterClosing(["a", "b", "c"], "b"), "c");
+  assert.equal(tabAfterClosing(["a", "b", "c"], "c"), "b");
+  assert.equal(tabAfterClosing(["a"], "a"), undefined);
+  assert.equal(tabAfterClosing(["a", "b"], "z"), undefined, "a tab that is not there changes nothing");
 });

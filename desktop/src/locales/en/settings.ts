@@ -93,8 +93,6 @@ export default {
     "Agents browse in a visible Chrome (or Edge or Brave) window with Saturn's own profile, so your logins and tabs stay out of it. You can watch the cursor there.",
   "Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.":
     "Agents browse in a Safari automation window (striped address bar) without your logins. You can't click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.",
-  "Agents browse in Saturn's own browser, shown live in the chat's Browser tab with the agent's cursor.":
-    "Agents browse in Saturn's own browser, shown live with the agent's cursor in the chat's Browser tab.",
   "The interface's language. Saturn reloads to show it.": "The language of the interface. Saturn reloads to apply it.",
   ": its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.":
     ": its hooks, permission rules, and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, because a project's hooks run commands.",

@@ -3,7 +3,7 @@ import { onAskAssistant } from "../../application/assistant-requests.js";
 import { desktop } from "../../application/desktop.js";
 import { errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
 import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../../domain/chat-mode.js";
-import type { Agent, ChatMode, ContextItem, Model } from "../../domain/model.js";
+import { browserHost, type Agent, type ChatMode, type ContextItem, type Model } from "../../domain/model.js";
 import { helpRequests, workbenchState, type Screen } from "../../domain/workbench.js";
 import { hiddenContext } from "../../domain/slash.js";
 import { t } from "../../domain/i18n.js";
@@ -16,6 +16,7 @@ import { Textarea } from "../ui/base/Textarea.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { useFollow } from "../ui/useFollow.js";
 import type { WorkspaceFocus } from "../workspace/Workspace.js";
+import { useAgentBrowser } from "./AgentBrowser.js";
 import { Turn } from "./Turn.js";
 import { useConversation } from "./useConversation.js";
 
@@ -43,6 +44,9 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   // Other project files the person picked, by path.
   const [extraFiles, setExtraFiles] = useState<string[]>([]);
   const [picking, setPicking] = useState(false);
+  // The assistant's browser shows in the Workspace; while it is open, the panel says so and leads there.
+  const browser = useAgentBrowser();
+  const browsing = Boolean(browser.state?.open);
   const [fileQuery, setFileQuery] = useState("");
   const [found, setFound] = useState<string[]>([]);
   const reviewing = Boolean(focus?.sample && !focus.file);
@@ -166,6 +170,12 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     <div className="flex min-h-0 flex-1 flex-col bg-panel">
       <div className="flex min-h-10 flex-none items-center justify-between gap-2 border-b border-border px-3 py-1">
         <strong className="flex-none">{t("Research assistant")}</strong>
+        {browsing && props.screen !== "Workspace" ? (
+          <button type="button" className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground" title={browserHost(browser.frame?.url ?? browser.state?.url) || undefined} onClick={() => props.go("Workspace")}>
+            <span className="size-1.5 flex-none animate-pulse rounded-full bg-good" aria-hidden="true" />
+            <span className="truncate">{t("Browsing · watch in Workspace")}</span>
+          </button>
+        ) : null}
         <div className="ml-auto flex-none" data-tour="assistant-mode">
           <Choice ariaLabel={t("How much the assistant may do in this chat")} triggerClassName={MODE_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label, hint: item.hint }))} onChange={(next) => void chooseMode(next as ChatMode)} />
         </div>

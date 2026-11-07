@@ -1045,6 +1045,13 @@ export function runOfExperiment<T extends Pick<ExperimentRun, "experimentId">>(r
   return run && (!experimentId || run.experimentId === experimentId) ? run : null;
 }
 
+/** The tab shown after one is closed: the one that took its place, or the one before it when it was last. */
+export function tabAfterClosing(tabs: readonly string[], closed: string): string | undefined {
+  const at = tabs.indexOf(closed);
+  const rest = tabs.filter((item) => item !== closed);
+  return at < 0 ? undefined : rest[Math.min(at, rest.length - 1)];
+}
+
 /** What a project's workbench reopens to. */
 export interface ResearchSession {
   file?: string;
@@ -1052,6 +1059,8 @@ export interface ResearchSession {
   firstStudyHidden?: boolean;
   /** The Workspace's open folders, so its file tree reopens as it was. */
   treeOpen?: string[];
+  /** The files open as tabs in the Workspace, in order. */
+  tabs?: string[];
   experimentId?: string;
   runId?: string;
   /** A draft not saved yet, with the revision it was based on. */
