@@ -6,6 +6,8 @@
 export type Inline =
   | { kind: "text"; text: string }
   | { kind: "code"; text: string }
+  /** A TeX formula in the line, between `$` or `\(` `\)`. */
+  | { kind: "math"; text: string }
   | { kind: "strong"; children: Inline[] }
   | { kind: "em"; children: Inline[] }
   | { kind: "strike"; children: Inline[] }
@@ -21,6 +23,8 @@ export type Block =
   | { kind: "list"; ordered: boolean; start: number; items: ListItem[] }
   | { kind: "quote"; blocks: Block[] }
   | { kind: "code"; lang: string; text: string }
+  /** A TeX formula on its own, between `$$` or `\[` `\]`. */
+  | { kind: "math"; text: string }
   | { kind: "table"; header: Inline[][]; rows: Inline[][][] }
   | { kind: "rule" };
 
@@ -31,6 +35,7 @@ const BULLET = /^(\s*)([-*+])\s+(.*)$/;
 const NUMBERED = /^(\s*)(\d{1,9})[.)]\s+(.*)$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
 const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const MATH_OPEN = /^\s{0,3}(\$\$|\\\[)\s*(.*)$/;
 const TABLE_RULE = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 
 /** The blocks of a Markdown text. */
@@ -63,6 +68,31 @@ function parseBlocks(lines: string[]): Block[] {
       }
       index += 1;
       blocks.push({ kind: "code", lang: fence[3] ?? "", text: body.join("\n") });
+      continue;
+    }
+    const math = line.match(MATH_OPEN);
+    if (math) {
+      const close = math[1] === "$$" ? "$$" : "\\]";
+      const first = math[2] ?? "";
+      const end = first.indexOf(close);
+      if (end >= 0 && first.slice(end + close.length).trim() === "") {
+        blocks.push({ kind: "math", text: first.slice(0, end).trim() });
+        index += 1;
+        continue;
+      }
+      const body: string[] = first ? [first] : [];
+      index += 1;
+      while (index < lines.length && !(lines[index] ?? "").includes(close)) {
+        body.push(lines[index] ?? "");
+        index += 1;
+      }
+      if (index < lines.length) {
+        const last = lines[index] ?? "";
+        const before = last.slice(0, last.indexOf(close));
+        if (before.trim()) body.push(before);
+        index += 1;
+      }
+      blocks.push({ kind: "math", text: body.join("\n").trim() });
       continue;
     }
     const heading = line.match(HEADING);
@@ -123,7 +153,7 @@ function closesFence(line: string, marker: string): boolean {
 
 /** Whether a line opens a block other than a paragraph, so a paragraph ends before it. */
 function startsBlock(line: string, next: string): boolean {
-  return FENCE.test(line) || HEADING.test(line) || RULE.test(line) || QUOTE.test(line) || !!listItem(line) || (TABLE_ROW.test(line) && TABLE_RULE.test(next));
+  return FENCE.test(line) || MATH_OPEN.test(line) || HEADING.test(line) || RULE.test(line) || QUOTE.test(line) || !!listItem(line) || (TABLE_ROW.test(line) && TABLE_RULE.test(next));
 }
 
 /** A line's list marker, if it is an item: its indent, whether it is numbered, its number and its text. */
@@ -205,6 +235,14 @@ export function parseInline(text: string): Inline[] {
       rest = rest.slice(code[0].length);
       continue;
     }
+    // A formula: `$$…$$` or `\(…\)` anywhere, and `$…$` when it opens and closes against a non-space and is not a price.
+    const math = rest.match(/^\$\$([^$]+?)\$\$/) ?? rest.match(/^\\\(([\s\S]+?)\\\)/) ?? rest.match(/^\$(?=[^\s$])([^$\n]*?[^\s$\\])\$(?![0-9])/);
+    if (math) {
+      flush();
+      result.push({ kind: "math", text: (math[1] ?? "").trim() });
+      rest = rest.slice(math[0].length);
+      continue;
+    }
     const link = rest.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/);
     if (link) {
       flush();
@@ -268,6 +306,7 @@ function blockText(block: Block): string {
     case "quote":
       return block.blocks.map(blockText).join("\n");
     case "code":
+    case "math":
       return block.text;
     case "table": {
       const rows: Inline[][][] = [block.header, ...block.rows];
@@ -279,5 +318,5 @@ function blockText(block: Block): string {
 }
 
 export function inlineText(inlines: Inline[]): string {
-  return inlines.map((inline) => (inline.kind === "text" || inline.kind === "code" ? inline.text : inlineText(inline.children))).join("");
+  return inlines.map((inline) => (inline.kind === "text" || inline.kind === "code" || inline.kind === "math" ? inline.text : inlineText(inline.children))).join("");
 }

@@ -55,3 +55,15 @@ test("a list ends at a paragraph, and an item's continuation line stays with it"
   assert.equal(inlineText(blocks[0].items[0].children), "first item\ngoes on");
   assert.equal(blocks[0].items.length, 2);
 });
+
+test("formulas are read between dollars and TeX brackets, and a price is not one", () => {
+  const blocks = parseMarkdown("The loss is $L = \\frac{1}{n}\\sum_i \\ell_i$ here.\n\n$$\nE = mc^2\n$$\n\n\\[ a^2 + b^2 = c^2 \\]\n\nIt costs $5 and $10 together.");
+  assert.deepEqual(blocks.map((block) => block.kind), ["paragraph", "math", "math", "paragraph"]);
+  assert.deepEqual(blocks[0].children.map((inline) => inline.kind), ["text", "math", "text"]);
+  assert.equal(blocks[0].children[1].text, "L = \\frac{1}{n}\\sum_i \\ell_i");
+  assert.equal(blocks[1].text, "E = mc^2");
+  assert.equal(blocks[2].text, "a^2 + b^2 = c^2");
+  assert.equal(blocks[3].children.length, 1, "two prices are not a formula");
+  assert.equal(parseInline("inline $$x$$ display and \\(y\\) too").filter((inline) => inline.kind === "math").length, 2);
+  assert.equal(hasMarkdown("Only $x^2$."), true);
+});

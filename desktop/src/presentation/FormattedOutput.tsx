@@ -1,3 +1,5 @@
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import { useState, type ReactNode } from "react";
 import { t } from "../domain/i18n.js";
 import { parseMarkdown, type Block, type Inline } from "../domain/markdown.js";
@@ -43,6 +45,8 @@ function Blocks(props: { block: Block }) {
       );
     case "code":
       return <CodeSnippet lang={block.lang} code={block.text} />;
+    case "math":
+      return <Formula text={block.text} display />;
     case "table":
       return (
         <div className="overflow-x-auto">
@@ -71,6 +75,8 @@ function inlines(items: Inline[]): ReactNode[] {
         return inline.text;
       case "code":
         return <code key={index} className={CODE}>{inline.text}</code>;
+      case "math":
+        return <Formula key={index} text={inline.text} />;
       case "strong":
         return <strong key={index} className="font-semibold">{inlines(inline.children)}</strong>;
       case "em":
@@ -81,6 +87,16 @@ function inlines(items: Inline[]): ReactNode[] {
         return <a key={index} href={inline.href} target="_blank" rel="noreferrer" title={inline.href} className="text-primary underline underline-offset-2">{inlines(inline.children)}</a>;
     }
   });
+}
+
+/**
+ * A formula set by KaTeX. Its output is markup KaTeX builds itself from the formula, with nothing from the formula
+ * trusted (`trust` stays off, so no links or images); a formula it cannot read is shown as written, in red.
+ */
+function Formula(props: { text: string; display?: boolean }) {
+  const html = katex.renderToString(props.text, { displayMode: props.display ?? false, throwOnError: false, output: "html", strict: "ignore" });
+  // eslint-disable-next-line react/no-danger
+  return <span className={props.display ? "block overflow-x-auto py-1" : undefined} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 function CodeSnippet(props: { lang: string; code: string }) {
