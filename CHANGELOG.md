@@ -19,7 +19,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
-- **Sixteen more bundled skills for the research assistant**, on what a safety lab evaluates and how it finishes work: red teaming, safety benchmarks, behavioral evaluations (sycophancy, deception, sandbagging, reward hacking), agentic evaluations; linear probes, steering vectors, circuit discovery and the tuned lens; reward models and RL, ablation studies, scaling and efficiency (scaling fits, distillation, quantization) and model cards; human evaluation with inter-rater agreement, replication review, data provenance and paper writing.
+- **Formulas are set in the assistant's answers.** `$…$`, `$$…$$`, `\(…\)` and `\[…\]` in an answer are drawn as mathematics (by KaTeX, with nothing in a formula trusted); a formula KaTeX cannot read is shown as written. Two prices in a sentence are not a formula.
+- **TeX and Lean files are highlighted in the Workspace.** `.tex`, `.sty`, `.cls` and `.bib` show commands, environments, comments and formulas apart; `.lean` shows declarations, tactics, nested comments, `#` commands, and `sorry` underlined as what it is. Both readers are Saturn's own.
+- **A skill for Lean 4 proofs**, `lean-proofs`: checking proofs as runs, evaluating a model that writes them, and accepting nothing with `sorry`, a new axiom or a statement nobody read. The paper-writing skill says how to compile a LaTeX draft as a run, into the run's output, so the PDF is tied to the sources that made it.
+- **Seventeen more bundled skills for the research assistant**, on what a safety lab evaluates and how it finishes work: red teaming, safety benchmarks, behavioral evaluations (sycophancy, deception, sandbagging, reward hacking), agentic evaluations; linear probes, steering vectors, circuit discovery and the tuned lens; reward models and RL, ablation studies, scaling and efficiency (scaling fits, distillation, quantization) and model cards; human evaluation with inter-rater agreement, replication review, data provenance and paper writing.
 
 ## 0.5.0 (2026-11-07)
 

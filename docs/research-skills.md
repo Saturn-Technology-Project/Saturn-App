@@ -145,3 +145,11 @@ What stands between a result and a conclusion others can use.
 | `replication-review` | Check a finding with a second-reader pass and a pre-registered replication before its conclusion stands. Read before calling a result a conclusion. |
 | `data-provenance` | Record where each dataset came from, its license, personal data, version and transformations, in a datasheet frozen with the version. Read before declaring a data file. |
 | `paper-writing` | Turn a study report into a paper draft whose every number and figure traces to a run, leaving the author's decisions to the person. Read when a study is to be written up for others. |
+
+## Formal methods
+
+Where the checker is the scorer, and what it still does not check.
+
+| Skill | What it is for |
+|---|---|
+| `lean-proofs` | Check Lean 4 proofs as runs, evaluate a model that writes them, and accept only what the checker accepts without sorry or new axioms. Read before any formal proof or autoformalization work. |

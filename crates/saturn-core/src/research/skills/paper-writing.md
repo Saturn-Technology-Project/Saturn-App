@@ -35,6 +35,20 @@ A limitation known and left out is the one a reviewer finds.
 ## Related work
 Only sources from a `literature-review` finding that the person confirmed, each opened in this session or in that review. No citation from memory, no filled-in venue or year, no URL that was not visited. A gap in the related work is written as a gap.
 
+## Compiling
+A LaTeX draft is compiled as a run, so the PDF is tied to the sources that made it:
+- The command is the project's own compiler, `tectonic main.tex` or `latexmk -pdf main.tex`, with the paper's files in
+  `inputs.code` and the figures and tables in `inputs.data`. A sandboxed run cannot write beside the sources: compile
+  into `SATURN_RUN_OUTPUT` (`tectonic --outdir "$SATURN_RUN_OUTPUT" main.tex`, or `latexmk -outdir=...`), and write one
+  sample line saying whether it compiled, with the warning count in `scores`.
+- An artifact is a figure, JSON, notebook or reference, so the PDF itself is not registered: it stays in the run's
+  `written/` folder with the run's record, and a finding names the run, which names the sources by hash. The compile
+  log is JSON-free too; keep it beside the PDF. Copying the PDF into the project is the person's, or a run with the
+  sandbox off; the Workspace shows a PDF in the project.
+- Saturn does not bring a TeX distribution: ask the person to install tectonic or TeX Live, and name the program in the
+  command by absolute path when the shell's `PATH` is bare. A formula in a finding or a chat is written in `$…$` and is
+  shown set; the `.tex` file is highlighted in the Workspace.
+
 ## The person's decisions
 Authorship and its order, the venue, which claims to make and how strongly, whether a dataset's terms allow publication, and whether to release weights or data are theirs. Write the draft with the claims the findings support, and mark each place where a decision is needed with a visible note. Do not fill in authors, affiliations or acknowledgements.
 

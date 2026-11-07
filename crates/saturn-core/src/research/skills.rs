@@ -3,7 +3,7 @@
 //! them for people.
 
 /// Every skill, by name, in the order a study meets them.
-const SKILLS: [(&str, &str); 67] = [
+const SKILLS: [(&str, &str); 68] = [
     (
         "research-autopilot",
         include_str!("skills/research-autopilot.md"),
@@ -194,6 +194,7 @@ const SKILLS: [(&str, &str); 67] = [
     ),
     ("data-provenance", include_str!("skills/data-provenance.md")),
     ("paper-writing", include_str!("skills/paper-writing.md")),
+    ("lean-proofs", include_str!("skills/lean-proofs.md")),
 ];
 
 /// Every bundled skill: its name and its whole file.
