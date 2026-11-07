@@ -18,28 +18,29 @@ An experiment is a command. Saturn runs it and reads one JSON object per line fr
 - Optional: `scorerLabel` (the scorer's verdict in the words a person labels with), `expected` (what it compared with), `alternative` (the other word, for a two-way scorer: needed for logit margins in sweeps), `usage` (`inputTokens`, `outputTokens`, `deviceMemoryBytes`).
 
 ## A starting point
+Do not write the record-keeping yourself. `research_template` with `name: "saturn_run"` gives `saturn_run.py`, a file
+with no dependencies: write it into the project with your file tools, name it in `inputs.code`, and import it.
 ```python
-import json, os, sys
+from saturn_run import Run
 
-path = os.environ["SATURN_RUN_SAMPLES"]
-output_folder = os.environ["SATURN_RUN_OUTPUT"]
-
-def write_sample(out, **fields):
-    line = {"schemaVersion": 1, "trial": 0, "error": None, **fields}
-    out.write(json.dumps(line, ensure_ascii=False) + "\n")
-    out.flush()
-
-with open(path, "a", encoding="utf-8") as out:
-    for example in load_examples():
-        try:
-            answer = run_model(example)
-            write_sample(out, sampleId=example["id"], modelId=MODEL_ID, input=example["prompt"],
-                         output=answer, scores={"correct": answer.strip() == example["answer"]},
-                         expected=example["answer"])
-        except torch.cuda.OutOfMemoryError as error:
-            write_sample(out, sampleId=example["id"], modelId=MODEL_ID, input=example["prompt"],
-                         error={"kind": "infrastructure", "message": str(error)})
+run = Run()                      # reads SATURN_RUN_*; outside Saturn it writes to ./saturn-run/
+seed = run.seed()                # the version's first seed, applied to random/numpy/torch and reported
+run.report("model", source="huggingface", id=MODEL_NAME, revision=model.config._commit_hash)
+for example in load_examples():
+    if run.finished(example["id"]):   # a resumed run skips what came along
+        continue
+    try:
+        answer = run_model(example)
+        run.sample(example["id"], model_id=MODEL_ID, input=example["prompt"], output=answer,
+                   scores={"correct": answer.strip() == example["answer"]}, expected=example["answer"])
+    except torch.cuda.OutOfMemoryError as error:
+        run.sample(example["id"], model_id=MODEL_ID, input=example["prompt"],
+                   error={"kind": "infrastructure", "message": str(error)})
 ```
+`run.metric(step, loss=…)`, `run.checkpoint(path, step=…)`, `run.artifact(path, kind)` and `run.on_stop(save)` write the
+other records the same way. For a whole study there is usually a template to start from (`research_template` with no
+name lists them): a harness wrapper, a red-team harness, a trajectory recorder, a Lean checker, a probe trainer, a
+steering sweep, a training loop, a paper compiler. Copy one, change it where it says `# Change here:`, keep the rest.
 
 ## Rules
 - **Append only.** Never rewrite earlier lines. Saturn notices a rewrite and warns.

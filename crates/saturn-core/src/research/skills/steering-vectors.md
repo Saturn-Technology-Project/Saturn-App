@@ -7,6 +7,8 @@ description: Build a direction from contrastive prompts or a probe, add it at a 
 A steering vector is a direction in the residual stream, added at one layer during the forward pass and scaled by a coefficient. It is a causal test of a direction and a tool. It is not a mechanism claim on its own.
 
 ## Building the direction
+`research_template` with `name: "steering_sweep"` builds a difference-of-means direction, adds it with a hook, sweeps coefficients with the controls below and writes one sample per prompt and coefficient. Start from it.
+
 - **Difference of means**: two prompt sets that differ in the property and match otherwise, the mean activation of each at a chosen layer and position, and their difference. Dozens of pairs at least; report how many. For a run's samples, `research_inspect` `action: "activations"` with `save` keeps each sample's raw layers as an `.npz` in the project (see `linear-probes`); for prompts of your own, a hook script.
 - **A probe's weights**: the direction a probe learned. See `linear-probes`. A direction that separates classes need not be one that moves behavior, so test it the same way.
 - Build it on one prompt set and test on another. A direction tested on the prompts that built it is overfit by construction.

@@ -23,7 +23,7 @@ method skill: it says how to measure, and writes no attack prompt and no harmful
   person can add. Nothing else that could be a credential reaches it.
 
 ## The attack set
-Three layers, each a declared data file in `inputs.data`, so it is frozen and hashed:
+`research_template` with `name: "red_team"` is a harness that reads the three layers below from the person's files, runs trials, scores with a pluggable scorer and measures the benign twins; copy it and connect the model and the scorer where it says. Three layers, each a declared data file in `inputs.data`, so it is frozen and hashed:
 1. **Static prompts**: a fixed set of known attacks by category, with a benign twin per category so over-refusal is
    measured too.
 2. **Templated attacks**: a base request wrapped in a transformation (role play, encoding, a many-turn setup). Keep the

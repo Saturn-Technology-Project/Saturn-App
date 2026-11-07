@@ -8,6 +8,7 @@ description: Train a base model from scratch as a Saturn experiment, with checkp
 Parameters and steps decide everything. On one consumer device, think small: tens of millions of parameters at most, and tokens in the hundreds of millions at most. Pick the question first: a small model that answers it beats a large one that never finishes. Publish the arithmetic: tokens per second measured × budget.
 
 ## The program
+Start from `research_template` `train_loop` (see `training-smoke-test`), which already writes metrics, checkpoints and the resume report through `saturn_run`.
 - Read a tokenized dataset as memory-mapped arrays, sampling random windows. Tokenize once, separately.
 - Use AdamW with weight decay on weights, and none on norms and biases.
 - Warm up the learning rate linearly, then decay it by cosine. Start near 3e-4 for small transformers, and find it with a short sweep.

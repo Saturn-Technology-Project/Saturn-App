@@ -10,6 +10,7 @@ The loop for an independent study. Each stage names the skill to read before doi
 1. `research_read` with `what: "status"`. Continue what exists rather than duplicating it. If the person already has result files, bring them in first: see `importing-results`.
 2. Check you can act: in an Ask chat you only read, in an Approve chat every change waits for the person. A long study belongs in a task, whose work stays apart until the person merges it: see `starting-tasks`. See `modes-and-boundaries` and `task-worktrees`.
 3. Agree the limits in one message if the person gave none: the question, the compute budget, and how long you may run. If you cannot ask, take the smallest reasonable budget and write it down in your first finding. See `compute-budget`.
+4. Before writing any program, `research_template` with no name: start from the template for the kind of study, and import `saturn_run` for the records. See `experiment-program`.
 
 ## The stages
 | Stage | What comes out of it | Skills |

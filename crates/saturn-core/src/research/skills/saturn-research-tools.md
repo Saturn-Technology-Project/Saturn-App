@@ -72,5 +72,8 @@ Experiments, and one that a finding or other record refers to is not moved: the 
 ## Skills: `research_skill`
 With no name, lists them. A project's own skill of the same name is used first.
 
+## Programs to start from: `research_template`
+With no name, lists them; with a name, the file's text and where it usually goes. `saturn_run` is the SDK every program imports (samples, metrics, report, checkpoints, artifacts, seeds, stopping, resuming). The others are whole programs to copy and change: `eval_harness`, `red_team`, `trajectory`, `lean_check`, `probe_train`, `steering_sweep`, `train_loop`, `compile_paper`. Write the copy into the project with your file tools and name it in `inputs.code`; it is then the project's program, frozen with each version. See `experiment-program`.
+
 ## Your program and the run
 A run's command gets where to write: `SATURN_RUN_SAMPLES`, `SATURN_RUN_METRICS`, `SATURN_RUN_ARTIFACTS` and `SATURN_RUN_REPORT` (one JSON object per line each), `SATURN_RUN_OUTPUT` (its files) and `SATURN_RUN_DIRECTORY` (the run's folder, which holds them all); what it is: `SATURN_RUN_ID`, `SATURN_RUN_VERSION`, `SATURN_RUN_TOKEN`, `SATURN_RUN_SEED` and `SATURN_RUN_SEEDS`; and, when it resumes a run, `SATURN_RESUME_FROM`, `SATURN_RESUME_RUN` and `SATURN_RESUME_DIRECTORY`. See `experiment-program`, `run-provenance` and `pause-and-resume`.

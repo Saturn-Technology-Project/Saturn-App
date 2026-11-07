@@ -8,6 +8,7 @@ An agent run is many model calls and many actions for one task. Saturn sees one 
 it is a file the sample points to.
 
 ## One trajectory per sample
+`research_template` with `name: "trajectory"` is a recorder to start from: budgets, an allowed-tool table, one trajectory file per sample, outcome and process scores apart. Connect the policy where it says.
 - `sampleId` is the task id and `trial` the attempt; `input` the task statement, `output` the final answer or state.
 - Write the whole step log (every prompt, reply, tool call, tool result, timestamp and token count) as one JSON file per
   sample under `SATURN_RUN_OUTPUT`, such as `written/trajectories/<sampleId>-<trial>.json`, and name the path in the

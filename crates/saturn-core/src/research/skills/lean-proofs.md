@@ -20,6 +20,7 @@ around it still does: the statement must mean what was asked, and the proof must
   `PATH` is bare, as on an SSH host. See `environment-setup` and `remote-runs`.
 
 ## Checking a proof as a run
+`research_template` with `name: "lean_check"` does what follows: one sample per file, `sorry` and axiom checks, timeouts, the checker's output saved. Point it at the project and the files.
 One sample per theorem or file: `sampleId` is the declaration's name, `scores.accepted` is whether `lean` exited 0
 with no error, and `scores.sorry` and `scores.axioms` come from reading the output. `error.kind: "infrastructure"` is
 for a toolchain or timeout failure, not a wrong proof. The checker's messages go to `SATURN_RUN_OUTPUT`, one file per

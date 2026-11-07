@@ -42,7 +42,7 @@ for sample in samples:
         continue
     ...
 ```
-A program that does not skip writes the same identities twice, and the run ends as `protocol_error`.
+A program that does not skip writes the same identities twice, and the run ends as `protocol_error`. With the SDK (`research_template` `saturn_run`), `run.finished(sample_id)` is that check, `run.resume_from` the checkpoint, and `run.report("resume", …)` the report.
 
 **Training.** `SATURN_RESUME_FROM` names the checkpoint to restore: the one given, or by default the last entry of kind `checkpoint` in the resumed run's `SATURN_RUN_ARTIFACTS`. List each checkpoint there as you save it, with its step:
 ```python

@@ -36,7 +36,7 @@ A limitation known and left out is the one a reviewer finds.
 Only sources from a `literature-review` finding that the person confirmed, each opened in this session or in that review. No citation from memory, no filled-in venue or year, no URL that was not visited. A gap in the related work is written as a gap.
 
 ## Compiling
-A LaTeX draft is compiled as a run, so the PDF is tied to the sources that made it:
+A LaTeX draft is compiled as a run, so the PDF is tied to the sources that made it. `research_template` with `name: "compile_paper"` is that run's command: it picks tectonic or latexmk, compiles into the run's output and writes the sample line and the artifact entry below.
 - The command is the project's own compiler, `tectonic main.tex` or `latexmk -pdf main.tex`, with the paper's files in
   `inputs.code` and the figures and tables in `inputs.data`. A sandboxed run cannot write beside the sources: compile
   into `SATURN_RUN_OUTPUT` (`tectonic --outdir "$SATURN_RUN_OUTPUT" main.tex`, or `latexmk -outdir=...`), and write one

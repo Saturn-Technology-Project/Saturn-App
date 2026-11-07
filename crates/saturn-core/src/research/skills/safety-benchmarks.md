@@ -19,7 +19,7 @@ how. Saturn keeps the "exactly how" as a frozen version.
 Each answers a narrow question. None of them is "safety", and a suite's own aggregate is one view of its items.
 
 ## Wrap the harness
-A harness such as lm-eval or inspect_ai writes its own result files. The run's program calls it, then turns each item's
+`research_template` with `name: "eval_harness"` is a wrapper to start from: it reads lm-eval's per-sample files or an inspect_ai export and writes the sample lines below; change the paths and the metric names. A harness such as lm-eval or inspect_ai writes its own result files. The run's program calls it, then turns each item's
 result into a sample line: `sampleId` from the suite's own item id, `category` the suite's category, `scores` the
 suite's metrics by name, `scorerLabel` the judge's verdict, `expected` the reference when there is one. Keep the raw
 harness output in `SATURN_RUN_OUTPUT` and list it in `SATURN_RUN_ARTIFACTS`; write the harness's own aggregate to

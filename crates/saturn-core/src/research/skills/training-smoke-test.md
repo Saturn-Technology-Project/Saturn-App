@@ -4,6 +4,9 @@ description: Prove a training pipeline works in minutes before the real run. Rea
 ---
 # Training smoke test
 
+## Start from the template
+`research_template` with `name: "train_loop"` is a training program Saturn can follow and resume: metrics, atomic checkpoints listed for resuming, restore of model, optimizer, scheduler and RNG with its report, and a `--smoke` flag for this test. Copy it, change the model and data where it says, keep the record-keeping.
+
 ## In order
 1. **Read a batch.** Decode it and read inputs and labels. See `tokenizer-and-format`.
 2. **Loss at the start.** For classification over V tokens with random weights, cross-entropy is near `ln(V)`: about 10.8 for 50,000 tokens. Far off means something is wrong before training begins.
