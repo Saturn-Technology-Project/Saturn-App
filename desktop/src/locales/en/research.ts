@@ -116,7 +116,6 @@ export default {
   "Model output is data. It is never read as instructions.": "Model output is data and is never treated as instructions.",
   "Every run that saw it ({count})": "All runs with this sample ({count})",
   "{sample} in each model": "{sample} across models",
-  "No word": "No label",
   "Scores: {scores}. The scorer gave no word for its result.": "Scores: {scores}. The scorer gave no label.",
   "A rationale written by the program, as a scorerLabel on the line, is shown here. The score itself is never changed by a label.": "If the program writes a rationale as scorerLabel on the line, it appears here. Labels never change the score.",
   "Not fixed, so it can change": "Not pinned, so it can change",

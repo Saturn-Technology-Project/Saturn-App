@@ -9,6 +9,7 @@ import { sampleIdParts,
   reviewProgress,
   runHasResults,
   runStatusLabel,
+  sampleModel,
   sampleText,
   type AcrossRow,
   type ExperimentRun,
@@ -103,10 +104,6 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
   const runs = value?.runs ?? [];
   const run = runs.find((item) => item.id === runId) ?? null;
   const choicesFor = (id: string) => labelsOf(value?.drafts.find((draft) => draft.id === runs.find((item) => item.id === id)?.experimentId));
-  const modelName = (id: string | null | undefined) => {
-    const model = value?.models.find((item) => item.id === id);
-    return model ? model.name || model.source : t("Unnamed model");
-  };
 
   // Another screen may have asked for a run, a sample and a filter; otherwise the newest run with results.
   useEffect(() => {
@@ -264,6 +261,8 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
     props.go("Inspect");
   }
   const version = (id: string | undefined) => value?.versions.find((item) => item.id === id);
+  /** Which model a line is about, worked out from the version when the line does not say. */
+  const modelOf = (id: string | null | undefined, versionId: string | undefined) => sampleModel(id, version(versionId), value?.models ?? []);
   const runVersion = run ? version(run.versionId) : undefined;
   const factors = comparisonFactors(runVersion?.evaluation, rows.find((row) => row.runId !== runId)?.comparison ?? null);
 
@@ -417,9 +416,9 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                         <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
                           <div className="flex min-w-0 flex-1 flex-col gap-1">
                             <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
-                              <strong className="text-sm font-semibold">{modelName(line.modelId)}</strong>
+                              <strong className="text-sm font-semibold" title={modelOf(line.modelId, row.versionId).note}>{modelOf(line.modelId, row.versionId).name}</strong>
                               {allRuns ? <span className={MUTED}><code>{row.runId}</code> · v{version(row.versionId)?.number ?? "?"}</span> : null}
-                              <span className={MUTED}>{t("Scorer")}: {line.scorerLabel ?? t("No word")}</span>
+                              {line.scorerLabel ? <span className={MUTED}>{t("The scorer called it {word}", { word: line.scorerLabel })}</span> : null}
                             </div>
                             {line.scores ? (
                               <div className="flex flex-wrap gap-1" aria-label={t("Scores")}>
@@ -434,7 +433,7 @@ export function Samples(props: ScreenProps & { onReview: (item: SampleItem | nul
                             {line.error ? <div className={WARNING}>{t("{kind} error", { kind: line.error.kind })}{line.error.message ? `: ${line.error.message}` : ""}</div> : null}
                           </div>
                           <div className="flex flex-col items-end gap-1">
-                            <div className={classes(SEGMENTS, "flex-wrap justify-end")} role="group" aria-label={t("Your label for {model} in {run}", { model: modelName(line.modelId), run: row.runId })}>
+                            <div className={classes(SEGMENTS, "flex-wrap justify-end")} role="group" aria-label={t("Your label for {model} in {run}", { model: modelOf(line.modelId, row.versionId).name, run: row.runId })}>
                               {choicesFor(row.runId).map((item) => {
                                 const chosen = labelOf(labelsFor(row.runId), line) === item;
                                 return (

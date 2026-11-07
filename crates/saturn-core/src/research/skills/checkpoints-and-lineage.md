@@ -15,6 +15,8 @@ Newest, best by validation, and a few at planned steps. Weights take room, so de
 
 A resumable checkpoint holds model, optimizer, schedule step and random state. A model record only needs the weights.
 
+List each resumable checkpoint in `SATURN_RUN_ARTIFACTS` as you save it, with `kind: "checkpoint"` and its `step`: a resume of the run restores the last one listed. See `pause-and-resume`.
+
 ## Saving
 ```python
 model.save_pretrained(folder, safe_serialization=True)

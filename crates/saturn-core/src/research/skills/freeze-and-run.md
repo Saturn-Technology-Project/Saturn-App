@@ -36,7 +36,7 @@ While it runs, `research_wait` gives resources: elapsed time, processor, memory,
 - The GPU is in use, if there should be one.
 - `what: "log", stream: "stderr"` shows no repeating error.
 
-Stop early if it is failing: `research_run { action: "stop", run }`. Complete samples are kept.
+Stop early if it is failing: `research_run { action: "stop", run }`. Complete samples are kept, and a run stopped for a reason outside it, such as a busy GPU, can be resumed later. To free the machine for a while without losing the run's place, pause it. See `pause-and-resume`.
 
 ## When it ends
 Read, in order:

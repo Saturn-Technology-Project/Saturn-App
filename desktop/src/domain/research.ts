@@ -125,7 +125,7 @@ export interface FrozenVersion extends ResearchRecord {
   models?: { modelId: string; role: ModelRole; source: string; weightsRevision: string | null; floating: boolean; revisionKind?: "commit" | "hash" | "name" | "none"; weightsSha256?: string }[];
 }
 
-export type RunStatus = "starting" | "running" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
+export type RunStatus = "starting" | "running" | "paused" | "stopping" | "stopped" | "completed" | "failed" | "interrupted" | "protocol_error";
 
 export interface ExperimentRun extends ResearchRecord {
   archived?: boolean;
@@ -156,6 +156,13 @@ export interface ExperimentRun extends ResearchRecord {
   samplesPerModel?: number;
   /** What the runtime noticed at the end: a sample count unlike the last comparable run's, for one. */
   warnings?: string[];
+  /** When the run was paused, while it is. */
+  pausedAt?: string;
+  /** How long the run has spent paused, in all. */
+  pausedSeconds?: number;
+  /** The run this one takes over from, and what came along from it. */
+  resumes?: string;
+  carried?: { run: string; samples: number; metrics: number; sha256: string; checkpoint: string | null; step: number | null };
 }
 
 /** One file a run's snapshot held: how it got there, and its hash. */
@@ -232,6 +239,9 @@ export interface ResearchImportPreview {
 
 /** One training event, separate from a scored evaluation sample. */
 export interface TrainingMetric { step: number; values: Record<string, number> }
+
+/** A page of training metrics: `next` when another page is there now, `end` where its whole lines stop, to follow a running run from. */
+export interface TrainingMetricsPage { items: TrainingMetric[]; next: number | null; end: number }
 
 /** A fixed pair of runs/models and a numeric score, with explicit score direction. */
 export interface PairedComparisonRequest {
@@ -484,9 +494,45 @@ export function scoreText(value: number | null | undefined): string {
   return value === null || value === undefined ? t("No score") : Number(value.toFixed(3)).toString();
 }
 
+/**
+ * Which model a sample line is about, in words, with a note when that needed working out. A line that names a model
+ * gets its name (or its source, or the id itself when no such model is recorded); a line that names none belongs to
+ * the version's one model when it has exactly one; otherwise it says the model was not recorded, and why.
+ */
+export function sampleModel(modelId: string | null | undefined, version: Pick<FrozenVersion, "models"> | undefined, models: readonly Pick<ModelNode, "id" | "name" | "source">[]): { name: string; note?: string } {
+  const named = (id: string) => {
+    const model = models.find((item) => item.id === id);
+    return model ? model.name || model.source : undefined;
+  };
+  if (modelId) return named(modelId) !== undefined ? { name: named(modelId)! } : { name: modelId, note: t("No model with this id is recorded under Models.") };
+  const bound = version?.models ?? [];
+  if (bound.length === 1) return { name: named(bound[0].modelId) ?? bound[0].source, note: t("The line names no model; the version has only this one.") };
+  return {
+    name: t("Model not recorded"),
+    note: bound.length ? t("The line names no model, and the version has {count}. Have the program write modelId on each line.", { count: bound.length }) : t("The line names no model, and the version names none. Add the model to the experiment, or have the program write modelId."),
+  };
+}
+
 /** Whether a run can still change. */
 export function isRunActive(status: RunStatus): boolean {
-  return status === "starting" || status === "running" || status === "stopping";
+  return status === "starting" || status === "running" || status === "paused" || status === "stopping";
+}
+
+/** Whether a run ended before its work was done, so a new run of the same version can take over from it. */
+export function canResume(run: Pick<ExperimentRun, "status" | "remote" | "imported">): boolean {
+  return !run.remote && !run.imported && (run.status === "stopped" || run.status === "interrupted" || run.status === "failed");
+}
+
+/** The run whose training metrics to show: the newest one still going, so its curve can be followed, or else the newest with results. */
+export function metricsRun<T extends { status: RunStatus }>(runs: readonly T[]): T | null {
+  return runs.filter((run) => isRunActive(run.status)).at(-1) ?? runs.filter((run) => runHasResults(run.status)).at(-1) ?? null;
+}
+
+/** At most `limit` of a curve's points, evenly spaced through it, keeping its first and last: a long run stays quick to draw. */
+export function plotPoints<T>(points: readonly T[], limit = 2000): T[] {
+  if (points.length <= limit) return [...points];
+  const gap = (points.length - 1) / (limit - 1);
+  return Array.from({ length: limit }, (_, index) => points[Math.round(index * gap)]);
 }
 
 /** A run's status in words. Execution says nothing about whether a hypothesis holds. */
@@ -494,6 +540,7 @@ export function runStatusLabel(status: RunStatus): string {
   const labels: Record<RunStatus, string> = {
     starting: t("Starting"),
     running: t("Running"),
+    paused: t("Paused"),
     stopping: t("Stopping"),
     stopped: t("Stopped"),
     completed: t("Execution completed"),

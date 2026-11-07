@@ -6,8 +6,11 @@ import {
   comparisonText,
   DEFAULT_LABELS,
   EVALUATION_FIELD_NAMES,
+  isRunActive,
+  metricsRun,
   runHasResults,
   runStatusLabel,
+  sampleModel,
   scoreSources,
   labelsOf,
   type Comparison,
@@ -44,6 +47,8 @@ import { RunSandbox } from "./RunSandbox.js";
 import { ScoreChart } from "./ScoreChart.js";
 import { ImportResults } from "./ImportResults.js";
 import { TrainingMetrics } from "./TrainingMetrics.js";
+import { RunControls } from "./RunControls.js";
+import { ExperimentTitle } from "./ExperimentTitle.js";
 import { ComparisonPanel } from "./ComparisonPanel.js";
 import { RemoteRun } from "../environment/RemoteExecution.js";
 import { Artifacts } from "./Artifacts.js";
@@ -115,6 +120,7 @@ export function Experiments(props: ScreenProps) {
   const runs = (value?.runs ?? []).filter((item) => item.experimentId === draft?.id);
   const finished = runs.filter((run) => runHasResults(run.status));
   const newest = finished.at(-1) ?? null;
+  const plotted = metricsRun(runs);
   const question = value?.questions.find((item) => item.id === draft?.questionId);
   const hypothesis = value?.hypotheses.find((item) => item.id === draft?.hypothesisId);
   const findings = (value?.findings ?? []).filter((item) => item.runIds?.some((id) => runs.some((run) => run.id === id)));
@@ -249,6 +255,7 @@ export function Experiments(props: ScreenProps) {
       )) : null}
       {draft ? (
         <>
+          <ExperimentTitle key={`${draft.id}:${draft.revision}`} title={draft.title} onRename={(title) => change({ title })} />
           <div className="mt-3 mb-4 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2" data-tour="experiments-links">
             <Choice label={t("Question")} className={STAT} value={draft.questionId ?? NOT_SET} options={[{ value: NOT_SET, label: t("Not set") }, ...(value?.questions ?? []).map((item: Question) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ questionId: chosen === NOT_SET ? undefined : chosen })} />
             <Choice label={t("Hypothesis")} className={STAT} value={draft.hypothesisId ?? NOT_SET} options={[{ value: NOT_SET, label: t("Not set") }, ...(value?.hypotheses ?? []).map((item: Hypothesis) => ({ value: item.id, label: item.title }))]} onChange={(chosen) => void change({ hypothesisId: chosen === NOT_SET ? undefined : chosen })} />
@@ -280,7 +287,7 @@ export function Experiments(props: ScreenProps) {
           </div>
 
           <ScoreChart projectId={projectId} runs={finished} versions={versions} models={value?.models ?? []} summaries={results.summaries} comparisons={results.comparisons} />
-          {newest ? <TrainingMetrics key={newest.id} projectId={projectId} runId={newest.id} notify={props.notify} /> : null}
+          {plotted ? <TrainingMetrics key={plotted.id} projectId={projectId} runId={plotted.id} live={isRunActive(plotted.status)} notify={props.notify} /> : null}
 
           {sources && newest ? (
             <>
@@ -417,7 +424,7 @@ export function Experiments(props: ScreenProps) {
               </thead>
               <tbody>
                 {[...runs].reverse().map((run: ExperimentRun) => {
-                  const named = results.summaries.find((item) => item.runId === run.id)?.models.map((model) => value?.models.find((item) => item.id === model.modelId)?.name ?? model.modelId ?? t("unnamed")) ?? [];
+                  const named = results.summaries.find((item) => item.runId === run.id)?.models.map((model) => sampleModel(model.modelId, versions.find((version) => version.id === run.versionId), value?.models ?? []).name) ?? [];
                   return (
                     <Fragment key={run.id}>
                     <tr>
@@ -428,7 +435,8 @@ export function Experiments(props: ScreenProps) {
                         {run.inputsChanged?.length ? t("{status}, {count} inputs changed during it", { status: runStatusLabel(run.status), count: run.inputsChanged.length }) : runStatusLabel(run.status)}
                         {run.archived ? <span className="ml-1 text-muted-foreground">· {t("imported archive")}</span> : null}
                         {run.imported ? <Badge tone="wait" className="ml-1" title={t("Imported from a file. Saturn did not run it, and its model, data and scorer are only described.")}>{t("Imported, not run here")}</Badge> : null}
-                        {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? t("pending")}{run.resumeFrom ? ` · ${t("resume {run}", { run: run.resumeFrom })}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{["starting", "running", "stopping"].includes(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>{t("Request stop")}</Button> : null}</div> : null}
+                        {run.remote ? <div className="my-1">SSH {run.remote.host}: {run.remoteConnection}, {run.remoteStatus ?? t("pending")}{run.resumeFrom ? ` · ${t("resume {run}", { run: run.resumeFrom })}` : ""}{run.remoteError ? <div className={WARNING}>{run.remoteError}</div> : null}{isRunActive(run.status) ? <Button variant="outline" size="small" onClick={() => void service.stopRun(projectId, run.id).then(() => refresh()).catch((error: unknown) => props.notify(messageOf(error)))}>{t("Request stop")}</Button> : null}</div> : null}
+                        <RunControls projectId={projectId} run={run} changed={() => void refresh()} notify={props.notify} />
                         {run.warnings?.map((warning) => <div key={warning} className={WARNING}>{warning}</div>)}
                         {run.sealIntact === false ? <div className={WARNING}>{t("The samples changed after the run was sealed. They no longer stand for its results.")}</div> : null}
                         {run.imported ? null : (

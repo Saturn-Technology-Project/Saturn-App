@@ -117,7 +117,9 @@ remain readable; recomputing their original request checks the source seals agai
 ## A run's life
 
 ```
-starting → running → stopping → stopped
+starting → running ⇄ paused
+              │         │
+              ├─────────┴──→ stopping → stopped
               ├────────────────→ completed | failed | protocol_error
               └────────────────→ interrupted
 ```
@@ -131,7 +133,23 @@ starting → running → stopping → stopped
 - The process is identified by its process id, its start time and a token in its environment. After the runtime restarts,
   a run left `starting` or `running` becomes `interrupted`. Its process group is ended only if the process is confirmed to
   be the same one; otherwise the run says it could not be confirmed.
-- An interrupted run keeps its complete samples. A new run can be started; resuming the same one is not offered.
+- `POST .../runs/{run}/pause` holds a local `running` run's whole process group where it is (SIGSTOP), and
+  `POST .../continue` lets it go on (SIGCONT). A paused run is still going: it keeps its memory and devices, its record
+  says `pausedAt`, and continuing adds the pause to `pausedSeconds`. Pausing twice or continuing a running run changes
+  nothing; pausing an ended run, or continuing one that is not paused, gets 409. A paused run can be stopped, and a restart
+  of the runtime ends it as `interrupted`, as it does a running one. Remote runs cannot be paused (501).
+- An interrupted run keeps its complete samples. It cannot go on as the same run, but it can be resumed:
+  `POST .../runs/{run}/resume` with a `clientId` (repeating it returns the same run), optional `checkpoint` and `step`,
+  starts a new run of the same version from a local run that is `stopped`, `interrupted` or `failed`; any other status
+  gets 409. The version's inputs are checked as for any start. The new run records `resumes` and `carried` (also in its
+  evidence as `observed.resume`, with the hash of what came along):
+  - an evaluation's whole sample lines are copied into the new run's `samples.jsonl` before its program starts, and the
+    program is expected to skip their identities;
+  - a training run's program gets `SATURN_RESUME_FROM`: the `checkpoint` given (a path in the resumed run's folder or the
+    project, 400 otherwise), or the last `{"kind": "checkpoint"}` entry of the resumed run's `artifacts.jsonl` that is still
+    there. With the checkpoint's `step` known, the metric lines up to it are copied into the new run's `metrics.jsonl`.
+  - `SATURN_RESUME_RUN` and `SATURN_RESUME_DIRECTORY` name the resumed run and its folder, which the sandbox lets the
+    program read, with the checkpoint. Whether the program skipped and restored anything is for its `resume` report to say.
 - Ending a run seals it: the hash of `samples.jsonl` is recorded, and later writes to the file do not count. Reading a
   run, its samples or its summary checks the seal again: `sealIntact: false` means the samples changed after the run
   ended, and they no longer stand for its results.

@@ -3470,7 +3470,7 @@
     "toolId": "research_run",
     "serverId": "research",
     "category": "write",
-    "description": "Run an experiment. action=freeze (experiment) makes or finds the version holding its code, data and settings as they are in this chat's folder. action=start (version, attempt) starts it and returns at once; a new attempt number runs the same version again. action=stop (run) ends a run.",
+    "description": "Run an experiment. action=freeze (experiment) makes or finds the version holding its code, data and settings as they are in this chat's folder. action=start (version, attempt) starts it and returns at once; a new attempt number runs the same version again. action=stop (run) ends a run. action=pause (run) holds a running run where it is, memory and GPU kept, and action=continue (run) lets it go on; research_wait returns as soon as a run is paused. action=resume (run, attempt, checkpoint, step) starts a new run of the same version taking over from one that stopped, was interrupted or failed: an evaluation keeps the samples it finished and its program skips them, a training run's program restores SATURN_RESUME_FROM, by default the last checkpoint the run listed in its artifacts manifest. Read the pause-and-resume skill first.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -3479,7 +3479,10 @@
        "enum": [
         "freeze",
         "start",
-        "stop"
+        "stop",
+        "pause",
+        "continue",
+        "resume"
        ]
       },
       "experiment": {
@@ -3493,6 +3496,14 @@
       },
       "run": {
        "type": "string"
+      },
+      "checkpoint": {
+       "type": "string",
+       "description": "With action=resume: the checkpoint to restore, relative to the resumed run's folder or a path in the project. Omitted: the last one the run listed."
+      },
+      "step": {
+       "type": "integer",
+       "description": "With action=resume: the training step the checkpoint was saved at, when the run's manifest does not say; metrics up to it come along."
       }
      },
      "required": [

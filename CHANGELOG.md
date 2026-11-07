@@ -4,13 +4,19 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
-### Added
-
-- **Saturn installs its own worker on an SSH host.** In Environment, Connect finds this version's worker on the host and uses it; when it is missing or another version, Install worker puts the right one in `~/.saturn/worker/<version>` in your home folder, with no administrator rights. It is this computer's own program when the host is the same kind of system, and otherwise the release's Linux worker (x86-64 or ARM), used only if it matches the hash built into this Saturn, and hashed again on the host. Releases now carry these workers. The assistant can see whether the worker is ready; installing stays yours.
-
 ### Changed
 
 - **A worker of another Saturn version is refused.** Every request now carries Saturn's version, and a check compares it, so a host can no longer run jobs with a worker that does not match the app.
+- **Samples name the model a line is about.** A line that names no model used to show "Unnamed model". It now shows the version's model when the version has only one, the model's id when that id is not recorded under Models, and otherwise "Model not recorded", with a note on how to fix it. The runs table names models the same way.
+- **"Scorer: no word" is gone from every sample line.** The scorer's word is shown only when the program wrote one; the scores are beside it either way.
+
+### Added
+
+- **Saturn installs its own worker on an SSH host.** In Environment, Connect finds this version's worker on the host and uses it; when it is missing or another version, Install worker puts the right one in `~/.saturn/worker/<version>` in your home folder, with no administrator rights. It is this computer's own program when the host is the same kind of system, and otherwise the release's Linux worker (x86-64 or ARM), used only if it matches the hash built into this Saturn, and hashed again on the host. Releases now carry these workers. The assistant can see whether the worker is ready; installing stays yours.
+- **A run can be paused and continued.** A running experiment can be held where it is and let go on later, from its row in Experiments or by the assistant. It keeps its memory, and the GPU's, while paused, and the run says how long it spent paused. A paused run can still be stopped.
+- **A run that stopped, was interrupted or failed can be resumed.** Resuming starts a new run of the same version that takes over where the old one was: an evaluation keeps the samples it finished, and its program skips them; a training run's program restores the last checkpoint the run listed, and its curve goes on from that step. The new run, and its evidence, say which run it resumed and what came along. The assistant can pause, continue and resume runs too, and a new skill tells it how, and how to write a program that can be resumed.
+- **An experiment can be renamed.** The experiment page now shows the experiment's name above its question and hypothesis, and changing it there renames it; its versions and runs stay with it. A blank name is not saved, and a change made meanwhile elsewhere, by the assistant for one, is reported rather than overwritten.
+- **Training metrics follow a run while it goes.** The experiment page showed a training run's curve only once the run had finished. It now shows the run still going, adds each metric as the program writes it, and reads the last ones when the run ends; before the first metric it says it is waiting. A long run's curve stays quick to draw.
 
 ## 0.4.1 (2026-11-07)
 

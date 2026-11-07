@@ -137,13 +137,15 @@ pub(super) fn environment(
 }
 
 /// Where a run's program is, in folders: its snapshot, its own temporary folder, the folder it writes its records in
-/// with Saturn's own files there that it may only read, and the folders it was made from, which it may not read.
+/// with Saturn's own files there that it may only read, the folders it was made from, which it may not read, and what
+/// else it may read though it lies there, such as the run it resumes and that run's checkpoint.
 pub(super) struct Placement {
     pub tree: PathBuf,
     pub temporary: PathBuf,
     pub records: PathBuf,
     pub protected: Vec<PathBuf>,
     pub sources: Vec<PathBuf>,
+    pub readable: Vec<PathBuf>,
 }
 
 /// What the snapshot's links lead to that the run may read, wherever it lies: a folder of the project such as an
@@ -293,8 +295,12 @@ pub(super) async fn command(
                 .await
                 .unwrap_or_default();
         visible.insert(0, placement.tree.clone());
-        // The local weights the version names, such as a checkpoint another run wrote, are read where they are.
-        for path in model_files(version, &placement.sources) {
+        // The local weights the version names, such as a checkpoint another run wrote, are read where they are, and so
+        // is what a resumed run continues from.
+        for path in model_files(version, &placement.sources)
+            .into_iter()
+            .chain(placement.readable.iter().cloned())
+        {
             if !credentials.iter().any(|secret| path.starts_with(secret))
                 && !visible.contains(&path)
             {
