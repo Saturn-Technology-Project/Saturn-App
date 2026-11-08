@@ -421,8 +421,6 @@ fn spawn(layout: &Layout, port: u16, instance: &str) -> std::io::Result<Child> {
             let folder = app.parent().unwrap_or(resources);
             let mut command = Command::new(runtime_program(folder));
             command.current_dir(resources);
-            // The built-in embedding model for the code index ships inside the app.
-            command.env("SATURN_MODELS_DIR", resources.join("models"));
             command
         }
         Layout::Development { repository } => {

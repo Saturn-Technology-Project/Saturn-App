@@ -47,42 +47,6 @@ fn wanted<'a>(query: &'a HashMap<String, String>, key: &str) -> Option<&'a str> 
         .filter(|text| !text.is_empty())
 }
 
-/// The project's semantic code index: build (incrementally), status, cancel, and search.
-async fn index_status(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    ok(kernel.index_status(&id).await?)
-}
-
-async fn index_build(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
-    let input = body_of(body);
-    let paths = input.get("paths").and_then(Value::as_array).map(|paths| {
-        paths
-            .iter()
-            .map(|path| js::text(Some(path)))
-            .collect::<Vec<_>>()
-    });
-    ok(kernel.build_index(&id, paths).await?)
-}
-
-async fn index_cancel(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    kernel.cancel_index(&id);
-    ok(kernel.index_status(&id).await?)
-}
-
-async fn index_search(
-    State(kernel): Shared,
-    Path(id): Path<String>,
-    Query(query): QueryText,
-) -> Answer {
-    let limit = query
-        .get("limit")
-        .and_then(|limit| limit.parse::<f64>().ok())
-        .filter(|limit| *limit != 0.0 && limit.is_finite())
-        .unwrap_or(12.0)
-        .clamp(1.0, 50.0) as usize;
-    let question = query.get("q").map_or("", String::as_str);
-    ok(kernel.search_index(&id, question, limit).await?)
-}
-
 async fn settings(State(kernel): Shared) -> Answer {
     ok(kernel.settings())
 }
@@ -1008,61 +972,6 @@ async fn complete_stream(State(kernel): Shared, body: Body) -> Response {
         .into_response()
 }
 
-async fn marketplace(State(kernel): Shared) -> Answer {
-    ok(kernel.marketplace_list())
-}
-
-async fn install(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
-    ok(kernel.marketplace_install(&id, &body_of(body)).await?)
-}
-
-async fn uninstall(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    kernel.marketplace_uninstall(&id).await?;
-    no_content()
-}
-
-/// A page for the browser the provider sent back.
-fn oauth_page(status: StatusCode, title: &str, body: &str) -> Response {
-    let page = format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><title>{title}</title><style>body{{font-family:-apple-system,system-ui,sans-serif;background:#161618;color:#f4f4f5;display:grid;place-items:center;height:100vh;margin:0}}main{{max-width:420px;text-align:center}}p{{color:#a1a1aa;line-height:1.5}}</style></head><body><main><h2>{title}</h2><p>{body}</p></main></body></html>"
-    );
-    (status, [(CONTENT_TYPE, "text/html; charset=utf-8")], page).into_response()
-}
-
-/// Where providers send the browser back after a sign-in. The `state` names one that Saturn started.
-async fn oauth_callback(State(kernel): Shared, Query(query): QueryText) -> Response {
-    let (code, state) = (wanted(&query, "code"), wanted(&query, "state"));
-    let denied = wanted(&query, "error");
-    let (Some(code), Some(state), None) = (code, state, denied) else {
-        let reason = wanted(&query, "error_description")
-            .or(denied)
-            .unwrap_or("No authorization code was returned.");
-        return oauth_page(
-            StatusCode::BAD_REQUEST,
-            "Sign-in was not completed",
-            &format!(
-                "{} You can close this tab and try Install again in Saturn.",
-                escape_attribute(reason).replace('\'', "&#39;")
-            ),
-        );
-    };
-    match kernel.marketplace_complete_sign_in(state, code).await {
-        Ok(name) => oauth_page(
-            StatusCode::OK,
-            &format!("{} is connected", escape_attribute(&name)),
-            "You can close this tab and go back to Saturn.",
-        ),
-        Err(error) => oauth_page(
-            StatusCode::BAD_REQUEST,
-            "Sign-in failed",
-            &format!(
-                "{} You can close this tab and try Install again in Saturn.",
-                escape_attribute(&error.message)
-            ),
-        ),
-    }
-}
-
 /// Whether this computer lets Saturn control it, and so whether Settings asks for anything.
 async fn computer_permissions(State(kernel): Shared) -> Answer {
     ok(kernel.computer.permission_status().await)
@@ -1374,16 +1283,7 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
             patch(change_plugin).delete(uninstall_plugin),
         )
         .route("/plugins/{name}/hooks/approve", post(approve_plugin_hooks))
-        .route(
-            "/projects/{id}/index",
-            get(index_status).post(index_build).delete(index_cancel),
-        )
-        .route("/projects/{id}/index/search", get(index_search))
         .route("/complete", post(complete))
         .route("/complete/stream", post(complete_stream))
-        .route("/marketplace", get(marketplace))
-        .route("/marketplace/{id}", delete(uninstall))
-        .route("/marketplace/{id}/install", post(install))
-        .route("/oauth/callback", get(oauth_callback))
         .with_state(kernel)
 }

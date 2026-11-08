@@ -121,7 +121,7 @@ In every mode, locks, the policy, the SSH host, merging and loosening a run's sa
 | ↩️ **Checkpoints** | Every file edit is recorded, including files a shell command changes. Keep or revert a turn, or restore any single step |
 | 🔐 **Permissions and sandbox** | Agents work only in folders you grant. Rules allow, ask or deny by tool and pattern; commands run in an OS sandbox on macOS and Linux |
 | 📚 **Skills, commands, hooks, plugins** | `SKILL.md` folders in a project or `~/.saturn-app/skills`, `/` commands, hooks before and after tool calls, and plugins that bundle them (Claude Code's layout installs as is). A project's hooks and local MCP servers run only after you approve them |
-| 📎 **Context** | `@`-mention files, folders and URLs, attach the current file or selection, semantic code search with an on-device embedding model, and memory notes the assistant keeps between chats |
+| 📎 **Context** | `@`-mention files, folders and URLs, attach the current file or selection, and memory notes the assistant keeps between chats |
 | 💸 **Usage and observability** | Tokens and cost per model, OpenTelemetry traces, metrics and logs, and the outbound network log |
 
 Samples, model output, papers and web pages are data to the assistant, never instructions, and are marked that way in its context.
@@ -195,7 +195,7 @@ npm run package -- --bundles nsis   # Windows: the x64 NSIS installer, in target
 npm run archive                     # the downloads and their checksums, in desktop/release/
 ```
 
-`npm run package` builds the interface, downloads the embedding model into `desktop/.staging/` (checked against its pinned SHA-256), builds the runtime and `saturn` for release, and bundles them. The Claude Code and Codex programs are not in the package: Saturn downloads them on demand. A build has an updater only when it is made with Saturn's updater key ([`updater-config.mjs`](desktop/scripts/updater-config.mjs)).
+`npm run package` builds the interface, builds the runtime and `saturn` for release, and bundles them. The Claude Code and Codex programs are not in the package: Saturn downloads them on demand. A build has an updater only when it is made with Saturn's updater key ([`updater-config.mjs`](desktop/scripts/updater-config.mjs)).
 
 Every push to `main` goes through the [release workflow](.github/workflows/release.yml): the full check (the same one pull requests must pass), then a build, test and package of both platforms on GitHub-hosted runners (on Windows without the contract tests), with attested artifacts. When the version in `desktop/package.json` and `Cargo.toml` is newer than every `v*` tag, it also tags the commit and publishes the release, with notes from the CHANGELOG. So releasing is raising the version and merging to `main`.
 
@@ -367,7 +367,7 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 | Agents, conversations, projects, settings | `state.json` | Plain JSON. |
 | Telemetry (traces, metrics, logs) | In memory and `telemetry.json` | Exported only if you configure an OTLP endpoint. |
 | Outbound request log | `network.log` | JSON Lines: timestamp, method, host, path, and whether the host is this computer. Query strings and bodies are never recorded. Above 5 MB it moves to `network.log.1`. |
-| Memory, code index, checkpoints, attachments | `memory/`, `index/`, `checkpoints/`, `run-images/` | Local files. Embeddings are computed on-device by the bundled model. |
+| Memory, checkpoints, attachments | `memory/`, `checkpoints/`, `run-images/` | Local files. |
 | API session token | `runtime-token` | Mode `0600` (on Windows, as `secrets.json`). |
 | Claude Code and Codex programs | `tools/` | Downloaded only when you ask, checked against a sha512 pinned in Saturn before they are unpacked. Removable from Settings. |
 | Claude Code and Codex sign-ins, the agent browser's profile | `claude/`, `codex/`, `browser-profile/` | Kept by those programs. Saturn does not read the sign-ins. |
@@ -381,7 +381,6 @@ Everything lives under `~/.saturn-app` (override with `SATURN_DATA_DIR`). Deleti
 | Sites, APIs and MCP servers | When an agent fetches a URL, drives the browser, calls GitHub, or uses an MCP server you added | Whatever that tool call needs. Remote MCP servers are reached over HTTP(S); a local one runs only after you approve its exact command, and its own traffic is its business. The web and browser tools refuse private, link-local and loopback addresses (SSRF protection). |
 | Your SSH host | Only for remote runs, on the host you configured | SSH through your own configuration and host keys: the run's command, its status and its outputs. Saturn stores no SSH credentials. |
 | GitHub Releases | App startup | The update check (`latest.json` of the `updates` release), and the package when there is a newer version. Only in builds made with Saturn's updater key. The app makes these requests, not the runtime, so they are not in the network log. Disable with `SATURN_NO_UPDATES=1`. |
-| Hugging Face | Only if you select an embedding model that is not bundled | The model download. Unlike the bundled model, it is not checked against a pinned hash. |
 | `registry.npmjs.org` | Only when you press **Download** for Claude Code or Codex | The official program's npm package, the exact version pinned in Saturn, verified against a pinned sha512. |
 | Your OpenTelemetry collector | Only if an `OTEL_EXPORTER_OTLP_*ENDPOINT` variable or `SATURN_OTEL=otlp` is set | Saturn's traces, metrics and logs, as JSON over HTTP. |
 
@@ -492,7 +491,7 @@ Saturn's download is built from about 360 Rust crates (what `cargo tree` reports
 - **Pinned lock files.** `Cargo.lock` pins every crate to an exact version with a SHA-256 checksum, and [`deny.toml`](deny.toml) allows only crates.io, with no git or other sources. `desktop/package-lock.json` pins every package to an exact version from `https://registry.npmjs.org/` with a SHA-512 integrity hash, and [`scripts/check-lockfiles.mjs`](scripts/check-lockfiles.mjs) fails CI on any git, tarball-URL, http or file source.
 - **Registry signatures.** `npm audit signatures` verifies every installed npm package's registry signature, and its provenance attestation where the publisher provides one. crates.io has no such signature; the checksums in `Cargo.lock` are the check there.
 - **No npm install scripts.** npm install scripts, the usual way a compromised package runs code, never run: the desktop app denies each one in `allowScripts`, and CI installs with `--ignore-scripts`. Cargo has no such switch: a crate's build script runs when Saturn is compiled, in CI and on your machine if you build from source, so crates are trusted that far.
-- **Hashes for the rest.** The Claude Code and Codex downloads are pinned to the registry's SHA-512 ([`agent-programs.json`](crates/saturn-core/src/agent-programs.json), written by [`agent-programs-manifest.mjs`](scripts/agent-programs-manifest.mjs)); the bundled embedding model and its tokenizer to SHA-256 ([`fetch-embedding-model.mjs`](desktop/scripts/fetch-embedding-model.mjs)); every GitHub Action to a full commit SHA.
+- **Hashes for the rest.** The Claude Code and Codex downloads are pinned to the registry's SHA-512 ([`agent-programs.json`](crates/saturn-core/src/agent-programs.json), written by [`agent-programs-manifest.mjs`](scripts/agent-programs-manifest.mjs)); every GitHub Action to a full commit SHA.
 
 **Staying current**
 

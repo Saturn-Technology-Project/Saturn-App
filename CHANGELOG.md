@@ -8,6 +8,11 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - **Permission rules now govern Claude Code and Codex turns.** The rules under Settings → Permissions and in a project's `.saturn/settings.json` or `.claude/settings.json` were consulted only by Saturn's own agent loop; a Claude Code turn asked by its own approval setting alone, and a Codex turn asked only in Review mode. A deny now refuses the call and tells the program why, an allow runs it without a card in any mode, and an ask asks even in Bypass, naming the rule on the card. Claude Code's `Bash` is judged as the `code` tool and its file tools as `files`, by action and path; a Saturn skill is judged by its own name. Codex runs its own shell commands and edits without asking Saturn, so a rule cannot reach those.
 
+### Changed
+
+- **The semantic code index and its embedding models are gone.** No screen had reached the index since the research interface, and the assistant's tools never used it; the project's files, the research records and memory are what the assistant reads. The bundled embedding model, its download during packaging, the Hugging Face connection it allowed and the Embedding model setting go with it, so the package is about 120 MB smaller and the runtime no longer carries SQLite. An `index/` folder left in `~/.saturn-app` can be deleted.
+- **The MCP marketplace is gone,** with its sign-in callback: nothing in the interface had listed or installed from it since the research interface. Servers installed from it earlier stay connected as ordinary MCP servers, and any MCP server is still added by its address or command under Settings → MCP & Skills.
+
 ### Fixed
 
 - **A remote job's output comes back as fast as SSH carries it, and a long training log no longer stops it.** Each exchange with the worker carried at most 128 KiB per output and the next waited a second, so a busy log fell minutes behind, and any output past 64 MiB stopped synchronization. Parts are now up to 1 MiB and follow one another while more is waiting, and logs, metrics and resource readings may reach 1 GiB each. Install the worker again on each SSH host after upgrading.

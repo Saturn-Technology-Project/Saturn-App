@@ -150,25 +150,3 @@ test("a call to a local server whose command changed is a failed step that says 
   assert.match(run.actions[0].reason, /Allow it in Saturn Settings/);
 });
 
-test("integrations are listed with what the app shows, and one that cannot be installed says why, changing nothing", async () => {
-  const servers = (await saturn.api("GET", "/connections/mcp")).length;
-  await saturn.refused("POST", "/marketplace/seeking-alpha/install", {}, 409, /no official MCP server/);
-  await saturn.refused("POST", "/marketplace/github/install", {}, 400, /Paste a token/);
-  await saturn.refused("POST", "/marketplace/slack/install", {}, 400, /OAuth client ID/);
-  await saturn.refused("POST", "/marketplace/nobody/install", {}, 404, /Unknown integration/);
-  assert.equal((await saturn.api("GET", "/connections/mcp")).length, servers);
-
-  const list = await saturn.api("GET", "/marketplace");
-  assert.ok(list.every((item) => typeof item.id === "string" && typeof item.available === "boolean" && item.installed === null), "nothing is installed yet");
-  const booking = list.find((item) => item.id === "booking");
-  assert.equal(booking.available, false);
-  assert.ok(booking.reason);
-  const notion = list.find((item) => item.id === "notion");
-  assert.equal(notion.available, true);
-  assert.equal(notion.auth, "oauth");
-  const github = list.find((item) => item.id === "github");
-  assert.equal(github.auth, "token");
-  assert.equal(github.tokenAlternative, true);
-  assert.equal(list.find((item) => item.id === "slack").auth, "oauth-client");
-  await saturn.api("DELETE", "/marketplace/notion");
-});

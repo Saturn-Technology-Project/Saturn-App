@@ -323,22 +323,15 @@ export type Profile = {
   memory?: boolean;
   /** Agents write a plan and wait for a go-ahead before changing anything. */
   planApproval?: boolean;
-  /** What embeds the code index: the built-in model (default), LM Studio, or an OpenAI-compatible connection. */
-  embeddingSource?: EmbeddingSource;
-  /** The embedding model's name for that source. */
-  embeddingModel?: string;
   /** The sandbox for commands (default: workspace-write, network allowed). */
   sandbox?: SandboxSettings;
   /** Claude Code loads the project's own .claude/settings.json (hooks, permissions, settings). */
   claudeProjectSettings?: boolean;
   /** Where the agent's browser shows: live in the Browser panel ("saturn", default), a visible Chrome window ("system"), or Safari ("safari", macOS). */
   browser?: AgentBrowser;
-  /** For the OpenAI-compatible source: the model connection whose endpoint and key are used. */
-  embeddingConnectionId?: string;
   /** When the first-launch onboarding was finished or skipped; unset shows it. */
   onboardedAt?: string;
 };
-export type EmbeddingSource = "builtin" | "lmstudio" | "openai";
 /** How the `code` tool's commands are confined: writes only in the workspace, none at all, or no sandbox. */
 export type SandboxMode = "workspace-write" | "read-only" | "off";
 export type SandboxSettings = { mode: SandboxMode; network: boolean };
@@ -451,27 +444,6 @@ export type MetricView = {
   monotonic?: boolean;
   points: MetricPoint[];
 };
-
-/** How a Customizations integration signs in (see runtime/src/domain/marketplace.ts). */
-export type InstallAuth = "none" | "oauth" | "oauth-client" | "token";
-export type MarketplaceEntry = {
-  id: string;
-  available: boolean;
-  reason?: string;
-  auth?: InstallAuth;
-  setupUrl?: string;
-  setupHint?: string;
-  tokenAlternative?: boolean;
-  installed: null | {
-    connectionId: string;
-    status: "connecting" | "signing_in" | "ready" | "error";
-    detail?: string;
-    authorizationUrl?: string;
-    tools: number;
-    agents: number;
-  };
-};
-export type InstallRequest = { name?: string; token?: string; clientId?: string; clientSecret?: string; attach?: "all" | "none" };
 
 /** One thing attached to a message with "@". */
 export type ContextItem =

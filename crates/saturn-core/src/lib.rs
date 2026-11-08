@@ -33,9 +33,7 @@ pub mod context;
 pub mod events;
 pub mod groups;
 pub mod hooks;
-pub mod index;
 pub mod logger;
-pub mod marketplace;
 pub mod memory;
 mod origin;
 pub mod permissions;
@@ -170,8 +168,6 @@ pub struct Kernel {
     extracting: Mutex<HashSet<String>>,
     /// The newest message waiting for a member that is still on its turn, by "<group>:<agent>".
     group_queue: Mutex<HashMap<String, serde_json::Value>>,
-    /// The projects' code indexes.
-    index: index::IndexState,
     /// Chats whose pull request is being looked at.
     checking_pull_requests: Mutex<HashSet<String>>,
     /// The projects' research records.
@@ -211,7 +207,6 @@ impl Kernel {
             tracked_jobs: Mutex::default(),
             extracting: Mutex::default(),
             group_queue: Mutex::default(),
-            index: index::IndexState::default(),
             checking_pull_requests: Mutex::default(),
             research: research::ResearchState::default(),
         }))

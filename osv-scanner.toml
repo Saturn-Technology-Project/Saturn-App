@@ -14,11 +14,6 @@ ignoreUntil = 2027-05-07
 reason = "The GitHub id of RUSTSEC-2024-0429, glib 0.18: Linux builds of the Tauri shell only"
 
 [[IgnoredVulns]]
-id = "RUSTSEC-2024-0436"
-ignoreUntil = 2027-05-07
-reason = "paste (unmaintained), a build-time macro of tokenizers in saturn-embed; no code of it ships"
-
-[[IgnoredVulns]]
 id = "RUSTSEC-2024-0370"
 ignoreUntil = 2027-05-07
 reason = "proc-macro-error (unmaintained), a build-time macro of glib on the Linux path of the Tauri shell"

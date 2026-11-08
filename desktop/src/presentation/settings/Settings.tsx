@@ -6,7 +6,7 @@ import { desktop } from "../../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
-import { EFFORT_LABELS, removalQuestion, runsLocally, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LlmProvider, type LogLine, type ProviderModels, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
+import { EFFORT_LABELS, removalQuestion, runsLocally, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type LlmProvider, type LogLine, type ProviderModels, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
 import type { CodexStatus, ProgramStatus } from "../../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -1071,12 +1071,6 @@ function Logs(props: { lines: LogLine[]; onReload: () => void }) {
 /** The background model choice for letting the agent's own model do the work, since a choice cannot be empty. */
 const AUTOMATIC_MODEL = "automatic";
 
-/** The models Saturn runs itself (runtime/src/infrastructure/embeddings.ts); the first ships with the app. */
-const BUILTIN_EMBEDDING_MODELS = [
-  { id: "multilingual-e5-small", label: t("E5 multilingual (included)") },
-  { id: "jina-embeddings-v2-base-code", label: t("Jina code (162 MB)") },
-];
-
 function General(props: {
   profile: Profile;
   models: Model[];
@@ -1132,13 +1126,6 @@ function General(props: {
       props.onError(reason instanceof Error ? reason.message : t("Could not save"));
     }
   }
-  // Settings from before the source could be chosen (a model name only) meant LM Studio.
-  const savedSource: EmbeddingSource = props.profile.embeddingSource ?? (props.profile.embeddingModel && !BUILTIN_EMBEDDING_MODELS.some((item) => item.id === props.profile.embeddingModel) ? "lmstudio" : "builtin");
-  const [embeddingSource, setEmbeddingSource] = useState<EmbeddingSource>(savedSource);
-  const [embeddingModel, setEmbeddingModel] = useState(props.profile.embeddingModel ?? "");
-  const [embeddingConnectionId, setEmbeddingConnectionId] = useState(props.profile.embeddingConnectionId ?? "");
-  const embeddingConnections = props.models.filter((item) => item.provider === "openai");
-
   async function chooseFlag(flag: "memory" | "planApproval", next: boolean) {
     const set = flag === "memory" ? setMemory : setPlanApproval;
     set(next);
@@ -1151,18 +1138,6 @@ function General(props: {
     }
   }
 
-  async function chooseEmbedding(patch: { embeddingSource?: EmbeddingSource; embeddingModel?: string; embeddingConnectionId?: string } = {}) {
-    try {
-      await props.onSaved(await desktop.admin.updateSettings({
-        embeddingSource: patch.embeddingSource ?? embeddingSource,
-        embeddingModel: patch.embeddingModel ?? embeddingModel.trim(),
-        embeddingConnectionId: patch.embeddingConnectionId ?? embeddingConnectionId,
-      }));
-      props.onError("");
-    } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : t("Could not save"));
-    }
-  }
   const [saved, setSaved] = useState(false);
   const [backgroundModelId, setBackgroundModelId] = useState(props.profile.completionModelId ?? "");
   // Claude Code and Codex models run an agent loop on the user's plan; background work needs a plain API call.
@@ -1335,47 +1310,6 @@ function General(props: {
               <RowDescription>{t('Agents write a plan and wait for your go-ahead before changing files or running commands. Reply "go" to proceed, or say what to change.')}</RowDescription>
             </RowText>
             <Switch checked={planApproval} aria-label={t("Plan approval")} onCheckedChange={(next) => void chooseFlag("planApproval", next)} />
-          </SettingsRow>
-          <SettingsRow>
-            <RowText>
-              <RowLabel>{t("Embedding model")}</RowLabel>
-              <RowDescription>{t("Builds each project's code index, so agents find code by meaning. The built-in model runs on this Mac with nothing else to install; changing the model rebuilds the index.")}</RowDescription>
-            </RowText>
-            <div className="flex items-center gap-2">
-              <Choice
-                ariaLabel={t("Embedding source")}
-                value={embeddingSource}
-                options={[{ value: "builtin", label: t("Built in") }, { value: "lmstudio", label: "LM Studio" }, { value: "openai", label: t("OpenAI-compatible") }]}
-                onChange={(value) => {
-                  const next = value as EmbeddingSource;
-                  const model = next === "builtin" ? BUILTIN_EMBEDDING_MODELS[0]!.id : next === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small";
-                  const connection = next === "openai" ? embeddingConnectionId || embeddingConnections[0]?.id || "" : embeddingConnectionId;
-                  setEmbeddingSource(next);
-                  setEmbeddingModel(model);
-                  setEmbeddingConnectionId(connection);
-                  void chooseEmbedding({ embeddingSource: next, embeddingModel: model, embeddingConnectionId: connection });
-                }}
-              />
-              {embeddingSource === "builtin" ? (
-                <Choice
-                  ariaLabel={t("Built-in embedding model")}
-                  value={BUILTIN_EMBEDDING_MODELS.some((item) => item.id === embeddingModel) ? embeddingModel : BUILTIN_EMBEDDING_MODELS[0]!.id}
-                  options={BUILTIN_EMBEDDING_MODELS.map((item) => ({ value: item.id, label: item.label }))}
-                  onChange={(next) => {
-                    setEmbeddingModel(next);
-                    void chooseEmbedding({ embeddingModel: next });
-                  }}
-                />
-              ) : (
-                <InlineForm onSubmit={(event) => { event.preventDefault(); void chooseEmbedding(); }}>
-                  {embeddingSource === "openai" && (
-                    <Choice className="min-w-45" ariaLabel={t("Embedding connection")} value={embeddingConnectionId} placeholder={embeddingConnections.length === 0 ? t("Add an OpenAI connection first") : undefined} options={embeddingConnections.map((item) => ({ value: item.id, label: item.name }))} onChange={setEmbeddingConnectionId} />
-                  )}
-                  <Input className="w-45" aria-label={t("Embedding model")} value={embeddingModel} placeholder={embeddingSource === "lmstudio" ? "text-embedding-nomic-embed-text-v1.5" : "text-embedding-3-small"} onChange={(event) => setEmbeddingModel(event.target.value)} />
-                  <Button type="submit" variant="default" size="small" disabled={(props.profile.embeddingModel ?? "") === embeddingModel.trim() && (props.profile.embeddingConnectionId ?? "") === embeddingConnectionId && props.profile.embeddingSource === embeddingSource}>{t("Save")}</Button>
-                </InlineForm>
-              )}
-            </div>
           </SettingsRow>
         </SettingsCard>
       </div>

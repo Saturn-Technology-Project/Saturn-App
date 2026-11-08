@@ -12,8 +12,8 @@ use serde_json::json;
 
 use crate::auth::token_matches;
 
-/// Open to callers without the token: the health probe, and the OAuth redirect the provider's browser lands on.
-const OPEN_PATHS: [&str; 2] = ["/health", "/oauth/callback"];
+/// Open to callers without the token: the health probe.
+const OPEN_PATHS: [&str; 1] = ["/health"];
 const AGENT_SKILLS_PATH: &str = "/agent-mcp";
 
 /// The only cross-origin callers are Saturn's own windows, which load from a loopback origin. A sandboxed iframe or a

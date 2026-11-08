@@ -52,21 +52,6 @@ impl Kernel {
         if completion.flatten().is_some_and(|id| !known_model(id)) {
             return Err(CoreError::new(400, "Unknown background model"));
         }
-        if let Some(source) = patch.get("embeddingSource")
-            && !matches!(source.as_str(), Some("builtin" | "lmstudio" | "openai"))
-        {
-            return Err(CoreError::new(
-                400,
-                "embeddingSource must be builtin, lmstudio or openai",
-            ));
-        }
-        let embedding = text(patch, "embeddingConnectionId");
-        if !embedding.is_empty() && !known_model(embedding) {
-            return Err(CoreError::new(
-                400,
-                "Unknown model connection for embeddings",
-            ));
-        }
         let sandbox = match patch.get("sandbox") {
             None => None,
             Some(Value::Null) => Some(None),
@@ -105,32 +90,6 @@ impl Kernel {
                     Some("saturn" | "system" | "safari")
                 ) {
                     settings.insert("browser".to_owned(), patch["browser"].clone());
-                }
-                if let Some(source) = patch.get("embeddingSource") {
-                    settings.insert("embeddingSource".to_owned(), source.clone());
-                }
-                for (key, value) in [
-                    (
-                        "embeddingModel",
-                        patch
-                            .get("embeddingModel")
-                            .and_then(Value::as_str)
-                            .map(js::trim),
-                    ),
-                    (
-                        "embeddingConnectionId",
-                        patch.get("embeddingConnectionId").and_then(Value::as_str),
-                    ),
-                ] {
-                    if let Some(value) = value {
-                        set(
-                            settings,
-                            key,
-                            Some(value)
-                                .filter(|value| !value.is_empty())
-                                .map(Value::from),
-                        );
-                    }
                 }
                 // Null starts the onboarding over.
                 match patch.get("onboardedAt") {

@@ -55,17 +55,6 @@ for (const [project, found] of [["desktop", npmComponents("desktop")], ["crates"
   }
 }
 
-// The embedding model, pinned by sha256 in desktop/scripts/fetch-embedding-model.mjs.
-const fetchScript = readFileSync(path.join(root, "desktop", "scripts", "fetch-embedding-model.mjs"), "utf8");
-const repo = /const REPO = "([^"]+)"/.exec(fetchScript)?.[1] ?? "";
-const hashes = [...fetchScript.matchAll(/"([^"]+)": "([0-9a-f]{64})"/g)];
-components.set(`pkg:huggingface/${repo}`, {
-  type: "machine-learning-model", name: repo, purl: `pkg:huggingface/${repo}`, "bom-ref": `pkg:huggingface/${repo}`,
-  licenses: [{ license: { id: "MIT" } }],
-  hashes: hashes.filter(([, file]) => file.endsWith(".onnx")).map(([, , sum]) => ({ alg: "SHA-256", content: sum })),
-  properties: hashes.map(([, file, sum]) => ({ name: `saturn:file:${file}`, value: `sha256:${sum}` })),
-});
-
 const sbom = {
   bomFormat: "CycloneDX",
   specVersion: "1.5",

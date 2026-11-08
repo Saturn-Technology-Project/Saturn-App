@@ -103,8 +103,6 @@ export default {
     "Every few turns, Saturn notes lasting facts from the chat (how you like to work, a project's conventions) and shares them with agents in later chats. View and edit the notes under Memory.",
   "A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.":
     "Get a system notification when an agent finishes, fails, or needs your approval while you're not viewing its chat. Click it to open the chat.",
-  "Builds each project's code index, so agents find code by meaning. The built-in model runs on this Mac with nothing else to install; changing the model rebuilds the index.":
-    "Builds each project's code index so agents can find code by meaning. The built-in model runs on this Mac with nothing else to install. Changing the model rebuilds the index.",
   "Where a shell command run by an agent may write. ": "Where a shell command run by an agent can write. ",
   " confines it to the project folder (plus temp and cache folders) with the operating system's sandbox, so a stray ":
     " confines it to the project folder (plus temp and cache folders) using the operating system's sandbox, so a stray ",

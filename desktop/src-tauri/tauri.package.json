@@ -1,6 +1,5 @@
 {
   "bundle": {
-    "externalBin": ["binaries/saturn-server", "binaries/saturn"],
-    "resources": { "../.staging/models": "models" }
+    "externalBin": ["binaries/saturn-server", "binaries/saturn"]
   }
 }

@@ -8,9 +8,8 @@
     "lint": "oxlint -c ../.oxlintrc.json --deny-warnings src scripts",
     "dev": "tauri dev",
     "build": "vite build",
-    "fetch:model": "node scripts/fetch-embedding-model.mjs",
     "stage:binaries": "node scripts/stage-rust-binaries.mjs",
-    "package": "npm run build && npm run fetch:model && npm run stage:binaries && tauri build --config src-tauri/tauri.package.json",
+    "package": "npm run build && npm run stage:binaries && tauri build --config src-tauri/tauri.package.json",
     "archive": "node scripts/release-files.mjs"
   },
   "dependencies": {
