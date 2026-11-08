@@ -5,7 +5,7 @@ import { Compartment, StateEffect, Text } from "@codemirror/state";
 import { keymap, type EditorView } from "@codemirror/view";
 import type { EditorLanguage } from "../domain/code-languages.ts";
 import { t } from "../domain/i18n.ts";
-import { documentPath, documentUri, languageError, protocolLanguage, serverLanguage, type LanguageServerApi, type LanguageSession, type LanguageStatus, type ServerLanguage } from "../domain/language-server.ts";
+import { documentPath, documentUri, isLibraryPath, languageError, LIBRARY_PREFIX, protocolLanguage, serverLanguage, type LanguageServerApi, type LanguageSession, type LanguageStatus, type ServerLanguage } from "../domain/language-server.ts";
 import { LanguageTransport } from "./language-transport.ts";
 import { pullDiagnostics } from "./language-diagnostics.ts";
 import { SourceLanguageClient } from "./language-client.ts";
@@ -104,6 +104,8 @@ export class LanguageServices {
   private drafts = new Map<string, { doc: Text; language: EditorLanguage }>();
   private forgotten = new Set<string>();
   private waiting = new Map<string, Set<(view: EditorView | null) => void>>();
+  /** Installed packages' files opened from a definition, by tab. */
+  private library = new Map<string, string>();
   private closed = false;
 
   /** Keep callbacks current in React without replacing server connections or editor state. */
@@ -119,7 +121,8 @@ export class LanguageServices {
     this.forgotten.delete(path);
     this.views.set(path, view);
     for (const ready of this.waiting.get(path) ?? []) ready(view);
-    const kind = serverLanguage(language);
+    // An installed package's file is only read: it is shown where a definition points, and no server opens it.
+    const kind = isLibraryPath(path) ? null : serverLanguage(language);
     if (!kind) {
       status(null);
       return { close: () => { if (this.views.get(path) === view) this.views.delete(path); }, restart: () => {} };
@@ -149,7 +152,7 @@ export class LanguageServices {
           rootUri: session.rootUri,
           timeout: 12000,
           sanitizeHTML: html => DOMPurify.sanitize(html, { ALLOWED_TAGS: ["p", "br", "pre", "code", "em", "strong", "ul", "ol", "li", "span", "blockquote"], ALLOWED_ATTR: [] }),
-          workspace: client => new SourceWorkspace(client, uri => this.display(session.rootUri, uri)),
+          workspace: client => new SourceWorkspace(client, uri => this.display(session, uri)),
           extensions: [serverCompletion(), hoverTooltips(), signatureHelp(), serverDiagnostics(), pullDiagnostics(), keymap.of(jumpToDefinitionKeymap)],
           notificationHandlers: { "window/logMessage": () => true, "window/showMessage": () => true },
         });
@@ -201,10 +204,23 @@ export class LanguageServices {
     if (!this.closed) for (const binding of this.bindings) if (binding.kind === kind) void this.connectBinding(binding);
   }
 
-  /** Definitions outside the project stay outside the editor's grant; backend reads enforce the boundary again. */
-  private async display(root: string, uri: string): Promise<EditorView | null> {
-    const path = documentPath(root, uri);
-    if (!path) { this.notify(t("This definition is outside the project. Its source cannot be opened here.")); return null; }
+  /** The text of an installed package's file a definition opened, while its tab is open. */
+  libraryText(path: string): string | undefined { return this.library.get(path); }
+
+  /** A definition in the project opens through the grant-checked file flow; one in an installed package opens read-only,
+   * through a runtime read that serves nothing else outside the project. */
+  private async display(session: LanguageSession, uri: string): Promise<EditorView | null> {
+    let path = documentPath(session.rootUri, uri);
+    if (!path) {
+      try {
+        const opened = await this.api.libraryFile(this.project, session.id, uri);
+        path = LIBRARY_PREFIX + opened.path;
+        this.library.set(path, opened.content);
+      } catch (error) {
+        this.notify(error instanceof Error ? error.message : t("This definition is outside the project. Its source cannot be opened here."));
+        return null;
+      }
+    }
     if (this.views.has(path)) return this.views.get(path)!;
     return new Promise(resolve => {
       const listeners = this.waiting.get(path) ?? new Set();
@@ -229,6 +245,7 @@ export class LanguageServices {
 
   /** A discarded or renamed source buffer must stop influencing imports in other files. */
   forget(path: string): void {
+    this.library.delete(path);
     this.forgotten.add(path);
     this.drafts.delete(path);
     for (const pending of this.connections.values()) void pending.then(connection => {

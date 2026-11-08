@@ -1,5 +1,6 @@
 // Installed LSP processes are stand-ins. All boundaries, child lifetime, framing and settings run through real Rust.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -178,4 +179,28 @@ test("an absent selected interpreter cannot silently fall back to another Python
   const answer = await saturn.call("POST", `${p.base}/lsp/start`, { language: "python" });
   assert.equal(answer.status, 422);
   assert.match(answer.body.error, /selected Python/);
+});
+
+test("a definition in an installed package opens read-only, and nothing else outside the project does", posixOnly, async (context) => {
+  const found = spawnSync("python3", ["-c", "import json, os, sys; print(json.dumps({'python': os.path.realpath(sys.executable), 'file': json.__file__}))"], { encoding: "utf8" });
+  if (found.status !== 0) { context.skip("needs python3"); return; }
+  const { python, file } = JSON.parse(found.stdout);
+  const p = await project();
+  await saturn.api("PUT", `${p.base}/environment`, { python });
+  const c = await client(p.base);
+  try {
+    const library = (target) => saturn.call("GET", `${c.route}/library?uri=${encodeURIComponent(pathToFileURL(target).href)}`);
+    const opened = await library(file);
+    assert.equal(opened.status, 200, JSON.stringify(opened.body));
+    assert.equal(opened.body.content, await readFile(file, "utf8"), "the standard library's json module, as on disk");
+    // Outside the interpreter's packages, a folder, and a file of another kind are refused.
+    const elsewhere = path.join(await saturn.folder(), "secret.py");
+    await writeFile(elsewhere, "TOKEN = 'made-up'\n");
+    assert.equal((await library(elsewhere)).status, 403);
+    assert.equal((await library(path.dirname(file))).status, 403);
+    assert.equal((await saturn.call("GET", `${c.route}/library?uri=${encodeURIComponent("https://example.com/x.py")}`)).status, 400);
+    // A link is read as where it leads: one inside the project that leads out of the packages is refused.
+    await symlink(elsewhere, path.join(p.folder, "linked.py"));
+    assert.equal((await library(path.join(p.folder, "linked.py"))).status, 403);
+  } finally { await c.close(); }
 });

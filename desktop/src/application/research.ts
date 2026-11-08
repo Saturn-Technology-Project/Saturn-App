@@ -73,6 +73,11 @@ export class ResearchService {
     return this.runtime.request(`${this.route(project)}/lsp/${encodeURIComponent(session)}`, { method: "DELETE" });
   }
 
+  /** A definition's source in an installed package, read-only. */
+  libraryFile(project: string, session: string, uri: string): Promise<{ path: string; content: string }> {
+    return this.runtime.request(`${this.route(project)}/lsp/${encodeURIComponent(session)}/library?uri=${encodeURIComponent(uri)}`);
+  }
+
   /** An exploration has its own evidence namespace instead of masquerading as a scored run. */
   private inspectionRoute(project: string, source: string): string {
     return source.startsWith("inspection_") ? `${this.route(project)}/inspection-sessions/${source}/actions` : `${this.route(project)}/runs/${source}/inspections`;

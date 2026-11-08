@@ -19,6 +19,8 @@ export default {
   "Restart language server": "重新啟動語言伺服器",
   "Set up LSP": "設定 LSP",
   "This definition is outside the project. Its source cannot be opened here.": "此定義位於專案外，無法在這裡開啟它的原始碼。",
+  "read-only": "唯讀",
+  "Open it again from its definition with F12.": "請從定義處按 F12 重新開啟。",
   "The definition file could not be opened.": "無法開啟定義所在的檔案。",
   "Python language server": "Python 語言伺服器",
   "Basedpyright for type inference, completions, diagnostics and definition navigation in source files.": "使用 Basedpyright 在原始碼中提供型別推斷、補全、診斷與定義跳轉。",

@@ -21,6 +21,70 @@ use crate::{CoreError, Kernel, locked};
 const MAX_MESSAGE: usize = 8 * 1024 * 1024;
 const MAX_HISTORY: usize = 16 * 1024 * 1024;
 const IDLE: Duration = Duration::from_secs(90);
+/// The largest installed-package source file a definition opens to.
+const MAX_LIBRARY_FILE: u64 = 4 * 1024 * 1024;
+
+/// The folders a session's installed packages live in, outside the project: the selected Python's import path, or the
+/// Rust toolchains' and crates' sources. A definition there opens read-only; nothing else outside the project does.
+async fn library_roots(language: &str, python: Option<&Path>, root: &Path) -> Vec<PathBuf> {
+    let mut found: Vec<PathBuf> = Vec::new();
+    match (language, python) {
+        ("python", Some(python)) => {
+            // -E ignores PYTHON* variables, and a neutral folder keeps the project's own modules off the path.
+            let mut command = Command::new(python);
+            command
+                .args(["-E", "-c", "import json, sys; print(json.dumps(sys.path))"])
+                .current_dir(std::env::temp_dir())
+                .stdin(Stdio::null())
+                .stderr(Stdio::null())
+                .kill_on_drop(true);
+            if let Ok(Ok(output)) =
+                tokio::time::timeout(Duration::from_secs(5), command.output()).await
+                && let Ok(paths) = serde_json::from_slice::<Vec<String>>(&output.stdout)
+            {
+                found.extend(
+                    paths
+                        .into_iter()
+                        .filter(|path| !path.is_empty())
+                        .map(PathBuf::from),
+                );
+            }
+        }
+        ("rust", _) => {
+            let home = std::env::var_os("HOME").map(PathBuf::from);
+            let rustup = std::env::var_os("RUSTUP_HOME")
+                .map(PathBuf::from)
+                .or_else(|| home.as_ref().map(|home| home.join(".rustup")));
+            let cargo = std::env::var_os("CARGO_HOME")
+                .map(PathBuf::from)
+                .or_else(|| home.as_ref().map(|home| home.join(".cargo")));
+            found.extend(rustup.map(|folder| folder.join("toolchains")));
+            if let Some(cargo) = cargo {
+                found.push(cargo.join("registry").join("src"));
+                found.push(cargo.join("git").join("checkouts"));
+            }
+        }
+        _ => {}
+    }
+    let root = tokio::fs::canonicalize(root)
+        .await
+        .unwrap_or_else(|_| root.to_path_buf());
+    let mut roots = Vec::new();
+    for folder in found {
+        let Ok(real) = tokio::fs::canonicalize(&folder).await else {
+            continue;
+        };
+        // Never the whole disk, the project, or a folder that holds the project.
+        if real.is_dir()
+            && real.parent().is_some()
+            && !real.starts_with(&root)
+            && !root.starts_with(&real)
+        {
+            roots.push(real);
+        }
+    }
+    roots
+}
 
 /// Sessions belong to the client that started them and are never stored in research records.
 #[derive(Debug, Default)]
@@ -38,6 +102,8 @@ struct Session {
     root_uri: String,
     language: String,
     settings: Value,
+    /// Where definitions outside the project may be read from, read-only.
+    library: Vec<PathBuf>,
     input: AsyncMutex<Option<ChildStdin>>,
     output: Mutex<Output>,
     moved: watch::Sender<u64>,
@@ -349,6 +415,7 @@ impl Kernel {
             "basedpyright": { "analysis": { "typeCheckingMode": "basic", "diagnosticMode": "openFilesOnly" } },
             "rust-analyzer": { "checkOnSave": false, "cargo": { "buildScripts": { "enable": false } }, "procMacro": { "enable": false } }
         });
+        let library = library_roots(language, python.as_deref(), &root).await;
         let mut command = Command::new(executable);
         launch_env(&mut command);
         for (key, _) in std::env::vars_os() {
@@ -407,6 +474,7 @@ impl Kernel {
             root_uri: root_uri.clone(),
             language: language.to_owned(),
             settings,
+            library,
             input: AsyncMutex::new(child.stdin.take()),
             output: Mutex::default(),
             moved: watch::channel(0).0,
@@ -419,6 +487,55 @@ impl Kernel {
         Ok(
             json!({ "id": id, "rootUri": root_uri, "server": name, "language": language, "python": python }),
         )
+    }
+
+    /// A definition's source file outside the project, read-only: only from the session's installed packages, only a
+    /// source file of its language, and never through a link that leads elsewhere.
+    pub async fn research_lsp_library(
+        &self,
+        project: &str,
+        id: &str,
+        uri: &str,
+    ) -> Result<Value, CoreError> {
+        let session = self.lsp_session(project, id)?;
+        let path = Url::parse(uri)
+            .ok()
+            .filter(|url| url.scheme() == "file")
+            .and_then(|url| url.to_file_path().ok())
+            .ok_or_else(|| CoreError::new(400, "A definition is opened by its file address."))?;
+        let real = tokio::fs::canonicalize(&path)
+            .await
+            .map_err(|_| CoreError::new(404, "The definition's file is not there."))?;
+        let extensions: &[&str] = match session.language.as_str() {
+            "python" => &["py", "pyi"],
+            "rust" => &["rs"],
+            _ => &[],
+        };
+        let source = real
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extensions.contains(&extension));
+        if !source
+            || !session
+                .library
+                .iter()
+                .any(|folder| real.starts_with(folder))
+        {
+            return Err(CoreError::new(
+                403,
+                "Only source files of the packages this language server uses open outside the project.",
+            ));
+        }
+        let info = tokio::fs::metadata(&real).await?;
+        if !info.is_file() || info.len() > MAX_LIBRARY_FILE {
+            return Err(CoreError::new(
+                413,
+                "The definition's file is too large to show.",
+            ));
+        }
+        let content = String::from_utf8(tokio::fs::read(&real).await?)
+            .map_err(|_| CoreError::new(415, "The definition's file is not text."))?;
+        Ok(json!({ "path": real.to_string_lossy(), "content": content }))
     }
 
     /// Check ownership and current project access for every transport operation, including reconnects.

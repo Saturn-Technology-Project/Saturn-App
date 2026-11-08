@@ -76,6 +76,7 @@
   "GET /projects/:id/research/inspection-sessions",
   "GET /projects/:id/research/inspection-sessions/:session/inside",
   "GET /projects/:id/research/lsp/:session/events",
+  "GET /projects/:id/research/lsp/:session/library",
   "GET /projects/:id/research/notebook",
   "GET /projects/:id/research/notebook/events",
   "GET /projects/:id/research/policy",

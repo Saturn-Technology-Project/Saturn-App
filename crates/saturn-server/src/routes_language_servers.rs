@@ -31,6 +31,16 @@ async fn send(
         .await?)
 }
 
+/// A definition's file in an installed package, read-only.
+async fn library(
+    State(kernel): Shared,
+    Path((project, session)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    let uri = query.get("uri").map(String::as_str).unwrap_or("");
+    ok(kernel.research_lsp_library(&project, &session, uri).await?)
+}
+
 /// Close a server when its workspace closes or the person restarts the connection.
 async fn stop(State(kernel): Shared, Path((project, session)): Path<(String, String)>) -> Answer {
     ok(kernel.research_lsp_stop(&project, &session).await?)
@@ -74,6 +84,10 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/projects/{id}/research/lsp/start", post(start))
         .route("/projects/{id}/research/lsp/{session}/messages", post(send))
         .route("/projects/{id}/research/lsp/{session}/events", get(events))
+        .route(
+            "/projects/{id}/research/lsp/{session}/library",
+            get(library),
+        )
         .route(
             "/projects/{id}/research/lsp/{session}",
             axum::routing::delete(stop),

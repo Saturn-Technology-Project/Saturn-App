@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { closeCompletion } from "@codemirror/autocomplete";
 import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { gotoLine } from "@codemirror/search";
-import { countColumn, type EditorState } from "@codemirror/state";
+import { countColumn, EditorState } from "@codemirror/state";
 import { diagnosticCount, openLintPanel } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
 import { EditorView } from "@codemirror/view";
@@ -77,6 +77,8 @@ export function SourceEditor(props: {
   label?: string;
   /** Grows with its text, for a notebook's cell, rather than filling its pane. */
   fit?: boolean;
+  /** Shown and searched, never changed: an installed package's file. */
+  readOnly?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<EditorView | null>(null);
@@ -108,6 +110,7 @@ export function SourceEditor(props: {
         }
       }),
       EditorView.contentAttributes.of({ "aria-label": props.label ?? t("Source file"), spellcheck: "false", autocapitalize: "off", autocorrect: "off" }),
+      ...(props.readOnly ? [EditorState.readOnly.of(true)] : []),
     ];
     const cached = props.cacheKey ? props.documents?.open(props.cacheKey, props.initialContent, props.language, extensions) : undefined;
     const view = new EditorView({ state: cached?.state ?? createSourceState(props.initialContent, props.language, extensions), parent: host.current, scrollTo: cached?.scroll });
