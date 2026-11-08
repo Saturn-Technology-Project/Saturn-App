@@ -16,7 +16,7 @@ New untracked files in the project change the next version, and large ones are s
 ## What to keep
 Newest, best by validation, and a few at planned steps. Weights take room, so delete the rest deliberately, and only those no record names.
 
-A resumable checkpoint holds model, optimizer, schedule step and random state. A model record only needs the weights.
+A resumable checkpoint holds model, optimizer, schedule step and the state of every random generator in use: Python's, NumPy's, torch's CPU generator and, on a GPU, each CUDA device's (`torch.cuda.get_rng_state_all()`), which `torch.get_rng_state()` does not include. A model record only needs the weights.
 
 List each resumable checkpoint in `SATURN_RUN_ARTIFACTS` as you save it, with `kind: "checkpoint"` and its `step`: a resume of the run restores the last one listed. See `pause-and-resume`.
 

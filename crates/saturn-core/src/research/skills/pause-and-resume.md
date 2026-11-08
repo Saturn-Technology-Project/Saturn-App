@@ -51,15 +51,15 @@ with open(os.environ["SATURN_RUN_ARTIFACTS"], "a") as manifest:
 ```
 `path` is relative to `SATURN_RUN_DIRECTORY`; `written/` is `SATURN_RUN_OUTPUT`. A checkpoint elsewhere in the project works too. With the step known, the metrics up to it come along, so the curve goes on where the checkpoint was saved.
 
-Restore model, optimizer, scheduler, step and random state, then report what was restored:
+Restore model, optimizer, scheduler, step and the state of every random generator the run draws from (Python's, NumPy's, torch's CPU one, and each CUDA device's with `torch.cuda.get_rng_state_all()` / `set_rng_state_all()`), then report what was restored, naming each generator:
 ```python
-report(kind="resume", checkpoint=os.environ["SATURN_RESUME_FROM"], restored=["weights", "optimizer", "scheduler", "rng"])
+report(kind="resume", checkpoint=os.environ["SATURN_RESUME_FROM"], restored=["weights", "optimizer", "scheduler", "step", "rng:cpu", "rng:cuda"])
 ```
-`report` is the helper in `run-provenance`. Without that line, the evidence says the restore is unknown. See also `checkpoints-and-lineage`.
+`report` is the helper in `run-provenance`. Without that line, the evidence says the restore is unknown. Name only what the program put back: a checkpoint saved on a GPU and resumed on another number of devices keeps its CUDA state in `notRestored`, not in `restored`. Saving only `torch.get_rng_state()` saves the CPU generator alone; on CUDA, dropout and sampling draw from the device's. See also `checkpoints-and-lineage`.
 
 **Also there.** `SATURN_RESUME_RUN` is the resumed run's id and `SATURN_RESUME_DIRECTORY` its folder, which the program may read but not change. A run on the SSH host gets only `SATURN_RESUME_FROM`: the resumed run's folder is not on the host.
 
 ## When not to resume
 - The failure was in the method, not the machine: fix it, freeze, and start fresh.
 - The samples were wrong, for example a scorer bug: carried samples keep the bug. Start fresh.
-- Seeds or nondeterminism matter for the claim: a resumed run is not identical to an uninterrupted one. Say so in the finding.
+- Seeds or nondeterminism matter for the claim. With every generator restored and the same data order, a CPU run goes on as the uninterrupted one would have; on CUDA some kernels are not deterministic, so the resumed run agrees with an uninterrupted one only to within their noise unless the program set `torch.use_deterministic_algorithms(True)`. Say in the finding that the run was resumed, and treat a difference inside that noise as no difference.

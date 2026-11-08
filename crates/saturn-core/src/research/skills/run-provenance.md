@@ -60,10 +60,12 @@ random.seed(seed); numpy.random.seed(seed); torch.manual_seed(seed)
 report(kind="seed", value=seed, applied=["python", "numpy", "torch"])
 report(kind="model", source="huggingface", id=name, revision=model.config._commit_hash)
 report(kind="config", resolved=config_as_dict)
-report(kind="resume", checkpoint=path, restored=["weights", "optimizer", "scheduler", "rng"])
+report(kind="resume", checkpoint=path, restored=["weights", "optimizer", "scheduler", "step", "rng:cpu", "rng:cuda"])
 ```
 - `SATURN_RUN_SEED` is the version's first seed and `SATURN_RUN_SEEDS` all of them. Saturn passes them; only the
   program can say it applied them.
 - Report the model revision the library actually loaded, not the one you asked for.
-- For a resumed run, report what was restored. A run that restored only the weights is not the same as one that
-  restored the optimizer and random state.
+- For a resumed run, report what was restored, and only that. A run that restored only the weights is not the same as
+  one that restored the optimizer and random state, and `torch.get_rng_state()` is the CPU generator alone: name the
+  CUDA devices' state (`rng:cuda`) only when `torch.cuda.set_rng_state_all()` put it back, and list what the checkpoint
+  held but the program could not restore under `notRestored`.
