@@ -16,7 +16,10 @@ import { useRecords } from "../ui/useRecords.js";
 import { RemoteTargetEditor } from "./RemoteExecution.js";
 
 const service = desktop.research;
-const PANEL = "gap-0 border-0 bg-panel px-3.5 py-3";
+const PANEL = "border-0 bg-panel px-3.5 py-3";
+/** A card's first line: what it is about on the left, its buttons on the right, wrapping beneath when narrow. */
+const HEADLINE = "flex flex-wrap items-center justify-between gap-2";
+const HEADLINE_TEXT = "min-w-0 flex-[1_1_220px] [overflow-wrap:anywhere]";
 const JOB_LABELS = { create: t("Making the environment"), install: t("Installing"), sync: t("Syncing from the lock file") } as const;
 
 
@@ -98,26 +101,30 @@ export function Environment(props: ScreenProps) {
     <Page title={t("Environment")} lead={t("Experiments and looking inside run with this Python. Saturn can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.")}>
       <RemoteTargetEditor projectId={projectId} notify={props.notify} />
       <Heading data-tour="environment-managed">{t("Managed environment")}</Heading>
-      <Field label={t("Job timeout (minutes)")} className="max-w-60">
-        <Input type="number" min={1} max={1440} step={1} value={timeoutMinutes} onChange={(event) => setTimeoutMinutes(event.target.value)} />
+      <Field label={t("Job timeout (minutes)")} hint={timeoutValid ? t("For making it and for every install, kits included.") : null}>
+        <Input type="number" min={1} max={1440} step={1} className="max-w-60" value={timeoutMinutes} onChange={(event) => setTimeoutMinutes(event.target.value)} />
         {!timeoutValid ? <span className="text-xs text-wait">{t("Choose 1 to 1440 whole minutes.")}</span> : null}
       </Field>
       {record ? (
         managed?.exists ? (
-          <Card className={PANEL}>
-            <Row>
-              <span>
-                <code>{managed.path}</code> {record.python === managed.python ? t("in the project, in use") : t("in the project")}
+          <Card className={classes(PANEL, "mt-3")}>
+            <div className={HEADLINE}>
+              <span className={HEADLINE_TEXT}>
+                <code>{managed.path}</code> <span className="text-muted-foreground">{t("in the project")}</span>
+                {record.python === managed.python ? <Badge tone="good" className="ml-2 align-middle">{t("In use")}</Badge> : null}
               </span>
-              {record.python !== managed.python ? (
-                <Button variant="outline" onClick={() => void act(() => service.setEnvironment(projectId, managed.python))}>
-                  {t("Use it")}
+              <div className="flex flex-wrap gap-2">
+                {record.python !== managed.python ? (
+                  <Button variant="outline" onClick={() => void act(() => service.setEnvironment(projectId, managed.python))}>
+                    {t("Use it")}
+                  </Button>
+                ) : null}
+                <Button variant="outline" disabled={running || !timeoutValid || !record.lockFiles.length} title={record.lockFiles.length ? t("Brings it to what the lock file says") : t("No lock file at the project's root")} onClick={() => void act(() => service.installPackages(projectId, { sync: true, timeoutSeconds }))}>
+                  {t("Sync from lock file")}
                 </Button>
-              ) : null}
-              <Button variant="outline" disabled={running || !timeoutValid || !record.lockFiles.length} title={record.lockFiles.length ? t("Brings it to what the lock file says") : t("No lock file at the project's root")} onClick={() => void act(() => service.installPackages(projectId, { sync: true, timeoutSeconds }))}>
-                {t("Sync from lock file")}
-              </Button>
-            </Row>
+              </div>
+            </div>
+            {record.lockFiles.length ? null : <p className="m-0 text-xs text-muted-foreground">{t("No lock file at the project's root, so there is nothing to sync from; a uv.lock, requirements.txt or pyproject.toml there would be.")}</p>}
             <form
               className="flex flex-wrap items-end gap-2"
               onSubmit={(event) => {
@@ -135,7 +142,7 @@ export function Environment(props: ScreenProps) {
             </form>
           </Card>
         ) : (
-          <Card className={PANEL}>
+          <Card className={classes(PANEL, "mt-3")}>
             {tool ? (
               <>
                 <div>
@@ -172,8 +179,8 @@ export function Environment(props: ScreenProps) {
 
       {job ? (
         <Card className={classes(PANEL, "mt-2", (job.status === "failed" || job.status === "timed_out") && "border border-wait")}>
-          <Row>
-            <span>
+          <div className={HEADLINE}>
+            <span className={HEADLINE_TEXT}>
               <strong>{JOB_LABELS[job.kind]}</strong> <span className="text-xs text-muted-foreground">{job.status === "running" ? t("running") : job.status === "completed" ? t("done") : job.status === "timed_out" ? t("timed out; processes stopped") : job.status === "failed" ? t("failed (exit {code})", { code: job.exitCode ?? "?" }) : t("interrupted: the runtime that started it is gone")}</span>
             </span>
             {running ? (
@@ -183,10 +190,10 @@ export function Environment(props: ScreenProps) {
             ) : (
               <span className="text-xs text-muted-foreground">{new Date(job.endedAt ?? job.startedAt).toLocaleString()}</span>
             )}
-          </Row>
+          </div>
           {job.error ? <div className="text-xs text-wait">{job.error}</div> : null}
           {job.status === "running" && job.timeoutSeconds ? <div className="text-xs text-muted-foreground">{t("Stops after {minutes} minutes. You can stop it sooner.", { minutes: job.timeoutSeconds / 60 })}</div> : null}
-          <pre className="overflow-auto px-2.5 py-2 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap">{job.logTail || t("Nothing written yet.")}</pre>
+          <pre className="m-0 overflow-auto rounded-md bg-background/60 px-2.5 py-2 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap">{job.logTail || t("Nothing written yet.")}</pre>
           {job.logLines > 40 ? <div className="text-xs text-muted-foreground">{t("The last 40 of {count} lines; the whole log is in {path}.", { count: job.logLines, path: ".saturn/research/environment-job.log" })}</div> : null}
         </Card>
       ) : null}
