@@ -203,6 +203,19 @@ async fn write_source(State(kernel): Shared, Path(project): Path<String>, body: 
         .await?)
 }
 
+/// A person's rename from the Workspace; its destination is never overwritten.
+async fn rename_source(State(kernel): Shared, Path(project): Path<String>, body: Body) -> Answer {
+    let body = body_of(body);
+    ok(kernel
+        .research_source_rename(
+            &project,
+            given(&body, "path").unwrap_or(""),
+            given(&body, "newPath").unwrap_or(""),
+            given(&body, "expectedRevision"),
+        )
+        .await?)
+}
+
 async fn samples(
     State(kernel): Shared,
     Path((project, id)): Path<(String, String)>,
@@ -226,7 +239,7 @@ async fn log(
     Query(query): Query<HashMap<String, String>>,
 ) -> Answer {
     let stream = query.get("stream").map_or("stdout", String::as_str);
-    ok(kernel.research_run_log(&project, &id, stream).await?)
+    ok(kernel.research_run_log(&project, &id, stream, None).await?)
 }
 
 async fn evidence(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
@@ -239,6 +252,25 @@ async fn summary(State(kernel): Shared, Path((project, run)): Path<(String, Stri
 
 async fn labels(State(kernel): Shared, Path((project, run)): Path<(String, String)>) -> Answer {
     ok(kernel.research_labels(&project, &run).await?)
+}
+
+/// How a run's raters agree with each other, the adjudicated labels and the scorer.
+async fn label_agreement(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+) -> Answer {
+    ok(kernel.research_label_agreement(&project, &run).await?)
+}
+
+/// What a run's program wrote to its output folder: the files, or one file's text.
+async fn output(
+    State(kernel): Shared,
+    Path((project, run)): Path<(String, String)>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Answer {
+    ok(kernel
+        .research_run_output(&project, &run, query.get("path").map(String::as_str), None)
+        .await?)
 }
 
 async fn set_label(
@@ -688,6 +720,11 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             get(labels).post(set_label),
         )
         .route(
+            "/projects/{id}/research/runs/{run}/labels/agreement",
+            get(label_agreement),
+        )
+        .route("/projects/{id}/research/runs/{run}/output", get(output))
+        .route(
             "/projects/{id}/research/samples/{sample}",
             get(sample_across),
         )
@@ -695,6 +732,7 @@ pub(crate) fn router(kernel: Arc<Kernel>) -> Router {
             "/projects/{id}/research/source",
             get(read_source).put(write_source),
         )
+        .route("/projects/{id}/research/source/rename", post(rename_source))
         .route("/projects/{id}/research/runs/{run}/samples", get(samples))
         .route("/projects/{id}/research/runs/{run}/log", get(log))
         .route("/projects/{id}/research/runs/{run}/evidence", get(evidence))

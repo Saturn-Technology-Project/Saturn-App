@@ -349,6 +349,7 @@ impl Kernel {
             .ok_or_else(|| CoreError::new(404, format!("Project {id} not found")))?;
         if !granted {
             self.research_notebooks_stop_project(id).await;
+            self.research_lsp_stop_project(id).await;
         }
         log(
             "projects",
@@ -380,6 +381,7 @@ impl Kernel {
             Some(value) => Some(crate::admin::check_sandbox(value)?),
             None => None,
         };
+        let changed_folders = folders.is_some();
         self.store
             .update(|state| {
                 let project = by_id_mut(&mut state.projects, id)
@@ -415,6 +417,9 @@ impl Kernel {
                 Ok::<(), CoreError>(())
             })
             .await??;
+        if changed_folders {
+            self.research_lsp_stop_project(id).await;
+        }
         self.project_view(id).await
     }
 
@@ -451,6 +456,7 @@ impl Kernel {
                 stopped
             })
             .await?;
+        self.research_lsp_stop_project(id).await;
         // Anything still working in those chats stops with them.
         locked(&self.stops).retain(|key, handle| {
             let stopping = stopped

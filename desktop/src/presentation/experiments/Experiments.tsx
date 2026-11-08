@@ -69,7 +69,7 @@ const VERDICTS: Verdict[] = ["undecided", "supported", "refuted", "inconclusive"
 /** A verdict's word, as it is shown. */
 const VERDICT_LABELS: Record<Verdict, string> = { undecided: t("Undecided"), supported: t("Supported"), refuted: t("Refuted"), inconclusive: t("Inconclusive") };
 /** A model's role in an experiment, as it is shown. */
-const ROLE_LABELS: Record<ModelRole, string> = { base: t("Base"), reference: t("Reference"), policy: t("Policy") };
+const ROLE_LABELS: Record<ModelRole, string> = { base: t("Base"), reference: t("Reference"), policy: t("Policy"), reward: t("Reward") };
 /** Which badge tone marks a finding: an AI suggestion stands apart, and a conclusion is the person's. */
 const FINDING_TONES: Record<FindingKind, "neutral" | "accent" | "violet"> = { observation: "neutral", ai_suggestion: "violet", conclusion: "accent" };
 /** The color of a verdict's word; the word itself always says it too. */
@@ -422,7 +422,7 @@ export function Experiments(props: ScreenProps) {
           ))}
           <div className="mt-2 flex flex-wrap items-end gap-2">
             <Choice label={t("Model")} className="flex-[1_1_160px]" placeholder={t("Choose")} value={binding.modelId} options={(value?.models ?? []).map((model: ModelNode) => ({ value: model.id, label: model.name || model.source }))} onChange={(chosen) => setBinding({ ...binding, modelId: chosen })} />
-            <Choice label={t("Role")} className="flex-[1_1_160px]" value={binding.role} options={[{ value: "base", label: ROLE_LABELS.base }, { value: "reference", label: ROLE_LABELS.reference }, { value: "policy", label: ROLE_LABELS.policy }]} onChange={(chosen) => setBinding({ ...binding, role: chosen as ModelRole })} />
+            <Choice label={t("Role")} className="flex-[1_1_160px]" value={binding.role} options={[{ value: "base", label: ROLE_LABELS.base }, { value: "reference", label: ROLE_LABELS.reference }, { value: "policy", label: ROLE_LABELS.policy }, { value: "reward", label: ROLE_LABELS.reward }]} onChange={(chosen) => setBinding({ ...binding, role: chosen as ModelRole })} />
             <Button variant="outline" disabled={!binding.modelId} onClick={() => void bindModel()}>
               {t("Add")}
             </Button>

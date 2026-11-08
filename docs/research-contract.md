@@ -151,8 +151,12 @@ starting → running ⇄ paused
   - `SATURN_RESUME_RUN` and `SATURN_RESUME_DIRECTORY` name the resumed run and its folder, which the sandbox lets the
     program read, with the checkpoint. Whether the program skipped and restored anything is for its `resume` report to say.
 - Ending a run seals it: the hash of `samples.jsonl` is recorded, and later writes to the file do not count. Reading a
-  run, its samples or its summary checks the seal again: `sealIntact: false` means the samples changed after the run
-  ended, and they no longer stand for its results.
+  run, the list of runs, a run's samples or its summary checks the seal again: `sealIntact: false` means the samples
+  changed after the run ended, and they no longer stand for its results. The summary still gives the figures the
+  changed file adds up to, beside the flag; a paired comparison refuses such a run.
+- `GET .../runs/{id}/output` lists the files the program wrote to `SATURN_RUN_OUTPUT` (its `written/` folder), and with
+  `path` answers one file's text up to 256 KiB (`binary: true` and no text for a file with NUL bytes). A path that leads
+  out of the folder, or through a link, is refused with 403. Nothing in the folder is run.
 - A running run holds its worktree: discarding it, or the chat that owns it, gets 409.
 - Process identity is implemented for macOS and Linux. On Windows, starting a run says it is not supported yet.
 
@@ -229,7 +233,8 @@ sources apart:
   `config` or `resume`. What it did not report is `null` and is never filled in from `expected`.
 
 Three verdicts: `execution` (the run's status), `inputs` (`verified`, `partial`, `changed`, `unverified`) and
-`outputs` (`sealed`, `incomplete`, `changed`, `none`). A run from before evidence was kept answers `recorded: false`.
+`outputs` (`sealed`, `incomplete`, `changed`, `none`, or `pending` while the run is still going). A run from before
+evidence was kept answers `recorded: false`.
 
 A hash confirms which content a file had. It does not show that the program used that content, or that the scorer or
 the conclusion is right.
@@ -295,16 +300,19 @@ beside its place and moved there whole, with mode 700 in the user's home and no 
 the host; a different hash removes it and fails. A build with no hash for the host's target refuses to install.
 
 `POST .../remote/runs` takes an executable `versionId`, `clientId`, `timeoutSeconds` (1..604800, default 3600), and optional
-`resumeFrom`. The launch intent is stored before SSH. A detached Rust worker, started with nohup in its own group,
-owns the command, output streams, cancellation and wall-clock limit. Closing the desktop/runtime only detaches.
+`resumeFrom`. The launch intent is stored before SSH. A detached Rust worker, started directly in its own process
+group with its streams closed (not through nohup, so a host without it works the same), owns the command, output
+streams, cancellation and wall-clock limit. Closing the desktop/runtime only detaches.
 Restarting reconnects active remote runs this runtime started, instead of interrupting them; it records those launches in its own data folder (`remote-launches.json`), never in the project. A run whose remote record came with the project is marked `interrupted` with `remoteError`, and its host is not contacted. Only the first exchange carries the start; a worker without the job answers 410 and the run becomes `interrupted`, never resubmitted. Worker errors keep their status, and 400, 403, 404, 410, 413 and 422 end the run with that message rather than being retried. Retrying a client ID cannot submit another job.
 An explicit stop persists a cancellation request even while disconnected; only the worker's acknowledgement ends it.
 A stale heartbeat is unresponsive, not proof the computation stopped. A dead remote machine/worker is not resubmitted.
 
-Code and data are not uploaded. The worker records its working directory and observed git commit, with an explicit
-warning that these are not certified identical to the local frozen source. `resumeFrom` is passed as
-`SATURN_RESUME_FROM`; the user's framework must restore weights, optimizer, scheduler and RNG state. A resumed attempt
-is a new run. The wall-clock limit stops the process group; it is not a guarantee about a provider's GPU bill.
+Code and data are not uploaded. The worker rebuilds the version from the host's working tree and git and checks every
+file against the version's hashes before the command runs (see the run's evidence above); it records the working
+directory and the commit it observed, and lists what the version does not name as uncontrolled. `resumeFrom` is passed
+as `SATURN_RESUME_FROM`, and only that: the resumed run's folder is not on the host, so `SATURN_RESUME_RUN` and
+`SATURN_RESUME_DIRECTORY` are not set there. The user's framework must restore weights, optimizer, scheduler and RNG
+state. A resumed attempt is a new run. The wall-clock limit stops the process group; it is not a guarantee about a provider's GPU bill.
 
 Samples, metrics, artifact manifest and stdout/stderr are pulled in bounded chunks, at most 64 MiB per stream.
 Completion waits for every chunk and verifies the remote hashes. A transfer failure keeps the run pending/disconnected,
@@ -337,6 +345,11 @@ One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`.
   worded labels mean the same thing. Editing the map updates review comparisons for that experiment, including
   earlier labels, without changing the saved labels or scores. The labels response adds `agreesWithScorer` to each
   entry: true, false, or null when no matching sample with a scorer word was found.
+- A label with `rater` (a short plain name) goes in that rater's own set in the labels file (`raters.<name>`), beside
+  the adjudicated labels, and the response lists `raters` with how many each did. `GET .../runs/{id}/labels/agreement`
+  measures them: Cohen's kappa for each pair of raters on the samples both labelled, Fleiss' kappa over the samples
+  every rater labelled, and each rater's (and the adjudicated labels') agreement and kappa against the scorer's word,
+  all through the experiment's aliases. It changes nothing.
 - `GET .../runs/{id}/samples` accepts `only=all|disputed|errors` before paging, so a dispute anywhere in the run is
   reachable, including beyond 5,000 lines. `cursor` and `next` remain absolute byte positions in the samples file.
   Disputed filtering and agreement use the same Rust rule and experiment vocabulary; error filtering uses `error`.
@@ -384,7 +397,12 @@ environment that ran the experiment; a command that starts with anything else is
   `expected` on the sample line it is the log-probability of `expected`'s first token read through the final norm and
   the unembedding; without one it is the residual stream's norm. `top` is the token the model ends on. The model is the
   one the sample line names unless `modelId` says otherwise; its weights are as the version pinned them, else as the
-  project's model record says.
+  project's model record says. With `save`, a project path (`.npz` is added when missing, and Saturn's records and
+  git's folder are refused), the helper also writes every layer's raw residual stream there, `layer_<n>` arrays of
+  tokens × hidden with `tokens` (and `patched_layer_<n>` for a patch), and the answer's `saved` gives the path, hash and
+  size, so a run can declare the file as data. A reading with `save` is its own saved result. The path must be new
+  (409 when a file is there: a reading never replaces one) and not locked for agents (403 for a frozen version's
+  data or scorer input, or a path the policy names), as a file tool's write would be.
 - `POST /projects/{id}/research/interventions` with `{"runId","sampleId","sourceModelId","targetModelId","layer"}`
   runs the source model on the same input, replaces the residual stream leaving `layer` of the target with the source's,
   and answers in the same shape with `patched: {"layer","sourceModelId","layers","top"}`. Everything up to that layer is
@@ -435,10 +453,12 @@ accept the same compare/prompts/features actions as a run's inspections, with ev
 record later does not change a session. Floating weights, mutable local model contents and changes inside an installed
 Python environment remain limitations. Session observations use `inspectionIds`, not fictitious run IDs.
 
-`POST .../research/artifacts/register` takes a project `path`, `kind` (`figure`, `json`, `notebook`, `reference`), optional
-`runId`/`inspectionId` and metadata. A snapshot saves at most 16 MiB in content-addressed `artifact_data/<sha256>`;
-its immutable record retains the original path/hash/size. JSON and nbformat 4 notebooks are validated; figures need a
-PNG/JPEG/WebP signature. HTML and SVG are not rendered. The content endpoint verifies the saved hash and reports when
+`POST .../research/artifacts/register` takes a project `path`, `kind` (`figure`, `json`, `notebook`, `document`,
+`reference`), optional `runId`/`inspectionId` and metadata. A snapshot saves at most 16 MiB in content-addressed
+`artifact_data/<sha256>`; its immutable record retains the original path/hash/size. JSON and nbformat 4 notebooks are
+validated; figures need a PNG/JPEG/WebP signature; a document is a PDF by its signature or UTF-8 text (`text/markdown`,
+`text/x-tex` or `text/plain` by its name), and HTML or SVG offered as one is refused with 415. HTML and SVG are not
+rendered. The content endpoint verifies the saved hash and reports when
 the source changed or cannot be checked. Opening a notebook explicitly opens its original editable project file.
 
 A reference copies no contents. A project file reference records its measured hash/size; an external https/s3/hf/ssh URI
@@ -517,6 +537,13 @@ A remote run is sampled the same way on its host: the detached worker samples th
 other outputs. The run records the host's `remoteSystem` (`cpus`, `platform`), and `system` in the answer is that, with
 `host` naming the configured host.
 
+The Workspace creates a file with `PUT .../research/source`, a new `path`, `content` and a null `expectedRevision`;
+an existing file is a conflict. `POST .../research/source/rename` takes `path`, `newPath` and, for an open editor,
+`expectedRevision`. A stale revision or existing destination gets 409. Only regular files move; links (including
+directory aliases), paths outside the granted project, git metadata and research records are refused. File bytes and
+permissions are preserved, including binary files. The UI carries tabs and unsaved drafts to the new name; imports and
+experiment input references are not rewritten.
+
 `GET .../research/source?path=` opens a PDF or an image (`.pdf`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`) as
 `{"kind":"document","path","mime","size","revision","data"}`, its bytes in base64, up to 32 MiB, to be shown and never
 edited. Any other file that is not text is still refused with 415.
@@ -536,8 +563,9 @@ interpreter last said about itself), `checkedAt`, and `lockFiles`, the pinning f
 (`uv.lock`, `poetry.lock`, `Pipfile.lock`, `requirements.txt`, `requirements.lock`, `pyproject.toml`,
 `environment.yml`) with their `sha256` and `size`, looked up at the time of asking. `PUT` with `{"python"}` sets the
 interpreter; empty forgets it. `POST .../environment/check` runs a script with the interpreter that reports its
-version, platform, processor count, the versions of the packages research code leans on, and the devices torch can
-see (CUDA names, MPS), and keeps the report. No interpreter, one that cannot start, or one whose report cannot be read
+version, platform, processor count, the versions of the packages research code leans on, the devices torch can
+see (CUDA names, MPS), and `programs`: for git, uv, elan, lake, lean, tectonic, latexmk, pdflatex and pandoc, where
+each is on the interpreter's PATH and the first line of its `--version`, or null, and keeps the report. No interpreter, one that cannot start, or one whose report cannot be read
 answers 422 with what to do. Looking inside uses this interpreter when an experiment's command does not start with
 one. The record lives in `.saturn/research/environment.json`, and the lock files are not changed by Saturn.
 
@@ -635,13 +663,32 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
   no claim about who changed it, since the user may have edited the file. A file changed and restored between checks
   is not detected.
 
+## What is a tool, and what is the assistant's
+
+A fixed tool is for what must be the same in every study, or what only the runtime can vouch for: the records and their
+revisions, freezing and the snapshot, running in the sandbox and the evidence, sealing and comparing, labels and their
+agreement, reading a model's layers with the experiment's own Python, importing and bundling. Those are Rust (or a
+helper the runtime ships and hashes), tested in `contract/`, and the assistant cannot change them.
+
+The science is the assistant's, as a program in the project: what the model is asked, how the answer is scored, how
+training goes, which attacks are tried, which direction is added to which layer. A tool would fix one method where
+methods change by the month, and would put the computation outside the version the evidence describes. So Saturn hands
+out starting points instead, through `research_template`: a small SDK (`saturn_run.py`) that writes the records the way
+the contract above reads them, and one template per kind of study the skills teach. A copy in the project is the
+project's own file, frozen with each version, hashed in the evidence and read by the sandbox like any other input.
+
+What the assistant gets back is also bounded, so a turn does not drown in a record: a log's last 8 KiB and 32 KiB of
+an output file unless it asks for more, a run's evidence with the snapshot's file count rather than its list unless it
+asks for the files, findings cut to 240 characters in `status`, and 50 samples at most at a time.
+
 ## What an agent does with the records
 
-An agent with the built-in `research` server, which an agent has only when its list names it, has thirteen tools, on every backend. `docs/research-skills.md` lists the skills that teach them.
+An agent with the built-in `research` server, which an agent has only when its list names it, has fourteen tools, on every backend. `docs/research-skills.md` lists the skills that teach them.
 
 | Tool | Reads or writes | What it does |
 |---|---|---|
 | `research_skill` | Reads | Lists or reads a skill. A project's or user's skill of the same name comes first |
+| `research_template` | Reads | Lists or reads a program to start from: `saturn_run`, the SDK an experiment imports to write samples, metrics, reports and checkpoints right, and one runnable template per kind of study (`eval_harness`, `red_team`, `trajectory`, `lean_check`, `probe_train`, `steering_sweep`, `train_loop`, `compile_paper`). The agent writes a copy into the project with its file tools; it is then the project's program |
 | `research_read` | Reads | Status, records, runs, summaries, samples (50 at most at a time), logs, resources, training metrics, labels, comparisons by condition and sample by sample (`paired`, which saves nothing), events, the environment, the policy, saved readings, the SSH host and remote runs, inspection sessions, kept outputs, a notebook kernel's state, previews of an import or a bundle, and the project's data: which files were read (`data_list`), what is in one (`data_profile`, `data_preview`), and what two share (`data_overlap`) |
 | `research_wait` | Reads | Holds the turn until a run ends, for up to 600 seconds at a time, and ends with the turn |
 | `research_write` | Writes | Makes questions, hypotheses, experiments, models, findings and counterexamples, changes them with `expectedRevision`, and deletes an imported experiment (`delete: true`) |

@@ -9,7 +9,7 @@ description: Create, check and pin the project's Python environment with the rig
 research_read { what: "environment" }
 research_environment_action { action: "check" }
 ```
-The check reports the interpreter, package versions, processors and the devices torch sees. Use what exists when it is adequate.
+The check reports the interpreter, package versions, processors, the devices torch sees, and which programs are on the interpreter's PATH with their versions (git, uv, elan, lake, lean, tectonic, latexmk, pdflatex, pandoc), so a run that needs one of them is promised only when it is there. Use what exists when it is adequate.
 
 ## Make one
 ```

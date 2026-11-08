@@ -3,7 +3,7 @@
 //! them for people.
 
 /// Every skill, by name, in the order a study meets them.
-const SKILLS: [(&str, &str); 51] = [
+const SKILLS: [(&str, &str); 68] = [
     (
         "research-autopilot",
         include_str!("skills/research-autopilot.md"),
@@ -151,6 +151,50 @@ const SKILLS: [(&str, &str); 51] = [
         include_str!("skills/research-bundles.md"),
     ),
     ("handing-back", include_str!("skills/handing-back.md")),
+    ("red-teaming", include_str!("skills/red-teaming.md")),
+    (
+        "safety-benchmarks",
+        include_str!("skills/safety-benchmarks.md"),
+    ),
+    (
+        "behavioral-evals",
+        include_str!("skills/behavioral-evals.md"),
+    ),
+    ("agentic-evals", include_str!("skills/agentic-evals.md")),
+    ("linear-probes", include_str!("skills/linear-probes.md")),
+    (
+        "steering-vectors",
+        include_str!("skills/steering-vectors.md"),
+    ),
+    (
+        "circuit-discovery",
+        include_str!("skills/circuit-discovery.md"),
+    ),
+    ("tuned-lens", include_str!("skills/tuned-lens.md")),
+    (
+        "reward-models-and-rl",
+        include_str!("skills/reward-models-and-rl.md"),
+    ),
+    (
+        "ablation-studies",
+        include_str!("skills/ablation-studies.md"),
+    ),
+    (
+        "scaling-and-efficiency",
+        include_str!("skills/scaling-and-efficiency.md"),
+    ),
+    ("model-cards", include_str!("skills/model-cards.md")),
+    (
+        "human-evaluation",
+        include_str!("skills/human-evaluation.md"),
+    ),
+    (
+        "replication-review",
+        include_str!("skills/replication-review.md"),
+    ),
+    ("data-provenance", include_str!("skills/data-provenance.md")),
+    ("paper-writing", include_str!("skills/paper-writing.md")),
+    ("lean-proofs", include_str!("skills/lean-proofs.md")),
 ];
 
 /// Every bundled skill: its name and its whole file.

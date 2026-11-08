@@ -5,8 +5,11 @@ description: Save checkpoints where they do not disturb versions, and record eac
 # Checkpoints and lineage
 
 ## Where to save
-- In `SATURN_RUN_DIRECTORY`: inside the run's folder, kept with its record. Fine for small models.
-- In a git-ignored folder such as `checkpoints/`: for large weights. Add it to `.gitignore` before training starts.
+- In `SATURN_RUN_OUTPUT`: the run's `written/` folder, kept with its record. This is where the sandbox lets the
+  program write, and where a resume looks first. Use it unless the weights are too large to keep with the run.
+- In a git-ignored folder in the project such as `checkpoints/`: only when the person has turned the sandbox off for
+  the version (`sandbox.isolated: false`), since a sandboxed program cannot write the project. Ask, and say how large
+  the weights are. Add the folder to `.gitignore` before training starts.
 
 New untracked files in the project change the next version, and large ones are saved or hashed with it. Never write checkpoints to a tracked or unignored folder.
 

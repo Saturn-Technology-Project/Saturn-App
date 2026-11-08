@@ -9,7 +9,7 @@ use saturn_domain::research::{
     MAX_SAMPLE_LINE, SCHEMA_VERSION, compare_versions, is_id, labels_agree, sample_identity,
 };
 use saturn_domain::time::{iso_time, now_millis};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use super::{pretty, read_record, write_whole};
 use crate::records::text;
@@ -117,7 +117,115 @@ impl Kernel {
             None
         };
         let (labels, agreement) = agreement_with_scorer(digest.as_deref(), labels, &aliases);
-        Ok(json!({ "runId": run, "labels": labels, "agreement": agreement }))
+        let raters: Vec<Value> = saved["raters"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .map(|(name, entries)| json!({ "name": name, "labeled": entries.as_object().map_or(0, |entries| entries.len()) }))
+            .collect();
+        Ok(json!({ "runId": run, "labels": labels, "agreement": agreement, "raters": raters }))
+    }
+
+    /// How far a run's raters agree with each other, with the adjudicated labels and with the scorer: Cohen's kappa for
+    /// each pair of raters on the samples both labelled, Fleiss' kappa over the samples every rater labelled, and each
+    /// rater's agreement and kappa against the scorer's word and against the adjudicated label. Words are compared
+    /// through the experiment's aliases, as everywhere; nothing is changed.
+    pub async fn research_label_agreement(
+        &self,
+        project: &str,
+        run: &str,
+    ) -> Result<Value, CoreError> {
+        let found = self.research_run(project, run).await?;
+        let records = self.records_folder(project).await?;
+        let saved = read_labels(&records, run).await?;
+        let aliases = self.research_label_aliases(project, &found).await?;
+        let word = |label: &str| normalized_label(label, &aliases);
+        let raters: Vec<(String, &Map<String, Value>)> = saved["raters"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter_map(|(name, entries)| {
+                entries.as_object().map(|entries| (name.clone(), entries))
+            })
+            .collect();
+        let mut pairs = Vec::new();
+        for (index, (left_name, left)) in raters.iter().enumerate() {
+            for (right_name, right) in raters.iter().skip(index + 1) {
+                let both: Vec<(String, String)> = left
+                    .iter()
+                    .filter_map(|(identity, entry)| {
+                        right
+                            .get(identity)
+                            .map(|other| (word(text(entry, "label")), word(text(other, "label"))))
+                    })
+                    .collect();
+                let agreed = both.iter().filter(|(a, b)| a == b).count();
+                pairs.push(json!({ "raters": [left_name, right_name], "items": both.len(), "agreed": agreed, "kappa": cohen_kappa(&both) }));
+            }
+        }
+        let fleiss = if raters.len() >= 2 {
+            let items: Vec<Vec<String>> = raters[0]
+                .1
+                .keys()
+                .filter(|identity| {
+                    raters
+                        .iter()
+                        .all(|(_, entries)| entries.contains_key(*identity))
+                })
+                .map(|identity| {
+                    raters
+                        .iter()
+                        .map(|(_, entries)| word(text(&entries[identity], "label")))
+                        .collect()
+                })
+                .collect();
+            json!({ "raters": raters.len(), "items": items.len(), "kappa": fleiss_kappa(&items) })
+        } else {
+            Value::Null
+        };
+        let adjudicated = saved["labels"].as_object();
+        let versus_adjudicated: Vec<Value> = raters
+            .iter()
+            .map(|(name, entries)| {
+                let both: Vec<(String, String)> = entries
+                    .iter()
+                    .filter_map(|(identity, entry)| adjudicated.and_then(|labels| labels.get(identity)).map(|final_label| (word(text(entry, "label")), word(text(final_label, "label")))))
+                    .collect();
+                let agreed = both.iter().filter(|(a, b)| a == b).count();
+                json!({ "rater": name, "compared": both.len(), "agreed": agreed, "kappa": cohen_kappa(&both) })
+            })
+            .collect();
+        // The scorer's words come from the samples, read once for a sealed run.
+        let path = records.join("runs").join(run).join("samples.jsonl");
+        let end = found.get("samplesSize").and_then(Value::as_u64);
+        let scorer_words: Vec<(String, String)> =
+            if raters.is_empty() && adjudicated.is_none_or(Map::is_empty) {
+                Vec::new()
+            } else {
+                self.run_digest(path, end).await?.scorer_words.clone()
+            };
+        let versus_scorer: Vec<Value> = raters
+            .iter()
+            .map(|(name, entries)| (name.as_str(), entries.iter().map(|(identity, entry)| (identity.clone(), text(entry, "label").to_owned())).collect::<Vec<_>>()))
+            .chain(adjudicated.map(|labels| ("adjudicated", labels.iter().map(|(identity, entry)| (identity.clone(), text(entry, "label").to_owned())).collect())))
+            .map(|(name, labels)| {
+                let both: Vec<(String, String)> = scorer_words
+                    .iter()
+                    .filter_map(|(identity, scored)| labels.iter().find(|(own, _)| own == identity).map(|(_, label)| (word(label), word(scored))))
+                    .collect();
+                let agreed = both.iter().filter(|(a, b)| a == b).count();
+                json!({ "rater": name, "compared": both.len(), "agreed": agreed, "kappa": cohen_kappa(&both) })
+            })
+            .collect();
+        Ok(json!({
+            "runId": run,
+            "raters": raters.iter().map(|(name, entries)| json!({ "name": name, "labeled": entries.len() })).collect::<Vec<_>>(),
+            "pairs": pairs,
+            "fleiss": fleiss,
+            "versusAdjudicated": versus_adjudicated,
+            "versusScorer": versus_scorer,
+            "note": "Kappa subtracts the agreement expected by chance. Below 0.4 the words mean different things to different people; above 0.8 is as good as labels get. A kappa from a few samples is a pilot number.",
+        }))
     }
 
     /// A run's digest. A sealed run's file does not change, so it is read once; a running one's is read each time.
@@ -210,6 +318,7 @@ impl Kernel {
             return Err(CoreError::new(400, "A label needs its \"label\"."));
         }
         let identity = requested_identity(request)?;
+        let rater = rater_name(request)?;
         self.research_run(project, run).await?;
         let records = self.records_for_writing(project).await?;
         let folder = records.join("labels");
@@ -223,6 +332,27 @@ impl Kernel {
         let lock = self.records_lock(&records);
         let _writing = lock.lock().await;
         let mut saved = read_labels(&records, run).await?;
+        // A rater's label goes in that rater's own set, beside the adjudicated labels, so several people can label the
+        // same sample and their agreement can be measured. Who entered it is kept with it.
+        if let Some(rater) = rater {
+            if !saved["raters"].is_object() {
+                saved["raters"] = json!({});
+            }
+            saved["raters"][&rater][&identity] = json!({
+                "sampleId": request.get("sampleId"),
+                "trial": request.get("trial").cloned().unwrap_or_else(|| json!(0)),
+                "modelId": request.get("modelId"),
+                "label": label,
+                "note": request.get("note"),
+                "by": by,
+                "updatedAt": iso_time(now_millis()),
+            });
+            write_whole(&folder.join(format!("{run}.json")), &pretty(&saved)?).await?;
+            self.research_changed();
+            let mut entry = saved["raters"][&rater][&identity].clone();
+            entry["rater"] = json!(rater);
+            return Ok(entry);
+        }
         // The assistant labels only what the person has not: a label from before labels said who set them is theirs.
         let existing = &saved["labels"][&identity];
         if by == saturn_domain::research::BY_ASSISTANT
@@ -393,6 +523,97 @@ impl ModelTally {
     }
 }
 
+/// The rater a label request names, when it names one: a short plain name, so it can be a key in the labels file.
+fn rater_name(request: &Value) -> Result<Option<String>, CoreError> {
+    let Some(rater) = request
+        .get("rater")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|rater| !rater.is_empty())
+    else {
+        return Ok(None);
+    };
+    if rater.len() > 64
+        || !rater
+            .chars()
+            .all(|letter| letter.is_alphanumeric() || matches!(letter, '-' | '_' | '.' | ' '))
+    {
+        return Err(CoreError::new(
+            400,
+            "A rater's name is up to 64 letters, digits, spaces, dots, dashes or underscores.",
+        ));
+    }
+    Ok(Some(rater.to_owned()))
+}
+
+/// A label as a category for agreement: trimmed, lowercased, and taken through the experiment's aliases.
+fn normalized_label(label: &str, aliases: &Value) -> String {
+    let normalized = label.trim().to_lowercase();
+    aliases
+        .as_object()
+        .into_iter()
+        .flatten()
+        .find(|(name, _)| name.trim().to_lowercase() == normalized)
+        .and_then(|(_, target)| target.as_str())
+        .map_or(normalized, |target| target.trim().to_lowercase())
+}
+
+/// Cohen's kappa between two raters over the items both labelled: observed agreement against the agreement their
+/// own label frequencies would give by chance. None with no items, or when chance agreement is already total.
+pub(super) fn cohen_kappa(pairs: &[(String, String)]) -> Option<f64> {
+    if pairs.is_empty() {
+        return None;
+    }
+    let total = pairs.len() as f64;
+    let observed = pairs.iter().filter(|(a, b)| a == b).count() as f64 / total;
+    let mut left: BTreeMap<&str, f64> = BTreeMap::new();
+    let mut right: BTreeMap<&str, f64> = BTreeMap::new();
+    for (a, b) in pairs {
+        *left.entry(a).or_default() += 1.0;
+        *right.entry(b).or_default() += 1.0;
+    }
+    let expected: f64 = left
+        .iter()
+        .map(|(category, count)| {
+            count / total * right.get(category).copied().unwrap_or(0.0) / total
+        })
+        .sum();
+    if (1.0 - expected).abs() < f64::EPSILON {
+        return Some(if observed >= 1.0 { 1.0 } else { 0.0 });
+    }
+    Some(((observed - expected) / (1.0 - expected) * 10000.0).round() / 10000.0)
+}
+
+/// Fleiss' kappa over items that every rater labelled, each item a list of the raters' categories.
+pub(super) fn fleiss_kappa(items: &[Vec<String>]) -> Option<f64> {
+    let raters = items.first().map_or(0, Vec::len);
+    if items.is_empty() || raters < 2 || items.iter().any(|item| item.len() != raters) {
+        return None;
+    }
+    let n = raters as f64;
+    let mut totals: BTreeMap<&str, f64> = BTreeMap::new();
+    let mut agreement_sum = 0.0;
+    for item in items {
+        let mut counts: BTreeMap<&str, f64> = BTreeMap::new();
+        for category in item {
+            *counts.entry(category).or_default() += 1.0;
+            *totals.entry(category).or_default() += 1.0;
+        }
+        let squares: f64 = counts.values().map(|count| count * count).sum();
+        agreement_sum += (squares - n) / (n * (n - 1.0));
+    }
+    let observed = agreement_sum / items.len() as f64;
+    let all = items.len() as f64 * n;
+    let expected: f64 = totals
+        .values()
+        .map(|count| (count / all) * (count / all))
+        .sum();
+    if (1.0 - expected).abs() < f64::EPSILON {
+        return Some(if observed >= 1.0 { 1.0 } else { 0.0 });
+    }
+    Some(((observed - expected) / (1.0 - expected) * 10000.0).round() / 10000.0)
+}
+
 /// A run's labels file, or an empty one.
 pub(super) async fn read_labels(records: &Path, run: &str) -> Result<Value, CoreError> {
     if !is_id(run) {
@@ -441,4 +662,65 @@ fn agreement_with_scorer(
         labels,
         json!({ "labeled": labeled, "compared": compared, "agreed": agreed }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pairs(list: &[(&str, &str)]) -> Vec<(String, String)> {
+        list.iter()
+            .map(|(a, b)| ((*a).to_owned(), (*b).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn cohen_kappa_is_one_for_full_agreement_zero_at_chance_and_none_without_items() {
+        assert_eq!(
+            cohen_kappa(&pairs(&[("a", "a"), ("b", "b"), ("a", "a")])),
+            Some(1.0)
+        );
+        // Each rater says a half the time, independently of the other: observed agreement is what chance gives.
+        assert_eq!(
+            cohen_kappa(&pairs(&[("a", "a"), ("a", "b"), ("b", "a"), ("b", "b")])),
+            Some(0.0)
+        );
+        assert_eq!(cohen_kappa(&[]), None);
+        // 20 items, 15 agreed; left says a 12 times and right 11, so chance agreement is 0.51 and kappa 0.24 / 0.49.
+        let mut list = vec![("a", "a"); 9];
+        list.extend([("b", "b"); 6]);
+        list.extend([("a", "b"); 3]);
+        list.extend([("b", "a"); 2]);
+        let kappa = cohen_kappa(&pairs(&list)).unwrap();
+        assert!((kappa - 0.4898).abs() < 0.001, "{kappa}");
+    }
+
+    #[test]
+    fn fleiss_kappa_needs_every_rater_on_every_item() {
+        let items: Vec<Vec<String>> = vec![
+            vec!["a".into(), "a".into(), "a".into()],
+            vec!["b".into(), "b".into(), "b".into()],
+        ];
+        assert_eq!(fleiss_kappa(&items), Some(1.0));
+        let uneven: Vec<Vec<String>> = vec![vec!["a".into(), "a".into()], vec!["b".into()]];
+        assert_eq!(fleiss_kappa(&uneven), None);
+        assert_eq!(fleiss_kappa(&[]), None);
+        let mixed: Vec<Vec<String>> = vec![
+            vec!["a".into(), "b".into()],
+            vec!["a".into(), "a".into()],
+            vec!["b".into(), "b".into()],
+            vec!["b".into(), "a".into()],
+        ];
+        assert_eq!(fleiss_kappa(&mixed), Some(0.0));
+    }
+
+    #[test]
+    fn a_rater_name_is_short_and_plain() {
+        assert_eq!(
+            rater_name(&json!({ "rater": " alice " })).unwrap(),
+            Some("alice".to_owned())
+        );
+        assert_eq!(rater_name(&json!({})).unwrap(), None);
+        assert!(rater_name(&json!({ "rater": "../x" })).is_err());
+    }
 }

@@ -54,7 +54,7 @@ export function RunControls(props: { projectId: string; run: ExperimentRun; chan
   return (
     <div className="my-1 flex flex-col gap-1">
       {resumed}
-      {run.status === "paused" ? <div className="text-muted-foreground">{t("Paused. It keeps its memory, and the GPU's, until it is continued or stopped.")}{paused}</div> : null}
+      {run.status === "paused" ? <div className="text-muted-foreground">{run.pausedAt ? t("Paused since {time}. It keeps its memory, and the GPU's, until it is continued or stopped.", { time: new Date(run.pausedAt).toLocaleTimeString() }) : t("Paused. It keeps its memory, and the GPU's, until it is continued or stopped.")}{paused}</div> : null}
       <div className="flex flex-wrap gap-1">
         {run.status === "running" ? <Button variant="outline" size="small" disabled={busy} onClick={() => void act(() => service.pauseRun(projectId, run.id))}>{t("Pause")}</Button> : null}
         {run.status === "paused" ? <Button variant="outline" size="small" disabled={busy} onClick={() => void act(() => service.continueRun(projectId, run.id))}>{t("Continue")}</Button> : null}

@@ -137,6 +137,7 @@ impl Kernel {
         record["updatedAt"] = json!(iso_time(now_millis()));
         write_whole(&records.join(FILE), &pretty(&record)?).await?;
         drop(_writing);
+        self.research_lsp_stop_project(project).await;
         self.research_changed();
         self.research_environment(project).await
     }

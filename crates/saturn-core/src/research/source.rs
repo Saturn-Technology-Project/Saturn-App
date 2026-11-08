@@ -1,7 +1,9 @@
 //! What the research workbench reads and writes: a project's source files, with a revision so a save cannot overwrite a
 //! change it has not seen, and a run's samples and logs a page at a time.
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+
 use std::path::Path;
+use tokio::io::AsyncReadExt;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 
@@ -147,6 +149,94 @@ impl Kernel {
         Ok(json!({ "path": relative, "revision": sha256_hex(content.as_bytes()) }))
     }
 
+    /// Renames one regular source file without overwriting a destination; an open editor supplies its last revision.
+    pub async fn research_source_rename(
+        &self,
+        project: &str,
+        requested: &str,
+        new_path: &str,
+        expected: Option<&str>,
+    ) -> Result<Value, CoreError> {
+        if requested.trim().is_empty() || new_path.trim().is_empty() {
+            return Err(CoreError::new(
+                400,
+                "Name the source file and its new path.",
+            ));
+        }
+        let source = self.research_source(project, None)?;
+        let lock = self.records_lock(&source);
+        let _writing = lock.lock().await;
+        let (from, previous) = self.source_path(project, requested, None).await?;
+        let (to, relative) = self.source_path(project, new_path, None).await?;
+        // A directory alias could otherwise disguise git metadata or research records as an ordinary file.
+        for path in [&from, &to] {
+            let mut checked = source.clone();
+            for part in path
+                .strip_prefix(&source)
+                .map_err(|_| CoreError::new(403, "This path is outside the project."))?
+                .components()
+            {
+                checked.push(part);
+                if super::is_link(&checked).await {
+                    return Err(CoreError::new(
+                        403,
+                        "Symbolic links are not renamed or replaced here.",
+                    ));
+                }
+            }
+        }
+        let info = tokio::fs::symlink_metadata(&from)
+            .await
+            .map_err(|_| CoreError::new(404, "No such file"))?;
+        if info.file_type().is_symlink()
+            || tokio::fs::symlink_metadata(&to)
+                .await
+                .is_ok_and(|info| info.file_type().is_symlink())
+        {
+            return Err(CoreError::new(
+                403,
+                "Symbolic links are not renamed or replaced here.",
+            ));
+        }
+        if !info.is_file() {
+            return Err(CoreError::new(
+                400,
+                "Choose a file to rename, not a folder.",
+            ));
+        }
+        if let Some(expected) = expected {
+            let (current, _) = super::freeze::hash_file(&from).await?;
+            if current != expected {
+                return Err(CoreError::new(
+                    409,
+                    "This file changed since it was opened. Reload it before renaming.",
+                ));
+            }
+        }
+        if from != to {
+            if let Some(parent) = to.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            tokio::task::spawn_blocking(move || {
+                saturn_tools::file::rename_without_replacing(&from, &to)
+            })
+            .await
+            .map_err(|error| CoreError::new(500, error.to_string()))?
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::AlreadyExists {
+                    CoreError::new(
+                        409,
+                        "A file or folder already has that name. Choose another name.",
+                    )
+                } else {
+                    CoreError::from(error)
+                }
+            })?;
+        }
+        self.research_changed();
+        Ok(json!({ "path": relative, "previousPath": previous, "revision": expected }))
+    }
+
     /// A page of a run's samples from a byte offset. An ended run's page stops at what its seal counted; a running
     /// run's stops before an unfinished line.
     pub async fn research_samples(
@@ -187,13 +277,15 @@ impl Kernel {
         Ok(page)
     }
 
-    /// The end of a run's log.
+    /// The end of a run's log: the last 64 KiB, or fewer bytes when `tail` says so (the assistant asks for less).
     pub async fn research_run_log(
         &self,
         project: &str,
         id: &str,
         stream: &str,
+        tail: Option<u64>,
     ) -> Result<Value, CoreError> {
+        let tail = tail.map_or(LOG_TAIL, |asked| asked.clamp(1024, LOG_TAIL));
         if !is_id(id) || !matches!(stream, "stdout" | "stderr") {
             return Err(CoreError::new(404, "No such log"));
         }
@@ -207,7 +299,7 @@ impl Kernel {
                 Err(error) => return Err(error),
             };
             let size = file.metadata()?.len();
-            file.seek(SeekFrom::Start(size.saturating_sub(LOG_TAIL)))?;
+            file.seek(SeekFrom::Start(size.saturating_sub(tail)))?;
             let mut bytes = Vec::new();
             file.read_to_end(&mut bytes)?;
             Ok(bytes)
@@ -216,6 +308,110 @@ impl Kernel {
         .map_err(|error| CoreError::new(500, error.to_string()))??;
         Ok(json!({ "text": String::from_utf8_lossy(&bytes) }))
     }
+}
+
+/// The most of a file a run wrote that is handed back at once.
+const OUTPUT_READ: u64 = 256 * 1024;
+/// The most entries of a run's output folder listed at once.
+const OUTPUT_ENTRIES: usize = 500;
+
+impl Kernel {
+    /// What a run's program wrote to `SATURN_RUN_OUTPUT`: with no path, the files in its `written/` folder; with one,
+    /// that file's text, up to 256 KiB. Reading stays inside the folder, through no link, and runs nothing.
+    pub async fn research_run_output(
+        &self,
+        project: &str,
+        id: &str,
+        requested: Option<&str>,
+        limit: Option<u64>,
+    ) -> Result<Value, CoreError> {
+        let limit = limit.map_or(OUTPUT_READ, |asked| asked.clamp(1024, OUTPUT_READ));
+        if !is_id(id) {
+            return Err(CoreError::new(404, "No such run"));
+        }
+        self.research_run(project, id).await?;
+        let records = self.records_folder(project).await?;
+        let written = records.join("runs").join(id).join(super::isolation::OUTPUT);
+        if super::is_link(&written).await {
+            return Err(CoreError::new(
+                403,
+                "The run's output folder is a symbolic link, which Saturn does not follow.",
+            ));
+        }
+        let Some(requested) = requested.filter(|path| !path.trim().is_empty() && *path != ".")
+        else {
+            let mut files = Vec::new();
+            if tokio::fs::try_exists(&written).await? {
+                list_written(&written, &written, &mut files).await?;
+            }
+            let truncated = files.len() > OUTPUT_ENTRIES;
+            files.truncate(OUTPUT_ENTRIES);
+            return Ok(json!({ "runId": id, "files": files, "truncated": truncated }));
+        };
+        let workspace = Workspace::new(&written);
+        let path = inside_workspace(&workspace, requested)
+            .await
+            .map_err(|message| CoreError::new(403, message))?;
+        if super::is_link(&path).await {
+            return Err(CoreError::new(
+                403,
+                "Saturn does not follow a link in a run's output.",
+            ));
+        }
+        let relative = workspace.relative(&path);
+        let info = tokio::fs::metadata(&path).await.map_err(|_| {
+            CoreError::new(404, format!("The run wrote no file called {requested}."))
+        })?;
+        if !info.is_file() {
+            return Err(CoreError::new(
+                400,
+                format!("{requested} is a folder; name a file in it."),
+            ));
+        }
+        let mut bytes = Vec::new();
+        tokio::fs::File::open(&path)
+            .await?
+            .take(limit)
+            .read_to_end(&mut bytes)
+            .await?;
+        let binary = bytes.contains(&0);
+        Ok(json!({
+            "runId": id,
+            "path": relative,
+            "size": info.len(),
+            "truncated": info.len() > limit,
+            "binary": binary,
+            "text": if binary { Value::Null } else { json!(String::from_utf8_lossy(&bytes)) },
+        }))
+    }
+}
+
+/// Every file under a run's output folder, by its path from that folder, with its size. Links are listed, not followed.
+async fn list_written(root: &Path, folder: &Path, files: &mut Vec<Value>) -> Result<(), CoreError> {
+    let mut pending = vec![folder.to_path_buf()];
+    while let Some(folder) = pending.pop() {
+        let mut reading = tokio::fs::read_dir(&folder).await?;
+        while let Some(entry) = reading.next_entry().await? {
+            let kind = entry.file_type().await?;
+            let path = entry.path();
+            let relative = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            if kind.is_dir() {
+                pending.push(path);
+            } else {
+                let size = entry.metadata().await.map(|info| info.len()).unwrap_or(0);
+                files.push(json!({ "path": relative, "size": size, "link": kind.is_symlink() }));
+            }
+            if files.len() > OUTPUT_ENTRIES {
+                return Ok(());
+            }
+        }
+    }
+    files.sort_by(|left, right| text(left, "path").cmp(text(right, "path")));
+    Ok(())
 }
 
 /// A folder's entries, folders first, without the records and git's folder.

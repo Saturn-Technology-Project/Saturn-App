@@ -14,24 +14,32 @@ function namesIn(value: string): string[] {
   return [...new Set(value.split(",").map((name) => name.trim()).filter(Boolean))];
 }
 
+/** The seeds in a comma separated list: whole numbers as numbers, anything else as the text it is. */
+function seedsIn(value: string): (number | string)[] {
+  return namesIn(value).map((seed) => (/^-?\d{1,15}$/.test(seed) ? Number(seed) : seed));
+}
+
 /**
  * The sandbox an experiment's runs get: whether its program is isolated, whether it may use the network, and which
  * environment variables it is given. Saved on the experiment and frozen into the next version.
  */
-export function RunSandbox(props: { draft: ExperimentDraft; save: (fields: { sandbox: SandboxSettings; envNames: string[] }) => Promise<void> }) {
+export function RunSandbox(props: { draft: ExperimentDraft; save: (fields: { sandbox: SandboxSettings; envNames: string[]; seeds: (number | string)[] }) => Promise<void> }) {
   const saved = sandboxOf(props.draft);
   const [isolated, setIsolated] = useState(saved.isolated);
   const [network, setNetwork] = useState(saved.network);
   const [names, setNames] = useState((props.draft.envNames ?? []).join(", "));
+  const [seeds, setSeeds] = useState((props.draft.seeds ?? []).join(", "));
 
   useEffect(() => {
     const current = sandboxOf(props.draft);
     setIsolated(current.isolated);
     setNetwork(current.network);
     setNames((props.draft.envNames ?? []).join(", "));
+    setSeeds((props.draft.seeds ?? []).join(", "));
   }, [props.draft]);
 
-  const changed = isolated !== saved.isolated || network !== saved.network || namesIn(names).join(",") !== (props.draft.envNames ?? []).join(",");
+  const changed =
+    isolated !== saved.isolated || network !== saved.network || namesIn(names).join(",") !== (props.draft.envNames ?? []).join(",") || seedsIn(seeds).join(",") !== (props.draft.seeds ?? []).join(",");
 
   return (
     <>
@@ -53,8 +61,12 @@ export function RunSandbox(props: { draft: ExperimentDraft; save: (fields: { san
           <Input value={names} placeholder="HF_TOKEN, OPENAI_API_KEY" disabled={!isolated} onChange={(event) => setNames(event.target.value)} />
         </Field>
         <div className={MUTED}>{t("Only these, and variables that say where things are (PATH, HOME, HF_HOME, CUDA_VISIBLE_DEVICES and the like), reach the program. Their names are recorded with each run, never their values.")}</div>
+        <Field label={t("Seeds, comma separated")} className="max-w-xl">
+          <Input value={seeds} placeholder="0, 1, 2" onChange={(event) => setSeeds(event.target.value)} />
+        </Field>
+        <div className={MUTED}>{t("Passed to the program as SATURN_RUN_SEED (the first) and SATURN_RUN_SEEDS (all), and frozen into each version. Whether the program applied them is for its report to say; the run's evidence shows both.")}</div>
         <div>
-          <Button variant="outline" disabled={!changed} onClick={() => void props.save({ sandbox: { isolated, network }, envNames: namesIn(names) })}>
+          <Button variant="outline" disabled={!changed} onClick={() => void props.save({ sandbox: { isolated, network }, envNames: namesIn(names), seeds: seedsIn(seeds) })}>
             {t("Save")}
           </Button>
         </div>

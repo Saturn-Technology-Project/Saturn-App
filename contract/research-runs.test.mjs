@@ -429,6 +429,9 @@ test("samples changed after the seal are caught wherever the run is read", posix
   assert.equal((await saturn.api("GET", `${bed.route}/runs/${run.id}`)).sealIntact, false);
   const samples = await saturn.api("GET", `${bed.route}/runs/${run.id}/samples`);
   assert.equal(samples.sealIntact, false);
+  // The list the Experiments and Workspace screens read says so too, not only the single run.
+  const listed = (await saturn.api("GET", `${bed.route}/runs`)).items.find((item) => item.id === run.id);
+  assert.equal(listed.sealIntact, false);
 });
 
 test("stopping a run stops it, keeps its samples, and is stopped rather than completed", posixOnly, async () => {
@@ -654,4 +657,26 @@ test("a runtime stopped normally ends its runs and records them as interrupted",
   assert.equal(saved.status, "interrupted");
   assert.equal(saved.process, "ended");
   await rm(home, { recursive: true, force: true });
+});
+
+test("what a run wrote to SATURN_RUN_OUTPUT is listed and read within that folder, and nothing outside it", posixOnly, async () => {
+  const bed = await setup(`
+    import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+    mkdirSync(process.env.SATURN_RUN_OUTPUT + "/notes", { recursive: true });
+    writeFileSync(process.env.SATURN_RUN_OUTPUT + "/notes/log.txt", "hello from the run");
+    writeFileSync(process.env.SATURN_RUN_OUTPUT + "/weights.bin", Buffer.from([0, 1, 2, 0]));
+    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+  `);
+  const run = await ended(bed, (await start(bed)).id);
+  assert.equal(run.status, "completed", JSON.stringify(run));
+  const listed = await saturn.api("GET", `${bed.route}/runs/${run.id}/output`);
+  assert.deepEqual(listed.files.map((file) => [file.path, file.size]), [["notes/log.txt", 18], ["weights.bin", 4]]);
+  const read = await saturn.api("GET", `${bed.route}/runs/${run.id}/output?path=notes/log.txt`);
+  assert.equal(read.text, "hello from the run");
+  assert.equal(read.truncated, false);
+  const binary = await saturn.api("GET", `${bed.route}/runs/${run.id}/output?path=weights.bin`);
+  assert.equal(binary.binary, true); assert.equal(binary.text, null);
+  assert.equal((await saturn.call("GET", `${bed.route}/runs/${run.id}/output?path=../samples.jsonl`)).status, 403);
+  assert.equal((await saturn.call("GET", `${bed.route}/runs/${run.id}/output?path=notes/none.txt`)).status, 404);
+  assert.equal((await saturn.call("GET", `${bed.route}/runs/${run.id}/output?path=notes`)).status, 400);
 });

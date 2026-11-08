@@ -175,6 +175,13 @@ impl<V: KeyVault> Broker<V> {
             .or_else(|| self.vault.secret(&provider_key_id(&model.provider)))
     }
 
+    /// The key saved for a provider, which its models share.
+    pub fn provider_key(&self, provider: &str) -> Option<String> {
+        self.vault
+            .secret(&provider_key_id(provider))
+            .filter(|key| !key.is_empty())
+    }
+
     pub fn has_key(&self, model: &ModelConnection) -> bool {
         self.key_for(model).is_some_and(|key| !key.is_empty())
     }

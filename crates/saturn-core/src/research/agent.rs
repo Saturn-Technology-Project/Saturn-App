@@ -75,6 +75,9 @@ impl Kernel {
         if tool == "research_skill" {
             return self.research_skill(arguments, run).await;
         }
+        if tool == "research_template" {
+            return super::templates::answer(text(arguments, "name")).map(fitted);
+        }
         let project = self.thread_project(run).ok_or(
             "This chat is not in a project. Research records belong to a project: open the chat from one.",
         )?;
@@ -153,10 +156,26 @@ impl Kernel {
             "runs" => self.research_runs(project).await.map_err(said),
             "run" => self.research_run(project, run()?).await.map_err(said),
             "summary" => self.research_summary(project, run()?).await.map_err(said),
-            "evidence" => self
-                .research_run_evidence(project, run()?)
-                .await
-                .map_err(said),
+            "evidence" => {
+                // The snapshot's file list can run to thousands of entries; the model gets the count and the manifest
+                // hash unless it asks for the files.
+                let mut evidence = self
+                    .research_run_evidence(project, run()?)
+                    .await
+                    .map_err(said)?;
+                if arguments.get("files") != Some(&Value::Bool(true))
+                    && let Some(files) = evidence
+                        .pointer_mut("/observed/snapshot/files")
+                        .and_then(Value::as_array_mut)
+                {
+                    let count = files.len();
+                    files.clear();
+                    evidence["observed"]["snapshot"]["fileCount"] = json!(count);
+                    evidence["observed"]["snapshot"]["filesLeftOut"] =
+                        json!("Pass files: true to list every file with its hash.");
+                }
+                Ok(evidence)
+            }
             "samples" => {
                 let cursor = arguments.get("cursor").and_then(Value::as_u64).unwrap_or(0);
                 let limit = arguments
@@ -174,7 +193,12 @@ impl Kernel {
                     "" => "stdout",
                     stream => stream,
                 };
-                self.research_run_log(project, run()?, stream)
+                // The end of the log, 8 KiB unless asked for more: a log is read to find a failure, not whole.
+                let tail = arguments
+                    .get("bytes")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(8 * 1024);
+                self.research_run_log(project, run()?, stream, Some(tail))
                     .await
                     .map_err(said)
             }
@@ -184,6 +208,21 @@ impl Kernel {
                 .map(newest_readings)
                 .map_err(said),
             "labels" => self.research_labels(project, run()?).await.map_err(said),
+            "agreement" => self
+                .research_label_agreement(project, run()?)
+                .await
+                .map_err(said),
+            "output" => {
+                let path = Some(text(arguments, "path")).filter(|path| !path.is_empty());
+                // 32 KiB of a file unless asked for more, up to the runtime's 256 KiB.
+                let limit = arguments
+                    .get("bytes")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(32 * 1024);
+                self.research_run_output(project, run()?, path, Some(limit))
+                    .await
+                    .map_err(said)
+            }
             "compare" => self
                 .research_compare(
                     project,
@@ -327,7 +366,16 @@ impl Kernel {
             "versions": list(items("versions").await?, &["experimentId", "number"]),
             "models": list(items("models").await?, &["name", "source", "weightsRevision", "floating", "parentId"]),
             "runs": list(runs, &["versionId", "experimentId", "status", "samples", "error", "warnings", "inputsChanged"]),
-            "findings": list(items("findings").await?, &["kind", "text", "runIds"]),
+            // A finding's text is cut at 240 characters here; the record has it whole.
+            "findings": list(items("findings").await?, &["kind", "text", "runIds"]).into_iter().map(|mut item| {
+                if let Some(whole) = item.get("text").and_then(Value::as_str)
+                    && whole.chars().count() > 240
+                {
+                    let cut: String = whole.chars().take(240).collect();
+                    item["text"] = json!(format!("{cut}…"));
+                }
+                item
+            }).collect::<Vec<_>>(),
             "events": events.get("items").and_then(Value::as_array).map_or(0, Vec::len),
         }))
     }

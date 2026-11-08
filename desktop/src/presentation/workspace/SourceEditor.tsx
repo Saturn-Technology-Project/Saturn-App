@@ -1,10 +1,18 @@
-import { useEffect, useRef } from "react";
-import { python } from "@codemirror/lang-python";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { useLayoutEffect, useRef, useState } from "react";
+import { closeCompletion } from "@codemirror/autocomplete";
+import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
+import { gotoLine } from "@codemirror/search";
+import { countColumn, type EditorState } from "@codemirror/state";
+import { diagnosticCount, openLintPanel } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
-import { basicSetup, EditorView } from "codemirror";
-import { keymap } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
+import { createSourceState, sourceActionKeys, type EditorDocuments } from "../../domain/code-editor.js";
+import type { EditorLanguage } from "../../domain/code-languages.js";
+import type { LanguageServices, LanguageBinding } from "../../application/language-services.js";
+import type { LanguageStatus } from "../../domain/language-server.js";
 import { t } from "../../domain/i18n.js";
+import { Button } from "../ui/base/Button.js";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/base/Dialog.js";
 
 const editorTheme = EditorView.theme({
   "&": { height: "100%", backgroundColor: "var(--stage)", color: "var(--fg)", fontSize: "13px" },
@@ -14,6 +22,16 @@ const editorTheme = EditorView.theme({
   ".cm-activeLine": { backgroundColor: "var(--hover)" },
   ".cm-activeLineGutter": { backgroundColor: "var(--hover)" },
   ".cm-scroller": { overflow: "auto" },
+  ".cm-tooltip": { backgroundColor: "var(--elevated)", color: "var(--fg)", border: "1px solid var(--line)", borderRadius: "6px", boxShadow: "0 6px 20px #0002" },
+  ".cm-tooltip-autocomplete > ul": { fontFamily: "var(--font-mono)", fontSize: "12px", maxHeight: "240px" },
+  ".cm-tooltip-autocomplete > ul > li": { padding: "3px 8px" },
+  ".cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--focus)", color: "var(--fg)" },
+  ".cm-completionDetail": { color: "var(--muted)", marginLeft: "12px" },
+  ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "700" },
+  ".cm-snippetField": { backgroundColor: "var(--focus)" },
+  ".cm-panels": { backgroundColor: "var(--panel)", color: "var(--fg)" },
+  ".cm-panel input, .cm-panel button, .cm-textfield": { background: "var(--elevated)", color: "var(--fg)", border: "1px solid var(--line)", borderRadius: "4px" },
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": { backgroundColor: "var(--term-selection)" },
 });
 
 /** Code's colors, from the theme's own, so that they read in both light and dark. */
@@ -24,14 +42,31 @@ const codeColors = HighlightStyle.define([
   { tag: [tags.comment, tags.lineComment, tags.blockComment], color: "var(--muted)", fontStyle: "italic" },
   { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.definition(tags.variableName)], color: "var(--code-function)" },
   { tag: [tags.className, tags.typeName, tags.namespace], color: "var(--code-type)" },
-  { tag: tags.invalid, color: "var(--off)" },
+  { tag: [tags.meta, tags.bracket], color: "var(--code-type)" },
+  { tag: tags.invalid, color: "var(--off)", textDecoration: "underline wavy" },
 ]);
 
-/** A code editor. The undo history and selection live here; a new `documentKey` starts a new document. */
+/** A source file's language, shown without translating names of programming languages. */
+const languageNames: Record<EditorLanguage, string> = { python: "Python", javascript: "JavaScript", jsx: "JavaScript JSX", typescript: "TypeScript", tsx: "TypeScript JSX", json: "JSON", rust: "Rust", markdown: "Markdown", shell: "Shell", yaml: "YAML", toml: "TOML", tex: "TeX", lean: "Lean", plain: "Text" };
+
+/** Position and file conventions shown below a full editor, without announcing every keystroke. */
+function positionOf(state: EditorState) {
+  const range = state.selection.main;
+  const line = state.doc.lineAt(range.head);
+  return { line: line.number, column: countColumn(line.text.slice(0, range.head - line.from), state.tabSize) + 1, selected: range.to - range.from, unit: state.facet(indentUnit), tabSize: state.tabSize, eol: state.lineBreak === "\r\n" ? "CRLF" : "LF", problems: diagnosticCount(state) };
+}
+
+/** A source editor; an optional workspace cache preserves each tab's history, cursor and scroll position. */
 export function SourceEditor(props: {
   documentKey: string;
   initialContent: string;
-  language: "python" | "plain";
+  language: EditorLanguage;
+  documents?: EditorDocuments;
+  cacheKey?: string;
+  languageServices?: LanguageServices;
+  path?: string;
+  draft?: boolean;
+  onConfigureLanguageServer?: () => void;
   onChange: (content: string) => void;
   onSave: () => void;
   /** The selected text and the line it starts on, or nothing. */
@@ -44,53 +79,85 @@ export function SourceEditor(props: {
   fit?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const editor = useRef<EditorView | null>(null);
+  const [position, setPosition] = useState({ line: 1, column: 1, selected: 0, unit: "    ", tabSize: 4, eol: "LF", problems: 0 });
+  const [languageStatus, setLanguageStatus] = useState<LanguageStatus | null>(null);
+  const languageBinding = useRef<LanguageBinding | null>(null);
+  const [help, setHelp] = useState(false);
   const handlers = useRef({ onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection, onRun: props.onRun });
   handlers.current = { onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection, onRun: props.onRun };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!host.current) return undefined;
-    const view = new EditorView({
-      doc: props.initialContent,
-      parent: host.current,
-      extensions: [
-        keymap.of([
-          {
-            key: "Mod-s",
-            preventDefault: true,
-            run: () => {
-              handlers.current.onSave();
-              return true;
-            },
-          },
-          {
-            key: "Shift-Enter",
-            run: () => {
-              if (!handlers.current.onRun) return false;
-              handlers.current.onRun();
-              return true;
-            },
-          },
-        ]),
-        basicSetup,
-        editorTheme,
-        syntaxHighlighting(codeColors),
-        ...(props.language === "python" ? [python()] : []),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) handlers.current.onChange(update.state.doc.toString());
-          if (update.selectionSet) {
-            const range = update.state.selection.main;
-            handlers.current.onSelection?.(
-              range.empty ? null : { text: update.state.sliceDoc(range.from, range.to), line: update.state.doc.lineAt(range.from).number },
-            );
-          }
-        }),
-        EditorView.contentAttributes.of({ "aria-label": props.label ?? t("Source file") }),
-      ],
-    });
-    return () => view.destroy();
+    const extensions = [
+      sourceActionKeys(() => handlers.current.onSave(), () => {
+        if (!handlers.current.onRun) return false;
+        handlers.current.onRun();
+        return true;
+      }),
+      editorTheme,
+      syntaxHighlighting(codeColors),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) handlers.current.onChange(update.state.sliceDoc());
+        if (!props.fit && (update.docChanged || update.selectionSet || diagnosticCount(update.startState) !== diagnosticCount(update.state))) setPosition(positionOf(update.state));
+        if (update.selectionSet) {
+          const range = update.state.selection.main;
+          handlers.current.onSelection?.(
+            range.empty ? null : { text: update.state.sliceDoc(range.from, range.to), line: update.state.doc.lineAt(range.from).number },
+          );
+        }
+      }),
+      EditorView.contentAttributes.of({ "aria-label": props.label ?? t("Source file"), spellcheck: "false", autocapitalize: "off", autocorrect: "off" }),
+    ];
+    const cached = props.cacheKey ? props.documents?.open(props.cacheKey, props.initialContent, props.language, extensions) : undefined;
+    const view = new EditorView({ state: cached?.state ?? createSourceState(props.initialContent, props.language, extensions), parent: host.current, scrollTo: cached?.scroll });
+    editor.current = view;
+    setLanguageStatus(null);
+    const binding = props.languageServices && props.path ? props.languageServices.attach(view, props.path, props.language, props.draft ?? false, setLanguageStatus) : null;
+    languageBinding.current = binding;
+    setPosition(positionOf(view.state));
+    const range = view.state.selection.main;
+    handlers.current.onSelection?.(range.empty ? null : { text: view.state.sliceDoc(range.from, range.to), line: view.state.doc.lineAt(range.from).number });
+    return () => {
+      binding?.close();
+      languageBinding.current = null;
+      closeCompletion(view);
+      // Layout cleanup runs before React removes this pane; a detached editor has already lost its scroll position.
+      if (props.cacheKey) props.documents?.remember(props.cacheKey, { state: view.state, language: props.language, scroll: view.scrollSnapshot() });
+      editor.current = null;
+      view.destroy();
+    };
     // Only a new document replaces the editor: its content then lives in the editor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.documentKey]);
+  }, [props.documentKey, props.language, props.documents, props.cacheKey, props.languageServices, props.path]);
 
-  return <div ref={host} className={props.fit ? "min-w-0 overflow-hidden rounded-sm border border-border [&_.cm-editor]:h-auto" : "min-h-0 flex-1 overflow-hidden [&_.cm-editor]:h-full"} />;
+  return <div className={props.fit ? "min-w-0 overflow-hidden rounded-sm border border-border [&_.cm-editor]:h-auto" : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"}>
+    <div ref={host} className={props.fit ? "min-w-0" : "min-h-0 flex-1 overflow-hidden [&_.cm-editor]:h-full"} />
+    {!props.fit ? <div className="flex h-6 flex-none items-center justify-end gap-3 overflow-hidden border-t border-border bg-panel px-2 font-mono text-[10px] whitespace-nowrap text-muted-foreground" aria-label={t("Editor status")}>
+      {position.problems ? <button type="button" className="mr-auto cursor-pointer text-wait" aria-label={t("{count} problems", { count: position.problems })} onClick={() => { if (editor.current) openLintPanel(editor.current); }}>⚠ {position.problems}</button> : null}
+      <button type="button" className="cursor-pointer hover:text-foreground" title={t("Go to line (Ctrl+G)")} onClick={() => { if (editor.current) { editor.current.focus(); gotoLine(editor.current); } }}>{t("Ln {line}, Col {column}", { line: position.line, column: position.column })}</button>
+      {position.selected ? <span>{t("{count} selected", { count: position.selected })}</span> : null}
+      <span className="hidden sm:inline">{position.unit === "\t" ? t("Tabs: {count}", { count: position.tabSize }) : t("Spaces: {count}", { count: position.unit.length })}</span>
+      <span className="hidden md:inline">UTF-8 · {position.eol}</span>
+      <span>{languageNames[props.language]}</span>
+      {languageStatus ? <span className={languageStatus.state === "ready" ? "text-good" : "text-muted-foreground"} title={languageStatus.message ?? languageStatus.server}>{languageStatus.state === "ready" ? languageStatus.server : languageStatus.state === "starting" ? t("LSP starting…") : t("LSP unavailable")}</span> : null}
+      {languageStatus && languageStatus.state !== "starting" ? <button type="button" className="cursor-pointer hover:text-foreground" aria-label={t("Restart language server")} title={t("Restart language server")} onClick={() => languageBinding.current?.restart()}>↻</button> : null}
+      {languageStatus?.state === "unavailable" && props.language === "python" && props.onConfigureLanguageServer ? <button type="button" className="cursor-pointer hover:text-foreground" onClick={props.onConfigureLanguageServer}>{t("Set up LSP")}</button> : null}
+      <button type="button" className="cursor-pointer hover:text-foreground" onClick={() => setHelp(true)}>{t("Editor shortcuts")}</button>
+    </div> : null}
+    <Dialog open={help} onOpenChange={setHelp}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{t("Editor shortcuts")}</DialogTitle><DialogDescription>{t("Local language servers provide types, diagnostics and definitions when connected. Without a server, syntax and document completions still work.")}</DialogDescription></DialogHeader>
+        <ul className="grid gap-3 text-xs text-muted-foreground">
+          <li>{t("Tab: accept completion, next snippet field, or indent. Shift+Tab: previous field or outdent.")}</li>
+          <li>{t("Ctrl+Space: suggestions. Enter: accept. Escape: dismiss, then Tab to leave the editor.")}</li>
+          <li>{t("Ctrl/Cmd+S: save. Ctrl/Cmd+F: find and replace. Ctrl+G: go to line.")}</li>
+          <li>{t("Ctrl/Cmd+/: comment. Ctrl/Cmd+D: select next match.")}</li>
+          <li>{t("Alt+Up/Down: move line. Shift+Alt+Up/Down: duplicate line.")}</li>
+          <li>{t("F12: definition. Hover: inferred type. Ctrl/Cmd+Shift+Space: function signature. Ctrl/Cmd+Shift+M: problems.")}</li>
+        </ul>
+        <DialogFooter><Button variant="outline" onClick={() => setHelp(false)}>{t("Close")}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>;
 }

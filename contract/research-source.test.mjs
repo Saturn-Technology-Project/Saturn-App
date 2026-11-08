@@ -22,6 +22,64 @@ async function project(files = {}) {
 
 const open = (route, file) => saturn.call("GET", `${route}/source?path=${encodeURIComponent(file)}`);
 const save = (route, body) => saturn.call("PUT", `${route}/source`, body);
+const rename = (route, body) => saturn.call("POST", `${route}/source/rename`, body);
+
+test("a file is renamed without replacing another file, with its bytes and permissions intact", async () => {
+  const { route, folder } = await project({ "old.py": "print('hello')\n", "existing.py": "keep" });
+  await chmod(path.join(folder, "old.py"), 0o755);
+  const moved = await rename(route, { path: "old.py", newPath: "src/新名字.py", expectedRevision: sha("print('hello')\n") });
+  assert.equal(moved.status, 200, JSON.stringify(moved.body));
+  assert.equal(moved.body.path, "src/新名字.py");
+  assert.equal(moved.body.revision, sha("print('hello')\n"));
+  assert.equal((await open(route, "old.py")).status, 404);
+  assert.equal(await readFile(path.join(folder, "src/新名字.py"), "utf8"), "print('hello')\n");
+  if (process.platform !== "win32") assert.equal((await stat(path.join(folder, "src/新名字.py"))).mode & 0o777, 0o755);
+  assert.equal((await rename(route, { path: "src/新名字.py", newPath: "existing.py" })).status, 409);
+  assert.equal(await readFile(path.join(folder, "existing.py"), "utf8"), "keep");
+  assert.equal((await rename(route, { path: "src/新名字.py", newPath: "next.py", expectedRevision: sha("stale") })).status, 409);
+  assert.equal((await open(route, "src/新名字.py")).status, 200);
+});
+
+test("rename handles binary files, refuses folders and keeps both files when a target races", async () => {
+  const { route, folder } = await project({ "a": "a", "b": "b", "sub/file": "x" });
+  const bytes = Buffer.from([0xff, 0xfe, 0]);
+  await writeFile(path.join(folder, "weights.bin"), bytes);
+  assert.equal((await rename(route, { path: "weights.bin", newPath: "model.bin" })).status, 200);
+  assert.deepEqual(await readFile(path.join(folder, "model.bin")), bytes);
+  assert.equal((await rename(route, { path: "sub", newPath: "folder" })).status, 400);
+  const raced = await Promise.all(["a", "b"].map((file) => rename(route, { path: file, newPath: "same" })));
+  assert.deepEqual(raced.map((answer) => answer.status).sort(), [200, 409]);
+  const winner = await readFile(path.join(folder, "same"), "utf8");
+  assert.equal(await readFile(path.join(folder, winner === "a" ? "b" : "a"), "utf8"), winner === "a" ? "b" : "a");
+});
+
+test("renaming stays inside the granted project and never moves a link, records or git metadata", posixOnly, async () => {
+  const { route, folder } = await project({ "a.py": "a", "b.py": "b", ".git/config": "git" });
+  await symlink(path.join(folder, "a.py"), path.join(folder, "link.py"));
+  await symlink(path.join(folder, ".git"), path.join(folder, "git-link"));
+  for (const body of [
+    { path: "a.py", newPath: "../outside.py" },
+    { path: "a.py", newPath: ".saturn/research/escape.json" },
+    { path: ".git/config", newPath: "config" },
+    { path: "link.py", newPath: "moved.py" },
+    { path: "b.py", newPath: "link.py" },
+    { path: "git-link/config", newPath: "config" },
+  ]) assert.equal((await rename(route, body)).status, 403, JSON.stringify(body));
+  assert.equal(await readFile(path.join(folder, "a.py"), "utf8"), "a");
+});
+
+test("a new nested file is created once and renaming requires the project's grant", async () => {
+  const { route, folder } = await project();
+  const created = await save(route, { path: "./src/new.py", content: "" });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.path, "src/new.py");
+  assert.equal((await save(route, { path: "src/new.py", content: "replace" })).status, 409);
+  assert.equal(await readFile(path.join(folder, "src/new.py"), "utf8"), "");
+  const elsewhere = await saturn.folder();
+  const made = await saturn.api("POST", "/projects", { path: elsewhere });
+  await writeFile(path.join(elsewhere, "a.py"), "a");
+  assert.equal((await rename(`/projects/${made.id}/research`, { path: "a.py", newPath: "b.py" })).status, 403);
+});
 
 test("a folder lists its entries without Saturn's records or git's folder", async () => {
   const { route } = await project({ "b.py": "b", "src/a.py": "a", ".git/config": "x" });

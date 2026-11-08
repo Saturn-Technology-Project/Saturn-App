@@ -265,3 +265,27 @@ test("a failed run is neither warned about nor compared with", posixOnly, async 
   const after = await run([line("a"), line("b"), line("c")]);
   assert.deepEqual(after.warnings, [], "compared with the last whole run, not the failed one");
 });
+
+test("raters label apart from the adjudicated label, and their agreement is measured as kappa", posixOnly, async () => {
+  const { route, run } = await project();
+  const done = await run([line("a", { scorerLabel: "Correct" }), line("b", { scorerLabel: "Wrong" }), line("c", { scorerLabel: "Correct" }), line("d", { scorerLabel: "Wrong" })]);
+  for (const [sampleId, alice, bob] of [["a", "Correct", "Correct"], ["b", "Wrong", "Wrong"], ["c", "Correct", "Wrong"], ["d", "Wrong", "Wrong"]]) {
+    const saved = await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId, label: alice, rater: "alice" });
+    assert.equal(saved.rater, "alice");
+    await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId, label: bob, rater: "bob" });
+  }
+  await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "c", label: "Correct" });
+  const labels = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
+  assert.equal(Object.keys(labels.labels).length, 1, "a rater's label is not the adjudicated one");
+  assert.deepEqual(labels.raters, [{ name: "alice", labeled: 4 }, { name: "bob", labeled: 4 }]);
+  const agreement = await saturn.api("GET", `${route}/runs/${done.id}/labels/agreement`);
+  assert.deepEqual(agreement.pairs.map((pair) => [pair.raters, pair.items, pair.agreed]), [[["alice", "bob"], 4, 3]]);
+  // Three of four agreed; alice says Correct half the time and bob a quarter, so chance is 0.5, and kappa (0.75 - 0.5) / 0.5.
+  assert.equal(agreement.pairs[0].kappa, 0.5);
+  // Fleiss pools both raters' words: 3 of 8 are Correct, so chance is 34/64 and kappa (0.75 - 0.53125) / 0.46875.
+  assert.equal(agreement.fleiss.items, 4);
+  assert.equal(agreement.fleiss.kappa, 0.4667);
+  assert.deepEqual(agreement.versusScorer.find((item) => item.rater === "alice"), { rater: "alice", compared: 4, agreed: 4, kappa: 1 });
+  assert.deepEqual(agreement.versusAdjudicated.find((item) => item.rater === "bob"), { rater: "bob", compared: 1, agreed: 0, kappa: 0 });
+  assert.equal((await saturn.call("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a", label: "x", rater: "../x" })).status, 400);
+});

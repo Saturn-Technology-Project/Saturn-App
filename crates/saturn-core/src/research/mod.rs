@@ -14,6 +14,7 @@ mod inside;
 mod inspection_sessions;
 mod isolation;
 mod labels;
+mod language_servers;
 mod manage;
 mod notebooks;
 mod policy;
@@ -25,6 +26,7 @@ mod snapshot;
 mod source;
 mod tables;
 mod task_reports;
+mod templates;
 mod trash;
 mod workers;
 
@@ -68,6 +70,8 @@ pub struct ResearchState {
     data: data::DataMemory,
     /// The kernels of notebooks open in the Workspace.
     notebooks: notebooks::Notebooks,
+    /// Language-server processes owned by source editors.
+    language_servers: language_servers::LanguageServers,
     /// Remote jobs are polled independently of their detached workers.
     remote: Mutex<std::collections::HashSet<String>>,
     /// Held while the record of what this runtime launched remotely is read and rewritten.
@@ -89,6 +93,7 @@ impl Default for ResearchState {
             environment_jobs: Mutex::default(),
             data: data::DataMemory::default(),
             notebooks: notebooks::Notebooks::default(),
+            language_servers: language_servers::LanguageServers::default(),
             remote: Mutex::default(),
             remote_ledger: tokio::sync::Mutex::new(()),
             seals: Mutex::default(),

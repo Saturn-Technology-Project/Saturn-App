@@ -108,7 +108,7 @@ The assistant sits beside every screen (⌘J), knows which one you are on and wh
 
 In every mode, locks, the policy, the SSH host, merging and loosening a run's sandbox stay yours, and so does every verdict and label you set yourself. Modes and locks are a workflow constraint, not a security boundary: a shell in a task can still write a locked file, and Saturn records it afterwards under Protection. [`docs/research-contract.md`](docs/research-contract.md) says exactly what each backend enforces.
 
-**Tools and skills.** The assistant works on the same records you see through thirteen `research_*` tools: read anything, make questions, hypotheses, experiments and models, freeze and run (here or on the SSH host), pause and resume runs here, wait for a run, set up the Python environment, look inside models, import results and bundles, keep analysis outputs, run notebook cells, and start, follow and clear away tasks. Fifty-one bundled skills teach it how, from scoping a question and writing hypotheses to leakage audits, layer sweeps and a final report; it reads the one it needs with `research_skill`, and a project's own skill of the same name comes first. [`docs/research-skills.md`](docs/research-skills.md) lists them.
+**Tools and skills.** The assistant works on the same records you see through fourteen `research_*` tools: read anything, make questions, hypotheses, experiments and models, freeze and run (here or on the SSH host), pause and resume runs here, wait for a run, set up the Python environment, look inside models, import results and bundles, keep analysis outputs, run notebook cells, and start, follow and clear away tasks. Sixty-eight bundled skills teach it how, from scoping a question and writing hypotheses to leakage audits, layer sweeps and a final report; it reads the one it needs with `research_skill`, and a project's own skill of the same name comes first. [`docs/research-skills.md`](docs/research-skills.md) lists them.
 
 **On any backend.** The assistant runs on an API model, on Claude Code with your Claude plan, on Codex with your ChatGPT plan, or on a local model in LM Studio or MLX. The research tools reach all of them.
 
@@ -125,6 +125,31 @@ In every mode, locks, the policy, the SSH host, merging and loosening a run's sa
 | 💸 **Usage and observability** | Tokens and cost per model, OpenTelemetry traces, metrics and logs, and the outbound network log |
 
 Samples, model output, papers and web pages are data to the assistant, never instructions, and are marked that way in its context.
+
+In Workspace, use **New file** beside Files to create a project file (nested paths work), or select a file and use
+**Rename file** / F2. Renaming preserves unsaved text and refuses existing destinations. The terminal's prompt sits
+directly after the last output; Up/Down recalls commands and Ctrl+L or `clear` clears the scrollback. Commands still run
+one at a time through the existing command runner.
+
+The source editor supports Python, JS/TS (including JSX), Rust, JSON, Markdown, Shell, YAML, TOML, TeX and Lean.
+**Tab** accepts a completion, advances a snippet field, or indents; **Shift+Tab** goes back or outdents. Suggestions
+come from the language and words in the open document, locally, with **Ctrl+Space** to request them. Existing spaces,
+tabs and CRLF line endings are preserved. Switching between recent source tabs keeps undo, cursor and scroll while the
+Workspace stays open; externally changed files start fresh. The status bar shows position, indentation and line endings,
+with **Editor shortcuts** for search/replace, comments, multiple selections and moving lines. Press Escape, then Tab to
+leave the editor using the keyboard. JSON has syntax diagnostics without a server.
+
+**Language services.** Python source files use Basedpyright (or Pyright) with the project's Python selected under
+**Environment**. Install the **Python language server** kit there, or install `basedpyright` in your existing Python
+environment. JS/TS and JSX use a project's TypeScript 7 native LSP (`node_modules/.bin/tsc`) or TypeScript 7 on PATH;
+`typescript-language-server` with TypeScript 6 remains supported. Rust uses `rust-analyzer` on PATH. The status bar shows
+the connected server, errors and a restart button; opening a file never installs a server automatically.
+
+Connected editors provide semantic completion, inferred-type hover, function signatures (**Ctrl/Cmd+Shift+Space**),
+diagnostics (**Ctrl/Cmd+Shift+M**) and definitions (**F12**, within the project). Unsaved imported files stay synchronized
+across tabs. Restart after changing Python or installing a server. These are source-file services; notebook cells keep
+their existing editor. Type quality depends on the project's packages, stubs and checker configuration; tensor shapes
+are not inferred. See [setup, protocol and boundaries](docs/language-services.md). Not available on Windows yet.
 
 ## Install
 
@@ -241,7 +266,7 @@ Launching Saturn starts its own runtime and keeps it running: it restarts one th
 | LM Studio | None | Any locally served model, fully offline |
 | MLX | None | Models `mlx_lm.server` serves on a Mac with Apple silicon, fully offline |
 
-API keys are stored encrypted in `~/.saturn-app/secrets.json` (AES-256-GCM, key in the OS key store; see [Data at rest](#data-at-rest)), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider.
+API keys are stored encrypted in `~/.saturn-app/secrets.json` (AES-256-GCM, key in the OS key store; see [Data at rest](#data-at-rest)), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider. Once a key is saved, the model list in Settings is the one the provider gives for that key, so a new model appears without a Saturn update; without a key, or for Claude Code and Codex, Saturn's built-in list is shown, and any other model ID can be typed in. Prices for the Usage page are kept by hand in Saturn, so a model newer than Saturn shows as unpriced until an update.
 
 ### Claude and Anthropic's terms
 
@@ -643,7 +668,7 @@ Before opening a pull request:
 
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
-- A debugger and language servers in the Workspace
+- A debugger in the Workspace
 - Experiment runs on Windows
 
 How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).

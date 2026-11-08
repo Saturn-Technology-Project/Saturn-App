@@ -42,7 +42,7 @@ for sample in samples:
         continue
     ...
 ```
-A program that does not skip writes the same identities twice, and the run ends as `protocol_error`.
+A program that does not skip writes the same identities twice, and the run ends as `protocol_error`. With the SDK (`research_template` `saturn_run`), `run.finished(sample_id)` is that check, `run.resume_from` the checkpoint, and `run.report("resume", …)` the report.
 
 **Training.** `SATURN_RESUME_FROM` names the checkpoint to restore: the one given, or by default the last entry of kind `checkpoint` in the resumed run's `SATURN_RUN_ARTIFACTS`. List each checkpoint there as you save it, with its step:
 ```python
@@ -57,7 +57,7 @@ report(kind="resume", checkpoint=os.environ["SATURN_RESUME_FROM"], restored=["we
 ```
 `report` is the helper in `run-provenance`. Without that line, the evidence says the restore is unknown. See also `checkpoints-and-lineage`.
 
-**Also there.** `SATURN_RESUME_RUN` is the resumed run's id and `SATURN_RESUME_DIRECTORY` its folder, which the program may read but not change.
+**Also there.** `SATURN_RESUME_RUN` is the resumed run's id and `SATURN_RESUME_DIRECTORY` its folder, which the program may read but not change. A run on the SSH host gets only `SATURN_RESUME_FROM`: the resumed run's folder is not on the host.
 
 ## When not to resume
 - The failure was in the method, not the machine: fix it, freeze, and start fresh.

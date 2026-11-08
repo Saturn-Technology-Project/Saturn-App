@@ -205,10 +205,16 @@ impl Kernel {
         Ok(())
     }
 
-    /// Every run of a project, newest last.
+    /// Every run of a project, newest last, each ended run saying whether its samples still match their seal. The
+    /// check is by size and time once a run's file has been hashed, so a long list stays quick.
     pub async fn research_runs(&self, project: &str) -> Result<Value, CoreError> {
         let records = self.records_folder(project).await?;
-        let (items, problems) = read_runs(&records).await?;
+        let (mut items, problems) = read_runs(&records).await?;
+        for run in &mut items {
+            if let Some(intact) = self.seal_intact(&records, run).await {
+                run["sealIntact"] = json!(intact);
+            }
+        }
         Ok(json!({ "items": items, "problems": problems }))
     }
 

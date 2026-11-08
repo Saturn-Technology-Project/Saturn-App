@@ -108,7 +108,7 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 
 在任何模式下，鎖定、策略、SSH 主機、合併與放寬執行沙箱都由你決定，你親自設定的判定與標籤也是。模式與鎖定是工作流程約束，不是安全邊界：任務中的 shell 仍可寫入被鎖定的檔案，Saturn 會事後記錄在防護中。[`docs/research-contract.md`](docs/research-contract.md) 精確說明每個後端強制執行什麼。
 
-**工具與 Skill。** 研究助理透過十三個 `research_*` 工具處理與你看到的相同紀錄：讀取任何內容；建立問題、假說、實驗與模型；凍結並執行（本機或 SSH 主機上）；暫停與續跑本機的執行；等待執行完成；設定 Python 環境；看進模型內部；匯入結果與研究包；保存分析輸出；執行 Notebook 儲存格；以及啟動、追蹤並清除任務。五十一個內建 skill 教它怎麼做，從界定問題範圍、撰寫假說，到資料洩漏稽核、逐層掃描與最終報告；它以 `research_skill` 讀取需要的那一個，專案自己的同名 skill 優先。[`docs/research-skills.md`](docs/research-skills.md) 列出全部 skill。
+**工具與 Skill。** 研究助理透過十四個 `research_*` 工具處理與你看到的相同紀錄：讀取任何內容；建立問題、假說、實驗與模型；凍結並執行（本機或 SSH 主機上）；暫停與續跑本機的執行；等待執行完成；設定 Python 環境；看進模型內部；匯入結果與研究包；保存分析輸出；執行 Notebook 儲存格；以及啟動、追蹤並清除任務。六十八個內建 skill 教它怎麼做，從界定問題範圍、撰寫假說，到資料洩漏稽核、逐層掃描與最終報告；它以 `research_skill` 讀取需要的那一個，專案自己的同名 skill 優先。[`docs/research-skills.md`](docs/research-skills.md) 列出全部 skill。
 
 **任何後端皆可。** 研究助理可以在 API 模型上執行，也可以在使用你 Claude 方案的 Claude Code、使用你 ChatGPT 方案的 Codex，或 LM Studio、MLX 中的本機模型上執行。研究工具在所有後端上都能使用。
 
@@ -125,6 +125,26 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 | 💸 **用量與可觀測性** | 依模型統計的 token 數與成本、OpenTelemetry trace、metric 與 log，以及對外網路紀錄 |
 
 樣本、模型輸出、論文與網頁對研究助理來說都是資料，絕不是指令，在它的上下文中也如此標示。
+
+在工作區的「檔案」旁按「新增檔案」即可建立專案檔案，也可輸入巢狀路徑；選取檔案後按「重新命名檔案」或 F2。
+重新命名會保留未儲存的文字，且不覆蓋既有檔案。終端機提示符緊接在上一段輸出後方；上下鍵可回叫指令，Ctrl+L 或 `clear` 清除輸出。指令仍沿用既有執行器逐條執行。
+
+程式碼編輯器支援 Python、JS／TS（含 JSX）、Rust、JSON、Markdown、Shell、YAML、TOML、TeX 與 Lean。
+**Tab** 接受補全、跳到下一個程式片段欄位或縮排；**Shift+Tab** 回到上一個欄位或減少縮排。建議來自語言本身與目前文件中的名稱，
+在本機執行，也可按 **Ctrl+Space** 叫出。編輯時保留原有空格、Tab 與 CRLF 換行。在工作區保持開啟期間，切換最近的程式碼分頁會保留
+復原紀錄、游標與捲動位置；檔案被外部修改後會重新開始。底部狀態列顯示位置、縮排與換行格式，「編輯快捷鍵」提供搜尋／取代、註解、
+多重選取與移動行的操作說明。按 Escape 再按 Tab 可用鍵盤離開編輯器。JSON 不需語言伺服器就能提供語法診斷。
+
+**語言服務。** Python 原始碼使用 Basedpyright（或 Pyright），以「環境」中選定的專案 Python 解析套件。
+可在該頁安裝「Python 語言伺服器」套件組，或在既有 Python 環境安裝 `basedpyright`。
+JS／TS 與 JSX 優先使用專案的 TypeScript 7 原生 LSP（`node_modules/.bin/tsc`）或 PATH 上的 TypeScript 7；
+也支援 `typescript-language-server` 搭配 TypeScript 6。Rust 使用 PATH 上的 `rust-analyzer`。
+狀態列顯示連線中的伺服器、問題數與重新啟動按鈕；開啟檔案不會自動安裝伺服器。
+
+連線後可使用語意補全、懸浮推斷型別、函式簽章（**Ctrl/Cmd+Shift+Space**）、診斷（**Ctrl/Cmd+Shift+M**）與定義跳轉
+（**F12**，限專案內）。未儲存的 import 檔案在切換分頁後仍保持同步。更換 Python 或安裝伺服器後，按重新啟動即可。
+目前服務對象是原始碼檔案，Notebook 儲存格維持既有編輯器。型別品質取決於專案套件、型別 stub 與檢查設定，不會推斷張量形狀。
+詳見[設定、協定與邊界](docs/language-services.md)。Windows 尚未支援。
 
 ## 安裝
 
@@ -241,7 +261,7 @@ crates/                                   desktop/src/
 | LM Studio | 無 | 任何本機提供的模型，完全離線 |
 | MLX | 無 | Apple 晶片 Mac 上由 `mlx_lm.server` 提供的模型，完全離線 |
 
-API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。
+API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。儲存金鑰後，設定頁的模型清單就是供應商依該金鑰列出的清單，新模型不必等 Saturn 更新就會出現；沒有金鑰時，或 Claude Code 與 Codex，顯示 Saturn 的內建清單，也可以手動輸入任何其他模型 ID。用量頁的價格由 Saturn 手動維護，比 Saturn 新的模型在更新前會顯示為未定價。
 
 ### Claude 與 Anthropic 的條款
 
@@ -643,7 +663,7 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
-- 工作區中的 debugger 與語言伺服器
+- 工作區中的 debugger
 - Windows 上的實驗執行
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。

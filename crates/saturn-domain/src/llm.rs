@@ -161,7 +161,10 @@ fn pricing(provider: &str, model: &str) -> Option<Pricing> {
         ("openai", "gpt-6.1-sol") => long(rate(2.0, 10.0, 0.1), 272_000, rate(4.0, 15.0, 0.2)),
         ("openai", "gpt-6-luna") => long(rate(0.1, 0.5, 0.01), 272_000, rate(0.2, 0.75, 0.02)),
 
-        ("claude", "claude-fable-5-1") => plain(claude_rate(10.0, 50.0, 0.25, 12.5)),
+        // Mythos 5.1 is Fable 5.1 for verified organizations: the same model at the same price (checked 2026-11-08).
+        ("claude", "claude-fable-5-1" | "claude-mythos-5-1") => {
+            plain(claude_rate(10.0, 50.0, 0.25, 12.5))
+        }
         ("claude", "claude-opus-5-5") => plain(claude_rate(4.0, 20.0, 0.2, 5.0)),
         ("claude", "claude-sonnet-5-5") => plain(claude_rate(2.0, 10.0, 0.1, 2.5)),
         ("claude", "claude-haiku-4-5") => plain(claude_rate(1.0, 5.0, 0.1, 1.25)),
@@ -346,4 +349,33 @@ pub fn describe_price(provider: &str, model: &str, at: i64) -> Option<String> {
         format!(" · {}", notes.join(" · "))
     };
     Some(format!("{} per 1M tokens{extra}", pair(current)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Mythos 5.1 is Fable 5.1 for verified organizations, so a call to either is billed the same.
+    #[test]
+    fn mythos_is_priced_as_fable() {
+        let call = |model| CallToPrice {
+            provider: "claude",
+            model,
+            hosted: true,
+            at: 1_793_000_000_000,
+            input_tokens: 1_000,
+            output_tokens: 200,
+            cached_tokens: 100,
+            cache_write_tokens: 50,
+        };
+        let fable = price_call(&call("claude-fable-5-1")).unwrap();
+        let mythos = price_call(&call("claude-mythos-5-1")).unwrap();
+        assert_eq!(mythos, fable);
+        assert_eq!(mythos.input_rate, 10.0);
+        assert_eq!(mythos.output_rate, 50.0);
+        assert_eq!(
+            describe_price("claude", "claude-mythos-5-1", 0),
+            describe_price("claude", "claude-fable-5-1", 0)
+        );
+    }
 }

@@ -4,9 +4,11 @@ import importlib.metadata
 import json
 import os
 import platform
+import shutil
+import subprocess
 import sys
 
-PACKAGES = ["torch", "transformers", "numpy", "datasets", "accelerate", "trl", "peft", "transformer_lens", "sae_lens", "einops", "jupyter_core", "jupyter", "jupyter_client", "ipykernel"]
+PACKAGES = ["torch", "transformers", "numpy", "datasets", "accelerate", "trl", "peft", "transformer_lens", "sae_lens", "einops", "jupyter_core", "jupyter", "jupyter_client", "ipykernel", "basedpyright"]
 
 
 def version(name):
@@ -14,6 +16,22 @@ def version(name):
         return importlib.metadata.version(name)
     except importlib.metadata.PackageNotFoundError:
         return None
+
+
+PROGRAMS = ["git", "uv", "elan", "lake", "lean", "tectonic", "latexmk", "pdflatex", "pandoc"]
+
+
+def program(name):
+    """Where a program is on PATH and what it says it is, or None when it is not there."""
+    found = shutil.which(name)
+    if not found:
+        return None
+    try:
+        said = subprocess.run([found, "--version"], capture_output=True, text=True, timeout=5, check=False)
+        first = (said.stdout or said.stderr).strip().splitlines()
+        return {"path": found, "version": first[0][:120] if first else None}
+    except (OSError, subprocess.SubprocessError):
+        return {"path": found, "version": None}
 
 
 def devices():
@@ -37,4 +55,5 @@ json.dump({
     "cpus": os.cpu_count(),
     "packages": {name: version(name) for name in PACKAGES},
     "devices": devices(),
+    "programs": {name: program(name) for name in PROGRAMS},
 }, sys.stdout)

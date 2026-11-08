@@ -29,6 +29,8 @@ export interface ExperimentDraft extends ResearchRecord {
   sandbox?: SandboxSettings;
   /** Environment variables its runs are given besides those that say where things are. */
   envNames?: string[];
+  /** The seeds its runs are passed as SATURN_RUN_SEED and SATURN_RUN_SEEDS; whether a program applies them is for its report to say. */
+  seeds?: (number | string)[];
 }
 
 /** Who set a verdict, a label or a finding. */
@@ -97,7 +99,7 @@ export interface InspectionSession extends ResearchRecord {
 
 /** An immutable analysis output, or an explicitly unpackaged reference to a larger store. */
 export interface ResearchArtifact extends ResearchRecord {
-  title: string; kind: "figure" | "json" | "notebook" | "reference"; packaged: boolean;
+  title: string; kind: "figure" | "json" | "notebook" | "document" | "reference"; packaged: boolean;
   sha256: string | null; size?: number; mime?: string; sourcePath?: string; sourceScope?: string; uri?: string;
   runId?: string | null; inspectionId?: string | null; metadata?: unknown; hashVerified: boolean;
 }
@@ -175,12 +177,25 @@ export interface EvidenceInput { path: string; role: string; sha256: string; siz
 export interface RunEvidence {
   recorded: boolean;
   limits: string;
-  expected?: { versionId: string; fingerprint: string; command: string; cwd: string; commit: string | null; seeds: unknown[] | null };
+  expected?: {
+    versionId: string;
+    fingerprint: string;
+    command: string;
+    cwd: string;
+    commit: string | null;
+    seeds: unknown[] | null;
+    inputs?: { code?: string[]; data?: string[]; scorer?: string[]; environment?: string[] } | null;
+    models?: { modelId: string; role: ModelRole; source: string; weightsRevision: string | null; floating: boolean; revisionKind?: "commit" | "hash" | "name" | "none" }[] | null;
+    resumeFrom?: string | null;
+  };
   observed?: {
     executor: string;
     /** The SSH host and its working folder, for a remote run; the host's worker observed it. */
     host?: string;
     workdir?: string;
+    /** What the host's worker saw of the source and the machine, for a remote run. */
+    source?: { workdir?: string; gitCommit?: string | null; note?: string } | null;
+    system?: { cpus?: number; platform?: string } | null;
     platform?: string;
     command?: string;
     seedsPassed?: string[];
@@ -192,8 +207,12 @@ export interface RunEvidence {
     snapshot?: { isolation: string; manifestSha256: string; files: { path: string; sha256: string; size: number }[]; inputs: EvidenceInput[]; uncontrolled: { path: string; kind: string }[] };
     afterRun?: { checked: boolean; changed?: string[]; written?: string[]; kept?: boolean; reason?: string };
     sandbox?: RunSandbox | null;
+    /** What a resumed run took over from the run before it. */
+    resume?: { run: string; samples: number; metrics: number; sha256: string; checkpoint: string | null; step: number | null } | null;
   };
   reported?: { seed: Record<string, unknown> | null; models: Record<string, unknown>[]; config: Record<string, unknown> | null; resume: Record<string, unknown> | null; lines: number; problems: string[] };
+  /** The samples as sealed when the run ended: their hash, size and count. */
+  outputs?: { samplesSha256?: string | null; samplesSize?: number | null; samples?: number | null } | null;
   verdicts?: { execution: string; inputs: "verified" | "partial" | "changed" | "unverified"; outputs: "sealed" | "incomplete" | "changed" | "none" | "pending" };
 }
 
@@ -356,7 +375,8 @@ export interface EvaluationSpec {
   generation?: unknown;
 }
 
-export type ModelRole = "base" | "reference" | "policy";
+/** What a model is to an experiment: the model measured, the frozen reference, the policy being trained, or the reward model it is trained against. */
+export type ModelRole = "base" | "reference" | "policy" | "reward";
 
 export interface Comparison {
   result: "comparable" | "not_comparable" | "unknown";
@@ -376,6 +396,19 @@ export interface AcrossRow {
 export interface RunLabels {
   labels: Record<string, { sampleId: string; trial: number; modelId?: string | null; label: string; note?: string; by?: SetBy; agreesWithScorer?: boolean | null }>;
   agreement: { labeled: number; compared: number; agreed: number };
+  /** The raters who labelled apart from the adjudicated labels, and how many samples each did. */
+  raters?: { name: string; labeled: number }[];
+}
+
+/** How a run's raters agree: with each other (kappa per pair, and Fleiss' over all), with the adjudicated labels and with the scorer. */
+export interface LabelAgreement {
+  runId: string;
+  raters: { name: string; labeled: number }[];
+  pairs: { raters: [string, string]; items: number; agreed: number; kappa: number | null }[];
+  fleiss: { raters: number; items: number; kappa: number | null } | null;
+  versusAdjudicated: { rater: string; compared: number; agreed: number; kappa: number | null }[];
+  versusScorer: { rater: string; compared: number; agreed: number; kappa: number | null }[];
+  note: string;
 }
 
 export interface ResearchPolicy {
@@ -991,6 +1024,8 @@ export interface EnvironmentReport {
   cpus: number | null;
   packages: Record<string, string | null>;
   devices: { torch: string | null; reason?: string; cuda?: boolean; cudaDevices?: string[]; mps?: boolean };
+  /** Programs research work leans on besides Python (git, uv, elan, lake, lean, tectonic, latexmk, pdflatex, pandoc), as found on the interpreter's PATH. */
+  programs?: Record<string, { path: string; version: string | null } | null>;
 }
 
 /** The compute an environment can offer, in words. */

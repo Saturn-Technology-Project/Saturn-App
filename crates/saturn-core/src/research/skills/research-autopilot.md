@@ -10,6 +10,7 @@ The loop for an independent study. Each stage names the skill to read before doi
 1. `research_read` with `what: "status"`. Continue what exists rather than duplicating it. If the person already has result files, bring them in first: see `importing-results`.
 2. Check you can act: in an Ask chat you only read, in an Approve chat every change waits for the person. A long study belongs in a task, whose work stays apart until the person merges it: see `starting-tasks`. See `modes-and-boundaries` and `task-worktrees`.
 3. Agree the limits in one message if the person gave none: the question, the compute budget, and how long you may run. If you cannot ask, take the smallest reasonable budget and write it down in your first finding. See `compute-budget`.
+4. Before writing any program, `research_template` with no name: start from the template for the kind of study, and import `saturn_run` for the records. See `experiment-program`.
 
 ## The stages
 | Stage | What comes out of it | Skills |
@@ -18,12 +19,12 @@ The loop for an independent study. Each stage names the skill to read before doi
 | 2. Commit to predictions | Hypothesis records, written before any result | `writing-hypotheses` |
 | 3. Design | A plan as a finding: variables, baselines, sample size, stop rule | `study-design`, `baselines-and-controls`, `statistics-for-comparisons` |
 | 4. Environment | A checked interpreter and a lock file | `environment-setup`, `reproducibility` |
-| 5. Data | Fixed splits, hashed, audited | `dataset-preparation`, `data-leakage-audit`, `tokenizer-and-format` |
+| 5. Data | Fixed splits, hashed, audited | `dataset-preparation`, `data-provenance`, `data-leakage-audit`, `tokenizer-and-format` |
 | 6. Measure the start | An evaluation run on the untrained or base model | `experiment-program`, `evaluation-spec`, `scorer-design`, `freeze-and-run` |
-| 7. Train | Checkpoints, each a model record in the lineage | `training-smoke-test`, then `pretraining`, `fine-tuning` or `preference-training`; `checkpoints-and-lineage`, `gpu-and-memory` |
-| 8. Evaluate | Runs that compare as the same evaluation, here or on the configured host | `freeze-and-run`, `remote-runs`, `comparing-across-lineage` |
-| 9. Understand | Sample review, paired comparisons, statistics, mechanism | `reading-samples`, `paired-comparisons`, `counterexample-mining`, `statistics-for-comparisons`, `inspection-sessions`, `activation-patching`, `layer-sweeps` |
-| 10. Report | Findings tied to runs, kept outputs, a report file, a list of what the person decides | `recording-findings`, `analysis-outputs`, `study-report`, `research-bundles`, `handing-back` |
+| 7. Train | Checkpoints, each a model record in the lineage | `training-smoke-test`, then `pretraining`, `fine-tuning` or `preference-training`; `checkpoints-and-lineage`, `gpu-and-memory`; `reward-models-and-rl`, `ablation-studies`, `scaling-and-efficiency` when the method is the subject |
+| 8. Evaluate | Runs that compare as the same evaluation, here or on the configured host | `freeze-and-run`, `remote-runs`, `comparing-across-lineage`; for safety, `safety-benchmarks`, `red-teaming`, `behavioral-evals`, `agentic-evals`; `lean-proofs` for formal proofs |
+| 9. Understand | Sample review, paired comparisons, statistics, mechanism | `reading-samples`, `paired-comparisons`, `counterexample-mining`, `statistics-for-comparisons`, `inspection-sessions`, `activation-patching`, `layer-sweeps`, `linear-probes`, `steering-vectors`, `circuit-discovery`, `human-evaluation` |
+| 10. Report | Findings tied to runs, kept outputs, a report file, a list of what the person decides | `recording-findings`, `replication-review`, `analysis-outputs`, `study-report`, `model-cards`, `paper-writing`, `research-bundles`, `handing-back` |
 
 ## Rules that hold throughout
 - **Write the prediction before the result.** A hypothesis made after seeing the number is a description, and you say so.

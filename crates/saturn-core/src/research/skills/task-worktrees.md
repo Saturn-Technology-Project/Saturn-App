@@ -15,7 +15,7 @@ A task runs in its own git worktree and branch. An Auto or Agent chat that is no
 - Freeze and run from the task, so that a version holds the code you meant.
 - A run holds its worktree: the task cannot be discarded while it runs.
 - A version records the git commit and every uncommitted and untracked file, so committing is not needed to reproduce. Commit anyway at each milestone, so the person can read the branch as a story.
-- Add outputs to `.gitignore` or use `SATURN_RUN_DIRECTORY`. See `checkpoints-and-lineage`.
+- Write outputs to `SATURN_RUN_OUTPUT`: a sandboxed run cannot write its worktree. See `checkpoints-and-lineage`.
 - Environments are made at the project's root, in `.venv`, and shared. A task's worktree has no `.venv` of its own, so read `what: "environment"` for the interpreter's absolute path and start the command with it.
 
 ## Merging
