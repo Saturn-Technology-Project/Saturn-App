@@ -4,6 +4,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+### Fixed
+
+- **The Workspace terminal keeps what a command set for the next one.** Each command runs in a new shell, so `source .venv/bin/activate`, `export` or a shell function used to be gone by the next command, and Python ran outside the virtual environment. Each terminal panel now carries its environment, functions, aliases and shell variables from one command to the next, so an activated environment stays active and `deactivate` restores the old `PATH`. A new project's terminal starts fresh. The environment stays inside Saturn's runtime and is never sent to the app. Not on Windows yet.
+
 ### Changed
 
 - **The Workspace terminal is denser.** Lines sit at 1.45 times the text size instead of twice it, commands are closer together, and "Clear terminal" sits in the top corner instead of taking a row of its own, so more output fits in the panel.

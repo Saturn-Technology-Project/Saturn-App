@@ -15,7 +15,13 @@ interface Entry {
   pending: boolean;
 }
 
-/** Runs one command at a time in the project's folder. It is not a full terminal: nothing interactive runs here. */
+/** A new id for a panel's shell state, which the runtime keeps between its commands. */
+function newSession(): string {
+  return `terminal-${crypto.randomUUID()}`;
+}
+
+/** Runs one command at a time in the project's folder, keeping what `source`, `export` or `cd` set for the next one. It
+ * is not a full terminal: nothing interactive runs here. */
 export function Terminal(props: { folder: string; active?: boolean }) {
   const [folder, setFolder] = useState(props.folder);
   const [command, setCommand] = useState("");
@@ -27,10 +33,12 @@ export function Terminal(props: { folder: string; active?: boolean }) {
   const scroll = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const follow = useRef(true);
+  const session = useRef(newSession());
 
   // A project switch starts a fresh terminal; an earlier request must not write into it when it eventually returns.
   useEffect(() => {
     generation.current += 1;
+    session.current = newSession();
     setFolder(props.folder); setCommand(""); setEntries([]); setHistory(emptyHistory()); setRunning(false);
     follow.current = true;
     return () => { generation.current += 1; };
@@ -66,7 +74,7 @@ export function Terminal(props: { folder: string; active?: boolean }) {
     const startedIn = generation.current;
     setEntries((list) => [...list, { id, folder, command: typed, stdout: "", stderr: "", exitCode: null, pending: true }]);
     try {
-      const result = await desktop.workspace.exec(typed, folder);
+      const result = await desktop.workspace.exec(typed, folder, session.current);
       if (generation.current !== startedIn) return;
       setFolder(result.cwd);
       setEntries((list) => list.map((entry) => entry.id === id ? { ...entry, stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode, pending: false } : entry));
