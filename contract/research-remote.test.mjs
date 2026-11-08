@@ -25,8 +25,24 @@ before(async () => {
   remote = path.join(folder, "remote"); binaries = path.join(folder, "bin"); data = path.join(folder, "state");
   await mkdir(remote); await mkdir(binaries);
   const fake = path.join(binaries, "ssh");
-  // ssh.home names the host's home folder, and ssh.foreign makes the host another kind of system than this one.
-  await writeFile(fake, '#!/bin/sh\nif [ -f "$0.offline" ]; then exit 255; fi\nprintf "%s\\n" "$@" > "$0.args"\nif [ -f "$0.home" ]; then HOME="$(cat "$0.home")"; export HOME; fi\nif [ -f "$0.foreign" ]; then PATH="$0.uname:$PATH"; export PATH; fi\nfor remote_command do :; done\nexec /bin/sh -c "$remote_command"\n');
+  // ssh.home names the host's home folder, and ssh.foreign makes the host another kind of system than this one. ssh.offline
+  // refuses new connections and cuts the ones that are open, as a host that went away does; ssh.count counts connections.
+  await writeFile(fake, [
+    "#!/bin/sh",
+    'if [ -f "$0.offline" ]; then exit 255; fi',
+    'printf "%s\\n" "$@" > "$0.args"',
+    'echo 1 >> "$0.count"',
+    'if [ -f "$0.home" ]; then HOME="$(cat "$0.home")"; export HOME; fi',
+    'if [ -f "$0.foreign" ]; then PATH="$0.uname:$PATH"; export PATH; fi',
+    "for remote_command do :; done",
+    // The remote command runs as a child with this connection's stdin, and is ended when the host goes offline.
+    "exec 3<&0",
+    '/bin/sh -c "$remote_command" <&3 &',
+    "child=$!",
+    'while kill -0 "$child" 2>/dev/null; do if [ -f "$0.offline" ]; then kill "$child" 2>/dev/null; fi; sleep 0.2; done',
+    'wait "$child"',
+    "",
+  ].join("\n"));
   await chmod(fake, 0o755);
   await mkdir(path.join(binaries, "ssh.uname"));
   const foreign = process.arch === "x64" && process.platform === "linux" ? "aarch64" : "x86_64";
@@ -77,6 +93,40 @@ test("a detached worker survives the runtime, reconnects, and does not submit tw
   assert.deepEqual(JSON.parse(Buffer.from(content.data, "base64").toString()), { framework: "NNsight", result: [1, 2] });
   assert.equal(content.sourceChanged, null, "a remote snapshot has no source here to compare with");
   assert.match((await api("GET", `${route}/remote`)).note, /SSH/);
+});
+
+/** How many SSH connections the fake has taken so far. */
+async function connections() {
+  return existsSync(path.join(binaries, "ssh.count")) ? (await readFile(path.join(binaries, "ssh.count"), "utf8")).split("\n").filter(Boolean).length : 0;
+}
+
+test("a running job is followed over one connection that streams its samples as they are written", { skip: process.platform === "win32" }, async () => {
+  // A sample every 250 ms for about four seconds: polling once a second would take five or more connections.
+  await writeFile(path.join(remote, "streamed.mjs"), `import { appendFileSync } from 'node:fs'; let n=0; const timer = setInterval(()=>{ appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({schemaVersion:1,sampleId:String(n++),input:'a',scores:{s:1}})+'\\n'); if(n===16) { clearInterval(timer); } },250);`);
+  const { route, version, local } = await experiment("node streamed.mjs");
+  const before = await connections();
+  const run = await api("POST", `${route}/remote/runs`, { versionId: version.id, clientId: `streamed-${Date.now()}`, timeoutSeconds: 30 });
+  const samples = path.join(local, ".saturn/research/runs", run.id, "samples.jsonl");
+  // Samples arrive here while the job is still running, not only when it ends.
+  await until("samples to stream in", async () => ({ status: (await api("GET", `${route}/runs/${run.id}`)).status, lines: existsSync(samples) ? (await readFile(samples, "utf8")).split("\n").filter(Boolean).length : 0 }), (seen) => seen.status === "running" && seen.lines >= 2 && seen.lines < 16);
+  const ended = await until("the streamed job to finish", () => api("GET", `${route}/runs/${run.id}`), (item) => !["starting", "running"].includes(item.status), 30);
+  assert.equal(ended.status, "completed", JSON.stringify(ended));
+  assert.equal(ended.samples, 16);
+  const taken = (await connections()) - before;
+  assert.ok(taken >= 1 && taken <= 3, `one connection to start the job and one to follow it, not one a second: ${taken}`);
+});
+
+test("a stop requested while a job is followed goes down the open connection", { skip: process.platform === "win32" }, async () => {
+  await writeFile(path.join(remote, "long.mjs"), "setInterval(() => {}, 1000);");
+  const { route, version } = await experiment("node long.mjs");
+  const run = await api("POST", `${route}/remote/runs`, { versionId: version.id, clientId: `long-${Date.now()}`, timeoutSeconds: 60 });
+  await until("the job to run", () => api("GET", `${route}/runs/${run.id}`), (item) => item.status === "running" && item.remoteConnection === "connected");
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  const before = await connections();
+  await api("POST", `${route}/runs/${run.id}/stop`, {});
+  const ended = await until("the job to stop", () => api("GET", `${route}/runs/${run.id}`), (item) => item.status === "stopped", 15);
+  assert.equal(ended.remoteStatus, "stopped");
+  assert.equal(await connections(), before, "the stop needed no new connection");
 });
 
 test("training-only jobs sync metrics, and stop and wall-clock limits end the worker's process group", { skip: process.platform === "win32" }, async () => {

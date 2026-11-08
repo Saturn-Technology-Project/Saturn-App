@@ -314,9 +314,13 @@ as `SATURN_RESUME_FROM`, and only that: the resumed run's folder is not on the h
 `SATURN_RESUME_DIRECTORY` are not set there. The user's framework must restore weights, optimizer, scheduler and RNG
 state. A resumed attempt is a new run. The wall-clock limit stops the process group; it is not a guarantee about a provider's GPU bill.
 
-Samples, metrics, artifact manifest and stdout/stderr are pulled in chunks of up to 1 MiB per stream, one exchange right after another while more is waiting. Logs, metrics and resource readings may grow to 1 GiB each; samples, the report, the snapshot and the artifact list to 64 MiB.
-Completion waits for every chunk and verifies the remote hashes. A transfer failure keeps the run pending/disconnected,
-with a warning that computation may continue. Large weights remain external artifacts. Neither source nor outputs may
+The first exchange starts the job; while it runs, one SSH connection stays open and the worker streams a message
+whenever an output grew or the state changed, else one every 5 seconds, each carrying up to 1 MiB per stream past what
+is already here; 20 seconds without a message, or the connection ending, counts as disconnected, and a second later
+one bounded exchange catches up from the bytes already here and the connection is opened again. A stop requested
+meanwhile goes down the open connection. Logs, metrics and resource readings may grow to 1 GiB each; samples, the
+report, the snapshot and the artifact list to 64 MiB. Completion waits for every chunk and verifies the remote hashes.
+A transfer failure keeps the run pending/disconnected, with a warning that computation may continue. Large weights remain external artifacts. Neither source nor outputs may
 escape the configured job's state directory through symlinks. The worker's state lives under the remote project's
 `.saturn/remote-jobs/<run>` and does not load Saturn settings or credentials or expose an HTTP server.
 

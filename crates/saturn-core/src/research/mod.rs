@@ -72,8 +72,9 @@ pub struct ResearchState {
     notebooks: notebooks::Notebooks,
     /// Language-server processes owned by source editors.
     language_servers: language_servers::LanguageServers,
-    /// Remote jobs are polled independently of their detached workers.
-    remote: Mutex<std::collections::HashSet<String>>,
+    /// The remote runs this runtime follows, each with what wakes its follower when a stop is requested. The detached
+    /// workers run on regardless.
+    remote: Mutex<HashMap<String, Arc<tokio::sync::Notify>>>,
     /// Held while the record of what this runtime launched remotely is read and rewritten.
     remote_ledger: tokio::sync::Mutex<()>,
     /// Whether each sealed samples file still matches its seal, by its size and modification time when checked.
