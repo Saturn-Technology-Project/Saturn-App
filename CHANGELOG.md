@@ -10,6 +10,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Changed
 
+- **Writing a finding in the Workspace is one card.** What you understood takes the full width, with its kind and Save beside each other under it, ⌘↵ (Ctrl+Enter) saves, and an empty list says where findings are kept.
 - **The Workspace terminal is denser.** Lines sit at 1.45 times the text size instead of twice it, commands are closer together, and "Clear terminal" sits in the top corner instead of taking a row of its own, so more output fits in the panel.
 
 ## 0.5.1 (2026-11-08)
