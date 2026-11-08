@@ -149,7 +149,7 @@ impl Kernel {
     }
 
     /// Paths locked for agents: those the policy names, and the data and scorers of each experiment's newest version.
-    async fn locked_paths(&self, records: &Path, policy: &Value) -> Vec<String> {
+    pub(super) async fn locked_paths(&self, records: &Path, policy: &Value) -> Vec<String> {
         let released = crate::records::strings(policy, "released");
         let mut paths = crate::records::strings(policy, "locked");
         let Ok((versions, _)) = read_folder(&records.join("versions")).await else {
@@ -181,6 +181,20 @@ impl Kernel {
         // A released lock stays lifted until the next version, which locks what it uses again.
         paths.retain(|path| !released.iter().any(|lifted| lifted == path));
         paths
+    }
+
+    /// The paths locked for agents in a project, as the policy and the newest versions say.
+    pub(super) async fn research_locked_paths(
+        &self,
+        project: &str,
+    ) -> Result<Vec<String>, CoreError> {
+        let records = self.records_folder(project).await?;
+        let policy = read_record(&records.join("policy.json"))
+            .await
+            .ok()
+            .flatten()
+            .unwrap_or_else(no_policy);
+        Ok(self.locked_paths(&records, &policy).await)
     }
 
     /// Locks the user lifted are over once a new version is frozen: it locks what it uses.

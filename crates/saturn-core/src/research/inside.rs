@@ -340,6 +340,29 @@ impl Kernel {
                     format!("{path}.npz")
                 };
                 let (absolute, relative) = self.source_path(project, &wanted, None).await?;
+                // A reading makes a new file: it never replaces one, and a locked input (a frozen version's data or
+                // scorer, or what the policy names) is as closed to it as to a file tool.
+                if tokio::fs::symlink_metadata(&absolute).await.is_ok() {
+                    return Err(CoreError::new(
+                        409,
+                        format!(
+                            "{relative} already exists. A saved reading never replaces a file; name a new path."
+                        ),
+                    ));
+                }
+                if self
+                    .research_locked_paths(project)
+                    .await?
+                    .iter()
+                    .any(|locked| locked == &relative)
+                {
+                    return Err(CoreError::new(
+                        403,
+                        format!(
+                            "{relative} is locked for this experiment. Ask the person to release it, or name another path."
+                        ),
+                    ));
+                }
                 ask["save"] = json!(absolute.to_string_lossy());
                 Some((absolute, relative))
             }

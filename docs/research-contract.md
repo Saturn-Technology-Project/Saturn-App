@@ -400,7 +400,9 @@ environment that ran the experiment; a command that starts with anything else is
   project's model record says. With `save`, a project path (`.npz` is added when missing, and Saturn's records and
   git's folder are refused), the helper also writes every layer's raw residual stream there, `layer_<n>` arrays of
   tokens × hidden with `tokens` (and `patched_layer_<n>` for a patch), and the answer's `saved` gives the path, hash and
-  size, so a run can declare the file as data. A reading with `save` is its own saved result.
+  size, so a run can declare the file as data. A reading with `save` is its own saved result. The path must be new
+  (409 when a file is there: a reading never replaces one) and not locked for agents (403 for a frozen version's
+  data or scorer input, or a path the policy names), as a file tool's write would be.
 - `POST /projects/{id}/research/interventions` with `{"runId","sampleId","sourceModelId","targetModelId","layer"}`
   runs the source model on the same input, replaces the residual stream leaving `layer` of the target with the source's,
   and answers in the same shape with `patched: {"layer","sourceModelId","layers","top"}`. Everything up to that layer is

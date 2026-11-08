@@ -3,6 +3,7 @@
 // the contract.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -398,4 +399,11 @@ test("the raw residual stream can be kept as an .npz in the project, outside the
   assert.equal(plain.saved, undefined, "a reading without save is its own saved result");
   assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "../outside.npz" })).status, 403);
   assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: ".saturn/research/x.npz" })).status, 403);
+  // A reading never replaces a file, and a locked input is as closed to it as to a file tool.
+  await writeFile(path.join(folder, "activations/exists.npz"), "someone's data");
+  assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/exists" })).status, 409);
+  assert.equal(await readFile(path.join(folder, "activations/exists.npz"), "utf8"), "someone's data");
+  await saturn.api("PUT", `${route}/policy`, { expectedRevision: 0, locked: ["activations/locked.npz"] });
+  assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/locked" })).status, 403);
+  assert.equal(existsSync(path.join(folder, "activations/locked.npz")), false);
 });
