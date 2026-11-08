@@ -40,12 +40,16 @@ export function SelectGroup(props: { label: string; children: ReactNode }) {
   );
 }
 
-/** One value in the list, with a check when it is the chosen one. */
+/**
+ * One value in the list, with a check when it is the chosen one. The highlighted one is tinted with the text color, which
+ * shows on the popover in both themes (the accent color is the popover's own in the dark one), and its hint stays muted, so
+ * the name and its explanation keep their weights while the pointer moves.
+ */
 export function SelectItem({ className, children, hint, ...props }: SelectPrimitive.Item.Props & { hint?: string }) {
   return (
-    <SelectPrimitive.Item data-slot="select-item" className={classes("relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2", className)} {...props}>
+    <SelectPrimitive.Item data-slot="select-item" className={classes("relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-foreground/8 data-highlighted:bg-foreground/8 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2", className)} {...props}>
       <SelectPrimitive.ItemText className="block min-w-0 flex-1 truncate">{children}</SelectPrimitive.ItemText>
-      {hint ? <span className="text-xs whitespace-normal text-muted-foreground">{hint}</span> : null}
+      {hint ? <span className="text-xs text-pretty whitespace-normal text-muted-foreground">{hint}</span> : null}
       <SelectPrimitive.ItemIndicator render={<span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />}>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" /></svg>
       </SelectPrimitive.ItemIndicator>

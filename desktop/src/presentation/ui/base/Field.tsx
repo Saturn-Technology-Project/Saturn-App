@@ -44,7 +44,8 @@ export function Choice(props: { label?: ReactNode; ariaLabel?: string; value: st
   const trigger = (
     <Select value={props.value || null} items={props.options} disabled={props.disabled} onValueChange={(value) => props.onChange(String(value ?? ""))}>
       <SelectTrigger aria-labelledby={props.label ? id : undefined} aria-label={props.ariaLabel} placeholder={props.placeholder} className={classes("w-full text-foreground", props.triggerClassName)} />
-      <SelectContent>
+      {/* A list whose options explain themselves gets room for a sentence under each name. */}
+      <SelectContent className={props.options.some((option) => option.hint) ? "max-w-[min(24rem,var(--available-width))]" : undefined}>
         {optionGroups(props.options).map((group, index) => {
           const items = group.options.map((option) => <SelectItem key={option.value} value={option.value} disabled={option.disabled} hint={option.hint} className={option.hint ? "flex-col items-start gap-0.5" : undefined}>{option.label}</SelectItem>);
           return group.name ? <SelectGroup key={group.name} label={group.name}>{items}</SelectGroup> : <div key={index}>{items}</div>;
