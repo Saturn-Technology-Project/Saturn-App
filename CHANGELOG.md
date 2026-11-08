@@ -11,6 +11,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Added
 
+- **Home offers to start from two evaluations you already have.** A project without results shows "Compare two evaluations" above the first-study checklist, and the results step offers it too: the assistant previews both files, imports them once you agree, pairs them by sample ID and lists the samples that regressed, so the question and hypothesis can follow once there is something to explain.
 - **F12 follows a definition into an installed package.** Going to the definition of `torch.nn.Linear` or a standard-library function opens that file read-only in its own tab, at the definition. Only the selected Python's packages and the Rust toolchain's and crates' sources are read this way; anything else outside the project still is not.
 - **The research assistant can have several chats in a project.** + starts a new chat, and the chat's name at the top of the panel opens the project's chats, most recently used first, where one is opened, renamed or deleted. A new chat is named after its first message, and each keeps its own messages and mode. A project opens on the chat it had open last, and a new chat is only kept once a message is sent in it. Your existing chat is kept and named after its first message.
 
