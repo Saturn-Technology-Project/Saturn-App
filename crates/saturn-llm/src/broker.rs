@@ -18,7 +18,7 @@ use crate::lmstudio::{self, RawRequest, RawStream};
 use crate::shared::{flatten_tool_turns, trimmed};
 use crate::{
     ChatMessage, ChatRequest, Completion, Effort, Role, TokenUsage, ToolDef, claude, deepseek,
-    gemini, mlx, openai,
+    gemini, openai,
 };
 
 /// Where keys live. The broker only needs to read and write them by id.
@@ -77,7 +77,6 @@ pub enum Adapter {
     Gemini,
     DeepSeek,
     LmStudio,
-    Mlx,
     OpenAiChat,
     OpenAiResponses,
 }
@@ -89,7 +88,6 @@ impl Adapter {
             Self::Gemini => "gemini",
             Self::DeepSeek => "deepseek",
             Self::LmStudio => "lmstudio",
-            Self::Mlx => "mlx",
             Self::OpenAiChat => "openai-chat",
             Self::OpenAiResponses => "openai-responses",
         }
@@ -106,7 +104,6 @@ impl Adapter {
             Self::Gemini => gemini::complete(http, request).await,
             Self::DeepSeek => deepseek::complete(http, request).await,
             Self::LmStudio => lmstudio::complete(http, request).await,
-            Self::Mlx => mlx::complete(http, request).await,
             Self::OpenAiChat => openai::complete_chat(http, request).await,
             Self::OpenAiResponses => openai::complete_responses(http, request).await,
         }
@@ -120,7 +117,6 @@ impl Adapter {
     ) -> Option<Result<RawStream, LlmError>> {
         match self {
             Self::LmStudio => Some(lmstudio::complete_raw(http, request).await),
-            Self::Mlx => Some(mlx::complete_raw(http, request).await),
             Self::OpenAiChat => Some(openai::complete_raw(http, request).await),
             _ => None,
         }
@@ -235,7 +231,6 @@ impl<V: KeyVault> Broker<V> {
             "gemini" => Adapter::Gemini,
             "deepseek" => Adapter::DeepSeek,
             "lmstudio" => Adapter::LmStudio,
-            "mlx" => Adapter::Mlx,
             _ if openai::is_official_openai(&model.base_url) => Adapter::OpenAiResponses,
             _ => Adapter::OpenAiChat,
         })

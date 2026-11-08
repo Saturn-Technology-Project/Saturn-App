@@ -38,7 +38,6 @@ import type { RemoteTarget, RunEvidence } from "../domain/research.js";
 import type { InspectionSession, ResearchArtifact, ArtifactContent } from "../domain/research.js";
 import type { ResearchBundleExport, ResearchBundlePreview } from "../domain/research.js";
 import type { LanguageSession, ServerLanguage } from "../domain/language-server.js";
-import type { ProjectRecords } from "../domain/usage-summary.js";
 
 /** A list of records, and those that could not be read. */
 interface RecordList<T> {
@@ -72,22 +71,6 @@ export class ResearchService {
   /** Stop a process when its workspace closes or its connection is restarted. */
   stopLanguageServer(project: string, session: string): Promise<unknown> {
     return this.runtime.request(`${this.route(project)}/lsp/${encodeURIComponent(session)}`, { method: "DELETE" });
-  }
-
-  /** Every project's records, as far as the usage summary counts them. A project that cannot be read counts as empty. */
-  async usageRecords(projects: { id: string }[]): Promise<ProjectRecords[]> {
-    const empty = { items: [] as never[] };
-    return Promise.all(
-      projects.map(async (project) => {
-        const [runs, experiments, questions, findings] = await Promise.all([
-          this.runs(project.id).catch(() => empty),
-          this.experiments(project.id).catch(() => empty),
-          this.questions(project.id).catch(() => empty),
-          this.findings(project.id).catch(() => empty),
-        ]);
-        return { runs: runs.items, experiments: experiments.items, questions: questions.items, findings: findings.items };
-      }),
-    );
   }
 
   /** A definition's source in an installed package, read-only. */

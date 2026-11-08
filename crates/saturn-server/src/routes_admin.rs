@@ -103,9 +103,10 @@ async fn providers() -> Answer {
     ok(llm_providers())
 }
 
-async fn lm_studio(State(kernel): Shared, Query(query): QueryText) -> Answer {
+/// The route keeps the path it had when the local server could only be LM Studio.
+async fn local_server(State(kernel): Shared, Query(query): QueryText) -> Answer {
     ok(kernel
-        .lm_studio_models(wanted(&query, "baseUrl").unwrap_or(""))
+        .local_server_models(wanted(&query, "baseUrl").unwrap_or(""))
         .await)
 }
 
@@ -117,12 +118,6 @@ async fn provider_models(
     ok(kernel
         .provider_models(&provider, wanted(&query, "baseUrl").unwrap_or(""))
         .await?)
-}
-
-async fn mlx(State(kernel): Shared, Query(query): QueryText) -> Answer {
-    ok(kernel
-        .mlx_models(wanted(&query, "baseUrl").unwrap_or(""))
-        .await)
 }
 
 async fn list_connections(State(kernel): Shared, Path(kind): Path<String>) -> Answer {
@@ -1200,8 +1195,7 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/usage/summary", get(usage_summary))
         .route("/llm/providers", get(providers))
         .route("/llm/providers/{provider}/models", get(provider_models))
-        .route("/llm/lmstudio/models", get(lm_studio))
-        .route("/llm/mlx/models", get(mlx))
+        .route("/llm/lmstudio/models", get(local_server))
         .route("/connections/{kind}", get(list_connections))
         .route("/connections/{kind}/{id}", delete(delete_connection))
         .route(

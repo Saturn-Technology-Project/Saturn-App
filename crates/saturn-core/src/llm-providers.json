@@ -145,16 +145,9 @@
  },
  {
   "id": "lmstudio",
-  "label": "LM Studio",
+  "label": "Local server",
   "needsKey": false,
   "baseUrl": "http://127.0.0.1:1234",
-  "models": []
- },
- {
-  "id": "mlx",
-  "label": "MLX",
-  "needsKey": false,
-  "baseUrl": "http://127.0.0.1:8080",
   "models": []
  }
 ]

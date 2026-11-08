@@ -36,7 +36,7 @@ pub fn context_tokens_for(provider: &str, model: &str, own: Option<f64>) -> u64 
         "claude" => 200_000,
         "openai" if GPT_SIX.is_match(model) => 400_000,
         "gemini" => 1_000_000,
-        "lmstudio" | "mlx" => 32_000,
+        "lmstudio" => 32_000,
         _ => 128_000,
     }
 }
