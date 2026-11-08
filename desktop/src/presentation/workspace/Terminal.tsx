@@ -81,28 +81,29 @@ export function Terminal(props: { folder: string; active?: boolean }) {
   const prompt = (path: string) => <span title={path} className="flex-none text-(--term-prompt)">{path.split(/[/\\]/).filter(Boolean).at(-1) || path} $</span>;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-(--term-bg) font-mono text-xs leading-6 text-(--term-fg)" onKeyDown={(event) => {
+    <div className="relative flex h-full min-h-0 flex-col bg-(--term-bg) font-mono text-xs leading-[1.45] text-(--term-fg)" onKeyDown={(event) => {
       if (event.ctrlKey && event.key.toLowerCase() === "l") { event.preventDefault(); clear(); }
     }}>
-      <div className="flex flex-none justify-end px-2.5 pt-1"><button type="button" className="cursor-pointer rounded px-1.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground" onClick={clear}>{t("Clear terminal")}</button></div>
-      <div ref={scroll} className="min-h-0 flex-1 cursor-text overflow-auto px-3 pb-3" onScroll={() => {
+      {/* Over the scrollback's corner rather than on a row of its own, so every line goes to output. */}
+      <button type="button" className="absolute top-1 right-3.5 z-10 cursor-pointer rounded bg-(--term-bg) px-1.5 text-[11px] leading-5 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={clear}>{t("Clear terminal")}</button>
+      <div ref={scroll} className="min-h-0 flex-1 cursor-text overflow-auto px-3 py-1.5" onScroll={() => {
         const pane = scroll.current;
         if (pane) follow.current = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 48;
       }} onClick={(event) => {
         if (!(event.target as HTMLElement).closest("button,input") && window.getSelection()?.isCollapsed !== false) input.current?.focus({ preventScroll: true });
       }}>
         <div role="log" aria-label={t("Terminal output")} aria-live="polite" aria-relevant="additions text">
-          {entries.map((entry) => <div key={entry.id} className="mb-1">
+          {entries.map((entry) => <div key={entry.id} className="mb-1.5">
             <div className="flex items-start gap-2">{prompt(entry.folder)}<span className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{entry.command}</span></div>
-            {entry.stdout ? <pre className="m-0 font-mono text-xs leading-6 whitespace-pre-wrap [overflow-wrap:anywhere]">{entry.stdout}</pre> : null}
-            {entry.stderr ? <pre className="m-0 font-mono text-xs leading-6 whitespace-pre-wrap text-(--term-stderr) [overflow-wrap:anywhere]">{entry.stderr}</pre> : null}
+            {entry.stdout ? <pre className="m-0 font-mono text-xs leading-[1.45] whitespace-pre-wrap [overflow-wrap:anywhere]">{entry.stdout}</pre> : null}
+            {entry.stderr ? <pre className="m-0 font-mono text-xs leading-[1.45] whitespace-pre-wrap text-(--term-stderr) [overflow-wrap:anywhere]">{entry.stderr}</pre> : null}
             {entry.pending ? <div className="text-muted-foreground">{t("Running…")}</div> : null}
             {entry.exitCode !== null && entry.exitCode !== 0 ? <div className="text-wait">{t("Exit code {code}", { code: entry.exitCode })}</div> : null}
           </div>)}
         </div>
         <form className={running ? "hidden" : "flex items-center gap-2"} onSubmit={(event) => { event.preventDefault(); void run(); }}>
           {prompt(folder)}
-          <Input ref={input} aria-label={t("Command")} className="h-6 min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 font-mono text-xs shadow-none focus-visible:ring-0 dark:bg-transparent" value={command} onChange={(event) => { setCommand(event.target.value); setHistory((current) => ({ ...current, index: null, draft: "" })); }} onKeyDown={(event) => {
+          <Input ref={input} aria-label={t("Command")} className="h-[1.45em] min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 py-0 font-mono text-xs leading-[1.45] shadow-none focus-visible:ring-0 dark:bg-transparent" value={command} onChange={(event) => { setCommand(event.target.value); setHistory((current) => ({ ...current, index: null, draft: "" })); }} onKeyDown={(event) => {
             if (event.key === "ArrowUp" || event.key === "ArrowDown") {
               event.preventDefault();
               const moved = navigateHistory(history, event.key === "ArrowUp" ? "up" : "down", command);

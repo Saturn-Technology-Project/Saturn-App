@@ -2,6 +2,12 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Changed
+
+- **The Workspace terminal is denser.** Lines sit at 1.45 times the text size instead of twice it, commands are closer together, and "Clear terminal" sits in the top corner instead of taking a row of its own, so more output fits in the panel.
+
 ## 0.5.1 (2026-11-08)
 
 ### Fixed
