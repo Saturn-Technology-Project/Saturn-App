@@ -1,4 +1,6 @@
-import { ASSISTANT_NAME, ASSISTANT_THREAD, RESEARCH_TOOLS, TASK_PREFIX } from "../domain/assistant.js";
+import { ASSISTANT_NAME, assistantChats, NEW_CHAT, RESEARCH_TOOLS, TASK_PREFIX } from "../domain/assistant.js";
+import { isBusy } from "../domain/conversation.js";
+import { t } from "../domain/i18n.js";
 import type { Agent, ChatMode, Conversation, Model, RunMode } from "../domain/model.js";
 import { assistantInstructions } from "../domain/workbench.js";
 import type { CatalogService } from "./catalog.js";
@@ -6,6 +8,9 @@ import type { RunService } from "./runs.js";
 
 /** The research assistant and tasks, on a hidden agent. Everything else about agents stays out of the interface. */
 export class AssistantService {
+  /** The hidden agent while it is being made, so screens that ask at once share one agent instead of making one each. */
+  private making: Promise<Agent> | null = null;
+
   constructor(
     private readonly catalog: CatalogService,
     private readonly runs: RunService,
@@ -26,21 +31,44 @@ export class AssistantService {
       await this.catalog.updateAgent(found.id, { modelConnectionId, instructions, mcpConnectionIds });
       return { agent: { ...found, modelConnectionId, instructions, mcpConnectionIds }, models };
     }
-    // Made without a list, so that it has every tool an agent gets by default, and then the research tools, which are asked for.
-    const agent = await this.catalog.createAgent({ name: ASSISTANT_NAME, modelConnectionId: models[0].id, instructions });
+    this.making ??= this.make(models[0].id, instructions).finally(() => {
+      this.making = null;
+    });
+    return { agent: await this.making, models };
+  }
+
+  /** Makes the hidden agent: without a list, so that it has every tool an agent gets by default, and then the research
+   * tools, which are asked for. */
+  private async make(modelConnectionId: string, instructions: string): Promise<Agent> {
+    const agent = await this.catalog.createAgent({ name: ASSISTANT_NAME, modelConnectionId, instructions });
     const mcpConnectionIds = [...agent.mcpConnectionIds, RESEARCH_TOOLS];
     await this.catalog.updateAgent(agent.id, { mcpConnectionIds });
-    return { agent: { ...agent, mcpConnectionIds }, models };
+    return { ...agent, mcpConnectionIds };
   }
 
   chooseModel(agent: Agent, modelId: string): Promise<void> {
     return this.catalog.updateAgent(agent.id, { modelConnectionId: modelId });
   }
 
-  /** The project's assistant chat. */
-  async thread(agent: Agent, projectId: string): Promise<Conversation> {
-    const threads = await this.catalog.listThreads(agent.id);
-    return threads.find((item) => item.projectId === projectId && item.title === ASSISTANT_THREAD) ?? (await this.catalog.createThread(agent.id, ASSISTANT_THREAD, projectId));
+  /** The project's assistant chats, the most recently used first. */
+  async chats(agent: Agent, projectId: string): Promise<Conversation[]> {
+    return assistantChats(await this.catalog.listThreads(agent.id), projectId);
+  }
+
+  /** A new chat in the project, named by its first message when it is made for one. */
+  newChat(agent: Agent, projectId: string, title?: string): Promise<Conversation> {
+    return this.catalog.createThread(agent.id, title?.trim() || NEW_CHAT, projectId);
+  }
+
+  renameChat(threadId: string, title: string): Promise<Conversation> {
+    return this.catalog.renameThread(threadId, title);
+  }
+
+  /** Deletes a chat with its messages, unless its assistant is still answering. */
+  async deleteChat(agent: Agent, threadId: string): Promise<void> {
+    const latest = (await this.catalog.messages(agent.id, threadId)).at(-1);
+    if (latest && (isBusy(latest) || latest.status === "waiting_approval")) throw new Error(t("The assistant is still answering in this chat. Stop it first."));
+    await this.catalog.deleteThread(threadId);
   }
 
   /** The project's tasks, newest first. */
