@@ -531,6 +531,7 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
         .filter(|_| !cfg!(windows))
         .map(str::to_owned);
     let kept = session.as_deref().and_then(terminal_sessions::state_of);
+    let markers = terminal_sessions::Markers::new();
     let prelude = kept
         .as_ref()
         .filter(|state| !state.definitions.trim().is_empty())
@@ -549,7 +550,7 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
             before.push('\n');
         }
         let after = if session.is_some() {
-            format!("{}\n", terminal_sessions::trailer())
+            format!("{}\n", terminal_sessions::trailer(&markers))
         } else {
             String::new()
         };
@@ -603,7 +604,7 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
         .await;
     let output = match (
         session.as_deref(),
-        terminal_sessions::split_state(&result.stdout),
+        terminal_sessions::split_state(&result.stdout, &markers),
     ) {
         (Some(session), Some((before, state))) => {
             terminal_sessions::keep(session, state);

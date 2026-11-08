@@ -1,16 +1,35 @@
 //! What the Workspace's terminal panel keeps between commands. Each command runs in a new shell, so without this a
 //! `source .venv/bin/activate` or an `export` would be gone by the next command. After every command the shell prints
-//! its functions, aliases and environment; the next command of the same panel starts with that environment and
-//! defines those functions and aliases again first. Kept in this process's memory only, never written or returned,
-//! since an environment can hold keys.
+//! its functions, shell variables, aliases and environment after markers made for that one command; the next command
+//! of the same panel starts with that environment and defines the rest again first. (An alias only takes effect where
+//! the shell applies aliases in a script: bash does, zsh parses the whole script before running it.) Kept in this
+//! process's memory only, never written or returned, since an environment can hold keys.
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::sync::{LazyLock, Mutex};
 
-/// Opens the functions and aliases the shell printed after a command.
-pub const DEFINITIONS_MARKER: &str = "__SATURN_DEFINITIONS__:";
-/// Opens the environment the shell printed after a command, as NUL-separated `NAME=value` items.
-pub const ENVIRONMENT_MARKER: &str = "__SATURN_ENVIRONMENT__:";
+/// The markers one command's trailer prints its state after. Each command gets its own random pair, so nothing a command
+/// or a variable's value holds can pass for them.
+pub struct Markers {
+    /// Opens the functions, shell variables and aliases.
+    pub definitions: String,
+    /// Opens the environment, as NUL-separated `NAME=value` items.
+    pub environment: String,
+}
+
+impl Markers {
+    pub fn new() -> Self {
+        let nonce = saturn_domain::random_hex(8).unwrap_or_else(|_| {
+            CLOCK
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                .to_string()
+        });
+        Self {
+            definitions: format!("__SATURN_DEFINITIONS_{nonce}__:"),
+            environment: format!("__SATURN_ENVIRONMENT_{nonce}__:"),
+        }
+    }
+}
 /// How many panels' states are kept; the least recently used goes first.
 const KEPT: usize = 16;
 
@@ -76,10 +95,11 @@ pub const SNAPSHOT: &str = "if [ -n \"$ZSH_VERSION\" ]; then __saturn_names=\" $
 /// The lines a POSIX shell runs after the command, printing its state after the markers. zsh and bash also print their
 /// functions, aliases and the shell variables set since the snapshot that are neither exported (those are in the
 /// environment) nor read-only nor the shell's own; another shell keeps its environment only.
-pub fn trailer() -> String {
+pub fn trailer(markers: &Markers) -> String {
     let skip = "__saturn_*|PIPESTATUS|BASH*|FUNCNAME|_) continue;;";
+    let (definitions, environment) = (&markers.definitions, &markers.environment);
     format!(
-        "printf '%s' '{DEFINITIONS_MARKER}'\n\
+        "printf '%s' '{definitions}'\n\
          {{ if [ -n \"$ZSH_VERSION\" ]; then typeset -f; alias -L; \
          for __saturn_name in ${{(k)parameters}}; do case \"$__saturn_names\" in *\" $__saturn_name \"*) continue;; esac; \
          case $__saturn_name in {skip} esac; \
@@ -90,7 +110,7 @@ pub fn trailer() -> String {
          case $__saturn_name in {skip} esac; \
          __saturn_declared=$(declare -p \"$__saturn_name\" 2>/dev/null) || continue; __saturn_flags=${{__saturn_declared#declare -}}; \
          case \"${{__saturn_flags%% *}}\" in *x*|*r*) continue;; esac; printf '%s\\n' \"$__saturn_declared\"; done; fi; }} 2>/dev/null\n\
-         printf '%s' '{ENVIRONMENT_MARKER}'\n\
+         printf '%s' '{environment}'\n\
          env -0"
     )
 }
@@ -101,11 +121,11 @@ pub const PRELUDE: &str = "__saturn_definitions=\"$(cat)\"\neval \"$__saturn_def
 
 /// Splits the state a command's trailer printed from what the command itself printed. `None` when the trailer did not
 /// run (the command exited the shell, or was stopped).
-pub fn split_state(output: &str) -> Option<(&str, TerminalState)> {
-    let environment_at = output.rfind(ENVIRONMENT_MARKER)?;
-    let definitions_at = output[..environment_at].rfind(DEFINITIONS_MARKER)?;
-    let definitions = output[definitions_at + DEFINITIONS_MARKER.len()..environment_at].to_owned();
-    let environment = output[environment_at + ENVIRONMENT_MARKER.len()..]
+pub fn split_state<'a>(output: &'a str, markers: &Markers) -> Option<(&'a str, TerminalState)> {
+    let environment_at = output.rfind(&markers.environment)?;
+    let definitions_at = output[..environment_at].rfind(&markers.definitions)?;
+    let definitions = output[definitions_at + markers.definitions.len()..environment_at].to_owned();
+    let environment = output[environment_at + markers.environment.len()..]
         .split('\0')
         .filter_map(|item| {
             let (name, value) = item.split_once('=')?;
@@ -132,11 +152,18 @@ mod tests {
 
     #[test]
     fn the_state_is_split_from_the_output_and_a_missing_trailer_leaves_none() {
+        let markers = Markers::new();
+        assert_ne!(markers.definitions, Markers::new().definitions);
+        // The command printed another command's markers: only this command's count.
         let output = format!(
-            "hello\n__SATURN_CWD__:/tmp\n{DEFINITIONS_MARKER}deactivate () {{\n\ttrue\n}}\n{ENVIRONMENT_MARKER}PATH=/venv/bin:/usr/bin\0VIRTUAL_ENV=/venv\0_=/usr/bin/env\0"
+            "hello __SATURN_ENVIRONMENT_0__:\n__SATURN_CWD__:/tmp\n{}deactivate () {{\n\ttrue\n}}\n{}PATH=/venv/bin:/usr/bin\0VIRTUAL_ENV=/venv\0_=/usr/bin/env\0",
+            markers.definitions, markers.environment
         );
-        let (before, state) = split_state(&output).unwrap();
-        assert_eq!(before, "hello\n__SATURN_CWD__:/tmp\n");
+        let (before, state) = split_state(&output, &markers).unwrap();
+        assert_eq!(
+            before,
+            "hello __SATURN_ENVIRONMENT_0__:\n__SATURN_CWD__:/tmp\n"
+        );
         assert!(state.definitions.starts_with("deactivate ()"));
         assert_eq!(
             state.environment,
@@ -145,7 +172,11 @@ mod tests {
                 ("VIRTUAL_ENV".into(), "/venv".into())
             ]
         );
-        assert!(split_state("hello\n").is_none());
+        assert!(split_state("hello\n", &markers).is_none());
+        assert!(
+            split_state(&output, &Markers::new()).is_none(),
+            "another command's markers find nothing"
+        );
     }
 
     #[test]

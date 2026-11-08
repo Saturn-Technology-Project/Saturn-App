@@ -6,7 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
-- **The Workspace terminal keeps what a command set for the next one.** Each command runs in a new shell, so `source .venv/bin/activate`, `export` or a shell function used to be gone by the next command, and Python ran outside the virtual environment. Each terminal panel now carries its environment, functions, aliases and shell variables from one command to the next, so an activated environment stays active and `deactivate` restores the old `PATH`. A new project's terminal starts fresh. The environment stays inside Saturn's runtime and is never sent to the app. Not on Windows yet.
+- **The Workspace terminal keeps what a command set for the next one.** Each command runs in a new shell, so `source .venv/bin/activate`, `export` or a shell function used to be gone by the next command, and Python ran outside the virtual environment. Each terminal panel now carries its environment, functions and shell variables from one command to the next, so an activated environment stays active and `deactivate` restores the old `PATH`. (An alias carries over only in bash; zsh does not apply aliases inside a script.) A new project's terminal starts fresh. The environment stays inside Saturn's runtime and is never sent to the app. Not on Windows yet.
 
 ### Changed
 

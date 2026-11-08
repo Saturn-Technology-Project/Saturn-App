@@ -326,6 +326,10 @@ test("a terminal panel keeps what activate and export set for its next command, 
   const answer = await run("true");
   assert.deepEqual(Object.keys(answer).sort(), ["cwd", "exitCode", "stderr", "stdout"], "the environment is never returned");
   assert.doesNotMatch(answer.stdout, /SATURN_(DEFINITIONS|ENVIRONMENT)/);
+  // Output that looks like the runtime's own markers is only output: the markers are made anew for every command.
+  const spoofed = await run('printf "%s" "__SATURN_ENVIRONMENT__:SATURN_PANEL_NOTE=spoofed"');
+  assert.equal(spoofed.stdout, "__SATURN_ENVIRONMENT__:SATURN_PANEL_NOTE=spoofed");
+  assert.equal((await run('printf "%s" "$SATURN_PANEL_NOTE"')).stdout, "kept", "and changes nothing for the next command");
 
   assert.equal((await run('printf "%s" "$VIRTUAL_ENV"', "panel-b")).stdout, "", "another panel starts fresh");
   assert.equal((await api("POST", "/workspace/terminal", { command: 'printf "%s" "$VIRTUAL_ENV"' })).stdout, "", "so does a command with no panel");
