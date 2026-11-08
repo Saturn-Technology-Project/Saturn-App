@@ -10,6 +10,7 @@ use std::time::Duration;
 use regex::Regex;
 use saturn_domain::js;
 use saturn_domain::new_id;
+use saturn_domain::permissions::Effect;
 use saturn_domain::policies::{GuardrailMode, is_read_only_call, is_sensitive_operation};
 use saturn_domain::prompt::{RunMode, mode_instructions, read_only_refusal};
 use serde_json::{Value, json};
@@ -23,6 +24,7 @@ use crate::agent_sessions::{
     RunningProgram, SKILLS_SERVER, SkillsBridge, Turn, approval_mode, clip, keep_stderr,
     program_command, resolved, stderr_of, with_knowledge,
 };
+use crate::permissions::explain;
 use crate::records::text;
 use crate::run_images::load_images;
 use crate::tool_runs::tool_category;
@@ -56,6 +58,46 @@ fn file_of<'a>(tool: &str, input: &'a Value) -> Option<&'a str> {
         _ => return None,
     };
     input.get(field).and_then(Value::as_str)
+}
+
+/// A Claude Code tool call as the permission rules see it: its shell as Saturn's `code` tool with the command, its file
+/// tools as `files` with the action and path, a Saturn skill by its own name, and anything else by the name Claude Code
+/// gives it, so only a rule for every tool reaches it.
+fn ruled_call(tool: &str, input: &Value) -> (String, saturn_domain::Arguments) {
+    let mut arguments = saturn_domain::Arguments::new();
+    let field = |name: &str| input.get(name).cloned().unwrap_or(Value::Null);
+    match tool {
+        "Bash" | "PowerShell" => {
+            arguments.insert("command".to_owned(), field("command"));
+            ("code".to_owned(), arguments)
+        }
+        "Read" | "Glob" | "Grep" | "LS" | "NotebookRead" => {
+            arguments.insert("action".to_owned(), json!("read"));
+            arguments.insert(
+                "path".to_owned(),
+                if tool == "NotebookRead" {
+                    field("notebook_path")
+                } else if tool == "Read" {
+                    field("file_path")
+                } else {
+                    field("path")
+                },
+            );
+            ("files".to_owned(), arguments)
+        }
+        "Write" | "Edit" | "MultiEdit" | "NotebookEdit" => {
+            arguments.insert("action".to_owned(), json!("write"));
+            arguments.insert(
+                "path".to_owned(),
+                json!(file_of(tool, input).unwrap_or_default()),
+            );
+            ("files".to_owned(), arguments)
+        }
+        _ => (
+            skill_of(tool).unwrap_or(tool).to_owned(),
+            input.as_object().cloned().unwrap_or_default(),
+        ),
+    }
 }
 
 /// How Claude Code names a tool of Saturn's skills server, without its prefix.
@@ -136,6 +178,19 @@ struct ClaudeTurn {
 
 impl ClaudeTurn {
     /// The action of a tool call, shown under the skill's own name when it is one of Saturn's.
+    /// Marks a noted action as refused, with why.
+    fn mark_denied(&self, id: &str, reason: &str) {
+        let mut record = locked(&self.turn.record);
+        if let Some(action) = record
+            .actions
+            .iter_mut()
+            .find(|item| text(item, "id") == id)
+        {
+            action["status"] = "denied".into();
+            action["reason"] = json!(reason);
+        }
+    }
+
     fn note_action(&self, id: &str, tool: &str, input: &Value) {
         let mut record = locked(&self.turn.record);
         if !record.actions.iter().any(|item| text(item, "id") == id) {
@@ -204,7 +259,29 @@ impl ClaudeTurn {
             given.to_owned()
         };
         let allowed = json!({ "behavior": "allow", "updatedInput": input, "toolUseID": id });
-        if READ_ONLY_TOOLS.contains(&tool) {
+        // The permission rules first, as in Saturn's own loop: a deny refuses even a read; an allow or ask is applied
+        // below, after the turn's mode has had its say.
+        let run = self.turn.kernel.get_run(&self.turn.run_id)?;
+        let (ruled_tool, ruled_arguments) = ruled_call(tool, &input);
+        let ruled = self
+            .turn
+            .kernel
+            .decide_permission(text(&self.agent, "id"), &run, &ruled_tool, &ruled_arguments)
+            .await;
+        if let Some(decision) = ruled
+            .as_ref()
+            .filter(|decision| decision.effect == Effect::Deny)
+        {
+            let reason = explain(decision);
+            self.note_action(&id, tool, &input);
+            self.mark_denied(&id, &reason);
+            return Ok(json!({ "behavior": "deny", "message": reason, "toolUseID": id }));
+        }
+        // A read runs without asking, unless a rule says to ask about it.
+        let asked_by_rule = ruled
+            .as_ref()
+            .is_some_and(|decision| decision.effect == Effect::Ask);
+        if READ_ONLY_TOOLS.contains(&tool) && !asked_by_rule {
             return Ok(allowed);
         }
         if let Some(mode) = self.mode.filter(|mode| *mode != RunMode::Agent) {
@@ -235,7 +312,6 @@ impl ClaudeTurn {
             return Ok(json!({ "behavior": "deny", "message": refusal, "toolUseID": id }));
         }
         self.note_action(&id, tool, &input);
-        let run = self.turn.kernel.get_run(&self.turn.run_id)?;
         let file = file_of(tool, &input).map(str::to_owned);
         if let Some(file) = &file
             && let Some(reason) = self
@@ -268,15 +344,24 @@ impl ClaudeTurn {
                     && self.turn.kernel.chat_mode_of(&run).as_deref() == Some("pair")
             }
         };
-        let asks = pair
-            || match self.approval {
-                GuardrailMode::Bypass => false,
-                GuardrailMode::Default => risky(tool, &input, &self.workdir),
-                GuardrailMode::Review => true,
-            };
+        let asks = match ruled.as_ref().map(|decision| decision.effect) {
+            Some(Effect::Allow) => false,
+            Some(Effect::Ask) => true,
+            _ => {
+                pair || match self.approval {
+                    GuardrailMode::Bypass => false,
+                    GuardrailMode::Default => risky(tool, &input, &self.workdir),
+                    GuardrailMode::Review => true,
+                }
+            }
+        };
         if asks {
             let shown = skill_of(tool).unwrap_or(tool);
-            let allow = self.turn.ask(text(&self.agent, "name"), &id, shown).await?;
+            let reason = ruled.as_ref().map(explain);
+            let allow = self
+                .turn
+                .ask(text(&self.agent, "name"), &id, shown, reason.as_deref())
+                .await?;
             if !allow {
                 return Ok(
                     json!({ "behavior": "deny", "message": "The user denied this action.", "toolUseID": id }),

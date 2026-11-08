@@ -188,6 +188,89 @@ test("The default asks only for risky actions, and Bypass never asks", async () 
   }
 });
 
+test("Permission rules govern a Claude Code turn: deny refuses with the rule, allow skips Review, ask asks even in Bypass", async () => {
+  const saturn = await startWithPrograms();
+  try {
+    const rule = (tool, pattern, effect) => ({ tool, pattern, effect });
+    const reviewer = await coder(saturn, "claude-code", { autonomy: "review" });
+    const { folder, thread } = await projectChat(saturn, reviewer);
+    await mkdir(path.join(folder, ".saturn"), { recursive: true });
+    await writeFile(path.join(folder, ".saturn/settings.json"), JSON.stringify({ permissions: { rules: [rule("code", "rm *", "deny"), rule("files", "write secrets/**", "deny")] } }));
+    await saturn.api("POST", "/permissions/rules", { scope: "user", rule: rule("code", "ls *", "allow") });
+    await saturn.scenario({
+      steps: [
+        { permission: { tool: "Bash", input: { command: "ls -la" }, id: "tu_ls" } },
+        { permission: { tool: "Bash", input: { command: "rm -rf build" }, id: "tu_rm" } },
+        { permission: { tool: "Write", input: { file_path: "secrets/key.txt", content: "x" }, id: "tu_secret" } },
+        { permission: { tool: "Edit", input: { file_path: "notes.txt" }, id: "tu_edit" } },
+        result("done"),
+      ],
+    });
+    const begun = await saturn.api("POST", `/agents/${reviewer.id}/runs`, { input: "go", threadId: thread.id });
+    const card = await untilCard(saturn, begun.id);
+    assert.equal(card.action.id, "tu_edit", "the allowed ls and the two denials make no card; Review asks for the edit");
+    await saturn.api("POST", `/runs/${begun.id}/actions/tu_edit/decision`, { allow: true });
+    const done = await untilFinished(saturn, begun.id);
+    assert.equal(done.status, "completed", done.error);
+    assert.deepEqual(done.actions.map((item) => [item.id, item.status]), [["tu_ls", "completed"], ["tu_rm", "denied"], ["tu_secret", "denied"], ["tu_edit", "completed"]], "the allowed call ran with no card");
+    assert.match(done.actions[1].reason, /Denied by a permission rule \(\.saturn\/settings\.json: code: rm \*\)/);
+    assert.match(done.actions[2].reason, /files: write secrets\/\*\*/);
+    const answers = (await saturn.journal()).filter((entry) => entry.permission).map((entry) => [entry.permission, entry.response.behavior, entry.response.message]);
+    assert.deepEqual(answers, [["tu_ls", "allow", undefined], ["tu_rm", "deny", done.actions[1].reason], ["tu_secret", "deny", done.actions[2].reason], ["tu_edit", "allow", undefined]], "the program is told why");
+    await saturn.api("DELETE", "/permissions/rules", { scope: "user", rule: rule("code", "ls *", "allow") });
+
+    // An ask rule on the agent asks even in Bypass, and names itself on the card.
+    await saturn.forget();
+    const free = await coder(saturn, "claude-code", { autonomy: "bypass" });
+    await saturn.api("POST", "/permissions/rules", { scope: "agent", agentId: free.id, rule: rule("code", "git push *", "ask") });
+    await saturn.scenario({ steps: [{ permission: { tool: "Bash", input: { command: "rm -rf build" }, id: "tu_free" } }, { permission: { tool: "Bash", input: { command: "git push origin main" }, id: "tu_push" } }, result("done")] });
+    const run = await saturn.api("POST", `/agents/${free.id}/runs`, { input: "go" });
+    const asked = await untilCard(saturn, run.id);
+    assert.equal(asked.action.id, "tu_push");
+    assert.match(asked.action.reason, /Asks by a permission rule \(agent: code: git push \*\)/);
+    await saturn.api("POST", `/runs/${run.id}/actions/tu_push/decision`, { allow: false });
+    const ended = await untilFinished(saturn, run.id);
+    assert.deepEqual(ended.actions.map((item) => [item.id, item.status]), [["tu_free", "completed"], ["tu_push", "denied"]]);
+  } finally {
+    await saturn.stop();
+  }
+});
+
+test("Permission rules govern the Saturn skills a Codex turn calls: a deny refuses with the rule and an ask asks in Bypass", async () => {
+  const saturn = await startWithPrograms();
+  try {
+    const rule = (tool, pattern, effect) => ({ tool, pattern, effect });
+    const agent = await coder(saturn, "codex", { model: "default", autonomy: "bypass", mcpConnectionIds: ["automations"] });
+    await saturn.api("POST", "/permissions/rules", { scope: "agent", agentId: agent.id, rule: rule("automation_list", "*", "deny") });
+    await saturn.api("POST", "/permissions/rules", { scope: "agent", agentId: agent.id, rule: rule("automation_create", "*", "ask") });
+    const item = (id, tool, args = {}) => ({ id, type: "mcp_tool_call", server: "saturn", tool, arguments: args });
+    await saturn.scenario({
+      steps: [
+        { send: { type: "thread.started", thread_id: "thread-R" } },
+        { skills: { rpc: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "stand-in", version: "1" } } } },
+        { send: { type: "item.started", item: { ...item("mcp1", "automation_list"), status: "in_progress" } } },
+        { skills: { rpc: "tools/call", id: 3, params: { name: "automation_list", arguments: {} } } },
+        { send: { type: "item.completed", item: { ...item("mcp1", "automation_list"), status: "failed", error: { message: "Denied" } } } },
+        { send: { type: "item.started", item: { ...item("mcp2", "automation_create", { name: "nightly" }), status: "in_progress" } } },
+        { skills: { rpc: "tools/call", id: 4, params: { name: "automation_create", arguments: { name: "nightly" } } } },
+        { send: { type: "item.completed", item: { ...item("mcp2", "automation_create", { name: "nightly" }), status: "failed", error: { message: "Denied" } } } },
+        { send: { type: "turn.completed", usage: {} } },
+      ],
+    });
+    const begun = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "schedule" });
+    const card = await untilCard(saturn, begun.id);
+    assert.equal(card.action.toolId, "automation_create", "the denied call made no card");
+    assert.match(card.action.reason, /Asks by a permission rule \(agent: automation_create: \*\)/);
+    await saturn.api("POST", `/runs/${begun.id}/actions/${card.action.id}/decision`, { allow: false });
+    const done = await untilFinished(saturn, begun.id);
+    assert.equal(done.status, "completed", done.error);
+    assert.deepEqual(done.actions.map((action) => [action.toolId, action.status]), [["automation_list", "denied"], ["automation_create", "denied"]]);
+    assert.match(done.actions[0].reason, /Denied by a permission rule \(agent: automation_list: \*\)/);
+  } finally {
+    await saturn.stop();
+  }
+});
+
 test("An Ask turn refuses anything that changes things, and still runs a read-only skill", async () => {
   const saturn = await startWithPrograms();
   try {

@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use saturn_domain::js;
 use saturn_domain::new_id;
+use saturn_domain::permissions::Effect;
 use saturn_domain::policies::{GuardrailMode, autonomy_of, is_read_only_call};
 use saturn_domain::prompt::{RunMode, read_only_refusal};
 use saturn_domain::time::iso_time;
@@ -17,6 +18,7 @@ use tokio::process::Command;
 use tokio::sync::oneshot;
 
 use crate::builtins::GENERAL_SKILLS_ID;
+use crate::permissions::explain;
 use crate::records::{by_id, by_id_mut, generation, remove, strings, text};
 use crate::rules::project_rules_without;
 use crate::tool_runs::tool_category;
@@ -255,6 +257,7 @@ impl Turn {
         agent_name: &str,
         action_id: &str,
         tool: &str,
+        reason: Option<&str>,
     ) -> Result<bool, CoreError> {
         {
             let mut record = locked(&self.record);
@@ -264,7 +267,9 @@ impl Turn {
                 .find(|item| text(item, "id") == action_id)
             {
                 action["status"] = "waiting_approval".into();
-                action["reason"] = format!("{tool} needs your approval").into();
+                action["reason"] = reason
+                    .map_or_else(|| format!("{tool} needs your approval"), str::to_owned)
+                    .into();
             }
         }
         // Listening before the card is shown: an answer that comes as soon as it appears must find it waiting.
@@ -479,48 +484,86 @@ impl SkillsBridge {
         }
     }
 
-    /// The Codex route to a tool: Ask and Plan turns only read, and Review asks here, since Codex approves every call itself.
+    /// The action a card or a refusal goes on: the one Codex already reported for this call, or one its report adopts later.
+    fn action_for(&self, tool: &str, arguments: &Value) -> Result<String, CoreError> {
+        let mut record = locked(&self.turn.record);
+        let mut asked = locked(&self.asked);
+        let reported = record.actions.iter().rev().find(|item| {
+            item.get("result").is_none()
+                && text(item, "status") == "completed"
+                && same_call(item, tool, arguments)
+                && !asked.contains(text(item, "id"))
+        });
+        let id = match reported {
+            Some(action) => text(action, "id").to_owned(),
+            None => {
+                let id = new_id("act").map_err(|error| CoreError::new(500, error.to_string()))?;
+                record.actions.push(
+                    json!({ "id": id, "toolId": tool, "arguments": arguments, "status": "completed" }),
+                );
+                locked(&self.orphans).insert(id.clone());
+                id
+            }
+        };
+        asked.insert(id.clone());
+        Ok(id)
+    }
+
+    /// The Codex route to a tool: Ask and Plan turns only read; then the permission rules decide (a deny refuses, an allow
+    /// runs without asking, an ask asks), and with no rule Review asks here, since Codex approves every call itself.
     /// (Claude Code asks through its own permission request first, so its bridge is created with `Bypass`.)
     async fn decide_and_run(&self, tool: &str, arguments: &Value) -> Result<Value, CoreError> {
         let turn = &self.turn;
         let kernel = &turn.kernel;
         let action_id = new_id("act").map_err(|error| CoreError::new(500, error.to_string()))?;
+        let args = arguments.as_object().cloned().unwrap_or_default();
         if let Some(mode) = self.mode.filter(|mode| *mode != RunMode::Agent) {
             let category = kernel
                 .store
                 .read(|state| tool_category(state, &self.agent, tool));
-            let args = arguments.as_object().cloned().unwrap_or_default();
             if !is_read_only_call(tool, &args, category.as_deref()) {
                 return Ok(
                     json!({ "id": action_id, "toolId": tool, "arguments": arguments, "status": "denied", "reason": read_only_refusal(mode) }),
                 );
             }
         }
-        if self.approval == GuardrailMode::Review {
-            // The card goes on the action Codex already reported for this call, or on one its report adopts later.
-            let waiting = {
+        let run = kernel.get_run(&turn.run_id)?;
+        let ruled = kernel
+            .decide_permission(text(&self.agent, "id"), &run, tool, &args)
+            .await;
+        if let Some(decision) = ruled
+            .as_ref()
+            .filter(|decision| decision.effect == Effect::Deny)
+        {
+            // The refusal goes on the action Codex reported for this call, so its own report of the failure keeps it denied.
+            let reason = explain(decision);
+            let denied = self.action_for(tool, arguments)?;
+            {
                 let mut record = locked(&turn.record);
-                let mut asked = locked(&self.asked);
-                let reported = record.actions.iter().rev().find(|item| {
-                    item.get("result").is_none()
-                        && text(item, "status") == "completed"
-                        && same_call(item, tool, arguments)
-                        && !asked.contains(text(item, "id"))
-                });
-                let id = match reported {
-                    Some(action) => text(action, "id").to_owned(),
-                    None => {
-                        let id = new_id("act")
-                            .map_err(|error| CoreError::new(500, error.to_string()))?;
-                        record.actions.push(json!({ "id": id, "toolId": tool, "arguments": arguments, "status": "completed" }));
-                        locked(&self.orphans).insert(id.clone());
-                        id
-                    }
-                };
-                asked.insert(id.clone());
-                id
-            };
-            let allow = turn.ask(text(&self.agent, "name"), &waiting, tool).await?;
+                if let Some(action) = record
+                    .actions
+                    .iter_mut()
+                    .find(|item| text(item, "id") == denied)
+                {
+                    action["status"] = "denied".into();
+                    action["reason"] = json!(reason);
+                }
+            }
+            return Ok(
+                json!({ "id": denied, "toolId": tool, "arguments": arguments, "status": "denied", "reason": reason }),
+            );
+        }
+        let asks = match ruled.as_ref().map(|decision| decision.effect) {
+            Some(Effect::Allow) => false,
+            Some(Effect::Ask) => true,
+            _ => self.approval == GuardrailMode::Review,
+        };
+        if asks {
+            let waiting = self.action_for(tool, arguments)?;
+            let reason = ruled.as_ref().map(explain);
+            let allow = turn
+                .ask(text(&self.agent, "name"), &waiting, tool, reason.as_deref())
+                .await?;
             if !allow {
                 return Ok(
                     json!({ "id": waiting, "toolId": tool, "arguments": arguments, "status": "denied", "reason": "Denied by the user" }),
