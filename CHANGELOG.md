@@ -6,12 +6,21 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **A remote job's output comes back as fast as SSH carries it, and a long training log no longer stops it.** Each exchange with the worker carried at most 128 KiB per output and the next waited a second, so a busy log fell minutes behind, and any output past 64 MiB stopped synchronization. Parts are now up to 1 MiB and follow one another while more is waiting, and logs, metrics and resource readings may reach 1 GiB each. Install the worker again on each SSH host after upgrading.
+- **The research assistant is made only once.** When two screens asked for the assistant at the same moment on a first start, each could make one, and chats were split between them. They now share the one being made.
 - **The Workspace terminal keeps what a command set for the next one.** Each command runs in a new shell, so `source .venv/bin/activate`, `export` or a shell function used to be gone by the next command, and Python ran outside the virtual environment. Each terminal panel now carries its environment, functions and shell variables from one command to the next, so an activated environment stays active and `deactivate` restores the old `PATH`. (An alias carries over only in bash; zsh does not apply aliases inside a script.) A new project's terminal starts fresh. The environment stays inside Saturn's runtime and is never sent to the app. Not on Windows yet.
 
 ### Changed
 
 - **Writing a finding in the Workspace is one card.** What you understood takes the full width, with its kind and Save beside each other under it, ⌘↵ (Ctrl+Enter) saves, and an empty list says where findings are kept.
 - **The Workspace terminal is denser.** Lines sit at 1.45 times the text size instead of twice it, commands are closer together, and "Clear terminal" sits in the top corner instead of taking a row of its own, so more output fits in the panel.
+
+### Added
+
+- **A usage summary to share.** Settings → About copies a short summary made from this computer's research records, to paste into a message to whoever asked how Saturn works for you: the days you worked, and how many projects, runs, imported results, experiments, questions and findings you have. It holds no names, paths, text or results, and Saturn sends nothing itself.
+- **Home offers to start from two evaluations you already have.** A project without results shows "Compare two evaluations" above the first-study checklist, and the results step offers it too: the assistant previews both files, imports them once you agree, pairs them by sample ID and lists the samples that regressed, so the question and hypothesis can follow once there is something to explain.
+- **F12 follows a definition into an installed package.** Going to the definition of `torch.nn.Linear` or a standard-library function opens that file read-only in its own tab, at the definition. Only the selected Python's packages and the Rust toolchain's and crates' sources are read this way; anything else outside the project still is not.
+- **The research assistant can have several chats in a project.** + starts a new chat, and the chat's name at the top of the panel opens the project's chats, most recently used first, where one is opened, renamed or deleted. A new chat is named after its first message, and each keeps its own messages and mode. A project opens on the chat it had open last, and a new chat is only kept once a message is sent in it. Your existing chat is kept and named after its first message.
 
 ## 0.5.1 (2026-11-08)
 

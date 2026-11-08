@@ -23,9 +23,11 @@ Saturn never installs a language server merely because a file opened. A missing 
 bar explains why semantic services are unavailable. The Python setup control opens Environment. Restart the service
 from the status bar after installation or changing interpreters; changing Python stops old processes first.
 
-F12 opens definitions through the same file-reading route as the project tree. Definitions outside the project are
-reported instead of opening arbitrary local files. Types from external packages and their stubs can still be shown in
-hover/completion. These services currently apply to source files, not notebook cells, and are unavailable on Windows.
+F12 opens definitions in the project through the same file-reading route as the project tree. A definition in an
+installed package opens read-only in its own tab: the runtime reads it only from the folders that session's packages
+live in (the selected Python's `sys.path`, or the Rust toolchains' and the cargo registry's sources), only a source file of
+that language (`.py`, `.pyi`, `.rs`), at most 4 MiB, and as where a link leads. Anything else outside the project is
+refused. Such a tab is not restored with the workspace and offers no further language features. These services currently apply to source files, not notebook cells, and are unavailable on Windows.
 They infer programming-language types, not runtime tensor shapes, values or numerical correctness.
 
 ## State and diagnostics

@@ -42,6 +42,19 @@ export function importPrompt(t: Words = translate): string {
   );
 }
 
+/** What the assistant is asked when a person starts from two evaluations they already have: the quickest way to a
+ * result worth reading, before any of Saturn's structure. */
+export function comparePrompt(t: Words = translate): string {
+  return t(
+    "I have two evaluation results on the same samples, from two checkpoints or two models. Read the importing-results and paired-comparisons skills first. Find the two result files, preview how each would come in, and tell me which column is the stable sample ID and which is the score. Import them only after I agree. Then compare them by sample ID, the earlier one on the left, and show me the samples that regressed, the largest drops first. Say what is unknown about how each was measured.",
+  );
+}
+
+/** Whether the project has no results yet, so starting from two evaluations is offered before the checklist. */
+export function offersComparison(progress: StudyProgress): boolean {
+  return progress.experiments === 0 && progress.imported === 0;
+}
+
 /** What the assistant is asked when it helps write and run the first experiment. */
 export function firstExperimentPrompt(t: Words = translate): string {
   return t(
@@ -80,6 +93,7 @@ export function firstStudySteps(progress: StudyProgress, t: Words = translate): 
       done: progress.experiments > 0 || progress.imported > 0,
       actions: [
         { label: t("Ask the assistant to import them"), action: { kind: "assistant", prompt: importPrompt(t) } },
+        { label: t("Compare two evaluations"), action: { kind: "assistant", prompt: comparePrompt(t) } },
         { label: t("Write an experiment"), action: { kind: "screen", screen: "Workspace" } },
       ],
     },

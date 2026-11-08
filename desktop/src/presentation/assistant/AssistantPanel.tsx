@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { onAskAssistant } from "../../application/assistant-requests.js";
 import { desktop } from "../../application/desktop.js";
-import { errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext } from "../../domain/assistant.js";
+import { chatName, errorContext, MANUAL_REQUESTS, REVIEW_REQUESTS, sampleContext, selectionContext, titleFromMessage, unnamed } from "../../domain/assistant.js";
 import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../../domain/chat-mode.js";
-import { browserHost, type Agent, type ChatMode, type ContextItem, type Model } from "../../domain/model.js";
+import { browserHost, type Agent, type ChatMode, type ContextItem, type Conversation, type Model } from "../../domain/model.js";
 import { helpRequests, workbenchState, type Screen } from "../../domain/workbench.js";
-import { hiddenContext } from "../../domain/slash.js";
+import { hiddenContext, shownInput } from "../../domain/slash.js";
+import { askToConfirm } from "../../infrastructure/confirm.js";
 import { t } from "../../domain/i18n.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { classes } from "../ui/base/classes.js";
@@ -22,6 +23,34 @@ import { useConversation } from "./useConversation.js";
 
 type Attachment = "file" | "selection" | "error" | "sample";
 
+/** Where the chat a project last had open is remembered, in this browser only: losing it only opens the newest chat. */
+const LAST_CHAT = "saturn.assistant.chat.";
+
+function lastChat(projectId: string): string | null {
+  try {
+    return window.localStorage.getItem(LAST_CHAT + projectId);
+  } catch {
+    return null;
+  }
+}
+
+function rememberChat(projectId: string, threadId: string) {
+  try {
+    window.localStorage.setItem(LAST_CHAT + projectId, threadId);
+  } catch {
+    // Nothing to keep it in; the newest chat opens next time.
+  }
+}
+
+/** When a chat was last used: the time today, the day before that. */
+function chatTime(at: string): string {
+  const when = new Date(at);
+  if (Number.isNaN(when.getTime())) return "";
+  return when.toDateString() === new Date().toDateString()
+    ? when.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : when.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 /** How an attachment chip is laid out: one line, cut short with an ellipsis when it is too long. */
 const ATTACHMENT = "h-6 max-w-full justify-start font-mono text-[11px]";
 /** The chat's settings sit quietly in the message box until they are pointed at. */
@@ -35,6 +64,10 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   const [agent, setAgent] = useState<Agent | null>(null);
   const [models, setModels] = useState<Model[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
+  // The project's chats, and whether their list is showing in place of the conversation.
+  const [chats, setChats] = useState<Conversation[]>([]);
+  const [listing, setListing] = useState(false);
+  const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   const [mode, setMode] = useState<ChatMode>("manual");
   const [ready, setReady] = useState(false);
   const [text, setText] = useState("");
@@ -64,22 +97,99 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     [],
   );
 
+  /** Opens a chat in the panel and remembers it for the project; with none, a new chat that is made by its first message. */
+  const open = useCallback(
+    (chat: Conversation | null) => {
+      setThreadId(chat?.id ?? null);
+      setMode(chatModeOf(chat));
+      setListing(false);
+      setRenaming(null);
+      if (chat) rememberChat(project.id, chat.id);
+    },
+    [project.id],
+  );
+
   const load = useCallback(async () => {
     try {
       const found = await desktop.assistant.agent();
       setAgent(found.agent);
       setModels(found.models);
       if (found.agent) {
-        const thread = await desktop.assistant.thread(found.agent, project.id);
-        setThreadId(thread.id);
-        setMode(chatModeOf(thread));
+        // The chat this project had open last, else its most recently used, else a new one, made when it is first used.
+        const list = await desktop.assistant.chats(found.agent, project.id);
+        const remembered = lastChat(project.id);
+        setChats(list);
+        open(list.find((chat) => chat.id === remembered) ?? list[0] ?? null);
       }
     } catch (error) {
       notify(messageOf(error));
     } finally {
       setReady(true);
     }
-  }, [notify, project.id]);
+  }, [notify, open, project.id]);
+
+  /** The chats again, for the list: their order follows what was used last. */
+  const refreshChats = useCallback(async () => {
+    if (!agent) return;
+    try {
+      setChats(await desktop.assistant.chats(agent, project.id));
+    } catch (error) {
+      notify(messageOf(error));
+    }
+  }, [agent, notify, project.id]);
+
+  const current = chats.find((chat) => chat.id === threadId);
+
+  /** Names a chat, keeping the list in step. */
+  const name = useCallback(async (chatId: string, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    try {
+      const renamed = await desktop.assistant.renameChat(chatId, trimmed);
+      setChats((list) => list.map((chat) => (chat.id === chatId ? { ...chat, title: renamed.title } : chat)));
+    } catch (error) {
+      notify(messageOf(error));
+    }
+  }, [notify]);
+
+  // A chat that still has the name it was made with takes one from its first message, including one from before chats had
+  // names.
+  // Only this chat's own first turn: right after a switch, the turns of the chat before are still in hand for a moment.
+  const firstRun = conversation.runs[0];
+  const firstInput = firstRun?.threadId === threadId ? firstRun.input : undefined;
+  useEffect(() => {
+    if (!current || !unnamed(current.title) || !firstInput) return;
+    const title = titleFromMessage(shownInput(firstInput));
+    if (title) void name(current.id, title);
+  }, [current, firstInput, name]);
+
+  /** Starts a new chat. It is made when its first message is sent, so an unused one leaves nothing behind. */
+  function startChat() {
+    open(null);
+    setText("");
+    window.requestAnimationFrame(() => box.current?.focus());
+  }
+
+  /** Deletes a chat after asking; the panel moves to the most recent one left, or a new one. */
+  async function remove(chat: Conversation) {
+    if (!agent) return;
+    if (chat.id === threadId && conversation.busy) {
+      notify(t("The assistant is still answering in this chat. Stop it first."));
+      return;
+    }
+    if (!(await askToConfirm(t("Delete the chat “{name}” and its messages? This cannot be undone.", { name: chatName(chat) })))) return;
+    try {
+      await desktop.assistant.deleteChat(agent, chat.id);
+      const left = chats.filter((item) => item.id !== chat.id);
+      setChats(left);
+      if (chat.id === threadId) {
+        open(left[0] ?? null);
+        setListing(left.length > 0);
+      }
+    } catch (error) {
+      notify(messageOf(error));
+    }
+  }
 
   useEffect(() => void load(), [load]);
   useEffect(() => {
@@ -129,16 +239,30 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
   }
 
   async function ask(typed: string, also?: string) {
-    if (!typed.trim() || conversation.busy) return;
+    if (!typed.trim() || conversation.busy || !agent) return;
     try {
-      if (await conversation.send((await withContext(typed.trim())) + (also ?? ""), assistantRunMode(mode))) setText("");
+      // A new chat is made now, named by this message and set to the mode chosen for it.
+      let into: string | undefined;
+      if (!threadId) {
+        let chat = await desktop.assistant.newChat(agent, project.id, titleFromMessage(typed));
+        if (chatModeOf(chat) !== mode) chat = await desktop.catalog.setChatMode(chat.id, mode);
+        setChats((list) => [chat, ...list]);
+        setThreadId(chat.id);
+        rememberChat(project.id, chat.id);
+        into = chat.id;
+      }
+      if (await conversation.send((await withContext(typed.trim())) + (also ?? ""), assistantRunMode(mode), into)) setText("");
     } catch (error) {
       notify(messageOf(error));
     }
   }
 
   async function chooseMode(next: ChatMode) {
-    if (!threadId) return;
+    // A chat not made yet takes its mode when it is.
+    if (!threadId) {
+      setMode(next);
+      return;
+    }
     try {
       setMode(chatModeOf(await desktop.catalog.setChatMode(threadId, next)));
     } catch (error) {
@@ -150,7 +274,9 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     if (!agent) return;
     try {
       await desktop.assistant.chooseModel(agent, modelId);
-      await load();
+      const found = await desktop.assistant.agent();
+      setAgent(found.agent);
+      setModels(found.models);
     } catch (error) {
       notify(messageOf(error));
     }
@@ -168,8 +294,27 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-panel">
-      <div className="flex min-h-10 flex-none items-center justify-between gap-2 border-b border-border px-3 py-1">
-        <strong className="flex-none">{t("Research assistant")}</strong>
+      <div className="flex min-h-10 flex-none items-center justify-between gap-1 border-b border-border px-2 py-1">
+        <button
+          type="button"
+          className="flex h-7 min-w-0 cursor-pointer items-center gap-1 rounded-md px-1.5 text-left hover:bg-muted"
+          aria-expanded={listing}
+          aria-label={t("Chats in this project")}
+          title={current ? `${t("Research assistant")} · ${chatName(current)}` : t("Research assistant")}
+          onClick={() => {
+            if (!listing) void refreshChats();
+            setListing((showing) => !showing);
+            setRenaming(null);
+          }}
+        >
+          <strong className="truncate">{current ? chatName(current) : t("New chat")}</strong>
+          <svg className={classes("size-3.5 flex-none text-muted-foreground transition-transform", listing && "rotate-180")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        <Button variant="ghost" size="small" className="min-w-7 flex-none px-1.5 text-base leading-none" aria-label={t("New chat")} title={t("New chat")} onClick={startChat}>
+          +
+        </Button>
         {browsing && props.screen !== "Workspace" ? (
           <button type="button" className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground" title={browserHost(browser.frame?.url ?? browser.state?.url) || undefined} onClick={() => props.go("Workspace")}>
             <span className="size-1.5 flex-none animate-pulse rounded-full bg-good" aria-hidden="true" />
@@ -181,7 +326,49 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5" ref={log} role="log" aria-label={t("Conversation with the research assistant")}>
+      {listing ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-px overflow-auto px-1.5 py-2" role="list" aria-label={t("Chats in this project")}>
+          {chats.map((chat) => (
+            <div key={chat.id} role="listitem" className={classes("group flex min-h-9 items-center gap-1 rounded-md pr-1", chat.id === threadId ? "bg-muted" : "hover:bg-muted/60")}>
+              {renaming?.id === chat.id ? (
+                <Input
+                  aria-label={t("Name of the chat")}
+                  autoFocus
+                  className="mx-1 h-7 flex-1"
+                  value={renaming.title}
+                  onChange={(event) => setRenaming({ id: chat.id, title: event.target.value })}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      void name(chat.id, renaming.title);
+                      setRenaming(null);
+                    }
+                    if (event.key === "Escape") setRenaming(null);
+                  }}
+                  onBlur={() => setRenaming(null)}
+                />
+              ) : (
+                <button type="button" className="flex min-w-0 flex-1 cursor-pointer flex-col items-start px-2 py-1 text-left" aria-current={chat.id === threadId ? "true" : undefined} onClick={() => open(chat)}>
+                  <span className="w-full truncate text-[13px]">{chatName(chat)}</span>
+                  <span className="text-[11px] text-muted-foreground">{chatTime(chat.updatedAt)}</span>
+                </button>
+              )}
+              {renaming?.id === chat.id ? null : (
+                <div className="flex flex-none gap-0.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
+                  <Button variant="ghost" size="small" className="h-6 px-1.5 text-[11px]" aria-label={t("Rename {name}", { name: chatName(chat) })} onClick={() => setRenaming({ id: chat.id, title: unnamed(chat.title) ? "" : chat.title })}>
+                    {t("Rename")}
+                  </Button>
+                  <Button variant="ghost" size="small" className="h-6 px-1.5 text-[11px] text-destructive" aria-label={t("Delete {name}", { name: chatName(chat) })} onClick={() => void remove(chat)}>
+                    {t("Delete")}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+          <p className="px-2 pt-2 text-[11.5px] leading-snug text-muted-foreground">{t("Each chat keeps its own messages and mode. Tasks are listed apart, on Tasks.")}</p>
+        </div>
+      ) : null}
+      <div className={classes("min-h-0 flex-1 flex-col gap-5 overflow-auto px-3 py-3.5", listing ? "hidden" : "flex")} ref={log} role="log" aria-label={t("Conversation with the research assistant")}>
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(comment) => void ask(comment)} />
         ))}

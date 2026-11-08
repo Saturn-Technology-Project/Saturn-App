@@ -40,6 +40,7 @@ import { SourceEditor } from "./SourceEditor.js";
 import { EditorDocuments } from "../../domain/code-editor.js";
 import { LanguageServices } from "../../application/language-services.js";
 import { languageOf } from "../../domain/code-languages.js";
+import { isLibraryPath, LIBRARY_PREFIX } from "../../domain/language-server.js";
 import { Terminal } from "./Terminal.js";
 import { FileActionDialog, type FileAction } from "./FileActionDialog.js";
 import { Artifacts } from "../experiments/Artifacts.js";
@@ -86,6 +87,8 @@ interface OpenFile {
   generation: number;
   /** A paper or a figure, shown and never edited. */
   document?: { mime: string; data: string };
+  /** An installed package's file a definition opened: shown, never saved. */
+  readOnly?: boolean;
 }
 
 /** What the workspace is looking at, which the assistant can be given. */
@@ -122,7 +125,8 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   const [dirty, setDirty] = useState(false);
   // The files open as tabs, in the order they were opened; one of them is in the editor. A tab left with unsaved text
   // keeps it here until it is shown again, saved or closed.
-  const [tabs, setTabs] = useState<string[]>(() => session.current.tabs ?? (session.current.file ? [session.current.file] : []));
+  // An installed package's file is not kept between sessions: it opens again from its definition.
+  const [tabs, setTabs] = useState<string[]>(() => (session.current.tabs ?? (session.current.file ? [session.current.file] : [])).filter((path) => !isLibraryPath(path)));
   const unsaved = useRef(new Map<string, { content: string; revision: string | null }>());
   const editing = useRef<{ open: OpenFile | null; dirty: boolean }>({ open: null, dirty: false });
   editing.current = { open, dirty };
@@ -246,6 +250,20 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
       }
       setCentre("editor");
       setTabs((current) => (current.includes(path) ? current : [...current, path]));
+      if (isLibraryPath(path)) {
+        const text = languageServices.current?.libraryText(path);
+        if (text === undefined) {
+          notify(t("Open it again from its definition with F12."));
+          setTabs((current) => current.filter((item) => item !== path));
+          return;
+        }
+        content.current = text;
+        setDirty(false);
+        setConflict(false);
+        setSelection(null);
+        setOpen((current) => ({ path, initial: text, revision: null, generation: (current?.generation ?? 0) + 1, readOnly: true }));
+        return;
+      }
       try {
         const view = await service.readSource(projectId, path);
         if (view.kind === "document") {
@@ -440,7 +458,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
 
   const save = useCallback(
     async (force = false) => {
-      if (!open || open.document) return true;
+      if (!open || open.document || open.readOnly) return true;
       if (isNotebookPath(open.path) && new TextEncoder().encode(content.current).length > NOTEBOOK_SIZE_LIMIT) {
         notify(t("This notebook is over 8 MB with its outputs, so it would not open again. Clear its outputs, then save."));
         return false;
@@ -898,8 +916,9 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               const changed = current ? dirty : unsaved.current.has(path);
               return (
                 <div key={path} className={classes("group flex max-w-[200px] min-w-0 flex-none items-center border-r border-border text-xs", current ? "bg-background text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground")}>
-                  <button type="button" role="tab" aria-selected={current} title={path} className="flex min-w-0 cursor-pointer items-center gap-1.5 self-stretch border-0 bg-transparent py-1 pr-1 pl-2.5 font-mono text-inherit" onClick={() => (current ? undefined : void openFile(path))}>
+                  <button type="button" role="tab" aria-selected={current} title={isLibraryPath(path) ? path.slice(LIBRARY_PREFIX.length) : path} className="flex min-w-0 cursor-pointer items-center gap-1.5 self-stretch border-0 bg-transparent py-1 pr-1 pl-2.5 font-mono text-inherit" onClick={() => (current ? undefined : void openFile(path))}>
                     <span className="truncate">{path.split("/").pop()}</span>
+                    {isLibraryPath(path) ? <span className="flex-none text-[10px] text-muted-foreground">{t("read-only")}</span> : null}
                     {changed ? <span className="size-1.5 flex-none rounded-full bg-wait" aria-label={t("Not saved")} /> : null}
                   </button>
                   <button type="button" className="mr-1 flex size-4 flex-none cursor-pointer items-center justify-center rounded border-0 bg-transparent text-[11px] text-muted-foreground opacity-60 group-hover:opacity-100 hover:bg-muted hover:text-foreground" aria-label={t("Close {file}", { file: path })} onClick={() => void closeTab(path)}>
@@ -973,6 +992,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               onConfigureLanguageServer={() => props.go("Environment")}
               initialContent={open.initial}
               language={languageOf(open.path)}
+              readOnly={open.readOnly}
               onChange={handleEdit}
               onSave={() => void save()}
               onSelection={setSelection}

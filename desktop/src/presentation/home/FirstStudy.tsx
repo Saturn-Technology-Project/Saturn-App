@@ -1,5 +1,5 @@
 import { askAssistant } from "../../application/assistant-requests.js";
-import { firstStudySteps, nextStep, type StepAction, type StudyProgress } from "../../domain/first-study.js";
+import { comparePrompt, firstStudySteps, nextStep, offersComparison, type StepAction, type StudyProgress } from "../../domain/first-study.js";
 import { t } from "../../domain/i18n.js";
 import type { Screen } from "../../domain/workbench.js";
 import { Button } from "../ui/base/Button.js";
@@ -32,6 +32,16 @@ export function FirstStudy(props: { progress: StudyProgress; go: (screen: Screen
           {t("Hide")}
         </Button>
       </div>
+      {offersComparison(props.progress) ? (
+        // The quickest way to something worth reading: two evaluations already at hand, compared sample by sample. The
+        // question, hypothesis and the rest can follow once there is a regression to explain.
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border px-2.5 py-2">
+          <p className="m-0 min-w-0 flex-1 text-xs text-muted-foreground">{t("Already have two evaluations of the same samples, from two checkpoints or models? Start there: the assistant brings both in and shows which samples regressed.")}</p>
+          <Button size="small" variant="outline" onClick={() => askAssistant(comparePrompt())}>
+            {t("Compare two evaluations")}
+          </Button>
+        </div>
+      ) : null}
       <ol className="m-0 flex list-none flex-col gap-0.5 p-0">
         {steps.map((step, index) => {
           const current = step.id === next.id;

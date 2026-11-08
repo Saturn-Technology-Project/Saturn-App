@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { EditorState, Text } from "@codemirror/state";
 import { documentPath, documentUri, languageError, protocolLanguage, serverLanguage } from "../src/domain/language-server.ts";
 import { LanguageTransport } from "../src/application/language-transport.ts";
-import { SourceWorkspace } from "../src/application/language-services.ts";
+import { LanguageServices, SourceWorkspace } from "../src/application/language-services.ts";
 import { DiagnosticRequests } from "../src/application/language-diagnostics.ts";
 
 test("language families and file URIs preserve UTF-8 names without crossing the project boundary", () => {
@@ -135,4 +135,23 @@ test("push-only servers are not queried for unsupported diagnostic pulls", async
   let called = 0;
   const requests = new DiagnosticRequests(() => ({ client: { serverCapabilities: {}, request: () => called++ }, document: {}, uri: "file:///p.py", version: 1 }), () => { throw new Error("unexpected"); }, error => { throw error; });
   await requests.refresh(); assert.equal(called, 0);
+});
+
+test("a definition outside the project opens its installed package's file read-only, and a refusal is said", async () => {
+  const file = "/venv/lib/python3.12/site-packages/torch/nn/modules/linear.py";
+  const asked = [], opened = [], notes = [], view = { kind: "stand-in view" };
+  const api = { libraryFile: async (project, session, uri) => { asked.push([project, session, uri]); return { path: file, content: "class Linear: ..." }; } };
+  const services = new LanguageServices(api, "proj", async (path) => { opened.push(path); services.attach(view, path, "python", false, () => {}); }, (note) => notes.push(note));
+  const session = { id: "lsp_1", rootUri: "file:///work/project/" };
+  assert.equal(await services["display"](session, `file://${file}`), view, "the jump lands in the tab that opened");
+  assert.deepEqual(asked, [["proj", "lsp_1", `file://${file}`]]);
+  assert.deepEqual(opened, [`library:${file}`]);
+  assert.equal(services.libraryText(`library:${file}`), "class Linear: ...");
+  services.forget(`library:${file}`);
+  assert.equal(services.libraryText(`library:${file}`), undefined, "closing the tab lets the text go");
+
+  const refusing = new LanguageServices({ libraryFile: async () => { throw new Error("Only source files of the packages this language server uses open outside the project."); } }, "proj", async () => { opened.push("never"); }, (note) => notes.push(note));
+  assert.equal(await refusing["display"](session, "file:///etc/hosts.py"), null);
+  assert.match(notes.at(-1), /Only source files/);
+  assert.ok(!opened.includes("never"));
 });

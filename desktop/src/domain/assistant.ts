@@ -3,14 +3,12 @@ import type { SampleItem } from "./research.js";
 import { sampleText } from "./research.js";
 import { hiddenContext } from "./slash.js";
 
+export { ASSISTANT_THREAD, NEW_CHAT, TASK_PREFIX, assistantChats, chatName, titleFromMessage, unnamed } from "./chats.js";
+
 /** The hidden agent the research assistant and tasks run on. People see models and modes, not agents. */
 export const ASSISTANT_NAME = "Research assistant";
-/** The chat of a project's assistant panel. */
-export const ASSISTANT_THREAD = "Research assistant";
 /** The built-in tools the assistant works with a project's research through. */
 export const RESEARCH_TOOLS = "research";
-/** What a task's chat is called, followed by what it was asked. */
-export const TASK_PREFIX = "Task: ";
 
 /** Where a task stands: waiting on the person, working, done and waiting for review, or closed. */
 export type TaskState = "decision" | "running" | "review" | "finished";

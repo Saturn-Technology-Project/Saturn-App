@@ -1,4 +1,7 @@
+import { useState } from "react";
 import saturnIcon from "../../assets/saturn-icon.png";
+import { desktop } from "../../application/desktop.js";
+import { usageSummary, usageText } from "../../domain/usage-summary.js";
 import type { RuntimeInfo } from "../../domain/model";
 import { Button } from "../ui/base/Button.js";
 import { Card } from "../ui/base/Card.js";
@@ -95,6 +98,8 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
         </div>
       </section>
 
+      <UsageShare version={props.version ?? props.info.version} />
+
       <section className="flex flex-col">
         <SectionTitle>{t("This installation")}</SectionTitle>
         <Card className="gap-0 px-4.5 py-1">
@@ -109,6 +114,44 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
         </Card>
       </section>
     </div>
+  );
+}
+
+/** A summary of how Saturn was used, made from this computer's records, to paste into a message: Saturn sends nothing. */
+function UsageShare(props: { version: string }) {
+  const [text, setText] = useState("");
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+
+  async function copy() {
+    try {
+      const projects = await desktop.projects.list();
+      const summary = usageText(usageSummary(await desktop.research.usageRecords(projects)), props.version);
+      setText(summary);
+      await navigator.clipboard.writeText(summary);
+      setState("copied");
+    } catch {
+      // The text stays on the page to copy by hand.
+      setState("failed");
+    }
+  }
+
+  return (
+    <section className="flex flex-col">
+      <SectionTitle>{t("Share how you use Saturn")}</SectionTitle>
+      <Card className="gap-2 px-4 py-3">
+        <p className="m-0 text-xs leading-relaxed text-muted-foreground">
+          {t("If someone asked how Saturn works for you, this copies a short summary to paste into a message: the days you worked, and how many projects, runs, imported results, questions and findings you have. It holds no names, paths, text or results, and Saturn sends nothing itself.")}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button type="button" size="small" variant="outline" onClick={() => void copy()}>
+            {t("Copy usage summary")}
+          </Button>
+          {state === "copied" ? <span className="text-xs text-muted-foreground" role="status">{t("Copied")}</span> : null}
+          {state === "failed" && !text ? <span className="text-xs text-wait" role="status">{t("The records could not be read.")}</span> : null}
+        </div>
+        {text ? <pre className="m-0 rounded-md bg-muted px-3 py-2 font-mono text-[11.5px] whitespace-pre-wrap text-foreground">{text}</pre> : null}
+      </Card>
+    </section>
   );
 }
 

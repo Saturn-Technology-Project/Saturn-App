@@ -44,10 +44,20 @@ export function documentPath(root: string, uri: string): string | null {
   } catch { return null; }
 }
 
+/** A definition's file in an installed package, open read-only in its own tab, named by this and its real path. */
+export const LIBRARY_PREFIX = "library:";
+
+/** Whether a tab holds an installed package's file rather than one of the project's. */
+export function isLibraryPath(path: string): boolean {
+  return path.startsWith(LIBRARY_PREFIX);
+}
+
 /** The transport depends only on the runtime adapter, which tests can replace with a fake. */
 export interface LanguageServerApi {
   startLanguageServer(project: string, language: ServerLanguage): Promise<LanguageSession>;
   sendLanguageMessages(project: string, session: string, messages: unknown[]): Promise<unknown>;
   languageEvents(project: string, session: string, after: number | null, receive: (event: string, data: unknown) => void, signal: AbortSignal): Promise<void>;
   stopLanguageServer(project: string, session: string): Promise<unknown>;
+  /** A definition's file outside the project, which the runtime gives only from the session's installed packages. */
+  libraryFile(project: string, session: string, uri: string): Promise<{ path: string; content: string }>;
 }
