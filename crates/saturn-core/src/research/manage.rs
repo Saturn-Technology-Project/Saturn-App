@@ -51,7 +51,7 @@ pub(super) struct Kit {
     pub bundled: bool,
 }
 
-pub(super) const KITS: [Kit; 5] = [
+pub(super) const KITS: [Kit; 6] = [
     Kit {
         id: "core",
         title: "What Saturn's helpers need",
@@ -85,6 +85,13 @@ pub(super) const KITS: [Kit; 5] = [
         title: "Notebooks",
         what: "Jupyter and a kernel, for notebooks beside the code.",
         packages: &["jupyter", "ipykernel"],
+        bundled: false,
+    },
+    Kit {
+        id: "language-server",
+        title: "Python language server",
+        what: "Basedpyright for type inference, completions, diagnostics and definition navigation in source files.",
+        packages: &["basedpyright"],
         bundled: false,
     },
 ];

@@ -27,6 +27,7 @@ const KIT_TEXT: Record<string, { title: string; what: string }> = {
   training: { title: t("Post-training"), what: t("TRL for SFT and DPO, PEFT for adapters, datasets and accelerate underneath them.") },
   analysis: { title: t("Analysis"), what: t("pandas and matplotlib for tables and figures from a run's samples.") },
   notebooks: { title: t("Notebooks"), what: t("Jupyter and a kernel, for notebooks beside the code.") },
+  "language-server": { title: t("Python language server"), what: t("Basedpyright for type inference, completions, diagnostics and definition navigation in source files.") },
 };
 
 /** The Python the project's experiments run in: a managed one Saturn makes and fills, or any other, what it has, and the files that pin it. */

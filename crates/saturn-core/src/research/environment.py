@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-PACKAGES = ["torch", "transformers", "numpy", "datasets", "accelerate", "trl", "peft", "transformer_lens", "sae_lens", "einops", "jupyter_core", "jupyter", "jupyter_client", "ipykernel"]
+PACKAGES = ["torch", "transformers", "numpy", "datasets", "accelerate", "trl", "peft", "transformer_lens", "sae_lens", "einops", "jupyter_core", "jupyter", "jupyter_client", "ipykernel", "basedpyright"]
 
 
 def version(name):

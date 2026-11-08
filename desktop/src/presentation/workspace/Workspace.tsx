@@ -38,6 +38,7 @@ import { Resources } from "./Resources.js";
 import { DocumentView } from "./DocumentView.js";
 import { SourceEditor } from "./SourceEditor.js";
 import { EditorDocuments } from "../../domain/code-editor.js";
+import { LanguageServices } from "../../application/language-services.js";
 import { languageOf } from "../../domain/code-languages.js";
 import { Terminal } from "./Terminal.js";
 import { FileActionDialog, type FileAction } from "./FileActionDialog.js";
@@ -276,6 +277,14 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     [notify, projectId, remember],
   );
 
+  const languageServices = useRef<LanguageServices | null>(null);
+  if (!languageServices.current) languageServices.current = new LanguageServices(service, projectId, openFile, notify);
+  languageServices.current.callbacks(openFile, notify);
+  useEffect(() => {
+    const services = languageServices.current;
+    return () => services?.close();
+  }, []);
+
   /** A rename keeps the buffer in memory, including unsaved edits, while its saved file moves on disk. */
   function beginRename(path: string) {
     if (saving) return;
@@ -295,6 +304,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     } else {
       const from = fileAction.path;
       const moved = await service.renameSource(projectId, from, path, fileAction.revision);
+      languageServices.current?.forget(from);
       path = moved.path;
       const kept = unsaved.current.get(from);
       if (kept) { unsaved.current.delete(from); unsaved.current.set(path, kept); }
@@ -442,7 +452,9 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           const latest = await service.readSource(projectId, open.path);
           revision = latest.kind === "file" ? latest.revision : null;
         }
-        const saved = await service.writeSource(projectId, open.path, content.current, revision);
+        const writing = content.current;
+        const saved = await service.writeSource(projectId, open.path, writing, revision);
+        languageServices.current?.saved(open.path, writing);
         setOpen((current) => (current ? { ...current, revision: saved.revision } : current));
         setDirty(false);
         setConflict(false);
@@ -473,6 +485,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
     const active = open?.path === path;
     if ((active ? dirty : unsaved.current.has(path)) && !(await askToConfirm(t("{file} has changes that are not saved. Close it and lose them?", { file: path })))) return;
     unsaved.current.delete(path);
+    languageServices.current?.forget(path);
     const next = tabAfterClosing(tabs, path);
     setTabs((current) => current.filter((item) => item !== path));
     if (!active) return;
@@ -938,6 +951,10 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               documentKey={`${open.path}:${open.generation}`}
               cacheKey={open.path}
               documents={editorDocuments.current}
+              path={open.path}
+              draft={dirty}
+              languageServices={languageServices.current}
+              onConfigureLanguageServer={() => props.go("Environment")}
               initialContent={open.initial}
               language={languageOf(open.path)}
               onChange={handleEdit}

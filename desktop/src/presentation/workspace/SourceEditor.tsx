@@ -3,10 +3,13 @@ import { closeCompletion } from "@codemirror/autocomplete";
 import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { gotoLine } from "@codemirror/search";
 import { countColumn, type EditorState } from "@codemirror/state";
+import { diagnosticCount, openLintPanel } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
 import { EditorView } from "@codemirror/view";
 import { createSourceState, sourceActionKeys, type EditorDocuments } from "../../domain/code-editor.js";
 import type { EditorLanguage } from "../../domain/code-languages.js";
+import type { LanguageServices, LanguageBinding } from "../../application/language-services.js";
+import type { LanguageStatus } from "../../domain/language-server.js";
 import { t } from "../../domain/i18n.js";
 import { Button } from "../ui/base/Button.js";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/base/Dialog.js";
@@ -50,7 +53,7 @@ const languageNames: Record<EditorLanguage, string> = { python: "Python", javasc
 function positionOf(state: EditorState) {
   const range = state.selection.main;
   const line = state.doc.lineAt(range.head);
-  return { line: line.number, column: countColumn(line.text.slice(0, range.head - line.from), state.tabSize) + 1, selected: range.to - range.from, unit: state.facet(indentUnit), tabSize: state.tabSize, eol: state.lineBreak === "\r\n" ? "CRLF" : "LF" };
+  return { line: line.number, column: countColumn(line.text.slice(0, range.head - line.from), state.tabSize) + 1, selected: range.to - range.from, unit: state.facet(indentUnit), tabSize: state.tabSize, eol: state.lineBreak === "\r\n" ? "CRLF" : "LF", problems: diagnosticCount(state) };
 }
 
 /** A source editor; an optional workspace cache preserves each tab's history, cursor and scroll position. */
@@ -60,6 +63,10 @@ export function SourceEditor(props: {
   language: EditorLanguage;
   documents?: EditorDocuments;
   cacheKey?: string;
+  languageServices?: LanguageServices;
+  path?: string;
+  draft?: boolean;
+  onConfigureLanguageServer?: () => void;
   onChange: (content: string) => void;
   onSave: () => void;
   /** The selected text and the line it starts on, or nothing. */
@@ -73,7 +80,9 @@ export function SourceEditor(props: {
 }) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<EditorView | null>(null);
-  const [position, setPosition] = useState({ line: 1, column: 1, selected: 0, unit: "    ", tabSize: 4, eol: "LF" });
+  const [position, setPosition] = useState({ line: 1, column: 1, selected: 0, unit: "    ", tabSize: 4, eol: "LF", problems: 0 });
+  const [languageStatus, setLanguageStatus] = useState<LanguageStatus | null>(null);
+  const languageBinding = useRef<LanguageBinding | null>(null);
   const [help, setHelp] = useState(false);
   const handlers = useRef({ onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection, onRun: props.onRun });
   handlers.current = { onChange: props.onChange, onSave: props.onSave, onSelection: props.onSelection, onRun: props.onRun };
@@ -90,7 +99,7 @@ export function SourceEditor(props: {
       syntaxHighlighting(codeColors),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) handlers.current.onChange(update.state.sliceDoc());
-        if (!props.fit && (update.docChanged || update.selectionSet)) setPosition(positionOf(update.state));
+        if (!props.fit && (update.docChanged || update.selectionSet || diagnosticCount(update.startState) !== diagnosticCount(update.state))) setPosition(positionOf(update.state));
         if (update.selectionSet) {
           const range = update.state.selection.main;
           handlers.current.onSelection?.(
@@ -103,10 +112,15 @@ export function SourceEditor(props: {
     const cached = props.cacheKey ? props.documents?.open(props.cacheKey, props.initialContent, props.language, extensions) : undefined;
     const view = new EditorView({ state: cached?.state ?? createSourceState(props.initialContent, props.language, extensions), parent: host.current, scrollTo: cached?.scroll });
     editor.current = view;
+    setLanguageStatus(null);
+    const binding = props.languageServices && props.path ? props.languageServices.attach(view, props.path, props.language, props.draft ?? false, setLanguageStatus) : null;
+    languageBinding.current = binding;
     setPosition(positionOf(view.state));
     const range = view.state.selection.main;
     handlers.current.onSelection?.(range.empty ? null : { text: view.state.sliceDoc(range.from, range.to), line: view.state.doc.lineAt(range.from).number });
     return () => {
+      binding?.close();
+      languageBinding.current = null;
       closeCompletion(view);
       // Layout cleanup runs before React removes this pane; a detached editor has already lost its scroll position.
       if (props.cacheKey) props.documents?.remember(props.cacheKey, { state: view.state, language: props.language, scroll: view.scrollSnapshot() });
@@ -115,27 +129,32 @@ export function SourceEditor(props: {
     };
     // Only a new document replaces the editor: its content then lives in the editor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.documentKey, props.language, props.documents, props.cacheKey]);
+  }, [props.documentKey, props.language, props.documents, props.cacheKey, props.languageServices, props.path]);
 
   return <div className={props.fit ? "min-w-0 overflow-hidden rounded-sm border border-border [&_.cm-editor]:h-auto" : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"}>
     <div ref={host} className={props.fit ? "min-w-0" : "min-h-0 flex-1 overflow-hidden [&_.cm-editor]:h-full"} />
     {!props.fit ? <div className="flex h-6 flex-none items-center justify-end gap-3 overflow-hidden border-t border-border bg-panel px-2 font-mono text-[10px] whitespace-nowrap text-muted-foreground" aria-label={t("Editor status")}>
+      {position.problems ? <button type="button" className="mr-auto cursor-pointer text-wait" aria-label={t("{count} problems", { count: position.problems })} onClick={() => { if (editor.current) openLintPanel(editor.current); }}>⚠ {position.problems}</button> : null}
       <button type="button" className="cursor-pointer hover:text-foreground" title={t("Go to line (Ctrl+G)")} onClick={() => { if (editor.current) { editor.current.focus(); gotoLine(editor.current); } }}>{t("Ln {line}, Col {column}", { line: position.line, column: position.column })}</button>
       {position.selected ? <span>{t("{count} selected", { count: position.selected })}</span> : null}
       <span className="hidden sm:inline">{position.unit === "\t" ? t("Tabs: {count}", { count: position.tabSize }) : t("Spaces: {count}", { count: position.unit.length })}</span>
       <span className="hidden md:inline">UTF-8 · {position.eol}</span>
       <span>{languageNames[props.language]}</span>
+      {languageStatus ? <span className={languageStatus.state === "ready" ? "text-good" : "text-muted-foreground"} title={languageStatus.message ?? languageStatus.server}>{languageStatus.state === "ready" ? languageStatus.server : languageStatus.state === "starting" ? t("LSP starting…") : t("LSP unavailable")}</span> : null}
+      {languageStatus && languageStatus.state !== "starting" ? <button type="button" className="cursor-pointer hover:text-foreground" aria-label={t("Restart language server")} title={t("Restart language server")} onClick={() => languageBinding.current?.restart()}>↻</button> : null}
+      {languageStatus?.state === "unavailable" && props.language === "python" && props.onConfigureLanguageServer ? <button type="button" className="cursor-pointer hover:text-foreground" onClick={props.onConfigureLanguageServer}>{t("Set up LSP")}</button> : null}
       <button type="button" className="cursor-pointer hover:text-foreground" onClick={() => setHelp(true)}>{t("Editor shortcuts")}</button>
     </div> : null}
     <Dialog open={help} onOpenChange={setHelp}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{t("Editor shortcuts")}</DialogTitle><DialogDescription>{t("Language and document completions run locally. Project-wide types and definitions need a language server.")}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{t("Editor shortcuts")}</DialogTitle><DialogDescription>{t("Local language servers provide types, diagnostics and definitions when connected. Without a server, syntax and document completions still work.")}</DialogDescription></DialogHeader>
         <ul className="grid gap-3 text-xs text-muted-foreground">
           <li>{t("Tab: accept completion, next snippet field, or indent. Shift+Tab: previous field or outdent.")}</li>
           <li>{t("Ctrl+Space: suggestions. Enter: accept. Escape: dismiss, then Tab to leave the editor.")}</li>
           <li>{t("Ctrl/Cmd+S: save. Ctrl/Cmd+F: find and replace. Ctrl+G: go to line.")}</li>
           <li>{t("Ctrl/Cmd+/: comment. Ctrl/Cmd+D: select next match.")}</li>
           <li>{t("Alt+Up/Down: move line. Shift+Alt+Up/Down: duplicate line.")}</li>
+          <li>{t("F12: definition. Hover: inferred type. Ctrl/Cmd+Shift+Space: function signature. Ctrl/Cmd+Shift+M: problems.")}</li>
         </ul>
         <DialogFooter><Button variant="outline" onClick={() => setHelp(false)}>{t("Close")}</Button></DialogFooter>
       </DialogContent>

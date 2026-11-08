@@ -137,8 +137,19 @@ come from the language and words in the open document, locally, with **Ctrl+Spac
 tabs and CRLF line endings are preserved. Switching between recent source tabs keeps undo, cursor and scroll while the
 Workspace stays open; externally changed files start fresh. The status bar shows position, indentation and line endings,
 with **Editor shortcuts** for search/replace, comments, multiple selections and moving lines. Press Escape, then Tab to
-leave the editor using the keyboard. JSON has syntax diagnostics; project-wide type checking and definition navigation
-still need a language server.
+leave the editor using the keyboard. JSON has syntax diagnostics without a server.
+
+**Language services.** Python source files use Basedpyright (or Pyright) with the project's Python selected under
+**Environment**. Install the **Python language server** kit there, or install `basedpyright` in your existing Python
+environment. JS/TS and JSX use a project's TypeScript 7 native LSP (`node_modules/.bin/tsc`) or TypeScript 7 on PATH;
+`typescript-language-server` with TypeScript 6 remains supported. Rust uses `rust-analyzer` on PATH. The status bar shows
+the connected server, errors and a restart button; opening a file never installs a server automatically.
+
+Connected editors provide semantic completion, inferred-type hover, function signatures (**Ctrl/Cmd+Shift+Space**),
+diagnostics (**Ctrl/Cmd+Shift+M**) and definitions (**F12**, within the project). Unsaved imported files stay synchronized
+across tabs. Restart after changing Python or installing a server. These are source-file services; notebook cells keep
+their existing editor. Type quality depends on the project's packages, stubs and checker configuration; tensor shapes
+are not inferred. See [setup, protocol and boundaries](docs/language-services.md). Not available on Windows yet.
 
 ## Install
 
@@ -657,7 +668,7 @@ Before opening a pull request:
 
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
-- A debugger and language servers in the Workspace
+- A debugger in the Workspace
 - Experiment runs on Windows
 
 How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).

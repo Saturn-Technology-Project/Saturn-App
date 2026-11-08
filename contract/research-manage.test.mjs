@@ -66,7 +66,7 @@ test("creating the environment makes a venv with uv, installs the bundled kit, a
   assert.ok(before.tools.uv.endsWith("/uv"));
   assert.equal(before.tools.managed.exists, false);
   assert.equal(before.job, null);
-  assert.deepEqual(before.kits.map((kit) => [kit.id, kit.bundled]), [["core", true], ["interpretability", false], ["training", false], ["analysis", false], ["notebooks", false]]);
+  assert.deepEqual(before.kits.map((kit) => [kit.id, kit.bundled]), [["core", true], ["interpretability", false], ["training", false], ["analysis", false], ["notebooks", false], ["language-server", false]]);
 
   const started = await saturn.api("POST", `${route}/create`, {});
   assert.equal(started.job.status, "running");

@@ -37,6 +37,7 @@ import type { CounterexampleSet } from "../domain/research.js";
 import type { RemoteTarget, RunEvidence } from "../domain/research.js";
 import type { InspectionSession, ResearchArtifact, ArtifactContent } from "../domain/research.js";
 import type { ResearchBundleExport, ResearchBundlePreview } from "../domain/research.js";
+import type { LanguageSession, ServerLanguage } from "../domain/language-server.js";
 
 /** A list of records, and those that could not be read. */
 interface RecordList<T> {
@@ -50,6 +51,26 @@ export class ResearchService {
 
   private route(project: string): string {
     return `/projects/${encodeURIComponent(project)}/research`;
+  }
+
+  /** Start an installed language server in this project's runtime-owned session. */
+  startLanguageServer(project: string, language: ServerLanguage): Promise<LanguageSession> {
+    return this.runtime.request(`${this.route(project)}/lsp/start`, { method: "POST", body: JSON.stringify({ language }) });
+  }
+
+  /** Send JSON messages in the transport's serialized order. */
+  sendLanguageMessages(project: string, session: string, messages: unknown[]): Promise<unknown> {
+    return this.runtime.request(`${this.route(project)}/lsp/${encodeURIComponent(session)}/messages`, { method: "POST", body: JSON.stringify({ messages }) });
+  }
+
+  /** Read a session's output with the same authenticated event adapter as the rest of the app. */
+  languageEvents(project: string, session: string, after: number | null, receive: (event: string, data: unknown) => void, signal: AbortSignal): Promise<void> {
+    return this.runtime.stream(`${this.route(project)}/lsp/${encodeURIComponent(session)}/events${after === null ? "" : `?after=${after}`}`, receive, signal);
+  }
+
+  /** Stop a process when its workspace closes or its connection is restarted. */
+  stopLanguageServer(project: string, session: string): Promise<unknown> {
+    return this.runtime.request(`${this.route(project)}/lsp/${encodeURIComponent(session)}`, { method: "DELETE" });
   }
 
   /** An exploration has its own evidence namespace instead of masquerading as a scored run. */

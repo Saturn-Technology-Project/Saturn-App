@@ -133,7 +133,18 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 **Tab** 接受補全、跳到下一個程式片段欄位或縮排；**Shift+Tab** 回到上一個欄位或減少縮排。建議來自語言本身與目前文件中的名稱，
 在本機執行，也可按 **Ctrl+Space** 叫出。編輯時保留原有空格、Tab 與 CRLF 換行。在工作區保持開啟期間，切換最近的程式碼分頁會保留
 復原紀錄、游標與捲動位置；檔案被外部修改後會重新開始。底部狀態列顯示位置、縮排與換行格式，「編輯快捷鍵」提供搜尋／取代、註解、
-多重選取與移動行的操作說明。按 Escape 再按 Tab 可用鍵盤離開編輯器。JSON 提供語法診斷；整個專案的型別檢查與定義跳轉仍需要語言伺服器。
+多重選取與移動行的操作說明。按 Escape 再按 Tab 可用鍵盤離開編輯器。JSON 不需語言伺服器就能提供語法診斷。
+
+**語言服務。** Python 原始碼使用 Basedpyright（或 Pyright），以「環境」中選定的專案 Python 解析套件。
+可在該頁安裝「Python 語言伺服器」套件組，或在既有 Python 環境安裝 `basedpyright`。
+JS／TS 與 JSX 優先使用專案的 TypeScript 7 原生 LSP（`node_modules/.bin/tsc`）或 PATH 上的 TypeScript 7；
+也支援 `typescript-language-server` 搭配 TypeScript 6。Rust 使用 PATH 上的 `rust-analyzer`。
+狀態列顯示連線中的伺服器、問題數與重新啟動按鈕；開啟檔案不會自動安裝伺服器。
+
+連線後可使用語意補全、懸浮推斷型別、函式簽章（**Ctrl/Cmd+Shift+Space**）、診斷（**Ctrl/Cmd+Shift+M**）與定義跳轉
+（**F12**，限專案內）。未儲存的 import 檔案在切換分頁後仍保持同步。更換 Python 或安裝伺服器後，按重新啟動即可。
+目前服務對象是原始碼檔案，Notebook 儲存格維持既有編輯器。型別品質取決於專案套件、型別 stub 與檢查設定，不會推斷張量形狀。
+詳見[設定、協定與邊界](docs/language-services.md)。Windows 尚未支援。
 
 ## 安裝
 
@@ -652,7 +663,7 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
-- 工作區中的 debugger 與語言伺服器
+- 工作區中的 debugger
 - Windows 上的實驗執行
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。
