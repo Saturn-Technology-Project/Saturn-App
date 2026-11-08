@@ -121,7 +121,7 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 | ↩️ **檢查點** | 每次檔案修改都有紀錄，包括 shell 指令改動的檔案。可保留或回復一個回合，或還原任一單一步驟 |
 | 🔐 **權限與沙箱** | Agent 只在你授權的資料夾內工作。規則依工具與樣式允許、詢問或拒絕；在 macOS 與 Linux 上，指令於作業系統沙箱中執行 |
 | 📚 **Skills、指令、hooks、plugins** | 專案或 `~/.saturn-app/skills` 中的 `SKILL.md` 資料夾、`/` 指令、工具呼叫前後的 hooks，以及把它們打包在一起的 plugins（Claude Code 的格式可直接安裝）。專案的 hooks 與本機 MCP 伺服器只在你核准後才會執行 |
-| 📎 **上下文** | 以 `@` 引用檔案、資料夾與網址，附加目前的檔案或選取範圍，以裝置端嵌入模型做語意程式碼搜尋，以及研究助理在對話之間保留的記憶筆記 |
+| 📎 **上下文** | 以 `@` 引用檔案、資料夾與網址，附加目前的檔案或選取範圍，以及研究助理在對話之間保留的記憶筆記 |
 | 💸 **用量與可觀測性** | 依模型統計的 token 數與成本、OpenTelemetry trace、metric 與 log，以及對外網路紀錄 |
 
 樣本、模型輸出、論文與網頁對研究助理來說都是資料，絕不是指令，在它的上下文中也如此標示。
@@ -190,7 +190,7 @@ npm run package -- --bundles nsis   # Windows：x64 NSIS 安裝程式，輸出�
 npm run archive                     # 下載檔與校驗碼，輸出至 desktop/release/
 ```
 
-`npm run package` 會建置介面、把嵌入模型下載到 `desktop/.staging/`（以固定的 SHA-256 驗證）、以 release 模式建置 Runtime 與 `saturn`，再打包。Claude Code 與 Codex 程式不在套件內，由 Saturn 按需下載。只有以 Saturn 更新金鑰建置的版本才有更新功能（[`updater-config.mjs`](desktop/scripts/updater-config.mjs)）。
+`npm run package` 會建置介面、以 release 模式建置 Runtime 與 `saturn`，再打包。Claude Code 與 Codex 程式不在套件內，由 Saturn 按需下載。只有以 Saturn 更新金鑰建置的版本才有更新功能（[`updater-config.mjs`](desktop/scripts/updater-config.mjs)）。
 
 每次推送到 `main` 都會經過 [release workflow](.github/workflows/release.yml)：先跑完整檢查（與 pull request 必須通過的相同），再在 GitHub 託管的 runner 上建置、測試並打包兩個平台（Windows 不跑合約測試），並為產出物簽發來源證明。當 `desktop/package.json` 與 `Cargo.toml` 的版本比所有 `v*` tag 都新時，它也會為該 commit 打上 tag 並發佈 release，發佈說明取自 CHANGELOG。所以發佈就是提高版本號並合併到 `main`。
 
@@ -362,7 +362,7 @@ Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的�
 | Agent、對話、專案、設定 | `state.json` | 純 JSON。 |
 | 遙測（trace、metric、log） | 記憶體與 `telemetry.json` | 只有在你設定 OTLP 端點時才會匯出。 |
 | 對外請求紀錄 | `network.log` | JSON Lines：時間戳記、方法、主機、路徑，以及主機是否為本機。從不記錄查詢字串與內容。超過 5 MB 時移至 `network.log.1`。 |
-| 記憶、程式碼索引、檢查點、附件 | `memory/`、`index/`、`checkpoints/`、`run-images/` | 本機檔案。嵌入向量由內建模型在裝置端計算。 |
+| 記憶、檢查點、附件 | `memory/`、`checkpoints/`、`run-images/` | 本機檔案。 |
 | API session token | `runtime-token` | 權限 `0600`（Windows 上同 `secrets.json`）。 |
 | Claude Code 與 Codex 程式 | `tools/` | 只在你要求時下載，解壓前先以 Saturn 內固定的 sha512 驗證。可在設定中移除。 |
 | Claude Code 與 Codex 的登入、Agent 瀏覽器的設定檔 | `claude/`、`codex/`、`browser-profile/` | 由這些程式自行保存。Saturn 不讀取登入資料。 |
@@ -376,7 +376,6 @@ Saturn 在你的電腦上執行程式碼並持有你的供應商憑證，它的�
 | 網站、API 與 MCP 伺服器 | Agent 擷取網址、操作瀏覽器、呼叫 GitHub，或使用你新增的 MCP 伺服器時 | 該次工具呼叫所需的內容。遠端 MCP 伺服器透過 HTTP(S) 連線；本機伺服器須在你核准確切指令後才會執行，其自身的網路流量由該程式負責。web 與瀏覽器工具會拒絕私有、link-local 與 loopback 位址（SSRF 防護）。 |
 | 你的 SSH 主機 | 僅在遠端執行時，連往你設定的主機 | 透過你自己的 SSH 設定與主機金鑰：執行的指令、狀態與輸出。Saturn 不儲存任何 SSH 憑證。 |
 | GitHub Releases | App 啟動時 | 更新檢查（`updates` release 的 `latest.json`），有新版本時下載套件。僅限以 Saturn 更新金鑰建置的版本。這些請求由 App 發出，不是 Runtime，所以不在網路紀錄中。設定 `SATURN_NO_UPDATES=1` 可停用。 |
-| Hugging Face | 僅在你選用未內建的嵌入模型時 | 下載該模型。與內建模型不同，不會以固定雜湊驗證。 |
 | `registry.npmjs.org` | 僅在你按下 Claude Code 或 Codex 的 **下載** 時 | 官方程式的 npm 套件，即 Saturn 固定的確切版本，並以固定的 sha512 驗證。 |
 | 你的 OpenTelemetry collector | 僅在設定 `OTEL_EXPORTER_OTLP_*ENDPOINT` 變數或 `SATURN_OTEL=otlp` 時 | Saturn 的 trace、metric 與 log，以 HTTP 上的 JSON 傳送。 |
 
@@ -469,7 +468,7 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<v
 - **Hooks；專案的 hooks 須經你核准。** Hook 是在 Agent 呼叫工具之前或之後（exit 2 會阻擋或回饋；stdout 可回答 allow、ask 或 deny），或在回合結束時執行的指令（exit 2 會讓 Agent 繼續處理，每則訊息最多兩次）。你自己的 hooks 在 **設定 → Hooks** 設定。專案的 `.saturn/hooks.json`，以及其 `.claude/settings.json` 中的 PreToolUse、PostToolUse 與 Stop hooks，是隨資料夾而來的，因此必須在你看過並允許那一組之後才會執行；任何變更都會重新詢問。只有在你開啟 **Use the project's Claude Code settings** 時，Claude Code 才會載入專案的 `.claude/settings.json`。
 - **檔案系統範圍限制。** Agent 只能在 Saturn 工作區與你授權的專案資料夾內讀寫與執行，授權可隨時撤銷。
 - **指令的作業系統沙箱。** Agent 執行的每個 shell 指令都由作業系統限制：macOS 用 seatbelt（`sandbox-exec`），Linux 在安裝 bubblewrap 時使用。預設的 *workspace-write* 只允許寫入專案資料夾、暫存資料夾與常見的套件快取；*read-only* 除暫存資料夾外不允許寫入；也可以關閉指令的網路。Agent 需要寫到其他地方時會以 `sandbox: "off"` 要求，除了完全自主模式外都會出現核准卡。在 **設定 → 一般 → Sandbox** 設定，或針對單一專案覆寫。Windows 沒有沙箱，指令的結果會註明。
-- **權限規則、核准策略、檢查點。** 規則指定工具與樣式（`code: npm test *`、`files: write src/**`）並決定允許、詢問或拒絕；拒絕優先於詢問，詢問優先於允許，shell 指令串逐一判斷。規則可在 **設定 → Permissions** 針對所有專案、單一專案或單一 Agent 設定，也可寫在專案自己的 `.saturn/settings.json`；`.claude/settings.json` 的 `permissions` 也會讀取。這兩個檔案隨資料夾而來（例如 clone 下來的 repository），因此其中的拒絕與詢問規則立即生效，允許規則則要在你於該專案的規則中允許那一組之後才生效，任何變更都會再次詢問。允許所有指令的規則無論來自哪裡都會被拒絕。核准卡上的 **Always allow…** 會直接存成一條規則。沒有規則適用時，除非你選擇完全自主，有風險的指令與工作目錄外的寫入都會等待核准。每次修改都有檢查點，可回復到單一步驟，shell 指令（前景或背景）改動的檔案也包含在內。在 git 專案中由 git 判斷改了什麼（被忽略的檔案除外）；在其他資料夾，Saturn 會在自己的資料夾裡為它保留一份私有的 git 快照（不會寫進你的資料夾），排除 `node_modules`、建置輸出與快取；幾秒內無法完成快照的超大資料夾則略過。**設定 → 一般 → Storage** 會列出每個資料夾快照的大小，確認後可刪除；先前的變更仍可還原。
+- **權限規則、核准策略、檢查點。** 規則指定工具與樣式（`code: npm test *`、`files: write src/**`）並決定允許、詢問或拒絕；拒絕優先於詢問，詢問優先於允許，shell 指令串逐一判斷。規則可在 **設定 → Permissions** 針對所有專案、單一專案或單一 Agent 設定，也可寫在專案自己的 `.saturn/settings.json`；`.claude/settings.json` 的 `permissions` 也會讀取。這兩個檔案隨資料夾而來（例如 clone 下來的 repository），因此其中的拒絕與詢問規則立即生效，允許規則則要在你於該專案的規則中允許那一組之後才生效，任何變更都會再次詢問。允許所有指令的規則無論來自哪裡都會被拒絕。核准卡上的 **Always allow…** 會直接存成一條規則。規則同樣約束 Claude Code 的回合（依它詢問的工具對應：`Bash` 視為 `code`，檔案工具視為 `files`），以及 Codex 回合呼叫的 Saturn skill；Codex 自己的 shell 指令不經詢問就執行，規則管不到。沒有規則適用時，除非你選擇完全自主，有風險的指令與工作目錄外的寫入都會等待核准。每次修改都有檢查點，可回復到單一步驟，shell 指令（前景或背景）改動的檔案也包含在內。在 git 專案中由 git 判斷改了什麼（被忽略的檔案除外）；在其他資料夾，Saturn 會在自己的資料夾裡為它保留一份私有的 git 快照（不會寫進你的資料夾），排除 `node_modules`、建置輸出與快取；幾秒內無法完成快照的超大資料夾則略過。**設定 → 一般 → Storage** 會列出每個資料夾快照的大小，確認後可刪除；先前的變更仍可還原。
 - **訂閱憑證隔離。** Claude Code 與 Codex 透過官方 CLI 驗證，憑證存於 Saturn 專用的設定目錄。Saturn 從不讀取、複製或轉送這些憑證，也從不加入自己的金鑰。Claude Code 取得 Runtime 的環境，只移除 Saturn 自己的 session 變數，因此你為它設定的任何驗證方式（你自己的 `ANTHROPIC_API_KEY`、Bedrock、Vertex AI 或 Foundry）都依 Anthropic 的條款保持可用；Codex 則會移除 API 金鑰變數，避免多餘的金鑰覆蓋 ChatGPT 登入。
 
 ### 降低曝險
@@ -487,7 +486,7 @@ Saturn 的下載檔由約 360 個 Rust crate（`cargo tree` 對 macOS 上的 App
 - **固定的 lock 檔。** `Cargo.lock` 將每個 crate 固定為確切版本並附 SHA-256 校驗碼，[`deny.toml`](deny.toml) 只允許 crates.io，不接受 git 或其他來源。`desktop/package-lock.json` 將每個套件固定為 `https://registry.npmjs.org/` 上的確切版本，並附 SHA-512 完整性雜湊，[`scripts/check-lockfiles.mjs`](scripts/check-lockfiles.mjs) 遇到任何 git、tarball URL、http 或 file 來源都會讓 CI 失敗。
 - **Registry 簽章。** `npm audit signatures` 驗證每個已安裝 npm 套件的 registry 簽章，發行者提供時也驗證其來源證明。crates.io 沒有這種簽章，那邊以 `Cargo.lock` 的校驗碼檢查。
 - **不執行 npm 安裝腳本。** npm 安裝腳本是遭入侵套件最常見的執行管道，在 Saturn 中從不執行：桌面應用程式在 `allowScripts` 中逐一拒絕，CI 以 `--ignore-scripts` 安裝。Cargo 沒有這種開關：crate 的 build script 會在編譯 Saturn 時執行（CI 上，以及你從原始碼建置時的電腦上），對 crate 的信任就到這個程度。
-- **其餘都以雜湊固定。** Claude Code 與 Codex 的下載固定為 registry 的 SHA-512（[`agent-programs.json`](crates/saturn-core/src/agent-programs.json)，由 [`agent-programs-manifest.mjs`](scripts/agent-programs-manifest.mjs) 寫入）；內建嵌入模型與其 tokenizer 固定為 SHA-256（[`fetch-embedding-model.mjs`](desktop/scripts/fetch-embedding-model.mjs)）；每個 GitHub Action 固定為完整的 commit SHA。
+- **其餘都以雜湊固定。** Claude Code 與 Codex 的下載固定為 registry 的 SHA-512（[`agent-programs.json`](crates/saturn-core/src/agent-programs.json)，由 [`agent-programs-manifest.mjs`](scripts/agent-programs-manifest.mjs) 寫入）；每個 GitHub Action 固定為完整的 commit SHA。
 
 **保持更新**
 

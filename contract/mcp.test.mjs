@@ -167,22 +167,3 @@ test("a local program starts only once its exact command is allowed, with only t
   await api("DELETE", `/mcp/${server.id}`);
 });
 
-test("the sign-in callback refuses what Saturn did not start, and escapes what a provider says", async () => {
-  const unknown = await fetch(`${runtime.origin}/oauth/callback?code=x&state=nobody`);
-  assert.equal(unknown.status, 400);
-  assert.match(await unknown.text(), /unknown or has already finished/);
-  const denied = await fetch(`${runtime.origin}/oauth/callback?error=access_denied&error_description=${encodeURIComponent("<b>no</b>")}`);
-  assert.equal(denied.status, 400);
-  assert.doesNotMatch(await denied.text(), /<b>no<\/b>/);
-});
-
-test("integrations are listed, and a token integration asks for its token", async () => {
-  const entries = await api("GET", "/marketplace");
-  assert.equal(entries[0].id, "saturn-mcp");
-  assert.equal(entries.find((item) => item.id === "dukascopy").available, false);
-  await api("POST", "/marketplace/github/install", {}, [400]);
-  await api("POST", "/marketplace/nobody/install", {}, [404]);
-  await api("POST", "/marketplace/dukascopy/install", {}, [409]);
-  await api("POST", "/marketplace/slack/install", {}, [400]);
-  await api("DELETE", "/marketplace/github");
-});

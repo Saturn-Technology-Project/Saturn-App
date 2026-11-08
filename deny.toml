@@ -5,7 +5,6 @@ yanked = "deny"
 # Unmaintained, with no known vulnerability and no version to move to yet; each is pulled in by a dependency, not chosen by Saturn.
 # Looked at again with every dependency update, and listed in docs/known-advisories.md.
 ignore = [
-  { id = "RUSTSEC-2024-0436", reason = "paste, a build-time macro, through tokenizers" },
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error, a build-time macro, through Tauri's toolkit on Linux" },
   { id = "RUSTSEC-2026-0370", reason = "zvariant, Linux only, through tauri-plugin-single-instance's zbus" },
   { id = "RUSTSEC-2026-0371", reason = "zbus_names, Linux only, through tauri-plugin-single-instance's zbus" },

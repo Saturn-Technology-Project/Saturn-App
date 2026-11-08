@@ -186,8 +186,6 @@ export default {
   "No log lines matching filter.": "沒有符合篩選條件的日誌。",
 
   // General
-  "E5 multilingual (included)": "E5 多語言（內建）",
-  "Jina code (162 MB)": "Jina 程式碼（162 MB）",
   Theme: "主題",
   Light: "淺色",
   Dark: "深色",
@@ -221,14 +219,6 @@ export default {
   "Plan approval": "計畫核准",
   'Agents write a plan and wait for your go-ahead before changing files or running commands. Reply "go" to proceed, or say what to change.':
     "代理會先擬定計畫，等你同意後才變更檔案或執行指令。回覆「go」即可繼續，或說明要修改的地方。",
-  "Embedding model": "嵌入模型",
-  "Builds each project's code index, so agents find code by meaning. The built-in model runs on this Mac with nothing else to install; changing the model rebuilds the index.":
-    "為每個專案建立程式碼索引，讓代理能依語意搜尋程式碼。內建模型直接在這台 Mac 上執行，不需額外安裝。更換模型會重建索引。",
-  "Embedding source": "嵌入來源",
-  "OpenAI-compatible": "相容 OpenAI",
-  "Built-in embedding model": "內建嵌入模型",
-  "Embedding connection": "嵌入連線",
-  "Add an OpenAI connection first": "請先新增 OpenAI 連線",
   Sandbox: "沙箱",
   Commands: "指令",
   "Where a shell command run by an agent may write. ": "代理執行的 shell 指令可寫入的位置。",

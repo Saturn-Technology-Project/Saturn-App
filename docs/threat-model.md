@@ -20,7 +20,7 @@ An agent turn: the runtime sends the conversation and tool definitions to a mode
 | The user's files, and the computer itself (commands run as the user) | Granted project folders; the whole machine for commands outside the sandbox and for computer use |
 | Accounts tools can reach | GitHub (a token the user provides), signed-in sites in the agent browser's own profile |
 | Research records and their integrity: what a run computed, which data and scorer a version froze, who set a verdict or a label | The project's `.saturn/research`; frozen inputs are hashed and locked against agents |
-| Conversations, memory, code index, telemetry | `~/.saturn-app`, local files |
+| Conversations, memory, telemetry | `~/.saturn-app`, local files |
 | Claude Code and Codex sign-ins | Their own config folders; Saturn never reads them |
 
 ## Trust boundaries and threats
@@ -43,7 +43,7 @@ Residual risk: within what the user has allowed, injected instructions act with 
 Loopback is not a trust boundary: any local process, and any web page through the user's browser, can reach `127.0.0.1`.
 
 - The runtime listens on `127.0.0.1` only, rejects non-loopback `Host` headers (DNS rebinding) and gives non-local `Origin`s no cross-origin access (CORS) (`crates/saturn-server/src/guards.rs`).
-- Every route needs `Authorization: Bearer <token>`; the token is in `~/.saturn-app/runtime-token`, mode `0600` (Windows has no such mode: the file has the permissions of the user profile's folder). Exceptions: `/health`; `/oauth/callback` (the provider's redirect); `/agent-mcp`, which takes a running Codex turn's own short-lived token instead (`crates/saturn-server/src/guards.rs`, `answer_agent_mcp` in `crates/saturn-core/src/agent_sessions.rs`).
+- Every route needs `Authorization: Bearer <token>`; the token is in `~/.saturn-app/runtime-token`, mode `0600` (Windows has no such mode: the file has the permissions of the user profile's folder). Exceptions: `/health`; `/agent-mcp`, which takes a running Codex turn's own short-lived token instead (`crates/saturn-server/src/guards.rs`, `answer_agent_mcp` in `crates/saturn-core/src/agent_sessions.rs`).
 - The desktop shell reads the token and gives it to the interface through a script that runs in the main frame only and only on the interface's own origin, so no frame and no other page sees it; the shell's own commands are allowed only to the interface's address. The interface embeds no web page and sets no HTML from content: model output is rendered as text and Markdown, and kept outputs as text or images, never executed. A project PDF is drawn page by page onto canvases by pdf.js in a worker from the app's own files, with no frame and no plugin, so the policy keeps `object-src 'none'` and allows no frames (`desktop/src/presentation/workspace/PdfView.tsx`) (`desktop/src-tauri/src/main.rs`, `desktop/src-tauri/src/bridge.js`, `desktop/src/presentation/FormattedOutput.tsx`, `desktop/src/presentation/experiments/Artifacts.tsx`).
 
 Out of scope: a process already running as the same user can read the token file and the OS key store, as it can for any app.
@@ -89,7 +89,6 @@ Out of scope: a process already running as the same user can read the token file
 - **macOS builds are not Developer ID-signed or notarized**, and Windows builds use a self-signed certificate, so users cannot rely on the OS to confirm a download's origin; the SHA-256 files and build provenance are the check.
 - **Network access is on by default** inside the sandbox, so package installs work; switch it off per project for sensitive work.
 - **A crate's build script runs at build time.** Cargo cannot deny it as npm can an install script, so a compromised crate could run code in CI or on a machine that builds Saturn.
-- **An embedding model downloaded on demand is not hash-checked,** unlike the bundled one (`crates/saturn-embed/src/lib.rs`).
 - **The agent browser's address check covers `browser_navigate` only.** A page it opens can still redirect to, link to or load from a private address, because the browser makes those requests itself.
 - **An experiment run's sandbox has limits.** It hides the project, Saturn's data and the usual credential folders, but not every file a program could misuse: a key kept elsewhere in the home folder can be read, and with the network allowed (the default) whatever the program reads can be sent anywhere. On macOS the keychain is reached through the system's own service, which asks the person; the shared temporary folders and the shared caches stay writable, so one run can leave files there for another. What the snapshot links to (an uncontrolled `.venv`, say) is readable. On Linux a program can overwrite its own run's `run.json` and `evidence.json`, which bubblewrap cannot keep read-only, so a Linux run's evidence is only as trustworthy as its program; on macOS it cannot. Where no sandbox works, or a version turns it off, the snapshot is protected by read-only permissions only, and a program can replace a file in it (which the check at the end records) and write anywhere the account can. A remote run's evidence is what the host's worker recorded; a compromised host can report anything.
 - **No third-party security audit yet.**
@@ -176,7 +175,7 @@ Agent 的一個回合：Runtime 把對話與工具定義送給模型；模型要
 | 使用者的檔案，以及電腦本身（指令以使用者身分執行） | 授權的專案資料夾；沙箱外的指令與電腦操作則是整台電腦 |
 | 工具能觸及的帳號 | GitHub（使用者提供的 token）、Agent 瀏覽器自有設定檔中登入的網站 |
 | 研究紀錄及其完整性：一次執行實際算了什麼、版本凍結了哪些資料與評分器、判定與標註由誰設定 | 專案的 `.saturn/research`；凍結的輸入有雜湊值，並對 Agent 鎖定 |
-| 對話、記憶、程式碼索引、遙測 | `~/.saturn-app` 的本機檔案 |
+| 對話、記憶、遙測 | `~/.saturn-app` 的本機檔案 |
 | Claude Code 與 Codex 的登入 | 各自的設定資料夾；Saturn 從不讀取 |
 
 ## 信任邊界與威脅
@@ -199,7 +198,7 @@ Agent 的一個回合：Runtime 把對話與工具定義送給模型；模型要
 loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽器的任何網頁，都能連到 `127.0.0.1`。
 
 - Runtime 只監聽 `127.0.0.1`，拒絕非 loopback 的 `Host` 標頭（DNS rebinding），並且不給非本機的 `Origin` 任何跨來源存取（CORS）（`crates/saturn-server/src/guards.rs`）。
-- 每個路由都需要 `Authorization: Bearer <token>`；token 存於 `~/.saturn-app/runtime-token`，權限 `0600`（Windows 沒有這種權限：檔案沿用使用者設定檔資料夾的權限）。例外：`/health`；`/oauth/callback`（供應商的重新導向）；`/agent-mcp`，改用執行中 Codex 回合自己的短期 token（`crates/saturn-server/src/guards.rs`、`crates/saturn-core/src/agent_sessions.rs` 的 `answer_agent_mcp`）。
+- 每個路由都需要 `Authorization: Bearer <token>`；token 存於 `~/.saturn-app/runtime-token`，權限 `0600`（Windows 沒有這種權限：檔案沿用使用者設定檔資料夾的權限）。例外：`/health`；`/agent-mcp`，改用執行中 Codex 回合自己的短期 token（`crates/saturn-server/src/guards.rs`、`crates/saturn-core/src/agent_sessions.rs` 的 `answer_agent_mcp`）。
 - 桌面外殼讀取 token，並透過只在主 frame、且只在介面自己的 origin 上執行的腳本交給介面，所以沒有任何 iframe 或其他頁面看得到；外殼自己的指令只開放給介面的位址。介面不嵌入任何網頁，也不從內容設定 HTML：模型輸出以文字與 Markdown 呈現，保存的產出以文字或圖片呈現，都不會被執行。專案裡的 PDF 由 pdf.js 在 App 自己檔案中的 worker 裡逐頁繪製到畫布上，不使用框架或外掛，所以政策維持 `object-src 'none'` 且不允許任何框架（`desktop/src/presentation/workspace/PdfView.tsx`）（`desktop/src-tauri/src/main.rs`、`desktop/src-tauri/src/bridge.js`、`desktop/src/presentation/FormattedOutput.tsx`、`desktop/src/presentation/experiments/Artifacts.tsx`）。
 
 範圍外：已經以同一使用者身分執行的程式能讀取 token 檔與作業系統金鑰庫，這對任何 App 都一樣。
@@ -245,7 +244,6 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 - **macOS 版本未以 Developer ID 簽章或公證**，Windows 版本使用自簽憑證，使用者無法依賴作業系統確認下載來源；應以 SHA-256 檔與建置來源證明檢查。
 - **沙箱內預設可連網**，以便安裝套件；處理敏感工作時可針對專案關閉。
 - **crate 的 build script 會在建置時執行。** Cargo 無法像 npm 拒絕安裝腳本那樣拒絕它，所以遭入侵的 crate 可能在 CI 或建置 Saturn 的電腦上執行程式碼。
-- **按需下載的嵌入模型不做雜湊驗證**，與內建模型不同（`crates/saturn-embed/src/lib.rs`）。
 - **Agent 瀏覽器的位址檢查只涵蓋 `browser_navigate`。** 它開啟的頁面仍可能重新導向、連結或載入私有位址，因為這些請求由瀏覽器自己發出。
 - **執行快照只以唯讀權限保護，並非隔離。** 實驗程式仍可替換快照中的檔案（結束時的核對會記錄下來），也能透過連結的未受控資料夾寫入專案。遠端執行的證據是主機上的 worker 所記錄的內容；遭入侵的主機可以回報任何內容。
 - **尚未經過第三方安全審計。**
