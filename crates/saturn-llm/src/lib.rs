@@ -8,7 +8,6 @@ pub mod gemini;
 pub mod http;
 pub mod listing;
 pub mod lmstudio;
-pub mod mlx;
 pub mod openai;
 pub mod shared;
 

@@ -24,6 +24,9 @@ pub struct AppState {
 
 /// Settings of features Saturn no longer has, dropped when loading.
 const RETIRED_SETTINGS: [&str; 2] = ["launchApp", "claudeCodeAuth"];
+/// Provider ids earlier versions saved for a model server on this computer, now all the one local-server provider.
+const LOCAL_PROVIDER_ALIASES: [&str; 1] = ["mlx"];
+const LOCAL_PROVIDER: &str = "lmstudio";
 
 impl Default for AppState {
     fn default() -> Self {
@@ -70,7 +73,20 @@ impl AppState {
             Some(_) => damaged = true,
         }
         state.settings = settings_over_defaults(std::mem::take(&mut state.settings));
+        for model in &mut state.models {
+            local_provider(model);
+        }
         (state, damaged)
+    }
+}
+
+/// A model saved under an earlier name of the local-server provider is that provider's; its address stays.
+fn local_provider(model: &mut Value) {
+    let aliased = model["provider"]
+        .as_str()
+        .is_some_and(|provider| LOCAL_PROVIDER_ALIASES.contains(&provider));
+    if aliased {
+        model["provider"] = Value::from(LOCAL_PROVIDER);
     }
 }
 
@@ -91,4 +107,29 @@ fn settings_over_defaults(mut saved: Map<String, Value>) -> Map<String, Value> {
     }
     settings.append(&mut saved);
     settings
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_model_saved_as_mlx_is_a_local_server_model_at_its_own_address() {
+        let saved = json!({ "models": [
+            { "id": "m1", "provider": "mlx", "model": "mlx-community/Qwen3-8B-4bit", "baseUrl": "http://127.0.0.1:8080" },
+            { "id": "m2", "provider": "lmstudio", "model": "local", "baseUrl": "http://127.0.0.1:1234" },
+            { "id": "m3", "provider": "claude", "model": "claude-fable-5-1", "baseUrl": "" },
+        ] });
+        let (state, damaged) = AppState::from_saved(saved.as_object().expect("an object"));
+        assert!(!damaged);
+        let providers: Vec<&str> = state
+            .models
+            .iter()
+            .map(|model| model["provider"].as_str().unwrap_or_default())
+            .collect();
+        assert_eq!(providers, ["lmstudio", "lmstudio", "claude"]);
+        assert_eq!(state.models[0]["baseUrl"], "http://127.0.0.1:8080");
+        assert_eq!(state.models[0]["model"], "mlx-community/Qwen3-8B-4bit");
+    }
 }

@@ -39,9 +39,13 @@ export type Model = {
 };
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 export const EFFORT_LABELS: Record<Effort, string> = { low: t("Low"), medium: t("Medium"), high: t("High"), xhigh: t("Extra High"), max: t("Max") };
-/** Whether a provider's models run on this computer, through LM Studio or MLX: they take no key and cost nothing. */
-export function runsLocally(provider?: string): provider is "lmstudio" | "mlx" {
-  return provider === "lmstudio" || provider === "mlx";
+/**
+ * Whether a provider's models run on this computer, through a model server with OpenAI-compatible endpoints (LM Studio,
+ * Ollama, vLLM, llama.cpp, mlx_lm.server): they take no key and cost nothing. The id is the name it had when it only
+ * meant LM Studio.
+ */
+export function runsLocally(provider?: string): provider is "lmstudio" {
+  return provider === "lmstudio";
 }
 /** Local models and DeepSeek have no effort control. */
 export function supportsEffort(provider?: string): boolean {

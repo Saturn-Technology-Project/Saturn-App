@@ -19,8 +19,8 @@ export default {
   "In each chat, the assistant only reads, proposes changes for you to approve, or works on a task apart until you merge it.":
     "在每個對話中，助理可以只讀取、提出變更等你核准，或在獨立任務中工作，直到你合併為止。",
   "Your models": "你的模型",
-  "Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local model in LM Studio or MLX.":
-    "透過 Claude 方案使用 Claude、透過 ChatGPT 方案使用 Codex、使用 Anthropic、OpenAI、Google 與 DeepSeek 的 API 金鑰，或使用 LM Studio 或 MLX 的本機模型。",
+  "Claude through your Claude plan, Codex through your ChatGPT plan, API keys for Anthropic, OpenAI, Google and DeepSeek, or a local model from a server on this computer such as LM Studio or Ollama.":
+    "透過 Claude 方案使用 Claude、透過 ChatGPT 方案使用 Codex、使用 Anthropic、OpenAI、Google 與 DeepSeek 的 API 金鑰，或使用本機模型伺服器（如 LM Studio、Ollama）的模型。",
   "Projects are real folders": "專案就是真實的資料夾",
   "An agent works in a folder only after you allow it, and you can take that back at any time. Its edits can be reviewed and reverted.":
     "代理必須經你允許才能在資料夾中工作，你也隨時可以撤銷。你可以審閱並還原它的編輯。",
@@ -33,7 +33,6 @@ export default {
   "Share how you use Saturn": "分享你使用 Saturn 的情況",
   "If someone asked how Saturn works for you, this copies a short summary to paste into a message: the days you worked, and how many projects, runs, imported results, questions and findings you have. It holds no names, paths, text or results, and Saturn sends nothing itself.": "如果有人想知道 Saturn 對你好不好用，這會複製一段簡短摘要，讓你貼進訊息：你哪幾天有工作，以及專案、執行、匯入結果、問題和發現各有多少。摘要不含名稱、路徑、文字或結果，Saturn 本身也不會傳送任何東西。",
   "Copy usage summary": "複製使用摘要",
-  "Copied": "已複製",
   "The records could not be read.": "無法讀取研究紀錄。",
   "Saturn {version}, usage from this computer's research records": "Saturn {version}，依這台電腦的研究紀錄整理的使用情況",
   "Days with work: {count}": "有工作的天數：{count}",
@@ -43,6 +42,7 @@ export default {
   "Experiments written: {count}": "撰寫的實驗：{count}",
   "Questions: {count}": "問題：{count}",
   "Findings: {count}": "發現：{count}",
+  "Copied": "已複製",
   "Saturn is a desktop workbench for AI research. Read the method, write the code yourself, run the experiment and inspect every sample, with as much help from AI as you choose. The app and its runtime run locally, and your records stay in your project.":
     "Saturn 是用於 AI 研究的桌面工作台。閱讀方法、親手撰寫程式碼、執行實驗並檢視每個樣本，AI 協助的程度由你決定。應用程式與執行環境都在本機執行，你的紀錄會保留在專案中。",
   "How it fits together": "架構概覽",

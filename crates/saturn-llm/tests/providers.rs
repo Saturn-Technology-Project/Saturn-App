@@ -10,7 +10,6 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use saturn_llm::broker::{Adapter, provider_key_id};
 use saturn_llm::lmstudio::{self, RawRequest, alternating, openai_compatible_url};
-use saturn_llm::mlx;
 use saturn_llm::{
     Broker, CallContext, ChatMessage, ChatRequest, Completion, CompletionInput, Http, KeyVault,
     ModelConnection, Role, ToolDef,
@@ -113,7 +112,6 @@ fn adapter_named(name: &str) -> Adapter {
         "gemini" => Adapter::Gemini,
         "deepseek" => Adapter::DeepSeek,
         "lmstudio" => Adapter::LmStudio,
-        "mlx" => Adapter::Mlx,
         "openai-chat" => Adapter::OpenAiChat,
         "openai-responses" => Adapter::OpenAiResponses,
         other => panic!("unknown adapter {other}"),
@@ -309,7 +307,6 @@ fn the_broker_sends_each_provider_to_its_own_module() {
     assert_eq!(adapter("claude", "https://api.anthropic.com"), "claude");
     assert_eq!(adapter("deepseek", "https://api.deepseek.com"), "deepseek");
     assert_eq!(adapter("lmstudio", "http://127.0.0.1:1234"), "lmstudio");
-    assert_eq!(adapter("mlx", "http://127.0.0.1:8080"), "mlx");
     assert_eq!(
         adapter("openai", "https://api.openai.com/v1"),
         "openai-responses"
@@ -754,12 +751,13 @@ async fn the_lm_studio_model_list_prefers_its_rest_api() {
     let error = lmstudio::list_models(&client, &format!("http://{address}"))
         .await
         .expect_err("nothing listens");
-    assert_eq!(error.message, "LM Studio is not running");
+    assert_eq!(error.message, "the local model server is not running");
 }
 
 #[tokio::test]
-async fn an_mlx_model_is_asked_through_mlx_lm_server_and_its_tool_calls_and_reasoning_are_read() {
-    // What mlx_lm.server answers: the arguments as a JSON string, the reasoning under "reasoning".
+async fn a_local_server_s_tool_calls_and_reasoning_are_read_at_whatever_address_it_has() {
+    // What mlx_lm.server answers: the arguments as a JSON string, the reasoning under "reasoning". A model saved as "mlx"
+    // before is a local-server model now; it keeps that server's address.
     let answer = json!({
         "choices": [{
             "message": {
@@ -782,7 +780,7 @@ async fn an_mlx_model_is_asked_through_mlx_lm_server_and_its_tool_calls_and_reas
         ..input_with_tool_turn()
     };
     let completion = broker(&[])
-        .complete(&model("mlx", &server.base_url, "mdl_3"), &input)
+        .complete(&model("lmstudio", &server.base_url, "mdl_3"), &input)
         .await
         .expect("it answers");
     assert_eq!(completion.tool_calls[0].name, "files");
@@ -798,7 +796,7 @@ async fn an_mlx_model_is_asked_through_mlx_lm_server_and_its_tool_calls_and_reas
     assert_eq!(sent[0]["path"], "/v1/chat/completions");
     assert_eq!(sent[0]["body"]["tools"][0]["function"]["name"], "files");
     assert_eq!(
-        sent[0]["headers"]["authorization"], "Bearer mlx",
+        sent[0]["headers"]["authorization"], "Bearer lm-studio",
         "it takes any key"
     );
     assert!(
@@ -812,7 +810,8 @@ async fn an_mlx_model_is_asked_through_mlx_lm_server_and_its_tool_calls_and_reas
 }
 
 #[tokio::test]
-async fn the_mlx_model_list_is_what_mlx_lm_server_can_load_without_embedding_models() {
+async fn a_plain_v1_models_list_leaves_out_the_embedding_and_reranking_families() {
+    // What mlx_lm.server lists: the Hugging Face cache, embedding and reranking models among the chat models.
     let models = json!({ "object": "list", "data": [
         { "id": "mlx-community/Qwen3-8B-4bit", "object": "model", "created": 1 },
         { "id": "mlx-community/nomic-embed-text-v1.5", "object": "model", "created": 1 },
@@ -821,10 +820,10 @@ async fn the_mlx_model_list_is_what_mlx_lm_server_can_load_without_embedding_mod
         { "id": "mlx-community/Qwen3-Reranker-0.6B", "object": "model", "created": 1 },
         { "id": "mlx-community/gemma-3-4b-it-4bit", "object": "model", "created": 1 },
     ] });
-    let server = fake_server(vec![reply(200, models)]).await;
+    let server = fake_server(vec![reply(404, json!({})), reply(200, models)]).await;
     let client = http();
     assert_eq!(
-        mlx::list_models(&client, &server.base_url)
+        lmstudio::list_models(&client, &server.base_url)
             .await
             .expect("a list"),
         [
@@ -832,18 +831,7 @@ async fn the_mlx_model_list_is_what_mlx_lm_server_can_load_without_embedding_mod
             "mlx-community/gemma-3-4b-it-4bit"
         ]
     );
-    assert_eq!(
-        server.sent.lock().expect("not poisoned")[0]["path"],
-        "/v1/models"
-    );
-
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("a port");
-    let address = listener.local_addr().expect("an address");
-    drop(listener);
-    let error = mlx::list_models(&client, &format!("http://{address}"))
-        .await
-        .expect_err("nothing listens");
-    assert_eq!(error.message, "mlx_lm.server is not running");
+    let sent = server.sent.lock().expect("not poisoned").clone();
+    assert_eq!(sent[0]["path"], "/api/v0/models");
+    assert_eq!(sent[1]["path"], "/v1/models");
 }

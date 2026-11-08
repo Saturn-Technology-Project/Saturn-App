@@ -72,12 +72,10 @@ export default {
   "Failed to remove model": "Could not remove the model",
   "Paste {provider} API key…": "Paste your {provider} API key…",
   "Save Key": "Save key",
-  "Model identifier in LM Studio": "Model ID in LM Studio",
   "Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Saturn never sends API requests for it, takes no API key, and does not schedule it.":
     "Runs through the official Claude Code program with your own Claude login (Settings → General → Claude Code). Saturn sends no API requests for it, needs no API key, and doesn't schedule it.",
   "Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key.":
     "Runs through the official Codex program with your own ChatGPT login (Settings → General → Codex). No API key needed.",
-  "LM Studio Endpoint": "LM Studio endpoint",
   "API Key": "API key",
   "Using your saved {provider} key — paste to replace": "Using your saved {provider} key. Paste a new one to replace it.",
   "Paste provider API key…": "Paste the provider's API key…",

@@ -395,7 +395,7 @@ impl Kernel {
         let (Some(agent), Some(model)) = (agent, model) else {
             return Err(CoreError::new(
                 409,
-                "Drafting needs a model with an API key (Claude, OpenAI, Gemini, DeepSeek, LM Studio or MLX)",
+                "Drafting needs a model with an API key (Claude, OpenAI, Gemini, DeepSeek or a local server)",
             ));
         };
         let body = self

@@ -812,7 +812,7 @@ export function LlmPage(props: {
     <>
       <SubTitle>{t("Connected models")}</SubTitle>
       {props.models.length === 0 ? (
-        <p className="mb-3.5 text-[12.5px] text-muted-foreground">{t("No models connected yet. Add a cloud model below, or a local one in LM Studio or MLX.")}</p>
+        <p className="mb-3.5 text-[12.5px] text-muted-foreground">{t("No models connected yet. Add a cloud model below, or one from a model server on this computer.")}</p>
       ) : (
         props.models.map((item) => {
           return (
@@ -917,7 +917,7 @@ export function LlmPage(props: {
           <Choice label={t("Provider")} value={providerId} options={providers.map((item) => ({ value: item.id, label: item.label }))} onChange={chooseProvider} />
           {runsLocally(providerId) && choices.length === 0 ? (
             <Field label={t("Model")}>
-              <Input id="llm-model" value={modelId} placeholder={providerId === "mlx" ? t("Hugging Face repo or folder of an MLX model") : t("Model identifier in LM Studio")} onChange={(event) => setModelId(event.target.value)} />
+              <Input id="llm-model" value={modelId} placeholder={t("Model ID, as the server names it")} onChange={(event) => setModelId(event.target.value)} />
             </Field>
           ) : typing ? (
             <Field label={t("Model")}>
@@ -965,18 +965,13 @@ export function LlmPage(props: {
           </div>
         ) : null}
 
-        {providerId === "lmstudio" ? (
-          <Field label={t("LM Studio Endpoint")}>
-            <Input id="llm-host" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-          </Field>
-        ) : null}
-        {providerId === "mlx" ? (
+        {runsLocally(providerId) ? (
           <div className="flex flex-col gap-1.5">
-            <Field label={t("mlx_lm.server endpoint")}>
+            <Field label={t("Server address")}>
               <Input id="llm-host" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
             </Field>
             <p className="m-0 text-[12.5px] leading-snug text-muted-foreground">
-              {t("On a Mac with Apple silicon, install it with pip install mlx-lm and start it with mlx_lm.server --model <model>. The models it can load are listed here; to be the research assistant, a model needs tool calling.")}
+              {t("Any model server on this computer with OpenAI-compatible endpoints: LM Studio (port 1234), Ollama (11434), vLLM and llama.cpp (8000), mlx_lm.server (8080). The models it has loaded are listed here; to be the research assistant, a model needs tool calling and a context of 32K or more.")}
             </p>
           </div>
         ) : null}

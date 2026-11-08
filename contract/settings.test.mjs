@@ -80,14 +80,16 @@ test("a connection an agent uses cannot be removed, and removing a model turns o
 
 test("providers are listed with their models", async () => {
   const providers = await api("GET", "/llm/providers");
-  assert.deepEqual(providers.map((item) => item.id), ["openai", "claude", "claude-code", "codex", "gemini", "deepseek", "lmstudio", "mlx"]);
+  assert.deepEqual(providers.map((item) => item.id), ["openai", "claude", "claude-code", "codex", "gemini", "deepseek", "lmstudio"]);
   assert.ok(providers[0].models.length > 0);
   // Mythos 5.1 is Fable 5.1 for verified organizations: offered on the API and through Claude Code, beside Fable.
   for (const id of ["claude", "claude-code"]) {
     const models = providers.find((item) => item.id === id).models.map((item) => item.id);
     assert.ok(models.includes("claude-fable-5-1") && models.includes("claude-mythos-5-1"), `${id}: ${models}`);
   }
-  assert.deepEqual(providers.at(-1), { id: "mlx", label: "MLX", needsKey: false, baseUrl: "http://127.0.0.1:8080", models: [] });
+  // One provider for every model server on this computer, under the id it had when it only meant LM Studio.
+  assert.deepEqual(providers.at(-1), { id: "lmstudio", label: "Local server", needsKey: false, baseUrl: "http://127.0.0.1:1234", models: [] });
+  assert.equal((await call("GET", "/llm/mlx/models")).status, 404, "MLX is no longer a provider of its own");
 });
 
 test("a cloud provider's models are listed for its saved key, the key goes only where a connection sends it, and the built-in list stands in", async () => {
@@ -145,23 +147,29 @@ test("a cloud provider's models are listed for its saved key, the key goes only 
   }
 });
 
-test("an MLX model is connected without a key, from the models mlx_lm.server lists", async () => {
-  // A stand-in for mlx_lm.server: its /v1/models lists the models in the Hugging Face cache.
+test("a local server's model is connected without a key, from the models any OpenAI-compatible server lists", async () => {
+  // A stand-in for a server that is not LM Studio (mlx_lm.server, Ollama, vLLM): no /api/v0/models, and /v1/models lists
+  // embedding models among the chat models.
   const asked = [];
   const server = createServer((request, response) => {
     asked.push(request.url);
+    if (request.url !== "/v1/models") {
+      response.writeHead(404).end();
+      return;
+    }
     response.setHeader("content-type", "application/json");
     response.end(JSON.stringify({ object: "list", data: [{ id: "mlx-community/Qwen3-8B-4bit", object: "model", created: 1 }, { id: "mlx-community/bge-embed", object: "model", created: 1 }] }));
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const url = `http://127.0.0.1:${server.address().port}`;
   try {
-    const listed = await api("GET", `/llm/mlx/models?baseUrl=${encodeURIComponent(url)}`);
+    const listed = await api("GET", `/llm/lmstudio/models?baseUrl=${encodeURIComponent(url)}`);
     assert.deepEqual(listed, [{ id: "mlx-community/Qwen3-8B-4bit", label: "mlx-community/Qwen3-8B-4bit" }], "embedding models are left out");
-    assert.deepEqual(asked, ["/v1/models"]);
-    const model = await api("POST", "/connections/models", { provider: "mlx", model: listed[0].id, baseUrl: url }, 201);
-    assert.deepEqual([model.provider, model.model, model.baseUrl, model.hasSecret], ["mlx", "mlx-community/Qwen3-8B-4bit", url, false]);
+    assert.deepEqual(asked, ["/api/v0/models", "/v1/models"]);
+    const model = await api("POST", "/connections/models", { provider: "lmstudio", model: listed[0].id, baseUrl: url }, 201);
+    assert.deepEqual([model.provider, model.model, model.baseUrl, model.hasSecret], ["lmstudio", "mlx-community/Qwen3-8B-4bit", url, false]);
     await api("DELETE", `/connections/models/${model.id}`, undefined, 204);
+    assert.equal((await call("POST", "/connections/models", { provider: "mlx", model: "x", baseUrl: url })).status, 400, "mlx is not a provider to connect");
   } finally {
     server.close();
   }
@@ -172,7 +180,26 @@ test("an MLX model is connected without a key, from the models mlx_lm.server lis
       probe.close(() => resolve(`http://127.0.0.1:${port}`));
     });
   });
-  assert.deepEqual(await api("GET", `/llm/mlx/models?baseUrl=${encodeURIComponent(stopped)}`), [], "none while it is not running");
+  assert.deepEqual(await api("GET", `/llm/lmstudio/models?baseUrl=${encodeURIComponent(stopped)}`), [], "none while it is not running");
+});
+
+test("a model saved as MLX by an earlier version is a local-server model at the same address", async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "saturn-contract-mlx-"));
+  await writeFile(path.join(dataDir, "state.json"), JSON.stringify({
+    models: [{ id: "mdl_mlx", name: "Qwen on MLX", provider: "mlx", model: "mlx-community/Qwen3-8B-4bit", baseUrl: "http://127.0.0.1:8080" }],
+    agents: [{ id: "agt_1", name: "Local", modelConnectionId: "mdl_mlx" }],
+  }));
+  const older = await startRuntime({ dataDir });
+  try {
+    const token = (await readFile(path.join(older.dataDir, "runtime-token"), "utf8")).trim();
+    const response = await fetch(`${older.origin}/connections/models`, { headers: { authorization: `Bearer ${token}` } });
+    assert.equal(response.status, 200);
+    const [model] = await response.json();
+    assert.deepEqual([model.id, model.provider, model.model, model.baseUrl, model.hasSecret], ["mdl_mlx", "lmstudio", "mlx-community/Qwen3-8B-4bit", "http://127.0.0.1:8080", false]);
+  } finally {
+    await older.stop();
+    await rm(dataDir, { recursive: true, force: true });
+  }
 });
 
 test("an MCP server is added by URL only, and a local one waits for its exact command to be allowed", async () => {

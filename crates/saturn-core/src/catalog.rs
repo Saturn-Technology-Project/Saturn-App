@@ -311,7 +311,7 @@ impl Kernel {
             || {
                 CoreError::new(
                     400,
-                    "Choose OpenAI, Claude, Claude (via Claude Code), Codex, Gemini, DeepSeek, or LM Studio",
+                    "Choose OpenAI, Claude, Claude (via Claude Code), Codex, Gemini, DeepSeek, or a local server",
                 )
             },
         )?;
@@ -1067,50 +1067,19 @@ impl Kernel {
             .ok_or_else(|| CoreError::new(404, "RAG connection not found"))
     }
 
-    /// The models LM Studio has loaded; an empty list while it is not running, since the settings form polls this.
-    pub async fn lm_studio_models(&self, base_url: &str) -> Vec<Value> {
+    /// The language models the local model server at `base_url` has; an empty list while it is not running, since the
+    /// settings form polls this.
+    pub async fn local_server_models(&self, base_url: &str) -> Vec<Value> {
         let url = if base_url.is_empty() {
             "http://127.0.0.1:1234"
         } else {
             base_url
         };
-        let Ok(root) = saturn_llm::lmstudio::openai_compatible_url(url) else {
-            return Vec::new();
-        };
-        let root = root.strip_suffix("/v1").unwrap_or(&root);
-        let timeout = std::time::Duration::from_secs(4);
-        let http = self.broker.http();
-        let data = |reply: Option<Value>| {
-            reply.and_then(|body| body.get("data").and_then(Value::as_array).cloned())
-        };
-        let native = data(
-            http.get_json(&format!("{root}/api/v0/models"), timeout)
-                .await
-                .ok()
-                .flatten(),
-        )
-        .map(|items| {
-            items
-                .into_iter()
-                .filter(|item| matches!(text(item, "type"), "llm" | "vlm"))
-                .collect::<Vec<_>>()
-        });
-        let models = match native {
-            Some(models) => models,
-            None => data(
-                http.get_json(&format!("{root}/v1/models"), timeout)
-                    .await
-                    .ok()
-                    .flatten(),
-            )
+        saturn_llm::lmstudio::list_models(self.broker.http(), url)
+            .await
             .unwrap_or_default()
             .into_iter()
-            .filter(|item| !text(item, "id").to_lowercase().contains("embed"))
-            .collect(),
-        };
-        models
-            .iter()
-            .map(|item| json!({ "id": text(item, "id"), "label": text(item, "id") }))
+            .map(|id| json!({ "id": id, "label": id }))
             .collect()
     }
 
@@ -1127,7 +1096,7 @@ impl Kernel {
             .ok_or_else(|| {
                 CoreError::new(
                     404,
-                    "No such cloud provider. LM Studio and MLX list their models at their own routes.",
+                    "No such cloud provider. A local server lists its models at its own route.",
                 )
             })?;
         let built_in: Vec<Value> = PROVIDERS
@@ -1227,20 +1196,5 @@ impl Kernel {
             ),
         );
         Ok(json!({ "models": models, "source": "provider" }))
-    }
-
-    /// The models `mlx_lm.server` can load; an empty list while it is not running, since the settings form polls this.
-    pub async fn mlx_models(&self, base_url: &str) -> Vec<Value> {
-        let url = if base_url.is_empty() {
-            "http://127.0.0.1:8080"
-        } else {
-            base_url
-        };
-        saturn_llm::mlx::list_models(self.broker.http(), url)
-            .await
-            .unwrap_or_default()
-            .into_iter()
-            .map(|id| json!({ "id": id, "label": id }))
-            .collect()
     }
 }

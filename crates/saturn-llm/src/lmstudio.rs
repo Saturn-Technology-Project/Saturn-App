@@ -1,5 +1,6 @@
-//! LM Studio, through its OpenAI-compatible endpoints: Chat Completions takes tool definitions and images and returns the
-//! reasoning of thinking models; /completions serves raw completions.
+//! A model server on this computer (LM Studio, Ollama, vLLM, llama.cpp, mlx_lm.server), through its OpenAI-compatible
+//! endpoints: Chat Completions takes tool definitions and images and returns the reasoning of thinking models; /completions
+//! serves raw completions. The provider keeps its first name, `lmstudio`, in saved connections and records.
 use std::collections::VecDeque;
 use std::time::Duration;
 
@@ -47,19 +48,18 @@ pub fn alternating(messages: &[ChatMessage]) -> Vec<ChatMessage> {
     output
 }
 
-/// LM Studio's OpenAI-compatible endpoint (http://host:port/v1) for a connection saved as http://host:port.
-pub fn openai_compatible_url(base_url: &str) -> Result<String, LlmError> {
-    local_server_url(base_url, "LM Studio")
-}
+/// The name errors give the server.
+const SERVER: &str = "the local model server";
 
-/// The OpenAI-compatible endpoint (http://host:port/v1) of a model server on this computer, named `server` in errors.
-pub(crate) fn local_server_url(base_url: &str, server: &str) -> Result<String, LlmError> {
+/// The server's OpenAI-compatible endpoint (http://host:port/v1) for a connection saved as http://host:port. LM Studio
+/// once showed its address as ws://, which is taken too.
+pub fn openai_compatible_url(base_url: &str) -> Result<String, LlmError> {
     let http_url = match base_url.strip_prefix("ws") {
         Some(rest) if rest.starts_with(':') || rest.starts_with("s:") => format!("http{rest}"),
         _ => base_url.to_owned(),
     };
     let mut url = reqwest::Url::parse(&http_url).map_err(|error| {
-        LlmError::new(None, format!("{server}'s address is not valid: {error}"))
+        LlmError::new(None, format!("{SERVER}'s address is not valid: {error}"))
     })?;
     let path = url.path().trim_end_matches('/').to_owned();
     if !path.ends_with("/v1") {
@@ -68,27 +68,18 @@ pub(crate) fn local_server_url(base_url: &str, server: &str) -> Result<String, L
     Ok(url.as_str().trim_end_matches('/').to_owned())
 }
 
-/// One chat call to LM Studio. Local models' chat templates vary in how (and whether) they take tool turns: they get them as text.
+/// One chat call to the server, which takes any key: a placeholder is sent when the connection has none. Local models' chat
+/// templates vary in how (and whether) they take tool turns: they get them as text.
 pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, LlmError> {
-    complete_local(http, request, "LM Studio", "lm-studio").await
-}
-
-/// One chat call to a model server on this computer, which takes any key: `placeholder` is sent when the connection has none.
-pub(crate) async fn complete_local(
-    http: &Http,
-    request: &ChatRequest,
-    server: &str,
-    placeholder: &str,
-) -> Result<Completion, LlmError> {
     let local = ChatRequest {
         messages: alternating(&flatten_tool_turns(&request.messages, |_| false)),
-        base_url: local_server_url(&request.base_url, server)?,
+        base_url: openai_compatible_url(&request.base_url)?,
         api_key: Some(
             request
                 .api_key
                 .clone()
                 .filter(|key| !key.is_empty())
-                .unwrap_or_else(|| placeholder.to_owned()),
+                .unwrap_or_else(|| "lm-studio".to_owned()),
         ),
         temperature: request.temperature.map(|value| value.min(1.0)),
         effort: None,
@@ -190,21 +181,9 @@ pub(crate) async fn raw_stream(
     })
 }
 
-/// The model's raw completion of a prompt, from LM Studio's /v1/completions.
+/// The model's raw completion of a prompt, from the server's /v1/completions.
 pub async fn complete_raw(http: &Http, request: &RawRequest) -> Result<RawStream, LlmError> {
-    complete_raw_local(http, request, "LM Studio").await
-}
-
-/// The model's raw completion of a prompt, from the /v1/completions of a model server on this computer.
-pub(crate) async fn complete_raw_local(
-    http: &Http,
-    request: &RawRequest,
-    server: &str,
-) -> Result<RawStream, LlmError> {
-    let url = format!(
-        "{}/completions",
-        local_server_url(&request.base_url, server)?
-    );
+    let url = format!("{}/completions", openai_compatible_url(&request.base_url)?);
     let mut body = json!({
         "model": request.model,
         "prompt": request.prompt,
@@ -224,10 +203,21 @@ pub(crate) async fn complete_raw_local(
     .await
 }
 
-/// The language models downloaded in LM Studio: its REST API (/api/v0/models) tells them apart from embedding models; older
-/// versions only serve /v1/models.
+/// Whether a model's name marks it as an embedding or reranking model, which cannot chat: one with "embed" or "rerank" in
+/// it, or one of the families that are only that (bge, e5, gte), as in `mlx-community/bge-m3-mlx-fp16`.
+fn is_embedding_model(id: &str) -> bool {
+    let name = id.rsplit('/').next().unwrap_or(id).to_lowercase();
+    name.contains("embed")
+        || name.contains("rerank")
+        || ["bge-", "e5-", "multilingual-e5-", "gte-"]
+            .iter()
+            .any(|family| name.starts_with(family))
+}
+
+/// The language models the server has: LM Studio's REST API (/api/v0/models) tells them apart from embedding models;
+/// every other server, and older LM Studio versions, serve /v1/models, where embedding models are known by their names.
 pub async fn list_models(http: &Http, base_url: &str) -> Result<Vec<String>, LlmError> {
-    let not_running = |_| LlmError::new(None, "LM Studio is not running");
+    let not_running = |_| LlmError::new(None, format!("{SERVER} is not running"));
     let root = openai_compatible_url(base_url)?;
     let root = root.strip_suffix("/v1").unwrap_or(&root);
     let timeout = Duration::from_secs(4);
@@ -259,11 +249,7 @@ pub async fn list_models(http: &Http, base_url: &str) -> Result<Vec<String>, Llm
     Ok(older
         .and_then(|answer| {
             ids(&answer, &|item| {
-                !item["id"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .to_lowercase()
-                    .contains("embed")
+                !is_embedding_model(item["id"].as_str().unwrap_or_default())
             })
         })
         .unwrap_or_default())

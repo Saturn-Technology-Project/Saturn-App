@@ -182,8 +182,8 @@ export class AdminService {
     return this.runtime.request<ProviderModels>(`/llm/providers/${encodeURIComponent(provider)}/models`);
   }
 
-  /** The models a local model server at `baseUrl` (LM Studio or mlx_lm.server) offers; none while it is not running. */
-  localModels(provider: "lmstudio" | "mlx", baseUrl: string): Promise<LlmChoice[]> {
+  /** The models the local model server at `baseUrl` has loaded; none while it is not running. */
+  localModels(provider: "lmstudio", baseUrl: string): Promise<LlmChoice[]> {
     return this.runtime.request<LlmChoice[]>(`/llm/${provider}/models?baseUrl=${encodeURIComponent(baseUrl)}`);
   }
 

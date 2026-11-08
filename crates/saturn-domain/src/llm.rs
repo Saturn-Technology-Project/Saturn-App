@@ -11,7 +11,7 @@ pub struct LlmProvider {
 }
 
 /// The providers, without the model lists the settings page shows.
-const LLM_PROVIDERS: [LlmProvider; 8] = [
+const LLM_PROVIDERS: [LlmProvider; 7] = [
     LlmProvider {
         id: "openai",
         label: "OpenAI",
@@ -48,17 +48,13 @@ const LLM_PROVIDERS: [LlmProvider; 8] = [
         needs_key: true,
         base_url: "https://api.deepseek.com",
     },
+    // A model server on this computer with OpenAI-compatible endpoints: LM Studio, Ollama, vLLM, llama.cpp or mlx_lm.server.
+    // The id is the name it had when it only meant LM Studio, kept for saved connections and records.
     LlmProvider {
         id: "lmstudio",
-        label: "LM Studio",
+        label: "Local server",
         needs_key: false,
         base_url: "http://127.0.0.1:1234",
-    },
-    LlmProvider {
-        id: "mlx",
-        label: "MLX",
-        needs_key: false,
-        base_url: "http://127.0.0.1:8080",
     },
 ];
 
@@ -68,7 +64,7 @@ pub fn llm_provider(id: &str) -> Option<&'static LlmProvider> {
 
 /// Providers whose models run on this computer, through a model server the user started: they take no key and cost nothing.
 pub fn runs_locally(provider: &str) -> bool {
-    matches!(provider, "lmstudio" | "mlx")
+    provider == "lmstudio"
 }
 
 /// Providers that run on the user's own subscription through the vendor's official program. Saturn never sends an API
