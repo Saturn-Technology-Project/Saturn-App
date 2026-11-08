@@ -27,7 +27,7 @@ import type { ScreenProps } from "../shell/ScreenSwitch.js";
 import { Button } from "../ui/base/Button.js";
 import { Card } from "../ui/base/Card.js";
 import { classes } from "../ui/base/classes.js";
-import { Choice, Field } from "../ui/base/Field.js";
+import { Choice } from "../ui/base/Field.js";
 import { Input } from "../ui/base/Input.js";
 import { Notice } from "../ui/base/Notice.js";
 import { Textarea } from "../ui/base/Textarea.js";
@@ -843,22 +843,38 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
           </div>
         ) : null}
         {panel === PANEL.findings ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex max-w-3xl flex-col gap-2.5">
+            {/* What was understood takes the width; its kind and the save button sit under it, as one card. */}
             <form
-              className="flex flex-wrap items-end gap-2"
+              className="flex flex-col gap-2 rounded-lg border border-border bg-card p-2.5"
               onSubmit={(event) => {
                 event.preventDefault();
                 void addFinding();
               }}
             >
-              <Choice label={t("Kind")} className="flex-[0_1_150px]" value={findingKind} options={(Object.keys(FINDING_LABELS) as FindingKind[]).map((kind) => ({ value: kind, label: FINDING_LABELS[kind] }))} onChange={(next) => setFindingKind(next as FindingKind)} />
-              <Field label={t("What you understood")} className="flex-[1_1_260px]">
-                <Textarea className="resize-y" rows={2} value={findingText} onChange={(event) => setFindingText(event.target.value)} />
-              </Field>
-              <Button type="submit" variant="outline" disabled={!findingText.trim()}>
-                {t("Save finding")}
-              </Button>
+              <Textarea
+                aria-label={t("What you understood")}
+                placeholder={t("What you understood from this run: a claim, a doubt or what to try next")}
+                className="min-h-16 resize-y"
+                rows={3}
+                value={findingText}
+                onChange={(event) => setFindingText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && findingText.trim()) {
+                    event.preventDefault();
+                    void addFinding();
+                  }
+                }}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Choice ariaLabel={t("Kind")} className="w-36" value={findingKind} options={(Object.keys(FINDING_LABELS) as FindingKind[]).map((kind) => ({ value: kind, label: FINDING_LABELS[kind] }))} onChange={(next) => setFindingKind(next as FindingKind)} />
+                <span className={classes(MUTED, "ml-auto")}>{t("{shortcut} to save", { shortcut: /Mac/i.test(navigator.userAgent) ? "⌘↵" : "Ctrl+Enter" })}</span>
+                <Button type="submit" disabled={!findingText.trim()}>
+                  {t("Save finding")}
+                </Button>
+              </div>
             </form>
+            {findings.length === 0 ? <p className={classes(MUTED, "px-0.5")}>{t("No findings yet. What you save here is kept with the project's research records, beside the runs it is about.")}</p> : null}
             {[...findings].reverse().map((finding) => (
               <Card key={finding.id} className="gap-1 px-3.5 py-3">
                 <div className={MUTED}>

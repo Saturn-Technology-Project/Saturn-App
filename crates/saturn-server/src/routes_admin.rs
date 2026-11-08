@@ -27,6 +27,7 @@ use saturn_tools::shell::{process_env, shell_invocation};
 use serde_json::{Value, json};
 
 use crate::routes::{Answer, Body, Failure, Shared, body_of, created, given, layers_json, ok};
+use crate::terminal_sessions;
 
 type QueryText = Query<HashMap<String, String>>;
 
@@ -524,11 +525,37 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
     if command.is_empty() {
         return ok(json!({ "stdout": "", "stderr": "", "exitCode": 0, "cwd": shown }));
     }
+    // A panel that names itself keeps its shell's environment, functions and aliases from one command to the next.
+    let session = given(&body, "session")
+        .and_then(terminal_sessions::session_id)
+        .filter(|_| !cfg!(windows))
+        .map(str::to_owned);
+    let kept = session.as_deref().and_then(terminal_sessions::state_of);
+    let markers = terminal_sessions::Markers::new();
+    let prelude = kept
+        .as_ref()
+        .filter(|state| !state.definitions.trim().is_empty())
+        .map(|state| state.definitions.clone());
     let wrapped = if cfg!(windows) {
         format!("{command} & echo {CWD_MARKER}%CD%")
     } else {
+        // The snapshot comes before the kept definitions, so those count as set by the panel and are kept again.
+        let mut before = String::new();
+        if session.is_some() {
+            before.push_str(terminal_sessions::SNAPSHOT);
+            before.push('\n');
+        }
+        if prelude.is_some() {
+            before.push_str(terminal_sessions::PRELUDE);
+            before.push('\n');
+        }
+        let after = if session.is_some() {
+            format!("{}\n", terminal_sessions::trailer(&markers))
+        } else {
+            String::new()
+        };
         format!(
-            "{command}\n__saturn_ec=$?\nprintf \"\\n{CWD_MARKER}%s\\n\" \"$(pwd)\"\nexit $__saturn_ec"
+            "{before}{command}\n__saturn_ec=$?\nprintf \"\\n{CWD_MARKER}%s\\n\" \"$(pwd)\"\n{after}exit $__saturn_ec"
         )
     };
     let env = process_env();
@@ -537,9 +564,15 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
         |shell| shell.to_string_lossy().into_owned(),
     );
     let invocation = shell_invocation(&wrapped, &shell, Platform::current(), &env);
-    let mut variables: Vec<_> = env.into_iter().collect();
-    variables.push(("TERM".into(), "xterm-256color".into()));
-    if !cfg!(windows) {
+    let fresh = kept.is_none();
+    let mut variables: Vec<_> = match kept {
+        Some(state) => state.environment,
+        None => env.into_iter().collect(),
+    };
+    if fresh {
+        variables.push(("TERM".into(), "xterm-256color".into()));
+    }
+    if fresh && !cfg!(windows) {
         for item in &mut variables {
             if item.0 == "PATH" {
                 item.1 = format!(
@@ -564,12 +597,22 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
             &invocation,
             &cwd,
             &variables,
-            b"",
+            prelude.as_deref().unwrap_or_default().as_bytes(),
             Duration::from_secs(30),
             512 * 1024,
         ))
         .await;
-    let (stdout, final_cwd) = extract_cwd(&result.stdout, &shown);
+    let output = match (
+        session.as_deref(),
+        terminal_sessions::split_state(&result.stdout, &markers),
+    ) {
+        (Some(session), Some((before, state))) => {
+            terminal_sessions::keep(session, state);
+            before
+        }
+        _ => result.stdout.as_str(),
+    };
+    let (stdout, final_cwd) = extract_cwd(output, &shown);
     let code = result.code.unwrap_or(1);
     span.set("process.exit.code", code);
     if code != 0 {

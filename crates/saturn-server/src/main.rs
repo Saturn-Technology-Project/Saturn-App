@@ -6,6 +6,7 @@ mod routes;
 mod routes_admin;
 mod routes_language_servers;
 mod routes_research;
+mod terminal_sessions;
 
 use std::env;
 use std::path::PathBuf;

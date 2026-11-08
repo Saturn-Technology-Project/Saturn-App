@@ -8,6 +8,12 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - **A remote job's output comes back as fast as SSH carries it, and a long training log no longer stops it.** Each exchange with the worker carried at most 128 KiB per output and the next waited a second, so a busy log fell minutes behind, and any output past 64 MiB stopped synchronization. Parts are now up to 1 MiB and follow one another while more is waiting, and logs, metrics and resource readings may reach 1 GiB each. Install the worker again on each SSH host after upgrading.
 - **The research assistant is made only once.** When two screens asked for the assistant at the same moment on a first start, each could make one, and chats were split between them. They now share the one being made.
+- **The Workspace terminal keeps what a command set for the next one.** Each command runs in a new shell, so `source .venv/bin/activate`, `export` or a shell function used to be gone by the next command, and Python ran outside the virtual environment. Each terminal panel now carries its environment, functions and shell variables from one command to the next, so an activated environment stays active and `deactivate` restores the old `PATH`. (An alias carries over only in bash; zsh does not apply aliases inside a script.) A new project's terminal starts fresh. The environment stays inside Saturn's runtime and is never sent to the app. Not on Windows yet.
+
+### Changed
+
+- **Writing a finding in the Workspace is one card.** What you understood takes the full width, with its kind and Save beside each other under it, ⌘↵ (Ctrl+Enter) saves, and an empty list says where findings are kept.
+- **The Workspace terminal is denser.** Lines sit at 1.45 times the text size instead of twice it, commands are closer together, and "Clear terminal" sits in the top corner instead of taking a row of its own, so more output fits in the panel.
 
 ### Added
 

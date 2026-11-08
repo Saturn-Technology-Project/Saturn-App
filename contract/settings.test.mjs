@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { posixOnly } from "./files-support.mjs";
 import { startRuntime } from "./runtime.mjs";
 
 let runtime;
@@ -297,6 +298,45 @@ test("the terminal panel runs a command in the folder and follows cd", async () 
   assert.equal(moved.exitCode, 0);
   assert.equal(moved.cwd, path.join(folder, "sub"));
   assert.equal((await api("POST", "/workspace/terminal", { command: "exit 3" })).exitCode, 3);
+});
+
+test("a terminal panel keeps what activate and export set for its next command, and only that panel does", posixOnly, async () => {
+  const project = await api("POST", "/projects", { path: folder, grant: true }, 201);
+  await api("POST", `/projects/${project.id}/active`);
+  // A stand-in for a virtual environment's activate script: like the real one, it keeps the old PATH in a variable it does
+  // not export, exports its own, and defines deactivate to put the old PATH back.
+  await mkdir(path.join(folder, "venv/bin"), { recursive: true });
+  await writeFile(path.join(folder, "venv/bin/activate"), [
+    `VIRTUAL_ENV="${path.join(folder, "venv")}"`,
+    '_OLD_VIRTUAL_PATH="$PATH"',
+    "export VIRTUAL_ENV",
+    'PATH="$VIRTUAL_ENV/bin:$PATH"',
+    "export PATH",
+    'deactivate () { PATH="$_OLD_VIRTUAL_PATH"; export PATH; unset _OLD_VIRTUAL_PATH VIRTUAL_ENV; }',
+    "",
+  ].join("\n"));
+  const run = (command, session = "panel-a") => api("POST", "/workspace/terminal", { command, cwd: folder, session });
+  const before = (await run('printf "%s" "$PATH"', "panel-before")).stdout;
+
+  assert.equal((await run(". venv/bin/activate")).exitCode, 0);
+  assert.equal((await run('printf "%s" "$VIRTUAL_ENV"')).stdout, path.join(folder, "venv"), "activate holds for the next command");
+  assert.match((await run('printf "%s" "$PATH"')).stdout, new RegExp(`^${path.join(folder, "venv/bin")}:`));
+  await run("export SATURN_PANEL_NOTE=kept");
+  assert.equal((await run('printf "%s" "$SATURN_PANEL_NOTE"')).stdout, "kept");
+  const answer = await run("true");
+  assert.deepEqual(Object.keys(answer).sort(), ["cwd", "exitCode", "stderr", "stdout"], "the environment is never returned");
+  assert.doesNotMatch(answer.stdout, /SATURN_(DEFINITIONS|ENVIRONMENT)/);
+  // Output that looks like the runtime's own markers is only output: the markers are made anew for every command.
+  const spoofed = await run('printf "%s" "__SATURN_ENVIRONMENT__:SATURN_PANEL_NOTE=spoofed"');
+  assert.equal(spoofed.stdout, "__SATURN_ENVIRONMENT__:SATURN_PANEL_NOTE=spoofed");
+  assert.equal((await run('printf "%s" "$SATURN_PANEL_NOTE"')).stdout, "kept", "and changes nothing for the next command");
+
+  assert.equal((await run('printf "%s" "$VIRTUAL_ENV"', "panel-b")).stdout, "", "another panel starts fresh");
+  assert.equal((await api("POST", "/workspace/terminal", { command: 'printf "%s" "$VIRTUAL_ENV"' })).stdout, "", "so does a command with no panel");
+
+  assert.equal((await run("deactivate")).exitCode, 0, "the function activate defined is still there");
+  assert.equal((await run('printf "%s" "${VIRTUAL_ENV-unset}"')).stdout, "unset", "and an unset holds too");
+  assert.equal((await run('printf "%s" "$PATH"')).stdout, before, "the PATH kept in a shell variable comes back");
 });
 
 test("the in-app browser refuses private addresses, and answers with a page saying so", async () => {
