@@ -51,11 +51,13 @@ export function useConversation(agentId: string | null, threadId: string | null,
       .finally(() => streams.current.delete(stream));
   }, []);
 
+  /** Sends a message to this chat, or to `into`, a chat just made for it that this hook has not switched to yet. */
   const send = useCallback(
-    async (input: string, mode: RunMode) => {
-      if (!agentId || !threadId) return false;
+    async (input: string, mode: RunMode, into?: string) => {
+      const target = into ?? threadId;
+      if (!agentId || !target) return false;
       try {
-        const started = await desktop.runs.start(agentId, input, threadId, { mode });
+        const started = await desktop.runs.start(agentId, input, target, { mode });
         setRuns((list) => upsertRun(list, started));
         watch(started.id);
         return true;

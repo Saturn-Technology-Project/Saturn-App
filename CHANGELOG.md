@@ -2,6 +2,16 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Fixed
+
+- **The research assistant is made only once.** When two screens asked for the assistant at the same moment on a first start, each could make one, and chats were split between them. They now share the one being made.
+
+### Added
+
+- **The research assistant can have several chats in a project.** + starts a new chat, and the chat's name at the top of the panel opens the project's chats, most recently used first, where one is opened, renamed or deleted. A new chat is named after its first message, and each keeps its own messages and mode. A project opens on the chat it had open last, and a new chat is only kept once a message is sent in it. Your existing chat is kept and named after its first message.
+
 ## 0.5.1 (2026-11-08)
 
 ### Fixed

@@ -97,7 +97,7 @@ Settings holds models, MCP servers and skills, usage, memory, permissions, hooks
 
 ## The research assistant
 
-The assistant sits beside every screen (⌘J), knows which one you are on and what each is for, and can walk you through something, boxing each place while you do the work. Each chat has a mode, chosen beside the assistant's name:
+The assistant sits beside every screen (⌘J), knows which one you are on and what each is for, and can walk you through something, boxing each place while you do the work. A project can have as many chats as you like: + starts one, and the chat's name opens the list, where a chat is opened, renamed or deleted; a new chat is named after its first message. Each chat has a mode, chosen at the top of the panel:
 
 | Mode | What the assistant may do |
 |---|---|
