@@ -10,6 +10,8 @@ use std::time::Duration;
 use saturn_domain::new_id;
 use saturn_domain::research::SCHEMA_VERSION;
 use saturn_domain::time::{iso_time, now_millis};
+use saturn_tools::sandbox::Platform;
+use saturn_tools::shell::{process_env, shell_invocation};
 use saturn_tools::{EndOnDrop, in_own_group, launch_env};
 use serde_json::{Value, json};
 use tokio::process::Command;
@@ -96,12 +98,34 @@ pub(super) const KITS: [Kit; 6] = [
     },
 ];
 
-/// The first place on PATH that has a program.
+/// The first place on PATH that has a program. Windows spells a program `name.exe`, and its Python is `python.exe`
+/// (the Store's `python3.exe` alias aside), so each name is tried as that system spells it. An empty file is not a
+/// program: the Store leaves zero-length `python.exe` and `python3.exe` aliases on PATH that only open the Store.
 fn on_path(name: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    std::env::split_paths(&path)
-        .map(|folder| folder.join(name))
-        .find(|candidate| candidate.is_file())
+    program_in(&std::env::var_os("PATH")?, name)
+}
+
+/// `on_path` against a given PATH.
+fn program_in(path: &std::ffi::OsStr, name: &str) -> Option<PathBuf> {
+    let spellings: Vec<String> = if cfg!(windows) {
+        let mut spellings = vec![format!("{name}.exe")];
+        if name == "python3" {
+            spellings.push("python.exe".to_owned());
+        }
+        spellings
+    } else {
+        vec![name.to_owned()]
+    };
+    std::env::split_paths(path).find_map(|folder| {
+        spellings
+            .iter()
+            .map(|spelling| folder.join(spelling))
+            .find(|candidate| {
+                candidate
+                    .metadata()
+                    .is_ok_and(|found| found.is_file() && found.len() > 0)
+            })
+    })
 }
 
 /// The managed interpreter's path inside the project, as the record says it.
@@ -126,9 +150,31 @@ fn clean_package(name: &str) -> Result<&str, CoreError> {
     Ok(name)
 }
 
-/// A shell word with no interpretation.
+/// A shell word with no interpretation: single quotes for the POSIX shell, double quotes for cmd, which knows no other.
 fn quoted(word: &str) -> String {
-    format!("'{}'", word.replace('\'', "'\\''"))
+    if cfg!(windows) {
+        format!("\"{}\"", word.replace('"', "\\\""))
+    } else {
+        format!("'{}'", word.replace('\'', "'\\''"))
+    }
+}
+
+/// The shell's arguments as it takes them: cmd gets the script verbatim, since it does not understand the \" escaping
+/// the usual quoting would add.
+#[cfg(windows)]
+fn shell_arguments(command: &mut Command, shell: &saturn_tools::shell::Invocation) {
+    if shell.verbatim {
+        for argument in &shell.args {
+            command.raw_arg(argument);
+        }
+    } else {
+        command.args(&shell.args);
+    }
+}
+
+#[cfg(not(windows))]
+fn shell_arguments(command: &mut Command, shell: &saturn_tools::shell::Invocation) {
+    command.args(&shell.args);
 }
 
 impl Kernel {
@@ -224,7 +270,13 @@ impl Kernel {
                     "Only uv can pick a Python version. Without it, the environment is made from the python3 on this computer: leave the version empty.",
                 ));
             }
-            commands.push(format!("python3 -m venv {}", quoted(VENV)));
+            // Windows has python.exe rather than python3, so the Python found on PATH is named by its path there.
+            let python3 = if cfg!(windows) {
+                quoted(tools["python3"].as_str().unwrap_or("python"))
+            } else {
+                "python3".to_owned()
+            };
+            commands.push(format!("{python3} -m venv {}", quoted(VENV)));
         } else {
             return Err(CoreError::new(
                 422,
@@ -408,9 +460,17 @@ impl Kernel {
             }
             running.insert(records.clone());
         }
+        // Each command is echoed before it runs, so the log reads as a terminal would; cmd has no printf and echoes the
+        // line as written.
         let script = commands
             .iter()
-            .map(|command| format!("printf '$ %s\\n' {} && {command}", quoted(command)))
+            .map(|command| {
+                if cfg!(windows) {
+                    format!("echo $ {command} && {command}")
+                } else {
+                    format!("printf '$ %s\\n' {} && {command}", quoted(command))
+                }
+            })
             .collect::<Vec<_>>()
             .join(" && ");
         let log = match std::fs::File::create(records.join(LOG_FILE)) {
@@ -427,7 +487,10 @@ impl Kernel {
                 return Err(error.into());
             }
         };
-        let mut command = Command::new("/bin/sh");
+        // The system shell runs the script: /bin/sh, or cmd on Windows.
+        let shell = shell_invocation(&script, "/bin/sh", Platform::current(), &process_env());
+        let mut command = Command::new(&shell.file);
+        shell_arguments(&mut command, &shell);
         launch_env(&mut command);
         for (name, _) in std::env::vars_os() {
             if name.to_string_lossy().starts_with("SATURN_") {
@@ -435,7 +498,6 @@ impl Kernel {
             }
         }
         command
-            .args(["-c", &script])
             .current_dir(&source)
             .env("PIP_DISABLE_PIP_VERSION_CHECK", "1")
             .stdin(Stdio::null())
@@ -526,3 +588,37 @@ impl Kernel {
 
 /// The set of records folders with a job running, kept on the research state.
 pub(super) type RunningJobs = HashSet<PathBuf>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A program's file name as this system spells it.
+    fn spelled(name: &str) -> String {
+        if cfg!(windows) {
+            format!("{name}.exe")
+        } else {
+            name.to_owned()
+        }
+    }
+
+    #[test]
+    fn a_program_is_the_first_real_file_of_its_name_on_path() {
+        let root = tempfile::tempdir().expect("a temporary folder");
+        let aliases = root.path().join("aliases");
+        let real = root.path().join("real");
+        std::fs::create_dir_all(&aliases).unwrap();
+        std::fs::create_dir_all(&real).unwrap();
+        // An empty file of the right name, as the Store leaves on Windows, is not the program.
+        std::fs::write(aliases.join(spelled("uv")), b"").unwrap();
+        std::fs::write(real.join(spelled("uv")), b"#!/bin/sh\n").unwrap();
+        let path = std::env::join_paths([&aliases, &real]).unwrap();
+        assert_eq!(program_in(&path, "uv"), Some(real.join(spelled("uv"))));
+        assert_eq!(program_in(&path, "python3"), None);
+        if cfg!(windows) {
+            // Windows has python.exe where Unix has python3.
+            std::fs::write(real.join("python.exe"), b"MZ").unwrap();
+            assert_eq!(program_in(&path, "python3"), Some(real.join("python.exe")));
+        }
+    }
+}
