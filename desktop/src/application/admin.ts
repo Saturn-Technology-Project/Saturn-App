@@ -1,4 +1,4 @@
-import type { AgentBrowser, LlmChoice, LlmProvider, LogLine, Mcp, CliStatus, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
+import type { AgentBrowser, LlmChoice, LlmProvider, ProviderModels, LogLine, Mcp, CliStatus, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary, EmbeddingSource } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -175,6 +175,11 @@ export class AdminService {
 
   providers(): Promise<LlmProvider[]> {
     return this.runtime.request<LlmProvider[]>("/llm/providers");
+  }
+
+  /** The models a cloud provider lists for its saved key, or Saturn's built-in ones with a note saying why. */
+  providerModels(provider: string): Promise<ProviderModels> {
+    return this.runtime.request<ProviderModels>(`/llm/providers/${encodeURIComponent(provider)}/models`);
   }
 
   /** The models a local model server at `baseUrl` (LM Studio or mlx_lm.server) offers; none while it is not running. */

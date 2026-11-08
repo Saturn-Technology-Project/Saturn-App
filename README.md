@@ -266,7 +266,7 @@ Launching Saturn starts its own runtime and keeps it running: it restarts one th
 | LM Studio | None | Any locally served model, fully offline |
 | MLX | None | Models `mlx_lm.server` serves on a Mac with Apple silicon, fully offline |
 
-API keys are stored encrypted in `~/.saturn-app/secrets.json` (AES-256-GCM, key in the OS key store; see [Data at rest](#data-at-rest)), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider.
+API keys are stored encrypted in `~/.saturn-app/secrets.json` (AES-256-GCM, key in the OS key store; see [Data at rest](#data-at-rest)), sent only to the provider they belong to, and never returned to the UI. One key covers every model of its provider. Once a key is saved, the model list in Settings is the one the provider gives for that key, so a new model appears without a Saturn update; without a key, or for Claude Code and Codex, Saturn's built-in list is shown, and any other model ID can be typed in. Prices for the Usage page are kept by hand in Saturn, so a model newer than Saturn shows as unpriced until an update.
 
 ### Claude and Anthropic's terms
 

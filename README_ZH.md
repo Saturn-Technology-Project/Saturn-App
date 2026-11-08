@@ -261,7 +261,7 @@ crates/                                   desktop/src/
 | LM Studio | 無 | 任何本機提供的模型，完全離線 |
 | MLX | 無 | Apple 晶片 Mac 上由 `mlx_lm.server` 提供的模型，完全離線 |
 
-API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。
+API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。儲存金鑰後，設定頁的模型清單就是供應商依該金鑰列出的清單，新模型不必等 Saturn 更新就會出現；沒有金鑰時，或 Claude Code 與 Codex，顯示 Saturn 的內建清單，也可以手動輸入任何其他模型 ID。用量頁的價格由 Saturn 手動維護，比 Saturn 新的模型在更新前會顯示為未定價。
 
 ### Claude 與 Anthropic 的條款
 

@@ -6,7 +6,7 @@ import { desktop } from "../../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
-import { EFFORT_LABELS, removalQuestion, runsLocally, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LlmProvider, type LogLine, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
+import { EFFORT_LABELS, removalQuestion, runsLocally, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type EmbeddingSource, type LlmProvider, type LogLine, type ProviderModels, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
 import type { CodexStatus, ProgramStatus } from "../../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -693,6 +693,9 @@ function McpPage(props: {
   );
 }
 
+/** The model choice that opens a field for a model ID of the person's own. */
+const OTHER_MODEL = "\u0000other";
+
 export function LlmPage(props: {
   models: Model[];
   onChanged: () => Promise<void>;
@@ -705,6 +708,9 @@ export function LlmPage(props: {
   const [secret, setSecret] = useState("");
   const [effort, setEffort] = useState("");
   const [studioModels, setStudioModels] = useState<{ id: string; label: string }[]>([]);
+  // What a cloud provider listed for its saved key, and whether the person is typing a model ID of their own.
+  const [listed, setListed] = useState<ProviderModels | null>(null);
+  const [typing, setTyping] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [keyDraft, setKeyDraft] = useState("");
   const provider = providers.find((item) => item.id === providerId) ?? providers[0];
@@ -740,8 +746,29 @@ export function LlmPage(props: {
     };
   }, [providerId, baseUrl]);
 
+  // Asked again when a key is saved, so a new key's models appear; Saturn's own list shows until the provider answers.
+  const keyed = props.models.filter((item) => item.provider === providerId && item.hasSecret).length;
+  useEffect(() => {
+    if (runsLocally(providerId) || providers.length === 0) return;
+    let current = true;
+    setListed(null);
+    void desktop.admin.providerModels(providerId)
+      .then((next) => {
+        if (!current) return;
+        setListed(next);
+        setModelId((chosen) => (next.models.some((item) => item.id === chosen) ? chosen : next.models[0]?.id ?? chosen));
+      })
+      .catch(() => {
+        if (current) setListed(null);
+      });
+    return () => {
+      current = false;
+    };
+  }, [providerId, keyed, providers.length]);
+
   function chooseProvider(id: string) {
     const next = providers.find((item) => item.id === id);
+    setTyping(false);
     setProviderId(id);
     setModelId(next?.models[0]?.id ?? "");
     setBaseUrl(next?.baseUrl ?? "");
@@ -777,7 +804,7 @@ export function LlmPage(props: {
     }
   }
 
-  const choices = runsLocally(providerId) ? studioModels : provider?.models ?? [];
+  const choices = runsLocally(providerId) ? studioModels : listed?.models ?? provider?.models ?? [];
   const needsKey = provider?.needsKey ?? true;
   const savedKey = props.models.some((item) => item.provider === providerId && item.hasSecret);
 
@@ -892,10 +919,35 @@ export function LlmPage(props: {
             <Field label={t("Model")}>
               <Input id="llm-model" value={modelId} placeholder={providerId === "mlx" ? t("Hugging Face repo or folder of an MLX model") : t("Model identifier in LM Studio")} onChange={(event) => setModelId(event.target.value)} />
             </Field>
+          ) : typing ? (
+            <Field label={t("Model")}>
+              <div className="flex gap-2">
+                <Input id="llm-model" value={modelId} placeholder={t("Model ID, as the provider names it")} onChange={(event) => setModelId(event.target.value)} />
+                <Button variant="outline" size="small" type="button" onClick={() => { setTyping(false); setModelId(choices[0]?.id ?? ""); }}>{t("Back to the list")}</Button>
+              </div>
+            </Field>
           ) : (
-            <Choice label={t("Model")} value={modelId} options={choices.map((item) => ({ value: item.id, label: item.label }))} onChange={setModelId} />
+            <Choice
+              label={t("Model")}
+              value={modelId}
+              options={[...choices.map((item) => ({ value: item.id, label: item.label })), ...(runsLocally(providerId) ? [] : [{ value: OTHER_MODEL, label: t("Other model ID…") }])]}
+              onChange={(next) => {
+                if (next !== OTHER_MODEL) return setModelId(next);
+                setTyping(true);
+                setModelId("");
+              }}
+            />
           )}
         </div>
+        {!runsLocally(providerId) && listed ? (
+          <p className="m-0 text-[12.5px] leading-snug text-muted-foreground" title={listed.note}>
+            {listed.source === "provider"
+              ? t("Listed by {provider} for your saved API key.", { provider: provider?.label ?? "" })
+              : needsKey
+                ? t("Saturn's built-in list. Once a model is connected with an API key, the models that key can use are listed here.")
+                : t("Saturn's built-in list. Choose Other model ID to use any model the program accepts.")}
+          </p>
+        ) : null}
 
         {supportsEffort(providerId) ? (
           <div className="flex flex-col gap-1.5">

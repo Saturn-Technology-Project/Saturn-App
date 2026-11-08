@@ -89,6 +89,61 @@ test("providers are listed with their models", async () => {
   assert.deepEqual(providers.at(-1), { id: "mlx", label: "MLX", needsKey: false, baseUrl: "http://127.0.0.1:8080", models: [] });
 });
 
+test("a cloud provider's models are listed for its saved key, the key goes only where a connection sends it, and the built-in list stands in", async () => {
+  // Without a key: the built-in list, said to be one, and nothing sent anywhere.
+  const bare = await api("GET", "/llm/providers/claude/models");
+  assert.equal(bare.source, "built-in");
+  assert.ok(bare.models.some((item) => item.id === "claude-mythos-5-1"));
+  assert.match(bare.note, /No Claude API key is saved/);
+  const plan = await api("GET", "/llm/providers/claude-code/models");
+  assert.equal(plan.source, "built-in");
+  assert.match(plan.note, /can be typed in/);
+  assert.equal((await call("GET", "/llm/providers/lmstudio/models")).status, 404, "a local server lists at its own route");
+
+  // A stand-in for Anthropic's model list: one built-in model, one Saturn does not know, and it records the headers.
+  const asked = [];
+  const server = createServer((request, response) => {
+    asked.push({ url: request.url, key: request.headers["x-api-key"], version: request.headers["anthropic-version"] });
+    if (request.headers["x-api-key"] !== "made-up-list-key") {
+      response.writeHead(401, { "content-type": "application/json" }).end(JSON.stringify({ error: { message: "invalid x-api-key made-up-list-key" } }));
+      return;
+    }
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({ data: [
+      { id: "claude-next-6", display_name: "Claude Next 6", type: "model" },
+      { id: "claude-fable-5-1", display_name: "Claude Fable 5.1 (listed)", type: "model" },
+    ], has_more: false }));
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const query = `?baseUrl=${encodeURIComponent(url)}`;
+    const refused = await call("GET", `/llm/providers/claude/models${query}`);
+    assert.equal(refused.status, 400, "an address no connection uses gets no key");
+    assert.equal(asked.length, 0);
+
+    await api("POST", "/connections/models", { provider: "claude", model: "claude-fable-5-1", baseUrl: url, secret: "made-up-list-key" }, 201);
+    const listed = await api("GET", `/llm/providers/claude/models${query}`);
+    assert.equal(listed.source, "provider");
+    assert.deepEqual(listed.models, [
+      { id: "claude-fable-5-1", label: "Claude Fable 5.1" },
+      { id: "claude-next-6", label: "Claude Next 6" },
+    ], "Saturn's names first, a new model after, a built-in one the key cannot use left out");
+    assert.deepEqual(asked.at(-1), { url: "/v1/models?limit=1000", key: "made-up-list-key", version: "2023-06-01" });
+
+    // A refused key: the built-in list again, and the provider's body (which can quote the key) is not passed on.
+    // A model connected with another key replaces the provider's saved one.
+    await api("POST", "/connections/models", { provider: "claude", model: "claude-opus-5-5", baseUrl: url, secret: "made-up-wrong-key" }, 201);
+    const failed = await api("GET", `/llm/providers/claude/models${query}`);
+    assert.equal(failed.source, "built-in");
+    assert.match(failed.note, /did not list its models \(401\)/);
+    assert.doesNotMatch(JSON.stringify(failed), /made-up/);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test("an MLX model is connected without a key, from the models mlx_lm.server lists", async () => {
   // A stand-in for mlx_lm.server: its /v1/models lists the models in the Hugging Face cache.
   const asked = [];

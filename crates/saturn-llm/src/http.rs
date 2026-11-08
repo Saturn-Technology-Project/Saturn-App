@@ -269,6 +269,36 @@ impl Http {
             .map_err(|error| LlmError::from_transport(&error))?;
         Ok(parse_reply(&text).ok())
     }
+
+    /// Reads a provider's JSON with the headers its key goes in. A refusal keeps only its status, since some providers
+    /// quote part of the key back in the body.
+    pub async fn get_json_with(
+        &self,
+        url: &str,
+        headers: &[(&str, &str)],
+        timeout: Duration,
+    ) -> Result<Value, LlmError> {
+        let mut request = self.client.get(url).timeout(timeout);
+        for (name, value) in headers {
+            request = request.header(*name, *value);
+        }
+        let response = request
+            .send_noted()
+            .await
+            .map_err(|error| LlmError::from_transport(&error))?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(LlmError::new(
+                Some(status.as_u16()),
+                status.as_u16().to_string(),
+            ));
+        }
+        let text = response
+            .text()
+            .await
+            .map_err(|error| LlmError::from_transport(&error))?;
+        parse_reply(&text)
+    }
 }
 
 /// A provider's JSON, which may hold what JavaScript and Python write but Rust's parser refuses, or nesting that deep.

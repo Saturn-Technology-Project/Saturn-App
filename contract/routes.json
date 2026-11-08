@@ -49,6 +49,7 @@
   "GET /llm/lmstudio/models",
   "GET /llm/mlx/models",
   "GET /llm/providers",
+  "GET /llm/providers/:provider/models",
   "GET /logs",
   "GET /marketplace",
   "GET /memory/:scope",
