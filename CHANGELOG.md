@@ -6,6 +6,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ### Fixed
 
+- **A remote job's output comes back as fast as SSH carries it, and a long training log no longer stops it.** Each exchange with the worker carried at most 128 KiB per output and the next waited a second, so a busy log fell minutes behind, and any output past 64 MiB stopped synchronization. Parts are now up to 1 MiB and follow one another while more is waiting, and logs, metrics and resource readings may reach 1 GiB each. Install the worker again on each SSH host after upgrading.
 - **The research assistant is made only once.** When two screens asked for the assistant at the same moment on a first start, each could make one, and chats were split between them. They now share the one being made.
 
 ### Added

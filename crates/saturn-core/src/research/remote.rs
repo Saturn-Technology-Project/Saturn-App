@@ -30,8 +30,16 @@ const OUTPUTS: [&str; 8] = [
     "stderr.log",
     "resources.jsonl",
 ];
-const OUTPUT_LIMIT: u64 = 64 * 1024 * 1024;
-const CHUNK: u64 = 128 * 1024;
+/// How much of one output a job may write before synchronization stops. Logs, metrics and resource readings grow with a
+/// long training run; the records Saturn reads whole (samples, the report, the snapshot, the artifact list) stay small.
+fn output_limit(name: &str) -> u64 {
+    match name {
+        "stdout.log" | "stderr.log" | "metrics.jsonl" | "resources.jsonl" => 1024 * 1024 * 1024,
+        _ => 64 * 1024 * 1024,
+    }
+}
+/// The most of one output a single exchange carries; while more is waiting the next exchange follows at once.
+const CHUNK: u64 = 1024 * 1024;
 const NOTE: &str = "Uses your SSH configuration and host verification. Install this version of saturn-server on the remote host first. Code and data are not uploaded: the host builds the run's snapshot from its own working tree and checks every file against the version, and a difference refuses the run before anything starts. Closing Saturn detaches; stopping explicitly requests cancellation.";
 /// What a refused remote run is told to do.
 const REMOTE_HINT: &str = "Bring the host's working folder to the version (with git, say), or freeze a new version, then start again.";
@@ -360,11 +368,13 @@ impl Kernel {
                     break;
                 }
                 match kernel.sync_remote(&project, &id).await {
-                    Ok(true) => {
+                    Ok((true, _)) => {
                         let _ = kernel.set_launch(&project, &id, None).await;
                         break;
                     }
-                    Ok(false) => {}
+                    // Output is still waiting: pull the next part now rather than a second later.
+                    Ok((false, true)) => continue,
+                    Ok((false, false)) => {}
                     Err(error) if final_remote_error(error.status) => {
                         let _ = kernel.remote_ended(&project, &id, &error).await;
                         break;
@@ -469,10 +479,11 @@ impl Kernel {
     }
 
     /// Pulls append-only streams in bounded chunks and publishes completion only after they have all arrived.
-    async fn sync_remote(&self, project: &str, id: &str) -> Result<bool, CoreError> {
+    /// One exchange with the worker: whether the run is complete, and whether output is still waiting to be pulled.
+    async fn sync_remote(&self, project: &str, id: &str) -> Result<(bool, bool), CoreError> {
         let run = self.research_run(project, id).await?;
         if !saturn_domain::research::run_is_active(text(&run, "status")) {
-            return Ok(true);
+            return Ok((true, false));
         }
         let version = self
             .research_record(project, "versions", text(&run, "versionId"))
@@ -620,7 +631,7 @@ impl Kernel {
         }
         write_whole(&folder.join("run.json"), &pretty(&current)?).await?;
         self.research_changed();
-        Ok(complete)
+        Ok((complete, response["more"] == true))
     }
 }
 
@@ -847,10 +858,14 @@ async fn worker_rpc(request: &Value) -> Result<Value, CoreError> {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => (0, None),
             Err(error) => return Err(error.into()),
         };
-        if size > OUTPUT_LIMIT {
+        let limit = output_limit(name);
+        if size > limit {
             return Err(CoreError::new(
                 413,
-                "A remote output exceeded the 64 MiB synchronization limit. The job may still be running.",
+                format!(
+                    "The remote {name} exceeded its {} MiB synchronization limit. The job may still be running.",
+                    limit / (1024 * 1024)
+                ),
             ));
         }
         let cursor = request["cursors"][name].as_u64().unwrap_or(0);

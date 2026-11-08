@@ -52,7 +52,7 @@ async function experiment(command, kind = "evaluation", files = {}, inputs = und
   await api("PUT", `${route}/remote`, { host: "fixture-host", workdir: remote, program: worker });
   const draft = await api("POST", `${route}/experiments`, { title: "Remote", command, kind, ...(inputs ? { inputs } : {}), ...fields });
   const version = await api("POST", `${route}/experiments/${draft.id}/versions`, {});
-  return { route, version };
+  return { route, version, local };
 }
 
 test("a detached worker survives the runtime, reconnects, and does not submit twice", { skip: process.platform === "win32" }, async () => {
@@ -90,6 +90,17 @@ test("training-only jobs sync metrics, and stop and wall-clock limits end the wo
   await until("another worker", () => api("GET", `${route}/runs/${another.id}`), (item) => item.status === "running");
   await api("POST", `${route}/runs/${another.id}/stop`, {});
   await until("stopped", () => api("GET", `${route}/runs/${another.id}`), (item) => item.status === "stopped");
+});
+
+test("a remote job's log larger than 64 MiB comes back whole, in large parts pulled one after another", { skip: process.platform === "win32" }, async () => {
+  // 65 MiB of log, then one sample: the old pace (128 KiB a second) would take minutes, and the old limit refused it.
+  await writeFile(path.join(remote, "chatty.mjs"), `import { appendFileSync, writeSync } from 'node:fs'; const line = 'x'.repeat(1023) + '\\n'; for (let i = 0; i < 65 * 1024; i++) writeSync(1, line); appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({schemaVersion:1,sampleId:'only',input:'a',scores:{s:1}})+'\\n');`);
+  const { route, version, local } = await experiment("node chatty.mjs");
+  const run = await api("POST", `${route}/remote/runs`, { versionId: version.id, clientId: "chatty", timeoutSeconds: 120 });
+  const ended = await until("the chatty job to come back", () => api("GET", `${route}/runs/${run.id}`), (item) => !["starting", "running", "stopping"].includes(item.status), 90);
+  assert.equal(ended.status, "completed", JSON.stringify(ended));
+  const log = await readFile(path.join(local, ".saturn/research/runs", run.id, "stdout.log"));
+  assert.equal(log.length, 65 * 1024 * 1024);
 });
 
 test("remote settings reject command-like host names and do not disable host verification", async () => {
