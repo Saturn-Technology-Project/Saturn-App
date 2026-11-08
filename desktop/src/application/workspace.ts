@@ -34,10 +34,11 @@ export class WorkspaceService {
     return this.runtime.request<TerminalInfo>("/workspace/info");
   }
 
-  exec(command: string, cwd?: string): Promise<TerminalExecResult> {
+  /** Runs one command; a `session` keeps the shell's environment, functions and aliases for the next command of the same panel. */
+  exec(command: string, cwd?: string, session?: string): Promise<TerminalExecResult> {
     return this.runtime.request<TerminalExecResult>("/workspace/terminal", {
       method: "POST",
-      body: JSON.stringify({ command, cwd }),
+      body: JSON.stringify({ command, cwd, session }),
     });
   }
 

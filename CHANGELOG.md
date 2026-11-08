@@ -2,6 +2,17 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Fixed
+
+- **The Workspace terminal keeps what a command set for the next one.** Each command runs in a new shell, so `source .venv/bin/activate`, `export` or a shell function used to be gone by the next command, and Python ran outside the virtual environment. Each terminal panel now carries its environment, functions and shell variables from one command to the next, so an activated environment stays active and `deactivate` restores the old `PATH`. (An alias carries over only in bash; zsh does not apply aliases inside a script.) A new project's terminal starts fresh. The environment stays inside Saturn's runtime and is never sent to the app. Not on Windows yet.
+
+### Changed
+
+- **Writing a finding in the Workspace is one card.** What you understood takes the full width, with its kind and Save beside each other under it, ⌘↵ (Ctrl+Enter) saves, and an empty list says where findings are kept.
+- **The Workspace terminal is denser.** Lines sit at 1.45 times the text size instead of twice it, commands are closer together, and "Clear terminal" sits in the top corner instead of taking a row of its own, so more output fits in the panel.
+
 ## 0.5.1 (2026-11-08)
 
 ### Fixed
