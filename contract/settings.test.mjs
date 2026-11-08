@@ -81,6 +81,11 @@ test("providers are listed with their models", async () => {
   const providers = await api("GET", "/llm/providers");
   assert.deepEqual(providers.map((item) => item.id), ["openai", "claude", "claude-code", "codex", "gemini", "deepseek", "lmstudio", "mlx"]);
   assert.ok(providers[0].models.length > 0);
+  // Mythos 5.1 is Fable 5.1 for verified organizations: offered on the API and through Claude Code, beside Fable.
+  for (const id of ["claude", "claude-code"]) {
+    const models = providers.find((item) => item.id === id).models.map((item) => item.id);
+    assert.ok(models.includes("claude-fable-5-1") && models.includes("claude-mythos-5-1"), `${id}: ${models}`);
+  }
   assert.deepEqual(providers.at(-1), { id: "mlx", label: "MLX", needsKey: false, baseUrl: "http://127.0.0.1:8080", models: [] });
 });
 
