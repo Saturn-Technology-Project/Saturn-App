@@ -272,6 +272,7 @@ impl Kernel {
         {
             let cloned = {
                 let mut command = Command::new("git");
+                saturn_tools::no_window(&mut command);
                 command
                     .args([
                         "-c",

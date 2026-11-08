@@ -373,6 +373,7 @@ impl Kernel {
         let working_folder = source.join(text(&version, "cwd"));
         let mut command = Command::new(&python);
         launch_env(&mut command);
+        saturn_tools::no_window(&mut command);
         for (name, _) in std::env::vars_os() {
             if name.to_string_lossy().starts_with("SATURN_") {
                 command.env_remove(&name);
@@ -697,6 +698,7 @@ impl Kernel {
         let working_folder = source.join(text(version, "cwd"));
         let mut command = Command::new(python);
         launch_env(&mut command);
+        saturn_tools::no_window(&mut command);
         for (name, _) in std::env::vars_os() {
             if name.to_string_lossy().starts_with("SATURN_") {
                 command.env_remove(&name);

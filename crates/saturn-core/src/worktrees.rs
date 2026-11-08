@@ -19,6 +19,7 @@ const GIT_TIMEOUT: Duration = Duration::from_secs(120);
 /// Runs git, giving its trimmed output or the last line of what it complained about.
 pub(crate) async fn run_git(cwd: &Path, args: &[&str]) -> Result<String, String> {
     let mut command = Command::new("git");
+    saturn_tools::no_window(&mut command);
     command
         .args(args)
         .current_dir(cwd)

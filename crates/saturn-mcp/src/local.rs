@@ -69,6 +69,12 @@ impl LocalSession {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
+        // The runtime has no console on Windows, so a server would get a visible one of its own unless told not to.
+        #[cfg(windows)]
+        {
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            prepared.creation_flags(CREATE_NO_WINDOW);
+        }
         for name in INHERITED {
             if let Some(value) = std::env::var_os(name) {
                 prepared.env(name, value);

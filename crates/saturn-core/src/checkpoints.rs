@@ -82,6 +82,7 @@ async fn git(
     timeout: Option<Duration>,
 ) -> Result<Vec<u8>, GitFailure> {
     let mut command = Command::new("git");
+    saturn_tools::no_window(&mut command);
     command
         .arg("-C")
         .arg(cwd)

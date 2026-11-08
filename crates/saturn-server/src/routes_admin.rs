@@ -437,7 +437,9 @@ async fn workspace_info(State(kernel): Shared) -> Answer {
         .ok()
         .filter(|name| !name.is_empty())
         .or_else(|| {
-            let output = std::process::Command::new("hostname").output().ok()?;
+            let mut command = std::process::Command::new("hostname");
+            saturn_tools::no_window_blocking(&mut command);
+            let output = command.output().ok()?;
             Some(String::from_utf8_lossy(&output.stdout).trim().to_owned())
         });
     let host = host.unwrap_or_default();

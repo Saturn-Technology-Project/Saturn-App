@@ -52,7 +52,9 @@ async fn group_usage(pgid: u32) -> Option<(f64, u64, u64)> {
 
 /// Each GPU's load and memory, when `nvidia-smi` is on this computer. `None` when it is not or it fails.
 async fn gpus() -> Option<Vec<Value>> {
-    let output = Command::new("nvidia-smi")
+    let mut command = Command::new("nvidia-smi");
+    saturn_tools::no_window(&mut command);
+    let output = command
         .args([
             "--query-gpu=name,utilization.gpu,memory.used,memory.total",
             "--format=csv,noheader,nounits",

@@ -35,14 +35,14 @@ const SKIP_DIRS: [&str; 11] = [
 
 /// A git command's output.
 async fn git(cwd: &Path, args: &[&str]) -> Result<String, String> {
-    let output = Command::new("git")
+    let mut command = Command::new("git");
+    saturn_tools::no_window(&mut command);
+    command
         .args(args)
         .current_dir(cwd)
         .stdin(Stdio::null())
-        .kill_on_drop(true)
-        .output()
-        .await
-        .map_err(|error| error.to_string())?;
+        .kill_on_drop(true);
+    let output = command.output().await.map_err(|error| error.to_string())?;
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     } else {

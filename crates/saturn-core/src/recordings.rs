@@ -165,6 +165,7 @@ impl Kernel {
         let target = folder.join("out.mp4");
         if !target.exists() {
             let mut command = tokio::process::Command::new("ffmpeg");
+            saturn_tools::no_window(&mut command);
             command
                 .args([
                     "-y",

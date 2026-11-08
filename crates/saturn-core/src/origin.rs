@@ -347,6 +347,7 @@ impl<'a> Origin<'a> {
         token: Option<&str>,
     ) -> Result<String, Failure> {
         let mut command = Command::new("git");
+        saturn_tools::no_window(&mut command);
         command
             .args(args)
             .current_dir(cwd)
@@ -918,6 +919,7 @@ impl<'a> Origin<'a> {
                     return Some(token);
                 }
                 let mut command = Command::new("gh");
+                saturn_tools::no_window(&mut command);
                 command
                     .args(["auth", "token"])
                     .stdin(Stdio::null())

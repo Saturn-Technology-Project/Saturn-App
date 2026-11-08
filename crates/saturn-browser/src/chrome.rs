@@ -259,6 +259,7 @@ impl Chrome {
         let port_file = profile.join("DevToolsActivePort");
         let _ = std::fs::remove_file(&port_file);
         let mut command = tokio::process::Command::new(program);
+        saturn_tools::no_window(&mut command);
         command
             .arg("--remote-debugging-port=0")
             .arg(format!("--user-data-dir={}", profile.display()));

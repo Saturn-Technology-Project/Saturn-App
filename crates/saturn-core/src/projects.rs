@@ -578,6 +578,7 @@ fn file_manager() -> &'static str {
 /// Starts a desktop program detached from the runtime. A program that is not there is logged, not an error.
 pub fn launch_app(what: &str, program: &str, args: &[&str], cwd: Option<&Path>) {
     let mut command = std::process::Command::new(program);
+    saturn_tools::no_window_blocking(&mut command);
     command
         .args(args)
         .stdin(Stdio::null())

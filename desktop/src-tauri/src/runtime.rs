@@ -435,8 +435,16 @@ fn spawn(layout: &Layout, port: u16, instance: &str) -> std::io::Result<Child> {
         .env("SATURN_RUNTIME_HOST", HOST)
         .env("SATURN_RUNTIME_PORT", port.to_string())
         .env("SATURN_RUNTIME_INSTANCE", instance)
-        .env("SATURN_DESKTOP_ATTACHED", "1")
-        .spawn()
+        .env("SATURN_DESKTOP_ATTACHED", "1");
+    // A console program started by a windowed one gets a console window of its own on Windows unless told not to. The
+    // runtime's output comes down the pipes, and it starts its own programs without a window too.
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command.spawn()
 }
 
 #[cfg(test)]
