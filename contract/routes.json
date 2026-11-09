@@ -51,6 +51,7 @@
   "GET /logs",
   "GET /memory/:scope",
   "GET /network",
+  "GET /oauth/callback",
   "GET /permissions",
   "GET /plugins",
   "GET /programs",

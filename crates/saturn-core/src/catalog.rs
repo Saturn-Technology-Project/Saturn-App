@@ -6,7 +6,7 @@ use saturn_domain::js;
 use saturn_domain::llm::{llm_provider, runs_locally, runs_on_plan};
 use saturn_domain::new_id;
 use saturn_llm::{Effort, ModelConnection};
-use saturn_mcp::{LocalCommand, Target};
+use saturn_mcp::{LocalCommand, McpError, Target};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use url::Url;
@@ -986,6 +986,40 @@ impl Kernel {
     }
 
     /// Asks a server what tools it has now. The built-in ones are their own list.
+    /// A remote server's tools. One that answers that it needs a sign-in, and says where (OAuth), is signed in to in the
+    /// browser, as the user asked to connect it; from then on it is an OAuth server. The browser then comes back to
+    /// /oauth/callback, and the next discovery lists the tools.
+    async fn listed_tools(&self, id: &str, server: &Value) -> Result<Vec<Value>, CoreError> {
+        let target = self.mcp_target(server)?;
+        let first = self.mcp.list_tools(&target).await;
+        let needs_sign_in = matches!(&first, Err(McpError::Failed(message)) if message == "The server requires sign-in");
+        if !(needs_sign_in && target.auth == "none" && target.command.is_none()) {
+            return first.map_err(Into::into);
+        }
+        let signed = Target {
+            auth: "oauth".to_owned(),
+            ..target
+        };
+        let second = self.mcp.list_tools(&signed).await;
+        if matches!(&second, Ok(_) | Err(McpError::SignIn(_))) {
+            self.store
+                .update(|state| {
+                    if let Some(found) = by_id_mut(&mut state.mcp, id) {
+                        found["auth"] = "oauth".into();
+                    }
+                })
+                .await?;
+        }
+        match second {
+            Err(McpError::SignIn(_)) => Err(CoreError::new(
+                409,
+                "The server needs you to sign in: finish it in the browser page that opened, then connect again.",
+            )),
+            Err(McpError::Failed(_)) => first.map_err(Into::into),
+            Ok(tools) => Ok(tools),
+        }
+    }
+
     pub async fn discover_mcp(&self, id: &str) -> Result<Value, CoreError> {
         if id == GENERAL_SKILLS_ID {
             return Err(CoreError::new(403, "General Skills is built in"));
@@ -997,7 +1031,7 @@ impl Kernel {
         let tools = if [COMPUTER_USE_ID, ORIGIN_ID, AUTOMATIONS_ID].contains(&id) {
             builtin_server(id)["tools"].clone()
         } else {
-            let listed = self.mcp.list_tools(&self.mcp_target(&server)?).await?;
+            let listed = self.listed_tools(id, &server).await?;
             let market = text(&server, "marketplaceId");
             let routed: Vec<Value> = listed
                 .into_iter()

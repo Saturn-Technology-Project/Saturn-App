@@ -12,8 +12,9 @@ use serde_json::json;
 
 use crate::auth::token_matches;
 
-/// Open to callers without the token: the health probe.
-const OPEN_PATHS: [&str; 1] = ["/health"];
+/// Open to callers without the token: the health probe, and where a browser comes back from an MCP sign-in (it
+/// finishes only a sign-in Saturn started).
+const OPEN_PATHS: [&str; 2] = ["/health", "/oauth/callback"];
 const AGENT_SKILLS_PATH: &str = "/agent-mcp";
 
 /// The only cross-origin callers are Saturn's own windows, which load from a loopback origin. A sandboxed iframe or a
