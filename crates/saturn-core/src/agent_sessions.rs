@@ -56,6 +56,36 @@ pub(crate) fn approval_mode(
     autonomy_of(agent.get("autonomy").and_then(Value::as_str))
 }
 
+/// The stricter of two approval modes: Review asks for everything, Default for risky calls, Bypass for nothing.
+fn stricter(one: GuardrailMode, other: GuardrailMode) -> GuardrailMode {
+    let rank = |mode: GuardrailMode| match mode {
+        GuardrailMode::Bypass => 0,
+        GuardrailMode::Default => 1,
+        GuardrailMode::Review => 2,
+    };
+    if rank(other) > rank(one) { other } else { one }
+}
+
+impl Kernel {
+    /// How much a run asks: its group's setting, else its chat's mode, else its agent's own setting; and a run another
+    /// run delegated to never asks less than the run that delegated it, whichever agent it was given to.
+    pub(crate) fn run_approval(&self, run: &Value, agent: &Value) -> GuardrailMode {
+        let group = self.group_of(run);
+        let own = approval_mode(agent, group.as_ref(), self.chat_mode_of(run).as_deref());
+        let parent = text(run, "parentRunId");
+        if parent.is_empty() {
+            return own;
+        }
+        let Some((parent, parent_agent)) = self.find_run(parent).and_then(|parent| {
+            let agent = self.get_agent(text(&parent, "agentId")).ok()?;
+            Some((parent, agent))
+        }) else {
+            return own;
+        };
+        stricter(own, self.run_approval(&parent, &parent_agent))
+    }
+}
+
 /// The most of a text kept on a run.
 pub(crate) fn clip(value: &str, max: usize) -> String {
     if js::length(value) > max {

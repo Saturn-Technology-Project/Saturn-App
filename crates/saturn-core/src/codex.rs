@@ -18,8 +18,8 @@ use tokio::sync::Notify;
 
 use crate::agent_programs::{SignIn, ask_program, question_timeout};
 use crate::agent_sessions::{
-    RunningProgram, SKILLS_SERVER, SkillsBridge, Turn, approval_mode, clip, keep_stderr,
-    program_command, same_call, stderr_of, with_knowledge,
+    RunningProgram, SKILLS_SERVER, SkillsBridge, Turn, clip, keep_stderr, program_command,
+    same_call, stderr_of, with_knowledge,
 };
 use crate::records::{strings, text};
 use crate::{CoreError, Kernel, locked, log, open_in_browser};
@@ -635,8 +635,8 @@ impl Kernel {
         let turn = Turn::new(self, run_id, at);
 
         // The agent's Saturn skills and MCP servers, over the runtime's /agent-mcp endpoint with a token only this turn holds. Codex
-        // approves every call itself; Saturn asks the user here when the agent's setting is Review.
-        let group = self.group_of(&run);
+        // approves every call itself; Saturn asks the user here when the agent's setting is Review, and for risky calls in
+        // the default mode.
         let tools = self.bridged_tools(agent);
         let token = (!tools.is_empty()).then(|| saturn_domain::random_hex(32));
         let token = token
@@ -647,7 +647,7 @@ impl Kernel {
                 turn: Arc::clone(&turn),
                 agent: agent.clone(),
                 mode,
-                approval: approval_mode(agent, group.as_ref(), self.chat_mode_of(&run).as_deref()),
+                approval: self.run_approval(&run, agent),
                 tools,
                 orphans: Mutex::default(),
                 asked: Mutex::default(),

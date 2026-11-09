@@ -7,9 +7,7 @@ use saturn_domain::hooks::HookDecision;
 use saturn_domain::js;
 use saturn_domain::new_id;
 use saturn_domain::permissions::{Effect, Rule, Scope};
-use saturn_domain::policies::{
-    GuardrailMode, autonomy_of, is_read_only_call, is_sensitive_operation,
-};
+use saturn_domain::policies::{GuardrailMode, is_read_only_call, is_sensitive_operation};
 use saturn_domain::prompt::{RunMode, clip, explain_run_error, join_thinking, read_only_refusal};
 use saturn_domain::time::{iso_time, now_millis};
 use saturn_llm::{Completion, ImagePart, ToolCall};
@@ -1291,22 +1289,9 @@ impl Kernel {
         }
         let agent_id = text(agent, "id");
         let run = self.get_run(run_id)?;
-        // In a group, the group's approval setting (when it has one) replaces the agent's own.
-        let autonomy = self.store.read(|state| {
-            by_id(&state.groups, text(&run, "groupId"))
-                .and_then(|group| group.get("autonomy"))
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-        });
-        let mode = autonomy_of(
-            autonomy
-                .as_deref()
-                .or_else(|| {
-                    self.chat_mode_of(&run)
-                        .and_then(|mode| saturn_domain::research::chat_approvals(&mode))
-                })
-                .or_else(|| agent.get("autonomy").and_then(Value::as_str)),
-        );
+        // In a group, the group's approval setting (when it has one) replaces the agent's own; a delegated run asks at
+        // least as much as the run that delegated it.
+        let mode = self.run_approval(&run, agent);
         let turn_mode = RunMode::parse(run.get("mode").and_then(Value::as_str));
         for call in calls {
             if !self.alive(run_id, at) {

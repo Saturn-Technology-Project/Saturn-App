@@ -21,8 +21,8 @@ use tokio::task::JoinSet;
 
 use crate::agent_programs::{Answer, ask_program, question_timeout};
 use crate::agent_sessions::{
-    RunningProgram, SKILLS_SERVER, SkillsBridge, Turn, approval_mode, clip, keep_stderr,
-    program_command, resolved, stderr_of, with_knowledge,
+    RunningProgram, SKILLS_SERVER, SkillsBridge, Turn, clip, keep_stderr, program_command,
+    resolved, stderr_of, with_knowledge,
 };
 use crate::permissions::explain;
 use crate::records::text;
@@ -601,8 +601,7 @@ impl Kernel {
         .collect();
         let append = append.join("\n\n");
 
-        let group = self.group_of(&run);
-        let approval = approval_mode(agent, group.as_ref(), self.chat_mode_of(&run).as_deref());
+        let approval = self.run_approval(&run, agent);
         let thread = self.find_thread(text(&run, "threadId"));
         let checkpointing = thread.is_some_and(|thread| !text(&thread, "projectId").is_empty());
         let turn = Turn::new(self, run_id, at);
