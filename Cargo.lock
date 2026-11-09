@@ -320,12 +320,6 @@ checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
 name = "base64"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
-
-[[package]]
-name = "base64"
 version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
@@ -3456,7 +3450,7 @@ name = "saturn-browser"
 version = "0.6.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "futures-util",
  "reqwest",
  "saturn-domain",
@@ -3482,7 +3476,7 @@ dependencies = [
 name = "saturn-computer"
 version = "0.6.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "regex",
  "saturn-domain",
  "saturn-tools",
@@ -3497,7 +3491,7 @@ name = "saturn-core"
 version = "0.6.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "jiff",
  "percent-encoding",
  "regex",
@@ -3576,7 +3570,7 @@ name = "saturn-mcp"
 version = "0.6.0"
 dependencies = [
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "futures-util",
  "getrandom 0.3.4",
  "reqwest",
@@ -3615,7 +3609,7 @@ name = "saturn-store"
 version = "0.6.0"
 dependencies = [
  "aes-gcm",
- "base64 0.22.1",
+ "base64 0.23.1",
  "getrandom 0.3.4",
  "saturn-domain",
  "saturn-telemetry",

@@ -10,7 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-base64 = "0.22"
+base64 = "0.23"
 regex = "1"
 saturn-domain = { path = "../saturn-domain" }
 saturn-tools = { path = "../saturn-tools" }
