@@ -26,7 +26,7 @@ write_sample(out, sampleId=f"step-{step:08d}", input="validation loss", output="
 So the Samples and Resources screens show progress as it happens. Print to stdout too.
 
 ## Time limits and resuming
-A run that stops cannot continue as the same run, so make the program resume from the newest checkpoint when given one, restoring model, optimizer, schedule step and random state. Add a wall-clock limit that saves and exits 0.
+A run that stops cannot continue as the same run, so make the program resume from the newest checkpoint when given one, restoring model, optimizer, schedule step and every random generator's state, the CUDA devices' included (see `pause-and-resume`). Add a wall-clock limit that saves and exits 0.
 
 `sampleId` must be unique within a run, not across runs, so a resumed run may repeat steps. Name its resumption point in a finding.
 
