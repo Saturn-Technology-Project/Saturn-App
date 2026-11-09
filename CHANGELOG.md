@@ -8,6 +8,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - **A computer without Python gets one from Saturn.** When neither uv nor Python is found, Environment offers to download uv (about 15 MB, from its GitHub release, checked against a checksum pinned in Saturn, like the Claude Code and Codex downloads), and making the managed environment then has uv install a Python first, the version you chose or the newest stable, before the environment is made from it. A computer with Python but no uv is offered the same download, since uv is what lets a Python version be picked. Saturn's copy of uv can be removed like the other programs; the Python uv installed stays in uv's own folder.
 
+### Changed
+
+- **The project list says where each project is, and adding one stands apart.** The list at the top of the window shows each project's folder under its name, with the home folder written `~`, and a line sets "Add a project folder…" off from the projects. The name is given the room it needs, up to a limit, instead of a fixed width that cut a long one short.
+
 ### Fixed
 
 - **The access dialog keeps its buttons inside it.** A long folder path widened the dialog's content past its edge, so the note under it and Cancel and Allow Access sat over the window behind. The whole path now wraps inside the dialog, in that dialog and in Edit Workspace.
