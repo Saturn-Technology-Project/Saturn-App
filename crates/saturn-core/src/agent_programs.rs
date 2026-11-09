@@ -1,6 +1,8 @@
-//! Claude Code and Codex, the official programs behind the Claude Code and Codex providers. Saturn does not ship them: it finds
-//! one on the system, or downloads the exact package its tests pinned from the npm registry, checks it against the pinned
-//! sha512 and unpacks it into `<data>/tools`. Settings shows a download button until one is found, and the sign-in once it is.
+//! The programs Saturn downloads rather than ships: Claude Code and Codex, the official programs behind the providers of
+//! those names, and uv, which makes Python environments and can install Python itself. Saturn finds one on the system, or
+//! downloads the exact package its tests pinned (the npm registry for the two programs, uv's GitHub release for uv), checks
+//! it against the pinned sha512 and unpacks it into `<data>/tools`. Settings shows a download button for a program until
+//! one is found, and the sign-in once it is; Environment does the same for uv.
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -61,28 +63,32 @@ pub struct ProgramState {
     pub(crate) running: Mutex<HashSet<u32>>,
 }
 
-/// One of the two programs by id, or the 404 for anything else.
+/// The programs, in the order the list gives them.
+const PROGRAMS: [&str; 3] = ["claude-code", "codex", "uv"];
+
+/// One of the programs by id, or the 404 for anything else.
 pub fn program_id(value: &str) -> Result<&'static str, CoreError> {
-    match value {
-        "claude-code" => Ok("claude-code"),
-        "codex" => Ok("codex"),
-        _ => Err(CoreError::new(
-            404,
-            "Unknown program; use claude-code or codex",
-        )),
-    }
+    PROGRAMS
+        .iter()
+        .copied()
+        .find(|id| *id == value)
+        .ok_or_else(|| CoreError::new(404, "Unknown program; use claude-code, codex or uv"))
 }
 
 fn label(id: &str) -> &'static str {
-    if id == "codex" {
-        "Codex"
-    } else {
-        "Claude Code"
+    match id {
+        "codex" => "Codex",
+        "uv" => "uv",
+        _ => "Claude Code",
     }
 }
 
 fn executable(id: &str) -> String {
-    let name = if id == "codex" { "codex" } else { "claude" };
+    let name = match id {
+        "codex" => "codex",
+        "uv" => "uv",
+        _ => "claude",
+    };
     if cfg!(windows) {
         format!("{name}.exe")
     } else {
@@ -105,17 +111,29 @@ pub(crate) fn platform() -> String {
     format!("{system}-{architecture}")
 }
 
-/// The program inside an unpacked platform package: claude at its root, codex under vendor/<target>/bin.
+/// The program inside an unpacked platform package: claude at its root, codex under vendor/<target>/bin, and uv at the
+/// root (the Windows zip) or in the one folder its tar.gz holds (`uv-<target>/uv`).
 fn binary_in(id: &str, package: &Path) -> Option<PathBuf> {
-    if id != "codex" {
-        let file = package.join(executable(id));
-        return file.exists().then_some(file);
-    }
-    std::fs::read_dir(package.join("vendor"))
-        .ok()?
-        .flatten()
-        .map(|entry| entry.path().join("bin").join(executable(id)))
-        .find(|file| file.exists())
+    let folders = match id {
+        "codex" => std::fs::read_dir(package.join("vendor"))
+            .ok()?
+            .flatten()
+            .map(|entry| entry.path().join("bin"))
+            .collect(),
+        "uv" => std::iter::once(package.to_path_buf())
+            .chain(
+                std::fs::read_dir(package)
+                    .ok()?
+                    .flatten()
+                    .map(|entry| entry.path()),
+            )
+            .collect(),
+        _ => vec![package.to_path_buf()],
+    };
+    folders
+        .into_iter()
+        .map(|folder| folder.join(executable(id)))
+        .find(|file| file.is_file())
 }
 
 /// A program's answer to a question about itself.
@@ -187,7 +205,7 @@ impl Kernel {
     }
 
     /// Saturn's own download first (the tested version), then the system's.
-    fn resolve_program(&self, id: &str) -> Option<(PathBuf, &'static str)> {
+    pub(crate) fn resolve_program(&self, id: &str) -> Option<(PathBuf, &'static str)> {
         let saturn = self.program_package(id).and_then(|item| {
             binary_in(
                 id,
@@ -275,12 +293,13 @@ impl Kernel {
         status
     }
 
-    /// Both programs.
+    /// Every program.
     pub async fn program_statuses(&self) -> Value {
-        json!([
-            self.program_status("claude-code").await,
-            self.program_status("codex").await,
-        ])
+        let mut statuses = Vec::with_capacity(PROGRAMS.len());
+        for id in PROGRAMS {
+            statuses.push(self.program_status(id).await);
+        }
+        Value::Array(statuses)
     }
 
     /// Starts the download in the background; the status reports its progress.
@@ -393,7 +412,8 @@ impl Kernel {
     }
 }
 
-/// Unpacks a checked package, makes its program executable, and leaves only this version in the program's folder.
+/// Unpacks a checked package, makes its program executable, and leaves only this version in the program's folder. An npm
+/// tarball holds a `package` folder; uv's archive holds its files bare, so it is unpacked into one of that name.
 async fn unpack(
     id: &str,
     archive: &Path,
@@ -404,10 +424,13 @@ async fn unpack(
 ) -> Result<(), String> {
     let describe = |error: std::io::Error| error.to_string();
     let _ = tokio::fs::remove_dir_all(unpacking).await;
-    tokio::fs::create_dir_all(unpacking)
-        .await
-        .map_err(describe)?;
-    untar(archive, unpacking).await?;
+    let into = if id == "uv" {
+        unpacking.join("package")
+    } else {
+        unpacking.to_path_buf()
+    };
+    tokio::fs::create_dir_all(&into).await.map_err(describe)?;
+    untar(archive, &into).await?;
     let binary = binary_in(id, &unpacking.join("package"))
         .ok_or_else(|| "the package does not contain the program".to_owned())?;
     make_executable(&binary).await.map_err(describe)?;
@@ -566,7 +589,8 @@ async fn sha512_of(file: &Path) -> std::io::Result<String> {
     }
 }
 
-/// Unpacks a .tgz with the system's tar (bsdtar on macOS and Windows 10+, GNU tar on Linux).
+/// Unpacks a .tgz with the system's tar (bsdtar on macOS and Windows 10+, GNU tar on Linux). bsdtar reads a .zip, uv's
+/// archive on Windows, the same way: on extraction it tells the format itself and ignores -z.
 async fn untar(archive: &Path, destination: &Path) -> Result<(), String> {
     let tar = if cfg!(windows) {
         let root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());

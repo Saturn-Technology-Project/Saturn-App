@@ -1,7 +1,9 @@
 // A managed Python environment in the project: made and filled by jobs whose output is kept, with uv when it is on
-// PATH. A stand-in uv plays the tool. docs/research-contract.md is the contract.
+// PATH, which installs a Python first when the computer has none. A stand-in uv plays the tool. docs/research-contract.md
+// is the contract.
 import assert from "node:assert/strict";
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -35,6 +37,10 @@ PY
   sync)
     echo "synced" >> installed.txt
     ;;
+  python)
+    shift; shift
+    echo "installed python $* bin=$UV_PYTHON_INSTALL_BIN registry=$UV_PYTHON_INSTALL_REGISTRY managed=$UV_MANAGED_PYTHON"
+    ;;
 esac
 `;
 
@@ -64,6 +70,7 @@ test("creating the environment makes a venv with uv, installs the bundled kit, a
   const { folder, route } = await project();
   const before = await saturn.api("GET", route);
   assert.ok(before.tools.uv.endsWith("/uv"));
+  assert.equal(before.tools.uvSource, "system");
   assert.equal(before.tools.managed.exists, false);
   assert.equal(before.job, null);
   assert.deepEqual(before.kits.map((kit) => [kit.id, kit.bundled]), [["core", true], ["interpretability", false], ["training", false], ["analysis", false], ["notebooks", false], ["language-server", false]]);
@@ -75,6 +82,7 @@ test("creating the environment makes a venv with uv, installs the bundled kit, a
   assert.equal(done.job.status, "completed", done.job.logTail);
   assert.equal(done.job.exitCode, 0);
   assert.deepEqual(done.job.commands, ["uv venv '.venv'", "uv pip install --python '.venv/bin/python' 'torch' 'transformers' 'numpy'"]);
+  assert.deepEqual(done.job.env, { UV_PYTHON_INSTALL_BIN: "0", UV_PYTHON_INSTALL_REGISTRY: "0" });
   assert.match(done.job.logTail, /\$ uv venv '.venv'\nmade .venv\n\$ uv pip install/);
   assert.equal(done.tools.managed.exists, true);
   assert.equal(done.python, ".venv/bin/python");
@@ -99,6 +107,7 @@ test("a kit, named packages and a lock file are installed by jobs, one at a time
   await saturn.api("POST", `${route}/install`, { kit: "interpretability", packages: ["rich>=13"] });
   const installed = await until("the install", () => saturn.api("GET", route), settled);
   assert.equal(installed.job.kind, "install");
+  assert.deepEqual(installed.job.env, {});
   assert.equal(installed.job.commands[0], "uv pip install --python '.venv/bin/python' 'transformer_lens' 'sae_lens' 'einops' 'rich>=13'");
   const bad = await saturn.call("POST", `${route}/install`, { packages: ["--upgrade"] });
   assert.equal(bad.status, 400);
@@ -123,6 +132,44 @@ test("a kit, named packages and a lock file are installed by jobs, one at a time
   assert.equal(checked.kits.find((kit) => kit.id === "interpretability").packages[0].installed, "2.0.0");
   assert.ok(await readFile(path.join(folder, ".venv/bin/python"), "utf8"));
   await mkdir(path.join(folder, "unused"));
+});
+
+test("with uv and no Python on this computer, making the environment has uv install a Python first", posixOnly, async () => {
+  // A PATH with the stand-in uv and only what its venv step runs: no python3 anywhere on it.
+  const bare = await mkdtemp(path.join(os.tmpdir(), "saturn-no-python-"));
+  await writeFile(path.join(bare, "uv"), UV);
+  await chmod(path.join(bare, "uv"), 0o755);
+  for (const name of ["mkdir", "cat", "chmod", "git"]) {
+    const found = execFileSync("/bin/sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).trim();
+    await symlink(found, path.join(bare, name));
+  }
+  const alone = await bench({ env: { PATH: bare } });
+  try {
+    const folder = await alone.folder();
+    const made = await alone.api("POST", "/projects", { path: folder });
+    await alone.api("POST", `/projects/${made.id}/access`, {});
+    const route = `/projects/${made.id}/research/environment`;
+    const before = await alone.api("GET", route);
+    assert.equal(before.tools.python3, null);
+    assert.ok(before.tools.uv.endsWith("/uv"));
+
+    await alone.api("POST", `${route}/create`, { withCore: false, python: "3.12" });
+    const done = await until("the job to end", () => alone.api("GET", route), settled);
+    assert.deepEqual(done.job.commands, ["uv python install '3.12'", "uv venv --python '3.12' '.venv'"]);
+    // The Python goes into uv's folder alone, and the environment is made from it rather than one found elsewhere.
+    assert.deepEqual(done.job.env, { UV_PYTHON_INSTALL_BIN: "0", UV_PYTHON_INSTALL_REGISTRY: "0", UV_MANAGED_PYTHON: "1" });
+    assert.equal(done.job.status, "completed", done.job.logTail);
+    assert.match(done.job.logTail, /\$ uv python install '3.12'\ninstalled python 3.12 bin=0 registry=0 managed=1\n\$ uv venv/);
+    assert.equal(done.python, ".venv/bin/python");
+
+    // With no version asked for, uv installs its newest stable Python.
+    await rm(path.join(folder, ".venv"), { recursive: true, force: true });
+    await alone.api("POST", `${route}/create`, { withCore: false });
+    const newest = await until("the second job", () => alone.api("GET", route), (record) => settled(record) && record.job.commands.length === 2 && record.job.commands[0] === "uv python install");
+    assert.deepEqual(newest.job.commands, ["uv python install", "uv venv '.venv'"]);
+  } finally {
+    await alone.stop();
+  }
 });
 
 test("a job can be stopped, and one started by another runtime reads as interrupted", posixOnly, async () => {

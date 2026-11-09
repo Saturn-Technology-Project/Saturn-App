@@ -71,7 +71,7 @@ Out of scope: a process already running as the same user can read the token file
 ### 6. Supply chain and updates
 
 - No npm install scripts in the desktop app; npm lock file, registry signatures and an audit in CI; crates from crates.io only, with checksums in `Cargo.lock` and `cargo deny` in CI; GitHub Actions pinned to commit SHAs (`.github/workflows/supply-chain.yml`, `deny.toml`).
-- Claude Code and Codex downloads are checked against pinned SHA-512 hashes (`crates/saturn-core/src/agent-programs.json`, `crates/saturn-core/src/agent_programs.rs`); the bundled embedding model and tokenizer against SHA-256 when the release is built (`desktop/scripts/fetch-embedding-model.mjs`).
+- Claude Code, Codex and uv downloads are checked against pinned SHA-512 hashes (`crates/saturn-core/src/agent-programs.json`, `crates/saturn-core/src/agent_programs.rs`); the bundled embedding model and tokenizer against SHA-256 when the release is built (`desktop/scripts/fetch-embedding-model.mjs`).
 - Releases carry SHA-256 files, a CycloneDX SBOM and signed build provenance (`.github/workflows/release.yml`).
 - An update installs only with a valid signature from Saturn's updater key, whatever the operating system's signing says; a build made without that key has no updater (`desktop/src-tauri/src/update.rs`, `desktop/src-tauri/tauri.updater.json`).
 - Reviewed, accepted advisories are listed in [`known-advisories.md`](known-advisories.md).
@@ -106,7 +106,7 @@ Why Saturn's security requirements are met: each requirement, the argument, and 
 | **R3. Credentials stay encrypted at rest and go only to their provider.** | AES-256-GCM with a random key in the OS key store and a random IV per write; authenticated, so tampering is detected; a key is attached only to its own provider's requests; values are never logged. | `crates/saturn-store/tests/data_folder.rs` (ciphertext only, tampering rejected, plaintext migrated, key store fallbacks), `crates/saturn-llm/tests/providers.rs` |
 | **R4. The web tool and the Browser tab cannot reach this computer or the private network.** | Every such request is checked against loopback, private and link-local ranges in the connection's own DNS lookup and on every redirect. The agent browser checks only the address it is told to open (see Known gaps). | `crates/saturn-tools/tests/tools.rs` (`the_web_tool_does_not_reach_this_computer`), `contract/runs-flows.test.mjs` (the Browser tab's proxy), `contract/model-context.test.mjs`: "a browser tool refuses a private address before any browser starts", `contract/browser.test.mjs` |
 | **R5. Things that come with a folder or plugin run only once allowed.** | Hooks, local MCP servers and project allow rules are approved by a fingerprint of exactly what the user saw; any change asks again. | `contract/config-hooks.test.mjs`, `contract/config-mcp.test.mjs`, `contract/mcp.test.mjs`, `contract/config-plugins.test.mjs`, `contract/config-permissions.test.mjs` |
-| **R6. A download is what the public workflow built.** | Releases are built only by `release.yml` from a tagged commit; each file has a SHA-256 and signed build provenance; updates carry a signature from Saturn's updater key; Claude Code and Codex downloads are checked against pinned SHA-512; no npm install scripts run. | The attestations on every release (`gh attestation verify`), `contract/programs.test.mjs` ("the pinned downloads…", "a download that does not match its pin…"), `.github/workflows/supply-chain.yml` |
+| **R6. A download is what the public workflow built.** | Releases are built only by `release.yml` from a tagged commit; each file has a SHA-256 and signed build provenance; updates carry a signature from Saturn's updater key; Claude Code, Codex and uv downloads are checked against pinned SHA-512; no npm install scripts run. | The attestations on every release (`gh attestation verify`), `contract/programs.test.mjs` ("the pinned downloads…", "a download that does not match its pin…"), `.github/workflows/supply-chain.yml` |
 
 ### Secure design principles
 
@@ -147,7 +147,7 @@ For an external audit, in priority order.
 | 2 | Research evidence: bundle import, artifact snapshots, imports, remote workers and the SSH exchange | `crates/saturn-core/src/research/bundles.rs`, `artifacts.rs`, `imports.rs`, `remote.rs` |
 | 3 | Agent browser and computer use: profile isolation, what reaches the model | `crates/saturn-browser/src/chrome.rs`, `safari.rs`, `crates/saturn-computer/src/lib.rs`, `macos.rs`, `windows.rs` |
 | 3 | Checkpoints and revert: writes outside the folder, path traversal | `crates/saturn-core/src/checkpoints.rs` |
-| 3 | Release and supply-chain workflows, downloads of Claude Code and Codex | `.github/workflows/`, `crates/saturn-core/src/agent-programs.json`, `agent_programs.rs` |
+| 3 | Release and supply-chain workflows, downloads of Claude Code, Codex and uv | `.github/workflows/`, `crates/saturn-core/src/agent-programs.json`, `agent_programs.rs` |
 
 Useful for reviewers: `npm test` runs the runtime against fake model servers with no credentials; [Verify it yourself](../README.md#verify-it-yourself) shows how to observe every outbound request.
 
@@ -226,7 +226,7 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 ### 6. 供應鏈與更新
 
 - 桌面應用程式不執行 npm 安裝腳本；CI 檢查 npm lock 檔、registry 簽章與 audit；crate 只來自 crates.io，以 `Cargo.lock` 的校驗碼固定，CI 執行 `cargo deny`；GitHub Actions 固定到 commit SHA（`.github/workflows/supply-chain.yml`、`deny.toml`）。
-- Claude Code 與 Codex 的下載以固定的 SHA-512 驗證（`crates/saturn-core/src/agent-programs.json`、`crates/saturn-core/src/agent_programs.rs`）；內建的嵌入模型與 tokenizer 在建置發行版時以 SHA-256 驗證（`desktop/scripts/fetch-embedding-model.mjs`）。
+- Claude Code、Codex 與 uv 的下載以固定的 SHA-512 驗證（`crates/saturn-core/src/agent-programs.json`、`crates/saturn-core/src/agent_programs.rs`）；內建的嵌入模型與 tokenizer 在建置發行版時以 SHA-256 驗證（`desktop/scripts/fetch-embedding-model.mjs`）。
 - 每次發布附 SHA-256 檔、CycloneDX SBOM 與簽章的建置來源證明（`.github/workflows/release.yml`）。
 - 更新只有在帶有 Saturn 更新金鑰的有效簽章時才會安裝，與作業系統的簽章無關；沒有這把金鑰建置的版本沒有更新功能（`desktop/src-tauri/src/update.rs`、`desktop/src-tauri/tauri.updater.json`）。
 - 審視過並接受的公告列於 [`known-advisories.md`](known-advisories.md)。
@@ -261,7 +261,7 @@ Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗�
 | **R3. 憑證靜態加密，且只送到它自己的供應商。** | AES-256-GCM，隨機金鑰存於作業系統金鑰庫，每次寫入使用隨機 IV；具驗證性，竄改會被發現；金鑰只附加在其供應商的請求上；值從不記錄於 log。 | `crates/saturn-store/tests/data_folder.rs`（只有密文、拒絕被竄改的內容、明文自動遷移、金鑰庫的備援）、`crates/saturn-llm/tests/providers.rs` |
 | **R4. Web 工具與 Browser 分頁無法連到這台電腦或私有網路。** | 每個這類請求都在連線自己的 DNS 查詢中與每次重新導向時，檢查是否為 loopback、私有或 link-local 位址。Agent 瀏覽器只檢查它被要求開啟的位址（見已知缺口）。 | `crates/saturn-tools/tests/tools.rs`（`the_web_tool_does_not_reach_this_computer`）、`contract/runs-flows.test.mjs`（Browser 分頁的代理）、`contract/model-context.test.mjs`：「a browser tool refuses a private address before any browser starts」、`contract/browser.test.mjs` |
 | **R5. 隨資料夾或外掛而來的東西，要經允許才會執行。** | Hooks、本機 MCP 伺服器與專案的允許規則，都以使用者實際看到內容的指紋核准；任何變更都會再次詢問。 | `contract/config-hooks.test.mjs`、`contract/config-mcp.test.mjs`、`contract/mcp.test.mjs`、`contract/config-plugins.test.mjs`、`contract/config-permissions.test.mjs` |
-| **R6. 下載檔就是公開 workflow 建置的成果。** | 發布只由 `release.yml` 從打了 tag 的 commit 建置；每個檔案都有 SHA-256 與簽署的建置來源證明；更新帶有 Saturn 更新金鑰的簽章；Claude Code 與 Codex 的下載以固定的 SHA-512 驗證；不執行 npm 安裝腳本。 | 每次發布附的證明（`gh attestation verify`）、`contract/programs.test.mjs`（「the pinned downloads…」、「a download that does not match its pin…」）、`.github/workflows/supply-chain.yml` |
+| **R6. 下載檔就是公開 workflow 建置的成果。** | 發布只由 `release.yml` 從打了 tag 的 commit 建置；每個檔案都有 SHA-256 與簽署的建置來源證明；更新帶有 Saturn 更新金鑰的簽章；Claude Code、Codex 與 uv 的下載以固定的 SHA-512 驗證；不執行 npm 安裝腳本。 | 每次發布附的證明（`gh attestation verify`）、`contract/programs.test.mjs`（「the pinned downloads…」、「a download that does not match its pin…」）、`.github/workflows/supply-chain.yml` |
 
 ### 安全設計原則
 

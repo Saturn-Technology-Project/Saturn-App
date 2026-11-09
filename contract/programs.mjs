@@ -137,6 +137,11 @@ if (args[0] === "login" && args[1] === "status") {
 }
 `;
 
+/** The `uv` program: it only says its version here; contract/research-manage.test.mjs has one that makes environments. */
+const uvProgram = `#!/bin/sh
+if [ "$1" = --version ]; then echo "uv 9.9.9 (stand-in)"; fi
+`;
+
 /** Starts a runtime that finds only stand-ins: `install` lists the programs placed in its data folder. */
 export async function startWithPrograms({ install = ["claude-code", "codex"], packages, env = {} } = {}) {
   const folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-programs-")));
@@ -151,18 +156,19 @@ export async function startWithPrograms({ install = ["claude-code", "codex"], pa
 
   const placed = {};
   for (const id of install) {
-    const inner = id === "claude-code" ? "" : path.join("vendor", "target", "bin");
+    // Each program sits where its real package puts it: claude at the package's root, codex under vendor, uv in its archive's folder.
+    const inner = id === "codex" ? path.join("vendor", "target", "bin") : id === "uv" ? "uv-target" : "";
     const directory = path.join(dataDir, "tools", id, VERSION, "package", inner);
     await mkdir(directory, { recursive: true });
-    const file = path.join(directory, id === "claude-code" ? "claude" : "codex");
-    await writeFile(file, id === "claude-code" ? claudeProgram(folder) : codexProgram(folder));
+    const file = path.join(directory, id === "claude-code" ? "claude" : id);
+    await writeFile(file, id === "claude-code" ? claudeProgram(folder) : id === "codex" ? codexProgram(folder) : uvProgram);
     await chmod(file, 0o755);
     placed[id] = file;
   }
 
   const manifestFile = path.join(folder, "packages.json");
   const pinned = { version: VERSION, url: "http://127.0.0.1:9/never.tgz", integrity: "sha512-AAAA", size: 123 };
-  await writeFile(manifestFile, JSON.stringify(packages ?? { "claude-code": { [PLATFORM]: pinned }, codex: { [PLATFORM]: pinned } }));
+  await writeFile(manifestFile, JSON.stringify(packages ?? { "claude-code": { [PLATFORM]: pinned }, codex: { [PLATFORM]: pinned }, uv: { [PLATFORM]: pinned } }));
   const runtime = await startRuntime({
     dataDir,
     env: { PATH: `${bin}:/usr/bin:/bin`, SATURN_PROGRAM_PACKAGES: manifestFile, ...env },

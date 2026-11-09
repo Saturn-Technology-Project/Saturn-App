@@ -2,6 +2,12 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **A computer without Python gets one from Saturn.** When neither uv nor Python is found, Environment offers to download uv (about 15 MB, from its GitHub release, checked against a checksum pinned in Saturn, like the Claude Code and Codex downloads), and making the managed environment then has uv install a Python first, the version you chose or the newest stable, before the environment is made from it. A computer with Python but no uv is offered the same download, since uv is what lets a Python version be picked. Saturn's copy of uv can be removed like the other programs; the Python uv installed stays in uv's own folder.
+
 ## 0.6.0 (2026-11-09)
 
 ### Security
