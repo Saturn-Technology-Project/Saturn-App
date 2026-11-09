@@ -73,16 +73,25 @@ pub fn is_sensitive_operation(tool: &str, arguments: &Arguments) -> bool {
         return true;
     }
     if tool == "files" {
-        let path = argument_text(arguments, "path");
-        let drive = path.as_bytes();
-        let has_drive = drive.len() >= 2 && drive[0].is_ascii_alphabetic() && drive[1] == b':';
-        return argument_text(arguments, "action") == "delete"
-            || path.starts_with('/')
-            || path.starts_with('\\')
-            || has_drive
-            || path.starts_with("..");
+        // A patch asks when any file it touches would: one it deletes, or one outside the workspace.
+        if let Some(pieces) = crate::permissions::patch_pieces(arguments) {
+            return pieces.iter().any(file_call_is_sensitive);
+        }
+        return file_call_is_sensitive(arguments);
     }
     false
+}
+
+/// Whether one file call asks: a delete, or a path outside the workspace.
+fn file_call_is_sensitive(arguments: &Arguments) -> bool {
+    let path = argument_text(arguments, "path");
+    let drive = path.as_bytes();
+    let has_drive = drive.len() >= 2 && drive[0].is_ascii_alphabetic() && drive[1] == b':';
+    argument_text(arguments, "action") == "delete"
+        || path.starts_with('/')
+        || path.starts_with('\\')
+        || has_drive
+        || path.starts_with("..")
 }
 
 /// Tools that only look: they read files, pages, the screen or a repository and change nothing.

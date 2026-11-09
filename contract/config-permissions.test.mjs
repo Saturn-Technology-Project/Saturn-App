@@ -268,3 +268,24 @@ test("a chat outside a project has no project to save to", async () => {
   assert.equal((await saturn.api("POST", `/runs/${run.id}/actions/${action.id}/allow-always`, { scope: "agent" })).scope, "agent");
   assert.equal((await saturn.finished(run.id)).actions[0].status, "completed");
 });
+
+test("a patch is judged by the files it touches: a path rule stops it, and deleting a file asks", async () => {
+  const root = await saturn.folder("patched", {
+    "secrets/key.txt": "k\n",
+    "src/a.ts": "a\n",
+    ".claude/settings.json": { permissions: { deny: ["Edit(secrets/**)"] } },
+  });
+  const update = (file) => ["files", { action: "patch", patch: `*** Begin Patch\n*** Update File: ${file}\n@@\n-${file === "src/a.ts" ? "a" : "k"}\n+changed\n*** End Patch` }];
+  const setup = await saturn.chat({ root, autonomy: "execute_when_allowed", steps: [update("secrets/key.txt"), update("src/a.ts")] });
+  const run = await saturn.finished((await saturn.start(setup, "edit")).id);
+  const [secret, source] = run.actions;
+  assert.equal(secret.status, "denied", JSON.stringify(secret));
+  assert.match(secret.reason, /\.claude\/settings\.json: files: write secrets\/\*\*/);
+  assert.equal(await readFile(path.join(root, "secrets/key.txt"), "utf8"), "k\n", "the file is untouched");
+  assert.equal(source.status, "completed", "a file no rule speaks of is patched as before");
+
+  setup.model.queue.push(["files", { action: "patch", patch: "*** Begin Patch\n*** Delete File: src/a.ts\n*** End Patch" }]);
+  const { action } = await saturn.card((await saturn.start(setup, "remove it")).id);
+  assert.match(action.reason, /Sensitive operation/, "deleting asks in the default mode");
+  assert.ok(await readFile(path.join(root, "src/a.ts"), "utf8"), "and nothing is deleted while it asks");
+});

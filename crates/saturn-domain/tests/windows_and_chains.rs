@@ -194,6 +194,84 @@ fn reaching_for_saturns_data_or_a_key_store_asks_and_so_do_quieter_deletes() {
     }
 }
 
+/// A patch call's arguments.
+fn patching(patch: &str) -> Arguments {
+    json!({ "action": "patch", "patch": patch })
+        .as_object()
+        .expect("an object")
+        .clone()
+}
+
+#[test]
+fn a_patch_is_judged_by_the_files_it_touches() {
+    let rules = |rules: Vec<(&str, Effect)>| {
+        vec![layer(
+            Scope::Project,
+            rules
+                .into_iter()
+                .map(|(pattern, effect)| Rule {
+                    tool: "files".to_owned(),
+                    pattern: pattern.to_owned(),
+                    effect,
+                })
+                .collect(),
+        )]
+    };
+    let change =
+        |path: &str| format!("*** Begin Patch\n*** Update File: {path}\n@@\n-a\n+b\n*** End Patch");
+    let deny = rules(vec![("write secrets/**", Effect::Deny)]);
+    let decided = resolve_permission(&deny, "files", &patching(&change("secrets/key.txt")));
+    assert_eq!(decided.map(|decision| decision.effect), Some(Effect::Deny));
+    assert!(resolve_permission(&deny, "files", &patching(&change("src/a.ts"))).is_none());
+    // Deleting, or moving a file away, is writing it too.
+    let removal = "*** Begin Patch\n*** Delete File: secrets/key.txt\n*** End Patch";
+    assert_eq!(
+        resolve_permission(&deny, "files", &patching(removal)).map(|decision| decision.effect),
+        Some(Effect::Deny)
+    );
+    let moved = "*** Begin Patch\n*** Update File: secrets/key.txt\n*** Move to: public/key.txt\n@@\n-a\n+a\n*** End Patch";
+    assert_eq!(
+        resolve_permission(&deny, "files", &patching(moved)).map(|decision| decision.effect),
+        Some(Effect::Deny)
+    );
+    // An allow covers a patch only when it covers every file the patch touches.
+    let allow = rules(vec![("write src/**", Effect::Allow)]);
+    let both = "*** Begin Patch\n*** Update File: src/a.ts\n@@\n-a\n+b\n*** Add File: build.sh\n+rm -rf /\n*** End Patch";
+    assert!(resolve_permission(&allow, "files", &patching(both)).is_none());
+    assert_eq!(
+        resolve_permission(&allow, "files", &patching(&change("src/a.ts")))
+            .map(|decision| decision.effect),
+        Some(Effect::Allow)
+    );
+    // A rule about patches still speaks of every file one touches.
+    let patches = rules(vec![("patch config/**", Effect::Ask)]);
+    assert_eq!(
+        resolve_permission(&patches, "files", &patching(&change("config/app.json")))
+            .map(|decision| decision.effect),
+        Some(Effect::Ask)
+    );
+}
+
+#[test]
+fn a_patch_that_deletes_or_reaches_outside_the_workspace_asks() {
+    assert!(is_sensitive_operation(
+        "files",
+        &patching("*** Begin Patch\n*** Delete File: notes.md\n*** End Patch")
+    ));
+    assert!(is_sensitive_operation(
+        "files",
+        &patching("*** Begin Patch\n*** Add File: ../outside.txt\n+x\n*** End Patch")
+    ));
+    assert!(is_sensitive_operation(
+        "files",
+        &patching("*** Begin Patch\n*** Add File: /etc/x\n+x\n*** End Patch")
+    ));
+    assert!(!is_sensitive_operation(
+        "files",
+        &patching("*** Begin Patch\n*** Add File: src/new.ts\n+x\n*** End Patch")
+    ));
+}
+
 #[test]
 fn file_paths_outside_the_workspace_include_windows_absolute_ones() {
     for path in [
