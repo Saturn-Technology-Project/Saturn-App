@@ -458,6 +458,7 @@ fn the_sandbox_plan_says_what_it_runs() {
         off,
         "/work",
         &[],
+        &[],
         Platform::current(),
         &Env::new(),
     );
@@ -469,6 +470,7 @@ fn the_sandbox_plan_says_what_it_runs() {
         invocation.clone(),
         write,
         "C:\\work",
+        &[],
         &[],
         Platform::Windows,
         &Env::new(),
@@ -484,6 +486,7 @@ fn the_sandbox_plan_says_what_it_runs() {
         invocation.clone(),
         write,
         "/work",
+        &[],
         &[],
         Platform::Linux,
         &no_path,
@@ -518,6 +521,7 @@ fn on_linux_bubblewrap_binds_the_writable_folders() {
             network: false,
         },
         "/nonexistent-work",
+        &[],
         &[],
         Platform::Linux,
         &env,
@@ -606,6 +610,134 @@ async fn on_macos_a_sandboxed_command_writes_inside_the_workspace_only() {
     .await;
     assert_eq!(lifted["exitCode"], 0, "{lifted}");
     assert_eq!(lifted["sandboxed"], false);
+}
+
+#[cfg(unix)]
+#[test]
+fn on_linux_bubblewrap_hides_saturns_data_but_binds_a_workspace_inside_it_back() {
+    use std::os::unix::fs::PermissionsExt;
+    let folder = tempfile::tempdir().expect("a temporary folder");
+    let bwrap = folder.path().join("bwrap");
+    std::fs::write(&bwrap, "#!/bin/sh\n").expect("written");
+    std::fs::set_permissions(&bwrap, std::fs::Permissions::from_mode(0o755)).expect("set");
+    let data = folder.path().join("data");
+    let private = data.join("workspace");
+    let token_in_workspace = private.join("secrets");
+    std::fs::create_dir_all(&token_in_workspace).expect("made");
+    std::fs::write(data.join("runtime-token"), "t").expect("written");
+    let real = |path: &std::path::Path| {
+        std::fs::canonicalize(path)
+            .expect("real")
+            .to_string_lossy()
+            .into_owned()
+    };
+    let mut env = Env::new();
+    env.insert("PATH".into(), folder.path().into());
+    env.insert("HOME".into(), "/nonexistent-home".into());
+    let plan = wrap_command(
+        Invocation {
+            file: "/bin/sh".to_owned(),
+            args: vec!["-c".to_owned(), "true".to_owned()],
+            verbatim: false,
+        },
+        SandboxSettings {
+            mode: SandboxMode::WorkspaceWrite,
+            network: true,
+        },
+        &real(&private),
+        &[],
+        &[real(&data), real(&token_in_workspace)],
+        Platform::Linux,
+        &env,
+    );
+    let joined = plan.invocation.args.join(" ");
+    let (data, private, nested) = (real(&data), real(&private), real(&token_in_workspace));
+    let hidden = joined.find(&format!("--tmpfs {data} ")).expect(&joined);
+    let back = joined
+        .rfind(&format!("--bind-try {private} {private}"))
+        .expect(&joined);
+    let again = joined.rfind(&format!("--tmpfs {nested}")).expect(&joined);
+    let sealed = joined
+        .find(&format!("--remount-ro {data} "))
+        .expect(&joined);
+    assert!(
+        hidden < back && back < again && again < sealed,
+        "hide, bind the workspace back, hide inside it again, then make the empty folders read-only: {joined}"
+    );
+}
+
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn on_macos_a_sandboxed_command_cannot_read_the_hidden_folders_but_works_in_a_workspace_inside_one()
+ {
+    let data = tempfile::tempdir().expect("a temporary folder");
+    let data_path = std::fs::canonicalize(data.path()).expect("real");
+    std::fs::write(data_path.join("runtime-token"), "the-token").expect("written");
+    let private = data_path.join("workspace");
+    std::fs::create_dir_all(&private).expect("made");
+    std::fs::write(private.join("notes.txt"), "mine").expect("written");
+    let (_folder, workspace) = workspace();
+    let hidden = vec![data_path.to_string_lossy().into_owned()];
+    let options = CodeOptions {
+        sandbox: Some(SandboxSettings {
+            mode: SandboxMode::WorkspaceWrite,
+            network: true,
+        }),
+        hidden: hidden.clone(),
+        ..CodeOptions::default()
+    };
+    let token = data_path.join("runtime-token");
+    let refused = run_code(
+        &workspace,
+        &args(json!({ "command": format!("cat '{}'", token.display()) })),
+        &options,
+    )
+    .await
+    .expect("ran");
+    assert_ne!(refused["exitCode"], 0, "{refused}");
+    assert_eq!(refused["stdout"], "", "{refused}");
+    assert!(
+        refused["stderr"]
+            .as_str()
+            .expect("text")
+            .contains("credential folders"),
+        "{refused}"
+    );
+    let overwrite = run_code(
+        &workspace,
+        &args(json!({ "command": format!("echo x > '{}'", token.display()) })),
+        &options,
+    )
+    .await
+    .expect("ran");
+    assert_ne!(
+        overwrite["exitCode"], 0,
+        "a hidden folder in a temporary one takes no writes either: {overwrite}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&token).expect("still there"),
+        "the-token"
+    );
+
+    // The agent's private workspace lives inside the data folder: it stays usable.
+    let inside = Workspace::new(&private);
+    let working = run_code(
+        &inside,
+        &args(json!({ "command": "cat notes.txt && echo more >> notes.txt" })),
+        &options,
+    )
+    .await
+    .expect("ran");
+    assert_eq!(working["exitCode"], 0, "{working}");
+    assert_eq!(working["stdout"], "mine");
+    let up = run_code(
+        &inside,
+        &args(json!({ "command": "cat ../runtime-token" })),
+        &options,
+    )
+    .await
+    .expect("ran");
+    assert_ne!(up["exitCode"], 0, "but not the folder around it: {up}");
 }
 
 #[cfg(target_os = "macos")]

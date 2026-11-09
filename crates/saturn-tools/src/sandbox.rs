@@ -195,6 +195,40 @@ pub(crate) fn quote(value: &str) -> String {
 
 /// A seatbelt profile: everything allowed, then writes limited to `writable` (none for read-only), then the network.
 pub fn seatbelt_profile(mode: SandboxMode, writable: &[String], network: bool) -> String {
+    seatbelt_profile_hiding(mode, writable, network, &[])
+}
+
+/// Whether `path` lies strictly inside `folder`.
+fn strictly_inside(path: &str, folder: &str) -> bool {
+    path != folder && Path::new(path).starts_with(Path::new(folder))
+}
+
+/// The writable folders that lie inside a hidden one, such as the agent's private workspace inside Saturn's data
+/// folder: opened again after the hidden one is closed.
+fn reopened<'a>(writable: &'a [String], hidden: &[String]) -> Vec<&'a String> {
+    writable
+        .iter()
+        .filter(|folder| hidden.iter().any(|path| strictly_inside(folder, path)))
+        .collect()
+}
+
+/// The hidden paths inside a folder opened again, such as a token in a shared cache: closed once more after it.
+fn hidden_again<'a>(hidden: &'a [String], opened: &[&String]) -> Vec<&'a String> {
+    hidden
+        .iter()
+        .filter(|path| opened.iter().any(|folder| strictly_inside(path, folder)))
+        .collect()
+}
+
+/// The seatbelt profile, with `hidden` (resolved) neither read nor written: Saturn's own data and the usual credential
+/// folders. A writable folder inside a hidden one is opened again, and a hidden one inside that is closed again; rules
+/// later in a profile win. Names and sizes can still be looked up, as every path's can; contents and listings cannot.
+pub fn seatbelt_profile_hiding(
+    mode: SandboxMode,
+    writable: &[String],
+    network: bool,
+    hidden: &[String],
+) -> String {
     let mut lines = vec![
         "(version 1)".to_owned(),
         "(allow default)".to_owned(),
@@ -219,6 +253,42 @@ pub fn seatbelt_profile(mode: SandboxMode, writable: &[String], network: bool) -
             .collect();
         lines.push(format!("(allow file-write* {})", paths.join(" ")));
     }
+    let subpaths = |paths: &[&String]| -> String {
+        paths
+            .iter()
+            .map(|path| format!("(subpath {})", quote(path)))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    if !hidden.is_empty() {
+        let all: Vec<&String> = hidden.iter().collect();
+        lines.push(format!(
+            "(deny file-read-data file-read-xattr file-write* {})",
+            subpaths(&all)
+        ));
+        let opened = reopened(writable, hidden);
+        if !opened.is_empty() {
+            lines.push(format!(
+                "(allow file-read-data file-read-xattr {})",
+                subpaths(&opened)
+            ));
+            let writes: Vec<&String> = opened
+                .iter()
+                .copied()
+                .filter(|folder| allowed.contains(folder))
+                .collect();
+            if !writes.is_empty() {
+                lines.push(format!("(allow file-write* {})", subpaths(&writes)));
+            }
+            let again = hidden_again(hidden, &opened);
+            if !again.is_empty() {
+                lines.push(format!(
+                    "(deny file-read-data file-read-xattr file-write* {})",
+                    subpaths(&again)
+                ));
+            }
+        }
+    }
     // Read-only means the workspace too, even when it sits under a temp folder (the last matching rule wins).
     if mode == SandboxMode::ReadOnly {
         let first = writable.first().map_or("/nonexistent", String::as_str);
@@ -232,12 +302,15 @@ pub fn seatbelt_profile(mode: SandboxMode, writable: &[String], network: bool) -
 }
 
 /// Wraps a shell invocation in the sandbox for `settings.mode`. When the platform cannot sandbox, the command runs
-/// unwrapped and the plan says why, so the tool result can tell the model and the user.
+/// unwrapped and the plan says why, so the tool result can tell the model and the user. `hidden` are folders and files
+/// the command may neither read nor write (Saturn's data, the usual credential folders), unless one is the workspace's
+/// own or a writable folder's parent.
 pub fn wrap_command(
     invocation: Invocation,
     settings: SandboxSettings,
     root: &str,
     extra_writable: &[String],
+    hidden: &[String],
     platform: Platform,
     env: &Env,
 ) -> SandboxPlan {
@@ -256,10 +329,12 @@ pub fn wrap_command(
         };
     }
     let writable = writable_folders(root, extra_writable, env, platform);
+    let mut hidden: Vec<String> = hidden.iter().map(|path| real(Path::new(path))).collect();
+    hidden.dedup();
     let wrapped = if platform == Platform::Mac {
         let mut args = vec![
             "-p".to_owned(),
-            seatbelt_profile(settings.mode, &writable, settings.network),
+            seatbelt_profile_hiding(settings.mode, &writable, settings.network, &hidden),
             invocation.file,
         ];
         args.extend(invocation.args);
@@ -282,11 +357,13 @@ pub fn wrap_command(
         ]
         .map(str::to_owned)
         .to_vec();
-        for folder in writable.iter().filter(|folder| {
+        let writes = |folder: &String| {
             settings.mode == SandboxMode::WorkspaceWrite || folder.starts_with("/tmp")
-        }) {
+        };
+        for folder in writable.iter().filter(|folder| writes(folder)) {
             args.extend(["--bind-try".to_owned(), folder.clone(), folder.clone()]);
         }
+        hide_in_bubblewrap(&mut args, &writable, &hidden, &writes);
         if !settings.network {
             args.push("--unshare-net".to_owned());
         }
@@ -305,6 +382,48 @@ pub fn wrap_command(
         invocation: wrapped,
         sandboxed: true,
         reason: None,
+    }
+}
+
+/// bubblewrap's mounts that hide `hidden`, after the writable folders are bound: a hidden folder becomes an empty
+/// one and a hidden file an empty file; a writable folder inside a hidden one is bound back (read-only unless it takes
+/// writes), and a hidden path inside that is hidden again. Mounts made later lie on top. The empty folders are made
+/// read-only last, once the folders bound back inside them have their mount points, so a write there fails instead of
+/// vanishing.
+fn hide_in_bubblewrap(
+    args: &mut Vec<String>,
+    writable: &[String],
+    hidden: &[String],
+    writes: &dyn Fn(&String) -> bool,
+) {
+    let depth = |path: &String| Path::new(path).components().count();
+    let hide = |args: &mut Vec<String>, path: &String| match std::fs::metadata(path) {
+        Ok(info) if info.is_dir() => args.extend(["--tmpfs".to_owned(), path.clone()]),
+        Ok(_) => args.extend(["--ro-bind".to_owned(), "/dev/null".to_owned(), path.clone()]),
+        Err(_) => {}
+    };
+    let mut ordered: Vec<&String> = hidden.iter().collect();
+    ordered.sort_by_key(|path| depth(path));
+    for path in ordered {
+        hide(args, path);
+    }
+    let mut opened = reopened(writable, hidden);
+    opened.sort_by_key(|path| depth(path));
+    for folder in &opened {
+        let flag = if writes(folder) {
+            "--bind-try"
+        } else {
+            "--ro-bind-try"
+        };
+        args.extend([flag.to_owned(), (*folder).clone(), (*folder).clone()]);
+    }
+    for path in hidden_again(hidden, &opened) {
+        hide(args, path);
+    }
+    for path in hidden {
+        if std::fs::metadata(path).is_ok_and(|info| info.is_dir()) {
+            args.extend(["--remount-ro".to_owned(), path.clone()]);
+        }
     }
 }
 

@@ -641,6 +641,7 @@ impl Kernel {
             CodeOptions {
                 sandbox: Some(self.sandbox_of(run_id)),
                 writable,
+                hidden: crate::research::hidden_from_commands(self.store.root()),
                 jobs: Some(ScopedJobs {
                     table: self.jobs.clone(),
                     scope: self.job_scope_of(run),

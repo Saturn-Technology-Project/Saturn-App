@@ -388,6 +388,18 @@ pub(super) async fn command(
     Ok((command, observed))
 }
 
+/// What a sandboxed command may neither read nor write: Saturn's data folders (the runtime's token, the keys, every
+/// conversation) and the usual credential folders. A command that could read the token could use the runtime's own API
+/// to turn its sandbox off or allow itself, and one that could read the keys could send them anywhere.
+pub(crate) fn hidden_from_commands(root: &Path) -> Vec<String> {
+    let mut hidden = data_folders(root);
+    hidden.extend(saturn_tools::confine::credential_folders(&home()));
+    hidden
+        .into_iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect()
+}
+
 /// Saturn's data folders on this computer: the one in use and the usual one, which may differ when a test or a second
 /// copy runs.
 pub(super) fn data_folders(root: &Path) -> Vec<PathBuf> {
