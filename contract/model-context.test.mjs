@@ -318,6 +318,11 @@ test("every sixth turn the model is asked what to remember, and what it answers 
 
     const projectNotes = await until("the project's notes", () => api(own, "GET", `/memory/${setup.project.id}`), (note) => note.content.includes("npm test"));
     assert.equal(projectNotes.content, "- Tests run with npm test\n");
+    // The notes come from what the user typed alone: an agent's answer can carry what a page or a file said.
+    const asked = scripted.requests.find((body) => systemOf(body).startsWith("You keep short notes"));
+    const shown = asked.messages.at(-1).content;
+    assert.match(shown, /User: question 6\./);
+    assert.doesNotMatch(shown, /Agent:|done/, "no answer of the agent's");
     assert.equal((await api(own, "GET", "/memory/global")).content, "- prefers tabs over spaces!\n", "the same note twice is kept once, and a short one is left out");
     assert.equal(await readFile(path.join(own.dataDir, "memory", `${setup.project.id}.md`), "utf8"), "- Tests run with npm test\n");
   } finally {
