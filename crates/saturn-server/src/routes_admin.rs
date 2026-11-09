@@ -671,7 +671,14 @@ async fn open_browser(body: Body) -> Answer {
     if cfg!(target_os = "macos") {
         launch_app("the browser", "open", &[&url], None);
     } else if cfg!(windows) {
-        launch_app("the browser", "cmd.exe", &["/c", "start", "", &url], None);
+        // Not through cmd, which would read `&` in an address as the start of a second command: Windows' own handler
+        // takes the address as one argument, as the desktop app's links do.
+        launch_app(
+            "the browser",
+            "rundll32",
+            &["url.dll,FileProtocolHandler", &url],
+            None,
+        );
     } else {
         launch_app("the browser", "xdg-open", &[&url], None);
     }
