@@ -5,7 +5,7 @@ import { firstLaunchSteps, isWorkScreen, screenLabels, statusText, windowTitle }
 import type { Model, Profile, Project } from "../../domain/model.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
-import { AccessDialog, chooseFolder } from "../ProjectAccess.js";
+import { AccessDialog, chooseFolder, homeShortened } from "../ProjectAccess.js";
 import { AssistantIcon, BoxIcon, CodeIcon, DataIcon, FlaskIcon, GearIcon, HomeIcon, InspectIcon, LineageIcon, SamplesIcon, ShieldIcon, TasksIcon } from "../ui/Icons.js";
 import { Badge } from "../ui/base/Badge.js";
 import { Button } from "../ui/base/Button.js";
@@ -244,8 +244,9 @@ export function ResearchApp() {
       </nav>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-stage">
         <header className="flex min-h-(--bar-height) flex-none items-center gap-2.5 border-b border-border py-1 pr-[calc(12px+var(--window-buttons))] pl-3 [--app-region:drag] [&_button]:[--app-region:no-drag]">
-          <div data-tour="project" className="w-52 flex-none">
-            <Choice ariaLabel={t("Project")} placeholder={t("No project")} value={projectId ?? ""} triggerClassName="border-transparent bg-transparent font-semibold shadow-none hover:bg-muted" options={[...projects.map((item) => ({ value: item.id, label: item.name })), { value: "+", label: t("Add a project folder…") }]} onChange={(value) => void (value === "+" ? addProject() : chooseProject(value))} />
+          {/* The project's name, as wide as it needs up to a limit; the list says where each project is, with adding one set apart. */}
+          <div data-tour="project" className="min-w-40 max-w-80 flex-none">
+            <Choice ariaLabel={t("Project")} placeholder={t("No project")} value={projectId ?? ""} triggerClassName="border-transparent bg-transparent font-semibold shadow-none hover:bg-muted" options={[...projects.map((item) => ({ value: item.id, label: item.name, hint: homeShortened(item.path) })), { value: "+", label: t("Add a project folder…"), separated: true }]} onChange={(value) => void (value === "+" ? addProject() : chooseProject(value))} />
           </div>
           <span className="text-xs text-muted-foreground">{SCREEN_LABELS[screen]}</span>
           <div className="min-w-0 flex-1" />

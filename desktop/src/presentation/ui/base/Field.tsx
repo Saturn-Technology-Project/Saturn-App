@@ -1,6 +1,6 @@
-import { useId, type ReactNode } from "react";
+import { Fragment, useId, type ReactNode } from "react";
 import { classes } from "./classes.js";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "./Select.js";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectSeparator, SelectTrigger } from "./Select.js";
 
 /** A form's field: its name above what fills it in. */
 export function Field(props: { label: ReactNode; hint?: ReactNode; className?: string; children: ReactNode }) {
@@ -22,6 +22,8 @@ export interface ChoiceOption {
   hint?: string;
   /** The name of the group it is listed under. Options of one group sit next to each other. */
   group?: string;
+  /** A line above it: it is an action, or otherwise not of a kind with the options before it. */
+  separated?: boolean;
 }
 
 /** Options in runs by their group, in the order they come. */
@@ -47,7 +49,12 @@ export function Choice(props: { label?: ReactNode; ariaLabel?: string; value: st
       {/* A list whose options explain themselves gets room for a sentence under each name. */}
       <SelectContent className={props.options.some((option) => option.hint) ? "max-w-[min(24rem,var(--available-width))]" : undefined}>
         {optionGroups(props.options).map((group, index) => {
-          const items = group.options.map((option) => <SelectItem key={option.value} value={option.value} disabled={option.disabled} hint={option.hint} className={option.hint ? "flex-col items-start gap-0.5" : undefined}>{option.label}</SelectItem>);
+          const items = group.options.map((option) => (
+            <Fragment key={option.value}>
+              {option.separated ? <SelectSeparator /> : null}
+              <SelectItem value={option.value} disabled={option.disabled} hint={option.hint} className={option.hint ? "flex-col items-start gap-0.5" : undefined}>{option.label}</SelectItem>
+            </Fragment>
+          ));
           return group.name ? <SelectGroup key={group.name} label={group.name}>{items}</SelectGroup> : <div key={index}>{items}</div>;
         })}
       </SelectContent>

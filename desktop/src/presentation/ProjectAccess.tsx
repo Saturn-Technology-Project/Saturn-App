@@ -28,6 +28,11 @@ export function folderName(folder: string): string {
   return folder.replace(/[/\\]+$/, "").split(/[/\\]/).pop() || folder;
 }
 
+/** A folder's path with the home folder written `~`, as a shell would, so a list of projects reads at a glance. */
+export function homeShortened(folder: string): string {
+  return folder.replace(/^(?:\/Users\/[^/]+|\/home\/[^/]+|[A-Za-z]:\\Users\\[^\\]+)(?=[/\\]|$)/, "~");
+}
+
 /**
  * Asks for one folder: the native picker in the desktop app, a typed path in a plain browser.
  * Resolves undefined when the user cancels.
@@ -47,12 +52,12 @@ function FolderList(props: { children: ReactNode }) {
   return <div className="divide-y divide-border overflow-hidden rounded-[10px] border border-input">{props.children}</div>;
 }
 
-/** A folder's name and path, side by side with its icon and whatever follows. */
+/** A folder's name and path, side by side with its icon and whatever follows. The whole path shows, wrapping when long. */
 function FolderText(props: { name: ReactNode; path: string }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-px">
-      <span className="flex items-center gap-2">{props.name}</span>
-      <span className="truncate text-xs text-muted-foreground">{props.path}</span>
+      <span className="flex items-center gap-2 [overflow-wrap:anywhere]">{props.name}</span>
+      <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{props.path}</span>
     </div>
   );
 }

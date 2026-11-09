@@ -8,12 +8,15 @@ import { classes } from "./classes.js";
  */
 export const Dialog = DialogPrimitive.Root;
 
-/** What a dialog shows, over the rest of the window. */
+/**
+ * What a dialog shows, over the rest of the window. Its one column is `minmax(0, 1fr)`, so a long unbreakable word (a
+ * path, say) wraps or clips inside the dialog instead of widening the column past it and carrying the buttons along.
+ */
 export function DialogContent({ className, children, ...props }: DialogPrimitive.Popup.Props) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop data-slot="dialog-overlay" className="fixed inset-0 isolate z-50 bg-black/25" />
-      <DialogPrimitive.Popup data-slot="dialog-content" className={classes("fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-md", className)} {...props}>
+      <DialogPrimitive.Popup data-slot="dialog-content" className={classes("fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 grid-cols-[minmax(0,1fr)] gap-6 rounded-xl bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-md", className)} {...props}>
         {children}
       </DialogPrimitive.Popup>
     </DialogPrimitive.Portal>
