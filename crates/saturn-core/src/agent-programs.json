@@ -74,5 +74,43 @@
       "integrity": "sha512-QQGQ/q9dCJ5C5jqhgFrwycpWG3szIyFNThMiKl6hYtu6N/eM3Qd7StesgnCFAfzVED8IkE3N3oH71szzcludqw==",
       "size": 167618721
     }
+  },
+  "uv": {
+    "darwin-arm64": {
+      "version": "0.13.7",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-aarch64-apple-darwin.tar.gz",
+      "integrity": "sha512-zFcjMiXTcR+5gj+YwVmxarXsy2SMsIb470qZb/1zbSyuChbqnKA4bbmKqaYiqCltgMqaxdszmOI1H8LBw1lAfQ==",
+      "size": 14347867
+    },
+    "darwin-x64": {
+      "version": "0.13.7",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-x86_64-apple-darwin.tar.gz",
+      "integrity": "sha512-jEQOv4k4O4XlEUDh3DGQUJbTWqk+WmBSbU6y0FNwg0kZgFY9LhiD1S17DCCPmYQElnJCcToneL8T45AnhXbXiA==",
+      "size": 17026382
+    },
+    "linux-arm64": {
+      "version": "0.13.7",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-aarch64-unknown-linux-gnu.tar.gz",
+      "integrity": "sha512-alnjRbTZWvnDgYgAfDF2zKWqos4v7EL3Mlzi4AU+NW6/b/BLidKEty3gxY2nilScc+ozH8Pjhx8TjYVAF0cN4w==",
+      "size": 15896996
+    },
+    "linux-x64": {
+      "version": "0.13.7",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-x86_64-unknown-linux-gnu.tar.gz",
+      "integrity": "sha512-VHrbll7hrUxopK+PRtyM+7WRLhLXDySNI8gSuWxrF3Ky2Ki+WJ2B9Ig7tTIwpxQFIQz4hW1d7mDrJaggyemZ5Q==",
+      "size": 16671812
+    },
+    "win32-arm64": {
+      "version": "0.13.7",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-aarch64-pc-windows-msvc.zip",
+      "integrity": "sha512-O6yaXhTZWekiVwU9tr6BeR34Do2383zlimDZ/yuy7QVYER9Z4F9i8KBsMVewGatWMKiTqWSlgLQyR0kN5Wtzyg==",
+      "size": 15538425
+    },
+    "win32-x64": {
+      "version": "0.13.7",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-x86_64-pc-windows-msvc.zip",
+      "integrity": "sha512-fPih1PTb0xr4pBFTrXrjNTy+GQUWcmpBAn+3iQdIPMl2Gr+kTonfgrzp1aPmGkzZP5AVleyDLOHdRxCH7AJc1Q==",
+      "size": 15236317
+    }
   }
 }

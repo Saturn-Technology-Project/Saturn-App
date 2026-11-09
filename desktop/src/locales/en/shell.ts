@@ -152,8 +152,6 @@ export default {
   "Brings it to what the lock file says": "Matches it to the lock file",
   "No lock file at the project's root": "No lock file in the project root",
   "No managed environment yet. Saturn can make one in the project with {tool}:": "No managed environment yet. Saturn can create one in the project with {tool}:",
-  "Install uv to pick a Python version and for faster installs.": "Install uv to choose a Python version and get faster installs.",
-  "Neither uv nor python3 is on this computer's PATH. Install uv (astral.sh/uv) or Python, then come back.": "Neither uv nor python3 is on this computer's PATH. Install uv (astral.sh/uv) or Python, then try again.",
   "interrupted: the runtime that started it is gone": "interrupted: the runtime that started it is no longer running",
   "Nothing written yet.": "No output yet.",
   "The last 40 of {count} lines; the whole log is in {path}.": "Showing the last 40 of {count} lines. Full log: {path}.",

@@ -1,4 +1,4 @@
-// Finding, downloading and removing Claude Code and Codex, and signing them in and out, whichever language runs them.
+// Finding, downloading and removing Claude Code, Codex and uv, and signing the first two in and out, whichever language runs them.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -10,26 +10,30 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { PLATFORM, VERSION, startWithPrograms } from "./programs.mjs";
 
-test("the pinned downloads cover the systems Saturn ships on, come from the npm registry and carry a sha512", async () => {
+test("the pinned downloads cover the systems Saturn ships on, come from the npm registry or uv's release, and carry a sha512", async () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
   const pinned = JSON.parse(await readFile(path.join(root, "crates/saturn-core/src/agent-programs.json"), "utf8"));
-  for (const id of ["claude-code", "codex"]) {
+  for (const id of ["claude-code", "codex", "uv"]) {
     assert.ok(pinned[id]["darwin-arm64"] && pinned[id]["win32-x64"], `${id} covers the platforms Saturn ships`);
     for (const item of Object.values(pinned[id])) {
-      assert.ok(item.url.startsWith("https://registry.npmjs.org/"), item.url);
+      const origin = id === "uv" ? "https://github.com/astral-sh/uv/releases/download/" : "https://registry.npmjs.org/";
+      assert.ok(item.url.startsWith(origin), item.url);
       assert.match(item.integrity, /^sha512-/);
       assert.ok(item.version);
+      assert.ok(item.size > 0, `${item.url} has a size`);
     }
   }
 });
 
-/** A platform package as npm packs it. */
-async function fakePackage(folder, inner, name) {
+/** A platform package as npm packs it, or, with `bare`, as uv's release archive packs its folder: with no `package` root. */
+async function fakePackage(folder, inner, name, { bare = false, program = "#!/bin/sh\necho '9.9.9 (from the package)'\n" } = {}) {
   const root = path.join(folder, "build");
-  await mkdir(path.join(root, "package", inner), { recursive: true });
-  await writeFile(path.join(root, "package", inner, name), "#!/bin/sh\necho '9.9.9 (from the package)'\n");
+  await rm(root, { recursive: true, force: true });
+  const top = bare ? inner.split("/")[0] : "package";
+  await mkdir(path.join(root, bare ? inner : path.join("package", inner)), { recursive: true });
+  await writeFile(path.join(root, bare ? inner : path.join("package", inner), name), program, { mode: 0o755 });
   const file = path.join(folder, "fake.tgz");
-  execFileSync("tar", ["-czf", file, "-C", root, "package"]);
+  execFileSync("tar", ["-czf", file, "-C", root, top]);
   const archive = await readFile(file);
   return { archive, integrity: `sha512-${createHash("sha512").update(archive).digest("base64")}` };
 }
@@ -48,19 +52,20 @@ async function registry(archive, handle) {
 }
 
 async function pinned(saturn, id, url, integrity, size) {
-  await writeFile(saturn.manifestFile, JSON.stringify({ "claude-code": {}, codex: {}, [id]: { [PLATFORM]: { version: VERSION, url, integrity, size } } }));
+  await writeFile(saturn.manifestFile, JSON.stringify({ "claude-code": {}, codex: {}, uv: {}, [id]: { [PLATFORM]: { version: VERSION, url, integrity, size } } }));
 }
 
 test("a program in Saturn's own folder is found and asked for its version; an unknown program is a 404", async () => {
-  const saturn = await startWithPrograms();
+  const saturn = await startWithPrograms({ install: ["claude-code", "codex", "uv"] });
   try {
     const list = await saturn.api("GET", "/programs");
     assert.deepEqual(list, [
       { id: "claude-code", label: "Claude Code", installed: true, source: "saturn", path: saturn.placed["claude-code"], version: "9.9.9 (stand-in)", downloadVersion: VERSION, downloadSize: 123 },
       { id: "codex", label: "Codex", installed: true, source: "saturn", path: saturn.placed.codex, version: "9.9.9 (stand-in)", downloadVersion: VERSION, downloadSize: 123 },
+      { id: "uv", label: "uv", installed: true, source: "saturn", path: saturn.placed.uv, version: "uv 9.9.9 (stand-in)", downloadVersion: VERSION, downloadSize: 123 },
     ]);
     assert.deepEqual(await saturn.api("GET", "/programs/codex"), list[1]);
-    assert.deepEqual(await saturn.call("GET", "/programs/nope"), { status: 404, body: { error: "Unknown program; use claude-code or codex" } });
+    assert.deepEqual(await saturn.call("GET", "/programs/nope"), { status: 404, body: { error: "Unknown program; use claude-code, codex or uv" } });
     assert.equal((await saturn.call("POST", "/programs/nope/install", {})).status, 404);
     assert.equal((await saturn.call("DELETE", "/programs/nope")).status, 404);
     // The answer is remembered: a second look does not start the program again.
@@ -124,6 +129,38 @@ test("a download that matches its pin is unpacked into the data folder, made exe
     assert.equal(existsSync(path.join(saturn.dataDir, "tools", "claude-code", "1.0.0")), false, "only this version stays");
     const removed = await saturn.api("DELETE", "/programs/claude-code");
     assert.deepEqual([removed.installed, removed.source], [false, null]);
+  } finally {
+    server.close();
+    await saturn.stop();
+  }
+});
+
+test("uv is unpacked from its bare release archive, found in its folder, and makes the environment by its path", { skip: process.platform === "win32" && "a shell stand-in" }, async () => {
+  const saturn = await startWithPrograms({ install: [] });
+  // The archive's uv says its version and makes a venv folder, so the job that uses it ends well.
+  const program = "#!/bin/sh\ncase \"$1\" in --version) echo 'uv 9.9.9 (from the archive)';; venv) mkdir -p \"$2/bin\"; : > \"$2/bin/python\"; echo \"made $2\";; esac\n";
+  const { archive, integrity } = await fakePackage(saturn.folder, "uv-aarch64-apple-darwin", "uv", { bare: true, program });
+  const server = await registry(archive);
+  try {
+    assert.deepEqual(await saturn.api("GET", "/programs/uv"), { id: "uv", label: "uv", installed: false, source: null, path: null, version: null, downloadVersion: VERSION, downloadSize: 123 });
+    await pinned(saturn, "uv", server.url, integrity, archive.length);
+    assert.equal((await saturn.call("POST", "/programs/uv/install", {})).status, 202);
+    const status = await saturn.until("the download", () => saturn.api("GET", "/programs/uv"), (item) => item.source === "saturn");
+    const file = path.join(saturn.dataDir, "tools", "uv", VERSION, "package", "uv-aarch64-apple-darwin", "uv");
+    assert.deepEqual(status, { id: "uv", label: "uv", installed: true, source: "saturn", path: file, version: "uv 9.9.9 (from the archive)", downloadVersion: VERSION, downloadSize: archive.length });
+
+    const folder = path.join(saturn.folder, "project");
+    await mkdir(folder);
+    const project = await saturn.api("POST", "/projects", { path: folder });
+    await saturn.api("POST", `/projects/${project.id}/access`, {});
+    const route = `/projects/${project.id}/research/environment`;
+    const environment = await saturn.api("GET", route);
+    assert.deepEqual([environment.tools.uv, environment.tools.uvSource], [file, "saturn"]);
+    await saturn.api("POST", `${route}/create`, { withCore: false });
+    const made = await saturn.until("the job", () => saturn.api("GET", route), (record) => record.job && record.job.status !== "running");
+    assert.deepEqual(made.job.commands, [`'${file}' venv '.venv'`]);
+    assert.equal(made.job.status, "completed", made.job.logTail);
+    assert.equal(made.tools.managed.exists, true);
   } finally {
     server.close();
     await saturn.stop();

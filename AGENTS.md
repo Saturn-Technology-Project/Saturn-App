@@ -49,8 +49,8 @@ contract, workflow and skills).
   `allowScripts` lists them. `npm audit --omit=dev --audit-level=high` must pass in `desktop/`, and `cargo deny check`
   at the root. An advisory that cannot be fixed yet goes into `docs/known-advisories.md`.
 - To move Claude Code or Codex to a new version, run
-  `node scripts/agent-programs-manifest.mjs <claude-agent-sdk version> <codex version>`, after trying them against the
-  protocol `contract/programs.mjs` records.
+  `node scripts/agent-programs-manifest.mjs <claude-agent-sdk version> <codex version> <uv version>`, after trying them
+  against the protocol `contract/programs.mjs` records; the same command moves uv.
 - A new or changed route in `crates/saturn-server/src/`: run `node scripts/contract-routes.mjs` and commit the list.
 - Windows has only been type-checked since the rewrite, not run. Do not claim otherwise, in docs or in reports.
 

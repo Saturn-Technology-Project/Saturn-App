@@ -575,16 +575,23 @@ one. The record lives in `.saturn/research/environment.json`, and the lock files
 
 ### The managed environment
 
-Saturn can make a Python environment in the project, at `.venv`, with `uv` when it is on PATH and `python3 -m venv`
-otherwise, and fill it with kits of packages. The record carries `tools` (`uv` and `python3` as found on PATH, and
-`managed`: the path, its python, and whether it exists), `kits`, and `job`.
+Saturn can make a Python environment in the project, at `.venv`, with `uv` when this computer has it and `python3 -m
+venv` otherwise, and fill it with kits of packages. uv is Saturn's own download when there is one, else the one on
+PATH: `GET /programs/uv` says which, and `POST /programs/uv/install` downloads the pinned release archive and checks it
+against its sha512, as for Claude Code and Codex. The record carries `tools` (`uv` with `uvSource`, `saturn` or
+`system`; `python3` as found on PATH; and `managed`: the path, its python, and whether it exists), `kits`, and `job`.
 
 - Kits: `core` (torch, transformers, numpy: what Saturn's own helpers load models with, `bundled`, so it goes in
   with the environment unless declined), `interpretability` (transformer_lens, sae_lens, einops), `training` (trl,
   peft, datasets, accelerate), `analysis` (pandas, matplotlib), `notebooks` (jupyter, ipykernel). Each package carries
   the version the last check of the managed interpreter reported, or null.
 - `POST .../environment/create` with `{"python"?: "3.12", "withCore"?: true}` makes the environment (a version needs
-  uv) and installs the bundled kit, then sets the record's `python` to the managed one. `POST .../environment/install`
+  uv) and installs the bundled kit, then sets the record's `python` to the managed one. With uv and no `python3` on
+  PATH, the job first runs `uv python install` (the version asked for, else the newest stable), so a computer without
+  Python gets one, in uv's own folder (`~/.local/share/uv/python`) and nowhere else (`UV_PYTHON_INSTALL_BIN` and
+  `UV_PYTHON_INSTALL_REGISTRY` are 0 for every create job, so no link goes into `~/.local/bin` and nothing into the
+  Windows registry), and the venv is made from that Python (`UV_MANAGED_PYTHON` is 1 for the job) rather than one uv
+  finds elsewhere. The job's record carries these as `env`. `POST .../environment/install`
   with `{"kit"}`, `{"packages": [...]}` (plain names with an optional pin; nothing starting with `-`) or
   `{"sync": true}` (`uv sync` with a `uv.lock` or `pyproject.toml`, else pip against `requirements.lock` or
   `requirements.txt`) installs into it. Both answer with the record at once and run as a job.
@@ -599,8 +606,9 @@ otherwise, and fill it with kits of packages. The record carries `tools` (`uv` a
   `startedAt`, `endedAt`. The record's `job` adds `logTail` and `logLines`. One job at a time per project (409).
   `POST .../environment/job/stop` ends the whole group, including children that ignore the initial stop signal;
   `.saturn/research` changes as it starts and ends.
-- The installs are made by uv or pip, which reach the package index on their own; Saturn's network log does not see
-  them. Not on Windows.
+- The installs are made by uv or pip, which reach the package index on their own, as uv's Python download reaches its
+  release; Saturn's network log does not see them (the download of uv itself it does). On Windows the job runs
+  through cmd; Windows is type-checked only, not run.
 
 ## Notebooks
 

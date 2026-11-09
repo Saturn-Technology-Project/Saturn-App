@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { ProgramStatus } from "../../application/admin.js";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
 import { bytesText, devicesText, kitState, type EnvironmentKit, type ExperimentDraft } from "../../domain/research.js";
@@ -32,6 +33,74 @@ const KIT_TEXT: Record<string, { title: string; what: string }> = {
   notebooks: { title: t("Notebooks"), what: t("Jupyter and a kernel, for notebooks beside the code.") },
   "language-server": { title: t("Python language server"), what: t("Basedpyright for type inference, completions, diagnostics and definition navigation in source files.") },
 };
+
+/**
+ * uv as a program Saturn downloads, offered while this computer has none: the pinned release, its size, the download's
+ * progress, and why it matters here. With uv, a computer without Python gets one as the environment is made. Once uv is
+ * installed the record is read again, and this gives way to the Create form.
+ */
+function UvDownload(props: { hasPython: boolean; onInstalled: () => void; notify: (message: string) => void }) {
+  const [status, setStatus] = useState<ProgramStatus | null>(null);
+  const { notify, onInstalled } = props;
+  const load = useCallback(() => desktop.admin.program("uv").then(setStatus, (error) => notify(messageOf(error))), [notify]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const progress = status?.install;
+  const busy = Boolean(progress && ["downloading", "verifying", "unpacking"].includes(progress.state));
+  // A download in progress is read again often, so the bar moves.
+  useEffect(() => {
+    if (!busy) return undefined;
+    const timer = window.setInterval(() => void load(), 700);
+    return () => window.clearInterval(timer);
+  }, [busy, load]);
+
+  useEffect(() => {
+    if (status?.installed) onInstalled();
+  }, [status?.installed, onInstalled]);
+
+  async function install() {
+    try {
+      setStatus(await desktop.admin.installProgram("uv"));
+    } catch (error) {
+      notify(messageOf(error));
+    }
+  }
+
+  if (!status || status.installed) return null;
+  const megabytes = status.downloadSize ? `${Math.round(status.downloadSize / 1048576)} MB` : "";
+  const percent = progress && progress.total ? Math.min(100, Math.round((progress.received / progress.total) * 100)) : 0;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className={classes("text-xs", props.hasPython ? "text-muted-foreground" : "text-wait")}>
+        {!status.downloadVersion
+          ? t("Neither uv nor Python is on this computer, and no uv download is pinned for it. Install uv (astral.sh/uv) or Python, then come back.")
+          : busy
+            ? progress!.state === "downloading"
+              ? t("Downloading… {received} of {total} MB", { received: Math.round(progress!.received / 1048576), total: Math.round(progress!.total / 1048576) })
+              : progress!.state === "verifying" ? t("Checking the download against its pinned checksum…") : t("Unpacking…")
+            : props.hasPython
+              ? t("With uv, a Python version can be picked and installs are faster. Saturn can download uv {version} from its release, checked against a checksum pinned in Saturn.", { version: status.downloadVersion })
+              : t("Neither uv nor Python is on this computer. Saturn can download uv {version} from its release, checked against a checksum pinned in Saturn; when the environment is made, uv installs a Python first.", { version: status.downloadVersion })}
+      </div>
+      {busy ? (
+        <div className="h-1 overflow-hidden rounded-full bg-border" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+          <div className="h-full rounded-[inherit] bg-primary transition-[width] duration-400" style={{ width: `${progress!.state === "downloading" ? percent : 100}%` }} />
+        </div>
+      ) : null}
+      {progress?.state === "failed" ? <div className="text-xs text-wait">{progress.error}</div> : null}
+      {status.downloadVersion ? (
+        <div>
+          <Button variant={props.hasPython ? "outline" : "default"} disabled={busy} onClick={() => void install()}>
+            {busy ? t("Downloading…") : progress?.state === "failed" ? t("Try Again") : megabytes ? t("Download uv ({size})", { size: megabytes }) : t("Download uv")}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /** The Python the project's experiments run in: a managed one Saturn makes and fills, or any other, what it has, and the files that pin it. */
 export function Environment(props: ScreenProps) {
@@ -147,7 +216,6 @@ export function Environment(props: ScreenProps) {
               <>
                 <div>
                   {t("No managed environment yet. Saturn can make one in the project with {tool}:", { tool })} <code>{managed?.path}</code>
-                  {record.tools.uv ? null : <> {t("Install uv to pick a Python version and for faster installs.")}</>}
                 </div>
                 <form
                   className="flex flex-wrap items-end gap-2"
@@ -170,9 +238,8 @@ export function Environment(props: ScreenProps) {
                   </Button>
                 </form>
               </>
-            ) : (
-              <div className="text-xs text-wait">{t("Neither uv nor python3 is on this computer's PATH. Install uv (astral.sh/uv) or Python, then come back.")}</div>
-            )}
+            ) : null}
+            {record.tools.uv ? null : <UvDownload hasPython={Boolean(record.tools.python3)} onInstalled={() => void refresh()} notify={props.notify} />}
           </Card>
         )
       ) : null}

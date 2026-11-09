@@ -1,5 +1,6 @@
-//! A managed Python environment in the project: made with `uv` when it is on this computer, else with `python3 -m
-//! venv`, and filled with kits of packages, one that Saturn's own helpers need and others the person picks. Every
+//! A managed Python environment in the project: made with `uv` when it is on this computer (on PATH, or Saturn's own
+//! download of it), else with `python3 -m venv`, and filled with kits of packages, one that Saturn's own helpers need
+//! and others the person picks. A computer with uv and no Python gets one from uv as the environment is made. Every
 //! change is a job whose output is kept, and nothing is installed without being asked.
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -177,12 +178,26 @@ fn shell_arguments(command: &mut Command, shell: &saturn_tools::shell::Invocatio
     command.args(&shell.args);
 }
 
+/// The word a job's command calls uv by: its name when the one on PATH is used, since the shell finds it as the person
+/// would, and its quoted path when it is Saturn's own download.
+fn uv_word(tools: &Value) -> Option<String> {
+    let path = tools.get("uv")?.as_str()?;
+    Some(if text(tools, "uvSource") == "system" {
+        "uv".to_owned()
+    } else {
+        quoted(path)
+    })
+}
+
 impl Kernel {
-    /// Which tools this computer has for making environments, and whether the project's managed one exists.
+    /// Which tools this computer has for making environments, and whether the project's managed one exists. uv is
+    /// Saturn's own download when there is one (`/programs/uv`), else the one on PATH.
     pub(super) fn environment_tools(&self, source: &Path) -> Value {
         let python = source.join(venv_python());
+        let uv = self.resolve_program("uv");
         json!({
-            "uv": on_path("uv").map(|path| path.to_string_lossy().into_owned()),
+            "uv": uv.as_ref().map(|(path, _)| path.to_string_lossy().into_owned()),
+            "uvSource": uv.as_ref().map(|(_, source)| *source),
             "python3": on_path("python3").map(|path| path.to_string_lossy().into_owned()),
             "managed": { "path": VENV, "python": venv_python(), "exists": python.is_file() },
         })
@@ -256,14 +271,32 @@ impl Kernel {
             ));
         }
         let mut commands = Vec::new();
-        if tools.get("uv").is_some_and(|uv| !uv.is_null()) {
+        // A Python uv installs goes into uv's own folder alone: no links in ~/.local/bin, nothing in the Windows registry.
+        let mut environment = vec![
+            ("UV_PYTHON_INSTALL_BIN", "0"),
+            ("UV_PYTHON_INSTALL_REGISTRY", "0"),
+        ];
+        let has_python = tools.get("python3").is_some_and(|python| !python.is_null());
+        if let Some(uv) = uv_word(&tools) {
+            let pick = if version.is_empty() {
+                String::new()
+            } else {
+                format!(" {}", quoted(&version))
+            };
+            // With no Python on this computer, uv installs one first (the newest stable, or the version asked for);
+            // uv would fetch it on its own, but a step of its own shows in the log what was downloaded and why. The
+            // environment is then made from that Python, not from one uv finds elsewhere (a conda prefix, say).
+            if !has_python {
+                commands.push(format!("{uv} python install{pick}"));
+                environment.push(("UV_MANAGED_PYTHON", "1"));
+            }
             let pick = if version.is_empty() {
                 String::new()
             } else {
                 format!(" --python {}", quoted(&version))
             };
-            commands.push(format!("uv venv{pick} {}", quoted(VENV)));
-        } else if tools.get("python3").is_some_and(|python| !python.is_null()) {
+            commands.push(format!("{uv} venv{pick} {}", quoted(VENV)));
+        } else if has_python {
             if !version.is_empty() {
                 return Err(CoreError::new(
                     422,
@@ -280,7 +313,7 @@ impl Kernel {
         } else {
             return Err(CoreError::new(
                 422,
-                "Neither uv nor python3 is on this computer's PATH. Install uv (astral.sh/uv) or Python, then try again.",
+                "Neither uv nor python3 is on this computer's PATH. Download uv in Environment (it installs Python too), or install Python, then try again.",
             ));
         }
         if request
@@ -295,8 +328,15 @@ impl Kernel {
                 .unwrap_or(&[]);
             commands.push(self.install_command(&tools, core));
         }
-        self.start_environment_job(project, "create", commands, Some(venv_python()), timeout)
-            .await
+        self.start_environment_job(
+            project,
+            "create",
+            commands,
+            &environment,
+            Some(venv_python()),
+            timeout,
+        )
+        .await
     }
 
     /// Installs packages into the managed environment: a kit's, named ones, or what the project's lock file says.
@@ -352,7 +392,7 @@ impl Kernel {
             let words: Vec<&str> = packages.iter().map(String::as_str).collect();
             commands.push(self.install_command(&tools, &words));
         }
-        self.start_environment_job(project, kind, commands, None, timeout)
+        self.start_environment_job(project, kind, commands, &[], None, timeout)
             .await
     }
 
@@ -372,9 +412,9 @@ impl Kernel {
     /// The install command the tools allow: uv's pip against the managed interpreter, else the interpreter's own pip.
     fn install_command(&self, tools: &Value, packages: &[&str]) -> String {
         let words: Vec<String> = packages.iter().map(|name| quoted(name)).collect();
-        if tools.get("uv").is_some_and(|uv| !uv.is_null()) {
+        if let Some(uv) = uv_word(tools) {
             format!(
-                "uv pip install --python {} {}",
+                "{uv} pip install --python {} {}",
                 quoted(&venv_python()),
                 words.join(" ")
             )
@@ -390,15 +430,17 @@ impl Kernel {
     /// The command that brings the environment to what the project's lock file says.
     fn sync_command(&self, source: &Path, tools: &Value) -> Result<String, CoreError> {
         let has = |name: &str| source.join(name).is_file();
-        let uv = tools.get("uv").is_some_and(|uv| !uv.is_null());
-        if uv && has("uv.lock") {
-            return Ok("uv sync".to_owned());
+        let uv = uv_word(tools);
+        if let Some(uv) = &uv
+            && has("uv.lock")
+        {
+            return Ok(format!("{uv} sync"));
         }
         for file in ["requirements.lock", "requirements.txt"] {
             if has(file) {
-                return Ok(if uv {
+                return Ok(if let Some(uv) = &uv {
                     format!(
-                        "uv pip install --python {} -r {}",
+                        "{uv} pip install --python {} -r {}",
                         quoted(&venv_python()),
                         quoted(file)
                     )
@@ -412,8 +454,8 @@ impl Kernel {
             }
         }
         if has("pyproject.toml") {
-            return Ok(if uv {
-                "uv sync".to_owned()
+            return Ok(if let Some(uv) = &uv {
+                format!("{uv} sync")
             } else {
                 format!(
                     "{} -m pip install --disable-pip-version-check -e .",
@@ -427,12 +469,14 @@ impl Kernel {
         ))
     }
 
-    /// Runs commands one after another in the project, recording the job and its output; one job at a time per project.
+    /// Runs commands one after another in the project, with `environment` set for them, recording the job and its
+    /// output; one job at a time per project.
     async fn start_environment_job(
         self: &Arc<Self>,
         project: &str,
         kind: &str,
         commands: Vec<String>,
+        environment: &[(&str, &str)],
         set_python_after: Option<String>,
         timeout_seconds: u64,
     ) -> Result<Value, CoreError> {
@@ -494,6 +538,7 @@ impl Kernel {
         command
             .current_dir(&source)
             .env("PIP_DISABLE_PIP_VERSION_CHECK", "1")
+            .envs(environment.iter().copied())
             .stdin(Stdio::null())
             .stdout(log)
             .stderr(errors);
@@ -517,6 +562,7 @@ impl Kernel {
             "id": id,
             "kind": kind,
             "commands": commands,
+            "env": environment.iter().map(|(name, value)| (name.to_string(), json!(value))).collect::<serde_json::Map<_, _>>(),
             "status": "running",
             "pid": pid,
             "startedAt": now,
