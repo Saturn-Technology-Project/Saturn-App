@@ -10,7 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-base64 = "0.22"
+base64 = "0.23"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 saturn-domain = { path = "../saturn-domain" }
