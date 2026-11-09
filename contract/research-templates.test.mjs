@@ -12,6 +12,9 @@ import { bench, posixOnly, until } from "./files-support.mjs";
 const TEMPLATES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../crates/saturn-core/src/research/templates");
 const python = spawnSync("python3", ["--version"]).error ? null : "python3";
 const needsPython = { ...posixOnly, skip: posixOnly.skip || (python ? false : "needs python3") };
+// The training template runs for real only where torch and numpy are installed; elsewhere it is parsed like the rest.
+const hasTorch = python !== null && spawnSync(python, ["-c", "import torch, numpy"], { timeout: 60_000 }).status === 0;
+const needsTorch = { ...needsPython, skip: needsPython.skip || (hasTorch ? false : "needs torch and numpy") };
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -65,4 +68,57 @@ run.artifact(run.output / "step-2", "json", note="not json, only listed")
   assert.match(manifest, /"kind": "checkpoint", "path": "written\/step-2", "step": 2/);
   const output = await saturn.api("GET", `${route}/runs/${run.id}/output`);
   assert.deepEqual(output.files.map((file) => file.path), ["step-2"]);
+});
+
+test("the training template saves every generator's state and reports only what a resume put back", needsTorch, async () => {
+  // Outside Saturn the SDK writes under ./saturn-run, so two folders stand for the first run and its resume.
+  const first = await saturn.folder();
+  const resumed = await saturn.folder();
+  for (const folder of [first, resumed]) {
+    for (const name of ["saturn_run.py", "train_loop.py"]) await writeFile(path.join(folder, name), await readFile(path.join(TEMPLATES, name)));
+  }
+  const smoke = (cwd, env) => spawnSync(python, ["train_loop.py", "--smoke"], { cwd, env: { ...process.env, ...env }, encoding: "utf8", timeout: 300_000 });
+  const trained = smoke(first, {});
+  assert.equal(trained.status, 0, trained.stderr);
+  const checkpoint = path.join(first, "saturn-run/written/step-30");
+  const manifest = await readFile(path.join(first, "saturn-run/artifacts.jsonl"), "utf8");
+  assert.match(manifest, /"kind": "checkpoint", "path": "written\/step-30", "step": 30/);
+  // The checkpoint holds each generator by name, the CUDA devices' as None where there are none.
+  const kept = spawnSync(python, ["-I", "-c", "import json, sys, torch; rng = torch.load(sys.argv[1], weights_only=False)['rng']; print(json.dumps({'keys': sorted(rng), 'cuda': rng.get('cuda') is not None, 'available': torch.cuda.is_available()}))", path.join(checkpoint, "state.pt")], { encoding: "utf8", timeout: 120_000 });
+  assert.equal(kept.status, 0, kept.stderr);
+  const saved = JSON.parse(kept.stdout);
+  assert.deepEqual(saved.keys, ["cuda", "numpy", "python", "torch"]);
+  assert.equal(saved.cuda, saved.available);
+  const resumeReport = async (folder) => {
+    const reports = (await readFile(path.join(folder, "saturn-run/report.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+    return reports.find((item) => item.kind === "resume");
+  };
+  const again = smoke(resumed, { SATURN_RESUME_FROM: checkpoint });
+  assert.equal(again.status, 0, again.stderr);
+  const resume = await resumeReport(resumed);
+  assert.equal(resume.checkpoint, checkpoint);
+  assert.equal(resume.step, 30);
+  // Each generator is named; the plain "rng" that once stood for the CPU generator alone is gone, and CUDA's state is
+  // claimed only where it was put back.
+  const expected = ["weights", "optimizer", "scheduler", "step", "rng:cpu", ...(saved.available ? ["rng:cuda"] : [])];
+  assert.deepEqual(resume.restored, expected);
+  assert.equal(resume.notRestored, undefined);
+  // A checkpoint from a machine with more CUDA devices than this one: its CUDA state is not put back, and the report
+  // says so instead of claiming it.
+  const elsewhere = await saturn.folder();
+  for (const name of ["saturn_run.py", "train_loop.py"]) await writeFile(path.join(elsewhere, name), await readFile(path.join(TEMPLATES, name)));
+  const foreign = path.join(first, "saturn-run/written/step-30-elsewhere");
+  const altered = spawnSync(python, ["-I", "-c", "import shutil, sys, torch; shutil.copytree(sys.argv[1], sys.argv[2]); state = torch.load(sys.argv[2] + '/state.pt', weights_only=False); state['rng']['cuda'] = [torch.get_rng_state()] * (torch.cuda.device_count() + 1); torch.save(state, sys.argv[2] + '/state.pt')", checkpoint, foreign], { encoding: "utf8", timeout: 120_000 });
+  assert.equal(altered.status, 0, altered.stderr);
+  const moved = smoke(elsewhere, { SATURN_RESUME_FROM: foreign });
+  assert.equal(moved.status, 0, moved.stderr);
+  const honest = await resumeReport(elsewhere);
+  assert.deepEqual(honest.restored, ["weights", "optimizer", "scheduler", "step", "rng:cpu"]);
+  assert.deepEqual(honest.notRestored, ["rng:cuda"]);
+  // The template loads the checkpoint onto the training device, which moves the generator states there too, and a
+  // generator takes its state as a CPU tensor only: the restore brings them back. Tried on the accelerator this machine
+  // has (CUDA or Apple's MPS), and on the CPU where it has none.
+  const mapped = spawnSync(python, ["-c", "import json, sys, torch, train_loop; device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'; saved = torch.load(sys.argv[1], map_location=device, weights_only=False); print(json.dumps({'device': device, 'restored': train_loop.restore_generators(saved['rng'])[0]}))", path.join(checkpoint, "state.pt")], { cwd: first, encoding: "utf8", timeout: 120_000 });
+  assert.equal(mapped.status, 0, mapped.stderr);
+  assert.deepEqual(JSON.parse(mapped.stdout).restored, ["rng:cpu", ...(saved.available ? ["rng:cuda"] : [])]);
 });
