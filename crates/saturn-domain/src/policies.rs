@@ -126,9 +126,35 @@ static READ_ONLY_NAME: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(get|list|read|search|grep|find|compare|fetch|view|describe|show)_|_(read|list|get|search|state|status)$").expect("this pattern is valid")
 });
 
+/// Tools that open an address the model gives: what they fetch is a read, but the address itself goes out.
+const FETCHING_TOOLS: [&str; 2] = ["web", "browser_navigate"];
+
+/// Whether a fetch's address carries more than where to go: a query, a fragment, or a long path. A chat that only reads
+/// must not become a way to send what it read, and such an address can carry it to whoever runs the site.
+pub fn sends_data_out(tool: &str, arguments: &Arguments) -> bool {
+    if !FETCHING_TOOLS.contains(&tool) {
+        return false;
+    }
+    let Ok(address) = url::Url::parse(argument_text(arguments, "url").trim()) else {
+        return false;
+    };
+    address.query().is_some_and(|query| !query.is_empty())
+        || address
+            .fragment()
+            .is_some_and(|fragment| !fragment.is_empty())
+        || address.path().len() > 200
+        || address
+            .path_segments()
+            .is_some_and(|mut segments| segments.any(|segment| segment.len() > 64))
+}
+
 /// Whether one tool call only reads. Ask and Plan turns run only these: a write is refused, not asked about. `category`
-/// is the tool's own declaration when it has one (`read` or `write`); the files tool depends on its action.
+/// is the tool's own declaration when it has one (`read` or `write`); the files tool depends on its action. A fetch whose
+/// address could carry data out (`sends_data_out`) is not a read.
 pub fn is_read_only_call(tool: &str, arguments: &Arguments, category: Option<&str>) -> bool {
+    if sends_data_out(tool, arguments) {
+        return false;
+    }
     if let Some(category) = category {
         return category == "read";
     }

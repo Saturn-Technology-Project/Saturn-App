@@ -5,7 +5,7 @@ use saturn_domain::completions::cut_at_stop;
 use saturn_domain::permissions::{
     Effect, Layer, Rule, Scope, command_segments, resolve_permission,
 };
-use saturn_domain::policies::is_sensitive_operation;
+use saturn_domain::policies::{is_read_only_call, is_sensitive_operation, sends_data_out};
 use serde_json::json;
 
 /// The arguments of a shell call.
@@ -270,6 +270,39 @@ fn a_patch_that_deletes_or_reaches_outside_the_workspace_asks() {
         "files",
         &patching("*** Begin Patch\n*** Add File: src/new.ts\n+x\n*** End Patch")
     ));
+}
+
+#[test]
+fn a_fetch_whose_address_could_carry_data_out_is_not_a_read() {
+    let fetch = |url: &str| {
+        json!({ "url": url })
+            .as_object()
+            .expect("an object")
+            .clone()
+    };
+    for carries in [
+        "https://x.example/?d=c2VjcmV0",
+        "https://x.example/page#token=abc",
+        &format!("https://x.example/{}", "a".repeat(80)),
+    ] {
+        assert!(sends_data_out("web", &fetch(carries)), "{carries}");
+        assert!(
+            !is_read_only_call("web", &fetch(carries), None),
+            "{carries}"
+        );
+        assert!(
+            !is_read_only_call("browser_navigate", &fetch(carries), Some("read")),
+            "{carries}"
+        );
+    }
+    for plain in [
+        "https://docs.example/guide/install",
+        "https://x.example/",
+        "not a url",
+    ] {
+        assert!(!sends_data_out("web", &fetch(plain)), "{plain}");
+        assert!(is_read_only_call("web", &fetch(plain), None), "{plain}");
+    }
 }
 
 #[test]

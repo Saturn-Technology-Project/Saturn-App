@@ -12,7 +12,7 @@ use saturn_domain::permissions::Effect;
 use saturn_domain::policies::{
     GuardrailMode, autonomy_of, is_read_only_call, is_sensitive_operation,
 };
-use saturn_domain::prompt::{RunMode, read_only_refusal};
+use saturn_domain::prompt::{RunMode, read_only_refusal_for};
 use saturn_domain::time::iso_time;
 use serde_json::{Value, json};
 use tokio::io::AsyncReadExt;
@@ -558,7 +558,7 @@ impl SkillsBridge {
                 .read(|state| tool_category(state, &self.agent, tool));
             if !is_read_only_call(tool, &args, category.as_deref()) {
                 return Ok(
-                    json!({ "id": action_id, "toolId": tool, "arguments": arguments, "status": "denied", "reason": read_only_refusal(mode) }),
+                    json!({ "id": action_id, "toolId": tool, "arguments": arguments, "status": "denied", "reason": read_only_refusal_for(mode, tool, &args) }),
                 );
             }
         }

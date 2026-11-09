@@ -12,7 +12,7 @@ use saturn_domain::js;
 use saturn_domain::new_id;
 use saturn_domain::permissions::Effect;
 use saturn_domain::policies::{GuardrailMode, is_read_only_call, is_sensitive_operation};
-use saturn_domain::prompt::{RunMode, mode_instructions, read_only_refusal};
+use saturn_domain::prompt::{RunMode, mode_instructions, read_only_refusal, read_only_refusal_for};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
@@ -304,7 +304,14 @@ impl ClaudeTurn {
                     return Ok(allowed);
                 }
             }
-            let refusal = read_only_refusal(mode);
+            let refusal = match skill_of(tool) {
+                Some(skill) => read_only_refusal_for(
+                    mode,
+                    skill,
+                    &input.as_object().cloned().unwrap_or_default(),
+                ),
+                None => read_only_refusal(mode),
+            };
             self.note_action(&id, tool, &input);
             {
                 let mut record = locked(&self.turn.record);

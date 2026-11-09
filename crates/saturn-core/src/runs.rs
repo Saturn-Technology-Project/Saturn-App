@@ -8,7 +8,9 @@ use saturn_domain::js;
 use saturn_domain::new_id;
 use saturn_domain::permissions::{Effect, Rule, Scope};
 use saturn_domain::policies::{GuardrailMode, is_read_only_call, is_sensitive_operation};
-use saturn_domain::prompt::{RunMode, clip, explain_run_error, join_thinking, read_only_refusal};
+use saturn_domain::prompt::{
+    RunMode, clip, explain_run_error, join_thinking, read_only_refusal_for,
+};
 use saturn_domain::time::{iso_time, now_millis};
 use saturn_llm::{Completion, ImagePart, ToolCall};
 use saturn_telemetry::{Kind, Span};
@@ -1310,7 +1312,7 @@ impl Kernel {
                         &call.name,
                         &call.arguments,
                         "denied",
-                        Some(&read_only_refusal(reading)),
+                        Some(&read_only_refusal_for(reading, &call.name, &arguments)),
                     );
                     actions.push(tag(refused, &call));
                     continue;
