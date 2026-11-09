@@ -26,7 +26,7 @@ url = "2"
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = "0.25"
 mac-notification-sys = "=0.6.15"
-macos-accessibility-client = "0.0.1"
+macos-accessibility-client = "0.0.2"
 
 [target.'cfg(windows)'.dependencies]
 tauri-winrt-notification = "=0.8.1"
