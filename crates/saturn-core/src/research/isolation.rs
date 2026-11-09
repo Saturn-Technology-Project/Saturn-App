@@ -297,13 +297,23 @@ pub(super) async fn command(
         visible.insert(0, placement.tree.clone());
         // The local weights the version names, such as a checkpoint another run wrote, are read where they are, and so
         // is what a resumed run continues from.
+        // Never Saturn's own data or a credential folder, nor the whole project, which the snapshot is there to replace:
+        // a version could otherwise name one as a model's source and read it from the run.
+        let real = |paths: &[PathBuf]| -> Vec<PathBuf> {
+            paths
+                .iter()
+                .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| path.clone()))
+                .collect()
+        };
+        let (saturn, projects) = (real(data), real(&placement.sources));
         for path in model_files(version, &placement.sources)
             .into_iter()
             .chain(placement.readable.iter().cloned())
         {
-            if !credentials.iter().any(|secret| path.starts_with(secret))
-                && !visible.contains(&path)
-            {
+            let forbidden = credentials.iter().any(|secret| path.starts_with(secret))
+                || saturn.iter().any(|folder| path.starts_with(folder))
+                || projects.iter().any(|project| project.starts_with(&path));
+            if !forbidden && !visible.contains(&path) {
                 visible.push(path);
             }
         }

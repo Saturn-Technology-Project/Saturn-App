@@ -149,6 +149,33 @@ test("a sandboxed run cannot read the project's own files, its records, Saturn's
   assert.equal(results.beside, "not part of the version", "what the project has beside the version stays reachable, as uncontrolled");
 });
 
+test("a model's source cannot open Saturn's data to the run, but a file in the project still can", posixOnly, async (t) => {
+  const bed = await setup("");
+  await mkdir(path.join(bed.folder, "weights"));
+  await writeFile(path.join(bed.folder, "weights", "model.bin"), "weights");
+  await writeFile(path.join(bed.folder, "probe.mjs"), tries({
+    data: `return (await fs.readdir(${JSON.stringify(saturn.runtime.dataDir)})).join(",");`,
+    token: `return await fs.readFile(${JSON.stringify(path.join(saturn.runtime.dataDir, "runtime-token"))}, 'utf8');`,
+    weights: `return await fs.readFile(${JSON.stringify(path.join(bed.folder, "weights", "model.bin"))}, 'utf8');`,
+  }));
+  const models = [];
+  // Sources that do not change while the version runs: a folder that does (Saturn's data, the project with its records)
+  // already stops the run as changed since it was frozen.
+  for (const [name, source] of [["saturn", path.join(saturn.runtime.dataDir, "runtime-token")], ["file", "weights/model.bin"]]) {
+    const model = await saturn.api("POST", `${bed.route}/models`, { name, source });
+    models.push({ modelId: model.id, role: name });
+  }
+  const current = await saturn.api("GET", `${bed.route}/experiments/${bed.experiment.id}`);
+  await saturn.api("PATCH", `${bed.route}/experiments/${bed.experiment.id}`, { models, expectedRevision: current.revision });
+  const version = await saturn.api("POST", `${bed.route}/experiments/${bed.experiment.id}/versions`, {});
+  const { evidence, results } = await run({ ...bed, version });
+  if (!sandboxed(t, evidence)) return;
+  const shows = (value, name) => !refused(value) && String(value).split(",").includes(name);
+  assert.ok(!shows(results.data, "runtime-token"), JSON.stringify(results));
+  assert.ok(refused(results.token), JSON.stringify(results));
+  assert.equal(results.weights, "weights", "a model file inside the project is read where it is");
+});
+
 // On Linux a program can overwrite these files: bubblewrap cannot keep a file read-only that Saturn replaces by
 // renaming. docs/research-contract.md says so.
 test("a sandboxed run cannot change the records Saturn keeps about it, on macOS", { skip: process.platform !== "darwin" && "bubblewrap cannot protect a file that is replaced by renaming" }, async (t) => {
