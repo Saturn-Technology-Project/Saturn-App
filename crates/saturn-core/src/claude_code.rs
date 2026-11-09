@@ -107,17 +107,21 @@ fn skill_of(tool: &str) -> Option<&str> {
         .strip_prefix("__")
 }
 
-/// "Ask for risky actions": a destructive shell command, or an edit outside the working folder.
-fn risky(tool: &str, input: &Value, workdir: &Path) -> bool {
+/// "Ask for risky actions": a destructive shell command, one that names Saturn's data folder (which Saturn does not
+/// hide from Claude Code's own shell, as it does from its sandboxed commands), or an edit outside the working folder.
+fn risky(tool: &str, input: &Value, workdir: &Path, data: &Path) -> bool {
     if tool == "Bash" || tool == "PowerShell" {
+        let command = input.get("command").and_then(Value::as_str).unwrap_or("");
         let mut arguments = serde_json::Map::new();
-        arguments.insert(
-            "command".to_owned(),
-            input.get("command").cloned().unwrap_or(Value::Null),
-        );
-        return is_sensitive_operation("code", &arguments);
+        arguments.insert("command".to_owned(), json!(command));
+        let folder = data.to_string_lossy();
+        return is_sensitive_operation("code", &arguments)
+            || (!folder.is_empty() && command.contains(folder.as_ref()));
     }
-    file_of(tool, input).is_some_and(|file| !resolved(workdir, file).starts_with(workdir))
+    file_of(tool, input).is_some_and(|file| {
+        let file = resolved(workdir, file);
+        !file.starts_with(workdir) || file.starts_with(data)
+    })
 }
 
 /// The sign-in command to paste in a terminal: PowerShell syntax on Windows, POSIX shell elsewhere.
@@ -350,7 +354,9 @@ impl ClaudeTurn {
             _ => {
                 pair || match self.approval {
                     GuardrailMode::Bypass => false,
-                    GuardrailMode::Default => risky(tool, &input, &self.workdir),
+                    GuardrailMode::Default => {
+                        risky(tool, &input, &self.workdir, self.turn.kernel.store.root())
+                    }
                     GuardrailMode::Review => true,
                 }
             }

@@ -21,10 +21,21 @@ pub fn autonomy_of(value: Option<&str>) -> GuardrailMode {
     }
 }
 
-/// Shell commands that delete, wipe, kill or escalate, on POSIX shells, cmd and PowerShell. Matched on the lowercased line.
+/// Shell commands that delete, wipe, kill or escalate, on POSIX shells, cmd and PowerShell, and ones that reach for
+/// Saturn's own data (its token, its keys) or a system key store. Matched on the lowercased line. A pattern is a
+/// heuristic: the sandbox, which hides Saturn's data and the credential folders from commands, is what holds.
 static SENSITIVE_COMMANDS: LazyLock<RegexSet> = LazyLock::new(|| {
     RegexSet::new([
         r"\brm\s+(-[rf]+|--recursive)\b",
+        r"\brm\b[^&|;]*\s--(recursive|force)\b",
+        r"\bfind\b[^&|;]*\s-delete\b",
+        r"\bgit\s+clean\s+-\w*f",
+        r"\bshred\b",
+        r"\.saturn-app\b",
+        r"runtime-token",
+        r"\bsecrets\.(json|key)\b",
+        r"\bsecurity\s+(find|dump|export)-",
+        r"\bsecret-tool\s+(lookup|search)\b",
         r"\bsudo\b",
         r"\b(kill|pkill)\b",
         r"\bgit\s+(push\s+--force|reset\s+--hard)\b",
