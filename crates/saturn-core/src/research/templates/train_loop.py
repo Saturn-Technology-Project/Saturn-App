@@ -7,9 +7,12 @@ How to use: declare the text file in the experiment's `inputs.data`, then run
 tokenizer. `--smoke` runs a few steps of the tiny model on this file's own text, to prove the pipeline before the real
 run. AdamW with linear warmup and cosine decay, gradient clipping at 1.0. It writes a metric line (loss, lr, tokens_seen)
 every `--log-every` steps, a sample `eval-step-<n>` with score `loss` on a fixed held-out batch every `--eval-every`
-steps, and a checkpoint folder `step-<n>` (model, optimizer, scheduler, step, RNG state; saved atomically and listed with
-`run.checkpoint`) every `--checkpoint-every` steps and when stopped. A resume restores all of it from `SATURN_RESUME_FROM`
-and reports so. What to change: the model in `build`, the batch sampling in the loop, and the defaults below.
+steps, and a checkpoint folder `step-<n>` (model, optimizer, scheduler, step, and the state of every random generator in
+use: Python's, NumPy's, torch's CPU one and each CUDA device's; saved atomically and listed with `run.checkpoint`) every
+`--checkpoint-every` steps and when stopped. A resume restores all of it from `SATURN_RESUME_FROM` and reports exactly
+what it restored. On CPU a resumed run then goes on as the uninterrupted one would have; on CUDA some kernels are not
+deterministic, so the two agree only to within those kernels' noise unless `torch.use_deterministic_algorithms(True)`
+is set. What to change: the model in `build`, the batch sampling in the loop, and the defaults below.
 """
 import argparse
 import math
@@ -78,6 +81,33 @@ def batch_at(ids, starts, seq, device):
     return torch.as_tensor(np.stack([ids[s : s + seq + 1] for s in starts]), device=device)
 
 
+def generator_states():
+    """The state of every random generator training draws from: Python's, NumPy's, torch's CPU one, and each CUDA device's
+    (the batch sampling uses NumPy; dropout, initialization and CUDA kernels use torch's). `cuda` is None without CUDA."""
+    import torch
+    return {"python": random.getstate(), "numpy": np.random.get_state(), "torch": torch.get_rng_state(),
+            "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None}
+
+
+def restore_generators(saved):
+    """Puts the saved generator states back; what was restored (`rng:cpu`, `rng:cuda`) and what could not be: CUDA state
+    saved on another number of devices, or on a machine with CUDA when this one has none, is left alone and said so.
+    A generator takes its state as a CPU byte tensor only, wherever `torch.load` mapped the checkpoint's tensors."""
+    import torch
+    random.setstate(saved["python"])
+    np.random.set_state(saved["numpy"])
+    torch.set_rng_state(saved["torch"].cpu())
+    restored, not_restored = ["rng:cpu"], []
+    cuda = saved.get("cuda")
+    if cuda is not None:
+        if torch.cuda.is_available() and len(cuda) == torch.cuda.device_count():
+            torch.cuda.set_rng_state_all([state.cpu() for state in cuda])
+            restored.append("rng:cuda")
+        else:
+            not_restored.append("rng:cuda")
+    return restored, not_restored
+
+
 def save_checkpoint(run, folder, model, optimizer, scheduler, step):
     """Everything a resume needs, written to a temporary folder and renamed, then listed for Saturn."""
     import torch
@@ -86,21 +116,23 @@ def save_checkpoint(run, folder, model, optimizer, scheduler, step):
     temporary = folder.with_name(folder.name + ".tmp")
     temporary.mkdir(parents=True, exist_ok=True)
     torch.save({"model": model.state_dict(), "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict(), "step": step,
-                "rng": {"torch": torch.get_rng_state(), "numpy": np.random.get_state(), "python": random.getstate()}}, temporary / "state.pt")
+                "rng": generator_states()}, temporary / "state.pt")
     os.replace(temporary, folder)
     run.checkpoint(folder, step=step)
 
 
 def restore(run, model, optimizer, scheduler, device):
-    """The checkpoint SATURN_RESUME_FROM names, put back into the model, optimizer, scheduler and RNGs; the step it was at."""
+    """The checkpoint SATURN_RESUME_FROM names, put back into the model, optimizer, scheduler and generators, with a report
+    naming each thing restored (and `notRestored` for what could not be); the step it was at."""
     import torch
     saved = torch.load(pathlib.Path(run.resume_from) / "state.pt", map_location=device, weights_only=False)
     for name, target in (("model", model), ("optimizer", optimizer), ("scheduler", scheduler)):
         target.load_state_dict(saved[name])
-    torch.set_rng_state(saved["rng"]["torch"])
-    np.random.set_state(saved["rng"]["numpy"])
-    random.setstate(saved["rng"]["python"])
-    run.report("resume", checkpoint=run.resume_from, restored=["weights", "optimizer", "scheduler", "step", "rng"], step=saved["step"])
+    generators, not_restored = restore_generators(saved["rng"])
+    report = {"checkpoint": run.resume_from, "restored": ["weights", "optimizer", "scheduler", "step", *generators], "step": saved["step"]}
+    if not_restored:
+        report["notRestored"] = not_restored
+    run.report("resume", **report)
     return saved["step"]
 
 
