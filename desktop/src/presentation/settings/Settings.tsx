@@ -425,14 +425,29 @@ function McpPage(props: {
   }
 
   async function addMcp() {
+    let created: Mcp | null = null;
     try {
-      const created = await desktop.admin.createMcp(url);
-      await desktop.admin.discoverMcp(created.id);
+      created = await desktop.admin.createMcp(url);
       setUrl("");
+      await desktop.admin.discoverMcp(created.id);
       props.onError("");
-      await props.onChanged();
     } catch (reason) {
       props.onError(reason instanceof Error ? reason.message : t("Could not connect MCP"));
+    } finally {
+      // Added even when connecting it needs a sign-in first: its card then offers Connect, instead of a second server.
+      if (created) await props.onChanged();
+    }
+  }
+
+  /** Lists a remote server's tools again, as after signing in to it in the browser. */
+  async function connect(item: Mcp) {
+    try {
+      await desktop.admin.discoverMcp(item.id);
+      props.onError("");
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : t("Could not connect MCP"));
+    } finally {
+      await props.onChanged();
     }
   }
 
@@ -516,6 +531,11 @@ function McpPage(props: {
             </span>
           </button>
           <RowActions>
+            {!builtin && !item.command && item.tools.length === 0 ? (
+              <Button variant="default" size="small" type="button" onClick={() => void connect(item)} title={t("List this server's tools, after signing in to it if it asked")}>
+                {t("Connect")}
+              </Button>
+            ) : null}
             <Button
               variant="outline" size="small"
               type="button"

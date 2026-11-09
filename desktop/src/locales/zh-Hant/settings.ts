@@ -364,6 +364,7 @@ export default {
   "{count} characters": "{count} 個字元",
   "Withdraw": "撤回",
   "Allow these files": "允許這些檔案",
+  "List this server's tools, after signing in to it if it asked": "列出這個伺服器的工具（若它要求登入，請先完成登入）",
   "This project's instruction files are held until you review them: {files}": "這個專案的指示檔案在你檢閱之前暫不使用：{files}",
   "Instruction files": "指示檔案",
   "Files in this project that tell agents how to work in it.": "這個專案中告訴代理程式如何在其中工作的檔案。",
