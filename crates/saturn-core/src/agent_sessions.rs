@@ -20,7 +20,7 @@ use tokio::sync::oneshot;
 use crate::builtins::GENERAL_SKILLS_ID;
 use crate::permissions::explain;
 use crate::records::{by_id, by_id_mut, generation, remove, strings, text};
-use crate::rules::project_rules_without;
+use crate::rules::{project_rules_without, stored_rules_only};
 use crate::tool_runs::tool_category;
 use crate::{CoreError, Kernel, locked, log};
 
@@ -94,6 +94,9 @@ pub(crate) struct TurnContext {
     pub(crate) memory: String,
     pub(crate) knowledge: String,
     pub(crate) rules: String,
+    /// Whether the project's instruction files may reach the program: there are none, or the user allowed them as they
+    /// are. When not, a program that reads one by itself (Codex, AGENTS.md) is told not to.
+    pub(crate) instructions_allowed: bool,
 }
 
 /// A program running for a turn: it ends when this is dropped, which is what stopping the run does, and with the runtime.
@@ -658,6 +661,7 @@ impl Kernel {
             .map(|thread| text(thread, "projectId").to_owned())
             .filter(|id| !id.is_empty());
         let memory = self.memory_for_prompt(project.as_deref()).await;
+        let mut instructions_allowed = true;
         let rules = match (self.workdir_for(thread.as_ref()), &project) {
             (Ok(Some(root)), Some(project)) => {
                 let stored = self.store.read(|state| {
@@ -665,7 +669,12 @@ impl Kernel {
                         .map(|item| text(item, "rules").to_owned())
                         .unwrap_or_default()
                 });
-                project_rules_without(&root, &stored, skip).await
+                instructions_allowed = self.instructions_allowed(project, &root).await;
+                if instructions_allowed {
+                    project_rules_without(&root, &stored, skip).await
+                } else {
+                    stored_rules_only(&root, &stored).await
+                }
             }
             _ => String::new(),
         };
@@ -687,6 +696,7 @@ impl Kernel {
             memory: js::trim(&memory).to_owned(),
             knowledge: js::trim(&knowledge).to_owned(),
             rules,
+            instructions_allowed,
         }
     }
 

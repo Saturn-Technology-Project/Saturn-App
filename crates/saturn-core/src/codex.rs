@@ -663,7 +663,7 @@ impl Kernel {
         let resume = self.saved_session(&run, "codexThreadId");
         // Memory and the agent's instructions open a new Codex thread, and a resumed thread already has them, unless the
         // instructions changed since it last heard them or it has no record of what it heard. What the knowledge sources
-        // return goes with every message. Codex reads AGENTS.md from its working folder itself.
+        // return goes with every message. Codex reads AGENTS.md from its working folder itself, once it is allowed.
         let context = self.turn_context(agent, &run, &["AGENTS.md"]).await;
         let instructions = js::trim(text(agent, "instructions"));
         let instructions_hash = sha256_hex(instructions.as_bytes());
@@ -708,7 +708,7 @@ impl Kernel {
             .map(|relative| self.store.root().join(relative))
             .collect();
         let origin = runtime_origin();
-        let args = arguments(
+        let mut args = arguments(
             model,
             &workdir,
             read_only,
@@ -716,6 +716,13 @@ impl Kernel {
             resume.as_deref(),
             &images,
         );
+        if !context.instructions_allowed {
+            // AGENTS.md has not been allowed as it is: Codex, which reads it by itself, reads none of it.
+            args.splice(
+                1..1,
+                ["--config".to_owned(), "project_doc_max_bytes=0".to_owned()],
+            );
+        }
         let mut command = program_command(&cli, &workdir, &args, |command| {
             self.codex_environment(command);
             if let Some(token) = &token {

@@ -101,36 +101,52 @@ impl Kernel {
         Ok(fitted(answer))
     }
 
-    /// The list of skills, or one skill's instructions. A project's or the user's skill of the same name comes first.
+    /// The list of skills, or one skill's instructions. The user's own skill of a name comes first (and a plugin's), then
+    /// Saturn's, then the project's: a folder cannot replace the guidance Saturn ships, such as research-autopilot, by
+    /// bringing a skill of its name. Project skills take part only once the user allowed the project's instruction files.
     async fn research_skill(&self, arguments: &Value, run: &Value) -> Result<Value, String> {
         let workdir = self.workdir_of_run(run).map_err(said)?;
+        let folder = self.skill_folder(run, workdir.as_deref()).await;
         let user_dir = self.store.root().join("skills");
         let plugins = self.enabled_plugin_folders();
         let name = js::trim(text(arguments, "name"));
         if !name.is_empty() {
-            if let Some(found) = load_skill(workdir.as_deref(), &user_dir, &plugins, name).await {
+            if let Some(found) = load_skill(None, &user_dir, &plugins, name).await {
                 return Ok(found);
             }
-            let (file, _) = bundled_skill(name).ok_or_else(|| {
-                format!("No skill named \"{name}\". Call research_skill with no name to list them.")
-            })?;
-            let parsed = parse_skill(file, name);
-            return Ok(
-                json!({ "name": parsed.name, "description": parsed.description, "instructions": parsed.body }),
-            );
+            if let Some((file, _)) = bundled_skill(name) {
+                let parsed = parse_skill(file, name);
+                return Ok(
+                    json!({ "name": parsed.name, "description": parsed.description, "instructions": parsed.body }),
+                );
+            }
+            return load_skill(folder.as_deref(), &user_dir, &plugins, name)
+                .await
+                .ok_or_else(|| {
+                    format!(
+                        "No skill named \"{name}\". Call research_skill with no name to list them."
+                    )
+                });
         }
-        let mut skills: Vec<Value> = list_skills(workdir.as_deref(), &user_dir, &plugins)
+        let mut skills: Vec<Value> = list_skills(None, &user_dir, &plugins)
             .await
             .into_iter()
             .map(|skill| json!({ "name": skill.name, "description": skill.description, "source": skill.source }))
             .collect();
-        for (skill, file) in bundled_skills() {
-            if !skills
+        let listed = |skills: &[Value], name: &str| {
+            skills
                 .iter()
-                .any(|item| text(item, "name").eq_ignore_ascii_case(skill))
-            {
+                .any(|item| text(item, "name").eq_ignore_ascii_case(name))
+        };
+        for (skill, file) in bundled_skills() {
+            if !listed(&skills, skill) {
                 let parsed = parse_skill(file, skill);
                 skills.push(json!({ "name": parsed.name, "description": parsed.description, "source": "saturn" }));
+            }
+        }
+        for skill in list_skills(folder.as_deref(), &user_dir, &plugins).await {
+            if skill.source == "project" && !listed(&skills, &skill.name) {
+                skills.push(json!({ "name": skill.name, "description": skill.description, "source": skill.source }));
             }
         }
         Ok(json!({ "skills": skills, "startWith": "research-autopilot" }))

@@ -328,6 +328,21 @@ async fn save_rules(State(kernel): Shared, Path(id): Path<String>, body: Body) -
         .await?)
 }
 
+/// A project's instruction files and skills, and whether the user allowed them as they are.
+async fn project_instructions(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.project_instructions(&id).await?)
+}
+
+async fn approve_instructions(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel
+        .approve_instructions(&id, &js::text(body_of(body).get("fingerprint")))
+        .await?)
+}
+
+async fn revoke_instructions(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.revoke_instructions(&id).await?)
+}
+
 async fn project_context(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
     let body = body_of(body);
     let items = body
@@ -1228,6 +1243,11 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/projects/{id}/terminal", post(project_terminal))
         .route("/projects/{id}/folder", post(project_folder))
         .route("/projects/{id}/rules", get(project_rules).put(save_rules))
+        .route("/projects/{id}/instructions", get(project_instructions))
+        .route(
+            "/projects/{id}/instructions/approve",
+            post(approve_instructions).delete(revoke_instructions),
+        )
         .route("/projects/{id}/context", post(project_context))
         .route("/projects/{id}/files", get(project_files))
         .route(

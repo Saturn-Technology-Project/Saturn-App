@@ -436,6 +436,7 @@ impl Kernel {
             "skill" => {
                 let name = text(arguments, "name");
                 let workdir = self.workdir_of(&run)?;
+                let workdir = self.skill_folder(&run, workdir.as_deref()).await;
                 let user_dir = self.store.root().join("skills");
                 let plugins = self.enabled_plugin_folders();
                 let loaded = if name.is_empty() {

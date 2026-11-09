@@ -12,6 +12,9 @@ use serde_json::{Value, json};
 use crate::records::{by_id, by_id_mut, remove, text};
 use crate::{CoreError, Kernel, locked, log};
 
+/// How many allowed versions of a project's instruction files are kept: the project's own and its worktrees' can differ.
+const APPROVED_INSTRUCTIONS_KEPT: usize = 8;
+
 /// `~` and `~/…` as the home folder.
 fn resolve_home(path: &str) -> PathBuf {
     let home = std::env::home_dir();
@@ -491,6 +494,128 @@ impl Kernel {
         Ok(json!({ "opened": true, "path": path }))
     }
 
+    /// The fingerprints of instruction files the user allowed for a project, newest last.
+    fn approved_instructions(&self, id: &str) -> Vec<String> {
+        self.store.read(|state| {
+            by_id(&state.projects, id)
+                .and_then(|project| project.get("approvedInstructions"))
+                .and_then(Value::as_array)
+                .map(|prints| {
+                    prints
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default()
+        })
+    }
+
+    /// Whether the instruction files and skills in `root` (the project's folder or one of its worktrees) may reach an
+    /// agent's prompt: there are none, or the user allowed exactly these.
+    pub(crate) async fn instructions_allowed(&self, project_id: &str, root: &Path) -> bool {
+        let print =
+            crate::rules::instructions_fingerprint(&crate::rules::instruction_files(root).await);
+        print.is_empty() || self.approved_instructions(project_id).contains(&print)
+    }
+
+    /// The folder a run may load project skills from: its working folder, unless that belongs to a project whose
+    /// instruction files the user has not allowed as they are.
+    pub(crate) async fn skill_folder(
+        &self,
+        run: &Value,
+        workdir: Option<&Path>,
+    ) -> Option<PathBuf> {
+        let folder = workdir?;
+        let project = self
+            .find_thread(text(run, "threadId"))
+            .map(|thread| text(&thread, "projectId").to_owned())
+            .filter(|id| !id.is_empty());
+        match project {
+            Some(id) if !self.instructions_allowed(&id, folder).await => None,
+            _ => Some(folder.to_path_buf()),
+        }
+    }
+
+    /// What a project's instruction files are, and whether the user allowed them as they are now.
+    pub async fn project_instructions(&self, id: &str) -> Result<Value, CoreError> {
+        let target = self.project_view(id).await?;
+        let root = PathBuf::from(text(&target, "path"));
+        let files = crate::rules::instruction_files(&root).await;
+        let fingerprint = crate::rules::instructions_fingerprint(&files);
+        let approved =
+            fingerprint.is_empty() || self.approved_instructions(id).contains(&fingerprint);
+        Ok(json!({
+            "fingerprint": fingerprint,
+            "approved": approved,
+            "files": files
+                .iter()
+                .map(|(path, content)| json!({ "path": path, "chars": js::length(content), "content": content }))
+                .collect::<Vec<_>>(),
+        }))
+    }
+
+    /// The user allows a project's instruction files as they saw them, named by their fingerprint.
+    pub async fn approve_instructions(
+        &self,
+        id: &str,
+        fingerprint: &str,
+    ) -> Result<Value, CoreError> {
+        let current = self.project_instructions(id).await?;
+        let print = text(&current, "fingerprint");
+        if print.is_empty() {
+            return Err(CoreError::new(
+                404,
+                "This project has no instruction files to allow",
+            ));
+        }
+        if print != fingerprint {
+            return Err(CoreError::new(
+                409,
+                "The project's instruction files changed since you looked; review them again.",
+            ));
+        }
+        self.remember_instructions(id, print).await?;
+        log(
+            "runtime",
+            "info",
+            "A project's instruction files were allowed",
+        );
+        self.project_instructions(id).await
+    }
+
+    /// Adds a fingerprint to the project's allowed ones, keeping the last few (a project and its worktrees can differ).
+    async fn remember_instructions(&self, id: &str, print: &str) -> Result<(), CoreError> {
+        self.store
+            .update(|state| {
+                let project = by_id_mut(&mut state.projects, id)
+                    .ok_or_else(|| CoreError::new(404, "Project not found"))?;
+                let mut prints: Vec<Value> = project
+                    .get("approvedInstructions")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default();
+                prints.retain(|item| item.as_str() != Some(print));
+                prints.push(json!(print));
+                let keep = prints.len().saturating_sub(APPROVED_INSTRUCTIONS_KEPT);
+                project["approvedInstructions"] = json!(prints[keep..].to_vec());
+                Ok::<(), CoreError>(())
+            })
+            .await?
+    }
+
+    /// Withdraws every approval of a project's instruction files; they leave the prompt until allowed again.
+    pub async fn revoke_instructions(&self, id: &str) -> Result<Value, CoreError> {
+        self.store
+            .update(|state| {
+                if let Some(project) = by_id_mut(&mut state.projects, id) {
+                    remove(project, "approvedInstructions");
+                }
+            })
+            .await?;
+        self.project_instructions(id).await
+    }
+
     /// The rules a project's editor shows, and every file the agents' prompt takes rules from.
     pub async fn project_rules_view(&self, id: &str) -> Result<Value, CoreError> {
         let target = self.project_view(id).await?;
@@ -518,6 +643,7 @@ impl Kernel {
             }
         });
         view["sources"] = crate::rules::rule_sources(&root, stored).await.into();
+        view["instructions"] = self.project_instructions(id).await?;
         Ok(view)
     }
 
@@ -530,6 +656,8 @@ impl Kernel {
     ) -> Result<Value, CoreError> {
         let target = self.project_view(id).await?;
         let root = PathBuf::from(text(&target, "path"));
+        // What the user writes here is theirs: when the files were allowed before, the new content is allowed too.
+        let allowed_before = self.instructions_allowed(id, &root).await;
         self.update_project(id, &json!({ "rules": content }))
             .await?;
         let workspace = Workspace::new(&root);
@@ -552,6 +680,14 @@ impl Kernel {
                 tokio::fs::write(file, content).await?;
             }
             _ => {}
+        }
+        if allowed_before {
+            let print = crate::rules::instructions_fingerprint(
+                &crate::rules::instruction_files(&root).await,
+            );
+            if !print.is_empty() {
+                self.remember_instructions(id, &print).await?;
+            }
         }
         Ok(json!({ "saved": true }))
     }
