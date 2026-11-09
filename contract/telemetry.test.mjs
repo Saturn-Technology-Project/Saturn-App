@@ -89,7 +89,8 @@ async function scripted(runtime) {
     response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }));
   });
   const connection = await api(runtime, "POST", "/connections/models", { name: "Local", provider: "openai", model: "local-model", baseUrl: `${model.url}/v1?key=SECRET` });
-  const server = await api(runtime, "POST", "/connections/mcp", { name: "GitHub", url: mcp.url, tools: [{ toolId: "github.search", category: "read" }] });
+  // Some MCP services put their key in the path rather than the query: the log keeps neither.
+  const server = await api(runtime, "POST", "/connections/mcp", { name: "GitHub", url: `${mcp.url}/s/SECRETPATHTOKEN0123456789abcdef/mcp`, tools: [{ toolId: "github.search", category: "read" }] });
   const agent = await api(runtime, "POST", "/agents", { name: "Research", modelConnectionId: connection.id, autonomy: "bypass", mcpConnectionIds: [server.id] });
   return { model, mcp, agent };
 }
