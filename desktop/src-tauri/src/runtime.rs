@@ -53,6 +53,9 @@ pub struct Runtime {
     data_directory: PathBuf,
     /// The id this app gives its runtime, so a health answer says whether it is this app's.
     instance: String,
+    /// The token this app gives every runtime it starts, new each time the app opens, so a token that leaked from an
+    /// earlier session is no use. Empty when no random bytes could be had: the runtime then keeps its own.
+    session_token: String,
     /// Whether a runtime already on the port may be used instead of starting one: only when the port was chosen
     /// on purpose, as when testing against an isolated runtime.
     adopt: bool,
@@ -85,6 +88,7 @@ impl Runtime {
             port: chosen_port.unwrap_or(4700),
             data_directory,
             instance: format!("{:x}{:x}", std::process::id(), nanos()),
+            session_token: new_token(),
             adopt: chosen_port.is_some(),
             child: Mutex::new(None),
             status: Mutex::new(Status::Starting {
@@ -101,8 +105,12 @@ impl Runtime {
         format!("http://{HOST}:{}", self.port)
     }
 
-    /// The runtime's session token, from the private token file in its data folder.
+    /// The runtime's session token: the one this app gives the runtimes it starts, or, for a runtime on a port chosen on
+    /// purpose that this app may only watch, the one in its data folder's private token file.
     pub fn token(&self) -> String {
+        if !self.adopt && !self.session_token.is_empty() {
+            return self.session_token.clone();
+        }
         std::fs::read_to_string(self.data_directory.join("runtime-token"))
             .map(|token| token.trim().to_owned())
             .unwrap_or_default()
@@ -237,7 +245,7 @@ impl Runtime {
             .lock()
             .expect("the log lock is not poisoned")
             .clear();
-        let mut child = spawn(layout, self.port, &self.instance)
+        let mut child = spawn(layout, self.port, &self.instance, &self.session_token)
             .map_err(|error| format!("Saturn's runtime could not be started: {error}"))?;
         if let Some(stderr) = child.stderr.take() {
             let log = Arc::clone(&self.log);
@@ -365,15 +373,15 @@ impl Runtime {
         })
     }
 
-    /// A JSON request with the token; None when the runtime does not answer or refuses.
+    /// A JSON request without the token; None when nothing answers or it refuses. The health probe needs no token, and
+    /// whoever answers on the port is not known to be Saturn until it has said so: something else listening there, while
+    /// the runtime is down, must not be handed the token.
     async fn request(&self, method: &str, route: &str, limit: Duration) -> Option<Value> {
         let exchange = async {
             let mut stream = TcpStream::connect((HOST, self.port)).await.ok()?;
             // HTTP/1.0: the answer ends when the connection does, with no chunked encoding to undo.
-            let head = format!(
-                "{method} {route} HTTP/1.0\r\nHost: {HOST}\r\nAuthorization: Bearer {}\r\nContent-Length: 0\r\n\r\n",
-                self.token()
-            );
+            let head =
+                format!("{method} {route} HTTP/1.0\r\nHost: {HOST}\r\nContent-Length: 0\r\n\r\n");
             stream.write_all(head.as_bytes()).await.ok()?;
             let mut answer = Vec::new();
             stream.read_to_end(&mut answer).await.ok()?;
@@ -381,6 +389,15 @@ impl Runtime {
         };
         parse_answer(&timeout(limit, exchange).await.ok()??)
     }
+}
+
+/// 32 random bytes as hex, for the session token; empty when the system gives none.
+fn new_token() -> String {
+    let mut bytes = [0u8; 32];
+    if getrandom::fill(&mut bytes).is_err() {
+        return String::new();
+    }
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn nanos() -> u128 {
@@ -414,7 +431,9 @@ fn runtime_program(folder: &Path) -> PathBuf {
     })
 }
 
-fn spawn(layout: &Layout, port: u16, instance: &str) -> std::io::Result<Child> {
+/// Starts the runtime with this app's instance id and, when there is one, its session token (which the runtime also
+/// writes to its token file, for the `saturn` command and the SDK).
+fn spawn(layout: &Layout, port: u16, instance: &str, token: &str) -> std::io::Result<Child> {
     let mut command = match layout {
         Layout::Packaged { resources } => {
             let app = env::current_exe()?;
@@ -436,6 +455,9 @@ fn spawn(layout: &Layout, port: u16, instance: &str) -> std::io::Result<Child> {
         .env("SATURN_RUNTIME_PORT", port.to_string())
         .env("SATURN_RUNTIME_INSTANCE", instance)
         .env("SATURN_DESKTOP_ATTACHED", "1");
+    if !token.is_empty() {
+        command.env("SATURN_RUNTIME_TOKEN", token);
+    }
     // A console program started by a windowed one gets a console window of its own on Windows unless told not to. The
     // runtime's output comes down the pipes, and it starts its own programs without a window too.
     #[cfg(windows)]
@@ -476,5 +498,69 @@ mod tests {
         })
         .unwrap();
         assert_eq!(text, r#"{"state":"ready","version":"1.0.0","own":true}"#);
+    }
+
+    /// A runtime of this app on `port`, with its data in `data`.
+    fn on_port(port: u16, data: &Path, adopt: bool) -> Runtime {
+        Runtime {
+            port,
+            data_directory: data.to_path_buf(),
+            instance: "this-app".into(),
+            session_token: new_token(),
+            adopt,
+            child: Mutex::new(None),
+            status: Mutex::new(Status::Starting {
+                attempt: 0,
+                log: Vec::new(),
+            }),
+            log: Arc::default(),
+            stopping: Mutex::new(false),
+            retry: Notify::new(),
+        }
+    }
+
+    #[test]
+    fn each_app_session_has_a_new_token_and_an_adopted_runtime_keeps_its_own() {
+        let data = std::env::temp_dir().join(format!("saturn-shell-token-{}", nanos()));
+        std::fs::create_dir_all(&data).unwrap();
+        std::fs::write(data.join("runtime-token"), "from-the-file\n").unwrap();
+        let (first, second) = (on_port(1, &data, false), on_port(1, &data, false));
+        assert_eq!(first.token().len(), 64);
+        assert_ne!(first.token(), second.token(), "a new session, a new token");
+        assert_ne!(
+            first.token(),
+            "from-the-file",
+            "not the one an earlier session left"
+        );
+        assert_eq!(on_port(1, &data, true).token(), "from-the-file");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[tokio::test]
+    async fn the_health_probe_never_hands_the_token_to_whatever_listens_on_the_port() {
+        let squatter = tokio::net::TcpListener::bind((HOST, 0)).await.unwrap();
+        let port = squatter.local_addr().unwrap().port();
+        let heard = tokio::spawn(async move {
+            let (mut stream, _) = squatter.accept().await.unwrap();
+            let mut request = vec![0u8; 4096];
+            let read = stream.read(&mut request).await.unwrap();
+            stream
+                .write_all(
+                    b"HTTP/1.0 200 OK\r\n\r\n{\"instance\":\"someone-else\",\"version\":\"9\"}",
+                )
+                .await
+                .unwrap();
+            String::from_utf8_lossy(&request[..read]).into_owned()
+        });
+        let runtime = on_port(port, &std::env::temp_dir(), false);
+        let answer = runtime.probe().await.expect("an answer");
+        assert_eq!(answer.instance, "someone-else");
+        let request = heard.await.unwrap();
+        assert!(request.starts_with("GET /health HTTP/1.0"), "{request}");
+        assert!(
+            !request.to_lowercase().contains("authorization"),
+            "{request}"
+        );
+        assert!(!request.contains(&runtime.token()), "{request}");
     }
 }
