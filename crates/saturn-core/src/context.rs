@@ -340,7 +340,7 @@ impl Kernel {
         let Some(command) = self.verify_command(project_id, root).await else {
             return "No check command is set for this project (Settings → Projects → Verify command), so there is nothing to report.".to_owned();
         };
-        let result = Self::run_verification(&command, root).await;
+        let result = self.run_verification(project_id, &command, root).await;
         if result["ok"] == true {
             format!("`{command}` passed with no output of note.")
         } else {
