@@ -107,6 +107,11 @@ fn skill_of(tool: &str) -> Option<&str> {
         .strip_prefix("__")
 }
 
+/// Words that mark a variable as a credential.
+const CREDENTIAL_WORDS: [&str; 6] = ["TOKEN", "KEY", "SECRET", "PASSWORD", "CREDENTIAL", "AUTH"];
+/// The credentials Claude Code itself uses: an Anthropic key or token, Bedrock's AWS credentials, Vertex's Google ones.
+const CLAUDE_CREDENTIALS: [&str; 4] = ["ANTHROPIC_", "CLAUDE_", "AWS_", "GOOGLE_"];
+
 /// "Ask for risky actions": a destructive shell command, one that names Saturn's data folder (which Saturn does not
 /// hide from Claude Code's own shell, as it does from its sandboxed commands), an edit outside the working folder, or a
 /// Saturn skill call the default mode asks about.
@@ -495,8 +500,20 @@ impl Kernel {
 
     /// The program's environment: the runtime's own. Whatever the user set up for Claude Code (their own key, Bedrock, Vertex AI or
     /// Foundry settings) reaches it, and it picks by its own documented order. Saturn adds no credential of its own.
+    /// The user's environment for Claude Code, without the credentials it has no use for. Its shell, which Saturn does
+    /// not sandbox, could print any variable it inherits; it keeps the ones it signs in or reaches its provider with.
     fn claude_environment(&self, command: &mut Command) {
         saturn_tools::launch_env(command);
+        for (name, _) in std::env::vars_os() {
+            let upper = name.to_string_lossy().to_ascii_uppercase();
+            let credential = CREDENTIAL_WORDS.iter().any(|word| upper.contains(word));
+            let its_own = CLAUDE_CREDENTIALS
+                .iter()
+                .any(|prefix| upper.starts_with(prefix));
+            if credential && !its_own {
+                command.env_remove(&name);
+            }
+        }
         command.env("CLAUDE_CONFIG_DIR", self.claude_config());
     }
 
