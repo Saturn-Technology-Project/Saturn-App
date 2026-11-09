@@ -57,10 +57,55 @@ impl LayerView {
     }
 }
 
-/// A rule that would allow every shell command, or every call of every tool: not a rule, whoever writes it.
+/// Programs that run whatever command follows them: a rule allowing one with a wildcard allows every command.
+const LAUNCHERS: [&str; 19] = [
+    "sh",
+    "bash",
+    "zsh",
+    "fish",
+    "dash",
+    "ksh",
+    "csh",
+    "tcsh",
+    "busybox",
+    "env",
+    "eval",
+    "exec",
+    "xargs",
+    "nohup",
+    "sudo",
+    "doas",
+    "pwsh",
+    "powershell",
+    "cmd",
+];
+
+/// A rule that would allow every shell command, or every call of every tool: not a rule, whoever writes it. That
+/// includes a shell or a launcher followed by a wildcard (`sh *`, `bash -c *`, `env *`) and a wildcard in the command's
+/// own name (`* *`), which allow every command as surely as `*` does.
 pub fn allows_everything(rule: &Rule) -> bool {
     let any = |value: &str| matches!(saturn_domain::js::trim(value), "*" | "**");
-    rule.effect == Effect::Allow && (rule.tool == "code" || any(&rule.tool)) && any(&rule.pattern)
+    if rule.effect != Effect::Allow {
+        return false;
+    }
+    if any(&rule.tool) && any(&rule.pattern) {
+        return true;
+    }
+    if rule.tool.trim() != "code" {
+        return false;
+    }
+    let pattern = saturn_domain::js::trim(&rule.pattern);
+    if any(pattern) {
+        return true;
+    }
+    let program = pattern.split_whitespace().next().unwrap_or_default();
+    let name = program
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(program)
+        .to_lowercase();
+    let name = name.strip_suffix(".exe").unwrap_or(&name);
+    pattern.contains('*') && (program.contains('*') || LAUNCHERS.contains(&name))
 }
 
 /// Names a file's allow rules: approving them names this, and any change to them asks again.

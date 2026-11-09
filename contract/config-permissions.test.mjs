@@ -122,11 +122,18 @@ test("a rule is checked before it is saved, and allow-everything is never a rule
   await saturn.refused("POST", "/permissions/rules", { scope: "user", rule: rule("code", "x", "maybe") }, 400);
   await saturn.refused("POST", "/permissions/rules", { scope: "user", rule: rule("code", "   ", "allow") }, 400);
   await saturn.refused("POST", "/permissions/rules", { scope: "user" }, 400);
-  for (const everything of [rule("code", "*", "allow"), rule("code", "**", "allow"), rule("code", " * ", "allow"), rule("*", "*", "allow"), rule("**", "**", "allow")]) {
+  // A shell or a launcher with a wildcard, or a wildcard command name, allows every command as surely as `*` does.
+  const launchers = [rule("code", "sh *", "allow"), rule("code", "bash -c *", "allow"), rule("code", "/bin/zsh *", "allow"), rule("code", "env *", "allow"), rule("code", "xargs *", "allow"), rule("code", "* *", "allow"), rule("code", "*sh *", "allow"), rule("code", "powershell.exe *", "allow")];
+  for (const everything of [rule("code", "*", "allow"), rule("code", "**", "allow"), rule("code", " * ", "allow"), rule("*", "*", "allow"), rule("**", "**", "allow"), ...launchers]) {
     await saturn.refused("POST", "/permissions/rules", { scope: "user", rule: everything }, 400, /not a rule/);
     await saturn.refused("POST", "/permissions/rules", { scope: "project", projectId: setup.project.id, rule: everything }, 400, /not a rule/);
   }
   assert.deepEqual((await saturn.api("GET", "/permissions")).find((item) => item.scope === "user").rules, [], "nothing refused was saved");
+  // A named program with a wildcard after it is still a rule, and so is denying a shell.
+  for (const fine of [rule("code", "npm *", "allow"), rule("code", "shellcheck *", "allow"), rule("code", "sh *", "deny")]) {
+    await saturn.api("POST", "/permissions/rules", { scope: "user", rule: fine });
+    await saturn.api("DELETE", "/permissions/rules", { scope: "user", rule: fine });
+  }
 
   // Refusing everything is a rule, and saving the same tool and pattern again changes its effect rather than adding one.
   await saturn.api("POST", "/permissions/rules", { scope: "user", rule: rule("files", "*", "deny") });
