@@ -436,12 +436,6 @@ impl Kernel {
         set_python_after: Option<String>,
         timeout_seconds: u64,
     ) -> Result<Value, CoreError> {
-        if cfg!(windows) {
-            return Err(CoreError::new(
-                501,
-                "Managing an environment is not supported on Windows yet.",
-            ));
-        }
         let source = self.research_source(project, None)?;
         let records = self.records_for_writing(project).await?;
         // The record is written before the running set is cleared, so a job whose record says it ended is over.
