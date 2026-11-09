@@ -17,9 +17,9 @@ export type CodexStatus = {
   error?: string;
 };
 
-/** Claude Code or Codex: whether it is installed, where from, and a download in progress. */
+/** Claude Code, Codex or uv: whether it is installed, where from, and a download in progress. */
 export type ProgramStatus = {
-  id: "claude-code" | "codex";
+  id: "claude-code" | "codex" | "uv";
   label: string;
   installed: boolean;
   source: "saturn" | "bundled" | "system" | null;

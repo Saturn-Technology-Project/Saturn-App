@@ -981,8 +981,8 @@ export interface EnvironmentRecord {
   checkedWith?: string;
   report: EnvironmentReport | null;
   lockFiles: { path: string; sha256: string; size: number }[];
-  /** What this computer can make environments with, and whether the project's managed one exists. */
-  tools: { uv: string | null; python3: string | null; managed: { path: string; python: string; exists: boolean } };
+  /** What this computer can make environments with (uv is Saturn's own download or the system's), and whether the project's managed one exists. */
+  tools: { uv: string | null; uvSource: "saturn" | "system" | null; python3: string | null; managed: { path: string; python: string; exists: boolean } };
   kits: EnvironmentKit[];
   job: EnvironmentJob | null;
 }
@@ -1001,6 +1001,8 @@ export interface EnvironmentJob {
   id: string;
   kind: "create" | "install" | "sync";
   commands: string[];
+  /** Variables set for the commands, such as where uv may put a Python it installs. */
+  env: Record<string, string>;
   status: "running" | "completed" | "failed" | "interrupted" | "timed_out";
   timeoutSeconds?: number;
   error?: string;
