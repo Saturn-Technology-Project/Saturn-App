@@ -327,6 +327,22 @@ test("the terminal panel runs a command in the folder and follows cd", async () 
   assert.equal((await api("POST", "/workspace/terminal", { command: "exit 3" })).exitCode, 3);
 });
 
+test("the token a launcher gives the runtime reaches no command the terminal panel runs", posixOnly, async () => {
+  const launcherToken = "0123456789abcdef".repeat(4);
+  const launched = await startRuntime({ env: { SATURN_RUNTIME_TOKEN: launcherToken } });
+  try {
+    assert.equal((await readFile(path.join(launched.dataDir, "runtime-token"), "utf8")).trim(), launcherToken, "the launcher's token is the runtime's");
+    const answer = await fetch(`${launched.origin}/workspace/terminal`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${launcherToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ command: "printf '[%s]' \"$SATURN_RUNTIME_TOKEN\"; env | grep -c SATURN_RUNTIME_TOKEN || true", cwd: folder }),
+    }).then((response) => response.json());
+    assert.equal(answer.stdout.trim(), "[]0", JSON.stringify(answer));
+  } finally {
+    await launched.stop();
+  }
+});
+
 test("a terminal panel keeps what activate and export set for its next command, and only that panel does", posixOnly, async () => {
   const project = await api("POST", "/projects", { path: folder, grant: true }, 201);
   await api("POST", `/projects/${project.id}/active`);
