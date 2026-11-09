@@ -82,7 +82,9 @@ pub fn leave_session() -> std::io::Result<()> {
     Ok(())
 }
 
-/// Keeps a short-lived program from opening a console window on Windows.
+/// Keeps a program from opening a console window on Windows. The runtime has no console of its own there (the app starts
+/// it without one), and a console program started by a process without a console gets a new, visible one unless told
+/// not to; its output still reaches the pipes.
 #[cfg(unix)]
 pub fn no_window(_command: &mut Command) {}
 
@@ -90,6 +92,16 @@ pub fn no_window(_command: &mut Command) {}
 pub fn no_window(command: &mut Command) {
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     command.creation_flags(CREATE_NO_WINDOW);
+}
+
+/// `no_window` for a program started with the standard library's blocking `Command`.
+#[cfg(unix)]
+pub fn no_window_blocking(_command: &mut std::process::Command) {}
+
+#[cfg(windows)]
+pub fn no_window_blocking(command: &mut std::process::Command) {
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    std::os::windows::process::CommandExt::creation_flags(command, CREATE_NO_WINDOW);
 }
 
 /// Windows has no process groups; a command also must not open a console window of its own.

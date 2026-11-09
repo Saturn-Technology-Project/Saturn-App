@@ -281,7 +281,12 @@ fn open_helper(
     start: u64,
     count: Option<u64>,
 ) -> Result<Source, CoreError> {
-    let python = place.python.as_deref().unwrap_or("python3");
+    // Without a chosen interpreter, the system's: python3, which Windows spells python.
+    let python =
+        place
+            .python
+            .as_deref()
+            .unwrap_or(if cfg!(windows) { "python" } else { "python3" });
     let ask = json!({
         "path": place.path.to_string_lossy(),
         "kind": kind,
@@ -291,6 +296,7 @@ fn open_helper(
     });
     let mut command = Command::new(python);
     launch_env(&mut command);
+    saturn_tools::no_window(&mut command);
     for (name, _) in std::env::vars_os() {
         if name.to_string_lossy().starts_with("SATURN_") {
             command.env_remove(&name);

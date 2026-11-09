@@ -32,6 +32,7 @@ async fn library_roots(language: &str, python: Option<&Path>, root: &Path) -> Ve
         ("python", Some(python)) => {
             // -E ignores PYTHON* variables, and a neutral folder keeps the project's own modules off the path.
             let mut command = Command::new(python);
+            saturn_tools::no_window(&mut command);
             command
                 .args(["-E", "-c", "import json, sys; print(json.dumps(sys.path))"])
                 .current_dir(std::env::temp_dir())

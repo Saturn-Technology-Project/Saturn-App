@@ -14,7 +14,7 @@ use saturn_domain::new_id;
 use saturn_domain::research::{is_id, sha256_hex};
 use saturn_domain::time::{iso_time, now_millis};
 use saturn_tools::shell::Invocation;
-use saturn_tools::{EndOnDrop, in_own_group, launch_env, run_captured};
+use saturn_tools::{EndOnDrop, in_own_group, launch_env, no_window, run_captured};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
@@ -617,6 +617,7 @@ impl Kernel {
             ),
         );
         let mut command = Command::new(&invocation.file);
+        no_window(&mut command);
         command
             .args(&invocation.args)
             .env_clear()
@@ -1237,7 +1238,9 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
                 .map_or_else(|| seed.to_string(), str::to_owned)
         })
         .collect();
-    let git = Command::new("git")
+    let mut git_command = Command::new("git");
+    no_window(&mut git_command);
+    let git = git_command
         .args(["rev-parse", "HEAD"])
         .current_dir(&workdir)
         .output()

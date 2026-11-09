@@ -345,6 +345,7 @@ pub(super) async fn command(
     let (mut command, observed) = match wrapped {
         Ok(confined) => {
             let mut command = Command::new(&confined.invocation.file);
+            saturn_tools::no_window(&mut command);
             command.args(&confined.invocation.args);
             let observed = json!({
                 "requested": true,

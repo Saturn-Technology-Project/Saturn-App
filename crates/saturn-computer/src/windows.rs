@@ -85,7 +85,9 @@ impl Helper {
     /// what this version carries.
     async fn command(&self) -> Result<Command, Failure> {
         if let Some(stand_in) = &self.stand_in {
-            return Ok(Command::new(stand_in));
+            let mut command = Command::new(stand_in);
+            saturn_tools::no_window(&mut command);
+            return Ok(command);
         }
         let mut hash = Sha256::new();
         hash.update(SOURCE);
@@ -110,6 +112,7 @@ impl Helper {
             .map_or_else(|| PathBuf::from("C:\\Windows"), PathBuf::from);
         let mut command =
             Command::new(system.join("System32\\WindowsPowerShell\\v1.0\\powershell.exe"));
+        saturn_tools::no_window(&mut command);
         command
             .args([
                 "-NoProfile",

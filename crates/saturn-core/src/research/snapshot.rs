@@ -250,7 +250,9 @@ pub(super) async fn fill(
                     format!("The version's commit could not be read from git: {message}"),
                 )
             })?;
-            let unpacked = tokio::process::Command::new("tar")
+            let mut tar = tokio::process::Command::new("tar");
+            saturn_tools::no_window(&mut tar);
+            let unpacked = tar
                 .args(["-xf", &archive_path, "-C"])
                 .arg(tree)
                 .output()
