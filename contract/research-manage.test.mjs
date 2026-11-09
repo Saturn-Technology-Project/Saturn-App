@@ -213,3 +213,74 @@ wait
   assert.equal(retried.job.status, "completed");
   assert.equal(retried.job.timeoutSeconds, 1800);
 });
+
+/** Whether commands can be sandboxed here: seatbelt on macOS, bubblewrap on Linux. */
+function canSandbox() {
+  if (process.platform === "darwin") return true;
+  if (process.platform !== "linux") return false;
+  try {
+    execFileSync("bwrap", ["--ro-bind", "/", "/", "--", "/bin/true"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test("the project's interpreter and its environment jobs run in the sandbox: neither reads Saturn's data", posixOnly, async (t) => {
+  if (!canSandbox()) return t.skip("no sandbox for commands here");
+  const data = await mkdtemp(path.join(os.tmpdir(), "saturn-interpreter-data-"));
+  const outside = await mkdtemp(path.join(os.tmpdir(), "saturn-interpreter-"));
+  // An interpreter (here a stand-in) that the project names, which tries to read Saturn's token as it starts: a cloned
+  // project's environment can run code that way, through a .pth file in its site-packages.
+  const python = path.join(outside, "python");
+  await writeFile(python, `#!/bin/sh
+cat > /dev/null
+token=$(cat '${data}/runtime-token' 2>/dev/null || echo refused)
+printf '{"executable":"stand-in","version":"3.12.0","platform":"p","cpus":1,"packages":{},"devices":{"torch":null,"reason":"none"},"note":"%s"}' "$token"
+`);
+  await chmod(python, 0o755);
+  const probe = path.join(outside, "bin");
+  await mkdir(probe);
+  await writeFile(path.join(probe, "uv"), `#!/bin/sh
+cat '${data}/runtime-token' > probe.txt 2>/dev/null || echo refused > probe.txt
+mkdir -p "$3/bin" 2>/dev/null; mkdir -p .venv/bin
+`);
+  await chmod(path.join(probe, "uv"), 0o755);
+  const alone = await bench({ dataDir: data, keepData: false, env: { PATH: `${probe}${path.delimiter}${process.env.PATH}` } });
+  try {
+    const token = (await readFile(path.join(data, "runtime-token"), "utf8")).trim();
+    const folder = await alone.folder();
+    const made = await alone.api("POST", "/projects", { path: folder, grant: true });
+    const route = `/projects/${made.id}/research/environment`;
+    await alone.api("PUT", route, { python });
+    const checked = await alone.api("POST", `${route}/check`);
+    assert.equal(checked.report.note, "refused", "the interpreter never saw the token");
+    assert.ok(!JSON.stringify(checked).includes(token));
+
+    await alone.api("POST", `${route}/create`, { withCore: false });
+    const done = await until("the job to end", () => alone.api("GET", route), settled);
+    assert.equal(done.job.status, "completed", done.job.logTail);
+    assert.equal((await readFile(path.join(folder, "probe.txt"), "utf8")).trim(), "refused", "nor did the job's programs");
+  } finally {
+    await alone.stop();
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("the assistant asks before it changes the project's interpreter, and a path is never a package", posixOnly, async () => {
+  const folder = await saturn.folder();
+  const setup = await saturn.chat(folder, { autonomy: "execute_when_allowed", mcpConnectionIds: ["research"] });
+  const run = await setup.start([["research_environment_action", { action: "set", python: "/somewhere/python" }]], "use my python");
+  const waiting = await until("the card", () => saturn.api("GET", `/runs/${run.id}`), (item) => item.status !== "running" && item.status !== "queued");
+  assert.equal(waiting.status, "waiting_approval", JSON.stringify(waiting.actions));
+  assert.match(waiting.actions[0].reason, /Sensitive operation/);
+  await saturn.api("POST", `/runs/${run.id}/stop`);
+  const environment = `/projects/${setup.project.id}/research/environment`;
+  assert.equal((await saturn.api("GET", environment)).python ?? null, null, "nothing changed while it waited");
+
+  await saturn.api("POST", `${environment}/create`, { withCore: false });
+  await until("the environment", () => saturn.api("GET", environment), settled);
+  for (const name of [".", "./", ".venv", "..", ".[dev]"]) {
+    assert.equal((await saturn.call("POST", `${environment}/install`, { packages: [name] })).status, 400, name);
+  }
+});

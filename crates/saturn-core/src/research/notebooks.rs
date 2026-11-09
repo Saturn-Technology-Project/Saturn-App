@@ -8,10 +8,10 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use saturn_domain::new_id;
-use saturn_tools::{force, in_own_group, launch_env, terminate};
+use saturn_tools::{force, in_own_group, terminate};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+use tokio::process::{Child, ChildStdin, ChildStdout};
 use tokio::sync::{Mutex as AsyncMutex, mpsc, watch};
 use tokio::task::JoinSet;
 
@@ -530,16 +530,18 @@ impl Kernel {
         let (target, _) = self.notebook_file(project, relative).await?;
         let source = self.research_source(project, None)?;
         let folder = target.parent().map_or(source.clone(), PathBuf::from);
-        let mut command = Command::new(&python);
-        launch_env(&mut command);
-        for (name, _) in std::env::vars_os() {
-            if name.to_string_lossy().starts_with("SATURN_") {
-                command.env_remove(&name);
-            }
-        }
+        let mut command = self.interpreter_command(
+            project,
+            &python,
+            &[
+                "-u".to_owned(),
+                "-c".to_owned(),
+                HELPER.to_owned(),
+                folder.to_string_lossy().into_owned(),
+            ],
+            &source,
+        )?;
         command
-            .args(["-u", "-c", HELPER])
-            .arg(&folder)
             .current_dir(&source)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

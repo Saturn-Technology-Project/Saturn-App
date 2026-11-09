@@ -195,7 +195,7 @@ pub(crate) fn quote(value: &str) -> String {
 
 /// A seatbelt profile: everything allowed, then writes limited to `writable` (none for read-only), then the network.
 pub fn seatbelt_profile(mode: SandboxMode, writable: &[String], network: bool) -> String {
-    seatbelt_profile_hiding(mode, writable, network, &[])
+    seatbelt_profile_hiding(mode, writable, network, &[], &[])
 }
 
 /// Whether `path` lies strictly inside `folder`.
@@ -203,11 +203,17 @@ fn strictly_inside(path: &str, folder: &str) -> bool {
     path != folder && Path::new(path).starts_with(Path::new(folder))
 }
 
-/// The writable folders that lie inside a hidden one, such as the agent's private workspace inside Saturn's data
-/// folder: opened again after the hidden one is closed.
-fn reopened<'a>(writable: &'a [String], hidden: &[String]) -> Vec<&'a String> {
+/// The writable and the readable folders that lie inside a hidden one, such as the agent's private workspace inside
+/// Saturn's data folder, or a program Saturn downloaded there: opened again after the hidden one is closed, the
+/// readable ones for reading only.
+fn reopened<'a>(
+    writable: &'a [String],
+    readable: &'a [String],
+    hidden: &[String],
+) -> Vec<&'a String> {
     writable
         .iter()
+        .chain(readable)
         .filter(|folder| hidden.iter().any(|path| strictly_inside(folder, path)))
         .collect()
 }
@@ -221,13 +227,15 @@ fn hidden_again<'a>(hidden: &'a [String], opened: &[&String]) -> Vec<&'a String>
 }
 
 /// The seatbelt profile, with `hidden` (resolved) neither read nor written: Saturn's own data and the usual credential
-/// folders. A writable folder inside a hidden one is opened again, and a hidden one inside that is closed again; rules
-/// later in a profile win. Names and sizes can still be looked up, as every path's can; contents and listings cannot.
+/// folders. A writable folder inside a hidden one is opened again, a `readable` one for reading only, and a hidden one
+/// inside those is closed again; rules later in a profile win. Names and sizes can still be looked up, as every path's
+/// can; contents and listings cannot.
 pub fn seatbelt_profile_hiding(
     mode: SandboxMode,
     writable: &[String],
     network: bool,
     hidden: &[String],
+    readable: &[String],
 ) -> String {
     let mut lines = vec![
         "(version 1)".to_owned(),
@@ -266,7 +274,7 @@ pub fn seatbelt_profile_hiding(
             "(deny file-read-data file-read-xattr file-write* {})",
             subpaths(&all)
         ));
-        let opened = reopened(writable, hidden);
+        let opened = reopened(writable, readable, hidden);
         if !opened.is_empty() {
             lines.push(format!(
                 "(allow file-read-data file-read-xattr {})",
@@ -304,13 +312,19 @@ pub fn seatbelt_profile_hiding(
 /// Wraps a shell invocation in the sandbox for `settings.mode`. When the platform cannot sandbox, the command runs
 /// unwrapped and the plan says why, so the tool result can tell the model and the user. `hidden` are folders and files
 /// the command may neither read nor write (Saturn's data, the usual credential folders), unless one is the workspace's
-/// own or a writable folder's parent.
+/// own or a writable folder's parent; `readable` are folders inside a hidden one it may read again (a program Saturn
+/// downloaded into its data folder, say).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each says what one part of the sandbox allows"
+)]
 pub fn wrap_command(
     invocation: Invocation,
     settings: SandboxSettings,
     root: &str,
     extra_writable: &[String],
     hidden: &[String],
+    readable: &[String],
     platform: Platform,
     env: &Env,
 ) -> SandboxPlan {
@@ -331,10 +345,17 @@ pub fn wrap_command(
     let writable = writable_folders(root, extra_writable, env, platform);
     let mut hidden: Vec<String> = hidden.iter().map(|path| real(Path::new(path))).collect();
     hidden.dedup();
+    let readable: Vec<String> = readable.iter().map(|path| real(Path::new(path))).collect();
     let wrapped = if platform == Platform::Mac {
         let mut args = vec![
             "-p".to_owned(),
-            seatbelt_profile_hiding(settings.mode, &writable, settings.network, &hidden),
+            seatbelt_profile_hiding(
+                settings.mode,
+                &writable,
+                settings.network,
+                &hidden,
+                &readable,
+            ),
             invocation.file,
         ];
         args.extend(invocation.args);
@@ -363,7 +384,7 @@ pub fn wrap_command(
         for folder in writable.iter().filter(|folder| writes(folder)) {
             args.extend(["--bind-try".to_owned(), folder.clone(), folder.clone()]);
         }
-        hide_in_bubblewrap(&mut args, &writable, &hidden, &writes);
+        hide_in_bubblewrap(&mut args, &writable, &readable, &hidden, &writes);
         if !settings.network {
             args.push("--unshare-net".to_owned());
         }
@@ -393,6 +414,7 @@ pub fn wrap_command(
 fn hide_in_bubblewrap(
     args: &mut Vec<String>,
     writable: &[String],
+    readable: &[String],
     hidden: &[String],
     writes: &dyn Fn(&String) -> bool,
 ) {
@@ -407,10 +429,10 @@ fn hide_in_bubblewrap(
     for path in ordered {
         hide(args, path);
     }
-    let mut opened = reopened(writable, hidden);
+    let mut opened = reopened(writable, readable, hidden);
     opened.sort_by_key(|path| depth(path));
     for folder in &opened {
-        let flag = if writes(folder) {
+        let flag = if writable.contains(folder) && writes(folder) {
             "--bind-try"
         } else {
             "--ro-bind-try"

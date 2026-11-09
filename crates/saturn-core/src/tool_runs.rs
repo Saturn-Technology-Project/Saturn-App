@@ -135,6 +135,17 @@ impl Kernel {
         })
     }
 
+    /// The sandbox a project's commands run in: its own setting, else the general one, else the default.
+    pub(crate) fn project_sandbox(&self, project_id: &str) -> SandboxSettings {
+        self.store.read(|state| {
+            by_id(&state.projects, project_id)
+                .and_then(|project| project.get("sandbox"))
+                .or_else(|| state.settings.get("sandbox"))
+                .and_then(|value| serde_json::from_value(value.clone()).ok())
+                .unwrap_or(DEFAULT_SANDBOX)
+        })
+    }
+
     /// The project folder a run works in, or nothing for chats outside a project (the private sandbox).
     pub(crate) fn workdir_of_run(&self, run: &Value) -> Result<Option<PathBuf>, CoreError> {
         self.workdir_of(run)

@@ -388,6 +388,39 @@ pub(super) async fn command(
     Ok((command, observed))
 }
 
+/// A program Saturn starts for a project's research (its interpreter for the environment check, a notebook's kernel,
+/// looking inside a model or reading data, a language server, an environment job), wrapped in the sandbox the project's
+/// commands run in: it writes only to the project, the temporary folders, the caches and `writable`, cannot read Saturn's
+/// data (but `readable`, inside it) or the credential folders, and reaches the network only when the project's commands
+/// may. Where the system has
+/// no sandbox, or the project's is off, it runs as before.
+pub(crate) fn research_invocation(
+    settings: saturn_tools::sandbox::SandboxSettings,
+    data_root: &Path,
+    program: &str,
+    args: Vec<String>,
+    root: &Path,
+    writable: &[String],
+    readable: &[String],
+) -> saturn_tools::shell::Invocation {
+    let invocation = saturn_tools::shell::Invocation {
+        file: program.to_owned(),
+        args,
+        verbatim: false,
+    };
+    saturn_tools::sandbox::wrap_command(
+        invocation,
+        settings,
+        &root.to_string_lossy(),
+        writable,
+        &hidden_from_commands(data_root),
+        readable,
+        saturn_tools::sandbox::Platform::current(),
+        &saturn_tools::shell::process_env(),
+    )
+    .invocation
+}
+
 /// What a sandboxed command may neither read nor write: Saturn's data folders (the runtime's token, the keys, every
 /// conversation) and the usual credential folders. A command that could read the token could use the runtime's own API
 /// to turn its sandbox off or allow itself, and one that could read the keys could send them anywhere.

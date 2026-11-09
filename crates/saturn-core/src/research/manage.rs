@@ -138,11 +138,17 @@ fn venv_python() -> String {
     }
 }
 
-/// A package name as a command-line word: letters, digits, `-`, `_`, `.`, and a version pin after them.
+/// A package name as a command-line word: letters, digits, `-`, `_`, `.` (not first), and a version pin after them.
 fn clean_package(name: &str) -> Result<&str, CoreError> {
     let allowed =
         |character: char| character.is_ascii_alphanumeric() || "-_.[]=<>!~,".contains(character);
-    if name.is_empty() || name.len() > 100 || !name.chars().all(allowed) || name.starts_with('-') {
+    // A leading dot names a path (`.` builds the project's own setup.py), not a package from the index.
+    if name.is_empty()
+        || name.len() > 100
+        || !name.chars().all(allowed)
+        || name.starts_with('-')
+        || name.starts_with('.')
+    {
         return Err(CoreError::new(
             400,
             format!("{name:?} is not a package name."),
@@ -176,6 +182,23 @@ fn shell_arguments(command: &mut Command, shell: &saturn_tools::shell::Invocatio
 #[cfg(not(windows))]
 fn shell_arguments(command: &mut Command, shell: &saturn_tools::shell::Invocation) {
     command.args(&shell.args);
+}
+
+/// Where uv keeps the Pythons it installs, so a job that installs one may write there: UV_PYTHON_INSTALL_DIR when set,
+/// else uv's data folder.
+fn uv_python_folders() -> Vec<String> {
+    if let Some(folder) =
+        std::env::var_os("UV_PYTHON_INSTALL_DIR").filter(|folder| !folder.is_empty())
+    {
+        return vec![folder.to_string_lossy().into_owned()];
+    }
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .filter(|folder| !folder.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| std::env::home_dir().map(|home| home.join(".local/share")));
+    data.map(|folder| folder.join("uv").to_string_lossy().into_owned())
+        .into_iter()
+        .collect()
 }
 
 /// The word a job's command calls uv by: its name when the one on PATH is used, since the shell finds it as the person
@@ -525,8 +548,33 @@ impl Kernel {
                 return Err(error.into());
             }
         };
-        // The system shell runs the script: /bin/sh, or cmd on Windows.
-        let shell = shell_invocation(&script, "/bin/sh", Platform::current(), &process_env());
+        // The system shell runs the script: /bin/sh, or cmd on Windows. Installing runs code the packages bring (a build
+        // backend, a setup.py), so the job runs in the project's command sandbox: it writes to the project, the caches,
+        // the temporary folders and uv's own Python folder, and reads Saturn's download of uv, but not the rest of
+        // Saturn's data or the credential folders. Windows has no sandbox, and cmd takes its line verbatim.
+        let mut shell = shell_invocation(&script, "/bin/sh", Platform::current(), &process_env());
+        if !shell.verbatim {
+            let tools = self.environment_tools(&source);
+            let readable: Vec<String> = (text(&tools, "uvSource") == "saturn")
+                .then(|| {
+                    Path::new(text(&tools, "uv"))
+                        .parent()
+                        .map(Path::to_path_buf)
+                })
+                .flatten()
+                .map(|folder| folder.to_string_lossy().into_owned())
+                .into_iter()
+                .collect();
+            shell = super::isolation::research_invocation(
+                self.project_sandbox(project),
+                self.store.root(),
+                &shell.file,
+                shell.args,
+                &source,
+                &uv_python_folders(),
+                &readable,
+            );
+        }
         let mut command = Command::new(&shell.file);
         shell_arguments(&mut command, &shell);
         launch_env(&mut command);

@@ -9,7 +9,9 @@ use std::time::Duration;
 use saturn_domain::js;
 use saturn_domain::new_id;
 use saturn_domain::permissions::Effect;
-use saturn_domain::policies::{GuardrailMode, autonomy_of, is_read_only_call};
+use saturn_domain::policies::{
+    GuardrailMode, autonomy_of, is_read_only_call, is_sensitive_operation,
+};
 use saturn_domain::prompt::{RunMode, read_only_refusal};
 use saturn_domain::time::iso_time;
 use serde_json::{Value, json};
@@ -559,7 +561,14 @@ impl SkillsBridge {
         let asks = match ruled.as_ref().map(|decision| decision.effect) {
             Some(Effect::Allow) => false,
             Some(Effect::Ask) => true,
-            _ => self.approval == GuardrailMode::Review,
+            _ => {
+                self.approval == GuardrailMode::Review
+                    || (self.approval == GuardrailMode::Default
+                        && is_sensitive_operation(
+                            tool,
+                            &arguments.as_object().cloned().unwrap_or_default(),
+                        ))
+            }
         };
         if asks {
             let waiting = self.action_for(tool, arguments)?;

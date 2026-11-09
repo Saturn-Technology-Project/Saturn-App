@@ -194,6 +194,7 @@ pub async fn run_code(
         &root,
         &options.writable,
         &options.hidden,
+        &[],
         platform,
         &env,
     );

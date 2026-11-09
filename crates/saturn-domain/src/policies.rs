@@ -56,8 +56,17 @@ static SENSITIVE_COMMANDS: LazyLock<RegexSet> = LazyLock::new(|| {
     .expect("these patterns are valid")
 });
 
+/// Research tool calls that change what the project runs on, which the person decides: the interpreter Saturn starts for
+/// the project's checks, notebooks, data and language server.
+fn changes_the_interpreter(tool: &str, arguments: &Arguments) -> bool {
+    tool == "research_environment_action" && argument_text(arguments, "action") == "set"
+}
+
 /// Whether a call is risky enough to ask about in the default approval mode.
 pub fn is_sensitive_operation(tool: &str, arguments: &Arguments) -> bool {
+    if changes_the_interpreter(tool, arguments) {
+        return true;
+    }
     if tool == "code"
         && SENSITIVE_COMMANDS.is_match(&argument_text(arguments, "command").trim().to_lowercase())
     {
