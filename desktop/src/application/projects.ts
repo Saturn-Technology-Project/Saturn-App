@@ -1,4 +1,4 @@
-import type { ContextItem, Project, SandboxSettings } from "../domain/model.js";
+import type { ContextItem, Project, ProjectInstructions, SandboxSettings } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
 export class ProjectService {
@@ -81,6 +81,21 @@ export class ProjectService {
   /** Files in the project whose path contains `query`, for the "@" picker. */
   files(id: string, query: string): Promise<string[]> {
     return this.runtime.request(`/projects/${encodeURIComponent(id)}/files?q=${encodeURIComponent(query)}&limit=60`);
+  }
+
+  /** The project's instruction files and skills, and whether the user allowed them as they are now. */
+  instructions(id: string): Promise<ProjectInstructions> {
+    return this.runtime.request<ProjectInstructions>(`/projects/${encodeURIComponent(id)}/instructions`);
+  }
+
+  /** Allows the instruction files exactly as the user saw them, named by `fingerprint`. */
+  approveInstructions(id: string, fingerprint: string): Promise<ProjectInstructions> {
+    return this.runtime.request<ProjectInstructions>(`/projects/${encodeURIComponent(id)}/instructions/approve`, { method: "POST", body: JSON.stringify({ fingerprint }) });
+  }
+
+  /** Withdraws the approval: the files leave agents' prompts until allowed again. */
+  revokeInstructions(id: string): Promise<ProjectInstructions> {
+    return this.runtime.request<ProjectInstructions>(`/projects/${encodeURIComponent(id)}/instructions/approve`, { method: "DELETE" });
   }
 
   /** Every rule file agents follow in this project, besides the editable text. */

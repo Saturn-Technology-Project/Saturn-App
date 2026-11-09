@@ -17,6 +17,7 @@ import { Textarea } from "../ui/base/Textarea.js";
 import { Empty, messageOf } from "../ui/Parts.js";
 import { useFollow } from "../ui/useFollow.js";
 import type { WorkspaceFocus } from "../workspace/Workspace.js";
+import { InstructionsNotice } from "../InstructionFiles.js";
 import { useAgentBrowser } from "./AgentBrowser.js";
 import { Turn } from "./Turn.js";
 import { useConversation } from "./useConversation.js";
@@ -325,6 +326,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
           <Choice ariaLabel={t("How much the assistant may do in this chat")} triggerClassName={MODE_SELECT} value={mode} options={CHAT_MODES.map((item) => ({ value: item.id, label: item.label, hint: item.hint }))} onChange={(next) => void chooseMode(next as ChatMode)} />
         </div>
       </div>
+      <InstructionsNotice projectId={props.project.id} onError={props.notify} />
 
       {listing ? (
         <div className="flex min-h-0 flex-1 flex-col gap-px overflow-auto px-1.5 py-2" role="list" aria-label={t("Chats in this project")}>
