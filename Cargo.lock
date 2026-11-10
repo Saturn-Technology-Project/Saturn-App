@@ -3518,6 +3518,7 @@ version = "0.6.0"
 dependencies = [
  "axum",
  "core-graphics",
+ "getrandom 0.3.4",
  "mac-notification-sys",
  "macos-accessibility-client",
  "serde",

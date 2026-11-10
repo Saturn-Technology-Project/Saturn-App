@@ -40,9 +40,12 @@ const WINDOWS_ESSENTIALS: &[&str] = &[
     "PSMODULEPATH",
 ];
 
-/// This process's environment.
+/// This process's environment, without what belongs to this process alone (`crate::process::OWN_VARIABLES`): no
+/// program started with it, such as the Workspace terminal's shell or git, inherits the runtime's token.
 pub fn process_env() -> Env {
-    std::env::vars_os().collect()
+    std::env::vars_os()
+        .filter(|(key, _)| !crate::process::is_own_variable(&key.to_string_lossy()))
+        .collect()
 }
 
 /// The small environment the `code` tool runs commands with: PATH, plus what Windows itself needs.

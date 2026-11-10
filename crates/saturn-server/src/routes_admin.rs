@@ -328,6 +328,21 @@ async fn save_rules(State(kernel): Shared, Path(id): Path<String>, body: Body) -
         .await?)
 }
 
+/// A project's instruction files and skills, and whether the user allowed them as they are.
+async fn project_instructions(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.project_instructions(&id).await?)
+}
+
+async fn approve_instructions(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
+    ok(kernel
+        .approve_instructions(&id, &js::text(body_of(body).get("fingerprint")))
+        .await?)
+}
+
+async fn revoke_instructions(State(kernel): Shared, Path(id): Path<String>) -> Answer {
+    ok(kernel.revoke_instructions(&id).await?)
+}
+
 async fn project_context(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
     let body = body_of(body);
     let items = body
@@ -656,7 +671,14 @@ async fn open_browser(body: Body) -> Answer {
     if cfg!(target_os = "macos") {
         launch_app("the browser", "open", &[&url], None);
     } else if cfg!(windows) {
-        launch_app("the browser", "cmd.exe", &["/c", "start", "", &url], None);
+        // Not through cmd, which would read `&` in an address as the start of a second command: Windows' own handler
+        // takes the address as one argument, as the desktop app's links do.
+        launch_app(
+            "the browser",
+            "rundll32",
+            &["url.dll,FileProtocolHandler", &url],
+            None,
+        );
     } else {
         launch_app("the browser", "xdg-open", &[&url], None);
     }
@@ -741,6 +763,65 @@ async fn proxied_page(target: &str) -> Result<(String, String), String> {
 
 /// The in-app browser's page loader. Public addresses only, like the agents' web tool: this runs as the user, and a page shown
 /// here could otherwise read anything on localhost or the private network, the runtime included.
+/// Where a provider sends the browser back after an MCP server's sign-in. The browser carries no token, so the route is
+/// open: it finishes only a sign-in whose random state Saturn started and has not finished, exchanging the code with
+/// that sign-in's PKCE verifier, and answers with a page that runs nothing and links nowhere.
+async fn oauth_callback(State(kernel): Shared, Query(query): QueryText) -> Response {
+    let given = |name: &str| query.get(name).map(String::as_str).unwrap_or("");
+    let (title, message) = if !given("error").is_empty() {
+        let said = if given("error_description").is_empty() {
+            given("error")
+        } else {
+            given("error_description")
+        };
+        (
+            "Sign-in was not completed",
+            format!("The server said: {said}. Start it again from Settings."),
+        )
+    } else {
+        match kernel
+            .mcp
+            .finish_sign_in(given("state"), given("code"))
+            .await
+        {
+            Ok(target) => {
+                let host = url::Url::parse(&target.url)
+                    .ok()
+                    .and_then(|address| address.host_str().map(str::to_owned))
+                    .unwrap_or_default();
+                saturn_core::logger::log(
+                    "mcp",
+                    "info",
+                    &format!("Signed in to the MCP server at {host}"),
+                );
+                (
+                    "Signed in",
+                    format!("Saturn is signed in to {host}. You can close this tab."),
+                )
+            }
+            Err(error) => ("Sign-in was not completed", error.to_string()),
+        }
+    };
+    let page = format!(
+        "<!doctype html><meta charset=\"utf-8\"><title>{}</title><body style=\"font:15px system-ui;margin:3em\"><h1 style=\"font-size:18px\">{}</h1><p>{}</p>",
+        escape_attribute(title),
+        escape_attribute(title),
+        escape_attribute(&message)
+    );
+    (
+        [
+            (CONTENT_TYPE, "text/html; charset=utf-8"),
+            (
+                HeaderName::from_static("content-security-policy"),
+                "default-src 'none'; style-src 'unsafe-inline'",
+            ),
+            (HeaderName::from_static("referrer-policy"), "no-referrer"),
+        ],
+        page,
+    )
+        .into_response()
+}
+
 async fn browser_proxy(Query(query): QueryText) -> Response {
     let target = normalize_url(wanted(&query, "url").unwrap_or("https://example.com"));
     let html: HeaderName = CONTENT_TYPE;
@@ -1228,6 +1309,12 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/projects/{id}/terminal", post(project_terminal))
         .route("/projects/{id}/folder", post(project_folder))
         .route("/projects/{id}/rules", get(project_rules).put(save_rules))
+        .route("/oauth/callback", get(oauth_callback))
+        .route("/projects/{id}/instructions", get(project_instructions))
+        .route(
+            "/projects/{id}/instructions/approve",
+            post(approve_instructions).delete(revoke_instructions),
+        )
         .route("/projects/{id}/context", post(project_context))
         .route("/projects/{id}/files", get(project_files))
         .route(

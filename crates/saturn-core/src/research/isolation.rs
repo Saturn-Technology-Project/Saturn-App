@@ -297,13 +297,23 @@ pub(super) async fn command(
         visible.insert(0, placement.tree.clone());
         // The local weights the version names, such as a checkpoint another run wrote, are read where they are, and so
         // is what a resumed run continues from.
+        // Never Saturn's own data or a credential folder, nor the whole project, which the snapshot is there to replace:
+        // a version could otherwise name one as a model's source and read it from the run.
+        let real = |paths: &[PathBuf]| -> Vec<PathBuf> {
+            paths
+                .iter()
+                .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| path.clone()))
+                .collect()
+        };
+        let (saturn, projects) = (real(data), real(&placement.sources));
         for path in model_files(version, &placement.sources)
             .into_iter()
             .chain(placement.readable.iter().cloned())
         {
-            if !credentials.iter().any(|secret| path.starts_with(secret))
-                && !visible.contains(&path)
-            {
+            let forbidden = credentials.iter().any(|secret| path.starts_with(secret))
+                || saturn.iter().any(|folder| path.starts_with(folder))
+                || projects.iter().any(|project| project.starts_with(&path));
+            if !forbidden && !visible.contains(&path) {
                 visible.push(path);
             }
         }
@@ -386,6 +396,51 @@ pub(super) async fn command(
         .env("TMPDIR", &placement.temporary)
         .env("SATURN_RUN_OUTPUT", &output);
     Ok((command, observed))
+}
+
+/// A program Saturn starts for a project's research (its interpreter for the environment check, a notebook's kernel,
+/// looking inside a model or reading data, a language server, an environment job), wrapped in the sandbox the project's
+/// commands run in: it writes only to the project, the temporary folders, the caches and `writable`, cannot read Saturn's
+/// data (but `readable`, inside it) or the credential folders, and reaches the network only when the project's commands
+/// may. Where the system has
+/// no sandbox, or the project's is off, it runs as before.
+pub(crate) fn research_invocation(
+    settings: saturn_tools::sandbox::SandboxSettings,
+    data_root: &Path,
+    program: &str,
+    args: Vec<String>,
+    root: &Path,
+    writable: &[String],
+    readable: &[String],
+) -> saturn_tools::shell::Invocation {
+    let invocation = saturn_tools::shell::Invocation {
+        file: program.to_owned(),
+        args,
+        verbatim: false,
+    };
+    saturn_tools::sandbox::wrap_command(
+        invocation,
+        settings,
+        &root.to_string_lossy(),
+        writable,
+        &hidden_from_commands(data_root),
+        readable,
+        saturn_tools::sandbox::Platform::current(),
+        &saturn_tools::shell::process_env(),
+    )
+    .invocation
+}
+
+/// What a sandboxed command may neither read nor write: Saturn's data folders (the runtime's token, the keys, every
+/// conversation) and the usual credential folders. A command that could read the token could use the runtime's own API
+/// to turn its sandbox off or allow itself, and one that could read the keys could send them anywhere.
+pub(crate) fn hidden_from_commands(root: &Path) -> Vec<String> {
+    let mut hidden = data_folders(root);
+    hidden.extend(saturn_tools::confine::credential_folders(&home()));
+    hidden
+        .into_iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect()
 }
 
 /// Saturn's data folders on this computer: the one in use and the usual one, which may differ when a test or a second

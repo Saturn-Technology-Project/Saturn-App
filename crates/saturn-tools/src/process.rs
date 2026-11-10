@@ -9,15 +9,23 @@ use tokio::process::Command;
 
 use crate::shell::Invocation;
 
+/// Variables that only make sense for this process: the launcher's token, and how the desktop app or Electron started
+/// it. No program Saturn starts gets them.
+pub const OWN_VARIABLES: [&str; 3] = [
+    "SATURN_DESKTOP_ATTACHED",
+    "SATURN_DESKTOP_PID",
+    "SATURN_RUNTIME_TOKEN",
+];
+
+/// Whether a variable is this process's alone (see `OWN_VARIABLES`).
+pub fn is_own_variable(name: &str) -> bool {
+    name.starts_with("ELECTRON_") || OWN_VARIABLES.contains(&name)
+}
+
 /// The environment for a program started for the user: the runtime's own, minus what only makes sense for this process.
 pub fn launch_env(command: &mut Command) {
     for (key, _) in std::env::vars_os() {
-        let name = key.to_string_lossy();
-        if name.starts_with("ELECTRON_")
-            || name == "SATURN_DESKTOP_ATTACHED"
-            || name == "SATURN_DESKTOP_PID"
-            || name == "SATURN_RUNTIME_TOKEN"
-        {
+        if is_own_variable(&key.to_string_lossy()) {
             command.env_remove(&key);
         }
     }

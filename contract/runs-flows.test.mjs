@@ -524,12 +524,14 @@ test("a run's mode must be one Saturn knows", async () => {
   assert.match(answer.body.error, /mode must be agent, ask or plan/);
 });
 
-test("a project's rule files reach the agent's prompt", async () => {
+test("a project's rule files reach the agent's prompt once the user allowed them", async () => {
   const site = path.join(scratch, "ruled");
   await mkdir(path.join(site, ".saturn/rules"), { recursive: true });
   await writeFile(path.join(site, "AGENTS.md"), "Use pnpm.");
   await writeFile(path.join(site, ".saturn/rules/a-tests.md"), "Every fix gets a test.");
   const project = await api(runtime, "POST", "/projects", { path: site, grant: true });
+  const instructions = await api(runtime, "GET", `/projects/${project.id}/instructions`);
+  await api(runtime, "POST", `/projects/${project.id}/instructions/approve`, { fingerprint: instructions.fingerprint });
   const model = await fakeModel({ steps: ["ok"] });
   const agent = await agentOn(model);
   const run = await untilFinished((await startRun(agent, "hi", { projectId: project.id })).id);

@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 
 use crate::builtins::GENERAL_SKILLS_ID;
 use crate::records::{by_id, by_id_mut, strings, text};
-use crate::rules::project_rules;
+use crate::rules::{project_rules, stored_rules_only};
 use crate::run_images::load_images;
 use crate::skill_files::list_skills;
 use crate::{CoreError, Kernel, log};
@@ -633,9 +633,17 @@ impl Kernel {
             self.store
                 .read(|state| by_id(&state.projects, id).map(|item| text(item, "rules").to_owned()))
         });
+        // The folder's instruction files and skills come with it, so they take part only once the user allowed them.
+        let allowed = match (&workdir, project) {
+            (Some(root), Some(id)) => self.instructions_allowed(id, root).await,
+            _ => true,
+        };
         let rules = match (&workdir, project) {
-            (Some(root), Some(_)) => {
+            (Some(root), Some(_)) if allowed => {
                 project_rules(root, stored_rules.as_deref().unwrap_or("")).await
+            }
+            (Some(root), Some(_)) => {
+                stored_rules_only(root, stored_rules.as_deref().unwrap_or("")).await
             }
             _ => String::new(),
         };
@@ -646,7 +654,7 @@ impl Kernel {
         // Only when the agent has the skill tool: names and descriptions, loaded on demand.
         let skills = if server_ids.iter().any(|id| id == GENERAL_SKILLS_ID) {
             let listed = list_skills(
-                workdir.as_deref(),
+                workdir.as_deref().filter(|_| allowed),
                 &self.store.root().join("skills"),
                 &self.enabled_plugin_folders(),
             )

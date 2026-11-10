@@ -270,7 +270,9 @@ struct Place {
     relative: String,
     format: &'static str,
     reading: Reading,
-    python: Option<String>,
+    /// The project's interpreter for the helper, checked and wrapped in the project's command sandbox, its arguments
+    /// ending in `-` (the helper comes on stdin, and what to read after it).
+    helper: Option<saturn_tools::shell::Invocation>,
     split: Option<String>,
 }
 
@@ -281,12 +283,11 @@ fn open_helper(
     start: u64,
     count: Option<u64>,
 ) -> Result<Source, CoreError> {
-    // Without a chosen interpreter, the system's: python3, which Windows spells python.
-    let python =
-        place
-            .python
-            .as_deref()
-            .unwrap_or(if cfg!(windows) { "python" } else { "python3" });
+    let helper = place
+        .helper
+        .as_ref()
+        .ok_or_else(|| CoreError::new(422, "This file is read without the project's Python."))?;
+    let python = helper.file.as_str();
     let ask = json!({
         "path": place.path.to_string_lossy(),
         "kind": kind,
@@ -295,6 +296,7 @@ fn open_helper(
         "count": count,
     });
     let mut command = Command::new(python);
+    command.args(&helper.args);
     launch_env(&mut command);
     saturn_tools::no_window(&mut command);
     for (name, _) in std::env::vars_os() {
@@ -304,7 +306,7 @@ fn open_helper(
     }
     let mut child = command
         .as_std_mut()
-        .args(["-", &ask.to_string()])
+        .arg(ask.to_string())
         .current_dir(&place.root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -520,14 +522,24 @@ impl Kernel {
                 ),
             ));
         };
-        let python = if matches!(reading, Reading::Helper(_)) {
+        let helper = if matches!(reading, Reading::Helper(_)) {
             if cfg!(windows) {
                 return Err(CoreError::new(
                     501,
                     "Reading this kind of data is not supported on Windows yet.",
                 ));
             }
-            Some(self.research_python(project).await?)
+            let python = self.research_python(project).await?;
+            super::environment::interpreter_exists(&python, &root)?;
+            Some(super::isolation::research_invocation(
+                self.project_sandbox(project),
+                self.store.root(),
+                &python,
+                vec!["-".to_owned()],
+                &root,
+                &[],
+                &[],
+            ))
         } else {
             None
         };
@@ -537,7 +549,7 @@ impl Kernel {
             relative,
             format,
             reading,
-            python,
+            helper,
             split: split.filter(|split| !split.is_empty()).map(str::to_owned),
         })
     }

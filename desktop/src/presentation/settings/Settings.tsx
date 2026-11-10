@@ -4,6 +4,7 @@ import { ComputerPermissions } from "./ComputerPermissions";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop";
 import { PermissionsPage, ProjectPermissions } from "./Permissions";
+import { InstructionsReview, useInstructions } from "../InstructionFiles";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
 import { EFFORT_LABELS, removalQuestion, runsLocally, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type LlmProvider, type LogLine, type ProviderModels, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
@@ -424,14 +425,29 @@ function McpPage(props: {
   }
 
   async function addMcp() {
+    let created: Mcp | null = null;
     try {
-      const created = await desktop.admin.createMcp(url);
-      await desktop.admin.discoverMcp(created.id);
+      created = await desktop.admin.createMcp(url);
       setUrl("");
+      await desktop.admin.discoverMcp(created.id);
       props.onError("");
-      await props.onChanged();
     } catch (reason) {
       props.onError(reason instanceof Error ? reason.message : t("Could not connect MCP"));
+    } finally {
+      // Added even when connecting it needs a sign-in first: its card then offers Connect, instead of a second server.
+      if (created) await props.onChanged();
+    }
+  }
+
+  /** Lists a remote server's tools again, as after signing in to it in the browser. */
+  async function connect(item: Mcp) {
+    try {
+      await desktop.admin.discoverMcp(item.id);
+      props.onError("");
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : t("Could not connect MCP"));
+    } finally {
+      await props.onChanged();
     }
   }
 
@@ -515,6 +531,11 @@ function McpPage(props: {
             </span>
           </button>
           <RowActions>
+            {!builtin && !item.command && item.tools.length === 0 ? (
+              <Button variant="default" size="small" type="button" onClick={() => void connect(item)} title={t("List this server's tools, after signing in to it if it asked")}>
+                {t("Connect")}
+              </Button>
+            ) : null}
             <Button
               variant="outline" size="small"
               type="button"
@@ -1412,6 +1433,7 @@ function ProjectSettingsTab(props: {
   const [verifyCommand, setVerifyCommand] = useState(props.project.verifyCommand ?? "");
   const [verifySaved, setVerifySaved] = useState(false);
   const [sandbox, setSandbox] = useState<SandboxSettings | null>(props.project.sandbox ?? null);
+  const { instructions, set: setInstructions, refresh: refreshInstructions } = useInstructions(props.project.id);
 
   async function chooseSandbox(next: SandboxSettings | null) {
     const previous = sandbox;
@@ -1467,6 +1489,7 @@ function ProjectSettingsTab(props: {
     setSaving(true);
     try {
       await desktop.projects.saveRules(props.project.id, rules);
+      await refreshInstructions();
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (reason) {
@@ -1542,6 +1565,15 @@ function ProjectSettingsTab(props: {
       </div>
 
       <ProjectPermissions project={props.project} onError={props.onError} />
+
+      {instructions ? (
+        <div>
+          <SectionTitle>{t("Instruction files")}</SectionTitle>
+          <SettingsCard>
+            <InstructionsReview projectId={props.project.id} instructions={instructions} onChanged={setInstructions} onError={props.onError} />
+          </SettingsCard>
+        </div>
+      ) : null}
 
       <div>
         <SectionTitle>{t("Project Rules & Custom Instructions")}</SectionTitle>

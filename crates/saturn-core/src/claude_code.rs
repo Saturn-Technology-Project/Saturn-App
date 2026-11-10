@@ -12,7 +12,7 @@ use saturn_domain::js;
 use saturn_domain::new_id;
 use saturn_domain::permissions::Effect;
 use saturn_domain::policies::{GuardrailMode, is_read_only_call, is_sensitive_operation};
-use saturn_domain::prompt::{RunMode, mode_instructions, read_only_refusal};
+use saturn_domain::prompt::{RunMode, mode_instructions, read_only_refusal, read_only_refusal_for};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
@@ -21,8 +21,8 @@ use tokio::task::JoinSet;
 
 use crate::agent_programs::{Answer, ask_program, question_timeout};
 use crate::agent_sessions::{
-    RunningProgram, SKILLS_SERVER, SkillsBridge, Turn, approval_mode, clip, keep_stderr,
-    program_command, resolved, stderr_of, with_knowledge,
+    RunningProgram, SKILLS_SERVER, SkillsBridge, Turn, clip, keep_stderr, program_command,
+    resolved, stderr_of, with_knowledge,
 };
 use crate::permissions::explain;
 use crate::records::text;
@@ -107,17 +107,30 @@ fn skill_of(tool: &str) -> Option<&str> {
         .strip_prefix("__")
 }
 
-/// "Ask for risky actions": a destructive shell command, or an edit outside the working folder.
-fn risky(tool: &str, input: &Value, workdir: &Path) -> bool {
-    if tool == "Bash" || tool == "PowerShell" {
-        let mut arguments = serde_json::Map::new();
-        arguments.insert(
-            "command".to_owned(),
-            input.get("command").cloned().unwrap_or(Value::Null),
-        );
-        return is_sensitive_operation("code", &arguments);
+/// Words that mark a variable as a credential.
+const CREDENTIAL_WORDS: [&str; 6] = ["TOKEN", "KEY", "SECRET", "PASSWORD", "CREDENTIAL", "AUTH"];
+/// The credentials Claude Code itself uses: an Anthropic key or token, Bedrock's AWS credentials, Vertex's Google ones.
+const CLAUDE_CREDENTIALS: [&str; 4] = ["ANTHROPIC_", "CLAUDE_", "AWS_", "GOOGLE_"];
+
+/// "Ask for risky actions": a destructive shell command, one that names Saturn's data folder (which Saturn does not
+/// hide from Claude Code's own shell, as it does from its sandboxed commands), an edit outside the working folder, or a
+/// Saturn skill call the default mode asks about.
+fn risky(tool: &str, input: &Value, workdir: &Path, data: &Path) -> bool {
+    if let Some(skill) = skill_of(tool) {
+        return is_sensitive_operation(skill, &input.as_object().cloned().unwrap_or_default());
     }
-    file_of(tool, input).is_some_and(|file| !resolved(workdir, file).starts_with(workdir))
+    if tool == "Bash" || tool == "PowerShell" {
+        let command = input.get("command").and_then(Value::as_str).unwrap_or("");
+        let mut arguments = serde_json::Map::new();
+        arguments.insert("command".to_owned(), json!(command));
+        let folder = data.to_string_lossy();
+        return is_sensitive_operation("code", &arguments)
+            || (!folder.is_empty() && command.contains(folder.as_ref()));
+    }
+    file_of(tool, input).is_some_and(|file| {
+        let file = resolved(workdir, file);
+        !file.starts_with(workdir) || file.starts_with(data)
+    })
 }
 
 /// The sign-in command to paste in a terminal: PowerShell syntax on Windows, POSIX shell elsewhere.
@@ -296,7 +309,14 @@ impl ClaudeTurn {
                     return Ok(allowed);
                 }
             }
-            let refusal = read_only_refusal(mode);
+            let refusal = match skill_of(tool) {
+                Some(skill) => read_only_refusal_for(
+                    mode,
+                    skill,
+                    &input.as_object().cloned().unwrap_or_default(),
+                ),
+                None => read_only_refusal(mode),
+            };
             self.note_action(&id, tool, &input);
             {
                 let mut record = locked(&self.turn.record);
@@ -350,7 +370,9 @@ impl ClaudeTurn {
             _ => {
                 pair || match self.approval {
                     GuardrailMode::Bypass => false,
-                    GuardrailMode::Default => risky(tool, &input, &self.workdir),
+                    GuardrailMode::Default => {
+                        risky(tool, &input, &self.workdir, self.turn.kernel.store.root())
+                    }
                     GuardrailMode::Review => true,
                 }
             }
@@ -478,8 +500,20 @@ impl Kernel {
 
     /// The program's environment: the runtime's own. Whatever the user set up for Claude Code (their own key, Bedrock, Vertex AI or
     /// Foundry settings) reaches it, and it picks by its own documented order. Saturn adds no credential of its own.
+    /// The user's environment for Claude Code, without the credentials it has no use for. Its shell, which Saturn does
+    /// not sandbox, could print any variable it inherits; it keeps the ones it signs in or reaches its provider with.
     fn claude_environment(&self, command: &mut Command) {
         saturn_tools::launch_env(command);
+        for (name, _) in std::env::vars_os() {
+            let upper = name.to_string_lossy().to_ascii_uppercase();
+            let credential = CREDENTIAL_WORDS.iter().any(|word| upper.contains(word));
+            let its_own = CLAUDE_CREDENTIALS
+                .iter()
+                .any(|prefix| upper.starts_with(prefix));
+            if credential && !its_own {
+                command.env_remove(&name);
+            }
+        }
         command.env("CLAUDE_CONFIG_DIR", self.claude_config());
     }
 
@@ -591,8 +625,7 @@ impl Kernel {
         .collect();
         let append = append.join("\n\n");
 
-        let group = self.group_of(&run);
-        let approval = approval_mode(agent, group.as_ref(), self.chat_mode_of(&run).as_deref());
+        let approval = self.run_approval(&run, agent);
         let thread = self.find_thread(text(&run, "threadId"));
         let checkpointing = thread.is_some_and(|thread| !text(&thread, "projectId").is_empty());
         let turn = Turn::new(self, run_id, at);

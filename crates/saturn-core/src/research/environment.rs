@@ -36,7 +36,75 @@ pub(super) fn python_of(command: &str) -> Option<&str> {
     name.starts_with("python").then_some(first)
 }
 
+/// Refuses an interpreter that is not there, as starting it would: the sandbox would start and only then fail to find
+/// it, with a less helpful message. A path is looked for from `cwd`, a bare name on PATH.
+pub(super) fn interpreter_exists(python: &str, cwd: &Path) -> Result<(), CoreError> {
+    let given = Path::new(python);
+    let found = if given.is_absolute() || given.components().count() > 1 {
+        cwd.join(given).is_file()
+    } else {
+        std::env::var_os("PATH").is_some_and(|path| {
+            std::env::split_paths(&path).any(|folder| folder.join(given).is_file())
+        })
+    };
+    if found {
+        return Ok(());
+    }
+    Err(CoreError::new(
+        422,
+        format!(
+            "{python} could not start: it is not there. Choose an existing interpreter under Environment."
+        ),
+    ))
+}
+
 impl Kernel {
+    /// A program Saturn starts for a project's research, in the project's command sandbox (see `research_invocation`),
+    /// with the user's environment but none of Saturn's own variables. `writable` adds folders it may write to.
+    pub(super) fn research_command(
+        &self,
+        project: &str,
+        program: &str,
+        args: &[String],
+        source: &Path,
+        writable: &[String],
+    ) -> Command {
+        let invocation = super::isolation::research_invocation(
+            self.project_sandbox(project),
+            self.store.root(),
+            program,
+            args.to_vec(),
+            source,
+            writable,
+            &[],
+        );
+        let mut command = Command::new(&invocation.file);
+        command.args(&invocation.args);
+        launch_env(&mut command);
+        saturn_tools::no_window(&mut command);
+        for (name, _) in std::env::vars_os() {
+            if name.to_string_lossy().starts_with("SATURN_") {
+                command.env_remove(&name);
+            }
+        }
+        command
+    }
+
+    /// The project's interpreter with `args`, sandboxed like any other research program. The interpreter is named in the
+    /// project's own files, which a cloned repository brings, and even an installed one runs the `.pth` files of the
+    /// environment it belongs to as it starts: the sandbox, not the choice of interpreter, is what keeps it from Saturn's
+    /// data and the user's credentials.
+    pub(super) fn interpreter_command(
+        &self,
+        project: &str,
+        python: &str,
+        args: &[String],
+        cwd: &Path,
+    ) -> Result<Command, CoreError> {
+        interpreter_exists(python, cwd)?;
+        let source = self.research_source(project, None)?;
+        Ok(self.research_command(project, python, args, &source, &[]))
+    }
     /// The environment record: the interpreter the person set, what it last reported, and the lock files found now.
     pub async fn research_environment(&self, project: &str) -> Result<Value, CoreError> {
         let records = self.records_folder(project).await?;
@@ -152,16 +220,8 @@ impl Kernel {
         }
         let python = self.research_python(project).await?;
         let source = self.research_source(project, None)?;
-        let mut command = Command::new(&python);
-        launch_env(&mut command);
-        saturn_tools::no_window(&mut command);
-        for (name, _) in std::env::vars_os() {
-            if name.to_string_lossy().starts_with("SATURN_") {
-                command.env_remove(&name);
-            }
-        }
+        let mut command = self.interpreter_command(project, &python, &["-".to_owned()], &source)?;
         let mut child = command
-            .arg("-")
             .current_dir(&source)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

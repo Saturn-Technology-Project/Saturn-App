@@ -573,6 +573,16 @@ each is on the interpreter's PATH and the first line of its `--version`, or null
 answers 422 with what to do. Looking inside uses this interpreter when an experiment's command does not start with
 one. The record lives in `.saturn/research/environment.json`, and the lock files are not changed by Saturn.
 
+Every program Saturn starts for a project's research (the interpreter for the check, a notebook's kernel, looking
+inside a model, reading data through the helper, the language server and its import-path probe, and the environment
+jobs below) runs in the project's command sandbox: it writes only to the project, the temporary folders and the
+caches (an environment job also to uv's own Python folder), and reads neither Saturn's data folder (but Saturn's own
+download of uv) nor the credential folders. The interpreter is named in the project's own files, and any interpreter
+runs its environment's `.pth` files as it starts, so the sandbox is what keeps a cloned project's environment from
+Saturn's token and keys. Where the system has no sandbox (Windows, Linux without bubblewrap), or the project's sandbox
+is off, they run unconfined. The assistant's `research_environment_action` with `action: "set"` asks first in the
+default approval mode, and a package name may not start with a dot (`.` would build the project's own `setup.py`).
+
 ### The managed environment
 
 Saturn can make a Python environment in the project, at `.venv`, with `uv` when this computer has it and `python3 -m

@@ -12,9 +12,32 @@ function runtimeToken(): string {
   return token;
 }
 
+/** How long the desktop app's word that its own runtime answers on the port is taken before the app is asked again. */
+const CONFIRMED_FOR = 1000;
+let confirmedAt = 0;
+
+/**
+ * Whether a request may carry the token: in the desktop app, only once the app has seen its own runtime answer on the
+ * port. While the runtime is down, something else may be listening there, and it must not be handed the token. A plain
+ * browser has no app to ask (and no token).
+ */
+async function runtimeConfirmed(): Promise<boolean> {
+  const status = (globalThis as { saturnDesktop?: { runtimeStatus?: () => Promise<{ state: string }> } }).saturnDesktop?.runtimeStatus;
+  if (!status) return true;
+  if (Date.now() - confirmedAt < CONFIRMED_FOR) return true;
+  const state = (await status().catch(() => null))?.state;
+  if (state !== "ready") return false;
+  confirmedAt = Date.now();
+  return true;
+}
+
 /** HTTP adapter for the local Saturn Runtime. The UI does not call fetch itself. */
 export class RuntimeClient {
-  constructor(private readonly origin = RUNTIME_ORIGIN) {}
+  private readonly origin: string;
+
+  constructor(origin = RUNTIME_ORIGIN) {
+    this.origin = origin;
+  }
 
   async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await this.send(path, init);
@@ -73,6 +96,7 @@ export class RuntimeClient {
   }
 
   private async send(path: string, init?: RequestInit): Promise<Response> {
+    if (!(await runtimeConfirmed())) throw new Error("Saturn's runtime is not running yet.");
     const token = runtimeToken();
     const response = await fetch(`${this.origin}${path}`, {
       ...init,

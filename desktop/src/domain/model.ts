@@ -104,6 +104,16 @@ export function splitCommandLine(text: string): string[] {
 }
 export type Rag = { id: string; name: string; url: string };
 
+/**
+ * A project's instruction files (AGENTS.md, CLAUDE.md, the rules folders, .cursorrules) and its skills' SKILL.md files: they
+ * come with the folder, so agents get them only once the user has allowed exactly these (`approved`).
+ */
+export type ProjectInstructions = {
+  fingerprint: string;
+  approved: boolean;
+  files: { path: string; chars: number; content: string }[];
+};
+
 export type Project = {
   id: string;
   name: string;

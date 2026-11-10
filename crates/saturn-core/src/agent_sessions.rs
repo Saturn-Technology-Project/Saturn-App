@@ -9,8 +9,10 @@ use std::time::Duration;
 use saturn_domain::js;
 use saturn_domain::new_id;
 use saturn_domain::permissions::Effect;
-use saturn_domain::policies::{GuardrailMode, autonomy_of, is_read_only_call};
-use saturn_domain::prompt::{RunMode, read_only_refusal};
+use saturn_domain::policies::{
+    GuardrailMode, autonomy_of, is_read_only_call, is_sensitive_operation,
+};
+use saturn_domain::prompt::{RunMode, read_only_refusal_for};
 use saturn_domain::time::iso_time;
 use serde_json::{Value, json};
 use tokio::io::AsyncReadExt;
@@ -20,7 +22,7 @@ use tokio::sync::oneshot;
 use crate::builtins::GENERAL_SKILLS_ID;
 use crate::permissions::explain;
 use crate::records::{by_id, by_id_mut, generation, remove, strings, text};
-use crate::rules::project_rules_without;
+use crate::rules::{project_rules_without, stored_rules_only};
 use crate::tool_runs::tool_category;
 use crate::{CoreError, Kernel, locked, log};
 
@@ -52,6 +54,36 @@ pub(crate) fn approval_mode(
         return autonomy_of(Some(approvals));
     }
     autonomy_of(agent.get("autonomy").and_then(Value::as_str))
+}
+
+/// The stricter of two approval modes: Review asks for everything, Default for risky calls, Bypass for nothing.
+fn stricter(one: GuardrailMode, other: GuardrailMode) -> GuardrailMode {
+    let rank = |mode: GuardrailMode| match mode {
+        GuardrailMode::Bypass => 0,
+        GuardrailMode::Default => 1,
+        GuardrailMode::Review => 2,
+    };
+    if rank(other) > rank(one) { other } else { one }
+}
+
+impl Kernel {
+    /// How much a run asks: its group's setting, else its chat's mode, else its agent's own setting; and a run another
+    /// run delegated to never asks less than the run that delegated it, whichever agent it was given to.
+    pub(crate) fn run_approval(&self, run: &Value, agent: &Value) -> GuardrailMode {
+        let group = self.group_of(run);
+        let own = approval_mode(agent, group.as_ref(), self.chat_mode_of(run).as_deref());
+        let parent = text(run, "parentRunId");
+        if parent.is_empty() {
+            return own;
+        }
+        let Some((parent, parent_agent)) = self.find_run(parent).and_then(|parent| {
+            let agent = self.get_agent(text(&parent, "agentId")).ok()?;
+            Some((parent, agent))
+        }) else {
+            return own;
+        };
+        stricter(own, self.run_approval(&parent, &parent_agent))
+    }
 }
 
 /// The most of a text kept on a run.
@@ -94,6 +126,9 @@ pub(crate) struct TurnContext {
     pub(crate) memory: String,
     pub(crate) knowledge: String,
     pub(crate) rules: String,
+    /// Whether the project's instruction files may reach the program: there are none, or the user allowed them as they
+    /// are. When not, a program that reads one by itself (Codex, AGENTS.md) is told not to.
+    pub(crate) instructions_allowed: bool,
 }
 
 /// A program running for a turn: it ends when this is dropped, which is what stopping the run does, and with the runtime.
@@ -523,7 +558,7 @@ impl SkillsBridge {
                 .read(|state| tool_category(state, &self.agent, tool));
             if !is_read_only_call(tool, &args, category.as_deref()) {
                 return Ok(
-                    json!({ "id": action_id, "toolId": tool, "arguments": arguments, "status": "denied", "reason": read_only_refusal(mode) }),
+                    json!({ "id": action_id, "toolId": tool, "arguments": arguments, "status": "denied", "reason": read_only_refusal_for(mode, tool, &args) }),
                 );
             }
         }
@@ -556,7 +591,14 @@ impl SkillsBridge {
         let asks = match ruled.as_ref().map(|decision| decision.effect) {
             Some(Effect::Allow) => false,
             Some(Effect::Ask) => true,
-            _ => self.approval == GuardrailMode::Review,
+            _ => {
+                self.approval == GuardrailMode::Review
+                    || (self.approval == GuardrailMode::Default
+                        && is_sensitive_operation(
+                            tool,
+                            &arguments.as_object().cloned().unwrap_or_default(),
+                        ))
+            }
         };
         if asks {
             let waiting = self.action_for(tool, arguments)?;
@@ -658,6 +700,7 @@ impl Kernel {
             .map(|thread| text(thread, "projectId").to_owned())
             .filter(|id| !id.is_empty());
         let memory = self.memory_for_prompt(project.as_deref()).await;
+        let mut instructions_allowed = true;
         let rules = match (self.workdir_for(thread.as_ref()), &project) {
             (Ok(Some(root)), Some(project)) => {
                 let stored = self.store.read(|state| {
@@ -665,7 +708,12 @@ impl Kernel {
                         .map(|item| text(item, "rules").to_owned())
                         .unwrap_or_default()
                 });
-                project_rules_without(&root, &stored, skip).await
+                instructions_allowed = self.instructions_allowed(project, &root).await;
+                if instructions_allowed {
+                    project_rules_without(&root, &stored, skip).await
+                } else {
+                    stored_rules_only(&root, &stored).await
+                }
             }
             _ => String::new(),
         };
@@ -687,6 +735,7 @@ impl Kernel {
             memory: js::trim(&memory).to_owned(),
             knowledge: js::trim(&knowledge).to_owned(),
             rules,
+            instructions_allowed,
         }
     }
 

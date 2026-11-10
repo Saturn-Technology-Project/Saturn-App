@@ -286,14 +286,21 @@ test("the tools refuse outside a project, and a skill's name that does not exist
   assert.ok((await call(setup, "research_skill", {})).skills.length >= 40, "skills do not need a project");
 });
 
-test("a project's own skill of the same name comes first", async () => {
+test("a project's skill of one of Saturn's names does not replace Saturn's; one of a new name joins once allowed", async () => {
   const setup = await bed();
-  const skills = path.join(setup.folder, ".saturn/skills/study-report");
-  await mkdir(skills, { recursive: true });
-  await writeFile(path.join(skills, "SKILL.md"), "---\nname: study-report\ndescription: Ours.\n---\nOur format.\n");
-  assert.match((await call(setup, "research_skill", { name: "study-report" })).instructions, /Our format/);
-  const listed = (await call(setup, "research_skill", {})).skills.filter((item) => item.name === "study-report");
-  assert.deepEqual(listed.map((item) => item.source), ["project"]);
+  for (const [name, body] of [["study-report", "Our format."], ["lab-style", "Our house style."]]) {
+    const skills = path.join(setup.folder, `.saturn/skills/${name}`);
+    await mkdir(skills, { recursive: true });
+    await writeFile(path.join(skills, "SKILL.md"), `---\nname: ${name}\ndescription: Ours.\n---\n${body}\n`);
+  }
+  const sources = async (name) => (await call(setup, "research_skill", {})).skills.filter((item) => item.name === name).map((item) => item.source);
+  assert.deepEqual(await sources("lab-style"), [], "not until the user allows the project's files");
+  const instructions = await saturn.api("GET", `/projects/${setup.project.id}/instructions`);
+  await saturn.api("POST", `/projects/${setup.project.id}/instructions/approve`, { fingerprint: instructions.fingerprint });
+  assert.doesNotMatch((await call(setup, "research_skill", { name: "study-report" })).instructions, /Our format/);
+  assert.deepEqual(await sources("study-report"), ["saturn"]);
+  assert.deepEqual(await sources("lab-style"), ["project"]);
+  assert.match((await call(setup, "research_skill", { name: "lab-style" })).instructions, /Our house style/);
 });
 
 test("a long answer is cut and says how to read less", async () => {

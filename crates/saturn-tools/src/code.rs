@@ -23,6 +23,8 @@ const LONGEST_WAIT: i64 = 30_000;
 /// How long a background command gets to fail at once, so its error comes back with the job id.
 const FIRST_LOOK: Duration = Duration::from_millis(300);
 const NO_JOBS: &str = "Background commands are not available here";
+/// Added to the sandbox's hint when folders are hidden, since a refused read fails the way a refused write does.
+const HIDDEN_HINT: &str = "(The sandbox also keeps Saturn's own data folder and the usual credential folders, such as ~/.ssh, ~/.aws and ~/.config/gh, from being read or written. A command that needs one must run with sandbox: \"off\"; that asks the user first.)";
 
 /// What a command runs under.
 #[derive(Clone, Debug, Default)]
@@ -31,6 +33,10 @@ pub struct CodeOptions {
     pub sandbox: Option<SandboxSettings>,
     /// Folders outside the workspace the command may also write to (the agent's private workspace, say).
     pub writable: Vec<String>,
+    /// Folders and files the command may neither read nor write: Saturn's own data (its token, keys and conversations)
+    /// and the usual credential folders. A sandboxed command that could read them could take the keys, or use the token
+    /// to change its own approvals.
+    pub hidden: Vec<String>,
     /// Background commands for this chat (`background: true`, `code_output`, `code_stop`).
     pub jobs: Option<ScopedJobs>,
 }
@@ -182,7 +188,16 @@ pub async fn run_code(
     let env = process_env();
     let root = workspace.root().to_string_lossy();
     let shell = shell_invocation(&command, "/bin/sh", platform, &env);
-    let plan = wrap_command(shell, settings, &root, &options.writable, platform, &env);
+    let plan = wrap_command(
+        shell,
+        settings,
+        &root,
+        &options.writable,
+        &options.hidden,
+        &[],
+        platform,
+        &env,
+    );
     let plain_env = command_env(platform, &env);
     let note = |result: &mut Map<String, Value>| {
         if let Some(reason) = &plan.reason {
@@ -240,7 +255,13 @@ pub async fn run_code(
             stderr = js::trim(&stderr).to_owned();
         }
         let hint = if plan.sandboxed {
-            sandbox_hint(&stderr, settings)
+            sandbox_hint(&stderr, settings).map(|hint| {
+                if options.hidden.is_empty() {
+                    hint
+                } else {
+                    format!("{hint}\n{HIDDEN_HINT}")
+                }
+            })
         } else {
             None
         };

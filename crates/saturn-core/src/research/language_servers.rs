@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use saturn_domain::new_id;
-use saturn_tools::{force, in_own_group, launch_env, terminate};
+use saturn_tools::{force, in_own_group, terminate};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
@@ -24,17 +24,18 @@ const IDLE: Duration = Duration::from_secs(90);
 /// The largest installed-package source file a definition opens to.
 const MAX_LIBRARY_FILE: u64 = 4 * 1024 * 1024;
 
-/// The folders a session's installed packages live in, outside the project: the selected Python's import path, or the
-/// Rust toolchains' and crates' sources. A definition there opens read-only; nothing else outside the project does.
-async fn library_roots(language: &str, python: Option<&Path>, root: &Path) -> Vec<PathBuf> {
+/// What the selected Python is asked for its import path: -E ignores PYTHON* variables.
+const IMPORT_PATH: [&str; 3] = ["-E", "-c", "import json, sys; print(json.dumps(sys.path))"];
+
+/// The folders a session's installed packages live in, outside the project: the selected Python's import path (asked
+/// with `probe`, the interpreter in the project's sandbox), or the Rust toolchains' and crates' sources. A definition
+/// there opens read-only; nothing else outside the project does.
+async fn library_roots(language: &str, probe: Option<Command>, root: &Path) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = Vec::new();
-    match (language, python) {
-        ("python", Some(python)) => {
-            // -E ignores PYTHON* variables, and a neutral folder keeps the project's own modules off the path.
-            let mut command = Command::new(python);
-            saturn_tools::no_window(&mut command);
+    match (language, probe) {
+        ("python", Some(mut command)) => {
+            // A neutral folder keeps the project's own modules off the path.
             command
-                .args(["-E", "-c", "import json, sys; print(json.dumps(sys.path))"])
                 .current_dir(std::env::temp_dir())
                 .stdin(Stdio::null())
                 .stderr(Stdio::null())
@@ -416,16 +417,17 @@ impl Kernel {
             "basedpyright": { "analysis": { "typeCheckingMode": "basic", "diagnosticMode": "openFilesOnly" } },
             "rust-analyzer": { "checkOnSave": false, "cargo": { "buildScripts": { "enable": false } }, "procMacro": { "enable": false } }
         });
-        let library = library_roots(language, python.as_deref(), &root).await;
-        let mut command = Command::new(executable);
-        launch_env(&mut command);
-        for (key, _) in std::env::vars_os() {
-            if key.to_string_lossy().starts_with("SATURN_") {
-                command.env_remove(key);
-            }
-        }
+        // The interpreter and the server both come from the project's environment (pip installs basedpyright into
+        // .venv/bin), which a cloned folder can bring: they run in the project's command sandbox.
+        let probe = python.as_deref().map(|python| {
+            let words: Vec<String> = IMPORT_PATH.iter().map(|word| (*word).to_owned()).collect();
+            self.research_command(project, &python.to_string_lossy(), &words, &root, &[])
+        });
+        let library = library_roots(language, probe, &root).await;
+        let words: Vec<String> = args.iter().map(|word| (*word).to_owned()).collect();
+        let mut command =
+            self.research_command(project, &executable.to_string_lossy(), &words, &root, &[]);
         command
-            .args(args)
             .current_dir(&root)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

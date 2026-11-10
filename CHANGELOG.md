@@ -4,17 +4,28 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
-### Added
+### Security
 
-- **A computer without Python gets one from Saturn.** When neither uv nor Python is found, Environment offers to download uv (about 15 MB, from its GitHub release, checked against a checksum pinned in Saturn, like the Claude Code and Codex downloads), and making the managed environment then has uv install a Python first, the version you chose or the newest stable, before the environment is made from it. A computer with Python but no uv is offered the same download, since uv is what lets a Python version be picked. Saturn's copy of uv can be removed like the other programs; the Python uv installed stays in uv's own folder.
+- **A command an agent runs can no longer read Saturn's token or keys.** The sandbox around shell commands limited only where they could write, so a command that matched no risky pattern, run without a card in the default mode, could read the runtime's token and both halves of the key store, send them anywhere, and use the token to turn its own sandbox off. Commands now can neither read nor write Saturn's data folder or the usual credential folders (`~/.ssh`, `~/.aws`, `~/.config/gh`, `.npmrc` and the like). If a command of yours needs one of these, run it with the sandbox off, which asks first.
+- **A project's instruction files and skills reach agents only once you allow them.** `AGENTS.md`, `CLAUDE.md`, `.saturn/rules`, `.agents/rules`, `.cursorrules` and the project's skills went into every agent's prompt as instructions to follow, though a cloned repository brings them. They are now held until you read and allow that exact content: the research assistant shows a line with Review, and Settings → Projects has them too. Any change, an agent's own new rule included, asks again. The rules you save in Saturn always apply, and a project's skill can no longer replace one of Saturn's research skills by taking its name.
+- **The project's Python, its environment jobs and its check command run in the sandbox.** Saturn ran the project's interpreter (for the environment check, notebooks, looking inside a model, reading data and the language server), environment installs and the project's check command with your whole environment and no sandbox, so a cloned project's environment could run code with full access as soon as a Python file was opened. They now run in the project's command sandbox, the check command with PATH alone, and its output goes back to the agent marked as output. The assistant changing the project's interpreter asks first.
+- **The desktop app no longer hands its token to whatever listens on the runtime's port.** While it waited for the runtime it sent the long-lived token with every health check, so a program of another user holding port 4700 could take it. The health check carries no token, each time the app opens the runtime gets a new one, the interface sends it only once the app has seen its own runtime answer, and no program Saturn starts inherits it.
+- **Fewer ways for an injected agent to act or persist without you.** A file patch is judged by the files it touches, so a rule like `files: write secrets/**` or a `.claude/settings.json` `Edit(...)` deny now stops it, and deleting a file asks; a rule allowing a shell or launcher with a wildcard (`sh *`, `env *`) is refused like `*`; commands that reach for Saturn's keys or a key store ask; a task delegated to another agent asks at least as much as the chat it came from; creating, enabling or running an automation asks; in Ask and Plan chats the web tool and the browser open only plain addresses, not one whose query or path could carry what the chat read; memory notes come only from what you typed; a model's source can no longer open Saturn's data to an experiment run.
+- **Fewer places a secret can show.** Claude Code no longer inherits other services' credentials from your environment (it keeps Anthropic's, and AWS and Google ones for Bedrock and Vertex); the network log leaves out a path segment long enough to be a token, as it already did the query string.
+
+### Fixed
+
+- **Signing in to an MCP server in the browser works.** Connecting a remote server that needs a sign-in now opens its sign-in page, and the browser's return to Saturn finishes it; before, the return address did not exist, and such a server could only fail with "requires sign-in". The return finishes only a sign-in Saturn started, once. A server waiting for its sign-in has a Connect button.
+- **Windows: opening an address in the browser no longer goes through cmd**, which would have read an `&` in it as a second command.
+- **The access dialog keeps its buttons inside it.** A long folder path widened the dialog's content past its edge, so the note under it and Cancel and Allow Access sat over the window behind. The whole path now wraps inside the dialog, in that dialog and in Edit Workspace.
 
 ### Changed
 
 - **The project list says where each project is, and adding one stands apart.** The list at the top of the window shows each project's folder under its name, with the home folder written `~`, and a line sets "Add a project folder…" off from the projects. The name is given the room it needs, up to a limit, instead of a fixed width that cut a long one short.
 
-### Fixed
+### Added
 
-- **The access dialog keeps its buttons inside it.** A long folder path widened the dialog's content past its edge, so the note under it and Cancel and Allow Access sat over the window behind. The whole path now wraps inside the dialog, in that dialog and in Edit Workspace.
+- **A computer without Python gets one from Saturn.** When neither uv nor Python is found, Environment offers to download uv (about 15 MB, from its GitHub release, checked against a checksum pinned in Saturn, like the Claude Code and Codex downloads), and making the managed environment then has uv install a Python first, the version you chose or the newest stable, before the environment is made from it. A computer with Python but no uv is offered the same download, since uv is what lets a Python version be picked. Saturn's copy of uv can be removed like the other programs; the Python uv installed stays in uv's own folder.
 
 ## 0.6.0 (2026-11-09)
 

@@ -7,6 +7,7 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::skills::patch::{FileChange, parse_patch};
 use crate::{Arguments, argument_text};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -210,6 +211,52 @@ fn first_argument(arguments: &Arguments, keys: &[&str]) -> String {
         .unwrap_or_default()
 }
 
+/// Marks the arguments of one piece of a patch (see `patch_pieces`), so a rule about patches applies to it.
+const PATCH_PIECE: &str = "__saturnPatchPiece";
+
+/// What a `files` patch does, file by file, as calls of their own: each file it adds, changes or moves to is a `write`,
+/// each it deletes or moves away from a `delete`. None when the call is not a patch, or the patch cannot be read (it is
+/// then judged whole, and fails when it runs). A path-scoped rule judges the paths the patch names, which the call's
+/// own arguments do not carry.
+pub fn patch_pieces(arguments: &Arguments) -> Option<Vec<Arguments>> {
+    if argument_text(arguments, "action") != "patch" {
+        return None;
+    }
+    let patch = match argument_text(arguments, "patch") {
+        text if text.is_empty() => argument_text(arguments, "content"),
+        text => text,
+    };
+    let changes = parse_patch(&patch).ok()?;
+    let piece = |action: &str, path: String| {
+        let mut piece = Arguments::new();
+        piece.insert("action".to_owned(), action.into());
+        piece.insert("path".to_owned(), path.into());
+        piece.insert(PATCH_PIECE.to_owned(), "patch".into());
+        piece
+    };
+    let mut pieces = Vec::new();
+    for change in changes {
+        match change {
+            FileChange::Add { path, .. } => pieces.push(piece("write", path)),
+            FileChange::Delete { path } => pieces.push(piece("delete", path)),
+            FileChange::Update {
+                path,
+                move_to: None,
+                ..
+            } => pieces.push(piece("write", path)),
+            FileChange::Update {
+                path,
+                move_to: Some(to),
+                ..
+            } => {
+                pieces.push(piece("delete", path));
+                pieces.push(piece("write", to));
+            }
+        }
+    }
+    Some(pieces)
+}
+
 /// Whether one rule covers one tool call (for the shell: one command segment).
 pub fn matches_rule(rule: &Rule, tool: &str, arguments: &Arguments, segment: Option<&str>) -> bool {
     if rule.tool != "*"
@@ -225,7 +272,15 @@ pub fn matches_rule(rule: &Rule, tool: &str, arguments: &Arguments, segment: Opt
     if tool == "files" {
         let (action, glob) = file_parts(&rule.pattern);
         let called = argument_text(arguments, "action");
-        if action != "*" && action != called && !(action == "write" && called == "append") {
+        // Writing a file covers appending to it. A piece of a patch is also what a patch or edit rule speaks of, and
+        // writing covers a patch deleting the file or moving it away, which changes it as surely.
+        let piece = argument_text(arguments, PATCH_PIECE) == "patch";
+        let covered = action == "*"
+            || action == called
+            || (action == "write" && called == "append")
+            || (piece && action == "write" && called == "delete")
+            || (piece && matches!(action, "patch" | "edit"));
+        if !covered {
             return false;
         }
         let target = normalize_path(&first_argument(arguments, &["path", "from", "source"]));
@@ -252,10 +307,10 @@ fn strongest(decisions: impl IntoIterator<Item = Decision>) -> Option<Decision> 
 }
 
 /// The decision the layers make about one tool call, or None when no rule applies (the agent's own approval setting
-/// decides then). A shell line is judged by its segments: every segment must be allowed for the line to be allowed, and
-/// the strictest segment wins otherwise.
+/// decides then). A shell line is judged by its segments, and a file patch by the files it touches: every piece must be
+/// allowed for the call to be allowed, and the strictest piece wins otherwise.
 pub fn resolve_permission(layers: &[Layer], tool: &str, arguments: &Arguments) -> Option<Decision> {
-    let judge = |segment: Option<&str>| {
+    let judge = |arguments: &Arguments, segment: Option<&str>| {
         let hits = layers.iter().flat_map(|layer| {
             layer
                 .rules
@@ -270,8 +325,20 @@ pub fn resolve_permission(layers: &[Layer], tool: &str, arguments: &Arguments) -
         });
         strongest(hits)
     };
+    // A patch is judged like a shell line, by its pieces: each file it touches.
+    if tool == "files"
+        && let Some(pieces) = patch_pieces(arguments).filter(|pieces| !pieces.is_empty())
+    {
+        let decided: Vec<Decision> = pieces
+            .iter()
+            .filter_map(|piece| judge(piece, None))
+            .collect();
+        let covered = decided.len() == pieces.len();
+        let strict = strongest(decided)?;
+        return (strict.effect != Effect::Allow || covered).then_some(strict);
+    }
     if tool != "code" {
-        return judge(None);
+        return judge(arguments, None);
     }
     let segments = command_segments(&argument_text(arguments, "command"));
     if segments.is_empty() {
@@ -279,7 +346,7 @@ pub fn resolve_permission(layers: &[Layer], tool: &str, arguments: &Arguments) -
     }
     let decided: Vec<Decision> = segments
         .iter()
-        .filter_map(|segment| judge(Some(segment)))
+        .filter_map(|segment| judge(arguments, Some(segment)))
         .collect();
     let covered = decided.len() == segments.len();
     let strict = strongest(decided)?;

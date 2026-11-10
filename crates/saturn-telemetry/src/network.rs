@@ -56,6 +56,26 @@ fn persist(file: &Path, entry: &Value) {
     }
 }
 
+/// The longest path segment shown as it is; a longer one is more likely a token than a name.
+const SHOWN_SEGMENT: usize = 24;
+
+/// A request's path for the log, with each segment that could be a token (one longer than `SHOWN_SEGMENT`) replaced by
+/// `…`: some services put a secret in the path (an MCP server's `/s/<token>/mcp`), as others do in the query, which is
+/// never kept.
+pub fn shown_path(url: &Url) -> String {
+    url.path()
+        .split('/')
+        .map(|segment| {
+            if segment.chars().count() > SHOWN_SEGMENT {
+                "…"
+            } else {
+                segment
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 /// Records one request.
 pub fn note(method: &str, url: &Url) {
     let hostname = url.host_str().unwrap_or_default();
@@ -66,8 +86,7 @@ pub fn note(method: &str, url: &Url) {
         .map_or_else(|| hostname.to_owned(), |port| format!("{hostname}:{port}"));
     let at = iso_time(now_millis());
     let method = method.to_uppercase();
-    let entry =
-        json!({ "at": at, "method": method, "host": host, "path": url.path(), "local": local });
+    let entry = json!({ "at": at, "method": method, "host": host, "path": shown_path(url), "local": local });
     let mut log = locked(&LOG);
     log.recent.push_back(entry.clone());
     if log.recent.len() > RECENT {
@@ -168,4 +187,23 @@ pub(crate) async fn send_without_span(builder: RequestBuilder) -> reqwest::Resul
     note(request.method().as_str(), request.url());
     #[allow(clippy::disallowed_methods)]
     client.execute(request).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_path_keeps_its_names_but_not_a_segment_long_enough_to_be_a_token() {
+        let shown = |address: &str| shown_path(&Url::parse(address).expect("an address"));
+        assert_eq!(
+            shown("https://api.example/v1/chat/completions?key=x"),
+            "/v1/chat/completions"
+        );
+        assert_eq!(
+            shown("https://mcp.example/s/made-up-token-0123456789abcdefghij/mcp"),
+            "/s/…/mcp"
+        );
+        assert_eq!(shown("https://x.example/"), "/");
+    }
 }

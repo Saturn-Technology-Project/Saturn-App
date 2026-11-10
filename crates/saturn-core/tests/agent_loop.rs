@@ -561,6 +561,21 @@ async fn load_tools_and_skill_work() {
         "---\nname: deploy\ndescription: How to deploy\n---\nRun the script.\n",
     )
     .expect("a file");
+    // A project's own skills reach the model only once the person has allowed them.
+    let seen = setup
+        .kernel
+        .project_instructions(&setup.project)
+        .await
+        .expect("the instructions");
+    assert_eq!(seen["approved"], false);
+    setup
+        .kernel
+        .approve_instructions(
+            &setup.project,
+            seen["fingerprint"].as_str().expect("a fingerprint"),
+        )
+        .await
+        .expect("allowed");
     let run = setup.turn("go").await;
     let tools = |index: usize| {
         setup.script.requests.lock().expect("not poisoned")[index]["tools"].to_string()
@@ -708,7 +723,9 @@ async fn memory_learns_from_the_latest_turns() {
         .rfind(|request| request.to_string().contains("You keep short notes"))
         .expect("a memory call")
         .to_string();
-    let conversation = &last[last.find("Recent conversation").expect("the transcript")..];
+    let conversation = &last[last
+        .find("What the user wrote recently")
+        .expect("the transcript")..];
     assert!(conversation.contains("question 12."), "{conversation}");
     assert!(conversation.contains("question 7."), "{conversation}");
     assert!(!conversation.contains("question 6."), "{conversation}");

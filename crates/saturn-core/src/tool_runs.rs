@@ -135,6 +135,17 @@ impl Kernel {
         })
     }
 
+    /// The sandbox a project's commands run in: its own setting, else the general one, else the default.
+    pub(crate) fn project_sandbox(&self, project_id: &str) -> SandboxSettings {
+        self.store.read(|state| {
+            by_id(&state.projects, project_id)
+                .and_then(|project| project.get("sandbox"))
+                .or_else(|| state.settings.get("sandbox"))
+                .and_then(|value| serde_json::from_value(value.clone()).ok())
+                .unwrap_or(DEFAULT_SANDBOX)
+        })
+    }
+
     /// The project folder a run works in, or nothing for chats outside a project (the private sandbox).
     pub(crate) fn workdir_of_run(&self, run: &Value) -> Result<Option<PathBuf>, CoreError> {
         self.workdir_of(run)
@@ -436,6 +447,7 @@ impl Kernel {
             "skill" => {
                 let name = text(arguments, "name");
                 let workdir = self.workdir_of(&run)?;
+                let workdir = self.skill_folder(&run, workdir.as_deref()).await;
                 let user_dir = self.store.root().join("skills");
                 let plugins = self.enabled_plugin_folders();
                 let loaded = if name.is_empty() {
@@ -641,6 +653,7 @@ impl Kernel {
             CodeOptions {
                 sandbox: Some(self.sandbox_of(run_id)),
                 writable,
+                hidden: crate::research::hidden_from_commands(self.store.root()),
                 jobs: Some(ScopedJobs {
                     table: self.jobs.clone(),
                     scope: self.job_scope_of(run),

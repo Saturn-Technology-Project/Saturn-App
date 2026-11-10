@@ -283,14 +283,15 @@ test("a platform with no published package cannot download, and says so", async 
 });
 
 test("Claude Code's login comes from the program, in Saturn's own config folder, with the command to sign in", async () => {
-  const saturn = await startWithPrograms({ env: { ANTHROPIC_API_KEY: "the-users-own-key", CLAUDE_CODE_USE_BEDROCK: "1", ELECTRON_RUN_AS_NODE: "1" } });
+  // A key for another service in the user's environment has no use in Claude Code, whose shell could print it.
+  const saturn = await startWithPrograms({ env: { ANTHROPIC_API_KEY: "the-users-own-key", CLAUDE_CODE_USE_BEDROCK: "1", ELECTRON_RUN_AS_NODE: "1", OPENAI_API_KEY: "another-services-key" } });
   try {
     const configDir = path.join(saturn.dataDir, "claude");
     const loginCommand = `CLAUDE_CONFIG_DIR=${configDir} ${saturn.placed["claude-code"]} auth login --claudeai`;
     assert.deepEqual(await saturn.api("GET", "/claude-code/status"), { loggedIn: false, authMethod: "none", loginCommand, configDir }, "signed out exits 1 and still prints its answer");
     const [started] = (await saturn.journal()).filter((entry) => entry.started && entry.args[0] === "auth");
     assert.deepEqual(started.args, ["auth", "status", "--json"]);
-    assert.deepEqual(started.env, { CLAUDE_CONFIG_DIR: configDir, ANTHROPIC_API_KEY: "the-users-own-key", CLAUDE_CODE_USE_BEDROCK: "1" }, "the user's own settings pass, the packaged runtime's own do not");
+    assert.deepEqual(started.env, { CLAUDE_CONFIG_DIR: configDir, ANTHROPIC_API_KEY: "the-users-own-key", CLAUDE_CODE_USE_BEDROCK: "1" }, "the user's own settings pass, the packaged runtime's own and other services' keys do not");
 
     await saturn.scenario({ status: { stdout: JSON.stringify({ loggedIn: true, authMethod: "claude.ai", email: "someone@example.com", subscriptionType: "max", extra: "ignored" }) } });
     assert.deepEqual(await saturn.api("GET", "/claude-code/status"), { loggedIn: true, authMethod: "claude.ai", email: "someone@example.com", subscriptionType: "max", loginCommand, configDir });

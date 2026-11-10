@@ -78,6 +78,17 @@ pub fn read_only_refusal(mode: RunMode) -> String {
     )
 }
 
+/// Why a read-only turn refused this call: a change, or an address that could send what the chat read.
+pub fn read_only_refusal_for(mode: RunMode, tool: &str, arguments: &crate::Arguments) -> String {
+    if crate::policies::sends_data_out(tool, arguments) {
+        return format!(
+            "{} mode only reads, and this address carries more than where to go (a query, a fragment or a long path), which could send what the chat has read to the site. Open the plain address, or switch to Agent mode.",
+            if mode == RunMode::Ask { "Ask" } else { "Plan" }
+        );
+    }
+    read_only_refusal(mode)
+}
+
 /// A number from a saved setting, inside its range; anything else is the fallback.
 pub fn number_of(value: Option<&serde_json::Value>, fallback: f64, low: f64, high: f64) -> f64 {
     let number = js::number(value);

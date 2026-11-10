@@ -6,9 +6,7 @@ use std::process::Stdio;
 
 use saturn_domain::research::{SCHEMA_VERSION, is_id, sha256_hex};
 use saturn_domain::time::{iso_time, now_millis};
-use saturn_tools::launch_env;
 use serde_json::{Value, json};
-use tokio::process::Command;
 
 use super::labels::each_sample;
 use super::{pretty, read_record, write_whole};
@@ -371,16 +369,13 @@ impl Kernel {
 
         let source = self.research_source(project, None)?;
         let working_folder = source.join(text(&version, "cwd"));
-        let mut command = Command::new(&python);
-        launch_env(&mut command);
-        saturn_tools::no_window(&mut command);
-        for (name, _) in std::env::vars_os() {
-            if name.to_string_lossy().starts_with("SATURN_") {
-                command.env_remove(&name);
-            }
-        }
+        let mut command = self.interpreter_command(
+            project,
+            &python,
+            &["-".to_owned(), ask.to_string()],
+            &working_folder,
+        )?;
         let output = command
-            .args(["-", &ask.to_string()])
             .current_dir(&working_folder)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -696,16 +691,13 @@ impl Kernel {
     ) -> Result<Value, CoreError> {
         let source = self.research_source(project, None)?;
         let working_folder = source.join(text(version, "cwd"));
-        let mut command = Command::new(python);
-        launch_env(&mut command);
-        saturn_tools::no_window(&mut command);
-        for (name, _) in std::env::vars_os() {
-            if name.to_string_lossy().starts_with("SATURN_") {
-                command.env_remove(&name);
-            }
-        }
+        let mut command = self.interpreter_command(
+            project,
+            python,
+            &["-".to_owned(), ask.to_string()],
+            &working_folder,
+        )?;
         let child = command
-            .args(["-", &ask.to_string()])
             .current_dir(&working_folder)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

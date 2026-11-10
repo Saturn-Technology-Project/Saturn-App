@@ -21,10 +21,21 @@ pub fn autonomy_of(value: Option<&str>) -> GuardrailMode {
     }
 }
 
-/// Shell commands that delete, wipe, kill or escalate, on POSIX shells, cmd and PowerShell. Matched on the lowercased line.
+/// Shell commands that delete, wipe, kill or escalate, on POSIX shells, cmd and PowerShell, and ones that reach for
+/// Saturn's own data (its token, its keys) or a system key store. Matched on the lowercased line. A pattern is a
+/// heuristic: the sandbox, which hides Saturn's data and the credential folders from commands, is what holds.
 static SENSITIVE_COMMANDS: LazyLock<RegexSet> = LazyLock::new(|| {
     RegexSet::new([
         r"\brm\s+(-[rf]+|--recursive)\b",
+        r"\brm\b[^&|;]*\s--(recursive|force)\b",
+        r"\bfind\b[^&|;]*\s-delete\b",
+        r"\bgit\s+clean\s+-\w*f",
+        r"\bshred\b",
+        r"\.saturn-app\b",
+        r"runtime-token",
+        r"\bsecrets\.(json|key)\b",
+        r"\bsecurity\s+(find|dump|export)-",
+        r"\bsecret-tool\s+(lookup|search)\b",
         r"\bsudo\b",
         r"\b(kill|pkill)\b",
         r"\bgit\s+(push\s+--force|reset\s+--hard)\b",
@@ -45,24 +56,50 @@ static SENSITIVE_COMMANDS: LazyLock<RegexSet> = LazyLock::new(|| {
     .expect("these patterns are valid")
 });
 
+/// Research tool calls that change what the project runs on, which the person decides: the interpreter Saturn starts for
+/// the project's checks, notebooks, data and language server.
+fn changes_the_interpreter(tool: &str, arguments: &Arguments) -> bool {
+    tool == "research_environment_action" && argument_text(arguments, "action") == "set"
+}
+
+/// Automation calls that leave a prompt to run later, unattended, or run one now: an agent steered by what it read could
+/// otherwise schedule itself.
+const SCHEDULING_TOOLS: [&str; 3] = [
+    "automation_create",
+    "automation_toggle",
+    "automation_trigger",
+];
+
 /// Whether a call is risky enough to ask about in the default approval mode.
 pub fn is_sensitive_operation(tool: &str, arguments: &Arguments) -> bool {
+    if changes_the_interpreter(tool, arguments) || SCHEDULING_TOOLS.contains(&tool) {
+        return true;
+    }
     if tool == "code"
         && SENSITIVE_COMMANDS.is_match(&argument_text(arguments, "command").trim().to_lowercase())
     {
         return true;
     }
     if tool == "files" {
-        let path = argument_text(arguments, "path");
-        let drive = path.as_bytes();
-        let has_drive = drive.len() >= 2 && drive[0].is_ascii_alphabetic() && drive[1] == b':';
-        return argument_text(arguments, "action") == "delete"
-            || path.starts_with('/')
-            || path.starts_with('\\')
-            || has_drive
-            || path.starts_with("..");
+        // A patch asks when any file it touches would: one it deletes, or one outside the workspace.
+        if let Some(pieces) = crate::permissions::patch_pieces(arguments) {
+            return pieces.iter().any(file_call_is_sensitive);
+        }
+        return file_call_is_sensitive(arguments);
     }
     false
+}
+
+/// Whether one file call asks: a delete, or a path outside the workspace.
+fn file_call_is_sensitive(arguments: &Arguments) -> bool {
+    let path = argument_text(arguments, "path");
+    let drive = path.as_bytes();
+    let has_drive = drive.len() >= 2 && drive[0].is_ascii_alphabetic() && drive[1] == b':';
+    argument_text(arguments, "action") == "delete"
+        || path.starts_with('/')
+        || path.starts_with('\\')
+        || has_drive
+        || path.starts_with("..")
 }
 
 /// Tools that only look: they read files, pages, the screen or a repository and change nothing.
@@ -89,9 +126,35 @@ static READ_ONLY_NAME: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(get|list|read|search|grep|find|compare|fetch|view|describe|show)_|_(read|list|get|search|state|status)$").expect("this pattern is valid")
 });
 
+/// Tools that open an address the model gives: what they fetch is a read, but the address itself goes out.
+const FETCHING_TOOLS: [&str; 2] = ["web", "browser_navigate"];
+
+/// Whether a fetch's address carries more than where to go: a query, a fragment, or a long path. A chat that only reads
+/// must not become a way to send what it read, and such an address can carry it to whoever runs the site.
+pub fn sends_data_out(tool: &str, arguments: &Arguments) -> bool {
+    if !FETCHING_TOOLS.contains(&tool) {
+        return false;
+    }
+    let Ok(address) = url::Url::parse(argument_text(arguments, "url").trim()) else {
+        return false;
+    };
+    address.query().is_some_and(|query| !query.is_empty())
+        || address
+            .fragment()
+            .is_some_and(|fragment| !fragment.is_empty())
+        || address.path().len() > 200
+        || address
+            .path_segments()
+            .is_some_and(|mut segments| segments.any(|segment| segment.len() > 64))
+}
+
 /// Whether one tool call only reads. Ask and Plan turns run only these: a write is refused, not asked about. `category`
-/// is the tool's own declaration when it has one (`read` or `write`); the files tool depends on its action.
+/// is the tool's own declaration when it has one (`read` or `write`); the files tool depends on its action. A fetch whose
+/// address could carry data out (`sends_data_out`) is not a read.
 pub fn is_read_only_call(tool: &str, arguments: &Arguments, category: Option<&str>) -> bool {
+    if sends_data_out(tool, arguments) {
+        return false;
+    }
     if let Some(category) = category {
         return category == "read";
     }

@@ -82,6 +82,9 @@ test("an agent sees the skills in its prompt and loads one with the skill tool; 
       ["customizations_create_skill", { name: "made-here", description: "Made by the agent", instructions: "Steps" }],
     ],
   });
+  // A project's skills come with its folder: the user allows them first.
+  const seen = await saturn.api("GET", `/projects/${setup.project.id}/instructions`);
+  await saturn.api("POST", `/projects/${setup.project.id}/instructions/approve`, { fingerprint: seen.fingerprint });
   const run = await saturn.finished((await saturn.start(setup, "ship it")).id);
   assert.equal(run.status, "completed", run.error);
   const system = setup.model.requests.find((body) => body.tools?.length).messages.find((item) => item.role === "system").content;

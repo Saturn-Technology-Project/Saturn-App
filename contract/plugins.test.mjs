@@ -154,6 +154,9 @@ test("a project's links cannot bring a file from elsewhere on the computer into 
   const connection = await api("POST", "/connections/models", { name: "Scripted", provider: "openai", model: "s", baseUrl: url });
   const agent = await api("POST", "/agents", { name: "Reader", modelConnectionId: connection.id, autonomy: "bypass" });
   const project = await api("POST", "/projects", { path: root, grant: true });
+  const instructions = await api("GET", `/projects/${project.id}/instructions`);
+  assert.doesNotMatch(JSON.stringify(instructions), /project-outside-secret/, "not even in what the user is asked to allow");
+  await api("POST", `/projects/${project.id}/instructions/approve`, { fingerprint: instructions.fingerprint });
   const created = await api("POST", `/agents/${agent.id}/runs`, { input: "go", projectId: project.id });
   for (let attempt = 0; attempt < 300; attempt += 1) {
     if ((await api("GET", `/runs/${created.id}`)).status === "completed") break;
