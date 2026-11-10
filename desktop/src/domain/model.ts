@@ -172,7 +172,6 @@ export type Plugin = {
   version?: string;
   description: string;
   skills: string[];
-  commands: string[];
   hooks: Hook[];
   hooksFingerprint?: string;
   hooksApproved: boolean;

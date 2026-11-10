@@ -19,7 +19,7 @@ export default {
   Hooks: "Hooks",
   "Commands around tool calls and turns": "在工具呼叫與回合前後執行的指令",
   Plugins: "外掛",
-  "Bundles of skills, commands, hooks and MCP servers": "集合技能、指令、Hooks 與 MCP 伺服器的套件",
+  "Bundles of skills, hooks and MCP servers": "集合技能、Hooks 與 MCP 伺服器的套件",
   System: "系統",
   Telemetry: "遙測",
   "OpenTelemetry traces & logs": "OpenTelemetry 追蹤與日誌",

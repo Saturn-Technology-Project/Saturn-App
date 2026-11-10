@@ -12,9 +12,7 @@ use axum::routing::{delete, get, patch, post};
 use saturn_core::agent_programs::program_id;
 use saturn_core::catalog::llm_providers;
 use saturn_core::projects::{launch_app, launch_terminal};
-use saturn_core::skill_files::{
-    expand_command, list_commands, list_skills, load_skill, skill_json,
-};
+use saturn_core::skill_files::{list_skills, load_skill, skill_json};
 use saturn_core::{CoreError, Kernel};
 use saturn_domain::js;
 use saturn_domain::skills::public_address::parse_public_address;
@@ -396,30 +394,6 @@ async fn skill(State(kernel): Shared, Path(name): Path<String>, Query(query): Qu
     )
     .await;
     ok(loaded.ok_or_else(|| CoreError::new(404, "No such skill"))?)
-}
-
-async fn commands(State(kernel): Shared, Query(query): QueryText) -> Answer {
-    let root = folder_of(&kernel, wanted(&query, "projectId"))?;
-    ok(list_commands(
-        root.as_deref(),
-        &kernel.store.root().join("commands"),
-        &kernel.enabled_plugin_folders(),
-    )
-    .await)
-}
-
-async fn expand(State(kernel): Shared, Path(name): Path<String>, body: Body) -> Answer {
-    let body = body_of(body);
-    let root = folder_of(&kernel, given(&body, "projectId"))?;
-    let expanded = expand_command(
-        root.as_deref(),
-        &kernel.store.root().join("commands"),
-        &kernel.enabled_plugin_folders(),
-        &name,
-        &js::text(body.get("arguments")),
-    )
-    .await;
-    ok(expanded.ok_or_else(|| CoreError::new(404, "No such command"))?)
 }
 
 /// The active project's folder, or the agents' own workspace.
@@ -1327,8 +1301,6 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         )
         .route("/skills", get(skills))
         .route("/skills/{name}", get(skill))
-        .route("/commands", get(commands))
-        .route("/commands/{name}/expand", post(expand))
         .route("/workspace/info", get(workspace_info))
         .route("/workspace/terminal", post(workspace_terminal))
         .route("/workspace/terminal/open", post(open_terminal))

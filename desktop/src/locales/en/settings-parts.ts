@@ -95,8 +95,8 @@ export default {
   everywhere: "Everywhere",
 
   // Plugins
-  "A plugin bundles skills, slash commands, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.":
-    "A plugin bundles skills, slash commands, hooks, and MCP servers in one folder with a plugin.json. Claude Code plugins (.claude-plugin/plugin.json) install as is. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.",
+  "A plugin bundles skills, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.":
+    "A plugin bundles skills, hooks, and MCP servers in one folder with a plugin.json. Claude Code plugins (.claude-plugin/plugin.json) install as is. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.",
   "Choose Folder…": "Choose folder…",
   "Turn Off": "Turn off",
   "Turn On": "Turn on",

@@ -69,7 +69,7 @@ async function model(chat, raw = []) {
   return { requests, url: `http://127.0.0.1:${server.address().port}` };
 }
 
-test("a plugin installs from a folder and brings its skills, commands, hooks and servers, running nothing", async () => {
+test("a plugin installs from a folder and brings its skills, hooks and servers, running nothing", async () => {
   const source = await folder("good-plugin", {
     "plugin.json": JSON.stringify({ name: "Good-Plugin", description: "It helps", version: "1.2.0" }),
     "skills/review/SKILL.md": "---\nname: review\ndescription: Reviews\n---\nLook closely.\n",
@@ -85,7 +85,6 @@ test("a plugin installs from a folder and brings its skills, commands, hooks and
   assert.equal(plugin.description, "It helps");
   assert.equal(plugin.enabled, true);
   assert.deepEqual(plugin.skills, ["review"]);
-  assert.deepEqual(plugin.commands, ["ship"]);
   assert.equal(plugin.hooksApproved, false);
   assert.equal(plugin.hooks[0].matcher, "code");
   assert.equal(plugin.hooks[0].command, path.join(runtime.dataDir, "plugins/good-plugin/check.sh"));
@@ -98,7 +97,6 @@ test("a plugin installs from a folder and brings its skills, commands, hooks and
   const local = connections.find((item) => item.name === "good-plugin: local");
   assert.equal(local.approval, "needed", "a plugin's program waits for the usual approval");
   assert.ok((await api("GET", "/skills")).some((item) => item.name === "review" && item.source === "plugin"));
-  assert.equal((await api("POST", "/commands/ship/expand", { arguments: "it" })).prompt, "Ship it.");
 
   const held = (await api("GET", "/hooks")).find((item) => item.source === "plugin");
   assert.equal(held.approved, false);
@@ -148,8 +146,6 @@ test("a project's links cannot bring a file from elsewhere on the computer into 
   await symlink(path.join(root, "real.md"), path.join(root, "CLAUDE.md"));
   await mkdir(path.join(root, ".saturn/skills/leak"), { recursive: true });
   await symlink(path.join(outside, "private.txt"), path.join(root, ".saturn/skills/leak/SKILL.md"));
-  await mkdir(path.join(root, ".saturn/commands"), { recursive: true });
-  await symlink(path.join(outside, "private.txt"), path.join(root, ".saturn/commands/leak.md"));
   const { requests, url } = await model(() => "done");
   const connection = await api("POST", "/connections/models", { name: "Scripted", provider: "openai", model: "s", baseUrl: url });
   const agent = await api("POST", "/agents", { name: "Reader", modelConnectionId: connection.id, autonomy: "bypass" });
@@ -166,7 +162,6 @@ test("a project's links cannot bring a file from elsewhere on the computer into 
   assert.match(sent, /inside rule/, "a link that stays inside still works");
   assert.doesNotMatch(sent, /project-outside-secret/);
   await api("GET", `/skills/leak?projectId=${project.id}`, undefined, [404]);
-  await api("POST", "/commands/leak/expand", { projectId: project.id }, [404]);
   const rules = await api("GET", `/projects/${project.id}/rules`);
   assert.doesNotMatch(JSON.stringify(rules), /project-outside-secret/);
 });

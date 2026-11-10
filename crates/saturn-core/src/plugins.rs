@@ -1,8 +1,9 @@
-//! Plugins: a folder that bundles skills, prompt commands, hooks and MCP servers, installed once and turned on or off as a unit.
-//! The layout is Claude Code's, so its plugins install as they are. Plugins are copied (a local folder) or cloned (a git URL, no
-//! hooks or submodules run) into `<data>/plugins`. Installing runs nothing: the plugin's hooks wait for the user's approval of
-//! that exact set, and its local MCP servers are added as connections that wait for the usual per-command approval. Symbolic
-//! links are left behind, since one could lead to a file elsewhere on the computer.
+//! Plugins: a folder that bundles skills, hooks and MCP servers, installed once and turned on or off as a unit. The layout
+//! is Claude Code's, so its plugins install as they are; their prompt commands are copied but not used. Plugins are copied
+//! (a local folder) or cloned (a git URL, no hooks or submodules run) into `<data>/plugins`. Installing runs nothing: the
+//! plugin's hooks wait for the user's approval of that exact set, and its local MCP servers are added as connections that
+//! wait for the usual per-command approval. Symbolic links are left behind, since one could lead to a file elsewhere on the
+//! computer.
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
@@ -165,7 +166,7 @@ impl Kernel {
         })
     }
 
-    /// The folders of the plugins that are on: where skills and commands are read from.
+    /// The folders of the plugins that are on: where skills are read from.
     pub fn enabled_plugin_folders(&self) -> Vec<PathBuf> {
         self.plugin_records()
             .iter()
@@ -197,15 +198,6 @@ impl Kernel {
         view["path"] = folder.to_string_lossy().into_owned().into();
         view["skills"] = names_in(&folder.join("skills"), |name, is_folder| {
             is_folder.then(|| name.to_owned())
-        })
-        .await
-        .into();
-        view["commands"] = names_in(&folder.join("commands"), |name, is_folder| {
-            if is_folder {
-                None
-            } else {
-                name.strip_suffix(".md").map(str::to_owned)
-            }
         })
         .await
         .into();
