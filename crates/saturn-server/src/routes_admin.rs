@@ -906,35 +906,6 @@ async fn draft_automation(State(kernel): Shared, body: Body) -> Answer {
     ok(kernel.draft_automation(&body_of(body)).await?)
 }
 
-async fn groups(State(kernel): Shared) -> Answer {
-    ok(kernel.list_groups())
-}
-
-async fn create_group(State(kernel): Shared, body: Body) -> Answer {
-    created(kernel.create_group(&body_of(body)).await?)
-}
-
-async fn update_group(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
-    ok(kernel.update_group(&id, &body_of(body)).await?)
-}
-
-async fn delete_group(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    kernel.delete_group(&id).await?;
-    no_content()
-}
-
-async fn group_messages(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    ok(kernel.group_transcript(&id)?)
-}
-
-async fn post_group_message(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
-    created(
-        kernel
-            .post_group_message(&id, &js::text(body_of(body).get("text")))
-            .await?,
-    )
-}
-
 async fn plugins(State(kernel): Shared) -> Answer {
     ok(kernel.list_plugins().await)
 }
@@ -1269,12 +1240,6 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
             patch(update_automation).delete(delete_automation),
         )
         .route("/automations/{id}/run", post(run_automation))
-        .route("/groups", get(groups).post(create_group))
-        .route("/groups/{id}", patch(update_group).delete(delete_group))
-        .route(
-            "/groups/{id}/messages",
-            get(group_messages).post(post_group_message),
-        )
         .route("/plugins", get(plugins).post(install_plugin))
         .route(
             "/plugins/{name}",

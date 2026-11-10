@@ -16,6 +16,8 @@ pub struct AppState {
     pub rag: Vec<Value>,
     pub runs: Vec<Value>,
     pub threads: Vec<Value>,
+    /// Group chats and their messages, from versions that had them. Nothing reads these now; they are kept so that a save
+    /// writes them back instead of dropping what a person once wrote.
     pub groups: Vec<Value>,
     pub group_messages: Vec<Value>,
     pub usage: Vec<Value>,

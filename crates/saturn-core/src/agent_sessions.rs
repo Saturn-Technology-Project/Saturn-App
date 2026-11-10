@@ -37,18 +37,8 @@ const MCP_VERSIONS: [&str; 5] = [
     "2024-10-07",
 ];
 
-/// How much a Claude Code or Codex agent may do without asking: its own setting, unless the group it works in sets one.
-pub(crate) fn approval_mode(
-    agent: &Value,
-    group: Option<&Value>,
-    chat_mode: Option<&str>,
-) -> GuardrailMode {
-    let autonomy = group
-        .and_then(|group| group.get("autonomy"))
-        .and_then(Value::as_str);
-    if let Some(autonomy) = autonomy {
-        return autonomy_of(Some(autonomy));
-    }
+/// How much an agent may do without asking: what its chat's mode says, else its own setting.
+pub(crate) fn approval_mode(agent: &Value, chat_mode: Option<&str>) -> GuardrailMode {
     // A chat's mode says how much it asks; the agent's own setting is for a chat with none.
     if let Some(approvals) = chat_mode.and_then(saturn_domain::research::chat_approvals) {
         return autonomy_of(Some(approvals));
@@ -67,11 +57,10 @@ fn stricter(one: GuardrailMode, other: GuardrailMode) -> GuardrailMode {
 }
 
 impl Kernel {
-    /// How much a run asks: its group's setting, else its chat's mode, else its agent's own setting; and a run another
-    /// run delegated to never asks less than the run that delegated it, whichever agent it was given to.
+    /// How much a run asks: its chat's mode, else its agent's own setting; and a run another run delegated to never asks
+    /// less than the run that delegated it, whichever agent it was given to.
     pub(crate) fn run_approval(&self, run: &Value, agent: &Value) -> GuardrailMode {
-        let group = self.group_of(run);
-        let own = approval_mode(agent, group.as_ref(), self.chat_mode_of(run).as_deref());
+        let own = approval_mode(agent, self.chat_mode_of(run).as_deref());
         let parent = text(run, "parentRunId");
         if parent.is_empty() {
             return own;
@@ -630,22 +619,17 @@ pub(crate) fn same_call(action: &Value, tool: &str, arguments: &Value) -> bool {
 }
 
 impl Kernel {
-    /// The session a Claude Code or Codex run resumes. A chat keeps one on its conversation; a group keeps one per member agent.
+    /// The session a Claude Code or Codex run resumes, which a chat keeps on its conversation.
     pub(crate) fn saved_session(&self, run: &Value, key: &str) -> Option<String> {
         self.store.read(|state| {
-            let session = if run.get("groupId").is_some_and(Value::is_string) {
-                by_id(&state.groups, text(run, "groupId"))?
-                    .get("sessions")?
-                    .get(text(run, "agentId"))?
-                    .get(key)?
-            } else {
-                by_id(&state.threads, text(run, "threadId"))?.get(key)?
-            };
-            session.as_str().map(str::to_owned)
+            by_id(&state.threads, text(run, "threadId"))?
+                .get(key)?
+                .as_str()
+                .map(str::to_owned)
         })
     }
 
-    /// Keeps the session the run ended on, so the next turn of the same chat (or agent in the group) resumes it.
+    /// Keeps the session the run ended on, so the next turn of the same chat resumes it.
     pub(crate) async fn save_session(
         &self,
         run: &Value,
@@ -654,18 +638,7 @@ impl Kernel {
     ) -> Result<(), CoreError> {
         self.store
             .update(|state| {
-                if run.get("groupId").is_some_and(Value::is_string) {
-                    if let Some(group) = by_id_mut(&mut state.groups, text(run, "groupId")) {
-                        if !group.get("sessions").is_some_and(Value::is_object) {
-                            group["sessions"] = json!({});
-                        }
-                        let agent = text(run, "agentId");
-                        if !group["sessions"].get(agent).is_some_and(Value::is_object) {
-                            group["sessions"][agent] = json!({});
-                        }
-                        group["sessions"][agent][key] = json!(value);
-                    }
-                } else if let Some(thread) = by_id_mut(&mut state.threads, text(run, "threadId")) {
+                if let Some(thread) = by_id_mut(&mut state.threads, text(run, "threadId")) {
                     thread[key] = json!(value);
                 }
             })
@@ -763,12 +736,6 @@ impl Kernel {
                 })
                 .collect()
         })
-    }
-
-    /// The group a run works in, if any.
-    pub(crate) fn group_of(&self, run: &Value) -> Option<Value> {
-        self.store
-            .read(|state| by_id(&state.groups, text(run, "groupId")).cloned())
     }
 
     /// Tokens a turn used. Billing is the user's plan, so no cost is recorded.

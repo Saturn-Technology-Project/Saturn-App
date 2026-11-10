@@ -185,18 +185,13 @@ fn answer(case: &Value) -> Value {
             Ok(zone) => json!(zone),
             Err(error) => json!({ "error": error.message }),
         },
-        "mentions" => json!(saturn_core::groups::mentions(
-            &words(case, "text"),
-            &words(case, "name")
-        )),
-        "isPass" => json!(saturn_core::groups::is_pass(&words(case, "text"))),
         other => panic!("unknown check {other}"),
     }
 }
 
-/// Checks recorded for what Saturn no longer has (the editor's completions). Their cases stay in the recorded file,
-/// which is never edited, and are passed over here.
-const REMOVED: [&str; 9] = [
+/// Checks recorded for what Saturn no longer has (the editor's completions and group chats). Their cases stay in the
+/// recorded file, which is never edited, and are passed over here.
+const REMOVED: [&str; 11] = [
     "fim",
     "cutAtStop",
     "lineComment",
@@ -206,6 +201,8 @@ const REMOVED: [&str; 9] = [
     "parseNextEdit",
     "stripFences",
     "trimInline",
+    "mentions",
+    "isPass",
 ];
 
 #[test]

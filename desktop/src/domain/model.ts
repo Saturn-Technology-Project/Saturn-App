@@ -259,28 +259,7 @@ export type Run = {
   delegated?: { task: string; tools: "read-only" | "all" };
   children?: Run[];
   verification?: { command: string; ok: boolean; code: number | null; output: string };
-  /** Set on a group chat turn: the group and the message the agent was asked to consider. */
-  groupId?: string;
-  groupMessageId?: string;
 };
-
-/** A group chat of the user and several agents; each agent decides whether a message needs it. */
-/** How much a group's agents may do without asking; unset keeps each agent's own setting. */
-export type GroupAutonomy = "review" | "default" | "bypass";
-export type Group = { id: string; name: string; agentIds: string[]; autonomy?: GroupAutonomy; createdAt: string; updatedAt: string; lastMessage?: GroupMessage };
-export type GroupMessage = {
-  id: string;
-  groupId: string;
-  /** Absent for the user. */
-  agentId?: string;
-  text: string;
-  createdAt: string;
-  runId?: string;
-  /** The agent's turn failed; `text` is the reason. */
-  error?: boolean;
-  depth: number;
-};
-export type GroupTranscript = { group: Group; messages: GroupMessage[]; runs: Run[] };
 
 /** One file a run changed, with its unified diff, from GET /runs/:id/changes. */
 export type FileChange = {

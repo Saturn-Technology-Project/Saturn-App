@@ -167,7 +167,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     kernel.research_recover().await;
     kernel.sweep_worktrees().await;
     start_wakeups(Arc::clone(&kernel));
-    kernel.resume_group_turns();
     kernel.start_automations();
     kernel.start_pull_requests();
 
