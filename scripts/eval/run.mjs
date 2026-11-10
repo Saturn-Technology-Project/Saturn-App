@@ -58,7 +58,7 @@ export async function startRuntime() {
 	const program = process.env.SATURN_RUST_BIN ?? path.join(root, 'target', 'debug', process.platform === 'win32' ? 'saturn-server.exe' : 'saturn-server');
 	const child = spawn(program, [], {
 		cwd: root,
-		env: { ...process.env, SATURN_DATA_DIR: data, SATURN_RUNTIME_PORT: String(port), SATURN_RUNTIME_TOKEN: TOKEN, SATURN_NO_WAKEUP: '1', SATURN_SECRET_STORE: 'file' },
+		env: { ...process.env, SATURN_DATA_DIR: data, SATURN_RUNTIME_PORT: String(port), SATURN_RUNTIME_TOKEN: TOKEN, SATURN_SECRET_STORE: 'file' },
 		stdio: ['ignore', 'ignore', 'inherit'],
 	});
 	const base = `http://127.0.0.1:${port}`;

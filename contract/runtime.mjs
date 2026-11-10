@@ -40,7 +40,7 @@ export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keep
   const child = spawn(file, [], {
     cwd: root,
     stdio: [stdin, "pipe", "pipe"],
-    env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_NO_WAKEUP: "1", SATURN_RUNTIME_TOKEN: "", ...env },
+    env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_RUNTIME_TOKEN: "", ...env },
   });
   child.stdout.on("data", (chunk) => { output += chunk; });
   child.stderr.on("data", (chunk) => { output += chunk; });
