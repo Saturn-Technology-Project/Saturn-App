@@ -9,7 +9,7 @@ use axum::body::Bytes;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use saturn_llm::broker::{Adapter, provider_key_id};
-use saturn_llm::lmstudio::{self, RawRequest, alternating, openai_compatible_url};
+use saturn_llm::lmstudio::{self, alternating, openai_compatible_url};
 use saturn_llm::{
     Broker, CallContext, ChatMessage, ChatRequest, Completion, CompletionInput, Http, KeyVault,
     ModelConnection, Role, ToolDef,
@@ -632,94 +632,6 @@ fn lm_studio_gets_strictly_alternating_turns_at_its_v1_address() {
     assert_eq!(url("http://127.0.0.1:1234/v1/"), "http://127.0.0.1:1234/v1");
     assert_eq!(url("ws://192.168.1.5:1234"), "http://192.168.1.5:1234/v1");
     assert_eq!(url("wss://host.example/lm"), "https://host.example/lm/v1");
-}
-
-#[tokio::test]
-async fn raw_completions_stream_fragments_even_split_inside_a_character() {
-    let event = |text: &str| format!("data: {}\n\n", json!({ "choices": [{ "text": text }] }));
-    let body = format!(
-        "{}{}: ignored\n{}data: [DONE]\n\n{}",
-        event("return "),
-        "event",
-        event("a + é;"),
-        event("never")
-    );
-    let server = fake_server(vec![Reply {
-        status: 200,
-        body,
-        headers: Vec::new(),
-    }])
-    .await;
-    let stops: Vec<String> = (0..7).map(|index| format!("<stop{index}>")).collect();
-    let request = RawRequest {
-        model: "qwen3-8b".to_owned(),
-        base_url: server.base_url.clone(),
-        prompt: "function add(a, b) {".to_owned(),
-        stops: stops.clone(),
-        max_output: 32,
-        temperature: Some(1.5),
-        ..RawRequest::default()
-    };
-    let client = http();
-    let mut stream = lmstudio::complete_raw(&client, &request)
-        .await
-        .expect("it streams");
-    let mut text = String::new();
-    while let Some(fragment) = stream.next().await.expect("a fragment") {
-        text.push_str(&fragment);
-    }
-    assert_eq!(text, "return a + é;");
-    let sent = server.sent.lock().expect("not poisoned").clone();
-    assert_eq!(sent[0]["path"], "/v1/completions");
-    assert_eq!(sent[0]["body"]["stop"], json!(stops));
-    assert_eq!(sent[0]["body"]["temperature"], 1.0);
-
-    let server = fake_server(vec![reply(
-        500,
-        json!({ "error": { "message": "no model" } }),
-    )])
-    .await;
-    let refused = lmstudio::complete_raw(
-        &client,
-        &RawRequest {
-            base_url: server.base_url.clone(),
-            ..RawRequest::default()
-        },
-    )
-    .await;
-    assert_eq!(refused.err().expect("refused").status, Some(500));
-}
-
-#[tokio::test]
-async fn the_openai_raw_endpoint_keeps_four_stops_and_other_providers_have_none() {
-    let server = fake_server(vec![Reply {
-        status: 200,
-        body: "data: [DONE]\n".to_owned(),
-        headers: Vec::new(),
-    }])
-    .await;
-    let request = RawRequest {
-        base_url: format!("{}/v1", server.base_url),
-        stops: (0..7).map(|index| index.to_string()).collect(),
-        ..RawRequest::default()
-    };
-    let client = http();
-    let mut stream = Adapter::OpenAiChat
-        .complete_raw(&client, &request)
-        .await
-        .expect("it has one")
-        .expect("it streams");
-    assert_eq!(stream.next().await.expect("the end"), None);
-    let sent = server.sent.lock().expect("not poisoned").clone();
-    assert_eq!(sent[0]["path"], "/v1/completions");
-    assert_eq!(sent[0]["body"]["stop"].as_array().expect("stops").len(), 4);
-    assert_eq!(sent[0]["headers"]["authorization"], "Bearer local");
-    assert!(
-        Adapter::Claude
-            .complete_raw(&client, &request)
-            .await
-            .is_none()
-    );
 }
 
 #[tokio::test]

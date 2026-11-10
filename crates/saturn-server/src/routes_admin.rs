@@ -967,63 +967,6 @@ async fn uninstall_plugin(State(kernel): Shared, Path(name): Path<String>) -> An
     no_content()
 }
 
-async fn complete(State(kernel): Shared, body: Body) -> Answer {
-    ok(kernel.complete_for_editor(&body_of(body)).await?)
-}
-
-/// Tab as a stream: one JSON line per piece of text, the last with done: true (or an error line). A client that leaves stops it.
-async fn complete_stream(State(kernel): Shared, body: Body) -> Response {
-    let mut input = body_of(body);
-    input["kind"] = "inline".into();
-    let (sender, receiver) =
-        tokio::sync::mpsc::channel::<Result<String, std::convert::Infallible>>(16);
-    tokio::spawn(async move {
-        let line = |value: Value| Ok(format!("{value}\n"));
-        let mut stream = match kernel.complete_inline_stream(&input).await {
-            Ok(stream) => stream,
-            Err(error) => {
-                let _ = sender
-                    .send(line(
-                        json!({ "error": error.message, "status": error.status }),
-                    ))
-                    .await;
-                return;
-            }
-        };
-        loop {
-            let piece = tokio::select! {
-                () = sender.closed() => return,
-                piece = stream.next() => piece,
-            };
-            match piece {
-                Ok(Some(piece)) => {
-                    if sender.send(line(piece)).await.is_err() {
-                        return;
-                    }
-                }
-                Ok(None) => return,
-                Err(error) => {
-                    let _ = sender
-                        .send(line(
-                            json!({ "error": error.message, "status": error.status }),
-                        ))
-                        .await;
-                    return;
-                }
-            }
-        }
-    });
-    let body = axum::body::Body::from_stream(tokio_stream::wrappers::ReceiverStream::new(receiver));
-    (
-        [
-            (CONTENT_TYPE, "application/x-ndjson"),
-            (axum::http::header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
-}
-
 /// Whether this computer lets Saturn control it, and so whether Settings asks for anything.
 async fn computer_permissions(State(kernel): Shared) -> Answer {
     ok(kernel.computer.permission_status().await)
@@ -1338,7 +1281,5 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
             patch(change_plugin).delete(uninstall_plugin),
         )
         .route("/plugins/{name}/hooks/approve", post(approve_plugin_hooks))
-        .route("/complete", post(complete))
-        .route("/complete/stream", post(complete_stream))
         .with_state(kernel)
 }

@@ -960,7 +960,7 @@ impl Kernel {
                     _ => &mut state.rag,
                 };
                 list.retain(|item| text(item, "id") != id);
-                // The editor's completions turn off rather than point at a model that is gone.
+                // The background model is cleared rather than left pointing at a model that is gone.
                 if kind == "models"
                     && state
                         .settings

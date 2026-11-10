@@ -1,7 +1,6 @@
 //! Rules that must hold whatever the command: Windows' destructive commands and the everyday ones that are not, file paths
 //! outside the workspace, what an allow or deny rule covers on a shell line, and cutting at stop sequences.
 use saturn_domain::Arguments;
-use saturn_domain::completions::cut_at_stop;
 use saturn_domain::permissions::{
     Effect, Layer, Rule, Scope, command_segments, resolve_permission,
 };
@@ -383,36 +382,5 @@ fn an_allow_rule_for_one_program_never_allows_a_line_that_chains_another() {
             Some(Effect::Allow),
             "{line}"
         );
-    }
-}
-
-#[test]
-fn cutting_at_stop_sequences_keeps_a_prefix_with_no_stop_sequence_left() {
-    assert_eq!(
-        cut_at_stop("foo();\n<|fim_pad|>bar", &["<|fim_pad|>"]),
-        "foo();\n"
-    );
-    let alphabet = ["a", "b", "<", "|", "\n", "é", "中"];
-    let mut numbers = Numbers(4);
-    let word = |numbers: &mut Numbers, longest: usize| -> String {
-        (0..numbers.below(longest))
-            .map(|_| numbers.pick(&alphabet))
-            .collect()
-    };
-    for _ in 0..2000 {
-        let text = word(&mut numbers, 24);
-        let stops: Vec<String> = (0..numbers.below(5))
-            .map(|_| word(&mut numbers, 5))
-            .filter(|stop| !stop.is_empty())
-            .collect();
-        let stops: Vec<&str> = stops.iter().map(String::as_str).collect();
-        let cut = cut_at_stop(&text, &stops);
-        assert!(text.starts_with(cut), "{text:?} {stops:?}");
-        for stop in &stops {
-            assert!(!cut.contains(stop), "{text:?} {stops:?} gave {cut:?}");
-        }
-        if stops.iter().all(|stop| !text.contains(stop)) {
-            assert_eq!(cut, text);
-        }
     }
 }

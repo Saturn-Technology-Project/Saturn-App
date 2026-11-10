@@ -144,8 +144,6 @@
   "POST /codex/logout",
   "POST /codex/sign-in",
   "POST /codex/sign-in/open",
-  "POST /complete",
-  "POST /complete/stream",
   "POST /computer/permissions/open",
   "POST /connections/mcp",
   "POST /connections/mcp/:id/approve",

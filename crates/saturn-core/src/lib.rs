@@ -28,7 +28,6 @@ pub mod checkpoints;
 mod claude_code;
 pub mod cli_install;
 mod codex;
-pub mod completions;
 pub mod context;
 pub mod events;
 pub mod groups;
