@@ -1,6 +1,5 @@
 import { t } from "./i18n.ts";
 
-export type ResponseStyle = "concise" | "professional" | "detailed";
 export type Autonomy =
   | "default"
   | "bypass"
@@ -16,13 +15,11 @@ export type Agent = {
   name: string;
   instructions: string;
   description: string;
-  responseStyle?: ResponseStyle;
   autonomy?: Autonomy;
   temperature?: number;
   maxOutput?: number;
   status: string;
   modelConnectionId: string | null;
-  canEdit?: boolean;
   mcpConnectionIds: string[];
   ragConnectionIds: string[];
 };
