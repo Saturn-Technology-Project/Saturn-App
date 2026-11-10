@@ -120,7 +120,7 @@ AI 研究常在不知不覺中出錯：拿兩種不同評估的分數互相比�
 | 🌿 **worktree 中的任務** | 任務在自己的 git worktree 與分支中執行；每個專案最多同時四個。你審查它的 diff，然後合併或捨棄 |
 | ↩️ **檢查點** | 每次檔案修改都有紀錄，包括 shell 指令改動的檔案。可保留或回復一個回合，或還原任一單一步驟 |
 | 🔐 **權限與沙箱** | Agent 只在你授權的資料夾內工作。規則依工具與樣式允許、詢問或拒絕；在 macOS 與 Linux 上，指令於作業系統沙箱中執行 |
-| 📚 **Skills、指令、hooks、plugins** | 專案或 `~/.saturn-app/skills` 中的 `SKILL.md` 資料夾、`/` 指令、工具呼叫前後的 hooks，以及把它們打包在一起的 plugins（Claude Code 的格式可直接安裝）。專案的 hooks 與本機 MCP 伺服器只在你核准後才會執行 |
+| 📚 **Skills、hooks、plugins** | 專案或 `~/.saturn-app/skills` 中的 `SKILL.md` 資料夾、工具呼叫前後的 hooks，以及把它們打包在一起的 plugins（Claude Code 的格式可直接安裝）。專案的 hooks 與本機 MCP 伺服器只在你核准後才會執行 |
 | 📎 **上下文** | 以 `@` 引用檔案、資料夾與網址，附加目前的檔案或選取範圍，以及研究助理在對話之間保留的記憶筆記 |
 | 💸 **用量與可觀測性** | 依模型統計的 token 數與成本、OpenTelemetry trace、metric 與 log，以及對外網路紀錄 |
 
@@ -605,13 +605,11 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/projects
 | `POST` | `/runs/:id/stop` | 取消回合 |
 | `POST` | `/threads/:id/worktree` · `/worktree/finish` · `/pull-request` | 隔離 worktree：建立、合併／保留／捨棄、開 PR |
 | `POST` | `/threads/:id/pull-request/check` · `/watch` · `/feedback/send` · `/feedback/dismiss` | 追蹤 PR：立即檢查、停止或恢復追蹤、送出或略過 review 留言 |
-| `GET` `POST` | `/groups` · `/groups/:id/messages` | 群組對話 |
 | `GET` `POST` | `/automations` | 排程執行 |
 | `GET` | `/usage/summary?from=&to=` | 指定期間的 token 數與成本 |
 | `GET` | `/events` · `/runs/:id/events` | 以 server-sent events 即時更新：哪些 run 有變化，或單一 run 的每次變化 |
 | `GET` | `/network` | 對外請求紀錄：主機與最近的請求 |
 | `GET` | `/telemetry/traces` · `/telemetry/logs` · `/telemetry/metrics` | 本機 OpenTelemetry 資料 |
-| `POST` | `/complete` · `/complete/stream` | 單次模型呼叫 |
 | `GET` `POST` `DELETE` | `/programs` · `/programs/:id` · `/programs/:id/install` | Claude Code 與 Codex：是否已安裝、來源、下載、移除 |
 
 ## 開發
