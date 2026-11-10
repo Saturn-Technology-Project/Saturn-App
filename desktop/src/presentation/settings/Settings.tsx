@@ -54,7 +54,7 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
       ["memory", t("Memory"), t("What Saturn remembers across chats")],
       ["permissions", t("Permissions"), t("What agents may do without asking")],
       ["hooks", t("Hooks"), t("Commands around tool calls and turns")],
-      ["plugins", t("Plugins"), t("Bundles of skills, commands, hooks and MCP servers")],
+      ["plugins", t("Plugins"), t("Bundles of skills, hooks and MCP servers")],
     ],
   },
   {

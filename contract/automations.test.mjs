@@ -1,4 +1,4 @@
-// Scheduled prompts and group chats, whichever language runs them, with a scripted model.
+// Scheduled prompts, whichever language runs them, with a scripted model.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -105,49 +105,4 @@ test("a draft comes from the model; an unusable answer is refused", async () => 
   await api("POST", "/automations/draft", { text: " " }, [400]);
   assert.deepEqual(await api("POST", "/automations/draft", { text: "every weekday", agentId: agent.id }), { name: "Standup", prompt: "Summarize", trigger: { frequency: "weekdays", time: "08:15", weekday: 1 } });
   await api("POST", "/automations/draft", { text: "again", agentId: agent.id }, [502]);
-});
-
-test("a group: every member sees a message, PASS stays silent, and a mention hands work over", async () => {
-  const { connection, requests } = await model((body) => {
-    const text = JSON.stringify(body.messages);
-    const latest = text.slice(text.lastIndexOf("Latest message"));
-    if (text.includes("You are Quiet")) return "pass.";
-    if (latest.includes("please check")) return "checked";
-    return "@Helper please check this";
-  });
-  const lead = await agentOn(connection, "Lead");
-  const helper = await agentOn(connection, "Helper");
-  const quiet = await agentOn(connection, "Quiet");
-  await api("POST", "/groups", { name: "Empty" });
-  const group = await api("POST", "/groups", { name: "Team", agentIds: [lead.id, quiet.id, "nobody", lead.id] });
-  assert.deepEqual(group.agentIds, [lead.id, quiet.id], "known agents, each once");
-  await api("PATCH", `/groups/${group.id}`, { autonomy: "loose" }, [400]);
-  const changed = await api("PATCH", `/groups/${group.id}`, { agentIds: [lead.id, helper.id, quiet.id], autonomy: "review" });
-  assert.equal(changed.autonomy, "review");
-  assert.equal((await api("PATCH", `/groups/${group.id}`, { autonomy: null })).autonomy, undefined);
-  await api("POST", `/groups/${group.id}/messages`, { text: " " }, [400]);
-  await api("POST", `/groups/${group.id}/messages`, { text: "@Lead start" });
-  const done = await until("the hand-off", () => api("GET", `/groups/${group.id}/messages`), (item) => item.messages.some((message) => message.text === "checked"));
-  assert.deepEqual(done.messages.map((message) => message.text), ["@Lead start", "@Helper please check this", "checked"]);
-  assert.equal(done.messages[1].agentId, lead.id);
-  assert.equal(done.messages[1].depth, 1);
-  assert.equal(done.messages[2].agentId, helper.id);
-  assert.equal(requests.length, 2, "only the agents mentioned took a turn");
-  await api("POST", `/groups/${group.id}/messages`, { text: "anyone?" });
-  await until("the quiet member's turn", () => api("GET", `/groups/${group.id}/messages`), (item) => item.runs.filter((run) => run.agentId === quiet.id && run.status === "completed").length === 1);
-  await new Promise((resolve) => setTimeout(resolve, 900));
-  const later = await api("GET", `/groups/${group.id}/messages`);
-  assert.ok(!later.messages.some((message) => message.agentId === quiet.id), "PASS posts nothing");
-  assert.equal((await api("GET", "/groups")).find((item) => item.id === group.id).lastMessage.groupId, group.id);
-  assert.ok((await api("GET", `/agents/${quiet.id}/messages`)).every((run) => !run.groupId), "a group's turns are not the chat's");
-  await api("DELETE", `/groups/${group.id}`);
-  await api("GET", `/groups/${group.id}/messages`, undefined, [404]);
-});
-
-test("a member on no model says so in the chat instead of failing the message", async () => {
-  const agent = await api("POST", "/agents", { name: "Unwired" });
-  const group = await api("POST", "/groups", { name: "Broken", agentIds: [agent.id] });
-  const answer = await api("POST", `/groups/${group.id}/messages`, { text: "hello" });
-  assert.equal(answer.messages[1].error, true);
-  assert.match(answer.messages[1].text, /no model connection/);
 });

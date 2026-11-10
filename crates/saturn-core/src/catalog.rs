@@ -264,12 +264,10 @@ impl Kernel {
             "name": text(input, "name"),
             "description": or(input, "description", json!("")),
             "instructions": or(input, "instructions", json!("")),
-            "responseStyle": or(input, "responseStyle", json!("professional")),
             "autonomy": or(input, "autonomy", json!("execute_when_allowed")),
             "temperature": or(input, "temperature", json!(0.2)),
             "maxOutput": or(input, "maxOutput", json!(4000)),
             "status": "active",
-            "canEdit": true,
             "modelConnectionId": or(input, "modelConnectionId", Value::Null),
             "mcpConnectionIds": with_general_skills(servers),
             "ragConnectionIds": or(input, "ragConnectionIds", json!([])),
@@ -421,7 +419,6 @@ impl Kernel {
                     "name",
                     "description",
                     "instructions",
-                    "responseStyle",
                     "autonomy",
                     "temperature",
                     "maxOutput",
@@ -433,7 +430,6 @@ impl Kernel {
                         agent[key] = value.clone();
                     }
                 }
-                agent["canEdit"] = true.into();
                 // Null clears the model; only a missing field keeps it.
                 if let Some(model) = patch.get("modelConnectionId") {
                     agent["modelConnectionId"] = model.clone();
@@ -964,7 +960,7 @@ impl Kernel {
                     _ => &mut state.rag,
                 };
                 list.retain(|item| text(item, "id") != id);
-                // The editor's completions turn off rather than point at a model that is gone.
+                // The background model is cleared rather than left pointing at a model that is gone.
                 if kind == "models"
                     && state
                         .settings

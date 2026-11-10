@@ -15,7 +15,7 @@ after(async () => {
   await saturn?.close();
 });
 
-/** The files of a plugin laid out as Claude Code's are: .claude-plugin/plugin.json, skills/, commands/, hooks/hooks.json, .mcp.json. */
+/** The files of a plugin laid out as Claude Code's are: .claude-plugin/plugin.json, skills/, commands/ (which Saturn does not use), hooks/hooks.json, .mcp.json. */
 const claudeLayout = (name) => ({
   ".claude-plugin/plugin.json": { name, description: "Review helpers", version: "1.2.0" },
   "skills/security-review/SKILL.md": "---\nname: security-review\ndescription: Look for injection and secrets\n---\nCheck every input.",
@@ -24,7 +24,7 @@ const claudeLayout = (name) => ({
   ".mcp.json": { mcpServers: { tracker: { command: "node", args: ["${CLAUDE_PLUGIN_ROOT}/server.js"], env: { TOKEN_FILE: "${CLAUDE_PLUGIN_ROOT}/token" } } } },
 });
 
-test("a plugin in Claude Code's layout brings its skills, commands, held hooks and held servers; off silences them and removing clears them", async () => {
+test("a plugin in Claude Code's layout brings its skills, held hooks and held servers; off silences them and removing clears them", async () => {
   const source = await saturn.folder("review-kit", claudeLayout("review-kit"));
   const installed = await saturn.api("POST", "/plugins", { source });
   const folder = path.join(saturn.dataDir, "plugins/review-kit");
@@ -32,16 +32,14 @@ test("a plugin in Claude Code's layout brings its skills, commands, held hooks a
   assert.equal(installed.version, "1.2.0");
   assert.equal(installed.enabled, true);
   assert.deepEqual(installed.skills, ["security-review"]);
-  assert.deepEqual(installed.commands, ["pr-summary"]);
+  assert.equal(installed.commands, undefined, "its prompt commands are not offered");
   assert.equal(installed.path, folder);
   assert.ok(await stat(path.join(folder, "skills/security-review/SKILL.md")), "copied into the data folder");
   assert.deepEqual(installed.hooks, [{ event: "post_tool", matcher: "files", command: `${folder}/scripts/format.sh` }]);
   assert.equal(installed.hooksApproved, false);
 
-  // Skills and commands are offered everywhere; a personal skill of the same name wins.
+  // Skills are offered everywhere; a personal skill of the same name wins.
   assert.deepEqual((await saturn.api("GET", "/skills")).map((item) => [item.name, item.source]), [["security-review", "plugin"]]);
-  assert.deepEqual((await saturn.api("GET", "/commands")).map((item) => [item.name, item.source]), [["pr-summary", "plugin"]]);
-  assert.equal((await saturn.api("POST", "/commands/pr-summary/expand", { arguments: "#7" })).prompt, "Summarize #7.");
   await saturn.folder("data/skills", { "security-review/SKILL.md": "---\nname: security-review\ndescription: Mine\n---\nMine." });
   assert.deepEqual((await saturn.api("GET", "/skills")).map((item) => [item.name, item.source]), [["security-review", "user"]]);
 
@@ -64,7 +62,6 @@ test("a plugin in Claude Code's layout brings its skills, commands, held hooks a
   await saturn.api("PATCH", "/plugins/review-kit", { enabled: false });
   assert.ok(!(await saturn.api("GET", "/connections/mcp")).some((item) => item.pluginName === "review-kit"));
   assert.ok(!(await saturn.api("GET", "/hooks")).some((item) => item.source === "plugin"));
-  assert.deepEqual(await saturn.api("GET", "/commands"), []);
   await saturn.api("PATCH", "/plugins/review-kit", { enabled: true });
   const back = (await saturn.api("GET", "/connections/mcp")).filter((item) => item.pluginName === "review-kit");
   assert.equal(back.length, 1);

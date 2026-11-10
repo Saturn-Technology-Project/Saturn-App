@@ -11,7 +11,7 @@ export default {
   "Token spend & costs": "Token usage and costs",
   "What agents may do without asking": "What agents can do without asking",
   "Commands around tool calls and turns": "Commands that run around tool calls and turns",
-  "Bundles of skills, commands, hooks and MCP servers": "Bundles of skills, commands, hooks, and MCP servers",
+  "Bundles of skills, hooks and MCP servers": "Bundles of skills, hooks, and MCP servers",
   "OpenTelemetry traces & logs": "OpenTelemetry traces and logs",
   "Live runtime event stream": "Live runtime events",
   "Project configuration & custom rules ({path})": "Project settings and rules ({path})",

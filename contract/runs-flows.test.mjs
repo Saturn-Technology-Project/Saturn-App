@@ -296,6 +296,40 @@ test("a run that has slept too often is told to finish instead of sleeping again
   }
 });
 
+test("a turn left over from a group chat is ended at start, and what the group said stays in the file", async () => {
+  const first = await fresh({ keepData: true });
+  let second;
+  try {
+    const { agent, model } = await waiter([wait(60_000), "went on"], first);
+    const started = await startRun(agent, "wait a minute", {}, first);
+    await untilStatus(started.id, "sleeping", first);
+    await first.stop();
+    // What a version with group chats left behind: a turn of a group, not of a chat, due to wake, in a group that asked
+    // for every call to be approved.
+    await editState(first.dataDir, (state) => {
+      const run = state.runs.find((item) => item.id === started.id);
+      delete run.threadId;
+      run.groupId = "group_old";
+      run.groupMessageId = "gmsg_old";
+      run.wake.at = new Date(Date.now() - 1000).toISOString();
+      state.groups = [{ id: "group_old", name: "Team", agentIds: [agent.id], autonomy: "review" }];
+      state.groupMessages = [{ id: "gmsg_old", groupId: "group_old", text: "hello team", depth: 0 }];
+    });
+    second = await fresh({ dataDir: first.dataDir });
+    const run = await getRun(started.id, second);
+    assert.equal(run.status, "failed");
+    assert.match(run.error, /Group chats are no longer part of Saturn/);
+    assert.equal(model.turns().length, 1, "it does not go on under the agent's own setting");
+    assert.ok((await api(second, "GET", `/agents/${agent.id}/messages`)).every((item) => item.id !== started.id), "it is not a chat's turn");
+    assert.equal((await raw(second, "GET", "/groups")).status, 404, "there is no route to a group");
+    const saved = JSON.parse(await readFile(path.join(first.dataDir, "state.json"), "utf8"));
+    assert.equal(saved.groups[0].name, "Team");
+    assert.equal(saved.groupMessages[0].text, "hello team");
+  } finally {
+    await (second ?? first).stop();
+  }
+});
+
 test("a turn that runs out of tool steps says so instead of ending silently", async () => {
   let serial = 0;
   const model = await fakeModel({ answer: () => ({ content: "Checking again.", calls: [call("code", { command: "true" }, `c${serial += 1}`)] }) });

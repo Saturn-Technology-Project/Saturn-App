@@ -14,7 +14,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 use crate::http::{Http, LlmError};
-use crate::lmstudio::{self, RawRequest, RawStream};
+use crate::lmstudio;
 use crate::shared::{flatten_tool_turns, trimmed};
 use crate::{
     ChatMessage, ChatRequest, Completion, Effort, Role, TokenUsage, ToolDef, claude, deepseek,
@@ -55,7 +55,7 @@ pub struct CallContext {
     pub agent_id: String,
     pub agent_name: String,
     pub run_id: Option<String>,
-    /// "run", "automation_draft", "completion", "memory" or "compaction".
+    /// "run", "automation_draft", "memory" or "compaction".
     pub purpose: &'static str,
 }
 
@@ -106,19 +106,6 @@ impl Adapter {
             Self::LmStudio => lmstudio::complete(http, request).await,
             Self::OpenAiChat => openai::complete_chat(http, request).await,
             Self::OpenAiResponses => openai::complete_responses(http, request).await,
-        }
-    }
-
-    /// A raw completion through this module, or `None` when its provider has no raw endpoint.
-    pub async fn complete_raw(
-        self,
-        http: &Http,
-        request: &RawRequest,
-    ) -> Option<Result<RawStream, LlmError>> {
-        match self {
-            Self::LmStudio => Some(lmstudio::complete_raw(http, request).await),
-            Self::OpenAiChat => Some(openai::complete_raw(http, request).await),
-            _ => None,
         }
     }
 }

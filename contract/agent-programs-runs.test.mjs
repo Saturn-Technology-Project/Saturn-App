@@ -739,34 +739,6 @@ test("The skills endpoint only takes POST, and an Ask turn refuses a skill that 
   }
 });
 
-test("In a group, a Codex member resumes one thread for all its turns", async () => {
-  const saturn = await startWithPrograms();
-  try {
-    const agent = await coder(saturn, "codex", { model: "default", autonomy: "bypass" });
-    await saturn.scenario({
-      steps: [
-        { send: { type: "thread.started", thread_id: "thread-G" } },
-        { send: { type: "item.completed", item: { id: "m1", type: "agent_message", text: "done" } } },
-        { send: { type: "turn.completed", usage: {} } },
-      ],
-    });
-    const group = await saturn.api("POST", "/groups", { name: "Team", agentIds: [agent.id] });
-    const settled = () => saturn.until("the group", () => saturn.api("GET", `/groups/${group.id}/messages`), (transcript) => transcript.runs.length > 0 && transcript.runs.every((run) => ["completed", "failed", "cancelled"].includes(run.status)));
-    await saturn.api("POST", `/groups/${group.id}/messages`, { text: "first task" });
-    await saturn.until("a turn", () => started(saturn), (list) => list.length === 1);
-    await settled();
-    assert.equal((await saturn.api("GET", "/groups")).find((item) => item.id === group.id).sessions?.[agent.id]?.codexThreadId, "thread-G");
-    await saturn.api("POST", `/groups/${group.id}/messages`, { text: "second task" });
-    await saturn.until("a second turn", () => started(saturn), (list) => list.length === 2);
-    const programs = await started(saturn);
-    assert.equal(programs[0].args.includes("resume"), false);
-    assert.ok(programs[1].args.join(" ").includes("resume thread-G"));
-    await settled();
-  } finally {
-    await saturn.stop();
-  }
-});
-
 test("Stopping a Codex turn ends the program and closes its token", async () => {
   const saturn = await startWithPrograms();
   try {
@@ -780,33 +752,6 @@ test("Stopping a Codex turn ends the program and closes its token", async () => 
     await saturn.until("the program to end", () => saturn.journal(), (entries) => entries.some((entry) => entry.signal === "SIGTERM"));
     const [program] = await started(saturn);
     await saturn.until("the token to close", async () => (await fetch(`${saturn.origin}/agent-mcp`, { method: "POST", headers: { authorization: `Bearer ${program.env.SATURN_SKILLS_TOKEN}`, "content-type": "application/json" }, body: "{}" })).status, (status) => status === 401);
-  } finally {
-    await saturn.stop();
-  }
-});
-
-test("In a group, a Claude Code member keeps one session of its own, and the group's approval setting wins over the agent's", async () => {
-  const saturn = await startWithPrograms();
-  try {
-    const agent = await coder(saturn, "claude-code", { autonomy: "bypass" });
-    const group = await saturn.api("POST", "/groups", { name: "Team", agentIds: [agent.id] });
-    await saturn.api("PATCH", `/groups/${group.id}`, { autonomy: "review" });
-    await saturn.scenario({ steps: [{ send: { type: "system", subtype: "init", session_id: "session-G" } }, { permission: { tool: "Bash", input: { command: "ls" }, id: "tu_group" } }, result("done", "session-G")] });
-    const transcript = () => saturn.api("GET", `/groups/${group.id}/messages`);
-    await saturn.api("POST", `/groups/${group.id}/messages`, { text: "first task" });
-    const waiting = await saturn.until("the card", transcript, (item) => item.runs.some((run) => run.status === "waiting_approval"));
-    const run = waiting.runs.find((item) => item.status === "waiting_approval");
-    assert.equal(run.actions.find((action) => action.status === "waiting_approval").id, "tu_group", "Bypass on the agent, Review in the group");
-    await saturn.api("POST", `/runs/${run.id}/actions/tu_group/decision`, { allow: true });
-    await saturn.until("the turn", transcript, (item) => item.runs.every((one) => ["completed", "failed", "cancelled"].includes(one.status)));
-    assert.equal((await saturn.api("GET", "/groups")).find((item) => item.id === group.id).sessions?.[agent.id]?.claudeSessionId, "session-G");
-    await saturn.api("POST", `/groups/${group.id}/messages`, { text: "second task" });
-    const programs = await saturn.until("a second turn", () => started(saturn), (list) => list.length === 2);
-    assert.ok(programs[1].args.includes("--resume=session-G"), programs[1].args.join(" "));
-    // The program is on record as started before it has read anything, so wait for the turn's own message.
-    const messages = await saturn.until("the second turn's message", () => received(saturn), (list) => list.some((message) => message.type === "user" && JSON.stringify(message).includes("second task")));
-    const second = messages.find((message) => message.type === "user" && JSON.stringify(message).includes("second task"));
-    assert.doesNotMatch(JSON.stringify(second), /first task/, "what the session already saw is not sent again");
   } finally {
     await saturn.stop();
   }

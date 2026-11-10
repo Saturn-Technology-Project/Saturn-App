@@ -77,9 +77,10 @@ test("Claude: a run on a new model asks for the connection's effort with adaptiv
 
 test("Claude: background work on a new model asks for low effort instead of turning thinking off", async () => {
   const setup = await onClaude("claude-opus-5-5");
-  const answer = await api(runtime, "POST", "/complete", { kind: "inline", modelId: setup.connection.id, prefix: "a", suffix: "b" });
-  assert.equal(answer.text, "ok");
-  const sent = claude.requests.at(-1);
+  // The sixth turn of a chat is followed by a call that asks what to remember, which is background work.
+  for (let index = 1; index <= 6; index += 1) assert.equal((await turn(runtime, setup, `question ${index}.`)).status, "completed");
+  const noting = (body) => JSON.stringify(body.system ?? "").includes("You keep short notes");
+  const sent = (await until("the call that asks what to remember", () => claude.requests.filter(noting), (found) => found.length > 0))[0];
   assert.equal(sent.thinking, undefined);
   assert.deepEqual(sent.output_config, { effort: "low" });
   assert.equal(sent.temperature, undefined);
@@ -116,7 +117,8 @@ test("after a round of tool calls, the next model call never ends on the assista
 
 test("a call refused for a missing key says so, and its span fails with the reason", async () => {
   const connection = await api(runtime, "POST", "/connections/models", { name: "Gemini", provider: "gemini", model: "gemini-3.8-flash" });
-  const refused = await request(runtime, "POST", "/complete", { kind: "edit", modelId: connection.id, instruction: "two", selection: "x" });
+  const agent = await api(runtime, "POST", "/agents", { name: "On Gemini", modelConnectionId: connection.id });
+  const refused = await request(runtime, "POST", "/automations/draft", { text: "every morning summarize", agentId: agent.id });
   assert.equal(refused.status, 409);
   assert.match(refused.body.error, /no Gemini API key/);
 

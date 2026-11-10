@@ -12,9 +12,7 @@ use axum::routing::{delete, get, patch, post};
 use saturn_core::agent_programs::program_id;
 use saturn_core::catalog::llm_providers;
 use saturn_core::projects::{launch_app, launch_terminal};
-use saturn_core::skill_files::{
-    expand_command, list_commands, list_skills, load_skill, skill_json,
-};
+use saturn_core::skill_files::{list_skills, load_skill, skill_json};
 use saturn_core::{CoreError, Kernel};
 use saturn_domain::js;
 use saturn_domain::skills::public_address::parse_public_address;
@@ -396,30 +394,6 @@ async fn skill(State(kernel): Shared, Path(name): Path<String>, Query(query): Qu
     )
     .await;
     ok(loaded.ok_or_else(|| CoreError::new(404, "No such skill"))?)
-}
-
-async fn commands(State(kernel): Shared, Query(query): QueryText) -> Answer {
-    let root = folder_of(&kernel, wanted(&query, "projectId"))?;
-    ok(list_commands(
-        root.as_deref(),
-        &kernel.store.root().join("commands"),
-        &kernel.enabled_plugin_folders(),
-    )
-    .await)
-}
-
-async fn expand(State(kernel): Shared, Path(name): Path<String>, body: Body) -> Answer {
-    let body = body_of(body);
-    let root = folder_of(&kernel, given(&body, "projectId"))?;
-    let expanded = expand_command(
-        root.as_deref(),
-        &kernel.store.root().join("commands"),
-        &kernel.enabled_plugin_folders(),
-        &name,
-        &js::text(body.get("arguments")),
-    )
-    .await;
-    ok(expanded.ok_or_else(|| CoreError::new(404, "No such command"))?)
 }
 
 /// The active project's folder, or the agents' own workspace.
@@ -932,35 +906,6 @@ async fn draft_automation(State(kernel): Shared, body: Body) -> Answer {
     ok(kernel.draft_automation(&body_of(body)).await?)
 }
 
-async fn groups(State(kernel): Shared) -> Answer {
-    ok(kernel.list_groups())
-}
-
-async fn create_group(State(kernel): Shared, body: Body) -> Answer {
-    created(kernel.create_group(&body_of(body)).await?)
-}
-
-async fn update_group(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
-    ok(kernel.update_group(&id, &body_of(body)).await?)
-}
-
-async fn delete_group(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    kernel.delete_group(&id).await?;
-    no_content()
-}
-
-async fn group_messages(State(kernel): Shared, Path(id): Path<String>) -> Answer {
-    ok(kernel.group_transcript(&id)?)
-}
-
-async fn post_group_message(State(kernel): Shared, Path(id): Path<String>, body: Body) -> Answer {
-    created(
-        kernel
-            .post_group_message(&id, &js::text(body_of(body).get("text")))
-            .await?,
-    )
-}
-
 async fn plugins(State(kernel): Shared) -> Answer {
     ok(kernel.list_plugins().await)
 }
@@ -991,63 +936,6 @@ async fn approve_plugin_hooks(
 async fn uninstall_plugin(State(kernel): Shared, Path(name): Path<String>) -> Answer {
     kernel.uninstall_plugin(&name).await?;
     no_content()
-}
-
-async fn complete(State(kernel): Shared, body: Body) -> Answer {
-    ok(kernel.complete_for_editor(&body_of(body)).await?)
-}
-
-/// Tab as a stream: one JSON line per piece of text, the last with done: true (or an error line). A client that leaves stops it.
-async fn complete_stream(State(kernel): Shared, body: Body) -> Response {
-    let mut input = body_of(body);
-    input["kind"] = "inline".into();
-    let (sender, receiver) =
-        tokio::sync::mpsc::channel::<Result<String, std::convert::Infallible>>(16);
-    tokio::spawn(async move {
-        let line = |value: Value| Ok(format!("{value}\n"));
-        let mut stream = match kernel.complete_inline_stream(&input).await {
-            Ok(stream) => stream,
-            Err(error) => {
-                let _ = sender
-                    .send(line(
-                        json!({ "error": error.message, "status": error.status }),
-                    ))
-                    .await;
-                return;
-            }
-        };
-        loop {
-            let piece = tokio::select! {
-                () = sender.closed() => return,
-                piece = stream.next() => piece,
-            };
-            match piece {
-                Ok(Some(piece)) => {
-                    if sender.send(line(piece)).await.is_err() {
-                        return;
-                    }
-                }
-                Ok(None) => return,
-                Err(error) => {
-                    let _ = sender
-                        .send(line(
-                            json!({ "error": error.message, "status": error.status }),
-                        ))
-                        .await;
-                    return;
-                }
-            }
-        }
-    });
-    let body = axum::body::Body::from_stream(tokio_stream::wrappers::ReceiverStream::new(receiver));
-    (
-        [
-            (CONTENT_TYPE, "application/x-ndjson"),
-            (axum::http::header::CACHE_CONTROL, "no-cache"),
-        ],
-        body,
-    )
-        .into_response()
 }
 
 /// Whether this computer lets Saturn control it, and so whether Settings asks for anything.
@@ -1327,8 +1215,6 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         )
         .route("/skills", get(skills))
         .route("/skills/{name}", get(skill))
-        .route("/commands", get(commands))
-        .route("/commands/{name}/expand", post(expand))
         .route("/workspace/info", get(workspace_info))
         .route("/workspace/terminal", post(workspace_terminal))
         .route("/workspace/terminal/open", post(open_terminal))
@@ -1354,19 +1240,11 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
             patch(update_automation).delete(delete_automation),
         )
         .route("/automations/{id}/run", post(run_automation))
-        .route("/groups", get(groups).post(create_group))
-        .route("/groups/{id}", patch(update_group).delete(delete_group))
-        .route(
-            "/groups/{id}/messages",
-            get(group_messages).post(post_group_message),
-        )
         .route("/plugins", get(plugins).post(install_plugin))
         .route(
             "/plugins/{name}",
             patch(change_plugin).delete(uninstall_plugin),
         )
         .route("/plugins/{name}/hooks/approve", post(approve_plugin_hooks))
-        .route("/complete", post(complete))
-        .route("/complete/stream", post(complete_stream))
         .with_state(kernel)
 }

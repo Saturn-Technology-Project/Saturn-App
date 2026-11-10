@@ -23,6 +23,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 - **The project list says where each project is, and adding one stands apart.** The list at the top of the window shows each project's folder under its name, with the home folder written `~`, and a line sets "Add a project folder…" off from the projects. The name is given the room it needs, up to a limit, instead of a fixed width that cut a long one short.
 
+### Removed
+
+- **Group chats, prompt commands and the editor's completion routes are gone from the runtime.** No screen has opened a group chat since 0.4.0, run a plugin's `/` command or asked for an inline completion, so the routes behind them (`/groups`, `/commands`, `/complete`) and their code are removed; a script that called them now gets a 404. A plugin still installs with its skills, hooks and MCP servers, and Settings → Plugins no longer counts its commands. Groups and their messages from an earlier version stay in `state.json`. A group's turn that such a version left waiting for an approval or asleep is ended when Saturn starts, with the reason, instead of going on under the agent's own approval setting. Usage already recorded for completions still shows in the usage summary.
+
 ### Added
 
 - **A computer without Python gets one from Saturn.** When neither uv nor Python is found, Environment offers to download uv (about 15 MB, from its GitHub release, checked against a checksum pinned in Saturn, like the Claude Code and Codex downloads), and making the managed environment then has uv install a Python first, the version you chose or the newest stable, before the environment is made from it. A computer with Python but no uv is offered the same download, since uv is what lets a Python version be picked. Saturn's copy of uv can be removed like the other programs; the Python uv installed stays in uv's own folder.

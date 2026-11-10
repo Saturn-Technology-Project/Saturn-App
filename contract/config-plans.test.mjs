@@ -33,11 +33,6 @@ test("a Claude (via Claude Code) or Codex model never sends an API request, what
     const api = await counter(fresh);
     for (const [provider, name] of [["claude-code", "claude-sonnet-5-5"], ["codex", "gpt-5.5"]]) {
       const model = await fresh.api("POST", "/connections/models", { provider, model: name, baseUrl: api.url });
-      const answer = await fresh.call("POST", "/complete", { kind: "inline", modelId: model.id, prefix: "a", suffix: "b" });
-      assert.equal(answer.status, 409, `${provider}: ${JSON.stringify(answer.body)}`);
-      assert.match(answer.body.error, /cannot serve completions/);
-      const stream = await fresh.call("POST", "/complete/stream", { modelId: model.id, prefix: "a", suffix: "b" });
-      assert.equal(stream.body.status, 409, `${provider}: ${JSON.stringify(stream.body)}`);
       const agent = await fresh.api("POST", "/agents", { name: `On ${provider}`, modelConnectionId: model.id });
       await fresh.refused("POST", "/automations/draft", { text: "every morning summarize", agentId: agent.id }, 409, /needs a model with an API key/);
     }

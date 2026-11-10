@@ -233,24 +233,6 @@ impl Http {
         }
     }
 
-    /// Posts JSON and hands back the open response, for an answer that streams. Not retried: part of it may have arrived.
-    pub async fn post_stream(
-        &self,
-        url: &str,
-        headers: &[(&str, &str)],
-        body: &Value,
-    ) -> Result<Response, LlmError> {
-        let bytes = serde_json::to_vec(body).map_err(|error| {
-            LlmError::new(None, format!("could not write the request: {error}"))
-        })?;
-        let response = self
-            .post(url, headers, &bytes)
-            .send_noted()
-            .await
-            .map_err(|error| LlmError::from_transport(&error))?;
-        Self::successful(response).await
-    }
-
     /// Reads a JSON answer from a local address, or `None` for any failure.
     pub async fn get_json(&self, url: &str, timeout: Duration) -> Result<Option<Value>, LlmError> {
         let response = self

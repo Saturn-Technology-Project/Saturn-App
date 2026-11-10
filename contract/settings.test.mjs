@@ -277,7 +277,7 @@ test("a project needs its folder to exist, and its access can be taken back", as
   assert.ok((await api("GET", "/projects")).some((item) => item.id === project.id));
 });
 
-test("rules, skills and commands come from the project's folder", async () => {
+test("rules and skills come from the project's folder", async () => {
   const project = await api("POST", "/projects", { path: folder, grant: true }, 201);
   assert.equal((await api("GET", `/projects/${project.id}/rules`)).source, "none");
   await api("PUT", `/projects/${project.id}/rules`, { content: "Be careful.", targetFile: "agents" });
@@ -290,11 +290,6 @@ test("rules, skills and commands come from the project's folder", async () => {
   assert.equal(skills.find((item) => item.name === "deploy").description, "Ship it");
   assert.equal((await api("GET", `/skills/deploy?projectId=${project.id}`)).instructions, "Run it.");
   assert.equal((await call("GET", `/skills/none?projectId=${project.id}`)).status, 404);
-  await mkdir(path.join(folder, ".saturn/commands"), { recursive: true });
-  await writeFile(path.join(folder, ".saturn/commands/fix.md"), "Fix $ARGUMENTS now.\n");
-  assert.equal((await api("GET", `/commands?projectId=${project.id}`))[0].name, "fix");
-  assert.equal((await api("POST", `/commands/fix/expand`, { projectId: project.id, arguments: "it" })).prompt, "Fix it now.");
-  assert.equal((await call("POST", `/commands/none/expand`, { projectId: project.id })).status, 404);
 });
 
 test("attachments and the file view stay inside the project, through symbolic links too", async () => {

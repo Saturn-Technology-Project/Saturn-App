@@ -409,26 +409,3 @@ fn reasoning_text(value: &Value) -> String {
     };
     join_thinking(&joined("content"), &joined("summary"))
 }
-
-/// The legacy /completions endpoint (raw prompt in, text out), which OpenAI-compatible local servers still serve.
-pub async fn complete_raw(
-    http: &Http,
-    request: &crate::lmstudio::RawRequest,
-) -> Result<crate::lmstudio::RawStream, LlmError> {
-    let url = endpoint(&request.base_url, "/completions");
-    let stops: Vec<&String> = request.stops.iter().take(4).collect();
-    let body = json!({
-        "model": request.model,
-        "prompt": request.prompt,
-        "max_tokens": request.max_output,
-        "stop": stops,
-        "temperature": request.temperature.unwrap_or(0.0),
-        "stream": true,
-    });
-    let key = request
-        .api_key
-        .as_deref()
-        .filter(|key| !key.is_empty())
-        .unwrap_or("local");
-    crate::lmstudio::raw_stream(http, &url, Some(key), &body).await
-}

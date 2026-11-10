@@ -176,8 +176,8 @@ export default {
   "Could not load plugins": "無法載入外掛",
   "Something went wrong": "發生錯誤",
   "Install a plugin": "安裝外掛",
-  "A plugin bundles skills, slash commands, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.":
-    "外掛將技能、斜線指令、Hooks 與 MCP 伺服器打包在一個含 plugin.json 的資料夾中；Claude Code 外掛（.claude-plugin/plugin.json）可直接安裝。安裝時會將資料夾複製（或將 git 儲存庫 clone）到 Saturn，不會執行任何內容：其 Hooks 與本機 MCP 伺服器都會各自等待你的核准。",
+  "A plugin bundles skills, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.":
+    "外掛將技能、Hooks 與 MCP 伺服器打包在一個含 plugin.json 的資料夾中；Claude Code 外掛（.claude-plugin/plugin.json）可直接安裝。安裝時會將資料夾複製（或將 git 儲存庫 clone）到 Saturn，不會執行任何內容：其 Hooks 與本機 MCP 伺服器都會各自等待你的核准。",
   "Plugin folder or git URL": "外掛資料夾或 git URL",
   "/path/to/plugin or https://github.com/owner/plugin": "/path/to/plugin 或 https://github.com/owner/plugin",
   "Choose Folder…": "選擇資料夾…",
@@ -190,8 +190,6 @@ export default {
   Off: "已關閉",
   "1 skill": "1 個技能",
   "{count} skills": "{count} 個技能",
-  "1 command": "1 個指令",
-  "{count} commands": "{count} 個指令",
   "1 MCP server (allow it under MCP & Skills)": "1 個 MCP 伺服器（請在「MCP 與技能」中允許）",
   "{count} MCP servers (allow each under MCP & Skills)": "{count} 個 MCP 伺服器（請在「MCP 與技能」中逐一允許）",
   "Nothing Saturn can use yet": "目前沒有 Saturn 可使用的內容",

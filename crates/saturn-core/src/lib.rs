@@ -28,10 +28,8 @@ pub mod checkpoints;
 mod claude_code;
 pub mod cli_install;
 mod codex;
-pub mod completions;
 pub mod context;
 pub mod events;
-pub mod groups;
 pub mod hooks;
 pub mod logger;
 pub mod memory;
@@ -166,8 +164,6 @@ pub struct Kernel {
     tracked_jobs: Mutex<HashMap<String, Arc<TrackedJob>>>,
     /// Chats whose memory is being extracted.
     extracting: Mutex<HashSet<String>>,
-    /// The newest message waiting for a member that is still on its turn, by "<group>:<agent>".
-    group_queue: Mutex<HashMap<String, serde_json::Value>>,
     /// Chats whose pull request is being looked at.
     checking_pull_requests: Mutex<HashSet<String>>,
     /// The projects' research records.
@@ -206,7 +202,6 @@ impl Kernel {
             digesting: AsyncMutex::new(()),
             tracked_jobs: Mutex::default(),
             extracting: Mutex::default(),
-            group_queue: Mutex::default(),
             checking_pull_requests: Mutex::default(),
             research: research::ResearchState::default(),
         }))

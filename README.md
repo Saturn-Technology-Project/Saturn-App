@@ -120,7 +120,7 @@ In every mode, locks, the policy, the SSH host, merging and loosening a run's sa
 | 🌿 **Tasks in worktrees** | A task runs in its own git worktree and branch; at most four at once per project. You review its diff, then merge or discard it |
 | ↩️ **Checkpoints** | Every file edit is recorded, including files a shell command changes. Keep or revert a turn, or restore any single step |
 | 🔐 **Permissions and sandbox** | Agents work only in folders you grant. Rules allow, ask or deny by tool and pattern; commands run in an OS sandbox on macOS and Linux |
-| 📚 **Skills, commands, hooks, plugins** | `SKILL.md` folders in a project or `~/.saturn-app/skills`, `/` commands, hooks before and after tool calls, and plugins that bundle them (Claude Code's layout installs as is). A project's hooks and local MCP servers run only after you approve them |
+| 📚 **Skills, hooks, plugins** | `SKILL.md` folders in a project or `~/.saturn-app/skills`, hooks before and after tool calls, and plugins that bundle them (Claude Code's layout installs as is). A project's hooks and local MCP servers run only after you approve them |
 | 📎 **Context** | `@`-mention files, folders and URLs, attach the current file or selection, and memory notes the assistant keeps between chats |
 | 💸 **Usage and observability** | Tokens and cost per model, OpenTelemetry traces, metrics and logs, and the outbound network log |
 
@@ -611,13 +611,11 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/projects
 | `POST` | `/runs/:id/stop` | Cancel a turn |
 | `POST` | `/threads/:id/worktree` · `/worktree/finish` · `/pull-request` | Isolated worktrees: create, merge/keep/discard, open a PR |
 | `POST` | `/threads/:id/pull-request/check` · `/watch` · `/feedback/send` · `/feedback/dismiss` | Follow the PR: look now, stop or resume, send or dismiss review comments |
-| `GET` `POST` | `/groups` · `/groups/:id/messages` | Group conversations |
 | `GET` `POST` | `/automations` | Scheduled runs |
 | `GET` | `/usage/summary?from=&to=` | Tokens and cost over a time window |
 | `GET` | `/events` · `/runs/:id/events` | Live updates as server-sent events: which runs changed, or one run as it changes |
 | `GET` | `/network` | Outbound request log: hosts and recent requests |
 | `GET` | `/telemetry/traces` · `/telemetry/logs` · `/telemetry/metrics` | Local OpenTelemetry data |
-| `POST` | `/complete` · `/complete/stream` | Single model call |
 | `GET` `POST` `DELETE` | `/programs` · `/programs/:id` · `/programs/:id/install` | Claude Code and Codex: installed or not, where from, download, remove |
 
 ## Development
