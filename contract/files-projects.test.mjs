@@ -2,10 +2,11 @@
 // active choice; removing one never touches its files.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, write } from "./files-support.mjs";
+import { program } from "./runtime.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -88,6 +89,23 @@ test("a new runtime has a default project in the chosen folder, active and witho
     assert.deepEqual(initial[0].folders, [folder]);
     assert.ok(!initial[0].access);
     assert.equal((await fresh.api("GET", "/projects/active")).id, "proj_default");
+  } finally {
+    await fresh.stop();
+  }
+});
+
+test("a runtime started in the folder its own program is in keeps its default project out of that folder", async () => {
+  // The Windows installer puts the runtime beside the app, and the app starts it there: up to 0.6.1 the first project
+  // was then the installation folder itself, which "Allow access" would have opened to agents.
+  const installed = path.dirname(await realpath(program()));
+  const fresh = await bench({ cwd: installed });
+  try {
+    const projects = await fresh.api("GET", "/projects");
+    assert.equal(projects.length, 1);
+    assert.equal(projects[0].id, "proj_default");
+    assert.equal(projects[0].name, "Workspace");
+    assert.equal(await realpath(projects[0].path), await realpath(path.join(fresh.runtime.dataDir, "workspace")));
+    assert.notEqual(await realpath(projects[0].path), installed);
   } finally {
     await fresh.stop();
   }

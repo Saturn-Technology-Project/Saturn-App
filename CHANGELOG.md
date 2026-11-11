@@ -7,6 +7,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 ### Fixed
 
 - **Windows: Saturn starts on a computer without the Visual C++ runtime.** The runtime and the `saturn` command needed `VCRUNTIME140.dll`, which Windows does not come with, so on a new Windows the app showed "Runtime off" and a system error for each attempt to start it. Both now carry the C runtime inside them, as the app's own program already did. Until you have this version, installing Microsoft's Visual C++ Redistributable (x64) makes 0.6.1 and earlier start.
+- **Windows: the first project is no longer Saturn's own installation folder.** On Windows the app starts its runtime in the folder it is installed in, and the runtime made that folder the first project, named Saturn; allowing access to it would have let agents write beside Saturn's programs. The first project is now the Workspace folder in Saturn's data, as on macOS, and a first project an earlier version left on the installation folder moves there when Saturn starts. If you allowed access to that project, look at what is in the installation folder (`%LOCALAPPDATA%\Saturn`).
 
 ## 0.6.1 (2026-11-11)
 
