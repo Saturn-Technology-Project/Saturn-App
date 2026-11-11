@@ -12,6 +12,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **Windows: closing the window quits Saturn.** Close left Saturn and its runtime running with no window, no icon to bring it back and no way to quit but Task Manager. Closing the window now quits, which is also when a downloaded update installs; minimize the window to keep work running. On macOS, as before, the app stays in the Dock.
 - **The window opens inside a small display.** Saturn's usual window is 840 points tall, more than a 13-inch display at 200% leaves above the taskbar, so it opened over the taskbar with its lower edge off the screen. On a display with less room the window now takes what fits.
 - **Windows: shortcuts are shown with Ctrl.** The title bar, the command list, Settings and the tour showed the Mac's sign ("Commands ⌘K") for keys that are pressed with Ctrl on Windows; they now read "Ctrl+K". The access dialog no longer says what macOS may ask.
+- **Dark theme: the row under the pointer shows in dialogs and menus.** The dark theme's highlight was the same solid color as a dialog or a menu, so in Settings' list, for one, the row under the pointer looked like the others and the chosen row lost its mark while the pointer was on it. The highlight is now a light veil that shows on any surface, as the light theme's already was.
 
 ## 0.6.1 (2026-11-11)
 
