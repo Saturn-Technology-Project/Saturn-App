@@ -26,7 +26,7 @@ import { Tabs, TabsList, TabsTrigger } from "../ui/base/Tabs.js";
 import { Textarea } from "../ui/base/Textarea.js";
 import { CardRow, InlineForm, LinkButton, Pills, RowActions, RowDescription, RowError, RowLabel, RowText, SectionTitle, SettingsCard, SettingsRow, Status, SubTitle } from "./Parts";
 import { chooseLanguage, languageChoice } from "../../application/language";
-import { t } from "../../domain/i18n";
+import { shortcut, t } from "../../domain/i18n";
 
 export type SettingsPage =
   | "settings"
@@ -1621,11 +1621,11 @@ function ProjectSettingsTab(props: {
 
 function ShortcutsTab() {
   const shortcuts = [
-    ["⌘ K", t("Commands")],
+    [shortcut("⌘ K"), t("Commands")],
     [t("⌘ 1 to 7"), t("Go to a screen")],
-    ["⌘ J", t("Show or hide the research assistant")],
-    ["⌘ S", t("Save the open file")],
-    ["⌘ ,", t("Open Settings")],
+    [shortcut("⌘ J"), t("Show or hide the research assistant")],
+    [shortcut("⌘ S"), t("Save the open file")],
+    [shortcut("⌘ ,"), t("Open Settings")],
     ["Enter", t("Send a message")],
     ["Shift + Enter", t("New line in a message")],
     ["Esc", t("Close popups")],

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { placeholders, resolveLocale, translate } from "../src/domain/i18n.ts";
+import { placeholders, resolveLocale, shortcutsOn, translate } from "../src/domain/i18n.ts";
 
 const SOURCE = new URL("../src", import.meta.url).pathname;
 
@@ -114,4 +114,26 @@ test("a missing translation shows the English, and placeholders are filled eithe
   assert.equal(translate({}, "{count} runs", { count: 3 }), "3 runs");
   assert.equal(translate({ "{count} runs": "{count} 次執行" }, "{count} runs", { count: 3 }), "3 次執行");
   assert.equal(translate({}, "Keeps {name}"), "Keeps {name}");
+});
+
+test("shortcuts read with Ctrl on a system that is not a Mac, and stay as written on one", () => {
+  // Up to 0.6.1 Windows showed the Mac's sign, "Commands ⌘K", for keys pressed with Ctrl.
+  for (const [written, elsewhere] of [
+    ["⌘K", "Ctrl+K"],
+    ["⌘ K", "Ctrl+K"],
+    ["⌘,", "Ctrl+,"],
+    ["⌘ 1 to 7", "Ctrl+1 to 7"],
+    ["⌘↵", "Ctrl+Enter"],
+    ["Open every command here, or with ⌘K.", "Open every command here, or with Ctrl+K."],
+    ["每個畫面旁都有這個面板（⌘J）。", "每個畫面旁都有這個面板（Ctrl+J）。"],
+    ["Shift + Enter", "Shift + Enter"],
+  ]) {
+    assert.equal(shortcutsOn(true, written), written);
+    assert.equal(shortcutsOn(false, written), elsewhere);
+  }
+  const dictionary = { "{shortcut} to save": "按 {shortcut} 儲存", "Show it with ⌘J.": "按 ⌘J 顯示。" };
+  assert.equal(translate(dictionary, "Show it with ⌘J.", undefined, false), "按 Ctrl+J 顯示。");
+  assert.equal(translate(dictionary, "Show it with ⌘J."), "按 ⌘J 顯示。");
+  // Only the text's own shortcuts change, never what is put into it.
+  assert.equal(translate(dictionary, "{shortcut} to save", { shortcut: "⌘S" }, false), "按 ⌘S 儲存");
 });

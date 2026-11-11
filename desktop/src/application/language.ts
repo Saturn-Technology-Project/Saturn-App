@@ -1,6 +1,6 @@
 // The language the interface shows, chosen in Settings and kept on this computer. It is set before any
 // screen is imported, so text worked out when a module loads is already in that language.
-import { type LanguageChoice, type Locale, resolveLocale, setDictionary } from "../domain/i18n";
+import { type LanguageChoice, type Locale, resolveLocale, setDictionary, setMacShortcuts } from "../domain/i18n";
 import { dictionaryFor } from "../locales";
 
 const KEY = "saturn-language";
@@ -30,4 +30,6 @@ export function chooseLanguage(choice: LanguageChoice) {
 export const locale: Locale = resolveLocale(languageChoice(), navigator.languages ?? [navigator.language]);
 
 setDictionary(dictionaryFor(locale));
+// Shortcuts are written the Mac's way; on Windows the same keys are pressed with Ctrl, and say so.
+setMacShortcuts(/Mac/i.test(navigator.platform));
 document.documentElement.lang = locale === "zh-Hant" ? "zh-Hant" : "en";

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
-import { t } from "../../domain/i18n.js";
+import { shortcut, t } from "../../domain/i18n.js";
 import { firstLaunchSteps, isWorkScreen, screenLabels, statusText, windowTitle } from "../../domain/workbench.js";
 import type { Model, Profile, Project } from "../../domain/model.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
@@ -181,12 +181,12 @@ export function ResearchApp() {
 
   const commands = useMemo<PaletteCommand[]>(
     () => [
-      ...SCREENS.map((item, index) => ({ id: `go-${item}`, label: t("Go to {screen}", { screen: SCREEN_LABELS[item] }), hint: index < 9 ? `⌘${index + 1}` : "", run: () => go(item) })),
+      ...SCREENS.map((item, index) => ({ id: `go-${item}`, label: t("Go to {screen}", { screen: SCREEN_LABELS[item] }), hint: index < 9 ? shortcut(`⌘${index + 1}`) : "", run: () => go(item) })),
       ...projects.filter((item) => item.id !== projectId).map((item) => ({ id: `project-${item.id}`, label: t("Switch to {project}", { project: item.name }), run: () => void chooseProject(item.id) })),
       { id: "add-project", label: t("Add a project folder"), run: () => void addProject() },
-      { id: "assistant", label: assistant ? t("Hide the research assistant") : t("Show the research assistant"), hint: "⌘J", run: toggleAssistant },
+      { id: "assistant", label: assistant ? t("Hide the research assistant") : t("Show the research assistant"), hint: shortcut("⌘J"), run: toggleAssistant },
       { id: "theme", label: theme === "dark" ? t("Use the light theme") : t("Use the dark theme"), run: () => setTheme(theme === "dark" ? "light" : "dark") },
-      { id: "settings", label: t("Open Settings"), hint: "⌘,", run: () => setSettings(true) },
+      { id: "settings", label: t("Open Settings"), hint: shortcut("⌘,"), run: () => setSettings(true) },
       { id: "tour", label: t("Take the tour"), run: () => setTour(true) },
       ...(runtime.restart ? [{ id: "restart-runtime", label: t("Restart Saturn's runtime"), run: () => void runtime.restart?.() }] : []),
     ],
@@ -255,7 +255,7 @@ export function ResearchApp() {
             {runtimeReady ? t("Runtime") : t("Runtime off")}
           </Badge>
           <Button variant="ghost" data-tour="commands" aria-keyshortcuts="Meta+K" onClick={() => setPalette(true)}>
-            {t("Commands")} <span className="text-xs text-muted-foreground">⌘K</span>
+            {t("Commands")} <span className="text-xs text-muted-foreground">{shortcut("⌘K")}</span>
           </Button>
           <Button variant={assistant ? "soft" : "ghost"} data-tour="assistant" aria-pressed={assistant} aria-keyshortcuts="Meta+J" onClick={toggleAssistant}>
             <AssistantIcon /> {t("Assistant")}
