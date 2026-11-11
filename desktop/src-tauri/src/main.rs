@@ -152,18 +152,26 @@ fn restart_runtime(app: AppHandle) {
 }
 
 /// The bridge script with this runtime's token and address filled in, for the interface at `interface` only.
-fn bridge_script(runtime: &Runtime, interface: &Url) -> String {
+/// `window_buttons` has the page draw the window's own buttons, for a window Windows gives no frame.
+fn bridge_script(runtime: &Runtime, interface: &Url, window_buttons: bool) -> String {
+    fill_bridge(
+        &interface.origin().ascii_serialization(),
+        &runtime.token(),
+        &runtime.origin(),
+        window_buttons,
+    )
+}
+
+/// The bridge script for the interface at `interface`, a runtime at `origin` and its `token`.
+fn fill_bridge(interface: &str, token: &str, origin: &str, window_buttons: bool) -> String {
     let quoted = |text: &str| serde_json::Value::from(text).to_string();
     include_str!("bridge.js")
-        .replace(
-            "__SATURN_INTERFACE__",
-            &quoted(&interface.origin().ascii_serialization()),
-        )
-        .replace("__SATURN_TOKEN__", &quoted(&runtime.token()))
-        .replace("__SATURN_ORIGIN__", &quoted(&runtime.origin()))
+        .replace("__SATURN_INTERFACE__", &quoted(interface))
+        .replace("__SATURN_TOKEN__", &quoted(token))
+        .replace("__SATURN_ORIGIN__", &quoted(origin))
         .replace(
             "__SATURN_WINDOW_BUTTONS__",
-            if cfg!(windows) { "true" } else { "false" },
+            if window_buttons { "true" } else { "false" },
         )
 }
 
@@ -184,7 +192,8 @@ pub(crate) fn show_main_window(app: &AppHandle) {
         return;
     }
     let interface = interface_url();
-    let script = bridge_script(&app.state::<Runtime>(), &interface);
+    // On Windows the window has no frame, so the page draws the three buttons.
+    let script = bridge_script(&app.state::<Runtime>(), &interface, cfg!(windows));
     let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::External(interface))
         .title("Saturn")
         .background_color(BACKGROUND)
@@ -225,7 +234,9 @@ fn open_pointer_window(app: &AppHandle) {
     let size = monitor.size().to_logical::<f64>(scale);
     let position = monitor.position().to_logical::<f64>(scale);
     let mut interface = interface_url();
-    let script = bridge_script(&app.state::<Runtime>(), &interface);
+    // No window buttons here: this window covers the screen and lets every click through, so buttons drawn in it would
+    // sit dead in the screen's corner, over the main window's own.
+    let script = bridge_script(&app.state::<Runtime>(), &interface, false);
     interface.set_fragment(Some("pointer"));
     let built = WebviewWindowBuilder::new(app, POINTER_WINDOW, WebviewUrl::External(interface))
         .title(POINTER_TITLE)
@@ -362,4 +373,28 @@ fn main() {
         RunEvent::Reopen { .. } if INTERFACE.get().is_some() => show_main_window(app),
         _ => {}
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The pointer window asks for no buttons; drawn there they stayed in the screen's corner on Windows, over the main
+    /// window's Maximize and Close, and after the main window was closed.
+    #[test]
+    fn the_bridge_draws_window_buttons_only_where_asked() {
+        let fill = |buttons| {
+            fill_bridge(
+                "http://127.0.0.1:5174",
+                "token",
+                "http://127.0.0.1:4700",
+                buttons,
+            )
+        };
+        assert!(fill(true).contains("if (true) {"));
+        let without = fill(false);
+        assert!(without.contains("if (false) {"));
+        assert!(!without.contains("if (true) {"));
+        assert!(!without.contains("__SATURN_"));
+    }
 }
