@@ -77,7 +77,9 @@
   --line-strong: #3d3d3d;
   --card: rgba(255, 255, 255, 0.04);
   --elevated: #2a2a2a;
-  --hover: #2a2a2a;
+  /* A light veil, as the light theme's is a dark one, so a highlight shows on whatever it is drawn over. As a solid
+     color it was the same as --elevated, and a highlighted row in a dialog or a menu looked like any other. */
+  --hover: rgba(255, 255, 255, 0.075);
   --input: #202020;
   --code-bg: #141414;
   --accent: #eeeeee;
