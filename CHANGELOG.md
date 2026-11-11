@@ -7,6 +7,7 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 ### Fixed
 
 - **A background command that has ended has all of its output.** A command an agent started in the background could be reported as ended a moment before its last lines were read, so the agent, reading it then, saw the output cut short. Its end is now recorded once its output has been read.
+- **A long file path no longer runs out of the assistant's step list.** While the assistant worked, the line naming what it was doing was not cut to fit, so a long command or path ran past its box, and on Windows a file's whole path (`C:\…`) was shown where macOS shows its last two parts. A step now names a file by the end of its path on both, and the line is cut to fit.
 
 ## 0.6.2 (2026-11-12)
 

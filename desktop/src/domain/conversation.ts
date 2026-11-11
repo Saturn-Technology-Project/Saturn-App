@@ -328,13 +328,13 @@ export function actionLine(action: RunAction): ActionLine {
   if (action.toolId === "files") {
     const mode = str(args.action) || "list";
     const target = str(args.path);
-    if (mode === "read") return { verb: t("Analyzed"), target: target || t("file"), badge: fileBadge(target), suffix: readRange(action) };
-    if (mode === "write") return { verb: t("Edited"), target: target || t("file"), badge: fileBadge(target) };
+    if (mode === "read") return { verb: t("Analyzed"), target: shortPath(target) || t("file"), badge: fileBadge(target), suffix: readRange(action) };
+    if (mode === "write") return { verb: t("Edited"), target: shortPath(target) || t("file"), badge: fileBadge(target) };
     if (mode === "patch") {
       const applied = (action.result as { applied?: { path?: string }[] } | undefined)?.applied ?? [];
       const first = applied[0]?.path ?? "";
       const more = applied.length > 1 ? ` +${applied.length - 1}` : "";
-      return { verb: t("Edited"), target: first ? `${first}${more}` : t("files"), badge: fileBadge(first) };
+      return { verb: t("Edited"), target: first ? `${shortPath(first)}${more}` : t("files"), badge: fileBadge(first) };
     }
     return { verb: t("Listed"), target: target || t("workspace") };
   }
@@ -354,10 +354,10 @@ export function actionLine(action: RunAction): ActionLine {
   // Claude Code's own tools (claude-code models), named by the SDK.
   const file = str(args.file_path) || str(args.notebook_path);
   if (file && ["Edit", "MultiEdit", "Write", "NotebookEdit"].includes(action.toolId)) {
-    const name = projectPath(file);
+    const name = shortPath(file);
     return { verb: action.toolId === "Write" ? t("Wrote") : t("Edited"), target: name, badge: fileBadge(name) };
   }
-  if (file && action.toolId === "Read") return { verb: t("Analyzed"), target: projectPath(file), badge: fileBadge(file) };
+  if (file && action.toolId === "Read") return { verb: t("Analyzed"), target: shortPath(file), badge: fileBadge(file) };
   if (action.toolId === "Bash") return { verb: t("Ran"), target: str(args.command) || t("command"), mono: true };
   if (action.toolId === "Grep" || action.toolId === "Glob") return { verb: t("Searched"), target: str(args.pattern) || t("files"), mono: true };
   return { verb: t("Called"), target: action.toolId, mono: true };
@@ -383,13 +383,27 @@ function readRange(action: RunAction): string | undefined {
   return end > start ? `#L${start}-${end}` : `#L${start}`;
 }
 
-/** The last two segments of an absolute path, which is how Claude Code names files. */
-function projectPath(file: string): string {
-  return file.startsWith("/") ? file.split("/").slice(-2).join("/") : file;
+/** A path's segments, whichever way its separators lean: Windows writes `C:\folder\file`. */
+function segments(path: string): string[] {
+  return path.split(/[\\/]/).filter(Boolean);
+}
+
+/**
+ * A file's path as a step shows it: its last two segments, with the path's own separator, since the name is what tells
+ * one step from the next and a long path pushed it out of sight. An absolute path, which is how Claude Code names files
+ * (`/…` or, on Windows, `C:\…` and `\\server\…`), is always cut to them; a path inside the project is cut only when it
+ * is deeper than three segments, and then says so with "…".
+ */
+function shortPath(file: string): string {
+  const parts = segments(file);
+  const separator = file.includes("\\") ? "\\" : "/";
+  const absolute = file.startsWith("/") || /^[A-Za-z]:[\\/]/.test(file) || file.startsWith("\\\\");
+  if (absolute) return parts.slice(-2).join(separator);
+  return parts.length > 3 ? `…${separator}${parts.slice(-2).join(separator)}` : file;
 }
 
 function fileBadge(path: string): string | undefined {
-  const name = path.split("/").pop() ?? "";
+  const name = segments(path).pop() ?? "";
   const dot = name.lastIndexOf(".");
   if (dot <= 0 || dot === name.length - 1) return undefined;
   return name.slice(dot + 1).slice(0, 4).toUpperCase();
