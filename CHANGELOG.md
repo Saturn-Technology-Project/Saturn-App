@@ -13,6 +13,10 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **The window opens inside a small display.** Saturn's usual window is 840 points tall, more than a 13-inch display at 200% leaves above the taskbar, so it opened over the taskbar with its lower edge off the screen. On a display with less room the window now takes what fits.
 - **Windows: shortcuts are shown with Ctrl.** The title bar, the command list, Settings and the tour showed the Mac's sign ("Commands ⌘K") for keys that are pressed with Ctrl on Windows; they now read "Ctrl+K". The access dialog no longer says what macOS may ask.
 
+### Changed
+
+- **Saturn no longer carries a list of each provider's models.** The lists built into Saturn went out of date with every model release. For Claude, OpenAI, Gemini and DeepSeek, Settings → Models now shows what the provider lists for your key: the saved one, or the one you are typing in the form, before anything is saved. A model connected from that list keeps the name and the context window its provider gives it, where Saturn used to assume 200,000 tokens for every Claude model. Without a key the model ID is typed in. Claude Code and Codex offer names that follow their newest models (`opus`, `sonnet`, `haiku`, `fable`, or the program's own default) instead of versions; models you already connected keep working as they are. A model connected by its ID alone is now named by that ID.
+
 ## 0.6.1 (2026-11-11)
 
 ### Security

@@ -18,18 +18,33 @@ use crate::builtins::{
 use crate::records::{by_id, by_id_mut, remove, strings, text};
 use crate::{CoreError, Kernel, log};
 
-/// The providers with the models the settings page offers.
+/// The providers the settings page offers. Only a program that runs on the person's own plan comes with names for its
+/// models; a provider reached with a key lists its own.
 static PROVIDERS: LazyLock<Value> = LazyLock::new(|| {
     serde_json::from_str(include_str!("llm-providers.json")).expect("this file is valid JSON")
 });
+
+/// A model a provider listed, as the settings form takes it: its id, a name, and the sizes the provider gave.
+fn listed_choice(model: &saturn_llm::listing::ListedModel) -> Value {
+    let mut choice =
+        json!({ "id": model.id, "label": model.label.as_deref().unwrap_or(&model.id) });
+    if let Some(tokens) = model.context_tokens {
+        choice["contextTokens"] = tokens.into();
+    }
+    if let Some(tokens) = model.output_tokens {
+        choice["outputTokens"] = tokens.into();
+    }
+    choice
+}
 
 /// The providers, for the settings page.
 pub fn llm_providers() -> &'static Value {
     &PROVIDERS
 }
 
-/// The name the provider's list gives a model.
-pub(crate) fn known_label(provider: &str, model: &str) -> Option<&'static str> {
+/// The name Saturn has for what a program on the person's own plan can be asked for (`opus`, `default`). A provider
+/// reached with a key names its own models, so there is none for those.
+fn known_label(provider: &str, model: &str) -> Option<&'static str> {
     let listed = PROVIDERS
         .as_array()?
         .iter()
@@ -340,13 +355,16 @@ impl Kernel {
         let mut fields = Map::new();
         fields.insert("id".to_owned(), new_id("mdl")?.into());
         let given = named("name");
-        let known = known_label(provider.id, &model_id);
-        // A subscription model is named apart from the API model of the same name, so the two are never confused.
-        let name = match known {
+        // The name that came with it (the provider's own, from its list), else the name Saturn has for what a program
+        // on the person's plan is asked for, else the id. A subscription model is named apart from the API model of the
+        // same name, so the two are never confused.
+        let known = known_label(provider.id, &model_id)
+            .filter(|label| !label.is_empty())
+            .unwrap_or(&model_id);
+        let name = match provider.id {
             _ if !given.is_empty() => given,
-            Some(label) if provider.id == "claude-code" => format!("{label} (via Claude Code)"),
-            Some(label) if !label.is_empty() => label.to_owned(),
-            _ => model_id.clone(),
+            "claude-code" => format!("{known} (via Claude Code)"),
+            _ => known.to_owned(),
         };
         fields.insert("name".to_owned(), name.into());
         fields.insert("provider".to_owned(), provider.id.into());
@@ -361,6 +379,15 @@ impl Kernel {
             .filter(|effort| serde_json::from_value::<Effort>((*effort).clone()).is_ok())
         {
             fields.insert("effort".to_owned(), effort.clone());
+        }
+        // The model's context window as its provider listed it, which the settings form passes on. Without one the
+        // runtime assumes a size by provider, which is smaller than most current models have.
+        if let Some(tokens) = input
+            .get("contextTokens")
+            .and_then(Value::as_u64)
+            .filter(|tokens| *tokens > 0)
+        {
+            fields.insert("contextTokens".to_owned(), tokens.into());
         }
         let model = Value::Object(fields);
         let saved = model.clone();
@@ -1113,13 +1140,18 @@ impl Kernel {
             .collect()
     }
 
-    /// The models to offer for a cloud provider: those the provider lists for its saved key, else Saturn's built-in list,
-    /// with `source` and a note saying which. The key goes only to the provider's own address or to one a connected model
-    /// of that provider already uses, never to an address given only here.
+    /// The models to offer for a cloud provider, with `source` saying where they are from: `provider` for those it lists
+    /// for a key, `program` for a program that runs on the person's own plan and takes the names it is given, and `none`
+    /// with a note when there is no key to ask with or the provider did not answer. Saturn keeps no list of a provider's
+    /// models of its own: one goes out of date with every release. `typed_key` is a key in the form that is not saved
+    /// yet, and goes to the address typed with it, as connecting the model would send it. A saved key goes only to the
+    /// provider's own address or to one a connected model of that provider already uses, never to an address given only
+    /// here.
     pub async fn provider_models(
         &self,
         provider_id: &str,
         base_url: &str,
+        typed_key: &str,
     ) -> Result<Value, CoreError> {
         let provider = llm_provider(provider_id)
             .filter(|provider| !runs_locally(provider.id))
@@ -1129,48 +1161,61 @@ impl Kernel {
                     "No such cloud provider. A local server lists its models at its own route.",
                 )
             })?;
-        let built_in: Vec<Value> = PROVIDERS
-            .as_array()
-            .and_then(|all| all.iter().find(|item| text(item, "id") == provider.id))
-            .and_then(|item| item.get("models"))
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let fallback =
-            |note: String| json!({ "models": built_in, "source": "built-in", "note": note });
         if runs_on_plan(provider.id) {
-            return Ok(fallback(format!(
-                "{} runs on your own plan and has no list Saturn can read. Any model id it accepts can be typed in.",
-                provider.label
-            )));
+            let names: Vec<Value> = PROVIDERS
+                .as_array()
+                .and_then(|all| all.iter().find(|item| text(item, "id") == provider.id))
+                .and_then(|item| item.get("models"))
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            return Ok(json!({
+                "models": names,
+                "source": "program",
+                "note": format!(
+                    "{} runs on your own plan and picks the model each name stands for. Any model id it accepts can be typed in.",
+                    provider.label
+                ),
+            }));
         }
+        let none = |note: String| json!({ "models": [], "source": "none", "note": note });
         let bare = |url: &str| url.trim().trim_end_matches('/').to_owned();
         let address = if base_url.trim().is_empty() {
             bare(provider.base_url)
         } else {
             bare(base_url)
         };
-        let known = address == bare(provider.base_url)
-            || self.store.read(|state| {
-                state.models.iter().any(|model| {
-                    text(model, "provider") == provider.id
-                        && bare(text(model, "baseUrl")) == address
-                })
-            });
-        if !known {
-            return Err(CoreError::new(
-                400,
-                format!(
-                    "The {} key is sent only to its own address or to one a connected {} model uses.",
-                    provider.label, provider.label
-                ),
-            ));
-        }
-        let Some(key) = self.broker.provider_key(provider.id) else {
-            return Ok(fallback(format!(
-                "No {} API key is saved, so these are Saturn's built-in models. Connect a model with a key to list the ones the key can use.",
-                provider.label
-            )));
+        let typed_key = typed_key.trim();
+        let key = if typed_key.is_empty() {
+            let known = address == bare(provider.base_url)
+                || self.store.read(|state| {
+                    state.models.iter().any(|model| {
+                        text(model, "provider") == provider.id
+                            && bare(text(model, "baseUrl")) == address
+                    })
+                });
+            if !known {
+                return Err(CoreError::new(
+                    400,
+                    format!(
+                        "The {} key is sent only to its own address or to one a connected {} model uses.",
+                        provider.label, provider.label
+                    ),
+                ));
+            }
+            let Some(key) = self.broker.provider_key(provider.id) else {
+                return Ok(none(format!(
+                    "Enter your {} API key to list the models it can use, or type a model id.",
+                    provider.label
+                )));
+            };
+            key
+        } else {
+            Url::parse(&address)
+                .ok()
+                .filter(|url| matches!(url.scheme(), "https" | "http"))
+                .ok_or_else(|| CoreError::new(400, "The address must be a web address."))?;
+            typed_key.to_owned()
         };
         let listed =
             match saturn_llm::listing::list_models(self.broker.http(), provider.id, &address, &key)
@@ -1178,8 +1223,8 @@ impl Kernel {
             {
                 Some(Ok(listed)) if !listed.is_empty() => listed,
                 Some(Ok(_)) | None => {
-                    return Ok(fallback(format!(
-                        "{} listed no models for this key, so these are Saturn's built-in models.",
+                    return Ok(none(format!(
+                        "{} listed no models for this key. A model id can still be typed in.",
                         provider.label
                     )));
                 }
@@ -1192,39 +1237,27 @@ impl Kernel {
                             provider.label, error.message
                         ),
                     );
-                    return Ok(fallback(format!(
-                        "{} did not list its models ({}), so these are Saturn's built-in models.",
+                    return Ok(none(format!(
+                        "{} did not list its models ({}). A model id can still be typed in.",
                         provider.label, error.message
                     )));
                 }
             };
-        // Saturn's own models first, in its order and with its names, then the rest as the provider listed them. A built-in
-        // model the provider did not list is one this key cannot use, and is left out.
-        let is_listed = |id: &str| listed.iter().any(|model| model.id == id);
-        let mut models: Vec<Value> = built_in
-            .iter()
-            .filter(|model| is_listed(text(model, "id")))
-            .cloned()
-            .collect();
-        let known_ids: Vec<String> = models
-            .iter()
-            .map(|model| text(model, "id").to_owned())
-            .collect();
-        models.extend(
-            listed
-                .iter()
-                .filter(|model| !known_ids.contains(&model.id))
-                .map(|model| json!({ "id": model.id, "label": model.label.as_deref().unwrap_or(&model.id) })),
-        );
         log(
             "catalog",
             "info",
             &format!(
-                "{} listed {} models for its saved key",
+                "{} listed {} models for {}",
                 provider.label,
-                models.len()
+                listed.len(),
+                if typed_key.is_empty() {
+                    "its saved key"
+                } else {
+                    "the key in the form"
+                }
             ),
         );
+        let models: Vec<Value> = listed.iter().map(listed_choice).collect();
         Ok(json!({ "models": models, "source": "provider" }))
     }
 }

@@ -830,7 +830,7 @@ test("usage from before costs were stored is priced at the time it was made", as
   try {
     const summary = await api(second, "GET", "/usage/summary");
     assert.equal(summary.totals.costUsd, 6);
-    assert.equal(summary.models[0].label, "Gemini 4 Argon");
+    assert.equal(summary.models[0].label, "gemini-4-argon", "its id: the connection is gone, and Saturn has no names of its own for a provider's models");
     assert.equal(summary.agents[0].name, "Deleted agent");
     assert.equal(summary.since, "2026-11-01T00:00:00Z");
   } finally {

@@ -471,7 +471,11 @@ fn arguments(
     if !effort.is_empty() {
         args.push(format!("--effort={effort}"));
     }
-    args.push(format!("--model={}", text(model, "model")));
+    // "default" leaves the choice to Claude Code, which then uses the model its own settings or the plan name.
+    let chosen = text(model, "model");
+    if !chosen.is_empty() && chosen != "default" {
+        args.push(format!("--model={chosen}"));
+    }
     args.push("--permission-prompt-tool=stdio".to_owned());
     if let Some(session) = resume {
         args.push(format!("--resume={session}"));

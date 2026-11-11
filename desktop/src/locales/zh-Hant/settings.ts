@@ -148,8 +148,12 @@ export default {
   "Back to the list": "回到清單",
   "Other model ID…": "其他模型 ID…",
   "Listed by {provider} for your saved API key.": "由 {provider} 依你儲存的 API 金鑰列出。",
-  "Saturn's built-in list. Once a model is connected with an API key, the models that key can use are listed here.": "Saturn 內建清單。用 API 金鑰連接模型後，這裡會列出該金鑰可用的模型。",
-  "Saturn's built-in list. Choose Other model ID to use any model the program accepts.": "Saturn 內建清單。選「其他模型 ID」可使用該程式接受的任何模型。",
+  "Listed by {provider} for the API key you entered.": "由 {provider} 依你輸入的 API 金鑰列出。",
+  "These names follow the program's newest models, so none goes out of date. Choose Other model ID to use any model the program accepts.":
+    "這些名稱會跟著該程式的最新模型走，不會過時。選「其他模型 ID」可使用該程式接受的任何模型。",
+  "{provider} did not list its models for this key. Type the model ID as {provider} names it.": "{provider} 沒有為這把金鑰列出模型。請輸入 {provider} 所用的模型 ID。",
+  "Enter your API key below and {provider} lists the models it can use. You can also type a model ID.":
+    "在下方輸入 API 金鑰後，{provider} 會列出這把金鑰可用的模型。你也可以直接輸入模型 ID。",
   Effort: "推理強度",
   "Model default": "模型預設",
   "How much the model reasons before answering. Higher is slower and costs more.": "模型在回答前推理的程度。越高越慢，費用也越高。",
