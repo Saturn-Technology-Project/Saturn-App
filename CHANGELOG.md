@@ -2,7 +2,7 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
-## Unreleased
+## 0.6.1 (2026-11-11)
 
 ### Security
 
@@ -22,9 +22,6 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 ### Changed
 
 - **The project list says where each project is, and adding one stands apart.** The list at the top of the window shows each project's folder under its name, with the home folder written `~`, and a line sets "Add a project folder…" off from the projects. The name is given the room it needs, up to a limit, instead of a fixed width that cut a long one short.
-
-### Removed
-
 - **Group chats, prompt commands and the editor's completion routes are gone from the runtime.** No screen has opened a group chat since 0.4.0, run a plugin's `/` command or asked for an inline completion, so the routes behind them (`/groups`, `/commands`, `/complete`) and their code are removed; a script that called them now gets a 404. A plugin still installs with its skills, hooks and MCP servers, and Settings → Plugins no longer counts its commands. Groups and their messages from an earlier version stay in `state.json`. A group's turn that such a version left waiting for an approval or asleep is ended when Saturn starts, with the reason, instead of going on under the agent's own approval setting. Usage already recorded for completions still shows in the usage summary.
 
 ### Added
