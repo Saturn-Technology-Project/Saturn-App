@@ -197,7 +197,7 @@ impl Kernel {
         Ok(workspace)
     }
 
-    /// The projects, making the default one on a first start and moving one saved inside an app bundle by an earlier build.
+    /// The projects, making the default one on a first start and moving one an earlier build saved inside the app.
     async fn ensure_projects(&self) -> Result<Vec<Value>, CoreError> {
         if self.store.read(|state| state.projects.is_empty()) {
             let mut folder = self.default_folder().await?;
@@ -693,11 +693,41 @@ impl Kernel {
     }
 }
 
-/// True for a path inside a macOS app bundle, such as the packaged runtime's own folder.
+/// True for a folder that is part of the installed app: one inside a macOS app bundle, or the folder the running
+/// program is in, which is where the Windows installer puts everything and where the app starts the runtime.
 fn inside_app_bundle(folder: &Path) -> bool {
+    let program = std::env::current_exe().ok();
+    part_of_the_app(folder, program.as_deref().and_then(Path::parent))
+}
+
+/// The same, given the folder the running program is in.
+fn part_of_the_app(folder: &Path, program_folder: Option<&Path>) -> bool {
     folder
         .components()
         .any(|part| part.as_os_str().to_string_lossy().ends_with(".app"))
+        || program_folder.is_some_and(|own| same_folder(folder, own))
+}
+
+/// True when two paths name the same folder as written; Windows compares the names without regard to case.
+fn same_folder(one: &Path, other: &Path) -> bool {
+    let (mut one, mut other) = (one.components(), other.components());
+    loop {
+        match (one.next(), other.next()) {
+            (None, None) => return true,
+            (Some(mine), Some(theirs)) => {
+                let (mine, theirs) = (mine.as_os_str(), theirs.as_os_str());
+                let same = if cfg!(windows) {
+                    mine.eq_ignore_ascii_case(theirs)
+                } else {
+                    mine == theirs
+                };
+                if !same {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
 }
 
 /// The program that shows a folder or opens a link on this system.
@@ -756,5 +786,39 @@ pub fn launch_terminal(folder: &Path) {
             &["--working-directory", &shown],
             None,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_folder_the_program_is_in_is_part_of_the_app_and_a_project_beside_it_is_not() {
+        let installed = Path::new("/opt/Saturn");
+        assert!(part_of_the_app(installed, Some(installed)));
+        assert!(part_of_the_app(
+            Path::new("/Applications/Saturn.app/Contents/Resources"),
+            None
+        ));
+        // A development build runs from target/debug with the repository as its folder.
+        assert!(!part_of_the_app(
+            Path::new("/code/Saturn-App"),
+            Some(Path::new("/code/Saturn-App/target/debug"))
+        ));
+        assert!(!part_of_the_app(
+            Path::new("/opt/Saturn/projects/study"),
+            Some(installed)
+        ));
+        assert!(!part_of_the_app(Path::new("/home/someone/study"), None));
+    }
+
+    #[test]
+    fn windows_tells_the_installation_folder_whatever_the_case_of_its_name() {
+        let same = same_folder(
+            Path::new("C:/Users/Someone/AppData/Local/Saturn"),
+            Path::new("c:/users/someone/appdata/local/saturn"),
+        );
+        assert_eq!(same, cfg!(windows));
     }
 }

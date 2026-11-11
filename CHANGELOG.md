@@ -2,6 +2,17 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Fixed
+
+- **Windows: Saturn starts on a computer without the Visual C++ runtime.** The runtime and the `saturn` command needed `VCRUNTIME140.dll`, which Windows does not come with, so on a new Windows the app showed "Runtime off" and a system error for each attempt to start it. Both now carry the C runtime inside them, as the app's own program already did. Until you have this version, installing Microsoft's Visual C++ Redistributable (x64) makes 0.6.1 and earlier start.
+- **Windows: the first project is no longer Saturn's own installation folder.** On Windows the app starts its runtime in the folder it is installed in, and the runtime made that folder the first project, named Saturn; allowing access to it would have let agents write beside Saturn's programs. The first project is now the Workspace folder in Saturn's data, as on macOS, and a first project an earlier version left on the installation folder moves there when Saturn starts. If you allowed access to that project, look at what is in the installation folder (`%LOCALAPPDATA%\Saturn`).
+- **Windows: no second set of window buttons in the corner of the screen.** The see-through window Saturn draws the assistant's pointer in also drew Minimize, Maximize and Close at the top right of the screen. They did nothing, covered the main window's own Maximize and Close when it reached that corner, and stayed after the window was closed.
+- **Windows: closing the window quits Saturn.** Close left Saturn and its runtime running with no window, no icon to bring it back and no way to quit but Task Manager. Closing the window now quits, which is also when a downloaded update installs; minimize the window to keep work running. On macOS, as before, the app stays in the Dock.
+- **The window opens inside a small display.** Saturn's usual window is 840 points tall, more than a 13-inch display at 200% leaves above the taskbar, so it opened over the taskbar with its lower edge off the screen. On a display with less room the window now takes what fits.
+- **Windows: shortcuts are shown with Ctrl.** The title bar, the command list, Settings and the tour showed the Mac's sign ("Commands ⌘K") for keys that are pressed with Ctrl on Windows; they now read "Ctrl+K". The access dialog no longer says what macOS may ask.
+
 ## 0.6.1 (2026-11-11)
 
 ### Security

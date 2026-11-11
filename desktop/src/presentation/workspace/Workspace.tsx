@@ -20,7 +20,7 @@ import {
 } from "../../domain/research.js";
 import { EMPTY_TREE, foldersToRead, keyMove, parentOf, refreshed, revealed, toggled, treeRows, type TreeEntry, type TreeState } from "../../domain/file-tree.js";
 import { newFileContent, renamedFileSession } from "../../domain/workspace-files.js";
-import { t } from "../../domain/i18n.js";
+import { shortcut, t } from "../../domain/i18n.js";
 import { isNotebookPath, NOTEBOOK_SIZE_LIMIT } from "../../domain/notebook.js";
 import { LookInside } from "../samples/LookInside.js";
 import type { ScreenProps } from "../shell/ScreenSwitch.js";
@@ -868,7 +868,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
               />
               <div className="flex flex-wrap items-center gap-2">
                 <Choice ariaLabel={t("Kind")} className="w-36" value={findingKind} options={(Object.keys(FINDING_LABELS) as FindingKind[]).map((kind) => ({ value: kind, label: FINDING_LABELS[kind] }))} onChange={(next) => setFindingKind(next as FindingKind)} />
-                <span className={classes(MUTED, "ml-auto")}>{t("{shortcut} to save", { shortcut: /Mac/i.test(navigator.userAgent) ? "⌘↵" : "Ctrl+Enter" })}</span>
+                <span className={classes(MUTED, "ml-auto")}>{t("{shortcut} to save", { shortcut: shortcut("⌘↵") })}</span>
                 <Button type="submit" disabled={!findingText.trim()}>
                   {t("Save finding")}
                 </Button>

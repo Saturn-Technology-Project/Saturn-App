@@ -181,7 +181,8 @@ export default {
   // Project folders and access (ProjectAccess.tsx).
   "Open Project Folder": "Open project folder",
   "Could not open the folder": "Couldn't open the folder",
-  "You can revoke access any time from the project's menu. macOS may also ask once to let Saturn read this location.": "You can revoke access anytime from the project menu. macOS may also ask once for permission for Saturn to read this location.",
+  "You can revoke access any time from the project's menu.": "You can revoke access anytime from the project menu.",
+  "macOS may also ask once to let Saturn read this location.": "macOS may also ask once for permission for Saturn to read this location.",
   "Allow Access": "Allow access",
   "Workspace name cannot be empty": "Workspace name can't be empty",
   "At least one folder is required": "Add at least one folder",

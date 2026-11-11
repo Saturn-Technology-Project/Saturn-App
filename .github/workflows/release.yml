@@ -386,7 +386,7 @@ jobs:
           npm run package -- --bundles nsis --config $signing @updater
           npm run archive
 
-      - name: Check the signatures
+      - name: Check the signatures, and that no program needs the Visual C++ runtime
         shell: pwsh
         env:
           EXPECTED: ${{ secrets.WINDOWS_SIGNING_PFX && 'D285DA425077C16A3D115D61F9748AFA574BC786' || '' }}

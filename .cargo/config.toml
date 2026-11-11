@@ -1,0 +1,5 @@
+# On Windows the programs carry the C runtime inside them. Linked the usual way, the runtime and the saturn command
+# need vcruntime140.dll, which is not part of Windows: on a computer without the Visual C++ runtime they do not start.
+# The desktop program's build (tauri-build) links its own the same way and recommends this setting beside it.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]

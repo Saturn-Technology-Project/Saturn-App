@@ -102,7 +102,10 @@ export function AccessDialog(props: { path: string; name?: string; onAllow: () =
             <li>{t("Create, change and delete files there")}</li>
             <li>{t("Run commands with this folder as the working directory")}</li>
           </ul>
-          <p className="text-xs text-muted-foreground">{t("You can revoke access any time from the project's menu. macOS may also ask once to let Saturn read this location.")}</p>
+          <p className="text-xs text-muted-foreground">
+            {t("You can revoke access any time from the project's menu.")}
+            {/Mac/i.test(navigator.platform) ? ` ${t("macOS may also ask once to let Saturn read this location.")}` : null}
+          </p>
           {error ? <Notice tone="bad">{error}</Notice> : null}
         </div>
         <DialogFooter>

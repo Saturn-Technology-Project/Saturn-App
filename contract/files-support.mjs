@@ -87,8 +87,8 @@ async function scriptedModel() {
 }
 
 /** Starts a runtime; `stop()` ends it with every fake model and temporary folder the bench made. */
-export async function bench({ env = {}, dataDir, keepData } = {}) {
-  const runtime = await startRuntime({ env: { ...GIT_ALONE, ...env }, ...(dataDir ? { dataDir } : {}), ...(keepData ? { keepData } : {}) });
+export async function bench({ env = {}, dataDir, keepData, cwd } = {}) {
+  const runtime = await startRuntime({ env: { ...GIT_ALONE, ...env }, ...(dataDir ? { dataDir } : {}), ...(keepData ? { keepData } : {}), ...(cwd ? { cwd } : {}) });
   const models = [];
   const folders = [];
   const token = (await readFile(path.join(runtime.dataDir, "runtime-token"), "utf8")).trim();

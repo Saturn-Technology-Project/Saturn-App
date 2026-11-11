@@ -22,7 +22,7 @@ function freePort() {
 }
 
 /** The runtime's program. */
-function program() {
+export function program() {
   return process.env.SATURN_RUST_BIN ?? path.join(root, "target/debug", process.platform === "win32" ? "saturn-server.exe" : "saturn-server");
 }
 
@@ -30,15 +30,15 @@ function program() {
  * Starts a runtime and waits until it answers. `stop()` ends it and deletes its data folder, as does a failed start.
  * `host` is what SATURN_RUNTIME_HOST is set to and what clients connect to. `dataDir` and `keepData` restart a runtime
  * on the data of an earlier one. `env` adds to or replaces the runtime's environment. `stdin` "pipe" gives the runtime the pipe a
- * desktop app holds, as `child.stdin`.
+ * desktop app holds, as `child.stdin`. `cwd` is the folder it starts in, the repository unless given.
  */
-export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keepData = false, env = {}, stdin = "ignore" } = {}) {
+export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keepData = false, env = {}, stdin = "ignore", cwd = root } = {}) {
   const dataDir = existing ?? await mkdtemp(path.join(os.tmpdir(), "saturn-contract-"));
   const port = await freePort();
   const file = program();
   let output = "";
   const child = spawn(file, [], {
-    cwd: root,
+    cwd,
     stdio: [stdin, "pipe", "pipe"],
     env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_RUNTIME_TOKEN: "", ...env },
   });

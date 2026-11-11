@@ -152,18 +152,26 @@ fn restart_runtime(app: AppHandle) {
 }
 
 /// The bridge script with this runtime's token and address filled in, for the interface at `interface` only.
-fn bridge_script(runtime: &Runtime, interface: &Url) -> String {
+/// `window_buttons` has the page draw the window's own buttons, for a window Windows gives no frame.
+fn bridge_script(runtime: &Runtime, interface: &Url, window_buttons: bool) -> String {
+    fill_bridge(
+        &interface.origin().ascii_serialization(),
+        &runtime.token(),
+        &runtime.origin(),
+        window_buttons,
+    )
+}
+
+/// The bridge script for the interface at `interface`, a runtime at `origin` and its `token`.
+fn fill_bridge(interface: &str, token: &str, origin: &str, window_buttons: bool) -> String {
     let quoted = |text: &str| serde_json::Value::from(text).to_string();
     include_str!("bridge.js")
-        .replace(
-            "__SATURN_INTERFACE__",
-            &quoted(&interface.origin().ascii_serialization()),
-        )
-        .replace("__SATURN_TOKEN__", &quoted(&runtime.token()))
-        .replace("__SATURN_ORIGIN__", &quoted(&runtime.origin()))
+        .replace("__SATURN_INTERFACE__", &quoted(interface))
+        .replace("__SATURN_TOKEN__", &quoted(token))
+        .replace("__SATURN_ORIGIN__", &quoted(origin))
         .replace(
             "__SATURN_WINDOW_BUTTONS__",
-            if cfg!(windows) { "true" } else { "false" },
+            if window_buttons { "true" } else { "false" },
         )
 }
 
@@ -175,6 +183,47 @@ fn interface_url() -> Url {
     Url::parse(&format!("http://127.0.0.1:{port}/")).expect("a loopback address is a valid URL")
 }
 
+/// How the main window opens, in logical points: its size, the smallest size it may be given, and where to put it when
+/// it had to be made smaller than usual.
+#[derive(Debug, PartialEq)]
+struct Opening {
+    size: (f64, f64),
+    smallest: (f64, f64),
+    place: Option<(f64, f64)>,
+}
+
+/// The main window's opening for a display whose free area (the display without the taskbar or the Dock) is `free`, as
+/// x, y, width and height. The usual 1320 by 840 is taller than a small laptop's display at 200%, where the window
+/// opened over the taskbar with its lower edge off the screen; there it takes what fits, in the middle of the free area.
+fn opening(free: Option<[f64; 4]>) -> Opening {
+    const USUAL: (f64, f64) = (1320.0, 840.0);
+    const SMALLEST: (f64, f64) = (940.0, 620.0);
+    let Some([x, y, width, height]) = free else {
+        return Opening {
+            size: USUAL,
+            smallest: SMALLEST,
+            place: None,
+        };
+    };
+    let fit = |size: (f64, f64)| (size.0.min(width), size.1.min(height));
+    let size = fit(USUAL);
+    Opening {
+        size,
+        smallest: fit(SMALLEST),
+        place: (size != USUAL).then(|| (x + (width - size.0) / 2.0, y + (height - size.1) / 2.0)),
+    }
+}
+
+/// The main display's free area in logical points, as x, y, width and height.
+fn free_area(app: &AppHandle) -> Option<[f64; 4]> {
+    let monitor = app.primary_monitor().ok()??;
+    let scale = monitor.scale_factor();
+    let area = monitor.work_area();
+    let position = area.position.to_logical::<f64>(scale);
+    let size = area.size.to_logical::<f64>(scale);
+    Some([position.x, position.y, size.width, size.height])
+}
+
 /// Brings the window forward, opening it if it was closed.
 pub(crate) fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
@@ -184,7 +233,9 @@ pub(crate) fn show_main_window(app: &AppHandle) {
         return;
     }
     let interface = interface_url();
-    let script = bridge_script(&app.state::<Runtime>(), &interface);
+    let opening = opening(free_area(app));
+    // On Windows the window has no frame, so the page draws the three buttons.
+    let script = bridge_script(&app.state::<Runtime>(), &interface, cfg!(windows));
     let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::External(interface))
         .title("Saturn")
         .background_color(BACKGROUND)
@@ -196,8 +247,12 @@ pub(crate) fn show_main_window(app: &AppHandle) {
             open_in_browser(&address);
             NewWindowResponse::Deny
         })
-        .inner_size(1320.0, 840.0)
-        .min_inner_size(940.0, 620.0);
+        .inner_size(opening.size.0, opening.size.1)
+        .min_inner_size(opening.smallest.0, opening.smallest.1);
+    let builder = match opening.place {
+        Some((x, y)) => builder.position(x, y),
+        None => builder,
+    };
     // On macOS the traffic lights sit over the page's own title bar; on Windows the bridge draws the buttons.
     #[cfg(target_os = "macos")]
     let builder = builder
@@ -225,7 +280,9 @@ fn open_pointer_window(app: &AppHandle) {
     let size = monitor.size().to_logical::<f64>(scale);
     let position = monitor.position().to_logical::<f64>(scale);
     let mut interface = interface_url();
-    let script = bridge_script(&app.state::<Runtime>(), &interface);
+    // No window buttons here: this window covers the screen and lets every click through, so buttons drawn in it would
+    // sit dead in the screen's corner, over the main window's own.
+    let script = bridge_script(&app.state::<Runtime>(), &interface, false);
     interface.set_fragment(Some("pointer"));
     let built = WebviewWindowBuilder::new(app, POINTER_WINDOW, WebviewUrl::External(interface))
         .title(POINTER_TITLE)
@@ -360,6 +417,54 @@ fn main() {
         }
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } if INTERFACE.get().is_some() => show_main_window(app),
+        // Closing the window quits Saturn, except on macOS, where the Dock still shows the app and brings the window
+        // back. Elsewhere nothing showed it: the pointer window kept Saturn and its runtime running out of sight.
+        RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::Destroyed,
+            ..
+        } if label == MAIN_WINDOW && !cfg!(target_os = "macos") => app.exit(0),
         _ => {}
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A display at 3024 by 1662 and 200%, with a taskbar, leaves 1512 by 783 points: less than the usual height.
+    #[test]
+    fn the_window_opens_inside_a_display_smaller_than_its_usual_size() {
+        let small = opening(Some([0.0, 0.0, 1512.0, 783.0]));
+        assert_eq!(small.size, (1320.0, 783.0));
+        assert_eq!(small.smallest, (940.0, 620.0));
+        assert_eq!(small.place, Some((96.0, 0.0)));
+        let tiny = opening(Some([0.0, 24.0, 900.0, 600.0]));
+        assert_eq!((tiny.size, tiny.smallest), ((900.0, 600.0), (900.0, 600.0)));
+        assert_eq!(tiny.place, Some((0.0, 24.0)));
+        // A display with room, and one that cannot be asked, get the usual window where the system puts it.
+        for free in [Some([0.0, 25.0, 1728.0, 1055.0]), None] {
+            let usual = opening(free);
+            assert_eq!((usual.size, usual.place), ((1320.0, 840.0), None));
+        }
+    }
+
+    /// The pointer window asks for no buttons; drawn there they stayed in the screen's corner on Windows, over the main
+    /// window's Maximize and Close, and after the main window was closed.
+    #[test]
+    fn the_bridge_draws_window_buttons_only_where_asked() {
+        let fill = |buttons| {
+            fill_bridge(
+                "http://127.0.0.1:5174",
+                "token",
+                "http://127.0.0.1:4700",
+                buttons,
+            )
+        };
+        assert!(fill(true).contains("if (true) {"));
+        let without = fill(false);
+        assert!(without.contains("if (false) {"));
+        assert!(!without.contains("if (true) {"));
+        assert!(!without.contains("__SATURN_"));
+    }
 }
