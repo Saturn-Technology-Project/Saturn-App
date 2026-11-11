@@ -371,6 +371,13 @@ fn main() {
         }
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } if INTERFACE.get().is_some() => show_main_window(app),
+        // Closing the window quits Saturn, except on macOS, where the Dock still shows the app and brings the window
+        // back. Elsewhere nothing showed it: the pointer window kept Saturn and its runtime running out of sight.
+        RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::Destroyed,
+            ..
+        } if label == MAIN_WINDOW && !cfg!(target_os = "macos") => app.exit(0),
         _ => {}
     });
 }
