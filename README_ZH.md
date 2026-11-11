@@ -260,7 +260,7 @@ crates/                                   desktop/src/
 | DeepSeek | API 金鑰 | |
 | 本機伺服器 | 無 | 本機上任何提供 OpenAI 相容端點的模型伺服器：LM Studio、Ollama、vLLM、llama.cpp、`mlx_lm.server`。完全離線 |
 
-API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。儲存金鑰後，設定頁的模型清單就是供應商依該金鑰列出的清單，新模型不必等 Saturn 更新就會出現；沒有金鑰時，或 Claude Code 與 Codex，顯示 Saturn 的內建清單，也可以手動輸入任何其他模型 ID。用量頁的價格由 Saturn 手動維護，比 Saturn 新的模型在更新前會顯示為未定價。
+API 金鑰加密存放在 `~/.saturn-app/secrets.json`（AES-256-GCM，金鑰由作業系統金鑰庫保管；見[靜態資料](#靜態資料)），只送往所屬供應商，且不會回傳給 UI。一把金鑰涵蓋該供應商的所有模型。Saturn 不內建任何供應商的模型清單：設定頁的清單就是供應商依你的金鑰（已儲存的，或正在輸入的）列出的清單，新模型不必等 Saturn 更新就會出現，名稱與 context 大小也由供應商提供；也可以手動輸入任何其他模型 ID。Claude 模型接受哪些設定（adaptive thinking、effort、temperature）同樣以 Anthropic 的回報為準，只查詢一次並存在連線上，不依模型名稱判斷。Claude Code 與 Codex 用的是你自己的方案，可選一個會跟著最新模型走的名稱（`opus`、`sonnet`、`haiku`、`fable`，或程式自己的預設），或手動輸入模型 ID。用量頁的價格是唯一沒有供應商會回報的資料，所以仍由 Saturn 手動維護，比 Saturn 新的模型在更新前會顯示為未定價。
 
 ### Claude 與 Anthropic 的條款
 

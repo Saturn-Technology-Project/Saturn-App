@@ -114,7 +114,20 @@ async fn provider_models(
     Query(query): QueryText,
 ) -> Answer {
     ok(kernel
-        .provider_models(&provider, wanted(&query, "baseUrl").unwrap_or(""))
+        .provider_models(&provider, wanted(&query, "baseUrl").unwrap_or(""), "")
+        .await?)
+}
+
+/// The same list for a key typed in the settings form and not saved yet, sent in the body so that it is in no address.
+async fn provider_models_for_key(
+    State(kernel): Shared,
+    Path(provider): Path<String>,
+    body: Body,
+) -> Answer {
+    let input = body_of(body);
+    let field = |name: &str| input.get(name).and_then(Value::as_str).unwrap_or("");
+    ok(kernel
+        .provider_models(&provider, field("baseUrl"), field("secret"))
         .await?)
 }
 
@@ -1165,7 +1178,10 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/usage", get(usage))
         .route("/usage/summary", get(usage_summary))
         .route("/llm/providers", get(providers))
-        .route("/llm/providers/{provider}/models", get(provider_models))
+        .route(
+            "/llm/providers/{provider}/models",
+            get(provider_models).post(provider_models_for_key),
+        )
         .route("/llm/lmstudio/models", get(local_server))
         .route("/connections/{kind}", get(list_connections))
         .route("/connections/{kind}/{id}", delete(delete_connection))

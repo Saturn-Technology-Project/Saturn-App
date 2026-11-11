@@ -305,6 +305,7 @@ impl Kernel {
         model: &Value,
         input: CompletionInput,
     ) -> Result<saturn_llm::Completion, saturn_llm::LlmError> {
+        let model = &self.described(model).await;
         let completion = self.broker.complete(&connection_of(model), &input).await?;
         if let Some(record) = completion.usage_record.clone()
             && let Err(error) = self

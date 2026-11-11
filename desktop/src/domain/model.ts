@@ -328,9 +328,13 @@ export type RunMode = "agent" | "ask" | "plan";
 export type PendingTask = { id: string; agentId: string; agentName: string; input: string; toolId: string };
 
 export type LlmProvider = { id: string; label: string; needsKey: boolean; baseUrl: string; models: { id: string; label: string }[] };
-export type LlmChoice = { id: string; label: string };
-/** A cloud provider's models: those it listed for the saved key (`provider`), or Saturn's own list (`built-in`) and why. */
-export type ProviderModels = { models: LlmChoice[]; source: "provider" | "built-in"; note?: string };
+/** A model to choose, with its context window in tokens and what it accepts, when its provider says. */
+export type LlmChoice = { id: string; label: string; contextTokens?: number; capabilities?: Record<string, boolean> };
+/**
+ * A cloud provider's models and where they are from: those it listed for a key (`provider`), the names a program that
+ * runs on your own plan takes (`program`), or none, with a note saying why (`none`). Saturn keeps no list of its own.
+ */
+export type ProviderModels = { models: LlmChoice[]; source: "provider" | "program" | "none"; note?: string };
 
 export type RuntimeInfo = {
   version: string;

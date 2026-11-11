@@ -5,7 +5,7 @@ use saturn_domain::llm::{CallToPrice, describe_price, llm_provider, price_call};
 use saturn_domain::time::{iso_time, now_millis, parse_iso};
 use serde_json::{Value, json};
 
-use crate::catalog::{connection_of, known_label};
+use crate::catalog::connection_of;
 use crate::records::{by_id, text};
 use crate::{CoreError, Kernel};
 
@@ -131,14 +131,19 @@ impl Kernel {
             let cost = self.record_cost(record);
             let (provider, model) = (text(record, "provider"), text(record, "model"));
             let key = format!("{provider}/{model}");
-            let label = known_label(provider, model)
-                .filter(|label| !label.is_empty())
-                .unwrap_or(if text(record, "modelName").is_empty() {
-                    model
-                } else {
-                    text(record, "modelName")
-                })
-                .to_owned();
+            // The name the call was recorded under, else the name of the connection it went through, else the id:
+            // Saturn has no names of its own for a provider's models.
+            let label = if text(record, "modelName").is_empty() {
+                self.store
+                    .read(|state| {
+                        by_id(&state.models, text(record, "modelId"))
+                            .map(|connection| text(connection, "name").to_owned())
+                    })
+                    .filter(|name| !name.is_empty())
+                    .unwrap_or_else(|| model.to_owned())
+            } else {
+                text(record, "modelName").to_owned()
+            };
             totals.add(record, cost);
             let at = *model_at.entry(key.clone()).or_insert_with(|| {
                 models.push((key.clone(), Tally::default(), json!({ "provider": provider, "model": model, "label": label, "price": describe_price(provider, model, now) })));

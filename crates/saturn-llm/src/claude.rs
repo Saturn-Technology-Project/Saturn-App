@@ -1,7 +1,4 @@
 //! Claude, through Anthropic's Messages API.
-use std::sync::LazyLock;
-
-use regex::Regex;
 use serde_json::{Map, Value, json};
 
 use crate::http::{Http, LlmError};
@@ -14,15 +11,27 @@ use crate::{ChatMessage, ChatRequest, Completion, ImagePart, Replay, Role, Token
 const DEFAULT_BASE_URL: &str = "https://api.anthropic.com";
 const API_VERSION: &str = "2023-06-01";
 
-/// Adaptive thinking runs on Claude 4.6 and later; older models take no adaptive setting.
-static OLDER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"claude-3|-4-[0-5](?:$|-)").expect("a valid pattern"));
-/// Effort goes in output_config; Haiku 4.5, Sonnet 4.5 and Claude 3 reject it.
-static NO_EFFORT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"claude-3|(?:haiku|sonnet)-4-5(?:$|-)").expect("a valid pattern"));
-/// Sampling settings are rejected from Opus 4.7 / Sonnet 5 on, so temperature goes only to older models.
-static SAMPLING: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"claude-3|-4-[0-6](?:$|-)").expect("a valid pattern"));
+/// Which settings a request carries, from what Anthropic says the model accepts (its list of models, saved on the
+/// connection) and never from the model's name. Where Anthropic has not said, the model is treated as a current one:
+/// thinking and effort are sent, and one it refuses is dropped and the request sent again.
+struct Settings {
+    /// Thinking the model paces itself. An older model does not take it.
+    thinking: bool,
+    /// The effort setting.
+    effort: bool,
+    /// A temperature. Anthropic's list has no word on sampling settings, which current models refuse; the models that
+    /// still take them are those from before adaptive thinking replaced a thinking budget, so the budget stands for it.
+    temperature: bool,
+}
+
+fn settings_for(request: &ChatRequest) -> Settings {
+    let said = request.capabilities;
+    Settings {
+        thinking: !request.low_thinking && said.adaptive_thinking.unwrap_or(true),
+        effort: said.effort.unwrap_or(true),
+        temperature: said.budget_thinking == Some(true),
+    }
+}
 
 fn image_block(image: &ImagePart) -> Value {
     let known = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -125,8 +134,8 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
     let Some(api_key) = request.api_key.as_deref().filter(|key| !key.is_empty()) else {
         return Err(LlmError::new(None, "Claude API key is required"));
     };
-    let id = request.model.to_lowercase();
-    let thinking_on = !(request.low_thinking || OLDER.is_match(&id));
+    let settings = settings_for(request);
+    let thinking_on = settings.thinking;
     // With thinking on, a turn that called tools goes back with its signed thinking blocks, as Claude wrote it. A round Claude
     // did not write (another model earlier in the chat, a run from before) goes as text instead.
     let turns = flatten_tool_turns(&request.messages, |assistant| {
@@ -193,7 +202,7 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
             OptionalField {
                 name: "output_config",
                 value: effort
-                    .filter(|_| !NO_EFFORT.is_match(&id))
+                    .filter(|_| settings.effort)
                     .map(|effort| json!({ "effort": effort })),
                 rejected_when: "effort|output_config",
             },
@@ -201,7 +210,7 @@ pub async fn complete(http: &Http, request: &ChatRequest) -> Result<Completion, 
                 name: "temperature",
                 value: request
                     .temperature
-                    .filter(|_| SAMPLING.is_match(&id))
+                    .filter(|_| settings.temperature)
                     .map(|value| json!(value)),
                 rejected_when: "temperature|sampling",
             },

@@ -177,9 +177,14 @@ export class AdminService {
     return this.runtime.request<LlmProvider[]>("/llm/providers");
   }
 
-  /** The models a cloud provider lists for its saved key, or Saturn's built-in ones with a note saying why. */
-  providerModels(provider: string): Promise<ProviderModels> {
-    return this.runtime.request<ProviderModels>(`/llm/providers/${encodeURIComponent(provider)}/models`);
+  /**
+   * The models a cloud provider lists: for its saved key, or for `typedKey`, a key in the form that is not saved yet,
+   * which goes in the request's body and never in its address.
+   */
+  providerModels(provider: string, typedKey = ""): Promise<ProviderModels> {
+    const route = `/llm/providers/${encodeURIComponent(provider)}/models`;
+    if (!typedKey) return this.runtime.request<ProviderModels>(route);
+    return this.runtime.request<ProviderModels>(route, { method: "POST", body: JSON.stringify({ secret: typedKey }) });
   }
 
   /** The models the local model server at `baseUrl` has loaded; none while it is not running. */
@@ -196,7 +201,7 @@ export class AdminService {
     return this.runtime.request<UsageSummary>(`/usage/summary${suffix ? `?${suffix}` : ""}`);
   }
 
-  createModel(input: { provider: string; model: string; baseUrl?: string; secret?: string; effort?: string }): Promise<void> {
+  createModel(input: { provider: string; model: string; name?: string; contextTokens?: number; capabilities?: Record<string, boolean>; baseUrl?: string; secret?: string; effort?: string }): Promise<void> {
     const attributes = { "gen_ai.provider.name": input.provider, "gen_ai.request.model": input.model };
     return userAction("ui.connect_model", attributes, () =>
       this.runtime.request("/connections/models", { method: "POST", body: JSON.stringify(input) }),

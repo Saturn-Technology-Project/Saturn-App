@@ -146,6 +146,7 @@
   "POST /connections/mcp/:id/discover",
   "POST /connections/models",
   "POST /connections/rag",
+  "POST /llm/providers/:provider/models",
   "POST /permissions/rules",
   "POST /plugins",
   "POST /plugins/:name/hooks/approve",

@@ -729,9 +729,11 @@ export function LlmPage(props: {
   const [secret, setSecret] = useState("");
   const [effort, setEffort] = useState("");
   const [studioModels, setStudioModels] = useState<{ id: string; label: string }[]>([]);
-  // What a cloud provider listed for its saved key, and whether the person is typing a model ID of their own.
+  // What a cloud provider listed for a key, and whether the person is typing a model ID of their own.
   const [listed, setListed] = useState<ProviderModels | null>(null);
   const [typing, setTyping] = useState(false);
+  // The key in the form once the person has stopped typing it, so the provider is asked once and not per keystroke.
+  const [typedKey, setTypedKey] = useState("");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [keyDraft, setKeyDraft] = useState("");
   const provider = providers.find((item) => item.id === providerId) ?? providers[0];
@@ -767,17 +769,25 @@ export function LlmPage(props: {
     };
   }, [providerId, baseUrl]);
 
-  // Asked again when a key is saved, so a new key's models appear; Saturn's own list shows until the provider answers.
+  useEffect(() => {
+    const key = secret.trim();
+    if (!key) return setTypedKey("");
+    const timer = setTimeout(() => setTypedKey(key), 600);
+    return () => clearTimeout(timer);
+  }, [secret]);
+
+  // Saturn has no list of a provider's models: the provider is asked, with its saved key or the one being typed, and
+  // again when a key is saved. Until it answers, or when there is no key yet, the model ID can be typed.
   const keyed = props.models.filter((item) => item.provider === providerId && item.hasSecret).length;
   useEffect(() => {
     if (runsLocally(providerId) || providers.length === 0) return;
     let current = true;
     setListed(null);
-    void desktop.admin.providerModels(providerId)
+    void desktop.admin.providerModels(providerId, typedKey)
       .then((next) => {
         if (!current) return;
         setListed(next);
-        setModelId((chosen) => (next.models.some((item) => item.id === chosen) ? chosen : next.models[0]?.id ?? chosen));
+        setModelId((chosen) => (next.models.length === 0 || next.models.some((item) => item.id === chosen) ? chosen : next.models[0].id));
       })
       .catch(() => {
         if (current) setListed(null);
@@ -785,7 +795,7 @@ export function LlmPage(props: {
     return () => {
       current = false;
     };
-  }, [providerId, keyed, providers.length]);
+  }, [providerId, keyed, providers.length, typedKey]);
 
   function chooseProvider(id: string) {
     const next = providers.find((item) => item.id === id);
@@ -794,18 +804,25 @@ export function LlmPage(props: {
     setModelId(next?.models[0]?.id ?? "");
     setBaseUrl(next?.baseUrl ?? "");
     setSecret("");
+    setTypedKey("");
   }
 
   async function add() {
     try {
+      // A model its provider listed keeps what the provider said of it: its name, its context window, what it accepts.
+      const chosen = listed?.source === "provider" ? listed.models.find((item) => item.id === modelId) : undefined;
       await desktop.admin.createModel({
         provider: providerId,
-        model: modelId,
+        model: modelId.trim(),
+        name: chosen && chosen.label !== chosen.id ? chosen.label : undefined,
+        contextTokens: chosen?.contextTokens,
+        capabilities: chosen?.capabilities,
         baseUrl: runsLocally(providerId) ? baseUrl : undefined,
         secret: secret || undefined,
         effort: supportsEffort(providerId) && effort ? effort : undefined,
       });
       setSecret("");
+      setTypedKey("");
       props.onError("");
       await props.onChanged();
     } catch (reason) {
@@ -940,6 +957,10 @@ export function LlmPage(props: {
             <Field label={t("Model")}>
               <Input id="llm-model" value={modelId} placeholder={t("Model ID, as the server names it")} onChange={(event) => setModelId(event.target.value)} />
             </Field>
+          ) : choices.length === 0 ? (
+            <Field label={t("Model")}>
+              <Input id="llm-model" value={modelId} placeholder={t("Model ID, as the provider names it")} onChange={(event) => setModelId(event.target.value)} />
+            </Field>
           ) : typing ? (
             <Field label={t("Model")}>
               <div className="flex gap-2">
@@ -963,10 +984,14 @@ export function LlmPage(props: {
         {!runsLocally(providerId) && listed ? (
           <p className="m-0 text-[12.5px] leading-snug text-muted-foreground" title={listed.note}>
             {listed.source === "provider"
-              ? t("Listed by {provider} for your saved API key.", { provider: provider?.label ?? "" })
-              : needsKey
-                ? t("Saturn's built-in list. Once a model is connected with an API key, the models that key can use are listed here.")
-                : t("Saturn's built-in list. Choose Other model ID to use any model the program accepts.")}
+              ? typedKey
+                ? t("Listed by {provider} for the API key you entered.", { provider: provider?.label ?? "" })
+                : t("Listed by {provider} for your saved API key.", { provider: provider?.label ?? "" })
+              : listed.source === "program"
+                ? t("These names follow the program's newest models, so none goes out of date. Choose Other model ID to use any model the program accepts.")
+                : typedKey || savedKey
+                  ? t("{provider} did not list its models for this key. Type the model ID as {provider} names it.", { provider: provider?.label ?? "" })
+                  : t("Enter your API key below and {provider} lists the models it can use. You can also type a model ID.", { provider: provider?.label ?? "" })}
           </p>
         ) : null}
 

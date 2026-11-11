@@ -14,6 +14,11 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **Windows: shortcuts are shown with Ctrl.** The title bar, the command list, Settings and the tour showed the Mac's sign ("Commands ⌘K") for keys that are pressed with Ctrl on Windows; they now read "Ctrl+K". The access dialog no longer says what macOS may ask.
 - **Dark theme: the row under the pointer shows in dialogs and menus.** The dark theme's highlight was the same solid color as a dialog or a menu, so in Settings' list, for one, the row under the pointer looked like the others and the chosen row lost its mark while the pointer was on it. The highlight is now a light veil that shows on any surface, as the light theme's already was.
 
+### Changed
+
+- **Saturn no longer carries a list of each provider's models.** The lists built into Saturn went out of date with every model release. For Claude, OpenAI, Gemini and DeepSeek, Settings → Models now shows what the provider lists for your key: the saved one, or the one you are typing in the form, before anything is saved. A model connected from that list keeps the name and the context window its provider gives it, where Saturn used to assume 200,000 tokens for every Claude model. Without a key the model ID is typed in. Claude Code and Codex offer names that follow their newest models (`opus`, `sonnet`, `haiku`, `fable`, or the program's own default) instead of versions; models you already connected keep working as they are. A model connected by its ID alone is now named by that ID.
+- **What a Claude model accepts is asked of Anthropic, not read from its name.** Saturn decided whether to send adaptive thinking, an effort and a temperature by patterns in the model's ID, which had to be kept up with each new family. It now uses what Anthropic's list says of the model, saved on the connection when the model is connected from the list; a model connected earlier or by its ID is asked about once, the first time it is used, with one request to the address its requests already go to. A model Anthropic says nothing of, behind a proxy for one, is asked as a current model, and a setting it refuses is dropped and the request sent again, as before.
+
 ## 0.6.1 (2026-11-11)
 
 ### Security

@@ -94,6 +94,24 @@ test("the next turn of a Claude Code chat resumes its session", async () => {
   }
 });
 
+test("Claude Code is asked for a model by a name that follows its newest, and \"default\" leaves it the choice", async () => {
+  // Saturn names no version: "opus" is Claude Code's own name for its newest Opus, and "default" passes no model at all.
+  const saturn = await startWithPrograms({ env: { ELECTRON_RUN_AS_NODE: "1" } });
+  try {
+    for (const [model, expected] of [["opus", "--model=opus"], ["default", undefined]]) {
+      const agent = await coder(saturn, "claude-code", { model, autonomy: "bypass" });
+      await saturn.scenario({ steps: [{ send: { type: "system", subtype: "init", session_id: `session-${model}` } }, result("done", `session-${model}`)] });
+      const run = await runToEnd(saturn, agent.id, { input: "go" });
+      assert.equal(run.status, "completed", run.error);
+      const program = (await started(saturn)).at(-1);
+      assert.equal(program.args.find((item) => item.startsWith("--model")), expected, program.args.join(" "));
+      await saturn.forget();
+    }
+  } finally {
+    await saturn.stop();
+  }
+});
+
 test("Saturn's rules, memory, mode and an image reach Claude Code; Plan is the program's own plan mode", async () => {
   const saturn = await startWithPrograms();
   try {

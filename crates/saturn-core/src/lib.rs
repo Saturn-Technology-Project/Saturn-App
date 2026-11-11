@@ -164,6 +164,9 @@ pub struct Kernel {
     tracked_jobs: Mutex<HashMap<String, Arc<TrackedJob>>>,
     /// Chats whose memory is being extracted.
     extracting: Mutex<HashSet<String>>,
+    /// Model connections whose provider has been asked about the model since the runtime started, so that one that
+    /// could not be asked is not asked again with every call.
+    described: Mutex<HashSet<String>>,
     /// Chats whose pull request is being looked at.
     checking_pull_requests: Mutex<HashSet<String>>,
     /// The projects' research records.
@@ -202,6 +205,7 @@ impl Kernel {
             digesting: AsyncMutex::new(()),
             tracked_jobs: Mutex::default(),
             extracting: Mutex::default(),
+            described: Mutex::default(),
             checking_pull_requests: Mutex::default(),
             research: research::ResearchState::default(),
         }))
