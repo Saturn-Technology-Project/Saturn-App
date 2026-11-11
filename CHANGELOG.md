@@ -2,6 +2,12 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Fixed
+
+- **Windows: Saturn starts on a computer without the Visual C++ runtime.** The runtime and the `saturn` command needed `VCRUNTIME140.dll`, which Windows does not come with, so on a new Windows the app showed "Runtime off" and a system error for each attempt to start it. Both now carry the C runtime inside them, as the app's own program already did. Until you have this version, installing Microsoft's Visual C++ Redistributable (x64) makes 0.6.1 and earlier start.
+
 ## 0.6.1 (2026-11-11)
 
 ### Security
