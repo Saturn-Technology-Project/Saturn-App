@@ -11,8 +11,8 @@ use axum::response::{IntoResponse, Response};
 use saturn_llm::broker::{Adapter, provider_key_id};
 use saturn_llm::lmstudio::{self, alternating, openai_compatible_url};
 use saturn_llm::{
-    Broker, CallContext, ChatMessage, ChatRequest, Completion, CompletionInput, Http, KeyVault,
-    ModelConnection, Role, ToolDef,
+    Broker, CallContext, Capabilities, ChatMessage, ChatRequest, Completion, CompletionInput, Http,
+    KeyVault, ModelConnection, Role, ToolDef,
 };
 use serde_json::{Map, Value, json};
 
@@ -146,6 +146,23 @@ fn request_of(case: &Value, base_url: &str) -> ChatRequest {
         low_thinking: fields["thinking"] == "low",
         effort: fields.get("effort").map(|_| field(fields, "effort")),
         cache_key: text("cacheKey"),
+        capabilities: said_of(fields["model"].as_str().unwrap_or_default()),
+    }
+}
+
+/// What Anthropic's list of models says of the one older model the cases were recorded with: no adaptive thinking and
+/// no effort setting, and thinking with a budget, which marks a model that still takes a temperature. The cases hold
+/// only a model's name, and Saturn no longer reads anything from a name, so the test says it. Of every other model
+/// nothing is said, as for a connection made before Saturn asked.
+fn said_of(model: &str) -> Capabilities {
+    if model == "claude-haiku-4-5" {
+        Capabilities {
+            adaptive_thinking: Some(false),
+            budget_thinking: Some(true),
+            effort: Some(false),
+        }
+    } else {
+        Capabilities::default()
     }
 }
 
@@ -288,6 +305,7 @@ fn model(provider: &str, base_url: &str, id: &str) -> ModelConnection {
         model: "m".to_owned(),
         base_url: base_url.to_owned(),
         effort: None,
+        capabilities: Capabilities::default(),
     }
 }
 

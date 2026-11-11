@@ -17,8 +17,8 @@ use crate::http::{Http, LlmError};
 use crate::lmstudio;
 use crate::shared::{flatten_tool_turns, trimmed};
 use crate::{
-    ChatMessage, ChatRequest, Completion, Effort, Role, TokenUsage, ToolDef, claude, deepseek,
-    gemini, openai,
+    Capabilities, ChatMessage, ChatRequest, Completion, Effort, Role, TokenUsage, ToolDef, claude,
+    deepseek, gemini, openai,
 };
 
 /// Where keys live. The broker only needs to read and write them by id.
@@ -47,6 +47,8 @@ pub struct ModelConnection {
     pub model: String,
     pub base_url: String,
     pub effort: Option<Effort>,
+    /// What the provider said this model accepts, as saved on the connection.
+    pub capabilities: Capabilities,
 }
 
 /// Who made a call, so its tokens and cost are filed under the right agent.
@@ -342,6 +344,7 @@ impl<V: KeyVault> Broker<V> {
             low_thinking: input.low_thinking,
             effort: model.effort,
             cache_key: Some(format!("saturn:{}", input.context.agent_id)),
+            capabilities: model.capabilities,
         };
         let native = input
             .messages

@@ -11,9 +11,30 @@ let runtime;
 let claude;
 const stops = [];
 
+/**
+ * What the stand-in for Anthropic says of two models when asked about one (`GET /v1/models/:id`), in the form its Models
+ * API answers. Saturn reads what a model accepts from this and from nothing else: no rule about a model's name is in it.
+ */
+const supported = (value) => ({ supported: value });
+const DESCRIBED = {
+  "claude-opus-5-5": { max_input_tokens: 1_000_000, max_tokens: 128_000, capabilities: { effort: supported(true), thinking: { supported: true, types: { adaptive: supported(true), enabled: supported(false) } } } },
+  "claude-haiku-4-5": { max_input_tokens: 200_000, max_tokens: 64_000, capabilities: { effort: supported(false), thinking: { supported: true, types: { adaptive: supported(false), enabled: supported(true) } } } },
+};
+/** The stand-in's requests that asked about a model. */
+const describing = (id) => claude.requests.filter((item) => item.__url === `/v1/models/${id}`);
+
 before(async () => {
-  // Answers as Anthropic does, and refuses an effort from the model that cannot take one here.
-  claude = await fakeServer((body, response) => {
+  // Answers as Anthropic does: it describes the models it knows, has nothing to say of any other, and refuses an effort
+  // from the model that cannot take one here.
+  claude = await fakeServer((body, response, incoming) => {
+    if (incoming.method === "GET") {
+      const id = incoming.url.replace("/v1/models/", "");
+      const known = DESCRIBED[id];
+      response.writeHead(known ? 200 : 404, { "content-type": "application/json" }).end(JSON.stringify(known
+        ? { type: "model", id, display_name: id, ...known }
+        : { type: "error", error: { type: "not_found_error", message: `model: ${id}` } }));
+      return;
+    }
     const refused = body.model === "claude-sonnet-4-6" && body.output_config;
     response.writeHead(refused ? 400 : 200, { "content-type": "application/json" }).end(JSON.stringify(refused
       ? { type: "error", error: { type: "invalid_request_error", message: "output_config.effort: unsupported value" } }
@@ -86,23 +107,50 @@ test("Claude: background work on a new model asks for low effort instead of turn
   assert.equal(sent.temperature, undefined);
 });
 
-test("Claude: Haiku 4.5 takes no effort and no adaptive thinking, and keeps its sampling", async () => {
+test("Claude: a model that Anthropic says takes no effort and no adaptive thinking gets neither, and keeps its sampling", async () => {
+  // Connected by its ID alone, so the first call asks Anthropic what the model accepts and saves the answer.
   const setup = await onClaude("claude-haiku-4-5", "high");
   const run = await turn(runtime, setup);
   assert.equal(run.status, "completed", run.error);
   const sent = claude.requests.find((body) => body.tools?.length);
   assert.equal(sent.output_config, undefined);
-  assert.notEqual(sent.thinking?.type, "adaptive");
+  assert.equal(sent.thinking, undefined);
   assert.equal(typeof sent.temperature, "number");
+  assert.equal(claude.requests.indexOf(describing("claude-haiku-4-5")[0]) < claude.requests.indexOf(sent), true, "asked before the first request");
+  const saved = (await api(runtime, "GET", "/connections/models")).find((item) => item.id === setup.connection.id);
+  assert.deepEqual(saved.capabilities, { adaptiveThinking: false, budgetThinking: true, effort: false });
+  assert.equal(saved.contextTokens, 200_000, "and its context window, which the connection did not have");
+  // Asked once: the answer is on the connection.
+  assert.equal((await turn(runtime, setup, "again")).status, "completed");
+  assert.equal(describing("claude-haiku-4-5").length, 1);
 });
 
-test("Claude: an effort the model rejects is dropped, and the run goes on", async () => {
+test("Claude: a model connected with what the provider's list said of it is not asked about", async () => {
+  const setup = await agentOn(runtime, claude, { connection: { name: "Listed", provider: "claude", model: "claude-listed-1", secret: "made-up-claude-key", contextTokens: 500_000, capabilities: { adaptiveThinking: true, budgetThinking: false, effort: false } } });
+  claude.requests.length = 0;
+  assert.equal((await turn(runtime, setup)).status, "completed");
+  const sent = claude.requests.find((body) => body.tools?.length);
+  assert.deepEqual(sent.thinking, { type: "adaptive", display: "summarized" });
+  assert.equal(sent.output_config, undefined, "no effort, as the list said");
+  assert.equal(sent.temperature, undefined);
+  assert.equal(describing("claude-listed-1").length, 0);
+});
+
+test("Claude: a model Anthropic says nothing of is asked as a current one, and an effort it rejects is dropped", async () => {
+  // The stand-in does not know this model, as a proxy or an address without the Models API would not.
   const setup = await onClaude("claude-sonnet-4-6", "low");
   const run = await turn(runtime, setup);
   assert.equal(run.status, "completed", run.error);
   const asked = claude.requests.filter((body) => body.tools?.length);
+  assert.deepEqual(asked[0].thinking, { type: "adaptive", display: "summarized" });
   assert.deepEqual(asked[0].output_config, { effort: "low" });
+  assert.equal(asked[0].temperature, undefined, "no sampling setting where nothing says the model takes one");
   assert.equal(asked[1].output_config, undefined);
+  const saved = (await api(runtime, "GET", "/connections/models")).find((item) => item.id === setup.connection.id);
+  assert.equal(saved.capabilities, undefined, "nothing was said, so nothing is saved");
+  // Not asked again with every call while the runtime runs.
+  assert.equal((await turn(runtime, setup, "again")).status, "completed");
+  assert.equal(describing("claude-sonnet-4-6").length, 1);
 });
 
 test("after a round of tool calls, the next model call never ends on the assistant", async () => {

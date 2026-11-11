@@ -201,7 +201,7 @@ export class AdminService {
     return this.runtime.request<UsageSummary>(`/usage/summary${suffix ? `?${suffix}` : ""}`);
   }
 
-  createModel(input: { provider: string; model: string; name?: string; contextTokens?: number; baseUrl?: string; secret?: string; effort?: string }): Promise<void> {
+  createModel(input: { provider: string; model: string; name?: string; contextTokens?: number; capabilities?: Record<string, boolean>; baseUrl?: string; secret?: string; effort?: string }): Promise<void> {
     const attributes = { "gen_ai.provider.name": input.provider, "gen_ai.request.model": input.model };
     return userAction("ui.connect_model", attributes, () =>
       this.runtime.request("/connections/models", { method: "POST", body: JSON.stringify(input) }),

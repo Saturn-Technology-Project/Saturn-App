@@ -16,7 +16,7 @@ use crate::builtins::{
     with_general_skills,
 };
 use crate::records::{by_id, by_id_mut, remove, strings, text};
-use crate::{CoreError, Kernel, log};
+use crate::{CoreError, Kernel, locked, log};
 
 /// The providers the settings page offers. Only a program that runs on the person's own plan comes with names for its
 /// models; a provider reached with a key lists its own.
@@ -33,6 +33,9 @@ fn listed_choice(model: &saturn_llm::listing::ListedModel) -> Value {
     }
     if let Some(tokens) = model.output_tokens {
         choice["outputTokens"] = tokens.into();
+    }
+    if !model.capabilities.unknown() {
+        choice["capabilities"] = json!(model.capabilities);
     }
     choice
 }
@@ -241,6 +244,10 @@ pub fn connection_of(model: &Value) -> ModelConnection {
         effort: model
             .get("effort")
             .and_then(|effort| serde_json::from_value::<Effort>(effort.clone()).ok()),
+        capabilities: model
+            .get("capabilities")
+            .and_then(|said| serde_json::from_value(said.clone()).ok())
+            .unwrap_or_default(),
     }
 }
 
@@ -299,6 +306,94 @@ impl Kernel {
             &format!("Agent \"{}\" created{on}", text(&agent, "name")),
         );
         Ok(agent)
+    }
+
+    /// A model connection with what its provider says of the model: what it accepts and, when the connection has none,
+    /// its context window. A model connected from the provider's list has it already; for any other, Anthropic is asked
+    /// once, the first time the model is used, and the answer is saved on the connection, so the request code needs no
+    /// rule about a model's name. A provider that cannot be asked
+    /// (no key, no such list at a custom address, no network) leaves the connection as it is until the runtime starts
+    /// again.
+    pub(crate) async fn described(&self, model: &Value) -> Value {
+        let connection = connection_of(model);
+        if connection.provider != "claude"
+            || model.get("capabilities").is_some()
+            || !locked(&self.described).insert(connection.id.clone())
+        {
+            return model.clone();
+        }
+        let Some(key) = self
+            .broker
+            .key_for(&connection)
+            .filter(|key| !key.is_empty())
+        else {
+            return model.clone();
+        };
+        let address = if connection.base_url.is_empty() {
+            llm_provider("claude").map_or("", |provider| provider.base_url)
+        } else {
+            connection.base_url.as_str()
+        };
+        let said = match saturn_llm::listing::describe_model(
+            self.broker.http(),
+            "claude",
+            address,
+            &key,
+            &connection.model,
+        )
+        .await
+        {
+            Some(Ok(said)) => said,
+            Some(Err(error)) => {
+                log(
+                    "catalog",
+                    "info",
+                    &format!(
+                        "Claude did not say what {} accepts ({}); it is treated as a current model",
+                        connection.name,
+                        error
+                            .status
+                            .map_or("no answer".to_owned(), |status| status.to_string())
+                    ),
+                );
+                return model.clone();
+            }
+            None => return model.clone(),
+        };
+        let mut described = model.clone();
+        described["capabilities"] = json!(said.capabilities);
+        if described.get("contextTokens").is_none()
+            && let Some(tokens) = said.context_tokens
+        {
+            described["contextTokens"] = tokens.into();
+        }
+        let (capabilities, window) = (
+            described["capabilities"].clone(),
+            described.get("contextTokens").cloned(),
+        );
+        let id = connection.id.clone();
+        let saved = self
+            .store
+            .update(|state| {
+                if let Some(target) = by_id_mut(&mut state.models, &id) {
+                    target["capabilities"] = capabilities;
+                    if let Some(window) = window {
+                        target["contextTokens"] = window;
+                    }
+                }
+            })
+            .await;
+        if let Err(error) = saved {
+            log(
+                "catalog",
+                "warning",
+                &format!(
+                    "Could not save what Claude says of {}: {error}",
+                    connection.name
+                ),
+            );
+        }
+        described
     }
 
     /// Whether a model has a key to send.
@@ -388,6 +483,15 @@ impl Kernel {
             .filter(|tokens| *tokens > 0)
         {
             fields.insert("contextTokens".to_owned(), tokens.into());
+        }
+        // What the provider's list said the model accepts, passed on the same way. A connection without it is described
+        // the first time it is used.
+        if let Some(said) = input
+            .get("capabilities")
+            .and_then(|said| serde_json::from_value::<saturn_llm::Capabilities>(said.clone()).ok())
+            .filter(|said| !said.unknown())
+        {
+            fields.insert("capabilities".to_owned(), json!(said));
         }
         let model = Value::Object(fields);
         let saved = model.clone();

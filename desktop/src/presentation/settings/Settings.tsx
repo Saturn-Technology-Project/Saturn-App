@@ -809,13 +809,14 @@ export function LlmPage(props: {
 
   async function add() {
     try {
-      // A model its provider listed keeps the name and the context window the provider gave it.
+      // A model its provider listed keeps what the provider said of it: its name, its context window, what it accepts.
       const chosen = listed?.source === "provider" ? listed.models.find((item) => item.id === modelId) : undefined;
       await desktop.admin.createModel({
         provider: providerId,
         model: modelId.trim(),
         name: chosen && chosen.label !== chosen.id ? chosen.label : undefined,
         contextTokens: chosen?.contextTokens,
+        capabilities: chosen?.capabilities,
         baseUrl: runsLocally(providerId) ? baseUrl : undefined,
         secret: secret || undefined,
         effort: supportsEffort(providerId) && effort ? effort : undefined,

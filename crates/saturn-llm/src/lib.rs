@@ -152,6 +152,29 @@ pub struct ChatRequest {
     pub effort: Option<Effort>,
     /// Groups requests that share a prompt prefix (an agent's), for providers whose caching takes a key (OpenAI).
     pub cache_key: Option<String>,
+    /// What the provider says this model accepts, where it has said.
+    pub capabilities: Capabilities,
+}
+
+/// What a provider says one of its models accepts, read from its own list of models (Anthropic's has it), so that no
+/// rule about a model's name is written in Saturn. `None` is "not said": a setting is then sent as for a current model,
+/// and one the provider refuses is dropped and the request sent again.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Capabilities {
+    /// Thinking of the kind the model paces itself (`thinking: { type: "adaptive" }`).
+    pub adaptive_thinking: Option<bool>,
+    /// Thinking with a budget the caller sets, which only models from before adaptive thinking take.
+    pub budget_thinking: Option<bool>,
+    /// The effort setting.
+    pub effort: Option<bool>,
+}
+
+impl Capabilities {
+    /// True when the provider said nothing of the model.
+    pub fn unknown(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// Tokens a provider reports for one call; any may be missing.

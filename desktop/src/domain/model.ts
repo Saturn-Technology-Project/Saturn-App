@@ -328,8 +328,8 @@ export type RunMode = "agent" | "ask" | "plan";
 export type PendingTask = { id: string; agentId: string; agentName: string; input: string; toolId: string };
 
 export type LlmProvider = { id: string; label: string; needsKey: boolean; baseUrl: string; models: { id: string; label: string }[] };
-/** A model to choose, with its context window in tokens when its provider says how large it is. */
-export type LlmChoice = { id: string; label: string; contextTokens?: number };
+/** A model to choose, with its context window in tokens and what it accepts, when its provider says. */
+export type LlmChoice = { id: string; label: string; contextTokens?: number; capabilities?: Record<string, boolean> };
 /**
  * A cloud provider's models and where they are from: those it listed for a key (`provider`), the names a program that
  * runs on your own plan takes (`program`), or none, with a note saying why (`none`). Saturn keeps no list of its own.
