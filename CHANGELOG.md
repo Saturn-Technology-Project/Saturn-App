@@ -2,6 +2,12 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Fixed
+
+- **A background command that has ended has all of its output.** A command an agent started in the background could be reported as ended a moment before its last lines were read, so the agent, reading it then, saw the output cut short. Its end is now recorded once its output has been read.
+
 ## 0.6.2 (2026-11-12)
 
 ### Fixed

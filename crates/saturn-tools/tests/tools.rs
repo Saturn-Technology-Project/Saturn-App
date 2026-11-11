@@ -771,6 +771,31 @@ async fn on_macos_the_sandbox_can_keep_commands_off_the_network() {
 
 // ---- background commands ----
 
+/// Something the command left running can hold its output open for as long as it likes; the command is still said to
+/// have ended, a moment after it exited.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_background_command_ends_though_something_it_started_keeps_its_output_open() {
+    let (_folder, workspace) = workspace();
+    let table = JobTable::new();
+    let options = with_jobs(&table);
+    let started = run_code(
+        &workspace,
+        &args(json!({ "command": "sleep 30 & echo started", "background": true })),
+        &options,
+    )
+    .await
+    .expect("started");
+    let id = started["jobId"].as_str().expect("an id").to_owned();
+    tokio::time::timeout(Duration::from_secs(10), table.when_ended(&id))
+        .await
+        .expect("ended long before what it left running does");
+    let (view, output) = table.output(&id, Duration::ZERO).await.expect("read");
+    assert_eq!(view.exit_code, Some(Some(0)));
+    assert!(output.contains("started"));
+    table.stop_all(None);
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn a_background_command_can_be_read_waited_for_and_stopped() {
@@ -801,9 +826,7 @@ async fn a_background_command_can_be_read_waited_for_and_stopped() {
     assert_eq!(last["running"], false);
     assert_eq!(last["exitCode"], 0);
     assert_eq!(
-        last["output"]
-            .as_str()
-            .map(|text| text.ends_with("end\n") || text.contains("tick3")),
+        last["output"].as_str().map(|text| text.ends_with("end\n")),
         Some(true),
         "{last}"
     );
