@@ -28,7 +28,7 @@ import type { PermissionScope } from "../domain/model";
 const STEP_ROW = "h-auto max-w-full w-fit justify-start gap-[7px] px-1 py-0.5 text-left text-[12.5px] font-normal text-muted-foreground hover:text-foreground";
 
 /** The box a run's steps sit in. */
-const STEPS_BOX = "my-1 mb-2 flex flex-col gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1";
+const STEPS_BOX = "my-1 mb-2 flex min-w-0 flex-col gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1";
 
 /**
  * A run's work as a quiet Antigravity-style list: "Thought for 13s ›" rows between one-line tool
@@ -52,8 +52,9 @@ export function RunSteps(props: { run: Run; busy: boolean; nested?: boolean }) {
 
   return (
     <div className={classes(STEPS_BOX, props.nested && "mt-0.5 mb-0")}>
-      <Button variant="ghost" size="small" className="h-auto w-fit gap-1.5 px-1 py-[3px] text-[13px] font-medium text-muted-foreground select-none hover:text-foreground" onClick={() => setOverride(!open)} aria-expanded={open}>
-        <span>{busy ? currentLabel(steps) : doneLabel(steps)}</span>
+      {/* While the run works this names what it is doing, a command or a path of any length: it is cut short to fit. */}
+      <Button variant="ghost" size="small" className="h-auto w-fit max-w-full justify-start gap-1.5 px-1 py-[3px] text-[13px] font-medium text-muted-foreground select-none hover:text-foreground" onClick={() => setOverride(!open)} aria-expanded={open}>
+        <span className="min-w-0 truncate">{busy ? currentLabel(steps) : doneLabel(steps)}</span>
         <Chevron down={open} />
       </Button>
       {open ? (

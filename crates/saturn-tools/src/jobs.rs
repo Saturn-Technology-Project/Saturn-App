@@ -12,6 +12,7 @@ use serde::Serialize;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Child;
 use tokio::sync::watch;
+use tokio::task::JoinHandle;
 
 use crate::process;
 use crate::shell::Invocation;
@@ -24,6 +25,10 @@ pub const MAX_JOBS: usize = 8;
 const KEEP_FINISHED_MILLIS: i64 = 60 * 60 * 1000;
 /// The longest one read waits for more.
 const LONGEST_WAIT: Duration = Duration::from_secs(30);
+/// How long a command that has exited is given for the rest of its output to be read before it is said to have ended.
+/// Its output is read by tasks of their own, so without this an exit could be reported a moment before its last lines.
+/// Output normally ends with the command; the limit is for one that left something else holding its output open.
+const LAST_OUTPUT: Duration = Duration::from_secs(2);
 
 /// What is known about a background command.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -172,13 +177,14 @@ impl JobTable {
         });
         match spawned {
             Ok(mut child) => {
+                let mut reading = Vec::new();
                 if let Some(stdout) = child.stdout.take() {
-                    tokio::spawn(read_into(Arc::clone(&job), stdout));
+                    reading.push(tokio::spawn(read_into(Arc::clone(&job), stdout)));
                 }
                 if let Some(stderr) = child.stderr.take() {
-                    tokio::spawn(read_into(Arc::clone(&job), stderr));
+                    reading.push(tokio::spawn(read_into(Arc::clone(&job), stderr)));
                 }
-                tokio::spawn(wait_for_end(Arc::clone(&job), child));
+                tokio::spawn(wait_for_end(Arc::clone(&job), child, reading));
             }
             Err(error) => {
                 job.take(format!("{error}\n").as_bytes());
@@ -291,8 +297,17 @@ async fn read_into(job: Arc<Job>, mut stream: impl AsyncRead + Unpin) {
     }
 }
 
-async fn wait_for_end(job: Arc<Job>, mut child: Child) {
-    match child.wait().await {
+/// Records a command's end once it has exited and what it wrote has been read: `reading` are the tasks reading its
+/// output, which finish when the output does.
+async fn wait_for_end(job: Arc<Job>, mut child: Child, reading: Vec<JoinHandle<()>>) {
+    let exited = child.wait().await;
+    let read = async {
+        for task in reading {
+            let _ = task.await;
+        }
+    };
+    let _ = tokio::time::timeout(LAST_OUTPUT, read).await;
+    match exited {
         Ok(status) => job.end(status.code(), signal_of(status)),
         Err(error) => {
             job.take(format!("{error}\n").as_bytes());
@@ -323,4 +338,57 @@ fn signal_of(status: std::process::ExitStatus) -> Option<String> {
 #[cfg(not(unix))]
 fn signal_of(_status: std::process::ExitStatus) -> Option<String> {
     None
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use tokio::io::AsyncWriteExt;
+
+    use super::*;
+
+    /// A command exits and its last output is still on its way to the task reading it. The end used to be recorded at
+    /// the exit, so a reader could find the command ended and its last lines missing, as a release's tests once did;
+    /// it is recorded after the output now.
+    #[tokio::test]
+    async fn a_commands_end_is_recorded_after_the_output_still_on_its_way() {
+        let job = Arc::new(Job {
+            recorded: Mutex::new(Recorded {
+                view: JobView {
+                    id: "job_test".to_owned(),
+                    scope: "test".to_owned(),
+                    command: "true".to_owned(),
+                    pid: None,
+                    started_at: iso_time(now_millis()),
+                    ended_at: None,
+                    exit_code: None,
+                    signal: None,
+                    running: true,
+                    bytes: 0,
+                },
+                ended_millis: 0,
+                chunks: VecDeque::new(),
+                kept: 0,
+            }),
+            changes: watch::Sender::new(0),
+        });
+        // The output arrives a moment after the command has exited, then ends.
+        let (mut late, output) = tokio::io::duplex(64);
+        let reading = vec![tokio::spawn(read_into(Arc::clone(&job), output))];
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            let _ = late.write_all(b"last\n").await;
+        });
+        let child = tokio::process::Command::new("true")
+            .spawn()
+            .expect("the command starts");
+        wait_for_end(Arc::clone(&job), child, reading).await;
+        let recorded = locked(&job.recorded);
+        assert!(!recorded.view.running);
+        assert_eq!(recorded.view.exit_code, Some(Some(0)));
+        let read: Vec<u8> = recorded.chunks.iter().flatten().copied().collect();
+        assert_eq!(
+            read, b"last\n",
+            "what it wrote is there when it is said to have ended"
+        );
+    }
 }
