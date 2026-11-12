@@ -24,6 +24,11 @@ url = "2"
 # Signals a process group without unsafe code.
 rustix = { version = "1", default-features = false, features = ["fs", "process", "std"] }
 
+[target.'cfg(windows)'.dependencies]
+# Windows has no process groups: a command's processes are found by who started whom, which the system is asked
+# through this crate, without unsafe code of Saturn's own.
+sysinfo = { version = "0.40", default-features = false, features = ["system"] }
+
 [dev-dependencies]
 axum = "0.8"
 flate2 = "1"

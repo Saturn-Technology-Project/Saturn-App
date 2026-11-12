@@ -141,16 +141,117 @@ pub fn group_of(pid: u32) -> Option<u32> {
         .and_then(|group| u32::try_from(group.as_raw_nonzero().get()).ok())
 }
 
-/// Process groups are not tracked this way on Windows.
+/// Windows has no process groups: a command's processes are named by the process Saturn started.
 #[cfg(windows)]
-pub fn group_of(_pid: u32) -> Option<u32> {
-    None
+pub fn group_of(pid: u32) -> Option<u32> {
+    process_tree(pid).first().map(|_| pid)
 }
 
-/// Process groups are not tracked this way on Windows.
+/// Whether the process Saturn started, or anything started under it, is still there.
 #[cfg(windows)]
-pub fn group_alive(_pid: u32) -> bool {
-    false
+pub fn group_alive(pid: u32) -> bool {
+    !process_tree(pid).is_empty()
+}
+
+/// One process as the system lists it.
+#[cfg(windows)]
+struct Listed {
+    parent: Option<u32>,
+    /// When it started, in seconds since 1970.
+    started: u64,
+    /// The processor time it has used, in milliseconds.
+    processor_millis: u64,
+    /// Its memory in use, in bytes.
+    memory: u64,
+}
+
+/// Every process on this computer, by its id.
+#[cfg(windows)]
+fn listed_processes() -> std::collections::HashMap<u32, Listed> {
+    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
+    let Ok(mut system) = System::new() else {
+        return std::collections::HashMap::new();
+    };
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing().with_memory().with_cpu(),
+    );
+    system
+        .processes()
+        .iter()
+        .map(|(pid, process)| {
+            (
+                pid.as_u32(),
+                Listed {
+                    parent: process.parent().map(sysinfo::Pid::as_u32),
+                    started: process.start_time(),
+                    processor_millis: process.accumulated_cpu_time(),
+                    memory: process.memory(),
+                },
+            )
+        })
+        .collect()
+}
+
+/// The ids of the living processes of a command: the process `root` and everything started under it, outermost first.
+/// A process counts as started under another only if it started no earlier, since Windows gives the id of a process
+/// that ended to a new one, and a process keeps naming its parent after the parent is gone.
+#[cfg(windows)]
+fn tree_in(all: &std::collections::HashMap<u32, Listed>, root: u32) -> Vec<u32> {
+    let mut found: Vec<u32> = all
+        .contains_key(&root)
+        .then_some(root)
+        .into_iter()
+        .collect();
+    let mut parents = vec![(root, all.get(&root).map_or(0, |process| process.started))];
+    while let Some((parent, parent_started)) = parents.pop() {
+        for (pid, process) in all {
+            if process.parent == Some(parent)
+                && process.started >= parent_started
+                && *pid != root
+                && !found.contains(pid)
+            {
+                found.push(*pid);
+                parents.push((*pid, process.started));
+            }
+        }
+    }
+    found
+}
+
+/// `tree_in` over the processes there are now.
+#[cfg(windows)]
+fn process_tree(root: u32) -> Vec<u32> {
+    tree_in(&listed_processes(), root)
+}
+
+/// When the system says a process started, as text, or nothing if it is gone. With its id this tells a run's process
+/// from a later one that was given the same id.
+#[cfg(windows)]
+pub fn process_started(pid: u32) -> Option<String> {
+    listed_processes()
+        .get(&pid)
+        .map(|process| process.started.to_string())
+}
+
+/// What a command's processes have used: processor time so far in milliseconds, memory in bytes, and how many they
+/// are. `None` when they are gone.
+#[cfg(windows)]
+pub fn tree_usage(root: u32) -> Option<(u64, u64, u64)> {
+    let all = listed_processes();
+    let tree = tree_in(&all, root);
+    if tree.is_empty() {
+        return None;
+    }
+    let of = |read: fn(&Listed) -> u64| -> u64 {
+        tree.iter().filter_map(|pid| all.get(pid)).map(read).sum()
+    };
+    Some((
+        of(|process| process.processor_millis),
+        of(|process| process.memory),
+        tree.len() as u64,
+    ))
 }
 
 /// Asks the group to end. Sends nothing when the group is gone. A paused group is let go on as well, since a stopped
@@ -190,19 +291,34 @@ fn signal_group(pid: u32, signal: rustix::process::Signal) -> bool {
         .is_some_and(|group| rustix::process::kill_process_group(group, signal).is_ok())
 }
 
-/// `taskkill /T` ends the shell and everything it started.
+/// Ends the process Saturn started and everything started under it, innermost first, so that nothing is left to start
+/// more. Windows has no request to end that a program without a window hears, so this is at once and by force; the
+/// processes are gone when it returns.
 #[cfg(windows)]
 pub fn terminate(pid: u32) {
-    use std::process::Command as Plain;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    use std::os::windows::process::CommandExt;
-    let _ = Plain::new("taskkill")
-        .args(["/pid", &pid.to_string(), "/T", "/F"])
-        .creation_flags(CREATE_NO_WINDOW)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn();
+    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+    // Twice: a process may start another between the listing and its own end.
+    for _ in 0..2 {
+        let tree = process_tree(pid);
+        if tree.is_empty() {
+            return;
+        }
+        let ids: Vec<Pid> = tree.iter().rev().map(|id| Pid::from_u32(*id)).collect();
+        let Ok(mut system) = System::new() else {
+            return;
+        };
+        system.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&ids),
+            true,
+            ProcessRefreshKind::nothing(),
+        );
+        for id in &ids {
+            if let Some(process) = system.process(*id) {
+                process.kill();
+                process.wait();
+            }
+        }
+    }
 }
 
 /// `terminate` already ended it by force.
@@ -348,5 +464,47 @@ pub async fn run_captured(
             timed_out: true,
             ..Captured::default()
         },
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    fn listed(parent: Option<u32>, started: u64) -> Listed {
+        Listed {
+            parent,
+            started,
+            processor_millis: 0,
+            memory: 0,
+        }
+    }
+
+    /// A command's processes are the one Saturn started and what was started under it, and not a process that was
+    /// given the id of one that ended, nor one that only names a dead parent whose id was given away.
+    #[test]
+    fn a_commands_processes_are_found_by_who_started_whom() {
+        let all: HashMap<u32, Listed> = [
+            (100, listed(Some(1), 50)),
+            (101, listed(Some(100), 60)),
+            (102, listed(Some(101), 70)),
+            // Older than the process it names as its parent: that id was reused.
+            (200, listed(Some(100), 10)),
+            (300, listed(Some(1), 55)),
+        ]
+        .into();
+        let mut tree = tree_in(&all, 100);
+        tree.sort_unstable();
+        assert_eq!(tree, [100, 101, 102]);
+        // The first process has ended; what it started is still found.
+        let mut left = tree_in(
+            &[(101, listed(Some(100), 60)), (102, listed(Some(101), 70))].into(),
+            100,
+        );
+        left.sort_unstable();
+        assert_eq!(left, [101, 102]);
+        assert!(tree_in(&all, 999).is_empty());
     }
 }
