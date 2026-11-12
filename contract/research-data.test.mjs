@@ -2,7 +2,7 @@
 // A file's text is only counted and shown. docs/research-contract.md is the contract.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { chmod, mkdir, symlink, utimes, writeFile } from "node:fs/promises";
+import { chmod, mkdir, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { promisify } from "node:util";
@@ -51,7 +51,7 @@ async function ran(setup, data, split) {
   return { experiment, version, run: ended };
 }
 
-test("the list names every data input of an experiment or a version, with what froze it and who read it", posixOnly, async () => {
+test("the list names every data input of an experiment or a version, with what froze it and who read it", async () => {
   const setup = await project({ "probe.mjs": SAMPLE_PROGRAM, "data/train.jsonl": lines([{ a: 1 }]), "data/test.jsonl": lines([{ a: 2 }]), "other/set.csv": "a\n1\n", "draft.csv": "a\n" });
   const { experiment, version, run: first } = await ran(setup, ["data/train.jsonl", "data/test.jsonl"], undefined);
   await saturn.api("POST", `${setup.route}/experiments`, { title: "Not frozen", inputs: { data: ["draft.csv"] } });
@@ -97,12 +97,12 @@ test("the list names every data input of an experiment or a version, with what f
   assert.deepEqual(draft.runs, []);
 });
 
-test("the list says when a file changed since the newest version froze it, or is gone", posixOnly, async () => {
+test("the list says when a file changed since the newest version froze it, or is gone", async () => {
   const setup = await project({ "probe.mjs": SAMPLE_PROGRAM, "same-size.jsonl": "{\"a\":1}\n", "longer.jsonl": "{\"a\":1}\n", "gone.jsonl": "{\"a\":1}\n", "kept.jsonl": "{\"a\":1}\n" });
   await ran(setup, ["same-size.jsonl", "longer.jsonl", "gone.jsonl", "kept.jsonl"]);
   await writeFile(path.join(setup.folder, "same-size.jsonl"), "{\"a\":2}\n");
   await writeFile(path.join(setup.folder, "longer.jsonl"), "{\"a\":1}\n{\"a\":2}\n");
-  await run("rm", [path.join(setup.folder, "gone.jsonl")]);
+  await rm(path.join(setup.folder, "gone.jsonl"));
   const { items } = await saturn.api("GET", `${setup.route}/data`);
   const state = Object.fromEntries(items.map((item) => [item.path, [item.exists, item.changed]]));
   assert.deepEqual(state, { "gone.jsonl": [false, true], "kept.jsonl": [true, false], "longer.jsonl": [true, true], "same-size.jsonl": [true, true] });
@@ -164,7 +164,7 @@ test("kinds of file Saturn does not read say so, and a .json that is not an arra
   assert.equal((await preview(route, { path: "data" })).status, 415, "a folder of files is not a table");
 });
 
-test("a large file stays within its limits", posixOnly, async () => {
+test("a large file stays within its limits", async () => {
   const setup = await project();
   const { folder, route } = setup;
   // 60 MiB of rows that are all different, and two lines longer than a row may be.
@@ -191,7 +191,10 @@ test("a large file stays within its limits", posixOnly, async () => {
   assert.equal(typeof widePage.next, "number");
 
   const { pid } = saturn.runtime.child;
-  const resident = async () => Number((await run("ps", ["-o", "rss=", "-p", String(pid)])).stdout.trim()) * 1024;
+  // The memory the runtime holds: `ps` says it in KiB, and Windows' task list as "12,345 K" in its last column.
+  const resident = async () => process.platform === "win32"
+    ? Number((await run("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"])).stdout.trim().split('","').at(-1).replace(/\D/g, "")) * 1024
+    : Number((await run("ps", ["-o", "rss=", "-p", String(pid)])).stdout.trim()) * 1024;
   const before = await resident();
   let highest = before;
   let reading = true;
@@ -308,7 +311,7 @@ test("an overlap counts identical rows on each side, whole or by chosen columns,
   assert.equal((await overlap(route, { left: "train.jsonl" })).status, 400);
 });
 
-test("a path that climbs out or goes through a symbolic link is refused, on every read and in the list", posixOnly, async () => {
+test("a path that climbs out or goes through a symbolic link is refused, on every read and in the list", async () => {
   const setup = await project({ "probe.mjs": SAMPLE_PROGRAM, "data/real.jsonl": lines([{ a: 1 }]) });
   const { folder, route } = setup;
   const outside = await saturn.folder();
@@ -423,7 +426,7 @@ test("Parquet, Arrow and dataset folders are read by a helper in the project's P
   assert.deepEqual(items.map((item) => [item.path, item.kind, item.format]), [["set", "dataset", "dataset"]]);
 });
 
-test("a frozen dataset folder is one entry, and any change in it counts", posixOnly, async () => {
+test("a frozen dataset folder is one entry, and any change in it counts", async () => {
   const setup = await project({ "probe.mjs": SAMPLE_PROGRAM, "set/test/dataset_dict.json": "{}", "set/test/train.lines": lines([{ a: 1 }]) });
   await ran(setup, ["set/test"]);
   let [item] = (await saturn.api("GET", `${setup.route}/data`)).items;
@@ -462,7 +465,7 @@ test("a helper that fails says how, and a project with no Python is told to name
   assert.equal((await profile(route, { path: "train.parquet" })).body.remembered, undefined, "a failure is not remembered");
 });
 
-test("the assistant can list, profile and compare data through research_read, in a Manual chat too", posixOnly, async () => {
+test("the assistant can list, profile and compare data through research_read, in a Manual chat too", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "train.jsonl"), lines([{ q: "a" }, { q: "b" }]));
   await writeFile(path.join(folder, "test.jsonl"), lines([{ q: "b" }, { q: "c" }]));

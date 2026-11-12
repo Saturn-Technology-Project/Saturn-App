@@ -691,7 +691,7 @@ test("stopping the delegating run stops its sub-agents, and the parent's stream 
     answer: (body) => {
       const input = body.messages.find((item) => item.role === "user")?.content ?? "";
       if (toolRounds(body.messages) > 0) return "done";
-      if (String(input).startsWith("CHILD")) return [call("code", { command: `touch ${JSON.stringify(marker)}; sleep 20`, timeout: 25_000 })];
+      if (String(input).startsWith("CHILD")) return [call("code", { command: process.platform === "win32" ? `type nul > ${JSON.stringify(marker)} & ping -n 21 127.0.0.1 > nul` : `touch ${JSON.stringify(marker)}; sleep 20`, timeout: 25_000 })];
       return [call("delegate", { task: "CHILD wait", tools: "all" })];
     },
   });
@@ -748,7 +748,9 @@ test("in the default mode a sensitive command waits for the user, and an answere
   const sandbox = path.join(site, "scratch");
   await mkdir(sandbox, { recursive: true });
   const project = await api(runtime, "POST", "/projects", { path: site, grant: true });
-  const model = await fakeModel({ steps: [[call("code", { command: "rm -rf scratch" })], "skipped", [call("code", { command: "rm -rf scratch" })], "finished"] });
+  // Deleting a folder and all in it, as each system's shell says it: both count as sensitive.
+  const remove = process.platform === "win32" ? "rmdir /s /q scratch" : "rm -rf scratch";
+  const model = await fakeModel({ steps: [[call("code", { command: remove })], "skipped", [call("code", { command: remove })], "finished"] });
   const agent = await agentOn(model, { name: "Cleaner", autonomy: "default" });
   const thread = await api(runtime, "POST", `/agents/${agent.id}/threads`, { title: "Cleaning", projectId: project.id });
 

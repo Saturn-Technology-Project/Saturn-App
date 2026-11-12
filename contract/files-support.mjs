@@ -3,14 +3,23 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { startRuntime } from "./runtime.mjs";
 
+/** A git configuration with nothing in it. Git for Windows cannot open the null device, so there it is an empty file. */
+const NO_CONFIG = process.platform === "win32" ? emptyFile() : os.devNull;
 /** Git settings that keep the developer's own out of a test, for the runtime and the test's own git calls. */
-export const GIT_ALONE = { GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_SYSTEM: os.devNull };
+export const GIT_ALONE = { GIT_CONFIG_GLOBAL: NO_CONFIG, GIT_CONFIG_SYSTEM: NO_CONFIG };
+
+function emptyFile() {
+  const file = path.join(mkdtempSync(path.join(os.tmpdir(), "saturn-contract-git-")), "empty.gitconfig");
+  writeFileSync(file, "");
+  return file;
+}
 
 export const posixOnly = { skip: process.platform === "win32" && "the scripted commands are POSIX shell" };
 
@@ -148,7 +157,7 @@ export async function bench({ env = {}, dataDir, keepData, cwd } = {}) {
   const stop = async () => {
     await Promise.all(models.map((model) => model.stop()));
     await runtime.stop();
-    await Promise.all(folders.map((item) => rm(item, { recursive: true, force: true })));
+    await Promise.all(folders.map((item) => rm(item, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })));
   };
 
   return { runtime, call, api, folder, finished, chat, stop };

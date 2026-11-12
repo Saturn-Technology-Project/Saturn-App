@@ -6,15 +6,18 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, until } from "./files-support.mjs";
+import { bench, until } from "./files-support.mjs";
+import { placeProgram } from "./programs.mjs";
+
+/** A program that is surely there and is not the Python the project starts with. */
+const OTHER_PROGRAM = process.platform === "win32" ? process.env.ComSpec : "/bin/sh";
 
 let saturn, tools, token;
 before(async () => {
   tools = await mkdtemp(path.join(os.tmpdir(), "saturn-lsp-tools-"));
   const fixture = fileURLToPath(new URL("./fixtures/language-server.mjs", import.meta.url));
   for (const name of ["basedpyright-langserver", "pyright-langserver", "typescript-language-server", "rust-analyzer"]) {
-    await writeFile(path.join(tools, name), `#!${process.execPath}\nawait import(${JSON.stringify(pathToFileURL(fixture).href)});\n`);
-    await chmod(path.join(tools, name), 0o755);
+    await placeProgram(path.join(tools, name), `#!${process.execPath}\nimport(${JSON.stringify(pathToFileURL(fixture).href)});\n`);
   }
   saturn = await bench({ env: { PATH: `${tools}${path.delimiter}${process.env.PATH}` } });
   token = (await readFile(path.join(saturn.runtime.dataDir, "runtime-token"), "utf8")).trim();
@@ -65,7 +68,7 @@ async function client(base, language = "python") {
   return { session, route, messages, send, request, close: async () => { controller.abort(); await reading; await saturn.call("DELETE", route); } };
 }
 
-test("real stdio framing carries initialization, project Python settings, changes and semantic requests", posixOnly, async () => {
+test("real stdio framing carries initialization, project Python settings, changes and semantic requests", async () => {
   const { folder, base } = await project(); const c = await client(base);
   try {
     assert.equal(c.session.server, "basedpyright");
@@ -94,7 +97,7 @@ test("real stdio framing carries initialization, project Python settings, change
   } finally { await c.close(); }
 });
 
-test("messages cannot escape the project, invoke commands, apply edits, or name another project's session", posixOnly, async () => {
+test("messages cannot escape the project, invoke commands, apply edits, or name another project's session", async () => {
   const a = await project(), b = await project(); const c = await client(a.base);
   try {
     assert.equal((await saturn.call("GET", `${c.route}/events?after=18446744073709551615`)).status, 400);
@@ -112,7 +115,7 @@ test("messages cannot escape the project, invoke commands, apply edits, or name 
   } finally { await c.close(); }
 });
 
-test("stop reaps the entire process group and access revocation ends an existing stream", posixOnly, async () => {
+test("stop reaps the entire process group and access revocation ends an existing stream", async () => {
   const p = await project("child"), c = await client(p.base);
   try {
     await c.request("initialize", { capabilities: {} });
@@ -124,7 +127,7 @@ test("stop reaps the entire process group and access revocation ends an existing
   } finally { await c.close(); }
 });
 
-test("a malformed server frame closes its connection, and Rust and TypeScript use separate processes", posixOnly, async () => {
+test("a malformed server frame closes its connection, and Rust and TypeScript use separate processes", async () => {
   const p = await project("malformed"), broken = await client(p.base);
   try {
     await broken.send({ id: 1, method: "initialize", params: { capabilities: {} } });
@@ -139,16 +142,22 @@ test("a malformed server frame closes its connection, and Rust and TypeScript us
   assert.equal((await saturn.call("POST", `${healthy.base}/lsp/start`, { language: "shell" })).status, 400);
 });
 
-test("TypeScript 7's project compiler runs its own LSP without a legacy tsserver", posixOnly, async () => {
+test("TypeScript 7's project compiler runs its own LSP without a legacy tsserver", async () => {
   const p = await project();
   const packageRoot = path.join(p.folder, "node_modules", "typescript");
   await mkdir(path.join(packageRoot, "bin"), { recursive: true });
   await mkdir(path.join(p.folder, "node_modules", ".bin"));
   await writeFile(path.join(packageRoot, "package.json"), JSON.stringify({ name: "typescript", version: "7.0.2" }));
-  const executable = path.join(packageRoot, "bin", "tsc");
-  await writeFile(executable, `#!${process.execPath}\nawait import(${JSON.stringify(new URL("./fixtures/language-server.mjs", import.meta.url).href)});\n`);
-  await chmod(executable, 0o755);
-  await symlink("../typescript/bin/tsc", path.join(p.folder, "node_modules", ".bin", "tsc"));
+  const script = `#!${process.execPath}\nimport(${JSON.stringify(new URL("./fixtures/language-server.mjs", import.meta.url).href)});\n`;
+  if (process.platform === "win32") {
+    // npm puts a program Windows can start in .bin, not a link into the package.
+    await placeProgram(path.join(p.folder, "node_modules", ".bin", "tsc"), script);
+  } else {
+    const executable = path.join(packageRoot, "bin", "tsc");
+    await writeFile(executable, script);
+    await chmod(executable, 0o755);
+    await symlink("../typescript/bin/tsc", path.join(p.folder, "node_modules", ".bin", "tsc"));
+  }
   const c = await client(p.base, "typescript");
   try {
     assert.equal(c.session.server, "typescript-native");
@@ -156,16 +165,16 @@ test("TypeScript 7's project compiler runs its own LSP without a legacy tsserver
   } finally { await c.close(); }
 });
 
-test("changing Python or the project folder stops its old language-server session", posixOnly, async () => {
+test("changing Python or the project folder stops its old language-server session", async () => {
   const p = await project(), c = await client(p.base);
   try {
     await c.request("initialize", { capabilities: {} });
-    await saturn.api("PUT", `${p.base}/environment`, { python: "/bin/sh" });
+    await saturn.api("PUT", `${p.base}/environment`, { python: OTHER_PROGRAM });
     await until("Python change closes server", () => Promise.resolve(c.messages.some(event => event.closed)));
   } finally { await c.close(); }
   const next = await client(p.base);
   try {
-    assert.equal(next.session.python, "/bin/sh");
+    assert.equal(next.session.python, OTHER_PROGRAM);
     await next.request("initialize", { capabilities: {} });
     const folder = await saturn.folder();
     await saturn.api("PATCH", `/projects/${p.id}`, { folders: [folder] });
@@ -173,7 +182,7 @@ test("changing Python or the project folder stops its old language-server sessio
   } finally { await next.close(); }
 });
 
-test("an absent selected interpreter cannot silently fall back to another Python", posixOnly, async () => {
+test("an absent selected interpreter cannot silently fall back to another Python", async () => {
   const p = await project();
   await saturn.api("PUT", `${p.base}/environment`, { python: "/no-such-python/bin/python" });
   const answer = await saturn.call("POST", `${p.base}/lsp/start`, { language: "python" });
@@ -181,7 +190,7 @@ test("an absent selected interpreter cannot silently fall back to another Python
   assert.match(answer.body.error, /selected Python/);
 });
 
-test("a definition in an installed package opens read-only, and nothing else outside the project does", posixOnly, async (context) => {
+test("a definition in an installed package opens read-only, and nothing else outside the project does", async (context) => {
   const found = spawnSync("python3", ["-c", "import json, os, sys; print(json.dumps({'python': os.path.realpath(sys.executable), 'file': json.__file__}))"], { encoding: "utf8" });
   if (found.status !== 0) { context.skip("needs python3"); return; }
   const { python, file } = JSON.parse(found.stdout);

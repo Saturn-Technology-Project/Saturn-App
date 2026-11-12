@@ -1,18 +1,24 @@
 // Notebook kernels: the runtime holds one helper per open notebook, passes on what it says, limits what it keeps, and
 // leaves no process behind. A stand-in "python" plays the helper; docs/research-contract.md is the contract.
 import assert from "node:assert/strict";
-import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, until } from "./files-support.mjs";
+import { bench, until } from "./files-support.mjs";
+import { placeProgram } from "./programs.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
 after(async () => { await saturn?.stop(); });
 
-const python = `#!/bin/sh
-printf '%s' "$3" | head -n 1 > helper-first-line
-exec node "$(dirname "$0")/helper.mjs" "$4"
+/** The stand-in Python: notes the first line of the helper it is handed, then becomes the helper beside it. */
+const python = `#!${process.execPath}
+const fs = require("node:fs");
+const path = require("node:path");
+const [, own, , , code, folder] = process.argv;
+fs.writeFileSync("helper-first-line", code.split("\\n")[0] + "\\n");
+process.argv.splice(2, Infinity, folder);
+import(require("node:url").pathToFileURL(path.join(path.dirname(own), "helper.mjs")).href);
 `;
 
 /** Plays the helper's side of the protocol. What a cell does is what its code says; `mode` changes how it starts. */
@@ -73,8 +79,7 @@ async function project(mode = "") {
   await saturn.api("POST", `/projects/${made.id}/access`, {});
   await mkdir(path.join(folder, "notes"));
   await writeFile(path.join(folder, "notes/a.ipynb"), JSON.stringify({ cells: [], metadata: {}, nbformat: 4, nbformat_minor: 5 }));
-  await writeFile(path.join(folder, "python"), python);
-  await chmod(path.join(folder, "python"), 0o755);
+  await placeProgram(path.join(folder, "python"), python);
   await writeFile(path.join(folder, "helper.mjs"), helper);
   if (mode) await writeFile(path.join(folder, "mode"), mode);
   const route = `/projects/${made.id}/research`;
@@ -137,7 +142,7 @@ async function follow(place, kernel, from = 0) {
   };
 }
 
-test("a cell runs in the notebook's kernel, its output streams, and the notebook's folder is where it runs", posixOnly, async () => {
+test("a cell runs in the notebook's kernel, its output streams, and the notebook's folder is where it runs", async () => {
   const place = await project();
   const before = await status(place);
   assert.equal(before.state, "none");
@@ -163,7 +168,7 @@ test("a cell runs in the notebook's kernel, its output streams, and the notebook
   await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
 });
 
-test("the helper gets no SATURN_ variable from the runtime", posixOnly, async () => {
+test("the helper gets no SATURN_ variable from the runtime", async () => {
   const place = await project();
   await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   const pid = await helperPid(place);
@@ -179,7 +184,7 @@ test("the helper gets no SATURN_ variable from the runtime", posixOnly, async ()
   await gone(pid);
 });
 
-test("cells run in order, and an interrupt stops the running one with the error it raises", posixOnly, async () => {
+test("cells run in order, and an interrupt stops the running one with the error it raises", async () => {
   const place = await project();
   const view = await run(place, ["first", "hang"], ["second", "later"]);
   assert.deepEqual(view.queued.toSorted(), ["first", "second"]);
@@ -200,7 +205,7 @@ test("cells run in order, and an interrupt stops the running one with the error 
   await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
 });
 
-test("a restart keeps the helper, lets the running cell go, and a kernel it does not have cannot be restarted", posixOnly, async () => {
+test("a restart keeps the helper, lets the running cell go, and a kernel it does not have cannot be restarted", async () => {
   const place = await project();
   assert.equal((await saturn.call("POST", `${place.notebook}/restart`, { path: NOTEBOOK })).status, 409);
   assert.equal((await saturn.call("POST", `${place.notebook}/interrupt`, { path: NOTEBOOK })).status, 409);
@@ -216,7 +221,7 @@ test("a restart keeps the helper, lets the running cell go, and a kernel it does
   await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
 });
 
-test("without the packages the runtime says which, points at the kit, and running again checks again", posixOnly, async () => {
+test("without the packages the runtime says which, points at the kit, and running again checks again", async () => {
   const place = await project("missing");
   const view = await run(place, ["one", "x"]);
   const missing = await until("the helper to answer", () => status(place), (item) => item.state === "missing");
@@ -241,7 +246,7 @@ test("without the packages the runtime says which, points at the kit, and runnin
   assert.equal(opened.kind, "file");
 });
 
-test("a Python that is not there, or none at all, is refused with what to do", posixOnly, async () => {
+test("a Python that is not there, or none at all, is refused with what to do", async () => {
   const place = await project();
   await saturn.api("PUT", `${place.route}/environment`, { python: "./no-such-python" });
   const absent = await saturn.call("POST", `${place.notebook}/start`, { path: NOTEBOOK });
@@ -253,7 +258,7 @@ test("a Python that is not there, or none at all, is refused with what to do", p
   assert.match(none.body.error, /No Python is set/);
 });
 
-test("a helper that fails or crashes says why, and nothing stays waiting", posixOnly, async () => {
+test("a helper that fails or crashes says why, and nothing stays waiting", async () => {
   const failing = await project("failing");
   const first = await run(failing, ["one", "x"]);
   const failed = await until("it to fail", () => status(failing), (item) => item.state === "failed" && item.message.includes("a traceback"));
@@ -268,7 +273,7 @@ test("a helper that fails or crashes says why, and nothing stays waiting", posix
   assert.equal(stopped.running, null);
 });
 
-test("a helper that dies with a cell running lets the cell go", posixOnly, async () => {
+test("a helper that dies with a cell running lets the cell go", async () => {
   const place = await project();
   const view = await run(place, ["one", "die"]);
   const events = await follow(place, view.kernel);
@@ -278,7 +283,7 @@ test("a helper that dies with a cell running lets the cell go", posixOnly, async
   assert.equal(events.seen.at(-1).type, "ended");
 });
 
-test("output has a limit, its text keeps its start, and a note says what happened", posixOnly, async () => {
+test("output has a limit, its text keeps its start, and a note says what happened", async () => {
   const place = await project();
   const view = await run(place, ["flood", "flood"], ["image", "image"], ["huge", "huge"], ["after", "noise"], ["small", "still here"]);
   const events = await follow(place, view.kernel);
@@ -309,7 +314,7 @@ test("output has a limit, its text keeps its start, and a note says what happene
   await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
 });
 
-test("a client that comes back hears what it missed, once", posixOnly, async () => {
+test("a client that comes back hears what it missed, once", async () => {
   const place = await project();
   const view = await run(place, ["one", "text"]);
   const first = await follow(place, view.kernel);
@@ -326,7 +331,7 @@ test("a client that comes back hears what it missed, once", posixOnly, async () 
   assert.equal(reconnect.status, 404);
 });
 
-test("a path out of the project, into its records, or not a notebook is refused", posixOnly, async () => {
+test("a path out of the project, into its records, or not a notebook is refused", async () => {
   const place = await project();
   await writeFile(path.join(place.folder, "note.txt"), "text");
   const refused = async (requested, code) => {
@@ -350,7 +355,7 @@ test("a path out of the project, into its records, or not a notebook is refused"
   assert.equal(empty.status, 400);
 });
 
-test("stopping ends the helper, and one that ignores being asked and signalled is ended by force", posixOnly, async () => {
+test("stopping ends the helper, and one that ignores being asked and signalled is ended by force", async () => {
   const place = await project();
   await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   const pid = await helperPid(place);
@@ -367,7 +372,7 @@ test("stopping ends the helper, and one that ignores being asked and signalled i
   assert.equal(alive(held), false);
 });
 
-test("a kernel goes when its project is removed, and when Saturn loses access to the project", posixOnly, async () => {
+test("a kernel goes when its project is removed, and when Saturn loses access to the project", async () => {
   const place = await project();
   await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   const pid = await helperPid(place);
@@ -381,7 +386,7 @@ test("a kernel goes when its project is removed, and when Saturn loses access to
   assert.equal(alive(held), false);
 });
 
-test("a kernel goes when the runtime stops, and when it dies without a word", posixOnly, async () => {
+test("a kernel goes when the runtime stops, and when it dies without a word", async () => {
   for (const signal of ["SIGTERM", "SIGKILL"]) {
     const own = saturn;
     saturn = await bench();
@@ -399,7 +404,7 @@ test("a kernel goes when the runtime stops, and when it dies without a word", po
   }
 });
 
-test("a notebook opens up to 8 MB, and another file only up to 2 MB", posixOnly, async () => {
+test("a notebook opens up to 8 MB, and another file only up to 2 MB", async () => {
   const place = await project();
   const large = JSON.stringify({ cells: [], metadata: { pad: "x".repeat(3 * 1024 * 1024) }, nbformat: 4, nbformat_minor: 5 });
   await writeFile(path.join(place.folder, "large.ipynb"), large);

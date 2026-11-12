@@ -156,7 +156,9 @@ async function runsOf(setup) {
 
 test("after a turn changes files the project's check runs; a failure goes back to the agent at most twice, and a pass ends it", async () => {
   const setup = await agentOn(runtime, await writingModel(), { folder: await gitProject() });
-  await api(runtime, "PATCH", `/projects/${setup.project.id}`, { verifyCommand: "echo 'src/new.ts: type error' && exit 1" });
+  // The check is a line for the system's shell: cmd on Windows, which prints quotes as they are and has no `true`.
+  const failing = process.platform === "win32" ? "echo src/new.ts: type error& exit 1" : "echo 'src/new.ts: type error' && exit 1";
+  await api(runtime, "PATCH", `/projects/${setup.project.id}`, { verifyCommand: failing });
   const first = await turn(runtime, setup, "add a file");
   assert.equal(first.status, "completed", first.error);
 
@@ -164,11 +166,12 @@ test("after a turn changes files the project's check runs; a failure goes back t
   assert.deepEqual(rounds.map((run) => [Boolean(run.automatic), run.verification.ok]), [[false, false], [true, false], [true, false]]);
   assert.equal(rounds[0].verification.code, 1);
   assert.match(rounds[0].verification.output, /src\/new.ts: type error/);
-  assert.match(rounds[1].input, /`echo 'src\/new.ts: type error' && exit 1` failed \(exit 1\)[\s\S]*src\/new.ts: type error[\s\S]*Fix these, then check again\./);
+  assert.ok(rounds[1].input.includes(`\`${failing}\` failed (exit 1)`), rounds[1].input);
+  assert.match(rounds[1].input, /failed \(exit 1\)[\s\S]*src\/new.ts: type error[\s\S]*Fix these, then check again\./);
   await new Promise((resolve) => setTimeout(resolve, 200));
   assert.equal((await runsOf(setup)).length, 3, "it stops after two rounds");
 
-  await api(runtime, "PATCH", `/projects/${setup.project.id}`, { verifyCommand: "true" });
+  await api(runtime, "PATCH", `/projects/${setup.project.id}`, { verifyCommand: process.platform === "win32" ? "exit 0" : "true" });
   const passing = await turn(runtime, setup, "add another file");
   const checked = await until("the check", () => api(runtime, "GET", `/runs/${passing.id}`), (run) => run.verification);
   assert.equal(checked.verification.ok, true);
@@ -203,7 +206,7 @@ test("the check is off without a command, a turn that changes nothing skips it, 
   assert.equal((await api(runtime, "GET", `/runs/${unchanged.id}`)).verification, undefined);
 });
 
-test("the project's check runs as a command does: in the sandbox, with PATH alone, and what it prints goes back marked as output", async (t) => {
+test("the project's check runs as a command does: in the sandbox, with PATH alone, and what it prints goes back marked as output", { skip: process.platform === "win32" && "Windows has no command sandbox, and the check here is a POSIX shell line" }, async (t) => {
   const folder = await gitProject();
   const setup = await agentOn(runtime, await writingModel(), { folder });
   const token = path.join(runtime.dataDir, "runtime-token");

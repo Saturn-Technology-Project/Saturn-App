@@ -109,7 +109,7 @@ test("the editor reads one changed file before or after the turn, and nothing el
   assert.equal((await saturn.call("GET", "/runs/run_none/changes")).status, 404);
 });
 
-test("a binary file is marked, shown without text, and restored exactly", posixOnly, async () => {
+test("a binary file is marked, shown without text, and restored exactly", async () => {
   const folder = await saturn.folder();
   const original = Buffer.from([0x00, 0xff, 0x10, 0x00, 0x80, 0x0a]);
   await writeFile(path.join(folder, "image.bin"), original);
@@ -339,7 +339,7 @@ test("restoring to a step reverts later turns whole, whatever they changed", asy
   assert.ok((await changes(second)).files.every((file) => file.review === "reverted"));
 });
 
-test("reverting does not follow a link a command put in the file's place", posixOnly, async () => {
+test("reverting does not follow a link a command put in the file's place", async () => {
   const folder = await saturn.folder();
   const elsewhere = await saturn.folder();
   const victim = path.join(elsewhere, "victim.txt");
@@ -358,7 +358,7 @@ test("reverting does not follow a link a command put in the file's place", posix
   }
 });
 
-test("reverting does not follow a link in the place of the file's folder, and a created file's link target stays", posixOnly, async () => {
+test("reverting does not follow a link in the place of the file's folder, and a created file's link target stays", async () => {
   const folder = await saturn.folder();
   const elsewhere = await saturn.folder();
   await writeFile(path.join(elsewhere, "made.txt"), "the user's own file");

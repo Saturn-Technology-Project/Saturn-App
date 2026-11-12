@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { createServer, request } from "node:http";
 import { test } from "node:test";
 import { startWithPrograms } from "./programs.mjs";
+import { opensPages } from "./runtime.mjs";
 
 /** An MCP server that wants a bearer token, and the authorization server that gives one for the code "the-code". */
 async function signedServer() {
@@ -42,7 +43,7 @@ async function signedServer() {
   return { base, forms, close: () => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }) };
 }
 
-test("a browser sign-in finishes at the callback, without the token, only for a sign-in Saturn started, and once", async () => {
+test("a browser sign-in finishes at the callback, without the token, only for a sign-in Saturn started, and once", opensPages, async () => {
   const saturn = await startWithPrograms({ install: [] });
   const remote = await signedServer();
   try {

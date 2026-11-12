@@ -332,11 +332,16 @@ test("the terminal panel runs a command in the folder and follows cd", async () 
   await api("POST", `/projects/${project.id}/active`);
   assert.equal((await api("GET", "/workspace/info")).cwd, folder);
   await mkdir(path.join(folder, "sub"), { recursive: true });
-  const moved = await api("POST", "/workspace/terminal", { command: "cd sub; echo hello" });
+  // The panel runs the system's shell: cmd on Windows, where commands are joined with "&".
+  const moved = await api("POST", "/workspace/terminal", { command: process.platform === "win32" ? "cd sub & echo hello" : "cd sub; echo hello" });
   assert.equal(moved.stdout.trim(), "hello");
   assert.equal(moved.exitCode, 0);
   assert.equal(moved.cwd, path.join(folder, "sub"));
   assert.equal((await api("POST", "/workspace/terminal", { command: "exit 3" })).exitCode, 3);
+  // A command that fails gives its own code, and the panel still learns where it ended.
+  const failed = await api("POST", "/workspace/terminal", { command: process.platform === "win32" ? "cd sub & dir no-such-file" : "cd sub; ls no-such-file" });
+  assert.notEqual(failed.exitCode, 0);
+  assert.equal(failed.cwd, path.join(folder, "sub"));
 });
 
 test("the token a launcher gives the runtime reaches no command the terminal panel runs", posixOnly, async () => {

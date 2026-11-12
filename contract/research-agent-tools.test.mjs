@@ -58,7 +58,7 @@ for (const x of [1, 2, 3, 4]) {
 }
 `;
 
-test("a whole study: a question to a finding, training and evaluation, through the tools alone", posixOnly, async () => {
+test("a whole study: a question to a finding, training and evaluation, through the tools alone", async () => {
   const setup = await bed();
   const listed = await call(setup, "research_skill", {});
   assert.ok(listed.skills.length >= 40);
@@ -111,7 +111,7 @@ test("a whole study: a question to a finding, training and evaluation, through t
   assert.deepEqual((await saturn.api("GET", `${setup.route}/events`)).items, [], "nothing it did through the tools reads as unexplained");
 });
 
-test("freezing and running a task use the task's own worktree, and its records are the project's", posixOnly, async () => {
+test("freezing and running a task use the task's own worktree, and its records are the project's", async () => {
   const folder = await saturn.folder();
   const { execFileSync } = await import("node:child_process");
   execFileSync("git", ["init", "-q"], { cwd: folder });
@@ -136,7 +136,7 @@ test("freezing and running a task use the task's own worktree, and its records a
   await readFile(path.join(folder, ".saturn/research/runs", run.id, "run.json"));
 });
 
-test("a start repeated in one turn starts once, and a new attempt runs the version again", posixOnly, async () => {
+test("a start repeated in one turn starts once, and a new attempt runs the version again", async () => {
   const setup = await bed({ "probe.mjs": `import { appendFileSync } from "node:fs"; appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "a", error: null }) + "\\n");` });
   const experiment = await call(setup, "research_write", { collection: "experiments", fields: { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } } });
   const { version } = await call(setup, "research_run", { action: "freeze", experiment: experiment.id });
@@ -184,7 +184,7 @@ test("the assistant pauses a run, waits and is told it is paused, continues it, 
   assert.match(await refused(setup, "research_run", { action: "resume", run: resumed.id }), /this one is completed/);
 });
 
-test("the assistant sets verdicts, conclusions and labels, each recorded as its own, and the person can change them", posixOnly, async () => {
+test("the assistant sets verdicts, conclusions and labels, each recorded as its own, and the person can change them", async () => {
   const program = `import { appendFileSync } from "node:fs"; appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "s1", modelId: "m", input: "in", output: "out", scores: { ok: 1 }, error: null }) + "\\n");`;
   const setup = await bed({ "probe.mjs": program });
   const hypothesis = await call(setup, "research_write", { collection: "hypotheses", fields: { title: "H", verdict: "supported" } });
@@ -256,7 +256,7 @@ test("a Pair chat waits before a change through the tools, and not before a read
   assert.equal((await saturn.api("GET", `${setup.route}/questions`)).items.length, 1);
 });
 
-test("a stopped turn does not keep waiting on a run", posixOnly, async () => {
+test("a stopped turn does not keep waiting on a run", async () => {
   const setup = await bed({ "slow.mjs": `setTimeout(() => {}, 60000);` });
   const experiment = await call(setup, "research_write", { collection: "experiments", fields: { title: "E", command: "node slow.mjs", inputs: { code: ["slow.mjs"] } } });
   const { version } = await call(setup, "research_run", { action: "freeze", experiment: experiment.id });
@@ -335,7 +335,7 @@ async function untilReported(setup, task) {
   }, (runs) => runs.some((run) => run.fromTasks?.includes(task) && !["running", "starting", "queued", "waiting_approval"].includes(run.status)));
 }
 
-test("an assistant starts a task, which works apart, and follows it to its answer", posixOnly, async () => {
+test("an assistant starts a task, which works apart, and follows it to its answer", async () => {
   const setup = await gitBed();
   const begun = await call(setup, "research_task_start", { prompt: "Clean up the data\nand say what you did" });
   assert.match(begun.branch, /saturn\//);
@@ -357,7 +357,7 @@ test("an assistant starts a task, which works apart, and follows it to its answe
   assert.equal((await readFile(path.join(setup.folder, "readme.md"), "utf8")), "start\n");
 });
 
-test("a finished task tells the chat that started it, which hears of it in a turn of its own", posixOnly, async () => {
+test("a finished task tells the chat that started it, which hears of it in a turn of its own", async () => {
   const setup = await gitBed();
   const begun = await call(setup, "research_task_start", { prompt: "Count the rows" });
   const told = await until("the chat to hear from its task", () => saturn.api("GET", `/agents/${setup.agent.id}/threads`), (threads) => {
@@ -386,7 +386,7 @@ test("a finished task tells the chat that started it, which hears of it in a tur
   assert.doesNotMatch(next.input, /task reports/);
 });
 
-test("a task starts in the mode of the chat that started it, and never asks less than that", posixOnly, async () => {
+test("a task starts in the mode of the chat that started it, and never asks less than that", async () => {
   const auto = await gitBed();
   await saturn.api("PATCH", `/threads/${auto.thread.id}`, { chatMode: "delegate_auto" });
   const fromAuto = await call(auto, "research_task_start", { prompt: "One" });
@@ -394,7 +394,7 @@ test("a task starts in the mode of the chat that started it, and never asks less
   assert.equal(threads.find((item) => item.id === fromAuto.task).chatMode, "delegate_auto");
 });
 
-test("a Manual chat cannot start a task, and a Pair chat waits for the person first", posixOnly, async () => {
+test("a Manual chat cannot start a task, and a Pair chat waits for the person first", async () => {
   const manual = await gitBed();
   await saturn.api("PATCH", `/threads/${manual.thread.id}`, { chatMode: "manual" });
   const refused = await manual.turn([["research_task_start", { prompt: "No" }]]);
@@ -413,7 +413,7 @@ test("a Manual chat cannot start a task, and a Pair chat waits for the person fi
   assert.equal((await saturn.api("GET", `/agents/${pair.agent.id}/threads`)).length, 1);
 });
 
-test("a task cannot start a task, and one that cannot begin leaves nothing behind", posixOnly, async () => {
+test("a task cannot start a task, and one that cannot begin leaves nothing behind", async () => {
   const setup = await gitBed();
   const inner = await setup.newThread("Task: already one");
   const run = await setup.turn([["research_task_start", { prompt: "Deeper" }]], "go", inner.id);
@@ -439,7 +439,7 @@ test("a chat that moves from Manual to Delegate goes on in the same chat, and no
   assert.deepEqual(threads.map((item) => item.id), [setup.thread.id]);
 });
 
-test("the assistant can look at prompts of its own, under the same rules", posixOnly, async () => {
+test("the assistant can look at prompts of its own, under the same rules", async () => {
   const setup = await bed();
   assert.match(await refused(setup, "research_inspect", { action: "prompts", runId: "run_0000000000000000", modelId: "m", clean: "a", corrupted: "a", expected: " x", alternative: " y" }), /same/);
   assert.match(await refused(setup, "research_inspect", { action: "compare", runId: "run_0000000000000000", modelId: "m", otherModelId: "m", input: "a" }), /different models/);
@@ -527,7 +527,7 @@ test("the tools reach Codex the same, with pausing, resuming and pairing among t
   }
 });
 
-test("the assistant can delete an imported experiment, but one frozen here is the person's", posixOnly, async () => {
+test("the assistant can delete an imported experiment, but one frozen here is the person's", async () => {
   const setup = await bed({ "old.jsonl": '{"id":"a","prompt":"in","answer":"out","accuracy":1}\n', "probe.mjs": "" });
   const made = await saturn.api("POST", `${setup.route}/imports`, { path: "old.jsonl", columns: { sampleId: "id", input: "prompt", output: "answer" }, scoreColumns: ["accuracy"] });
   const deleted = await call(setup, "research_write", { collection: "experiments", id: made.version.experimentId, expectedRevision: 1, delete: true });
@@ -542,7 +542,7 @@ test("the assistant can delete an imported experiment, but one frozen here is th
   assert.equal((await saturn.api("GET", `${setup.route}/experiments/${own.id}`)).id, own.id);
 });
 
-test("the assistant deletes a task only once it has ended and its worktree is merged or discarded", posixOnly, async () => {
+test("the assistant deletes a task only once it has ended and its worktree is merged or discarded", async () => {
   const setup = await gitBed();
   const begun = await call(setup, "research_task_start", { prompt: "Count the rows" });
   await untilReported(setup, begun.task);

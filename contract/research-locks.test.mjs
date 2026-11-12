@@ -152,7 +152,7 @@ test("a Pair chat waits for the user even with approvals off, and an accepted ch
   assert.equal(await text(folder, `.saturn/research/objects/${sha("changed\n")}`), "changed\n");
 });
 
-test("a chat's mode decides how much it asks, over the agent's own setting", posixOnly, async () => {
+test("a chat's mode decides how much it asks, over the agent's own setting", async () => {
   const folder = await saturn.folder();
   const asks = await saturn.chat(folder, { autonomy: "bypass" });
   await saturn.api("PATCH", `/threads/${asks.thread.id}`, { chatMode: "delegate" });
@@ -183,7 +183,7 @@ test("auto still cannot write a locked file", async () => {
   assert.equal(await text(folder, "probe.py"), "mine\n");
 });
 
-test("a Pair chat asks before a command too, and not before a read", posixOnly, async () => {
+test("a Pair chat asks before a command too, and not before a read", async () => {
   const { folder, chatMode, agent, thread, model } = await bed();
   await chatMode("pair");
   model.queue.push(["files", { action: "read", path: "pair.py" }]);
@@ -210,7 +210,7 @@ test("a shell command is not stopped, and its change is recorded without naming 
   assert.equal(event.actor, undefined);
 });
 
-test("a shell writing a record is recorded too", posixOnly, async () => {
+test("a shell writing a record is recorded too", async () => {
   const { route, lock, events, turn } = await bed();
   await lock("probe.py");
   const hypothesis = await saturn.api("POST", `${route}/hypotheses`, { title: "H" });
@@ -220,7 +220,7 @@ test("a shell writing a record is recorded too", posixOnly, async () => {
   assert.deepEqual(event.paths, [file]);
 });
 
-test("a background command's later change is caught at the next tool call", posixOnly, async () => {
+test("a background command's later change is caught at the next tool call", async () => {
   const { lock, events, turn } = await bed();
   await lock("probe.py");
   const run = await turn([command("sleep 0.2; printf 'late\\n' > probe.py", { background: true }), command("sleep 0.5"), command("true")]);
@@ -229,7 +229,7 @@ test("a background command's later change is caught at the next tool call", posi
   assert.deepEqual(found.flatMap((event) => event.paths), ["probe.py"]);
 });
 
-test("the user's own edit during a turn is never recorded as a refusal", posixOnly, async () => {
+test("the user's own edit during a turn is never recorded as a refusal", async () => {
   const { folder, lock, events, turn } = await bed();
   await lock("probe.py");
   const editing = writeFile(path.join(folder, "probe.py"), "by me\n");
@@ -238,7 +238,7 @@ test("the user's own edit during a turn is never recorded as a refusal", posixOn
   for (const event of await events()) assert.equal(event.kind === "refused", false);
 });
 
-test("Claude Code in a Pair chat: a locked file is refused, changes and commands ask, and what a command did is compared", posixOnly, async () => {
+test("Claude Code in a Pair chat: a locked file is refused, changes and commands ask, and what a command did is compared", async () => {
   const programs = await startWithPrograms();
   try {
     const home = await realpath(programs.folder);
@@ -282,7 +282,7 @@ test("Claude Code in a Pair chat: a locked file is refused, changes and commands
   }
 });
 
-test("Codex: nothing can refuse its file writes, so they are compared after its turn", posixOnly, async () => {
+test("Codex: nothing can refuse its file writes, so they are compared after its turn", async () => {
   const programs = await startWithPrograms();
   try {
     const home = await realpath(programs.folder);
@@ -309,7 +309,7 @@ test("Codex: nothing can refuse its file writes, so they are compared after its 
     await programs.stop();
   }
 });
-test("Codex in a Pair chat only reads, because it cannot ask before it writes", posixOnly, async () => {
+test("Codex in a Pair chat only reads, because it cannot ask before it writes", async () => {
   const programs = await startWithPrograms();
   try {
     const folder = path.join(await realpath(programs.folder), "project");

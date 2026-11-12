@@ -53,7 +53,7 @@ test("rename handles binary files, refuses folders and keeps both files when a t
   assert.equal(await readFile(path.join(folder, winner === "a" ? "b" : "a"), "utf8"), winner === "a" ? "b" : "a");
 });
 
-test("renaming stays inside the granted project and never moves a link, records or git metadata", posixOnly, async () => {
+test("renaming stays inside the granted project and never moves a link, records or git metadata", async () => {
   const { route, folder } = await project({ "a.py": "a", "b.py": "b", ".git/config": "git" });
   await symlink(path.join(folder, "a.py"), path.join(folder, "link.py"));
   await symlink(path.join(folder, ".git"), path.join(folder, "git-link"));
@@ -143,7 +143,7 @@ test("saving keeps a file's permissions", posixOnly, async () => {
   assert.equal((await stat(path.join(folder, "run.sh"))).mode & 0o777, 0o755);
 });
 
-test("the editor cannot reach outside the project, or write the records", posixOnly, async () => {
+test("the editor cannot reach outside the project, or write the records", async () => {
   const { route, folder } = await project({ "probe.py": "a" });
   const elsewhere = await saturn.folder();
   await writeFile(path.join(elsewhere, "secret.txt"), "secret");
@@ -183,7 +183,7 @@ async function runWith(lines, code = 0) {
 
 const sampleLine = (id) => `${JSON.stringify({ schemaVersion: 1, sampleId: id, input: "i", output: "瑪麗", scores: { s: 1 } })}\n`;
 
-test("samples come a page at a time, from a cursor, to the end", posixOnly, async () => {
+test("samples come a page at a time, from a cursor, to the end", async () => {
   const { route, run } = await runWith(Array.from({ length: 5 }, (_, index) => sampleLine(`s${index}`)));
   const page = (cursor, limit) => saturn.api("GET", `${route}/runs/${run.id}/samples?cursor=${cursor}&limit=${limit}`);
   const first = await page(0, 2);
@@ -196,14 +196,14 @@ test("samples come a page at a time, from a cursor, to the end", posixOnly, asyn
   assert.equal(third.next, null);
 });
 
-test("a position that is not the start of a sample is refused", posixOnly, async () => {
+test("a position that is not the start of a sample is refused", async () => {
   const { route, run } = await runWith([sampleLine("a"), sampleLine("b")]);
   assert.equal((await saturn.call("GET", `${route}/runs/${run.id}/samples?cursor=3`)).status, 400);
   assert.equal((await saturn.call("GET", `${route}/runs/${run.id}/samples?cursor=999999`)).status, 400);
   assert.equal((await saturn.call("GET", `${route}/runs/run_nothere/samples`)).status, 404);
 });
 
-test("a bad line is shown as a problem with its raw text, in its place", posixOnly, async () => {
+test("a bad line is shown as a problem with its raw text, in its place", async () => {
   const { route, run } = await runWith([sampleLine("a"), "not json\n", sampleLine("b")]);
   const { items } = await saturn.api("GET", `${route}/runs/${run.id}/samples`);
   assert.equal(items.length, 3);
@@ -211,7 +211,7 @@ test("a bad line is shown as a problem with its raw text, in its place", posixOn
   assert.match(items[1].problem, /not JSON/);
 });
 
-test("what is written after a run was sealed does not count", posixOnly, async () => {
+test("what is written after a run was sealed does not count", async () => {
   const { route, run, folder } = await runWith([sampleLine("a")]);
   const file = path.join(folder, ".saturn/research/runs", run.id, "samples.jsonl");
   await writeFile(file, await readFile(file, "utf8") + sampleLine("late"));
@@ -219,7 +219,7 @@ test("what is written after a run was sealed does not count", posixOnly, async (
   assert.deepEqual(items.map((item) => item.sample.sampleId), ["a"]);
 });
 
-test("a run's logs can be read", posixOnly, async () => {
+test("a run's logs can be read", async () => {
   const { route, run } = await runWith([sampleLine("a")]);
   assert.equal((await saturn.api("GET", `${route}/runs/${run.id}/log?stream=stdout`)).text.trim(), "hello from the run");
   assert.equal((await saturn.api("GET", `${route}/runs/${run.id}/log?stream=stderr`)).text.trim(), "a warning");

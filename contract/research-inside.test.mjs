@@ -8,6 +8,7 @@ import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, posixOnly, sha, until } from "./files-support.mjs";
+import { placeProgram } from "./programs.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -19,21 +20,22 @@ const evaluation = { dataset: "ioi", split: "all", sampleSet: "all", scorer: "na
  * A "python" that, run as an experiment, writes two samples, and run with the helper on its standard input, answers
  * with the request it was given and the helper's first line, and logs the request to a file.
  */
-const PYTHON = `#!/bin/sh
-if [ "$1" = "-" ]; then
-  helper=$(head -n 1)
-  printf '%s\\n' "$2" > asked.json
-  node -e '
-    const request = JSON.parse(process.argv[1]);
+const PYTHON = `#!${process.execPath}
+const fs = require("node:fs");
+if (process.argv[2] === "-") {
+  const helper = fs.readFileSync(0, "utf8").split("\\n")[0];
+  const asked = process.argv[3];
+  fs.writeFileSync("asked.json", asked + "\\n");
+    const request = JSON.parse(asked);
     if (request.input === "boom") { console.error("a traceback"); process.exit(3); }
     if (request.action === "compare") {
       const layers = [{ layer: 0, values: [1, 2] }];
-      process.stdout.write(JSON.stringify({ modelId: request.modelId, otherModelId: request.otherModelId, measure: "stand-in", tokens: ["a", "b"], layers, otherLayers: layers, top: "x", otherTop: "y", first: process.argv[2] }));
+      process.stdout.write(JSON.stringify({ modelId: request.modelId, otherModelId: request.otherModelId, measure: "stand-in", tokens: ["a", "b"], layers, otherLayers: layers, top: "x", otherTop: "y", first: helper }));
       process.exit(0);
     }
     if (request.action === "prompts") {
       if (request.clean === "boom") { console.error("different lengths"); process.exit(1); }
-      process.stdout.write(JSON.stringify({ modelId: request.modelId, tokens: ["a", "b"], corruptedTokens: ["a", "c"], expected: request.expected, alternative: request.alternative, cleanMargin: 2, corruptedMargin: -1, cleanTop: "x", corruptedTop: "y", layers: [0], recovery: [[0, 0.8]], control: [[0, 0.1]], first: process.argv[2] }));
+      process.stdout.write(JSON.stringify({ modelId: request.modelId, tokens: ["a", "b"], corruptedTokens: ["a", "c"], expected: request.expected, alternative: request.alternative, cleanMargin: 2, corruptedMargin: -1, cleanTop: "x", corruptedTop: "y", layers: [0], recovery: [[0, 0.8]], control: [[0, 0.1]], first: helper }));
       process.exit(0);
     }
     if (request.action === "features") {
@@ -46,7 +48,7 @@ if [ "$1" = "-" ]; then
         expected: request.expected ?? null, alternative: request.alternative ?? null,
         margins: request.expected ? { plain: 2, spliced: 1.5, spliceChange: -0.5 } : null,
         ablation: request.ablate === null || request.ablate === undefined ? null : { feature: request.ablate, activation: 5, margin: 0.5, change: -1, control: { feature: 4, activation: 4, margin: 1.4, change: -0.1 }, controlSeed: 0 },
-        first: process.argv[2] }));
+        first: helper }));
       process.exit(0);
     }
     if (request.sweep) {
@@ -58,14 +60,15 @@ if [ "$1" = "-" ]; then
     }
     const layers = [0, 1].map((layer) => ({ layer, values: request.input.split(" ").map((_, index) => layer + index / 10) }));
     const answer = { sampleId: request.sampleId, modelId: request.modelId, measure: "stand-in", tokens: request.input.split(" "), layers, top: "x",
-      patched: request.patch ? { layer: request.patch.layer, sourceModelId: request.patch.modelId, layers, top: "y" } : null, helper: process.argv[2] };
+      patched: request.patch ? { layer: request.patch.layer, sourceModelId: request.patch.modelId, layers, top: "y" } : null, helper: helper };
     if (request.save) { require("node:fs").mkdirSync(require("node:path").dirname(request.save), { recursive: true }); require("node:fs").writeFileSync(request.save, "NPZ"); }
     process.stdout.write(JSON.stringify(answer));
-  ' "$2" "$helper"
-else
-  node "$@"
-fi
+} else {
+  process.exit(require("node:child_process").spawnSync(process.execPath, process.argv.slice(2), { stdio: "inherit" }).status ?? 1);
+}
 `;
+/** How a command names a program in its own folder. */
+const HERE = process.platform === "win32" ? ".\\" : "./";
 const PROBE = `
 import { appendFileSync } from "node:fs";
 const line = (sampleId, modelId, input, expected) => JSON.stringify({ schemaVersion: 1, sampleId, modelId, input, expected, alternative: expected ? " John" : undefined, output: "o", scores: { s: 1 } }) + "\\n";
@@ -73,11 +76,11 @@ appendFileSync(process.env.SATURN_RUN_SAMPLES, line("a", process.argv[2], "When 
 appendFileSync(process.env.SATURN_RUN_SAMPLES, line("b", process.argv[3], "boom", null));
 `;
 
-test("Inspect can start from model and Python snapshots without any experiment or completed run", posixOnly, async () => {
+test("Inspect can start from model and Python snapshots without any experiment or completed run", async () => {
   const folder = await saturn.folder();
   const made = await saturn.api("POST", "/projects", { path: folder, grant: true });
   const route = `/projects/${made.id}/research`;
-  await writeFile(path.join(folder, "python"), PYTHON); await chmod(path.join(folder, "python"), 0o755);
+  await placeProgram(path.join(folder, "python"), PYTHON);
   await saturn.api("PUT", `${route}/environment`, { python: path.join(folder, "python") });
   const base = await saturn.api("POST", `${route}/models`, { source: "org/base", weightsRevision: "step1" });
   const other = await saturn.api("POST", `${route}/models`, { source: "org/other", weightsRevision: "step2" });
@@ -103,14 +106,13 @@ async function project() {
   const made = await saturn.api("POST", "/projects", { path: folder });
   await saturn.api("POST", `/projects/${made.id}/access`, {});
   const route = `/projects/${made.id}/research`;
-  await writeFile(path.join(folder, "python"), PYTHON);
-  await chmod(path.join(folder, "python"), 0o755);
+  await placeProgram(path.join(folder, "python"), PYTHON);
   await writeFile(path.join(folder, "probe.mjs"), PROBE);
   const base = await saturn.api("POST", `${route}/models`, { source: "org/base", weightsRevision: "step1" });
   const tuned = await saturn.api("POST", `${route}/models`, { source: "org/tuned", weightsRevision: "v1", parentId: base.id });
   const experiment = await saturn.api("POST", `${route}/experiments`, {
     title: "E",
-    command: `./python probe.mjs ${base.id} ${tuned.id}`,
+    command: `${HERE}python probe.mjs ${base.id} ${tuned.id}`,
     evaluation,
     models: [{ modelId: base.id, role: "base" }, { modelId: tuned.id, role: "policy" }],
   });
@@ -121,7 +123,7 @@ async function project() {
   return { folder, route, run, base, tuned };
 }
 
-test("activations are read by the experiment's own python, saved with the run, and given again without running", posixOnly, async () => {
+test("activations are read by the experiment's own python, saved with the run, and given again without running", async () => {
   const { folder, route, run, base } = await project();
   const first = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
   assert.equal(first.modelId, base.id);
@@ -141,7 +143,7 @@ test("activations are read by the experiment's own python, saved with the run, a
   assert.equal((await saturn.call("GET", `${route}/runs/${run.id}/activations?sample=zzz`)).status, 404);
 });
 
-test("a changed helper computes a new reading and leaves an earlier helper's result intact", posixOnly, async () => {
+test("a changed helper computes a new reading and leaves an earlier helper's result intact", async () => {
   const { folder, route, run, base } = await project();
   const directory = path.join(folder, ".saturn/research/runs", run.id, "inside");
   await mkdir(directory, { recursive: true });
@@ -160,7 +162,7 @@ test("a changed helper computes a new reading and leaves an earlier helper's res
   assert.deepEqual(listed.items.map((item) => [Boolean(item.legacy), item.current]).sort(), [[false, true], [true, false]], "the earlier result is listed, and said not to be current");
 });
 
-test("an intervention patches a layer from one bound model into another, and the helper's failure is reported", posixOnly, async () => {
+test("an intervention patches a layer from one bound model into another, and the helper's failure is reported", async () => {
   const { route, run, base, tuned } = await project();
   const patched = await saturn.api("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: tuned.id, targetModelId: base.id, layer: 1 });
   assert.equal(patched.patched.layer, 1);
@@ -175,7 +177,7 @@ test("an intervention patches a layer from one bound model into another, and the
   assert.equal(missing.status, 400);
 });
 
-test("prompts of the person's own are looked at with a run's python and weights, and saved with it", posixOnly, async () => {
+test("prompts of the person's own are looked at with a run's python and weights, and saved with it", async () => {
   const { folder, route, run, base, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   const asked = { action: "prompts", modelId: tuned.id, clean: "John gave to", corrupted: "Mary gave to", expected: " Mary", alternative: " John" };
@@ -202,7 +204,7 @@ test("prompts of the person's own are looked at with a run's python and weights,
   assert.ok((await saturn.api("GET", `${route}/runs/${run.id}/inside`)).items.every((item) => item.current === true));
 });
 
-test("a look at prompts that cannot mean anything is refused, and a helper's refusal is passed on", posixOnly, async () => {
+test("a look at prompts that cannot mean anything is refused, and a helper's refusal is passed on", async () => {
   const { route, run, base, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   const good = { action: "prompts", modelId: tuned.id, clean: "a", corrupted: "b", expected: " x", alternative: " y" };
@@ -231,7 +233,7 @@ async function featuresHelper() {
   return `${functions}\n${await readFile(new URL("inside_features.py", folder), "utf8")}`;
 }
 
-test("features are read through an SAE with a run's python and weights, saved with it, and listed", posixOnly, async () => {
+test("features are read through an SAE with a run's python and weights, saved with it, and listed", async () => {
   const { folder, route, run, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   const asked = { action: "features", modelId: tuned.id, prompt: "When Mary", layer: 1, saeRelease: "some-release", saeId: "blocks.1.hook_resid_post", expected: " Mary", alternative: " John", ablate: 3 };
@@ -265,7 +267,7 @@ test("features are read through an SAE with a run's python and weights, saved wi
   assert.ok(listed.items.every((item) => item.current === true), "each is judged by the helper that makes its own kind");
 });
 
-test("a request for features that cannot mean anything is refused, and a helper's reason is passed on and not saved", posixOnly, async () => {
+test("a request for features that cannot mean anything is refused, and a helper's reason is passed on and not saved", async () => {
   const { folder, route, run, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   const good = { action: "features", modelId: tuned.id, prompt: "a", layer: 1, saeRelease: "r", saeId: "i" };
@@ -300,7 +302,7 @@ test("a request for features that cannot mean anything is refused, and a helper'
   assert.equal(saved, false, "neither is kept, so asking again after installing runs");
 });
 
-test("an SAE in a local folder is asked about afresh when its files change", posixOnly, async () => {
+test("an SAE in a local folder is asked about afresh when its files change", async () => {
   const { folder, route, run, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   const asked = { action: "features", modelId: tuned.id, prompt: "a", layer: 1, saePath: "saes/one" };
@@ -347,7 +349,7 @@ test("the real helper says when sae_lens is missing or an SAE reads another laye
   }
 });
 
-test("a sweep patches every layer on several samples in one helper process, and is saved with the run", posixOnly, async () => {
+test("a sweep patches every layer on several samples in one helper process, and is saved with the run", async () => {
   const { folder, route, run, base, tuned } = await project();
   const swept = await saturn.api("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["a"], sourceModelId: tuned.id, targetModelId: base.id, layers: [0, 1, 2] });
   assert.deepEqual(swept.layers, [0, 1, 2]);
@@ -372,7 +374,7 @@ test("a sweep patches every layer on several samples in one helper process, and 
   assert.equal((await saturn.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["zzz"], sourceModelId: tuned.id, targetModelId: base.id })).status, 404);
 });
 
-test("a command that does not start with a python is refused with what to do", posixOnly, async () => {
+test("a command that does not start with a python is refused with what to do", async () => {
   const folder = await saturn.folder();
   const made = await saturn.api("POST", "/projects", { path: folder });
   await saturn.api("POST", `/projects/${made.id}/access`, {});
@@ -387,14 +389,14 @@ test("a command that does not start with a python is refused with what to do", p
   assert.match(refused.body.error, /Python/);
 });
 
-test("the raw residual stream can be kept as an .npz in the project, outside the records, and hashed", posixOnly, async () => {
+test("the raw residual stream can be kept as an .npz in the project, outside the records, and hashed", async () => {
   const { folder, route, run } = await project();
   const saved = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/a" });
   assert.equal(saved.saved.path, "activations/a.npz");
   assert.equal(saved.saved.sha256, sha("NPZ"));
   assert.equal(await readFile(path.join(folder, "activations/a.npz"), "utf8"), "NPZ");
   const asked = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
-  assert.ok(asked.save.endsWith("/activations/a.npz"));
+  assert.match(asked.save, /[\\/]activations[\\/]a\.npz$/, "the helper is given the whole path, as this system writes it");
   const plain = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
   assert.equal(plain.saved, undefined, "a reading without save is its own saved result");
   assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "../outside.npz" })).status, 403);

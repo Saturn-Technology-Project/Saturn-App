@@ -1,10 +1,11 @@
 // What a run costs while it lives, and the Python a project's experiments run in. docs/research-contract.md is the
 // contract.
 import assert from "node:assert/strict";
-import { chmod, readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, until } from "./files-support.mjs";
+import { bench, until } from "./files-support.mjs";
+import { placeProgram } from "./programs.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -21,7 +22,7 @@ async function project() {
   return { folder, route: `/projects/${made.id}/research` };
 }
 
-test("a run's processor share, memory and sample count are sampled while it lives and kept with it", posixOnly, async () => {
+test("a run's processor share, memory and sample count are sampled while it lives and kept with it", async () => {
   const { folder, route } = await project();
   await writeFile(path.join(folder, "probe.mjs"), `
 import { appendFileSync } from "node:fs";
@@ -59,7 +60,7 @@ for (let index = 0; index < 3; index += 1) {
   assert.equal((await saturn.call("GET", `${route}/runs/run_0000000000000000/resources`)).status, 404);
 });
 
-test("a samples rewrite restarts the persisted counts instead of adding to an obsolete prefix", posixOnly, async () => {
+test("a samples rewrite restarts the persisted counts instead of adding to an obsolete prefix", async () => {
   const { folder, route } = await project();
   await writeFile(path.join(folder, "probe.mjs"), `
     import { writeFileSync } from "node:fs";
@@ -80,14 +81,16 @@ test("a samples rewrite restarts the persisted counts instead of adding to an ob
   await until("the rewritten run to finish", () => saturn.api("GET", `${route}/runs/${run.id}`), settled);
 });
 
-test("the environment names a python, lists the lock files with their hashes, and keeps what the python reports", posixOnly, async () => {
+/** What the stand-in Python reports about itself. */
+const REPORT = {"executable":"/env/bin/python","version":"3.12.1","platform":"stand-in","cpus":4,"packages":{"torch":"2.5.0","transformers":null},"devices":{"torch":"2.5.0","cuda":false,"cudaDevices":[],"mps":true}};
+
+test("the environment names a python, lists the lock files with their hashes, and keeps what the python reports", async () => {
   const { folder, route } = await project();
   await writeFile(path.join(folder, "uv.lock"), "version = 1\n");
-  await writeFile(path.join(folder, "python"), `#!/bin/sh
-cat > /dev/null
-printf '%s' '{"executable":"/env/bin/python","version":"3.12.1","platform":"stand-in","cpus":4,"packages":{"torch":"2.5.0","transformers":null},"devices":{"torch":"2.5.0","cuda":false,"cudaDevices":[],"mps":true}}'
+  await placeProgram(path.join(folder, "python"), `#!${process.execPath}
+process.stdin.resume();
+process.stdin.on("end", () => process.stdout.write(${JSON.stringify(JSON.stringify(REPORT))}));
 `);
-  await chmod(path.join(folder, "python"), 0o755);
 
   const empty = await saturn.api("GET", `${route}/environment`);
   assert.equal(empty.python, null);
