@@ -500,7 +500,12 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
         .filter(|state| !state.definitions.trim().is_empty())
         .map(|state| state.definitions.clone());
     let wrapped = if cfg!(windows) {
-        format!("{command} & echo {CWD_MARKER}%CD%")
+        // cmd reads %CD% when it reads the line, before the command has run, so a plain `echo %CD%` named the folder
+        // the command started in, and the line's exit code was echo's. `%^CD%` is no variable at that first reading;
+        // `call` reads the line again once the command is done, and the last `call` gives the command's own code back.
+        format!(
+            "{command} & call set __saturn_ec=%^ERRORLEVEL%& call echo {CWD_MARKER}%^CD%& call exit /b %^__saturn_ec%"
+        )
     } else {
         // The snapshot comes before the kept definitions, so those count as set by the panel and are kept again.
         let mut before = String::new();
