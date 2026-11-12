@@ -627,7 +627,9 @@ impl Kernel {
     ) -> Result<(), CoreError> {
         let run = self.get_run(run_id)?;
         let workdir = self.program_workdir(&run).await?;
-        let workdir = tokio::fs::canonicalize(&workdir).await.unwrap_or(workdir);
+        let workdir = tokio::fs::canonicalize(&workdir)
+            .await
+            .map_or(workdir, saturn_domain::plain_path);
         self.make_codex_home().await?;
         let cli = self.program_path("codex")?;
         let mode = RunMode::parse(run.get("mode").and_then(Value::as_str));

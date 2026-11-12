@@ -609,7 +609,9 @@ impl Kernel {
     ) -> Result<(), CoreError> {
         let run = self.get_run(run_id)?;
         let workdir = self.program_workdir(&run).await?;
-        let workdir = tokio::fs::canonicalize(&workdir).await.unwrap_or(workdir);
+        let workdir = tokio::fs::canonicalize(&workdir)
+            .await
+            .map_or(workdir, saturn_domain::plain_path);
         Self::make_private_folder(&self.claude_config()).await?;
         let cli = self.program_path("claude-code")?;
         let resume = self.saved_session(&run, "claudeSessionId");
