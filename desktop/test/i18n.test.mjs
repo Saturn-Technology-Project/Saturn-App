@@ -1,12 +1,13 @@
 // The interface's translations: every text given to `t()` has a Traditional Chinese translation with the
 // same placeholders, every translation is used, and `t()` is only ever given a string literal.
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { placeholders, resolveLocale, shortcutsOn, translate } from "../src/domain/i18n.ts";
 
-const SOURCE = new URL("../src", import.meta.url).pathname;
+const SOURCE = fileURLToPath(new URL("../src", import.meta.url));
 
 /** Every .ts and .tsx file under the interface's source, but the translations themselves. */
 function sources(folder = SOURCE) {
