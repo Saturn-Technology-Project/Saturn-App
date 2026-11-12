@@ -32,6 +32,12 @@ fn entry(path: &str, role: &str, sha256: &str, size: u64, how: &str) -> Value {
     json!({ "path": path, "role": role, "sha256": sha256, "size": size, "how": how })
 }
 
+/// A path inside a snapshot as the records write it, with `/` between its parts on every system.
+fn written(path: &Path) -> String {
+    path.to_string_lossy()
+        .replace(std::path::MAIN_SEPARATOR, "/")
+}
+
 /// Every regular file under a folder, by path relative to it, not following links.
 pub(super) fn files_in(root: &Path) -> Vec<String> {
     let mut found = Vec::new();
@@ -46,7 +52,7 @@ pub(super) fn files_in(root: &Path) -> Vec<String> {
             if kind.is_dir() {
                 pending.push(path);
             } else if kind.is_file() {
-                found.push(path.to_string_lossy().into_owned());
+                found.push(written(&path));
             }
         }
     }
@@ -78,7 +84,7 @@ fn outward_links(root: &Path) -> Vec<(String, String)> {
                 let leaves = std::fs::canonicalize(item.path())
                     .map_or(true, |resolved| !resolved.starts_with(&inside));
                 if leaves {
-                    found.push((path.to_string_lossy().into_owned(), target));
+                    found.push((written(&path), target));
                 }
             }
         }
@@ -120,7 +126,72 @@ fn protect(tree: &Path, files: &[String]) {
         }
     }
     #[cfg(not(unix))]
-    let _ = (tree, files);
+    for file in files {
+        // Not through a link: that would mark the file it leads to, outside the snapshot.
+        let path = tree.join(file);
+        if let Ok(info) = std::fs::symlink_metadata(&path)
+            && info.is_file()
+        {
+            let mut permissions = info.permissions();
+            permissions.set_readonly(true);
+            let _ = std::fs::set_permissions(&path, permissions);
+        }
+    }
+}
+
+/// Makes `at` a link that names `to`, as written.
+#[cfg(unix)]
+async fn make_link(to: &Path, at: &Path) -> std::io::Result<()> {
+    tokio::fs::symlink(to, at).await
+}
+
+/// Makes `at` a link that names `to`, as written. Windows has one kind of link for a folder and another for a file,
+/// and lets an account make either only with Developer Mode on or as an administrator; without that, a folder is
+/// joined by a junction, which any account may make.
+#[cfg(windows)]
+async fn make_link(to: &Path, at: &Path) -> std::io::Result<()> {
+    let resolved = match at.parent() {
+        Some(parent) if to.is_relative() => parent.join(to),
+        _ => to.to_path_buf(),
+    };
+    if !tokio::fs::metadata(&resolved)
+        .await
+        .is_ok_and(|info| info.is_dir())
+    {
+        return tokio::fs::symlink_file(to, at).await;
+    }
+    let refused = match tokio::fs::symlink_dir(to, at).await {
+        Ok(()) => return Ok(()),
+        Err(error) => error,
+    };
+    let mut joining = tokio::process::Command::new(
+        std::env::var_os("COMSPEC").unwrap_or_else(|| "cmd.exe".into()),
+    );
+    saturn_tools::no_window(&mut joining);
+    let joined = joining
+        .raw_arg(format!(
+            "/d /c mklink /J \"{}\" \"{}\"",
+            at.display(),
+            resolved.display()
+        ))
+        .output()
+        .await;
+    if joined.is_ok_and(|output| output.status.success()) {
+        Ok(())
+    } else {
+        Err(refused)
+    }
+}
+
+/// The program that unpacks an archive: Windows' own tar, since a `tar` first on the PATH there may be one that reads
+/// `C:` as the name of another computer.
+fn tar_program() -> PathBuf {
+    if cfg!(windows)
+        && let Some(root) = std::env::var_os("SYSTEMROOT")
+    {
+        return PathBuf::from(root).join("System32").join("tar.exe");
+    }
+    PathBuf::from("tar")
 }
 
 impl Kernel {
@@ -250,7 +321,7 @@ pub(super) async fn fill(
                     format!("The version's commit could not be read from git: {message}"),
                 )
             })?;
-            let mut tar = tokio::process::Command::new("tar");
+            let mut tar = tokio::process::Command::new(tar_program());
             saturn_tools::no_window(&mut tar);
             let unpacked = tar
                 .args(["-xf", &archive_path, "-C"])
@@ -292,8 +363,7 @@ pub(super) async fn fill(
                     if let (Ok(to), Some(parent)) = (link, target.parent()) {
                         tokio::fs::create_dir_all(parent).await?;
                         let _ = tokio::fs::remove_file(&target).await;
-                        #[cfg(unix)]
-                        tokio::fs::symlink(&to, &target).await?;
+                        make_link(&to, &target).await?;
                     }
                 }
                 _ => {
@@ -360,8 +430,7 @@ pub(super) async fn fill(
                     if let Some(parent) = target.parent() {
                         tokio::fs::create_dir_all(parent).await?;
                     }
-                    #[cfg(unix)]
-                    tokio::fs::symlink(&from, &target).await?;
+                    make_link(&from, &target).await?;
                     "linked"
                 } else {
                     let to = target.clone();
@@ -410,8 +479,7 @@ pub(super) async fn fill(
             {
                 continue;
             }
-            #[cfg(unix)]
-            tokio::fs::symlink(item.path(), tree.join(&name)).await?;
+            make_link(&item.path(), &tree.join(&name)).await?;
             let kind = if item.file_type().await?.is_dir() {
                 "folder"
             } else {

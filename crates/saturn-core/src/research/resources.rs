@@ -23,8 +23,33 @@ const FILE: &str = "resources.jsonl";
 /// How many of the newest points a reading gives.
 const POINTS_KEPT: usize = 900;
 
-/// The processor share and memory of every process in a group, added up.
-async fn group_usage(pgid: u32) -> Option<(f64, u64, u64)> {
+/// The processor share and memory of every process of a command, added up. Windows gives each process's processor
+/// time so far, so the share is what was used since the reading before, kept in `earlier`, over the time that passed;
+/// the first reading has none.
+#[cfg(windows)]
+async fn group_usage(pid: u32, earlier: &mut Option<(u64, Instant)>) -> Option<(f64, u64, u64)> {
+    let (processor_millis, memory, processes) =
+        tokio::task::spawn_blocking(move || saturn_tools::tree_usage(pid))
+            .await
+            .ok()
+            .flatten()?;
+    let now = Instant::now();
+    let share = earlier.map_or(0.0, |(before, at)| {
+        let passed = now.duration_since(at).as_secs_f64() * 1000.0;
+        if passed > 0.0 {
+            processor_millis.saturating_sub(before) as f64 / passed * 100.0
+        } else {
+            0.0
+        }
+    });
+    *earlier = Some((processor_millis, now));
+    Some((share, memory, processes))
+}
+
+/// The processor share and memory of every process in a group, added up. `ps` gives the share itself, so nothing is
+/// kept between readings.
+#[cfg(not(windows))]
+async fn group_usage(pgid: u32, _earlier: &mut Option<(u64, Instant)>) -> Option<(f64, u64, u64)> {
     let output = Command::new("ps")
         .args(["-axo", "pid=,pgid=,%cpu=,rss="])
         .output()
@@ -225,11 +250,12 @@ pub(super) async fn sample_until(pid: u32, directory: PathBuf, stop: Option<Arc<
     };
     let mut counted = Counted::default();
     let mut gpu_present = true;
+    let mut earlier = None;
     loop {
         if !group_exists(pid) || stopped() {
             break;
         }
-        let usage = group_usage(pid).await;
+        let usage = group_usage(pid, &mut earlier).await;
         let gpu = if gpu_present { gpus().await } else { None };
         gpu_present = gpu.is_some();
         let path = samples.clone();

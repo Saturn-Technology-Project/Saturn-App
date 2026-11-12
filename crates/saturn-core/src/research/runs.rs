@@ -15,6 +15,7 @@ use saturn_domain::research::{
 use saturn_domain::time::{iso_time, now_millis};
 use saturn_tools::{force, in_own_group, terminate};
 use serde_json::{Value, json};
+#[cfg(not(windows))]
 use tokio::process::Command;
 
 use super::evidence;
@@ -32,7 +33,23 @@ const PROBLEMS_KEPT: usize = 20;
 const IDENTITY_FILE: &str = "process.identity";
 /// Starts the command. Saturn alone writes the identity: the program cannot run `ps` in the macOS sandbox, and in the
 /// Linux one its own id is not the one Saturn started, so a second writer could only replace the right record.
+#[cfg(not(windows))]
 const WRAPPER: &str = r#"exec /bin/sh -c "$SATURN_RUN_COMMAND""#;
+
+/// The line the system's shell is given to start a version's command: on macOS and Linux one that hands over to a
+/// shell of the command's own, and on Windows the command itself, since cmd takes its line as written and has no
+/// `exec`.
+fn starting_line(command: &str) -> &str {
+    #[cfg(windows)]
+    {
+        command
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = command;
+        WRAPPER
+    }
+}
 
 /// A run this runtime started and has not finished.
 #[derive(Debug)]
@@ -125,6 +142,16 @@ fn status_after(exit: Option<i32>, scan: &Scan) -> &'static str {
 }
 
 /// The start time the system reports for a process, or nothing if it is gone.
+#[cfg(windows)]
+async fn process_start_time(pid: u32) -> Option<String> {
+    tokio::task::spawn_blocking(move || saturn_tools::process_started(pid))
+        .await
+        .ok()
+        .flatten()
+}
+
+/// The start time the system reports for a process, or nothing if it is gone.
+#[cfg(not(windows))]
 async fn process_start_time(pid: u32) -> Option<String> {
     let output = Command::new("ps")
         .args(["-o", "lstart=", "-p", &pid.to_string()])
@@ -287,12 +314,6 @@ impl Kernel {
             return Err(CoreError::new(
                 400,
                 "A start needs a \"clientId\", so repeating it starts nothing.",
-            ));
-        }
-        if cfg!(windows) {
-            return Err(CoreError::new(
-                501,
-                "Experiment runs are not supported on Windows yet.",
             ));
         }
         let version = self
@@ -516,7 +537,7 @@ impl Kernel {
             &placement,
             &isolation::data_folders(self.store.root()),
             working_folder,
-            WRAPPER,
+            starting_line(text(version, "command")),
         )
         .await?;
         command
