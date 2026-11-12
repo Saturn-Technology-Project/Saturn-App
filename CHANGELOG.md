@@ -2,13 +2,6 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
-## Unreleased
-
-### Fixed
-
-- **A background command that has ended has all of its output.** A command an agent started in the background could be reported as ended a moment before its last lines were read, so the agent, reading it then, saw the output cut short. Its end is now recorded once its output has been read.
-- **A long file path no longer runs out of the assistant's step list.** While the assistant worked, the line naming what it was doing was not cut to fit, so a long command or path ran past its box, and on Windows a file's whole path (`C:\…`) was shown where macOS shows its last two parts. A step now names a file by the end of its path on both, and the line is cut to fit.
-
 ## 0.6.2 (2026-11-12)
 
 ### Fixed
@@ -20,6 +13,8 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 - **The window opens inside a small display.** Saturn's usual window is 840 points tall, more than a 13-inch display at 200% leaves above the taskbar, so it opened over the taskbar with its lower edge off the screen. On a display with less room the window now takes what fits.
 - **Windows: shortcuts are shown with Ctrl.** The title bar, the command list, Settings and the tour showed the Mac's sign ("Commands ⌘K") for keys that are pressed with Ctrl on Windows; they now read "Ctrl+K". The access dialog no longer says what macOS may ask.
 - **Dark theme: the row under the pointer shows in dialogs and menus.** The dark theme's highlight was the same solid color as a dialog or a menu, so in Settings' list, for one, the row under the pointer looked like the others and the chosen row lost its mark while the pointer was on it. The highlight is now a light veil that shows on any surface, as the light theme's already was.
+- **A background command that has ended has all of its output.** A command an agent started in the background could be reported as ended a moment before its last lines were read, so the agent, reading it then, saw the output cut short. Its end is now recorded once its output has been read.
+- **A long file path no longer runs out of the assistant's step list.** While the assistant worked, the line naming what it was doing was not cut to fit, so a long command or path ran past its box, and on Windows a file's whole path (`C:\…`) was shown where macOS shows its last two parts. A step now names a file by the end of its path on both, and the line is cut to fit.
 
 ### Changed
 
