@@ -149,7 +149,7 @@ Connected editors provide semantic completion, inferred-type hover, function sig
 diagnostics (**Ctrl/Cmd+Shift+M**) and definitions (**F12**, within the project). Unsaved imported files stay synchronized
 across tabs. Restart after changing Python or installing a server. These are source-file services; notebook cells keep
 their existing editor. Type quality depends on the project's packages, stubs and checker configuration; tensor shapes
-are not inferred. See [setup, protocol and boundaries](docs/language-services.md). Not available on Windows yet.
+are not inferred. See [setup, protocol and boundaries](docs/language-services.md).
 
 ## Install
 
@@ -204,8 +204,8 @@ Every push to `main` goes through the [release workflow](.github/workflows/relea
 - **Computer use** runs on macOS (accessibility APIs) and Windows (SendInput and UI Automation); see [Computer use](#computer-use).
 - **Claude Code** on Windows requires [Git for Windows](https://git-scm.com/downloads/win), which provides the Bash it executes commands in.
 - On Windows, the `code` tool and the Terminal panel run commands under `cmd.exe`.
-- **Experiment runs** work on macOS and Linux, not yet on Windows. Remote runs need a Linux or macOS host.
-- **Windows has been type-checked, not run,** as of the rewrite in Rust and Tauri: not in CI and not on real hardware. What this file says about Windows is what the code does, not what has been seen working.
+- **Experiment runs** work on macOS, Linux and Windows. On Windows a run has no sandbox (its evidence says so) and cannot be paused. Remote runs need a Linux or macOS host.
+- **Windows is tested by hand, not by CI.** In November 2026 the runtime, its Rust tests and the HTTP contract were run on Windows 11 for ARM in a virtual machine, where the x64 build runs under emulation. CI on Windows runs the Rust tests only, and Saturn has not been tried on x64 hardware since the rewrite in Rust and Tauri.
 
 ## Architecture
 
@@ -504,7 +504,7 @@ gh attestation verify Saturn-<version>-sbom.cdx.json -R Saturn-Technology-Projec
 
 ### Known limitations
 
-Saturn is an early preview and has not had a third-party security audit. The Windows version has been type-checked but not run since the rewrite in Rust and Tauri. macOS builds are not yet Developer ID-signed or notarized, and Windows builds are signed with a self-signed certificate that Windows does not trust. API keys are encrypted at rest, which keeps them out of backups, synced folders, disk images and copied data folders; but any process running as your user can still ask the OS key store for the key, as with every app that keeps credentials in the Keychain or DPAPI. Settings → About shows which key store is in use. An agent granted full autonomy can execute arbitrary commands within its granted folders; that is inherent to the design, so scope grants accordingly. Claude Code, Codex, git, local MCP servers, the agent browser and the system's web view processes run separately and do not appear in the runtime's network log; observe them with OS-level tools. A local MCP server you allow runs with your user account's permissions, so allow only programs you trust.
+Saturn is an early preview and has not had a third-party security audit. The Windows version is tested by hand in a virtual machine (Windows 11 for ARM, the x64 build under emulation), not by CI's contract tests and not on x64 hardware. macOS builds are not yet Developer ID-signed or notarized, and Windows builds are signed with a self-signed certificate that Windows does not trust. API keys are encrypted at rest, which keeps them out of backups, synced folders, disk images and copied data folders; but any process running as your user can still ask the OS key store for the key, as with every app that keeps credentials in the Keychain or DPAPI. Settings → About shows which key store is in use. An agent granted full autonomy can execute arbitrary commands within its granted folders; that is inherent to the design, so scope grants accordingly. Claude Code, Codex, git, local MCP servers, the agent browser and the system's web view processes run separately and do not appear in the runtime's network log; observe them with OS-level tools. A local MCP server you allow runs with your user account's permissions, so allow only programs you trust.
 
 Report vulnerabilities privately to [security@saturn-core.com](mailto:security@saturn-core.com) rather than in a public issue; [`SECURITY.md`](SECURITY.md) says what to include, what happens next and what is in scope.
 
@@ -651,7 +651,6 @@ Before opening a pull request:
 - Developer ID-signed, notarized macOS builds, and Windows builds signed with a CA-issued Authenticode certificate
 - Linux packages
 - A debugger in the Workspace
-- Experiment runs on Windows
 
 How the project is run and who decides is in [`GOVERNANCE.md`](GOVERNANCE.md); everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 

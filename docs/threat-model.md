@@ -88,7 +88,7 @@ Out of scope: a process already running as the same user can read the token file
 ## Known gaps
 
 - **Windows has no command sandbox**; commands say so in their result.
-- **The Windows version has been type-checked, not run,** since the rewrite in Rust and Tauri, so the Windows controls here are what the code does, untested in use.
+- **The Windows version is tested by hand, not by CI's contract tests**: in a virtual machine (Windows 11 for ARM, the x64 build under emulation), not on x64 hardware. An experiment run on Windows has no sandbox, as its evidence says.
 - **macOS builds are not Developer ID-signed or notarized**, and Windows builds use a self-signed certificate, so users cannot rely on the OS to confirm a download's origin; the SHA-256 files and build provenance are the check.
 - **Network access is on by default** inside the sandbox, so package installs work; switch it off per project for sensitive work.
 - **A crate's build script runs at build time.** Cargo cannot deny it as npm can an install script, so a compromised crate could run code in CI or on a machine that builds Saturn.
@@ -100,7 +100,7 @@ Out of scope: a process already running as the same user can read the token file
 
 ## Assurance case
 
-Why Saturn's security requirements are met: each requirement, the argument, and the evidence that can be checked. The controls are described above; the tests named here are in `contract/` and the crates' `tests/` folders. They run on Linux for every change and on macOS for every release; on Windows the workflows run the crates' tests only, and have not run on the Rust code yet.
+Why Saturn's security requirements are met: each requirement, the argument, and the evidence that can be checked. The controls are described above; the tests named here are in `contract/` and the crates' `tests/` folders. They run on Linux for every change and on macOS for every release; on Windows the workflows run the crates' tests only; the contract is run there by hand, in a virtual machine.
 
 ### Requirements and evidence
 
@@ -248,7 +248,7 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 ## 已知缺口
 
 - **Windows 沒有指令沙箱**；指令的結果會註明。
-- **改寫為 Rust 與 Tauri 之後，Windows 版本只做過型別檢查，尚未實際執行**，所以這裡關於 Windows 的控制是程式碼的行為，尚未經實際使用驗證。
+- **Windows 版本由人工測試，沒有經過 CI 的合約測試**：在虛擬機裡（Windows 11 ARM 版，x64 版本以模擬方式執行），不是 x64 實體機器。Windows 上的實驗執行沒有沙箱，執行證據會註明。
 - **macOS 版本未以 Developer ID 簽章或公證**，Windows 版本使用自簽憑證，使用者無法依賴作業系統確認下載來源；應以 SHA-256 檔與建置來源證明檢查。
 - **沙箱內預設可連網**，以便安裝套件；處理敏感工作時可針對專案關閉。
 - **crate 的 build script 會在建置時執行。** Cargo 無法像 npm 拒絕安裝腳本那樣拒絕它，所以遭入侵的 crate 可能在 CI 或建置 Saturn 的電腦上執行程式碼。
@@ -260,7 +260,7 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 
 ## 保證論證
 
-Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗的證據。各項控制已在上文說明；這裡列出的測試位於 `contract/` 與各 crate 的 `tests/` 資料夾，在每次變更時於 Linux、每次發布時於 macOS 執行；Windows 的 workflow 只跑 crate 的測試，且還沒有在 Rust 程式碼上執行過。
+Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗的證據。各項控制已在上文說明；這裡列出的測試位於 `contract/` 與各 crate 的 `tests/` 資料夾，在每次變更時於 Linux、每次發布時於 macOS 執行；Windows 的 workflow 只跑 crate 的測試；合約測試由人工在虛擬機裡執行。
 
 ### 需求與證據
 

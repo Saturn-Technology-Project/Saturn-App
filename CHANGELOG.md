@@ -2,6 +2,20 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **Windows: experiments run.** Starting a run on Windows answered "not supported yet". A version's command now runs there through `cmd`, from its own checked snapshot, with its evidence, resuming and stopping as on macOS and Linux. Two differences: Windows has no sandbox for the program, which the run's evidence says, and a run cannot be paused.
+- **Windows: the environment check, notebooks, looking inside a model and language servers work.** Each of these refused on Windows. The project's Python is found the Windows way (`python.exe`, `.venv\Scripts`), and a language server as an `.exe` or the `.cmd` npm writes. Reading Parquet and dataset folders through the project's Python is no longer refused either, but has not been tried on Windows with a real Python yet.
+
+### Fixed
+
+- **Windows: the Terminal panel reports the right folder and exit code.** After a command it showed the folder from before the command ran, so `cd` seemed to do nothing, and every command read as having succeeded.
+- **Windows: Claude Code and Codex are given the project folder in its plain form.** They were handed its `\\?\` long-path spelling.
+- **Windows: removing a program Saturn downloaded no longer fails with "Access is denied".** Windows holds a program's file for a moment after it ends; Saturn now tries again.
+- **The message for a missing ffmpeg no longer tells Windows and Linux users to use Homebrew.**
+
 ## 0.6.2 (2026-11-12)
 
 ### Fixed

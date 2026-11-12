@@ -36,7 +36,7 @@ This policy is mandatory for every change to Saturn's own code (the runtime, the
 1. **New functionality comes with tests.** A pull request that adds major functionality must add tests for it to the automated suite (`contract/`, a crate's tests, `scripts/eval/`), or say why it cannot be tested automatically; such a pull request is not merged until it does.
 2. **Every bug fix comes with a regression test** that fails before the fix and passes after it, wherever the bug can be reproduced in a test.
 3. **Tests use no credentials and touch no real data**: a temporary data folder and fake or scripted model servers, as the existing tests do. `contract/cases` were recorded from the old TypeScript runtime and are frozen: do not re-record them.
-4. **The suite must pass** (`npm test`) before a change merges; CI runs it on every pull request and push to `main` and before every release. On Windows, which has only been type-checked since the rewrite in Rust and Tauri, the workflows run `cargo test` without the contract tests.
+4. **The suite must pass** (`npm test`) before a change merges; CI runs it on every pull request and push to `main` and before every release. On Windows the workflows run `cargo test` without the contract tests; those are run by hand in a Windows virtual machine (set `SATURN_CONTRACT_PLATFORM=win32-x64` when Node there is not x64).
 
 ## Adding or updating a dependency
 

@@ -144,7 +144,7 @@ JS／TS 與 JSX 優先使用專案的 TypeScript 7 原生 LSP（`node_modules/.b
 連線後可使用語意補全、懸浮推斷型別、函式簽章（**Ctrl/Cmd+Shift+Space**）、診斷（**Ctrl/Cmd+Shift+M**）與定義跳轉
 （**F12**，限專案內）。未儲存的 import 檔案在切換分頁後仍保持同步。更換 Python 或安裝伺服器後，按重新啟動即可。
 目前服務對象是原始碼檔案，Notebook 儲存格維持既有編輯器。型別品質取決於專案套件、型別 stub 與檢查設定，不會推斷張量形狀。
-詳見[設定、協定與邊界](docs/language-services.md)。Windows 尚未支援。
+詳見[設定、協定與邊界](docs/language-services.md)。
 
 ## 安裝
 
@@ -199,8 +199,8 @@ npm run archive                     # 下載檔與校驗碼，輸出至 desktop/
 - **電腦操作**支援 macOS（輔助使用 API）與 Windows（SendInput 與 UI Automation）；見[電腦操作](#電腦操作)。
 - Windows 上的 **Claude Code** 需要 [Git for Windows](https://git-scm.com/downloads/win)，它提供 Claude Code 執行指令所用的 Bash。
 - Windows 上的 `code` 工具與終端機面板以 `cmd.exe` 執行指令。
-- **實驗執行**支援 macOS 與 Linux，Windows 尚未支援。遠端執行需要 Linux 或 macOS 主機。
-- **改寫為 Rust 與 Tauri 之後，Windows 只做過型別檢查，尚未實際執行：** CI 與實體機器上都還沒有。本文關於 Windows 的說明是程式碼的行為，不是實際看過它運作。
+- **實驗執行**支援 macOS、Linux 與 Windows。Windows 上的執行沒有沙箱（執行證據會註明），也不能暫停。遠端執行需要 Linux 或 macOS 主機。
+- **Windows 由人工測試，不由 CI 測試。** 2026 年 11 月，Runtime、它的 Rust 測試與 HTTP 合約測試在虛擬機裡的 Windows 11 ARM 版上執行過（x64 版本以模擬方式執行）。CI 在 Windows 上只跑 Rust 測試；改寫為 Rust 與 Tauri 之後，Saturn 還沒有在 x64 實體機器上試過。
 
 ## 架構
 
@@ -498,7 +498,7 @@ gh attestation verify Saturn-<version>-sbom.cdx.json -R Saturn-Technology-Projec
 
 ### 已知限制
 
-Saturn 仍為早期預覽版，尚未經過第三方安全稽核。改寫為 Rust 與 Tauri 之後，Windows 版本只做過型別檢查，尚未實際執行。macOS 版本尚未以 Developer ID 簽章或公證，Windows 版本則以 Windows 不信任的自簽憑證簽章。API 金鑰已靜態加密，不會以明文出現在備份、同步資料夾、磁碟映像或被複製的資料夾中；但任何以你的使用者身分執行的程序仍可向作業系統金鑰庫要求金鑰，這與所有使用鑰匙圈或 DPAPI 保存憑證的應用程式相同。設定 → 關於 會顯示目前使用的金鑰庫。被賦予完全自主的 Agent 可以在授權資料夾內執行任意指令；這是設計本質，請據此控管授權範圍。Claude Code、Codex、git、本機 MCP 伺服器、Agent 瀏覽器與系統網頁檢視的程序各自獨立執行，不會出現在 Runtime 的網路紀錄中，請用作業系統層的工具觀察。你允許的本機 MCP 伺服器以你的使用者權限執行，請只允許你信任的程式。
+Saturn 仍為早期預覽版，尚未經過第三方安全稽核。Windows 版本由人工在虛擬機測試（Windows 11 ARM 版，x64 版本以模擬方式執行），沒有經過 CI 的合約測試，也沒有在 x64 實體機器上試過。macOS 版本尚未以 Developer ID 簽章或公證，Windows 版本則以 Windows 不信任的自簽憑證簽章。API 金鑰已靜態加密，不會以明文出現在備份、同步資料夾、磁碟映像或被複製的資料夾中；但任何以你的使用者身分執行的程序仍可向作業系統金鑰庫要求金鑰，這與所有使用鑰匙圈或 DPAPI 保存憑證的應用程式相同。設定 → 關於 會顯示目前使用的金鑰庫。被賦予完全自主的 Agent 可以在授權資料夾內執行任意指令；這是設計本質，請據此控管授權範圍。Claude Code、Codex、git、本機 MCP 伺服器、Agent 瀏覽器與系統網頁檢視的程序各自獨立執行，不會出現在 Runtime 的網路紀錄中，請用作業系統層的工具觀察。你允許的本機 MCP 伺服器以你的使用者權限執行，請只允許你信任的程式。
 
 發現安全漏洞請私下寄至 [security@saturn-core.com](mailto:security@saturn-core.com)，不要開公開 issue；[`SECURITY.md`](SECURITY.md) 說明要附上什麼、之後的處理流程與範圍。
 
@@ -645,7 +645,6 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
 - 工作區中的 debugger
-- Windows 上的實驗執行
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。
 
