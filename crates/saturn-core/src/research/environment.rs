@@ -36,26 +36,45 @@ pub(super) fn python_of(command: &str) -> Option<&str> {
     name.starts_with("python").then_some(first)
 }
 
-/// Refuses an interpreter that is not there, as starting it would: the sandbox would start and only then fail to find
-/// it, with a less helpful message. A path is looked for from `cwd`, a bare name on PATH.
-pub(super) fn interpreter_exists(python: &str, cwd: &Path) -> Result<(), CoreError> {
+/// The program to start for an interpreter, or a refusal when it is not there, as starting it would refuse: the sandbox
+/// would start and only then fail to find it, with a less helpful message. On macOS and Linux it is the
+/// interpreter as it was named: a path is looked for from `cwd`, where the program starts, and a bare name on PATH. On
+/// Windows it is the whole path of the file found. A program there is looked for from the folder of the process that
+/// starts it, not from the one it is started in, so `.venv/Scripts/python.exe` would be looked for beside Saturn; a
+/// name may be written without its `.exe`; and PATH holds empty `python.exe` files that only open the Store.
+pub(super) fn interpreter_program(python: &str, cwd: &Path) -> Result<String, CoreError> {
     let given = Path::new(python);
     let found = if given.is_absolute() || given.components().count() > 1 {
-        cwd.join(given).is_file()
+        let place = cwd.join(given);
+        if cfg!(windows) {
+            let spelled = if place.extension().is_some() {
+                place
+            } else {
+                place.with_extension("exe")
+            };
+            spelled.is_file().then_some(spelled)
+        } else {
+            place.is_file().then(|| given.to_path_buf())
+        }
+    } else if cfg!(windows) {
+        super::manage::on_path(python)
     } else {
-        std::env::var_os("PATH").is_some_and(|path| {
-            std::env::split_paths(&path).any(|folder| folder.join(given).is_file())
-        })
+        std::env::var_os("PATH")
+            .is_some_and(|path| {
+                std::env::split_paths(&path).any(|folder| folder.join(given).is_file())
+            })
+            .then(|| given.to_path_buf())
     };
-    if found {
-        return Ok(());
-    }
-    Err(CoreError::new(
-        422,
-        format!(
-            "{python} could not start: it is not there. Choose an existing interpreter under Environment."
-        ),
-    ))
+    found
+        .map(|program| program.to_string_lossy().into_owned())
+        .ok_or_else(|| {
+            CoreError::new(
+                422,
+                format!(
+                    "{python} could not start: it is not there. Choose an existing interpreter under Environment."
+                ),
+            )
+        })
 }
 
 impl Kernel {
@@ -101,9 +120,9 @@ impl Kernel {
         args: &[String],
         cwd: &Path,
     ) -> Result<Command, CoreError> {
-        interpreter_exists(python, cwd)?;
+        let program = interpreter_program(python, cwd)?;
         let source = self.research_source(project, None)?;
-        Ok(self.research_command(project, python, args, &source, &[]))
+        Ok(self.research_command(project, &program, args, &source, &[]))
     }
     /// The environment record: the interpreter the person set, what it last reported, and the lock files found now.
     pub async fn research_environment(&self, project: &str) -> Result<Value, CoreError> {
@@ -212,12 +231,6 @@ impl Kernel {
 
     /// Asks the interpreter what it is and has, and keeps the answer in the record.
     pub async fn research_check_environment(&self, project: &str) -> Result<Value, CoreError> {
-        if cfg!(windows) {
-            return Err(CoreError::new(
-                501,
-                "Checking an environment is not supported on Windows yet.",
-            ));
-        }
         let python = self.research_python(project).await?;
         let source = self.research_source(project, None)?;
         let mut command = self.interpreter_command(project, &python, &["-".to_owned()], &source)?;

@@ -102,13 +102,16 @@ pub(super) const KITS: [Kit; 6] = [
 /// The first place on PATH that has a program. Windows spells a program `name.exe`, and its Python is `python.exe`
 /// (the Store's `python3.exe` alias aside), so each name is tried as that system spells it. An empty file is not a
 /// program: the Store leaves zero-length `python.exe` and `python3.exe` aliases on PATH that only open the Store.
-fn on_path(name: &str) -> Option<PathBuf> {
+pub(super) fn on_path(name: &str) -> Option<PathBuf> {
     program_in(&std::env::var_os("PATH")?, name)
 }
 
 /// `on_path` against a given PATH.
 fn program_in(path: &std::ffi::OsStr, name: &str) -> Option<PathBuf> {
-    let spellings: Vec<String> = if cfg!(windows) {
+    let spellings: Vec<String> = if cfg!(windows) && Path::new(name).extension().is_some() {
+        // Already spelled whole, as `python.exe` or a `python.bat` shim.
+        vec![name.to_owned()]
+    } else if cfg!(windows) {
         let mut spellings = vec![format!("{name}.exe")];
         if name == "python3" {
             spellings.push("python.exe".to_owned());
