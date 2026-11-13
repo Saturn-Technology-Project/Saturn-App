@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { posixOnly } from "./files-support.mjs";
+import { node } from "./files-support.mjs";
 import { startRuntime } from "./runtime.mjs";
 
 let runtime;
@@ -344,7 +344,7 @@ test("the terminal panel runs a command in the folder and follows cd", async () 
   assert.equal(failed.cwd, path.join(folder, "sub"));
 });
 
-test("the token a launcher gives the runtime reaches no command the terminal panel runs", posixOnly, async () => {
+test("the token a launcher gives the runtime reaches no command the terminal panel runs", async () => {
   const launcherToken = "0123456789abcdef".repeat(4);
   const launched = await startRuntime({ env: { SATURN_RUNTIME_TOKEN: launcherToken } });
   try {
@@ -352,7 +352,7 @@ test("the token a launcher gives the runtime reaches no command the terminal pan
     const answer = await fetch(`${launched.origin}/workspace/terminal`, {
       method: "POST",
       headers: { authorization: `Bearer ${launcherToken}`, "content-type": "application/json" },
-      body: JSON.stringify({ command: "printf '[%s]' \"$SATURN_RUNTIME_TOKEN\"; env | grep -c SATURN_RUNTIME_TOKEN || true", cwd: folder }),
+      body: JSON.stringify({ command: node("process.stdout.write('[' + (process.env.SATURN_RUNTIME_TOKEN || '') + ']' + Object.keys(process.env).filter((name) => name.toUpperCase() === 'SATURN_RUNTIME_TOKEN').length)"), cwd: folder }),
     }).then((response) => response.json());
     assert.equal(answer.stdout.trim(), "[]0", JSON.stringify(answer));
   } finally {
@@ -360,7 +360,7 @@ test("the token a launcher gives the runtime reaches no command the terminal pan
   }
 });
 
-test("a terminal panel keeps what activate and export set for its next command, and only that panel does", posixOnly, async () => {
+test("a terminal panel keeps what activate and export set for its next command, and only that panel does", { skip: process.platform === "win32" && "a panel keeps its shell's state only on macOS and Linux" }, async () => {
   const project = await api("POST", "/projects", { path: folder, grant: true }, 201);
   await api("POST", `/projects/${project.id}/active`);
   // A stand-in for a virtual environment's activate script: like the real one, it keeps the old PATH in a variable it does

@@ -42,6 +42,31 @@ export function commitAll(folder) {
 /** A tool call in a step of the script: `[tool, arguments]`. */
 export const write = (file, content) => ["files", { action: "write", path: file, content }];
 export const command = (text, options = {}) => ["code", { command: text, ...options }];
+/**
+ * A command line that `sh` and `cmd` both read the same way: Node running this code. The code is written without
+ * double quotes, `$`, `%`, backticks or backslashes, which the two shells treat differently inside double quotes.
+ */
+export const node = (code) => `node -e "${code}"`;
+/**
+ * A command line that does these things in turn, on either shell: `["write", file, text]`, `["append", file, text]`,
+ * `["remove", file]`, `["move", from, to]`, `["mkdir", folder]`, `["wait", milliseconds]`. A file's folders are made.
+ * The list travels as base64, so names and texts in any script reach Node as they were written.
+ */
+export function files(...steps) {
+  const list = Buffer.from(JSON.stringify(steps)).toString("base64");
+  return node([
+    "const fs = require('fs'), path = require('path')",
+    `for (const [step, a, b] of JSON.parse(Buffer.from('${list}', 'base64').toString())) {`
+      + " if (step === 'write' || step === 'append') { fs.mkdirSync(path.dirname(path.resolve(a)), { recursive: true }); fs[step + 'FileSync'](a, b); }"
+      + " else if (step === 'remove') fs.rmSync(a);"
+      + " else if (step === 'move') fs.renameSync(a, b);"
+      + " else if (step === 'mkdir') fs.mkdirSync(a, { recursive: true });"
+      + " else if (step === 'wait') Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, a);"
+      + " }",
+  ].join("; "));
+}
+/** A command line that does nothing for this many seconds, on either shell. */
+export const idle = (seconds) => node(`setTimeout(() => {}, ${seconds * 1000})`);
 
 /** Reads until `done` says so, for up to `seconds`. */
 export async function until(what, read, done = Boolean, seconds = 30) {

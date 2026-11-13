@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, command, posixOnly, sha, until, write } from "./files-support.mjs";
+import { bench, command, files, sha, until, write } from "./files-support.mjs";
 import { startWithPrograms, untilCard, untilFinished } from "./programs.mjs";
 
 let saturn;
@@ -199,10 +199,10 @@ test("a Pair chat asks before a command too, and not before a read", async () =>
   assert.equal(await text(folder, "pair.py"), "ours\n");
 });
 
-test("a shell command is not stopped, and its change is recorded without naming who made it", posixOnly, async () => {
+test("a shell command is not stopped, and its change is recorded without naming who made it", async () => {
   const { folder, lock, events, turn } = await bed();
   await lock("probe.py");
-  await turn([command("printf 'by a shell\\n' > probe.py")]);
+  await turn([command(files(["write", "probe.py", "by a shell\n"]))]);
   assert.equal(await text(folder, "probe.py"), "by a shell\n", "this is the limit the contract states");
   const [event] = await events();
   assert.equal(event.kind, "integrity_changed");

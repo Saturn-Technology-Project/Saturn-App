@@ -5,13 +5,13 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, command, commitAll, git, posixOnly, sha, until, write } from "./files-support.mjs";
+import { bench, command, commitAll, files, git, node, sha, until, write } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
 after(async () => { await saturn?.stop(); });
 
-const COMMAND = "printf 'v2\\n' > tracked.txt && printf 'more\\n' >> edited.txt && printf 'new\\n' > added.txt && rm gone.txt && mkdir -p build && printf 'x' > build/out.js";
+const COMMAND = files(["write", "tracked.txt", "v2\n"], ["append", "edited.txt", "more\n"], ["write", "added.txt", "new\n"], ["remove", "gone.txt"], ["write", "build/out.js", "x"]);
 const EXPECTED = { "added.txt": "added", "edited.txt": "modified", "gone.txt": "deleted", "tracked.txt": "modified" };
 
 const changes = (run) => saturn.api("GET", `/runs/${run.id}/changes`);
@@ -19,7 +19,7 @@ const revert = (run, body = {}) => saturn.api("POST", `/runs/${run.id}/changes/r
 const text = (...parts) => readFile(path.join(...parts), "utf8");
 const statuses = (seen) => Object.fromEntries(seen.files.map((file) => [file.path, file.status]));
 
-test("files a command changes in a git project join the turn's changes, and revert undoes them", posixOnly, async () => {
+test("files a command changes in a git project join the turn's changes, and revert undoes them", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "tracked.txt"), "v1\n");
   await writeFile(path.join(folder, "edited.txt"), "base\n");
@@ -53,7 +53,7 @@ test("files a command changes in a git project join the turn's changes, and reve
   assert.equal(git(folder, "diff", "--cached", "--name-only"), "staged.txt");
 });
 
-test("a project in a subfolder of a repository lists paths relative to itself", posixOnly, async () => {
+test("a project in a subfolder of a repository lists paths relative to itself", async () => {
   const repository = await saturn.folder();
   await mkdir(path.join(repository, "packages/site"), { recursive: true });
   await writeFile(path.join(repository, "packages/site/page.txt"), "page\n");
@@ -64,7 +64,7 @@ test("a project in a subfolder of a repository lists paths relative to itself", 
   await writeFile(path.join(repository, "packages/site/dirty.txt"), "the user's change\n");
   const folder = path.join(repository, "packages/site");
   const setup = await saturn.chat(folder);
-  const run = await setup.turn([command("printf 'edited\\n' > page.txt && printf 'made\\n' > new.txt && printf 'more\\n' >> dirty.txt")]);
+  const run = await setup.turn([command(files(["write", "page.txt", "edited\n"], ["write", "new.txt", "made\n"], ["append", "dirty.txt", "more\n"]))]);
   const seen = await changes(run);
   assert.deepEqual(statuses(seen), { "dirty.txt": "modified", "new.txt": "added", "page.txt": "modified" });
   await revert(run);
@@ -74,14 +74,14 @@ test("a project in a subfolder of a repository lists paths relative to itself", 
   assert.equal(await text(repository, "root.txt"), "the user's change above the project\n");
 });
 
-test("a file name with spaces or other scripts is tracked under its real name, in git and outside it", posixOnly, async () => {
+test("a file name with spaces or other scripts is tracked under its real name, in git and outside it", async () => {
   for (const inGit of [true, false]) {
     const folder = await saturn.folder();
     const name = "with space é 日本.txt";
     await writeFile(path.join(folder, name), "original\n");
     if (inGit) commitAll(folder);
     const setup = await saturn.chat(folder);
-    const run = await setup.turn([command(`printf 'edited\\n' > '${name}' && printf 'new\\n' > 'new é.txt'`)]);
+    const run = await setup.turn([command(files(["write", name, "edited\n"], ["write", "new é.txt", "new\n"]))]);
     assert.deepEqual(statuses(await changes(run)), { [name]: "modified", "new é.txt": "added" }, `in git: ${inGit}`);
     await revert(run);
     assert.equal(await text(folder, name), "original\n");
@@ -89,13 +89,13 @@ test("a file name with spaces or other scripts is tracked under its real name, i
   }
 });
 
-test("a file a command moves counts as deleted and added, and comes back", posixOnly, async () => {
+test("a file a command moves counts as deleted and added, and comes back", async () => {
   for (const inGit of [true, false]) {
     const folder = await saturn.folder();
     await writeFile(path.join(folder, "old-name.txt"), "contents\n");
     if (inGit) commitAll(folder);
     const setup = await saturn.chat(folder);
-    const run = await setup.turn([command("mv old-name.txt new-name.txt")]);
+    const run = await setup.turn([command(files(["move", "old-name.txt", "new-name.txt"]))]);
     assert.equal(run.actions[0].status, "completed", run.actions[0].reason);
     assert.deepEqual(statuses(await changes(run)), { "new-name.txt": "added", "old-name.txt": "deleted" }, `in git: ${inGit}`);
     await revert(run);
@@ -104,13 +104,13 @@ test("a file a command moves counts as deleted and added, and comes back", posix
   }
 });
 
-test("a file a command stages itself keeps its original: git mv and git add can be reviewed and reverted", posixOnly, async () => {
+test("a file a command stages itself keeps its original: git mv and git add can be reviewed and reverted", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "old-name.txt"), "contents\n");
   await writeFile(path.join(folder, "staged.txt"), "before\n");
   commitAll(folder);
   const setup = await saturn.chat(folder);
-  const run = await setup.turn([command("git mv old-name.txt new-name.txt && echo after > staged.txt && git add staged.txt")]);
+  const run = await setup.turn([command(`git mv old-name.txt new-name.txt && ${files(["write", "staged.txt", "after\n"])} && git add staged.txt`)]);
   assert.equal(run.actions[0].status, "completed", run.actions[0].reason);
   assert.deepEqual(statuses(await changes(run)), { "new-name.txt": "added", "old-name.txt": "deleted", "staged.txt": "modified" });
   await revert(run);
@@ -119,27 +119,27 @@ test("a file a command stages itself keeps its original: git mv and git add can 
   assert.equal(existsSync(path.join(folder, "new-name.txt")), false);
 });
 
-test("a command that changes nothing, or changes a file back, leaves nothing to review", posixOnly, async () => {
+test("a command that changes nothing, or changes a file back, leaves nothing to review", async () => {
   for (const inGit of [true, false]) {
     const folder = await saturn.folder();
     await writeFile(path.join(folder, "same.txt"), "same\n");
     if (inGit) commitAll(folder);
     const setup = await saturn.chat(folder);
-    const quiet = await setup.turn([command("cat same.txt")]);
+    const quiet = await setup.turn([command(node("process.stdout.write(require('fs').readFileSync('same.txt'))"))]);
     assert.deepEqual((await changes(quiet)).files, [], `in git: ${inGit}`);
-    const back = await setup.turn([command("printf 'other\\n' > same.txt"), command("printf 'same\\n' > same.txt")]);
+    const back = await setup.turn([command(files(["write", "same.txt", "other\n"])), command(files(["write", "same.txt", "same\n"]))]);
     assert.deepEqual((await changes(back)).files, [], `in git: ${inGit}`);
     assert.equal(await text(folder, "same.txt"), "same\n");
   }
 });
 
-test("a file changed by the files tool and then a command keeps the first original", posixOnly, async () => {
+test("a file changed by the files tool and then a command keeps the first original", async () => {
   for (const inGit of [true, false]) {
     const folder = await saturn.folder();
     await writeFile(path.join(folder, "a.txt"), "first original\n");
     if (inGit) commitAll(folder);
     const setup = await saturn.chat(folder);
-    const run = await setup.turn([write("a.txt", "by the tool\n"), command("printf 'by the command\\n' >> a.txt")]);
+    const run = await setup.turn([write("a.txt", "by the tool\n"), command(files(["append", "a.txt", "by the command\n"]))]);
     const [file, ...rest] = (await changes(run)).files;
     assert.deepEqual(rest, []);
     assert.deepEqual([file.before, file.after], [sha("first original\n"), sha("by the tool\nby the command\n")], `in git: ${inGit}`);
@@ -148,13 +148,13 @@ test("a file changed by the files tool and then a command keeps the first origin
   }
 });
 
-test("restoring to a command's step undoes that command and the ones after it", posixOnly, async () => {
+test("restoring to a command's step undoes that command and the ones after it", async () => {
   for (const inGit of [true, false]) {
     const folder = await saturn.folder();
     await writeFile(path.join(folder, "a.txt"), "v0\n");
     if (inGit) commitAll(folder);
     const setup = await saturn.chat(folder);
-    const run = await setup.turn([command("printf 'v1\\n' > a.txt"), command("printf 'v2\\n' > a.txt && printf 'x' > b.txt"), command("printf 'v3\\n' > a.txt")]);
+    const run = await setup.turn([command(files(["write", "a.txt", "v1\n"])), command(files(["write", "a.txt", "v2\n"], ["write", "b.txt", "x"])), command(files(["write", "a.txt", "v3\n"]))]);
     const result = await saturn.api("POST", `/runs/${run.id}/restore`, { actionId: run.actions[1].id });
     assert.deepEqual(result.files.sort(), ["a.txt", "b.txt"], `in git: ${inGit}`);
     assert.equal(await text(folder, "a.txt"), "v1\n", `in git: ${inGit}`);
@@ -164,18 +164,18 @@ test("restoring to a command's step undoes that command and the ones after it", 
   }
 });
 
-test("a file over 10 MB that a command writes is not kept", posixOnly, async () => {
+test("a file over 10 MB that a command writes is not kept", async () => {
   for (const inGit of [true, false]) {
     const folder = await saturn.folder();
     await writeFile(path.join(folder, "small.txt"), "small\n");
     if (inGit) commitAll(folder);
     const setup = await saturn.chat(folder);
-    const run = await setup.turn([command("dd if=/dev/zero of=huge.bin bs=1048576 count=11 2>/dev/null; printf 'edited\\n' > small.txt")]);
+    const run = await setup.turn([command(`${node("require('fs').writeFileSync('huge.bin', Buffer.alloc(11 * 1048576))")} && ${files(["write", "small.txt", "edited\n"])}`)]);
     assert.deepEqual(statuses(await changes(run)), { "small.txt": "modified" }, `in git: ${inGit}`);
   }
 });
 
-test("outside git, a private snapshot tracks the same changes, leaves the folder alone, and Settings lists and deletes it", posixOnly, async () => {
+test("outside git, a private snapshot tracks the same changes, leaves the folder alone, and Settings lists and deletes it", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "tracked.txt"), "v1\n");
   await writeFile(path.join(folder, "edited.txt"), "base\nmine\n");
@@ -208,7 +208,7 @@ test("outside git, a private snapshot tracks the same changes, leaves the folder
   assert.equal(existsSync(path.join(folder, "added.txt")), false);
 
   // The folder's next command takes a fresh one, and deleting them all clears it.
-  const next = await setup.turn([command("printf 'again\\n' > tracked.txt")]);
+  const next = await setup.turn([command(files(["write", "tracked.txt", "again\n"]))]);
   assert.deepEqual(statuses(await changes(next)), { "tracked.txt": "modified" });
   assert.ok((await saturn.api("GET", "/storage/snapshots")).folders.some((item) => item.folder === folder));
   assert.deepEqual(await saturn.api("DELETE", "/storage/snapshots"), { deleted: true });
@@ -217,24 +217,23 @@ test("outside git, a private snapshot tracks the same changes, leaves the folder
   assert.equal(await text(folder, "tracked.txt"), "v1\n");
 });
 
-test("outside git, dependencies, builds, caches and logs stay out of the snapshot", posixOnly, async () => {
+test("outside git, dependencies, builds, caches and logs stay out of the snapshot", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "kept.txt"), "kept\n");
   const setup = await saturn.chat(folder);
   const made = ["node_modules/a.js", ".venv/a", "venv/a", "__pycache__/a", "dist/a", "build/a", "target/a", ".next/a", ".nuxt/a", ".cache/a", ".turbo/a", ".gradle/a", "Pods/a", "DerivedData/a", "server.log", ".DS_Store"];
-  const script = made.map((file) => `mkdir -p "$(dirname ${file})" && printf x > ${file}`).join(" && ");
-  const run = await setup.turn([command(`${script} && printf 'edited\\n' > kept.txt`)]);
+  const run = await setup.turn([command(files(...made.map((file) => ["write", file, "x"]), ["write", "kept.txt", "edited\n"]))]);
   assert.equal(run.actions[0].status, "completed", run.actions[0].reason);
   assert.deepEqual(statuses(await changes(run)), { "kept.txt": "modified" });
 });
 
-test("a background command's changes are recorded under the step that started it, once it ends", posixOnly, async () => {
+test("a background command's changes are recorded under the step that started it, once it ends", async () => {
   for (const inGit of [true, false]) {
     const folder = await saturn.folder();
     await writeFile(path.join(folder, "server.log.txt"), "start\n");
     if (inGit) commitAll(folder);
     const setup = await saturn.chat(folder);
-    const run = await setup.turn([command("sleep 0.5 && printf 'later\\n' > made-later.txt && printf 'more\\n' >> server.log.txt", { background: true })]);
+    const run = await setup.turn([command(files(["wait", 500], ["write", "made-later.txt", "later\n"], ["append", "server.log.txt", "more\n"]), { background: true })]);
     assert.equal(run.actions[0].status, "completed");
     const paths = async () => (await changes(run)).files.map((file) => file.path).sort();
     await until("the command's changes", paths, (list) => list.length === 2);
@@ -247,12 +246,12 @@ test("a background command's changes are recorded under the step that started it
   }
 });
 
-test("a background command's changes can be reverted like any other", posixOnly, async () => {
+test("a background command's changes can be reverted like any other", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "log.txt"), "start\n");
   commitAll(folder);
   const setup = await saturn.chat(folder);
-  const run = await setup.turn([command("sleep 0.3 && printf 'more\\n' >> log.txt", { background: true })]);
+  const run = await setup.turn([command(files(["wait", 300], ["append", "log.txt", "more\n"]), { background: true })]);
   await until("the command's change", () => changes(run), (seen) => seen.files.length === 1);
   await revert(run);
   assert.equal(await text(folder, "log.txt"), "start\n");

@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, command, git, commitAll, posixOnly, sha, until, write } from "./files-support.mjs";
+import { bench, command, git, commitAll, node, sha, until, write } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -78,12 +78,12 @@ test("a long file diffs only the edited regions", async () => {
   assert.equal(file.diff.match(/^@@/gm).length, 2, "two separate hunks");
 });
 
-test("a huge diff is cut in the answer, and reverting still restores every byte", posixOnly, async () => {
+test("a huge diff is cut in the answer, and reverting still restores every byte", async () => {
   const folder = await saturn.folder();
   const old = "old line\n".repeat(30_000);
   await writeFile(path.join(folder, "huge.txt"), old);
   const setup = await saturn.chat(folder);
-  const run = await setup.turn([command("yes 'new line' | head -n 30000 > huge.txt")]);
+  const run = await setup.turn([command(node("require('fs').writeFileSync('huge.txt', ('new line' + String.fromCharCode(10)).repeat(30000))"))]);
   assert.equal(run.actions[0].status, "completed", run.actions[0].reason);
   const [file] = (await changes(run)).files;
   assert.equal(file.truncated, true);
