@@ -21,7 +21,11 @@ function emptyFile() {
   return file;
 }
 
-export const posixOnly = { skip: process.platform === "win32" && "the scripted commands are POSIX shell" };
+/** Why a test does not run on Windows: each names what Windows lacks, or what the test would need written for it. */
+const notOnWindows = (reason) => ({ skip: process.platform === "win32" && reason });
+export const cannotPause = notOnWindows("Windows cannot pause a process");
+export const fileModes = notOnWindows("Windows has no file modes");
+export const shellPython = notOnWindows("its Python is a shell script around python3");
 
 export const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 

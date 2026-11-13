@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile, mkdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, until, write } from "./files-support.mjs";
+import { bench, cannotPause, until, write } from "./files-support.mjs";
 import { startWithPrograms, runToEnd } from "./programs.mjs";
 
 let saturn;
@@ -153,7 +153,7 @@ test("a start repeated in one turn starts once, and a new attempt runs the versi
   assert.notEqual(second.run.id, first.run.id);
 });
 
-test("the assistant pauses a run, waits and is told it is paused, continues it, and resumes one that failed", posixOnly, async () => {
+test("the assistant pauses a run, waits and is told it is paused, continues it, and resumes one that failed", cannotPause, async () => {
   // Writes a sample every 50 ms; the first time it fails at the sixth, resumed it skips what is there and finishes ten.
   const setup = await bed({ "probe.mjs": `
     import { appendFileSync, existsSync, readFileSync } from "node:fs";

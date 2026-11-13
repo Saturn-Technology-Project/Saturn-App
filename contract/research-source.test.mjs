@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdir, readFile, stat, chmod, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, sha, until } from "./files-support.mjs";
+import { bench, fileModes, sha, until } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -136,7 +136,7 @@ test("a new file needs no revision, and an existing one cannot be replaced as if
   assert.equal((await save(route, { path: "old.py", content: "y\n" })).status, 409);
 });
 
-test("saving keeps a file's permissions", posixOnly, async () => {
+test("saving keeps a file's permissions", fileModes, async () => {
   const { route, folder } = await project({ "run.sh": "a\n" });
   await chmod(path.join(folder, "run.sh"), 0o755);
   await save(route, { path: "run.sh", content: "b\n", expectedRevision: sha("a\n") });

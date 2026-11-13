@@ -10,7 +10,7 @@ import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promi
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, until } from "./files-support.mjs";
+import { bench, until } from "./files-support.mjs";
 
 let saturn;
 let home;
@@ -86,7 +86,7 @@ function sandboxed(t, evidence) {
 
 const refused = (value) => typeof value === "string" && value.startsWith("refused");
 
-test("a sandboxed run writes only its output and temporary folders, never its snapshot or the project", posixOnly, async (t) => {
+test("a sandboxed run writes only its output and temporary folders, never its snapshot or the project", async (t) => {
   const bed = await setup(tries({
     snapshot: "await fs.writeFile('probe.mjs', 'changed'); return 'wrote';",
     newFile: "await fs.writeFile('made.txt', 'x'); return 'wrote';",
@@ -109,7 +109,7 @@ test("a sandboxed run writes only its output and temporary folders, never its sn
   assert.equal(evidence.observed.sandbox.network, "allowed");
 });
 
-test("a sandboxed run cannot write into its project by the project's path", posixOnly, async (t) => {
+test("a sandboxed run cannot write into its project by the project's path", async (t) => {
   const bed = await setup("");
   const escaped = path.join(bed.folder, "escaped.txt");
   await writeFile(path.join(bed.folder, "probe.mjs"), tries({ project: `await fs.writeFile(${JSON.stringify(escaped)}, 'x'); return 'wrote';` }));
@@ -119,7 +119,7 @@ test("a sandboxed run cannot write into its project by the project's path", posi
   assert.equal(existsSync(escaped), false, "nothing reached the project");
 });
 
-test("a sandboxed run cannot read the project's own files, its records, Saturn's data or the credential folders, but reads what the snapshot links to", posixOnly, async (t) => {
+test("a sandboxed run cannot read the project's own files, its records, Saturn's data or the credential folders, but reads what the snapshot links to", async (t) => {
   const bed = await setup("");
   await writeFile(path.join(bed.folder, "probe.mjs"), tries({
     live: `return await fs.readFile(${JSON.stringify(path.join(bed.folder, "probe.mjs"))}, 'utf8');`,
@@ -149,7 +149,7 @@ test("a sandboxed run cannot read the project's own files, its records, Saturn's
   assert.equal(results.beside, "not part of the version", "what the project has beside the version stays reachable, as uncontrolled");
 });
 
-test("a model's source cannot open Saturn's data to the run, but a file in the project still can", posixOnly, async (t) => {
+test("a model's source cannot open Saturn's data to the run, but a file in the project still can", async (t) => {
   const bed = await setup("");
   await mkdir(path.join(bed.folder, "weights"));
   await writeFile(path.join(bed.folder, "weights", "model.bin"), "weights");
@@ -193,7 +193,7 @@ test("a sandboxed run cannot change the records Saturn keeps about it, on macOS"
   assert.equal(evidence.recorded, true);
 });
 
-test("the network is the version's to allow: blocked, the program cannot connect", posixOnly, async (t) => {
+test("the network is the version's to allow: blocked, the program cannot connect", async (t) => {
   const server = createServer((request, response) => response.end("reached"));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const url = `http://127.0.0.1:${server.address().port}/`;
@@ -211,7 +211,7 @@ test("the network is the version's to allow: blocked, the program cannot connect
   }
 });
 
-test("a sandboxed program gets the variables its version names, not the others", posixOnly, async () => {
+test("a sandboxed program gets the variables its version names, not the others", async () => {
   const script = tries({
     secret: "return env.SANDBOX_TEST_SECRET_TOKEN ?? 'unset';",
     declared: "return env.SANDBOX_TEST_DECLARED ?? 'unset';",
@@ -230,7 +230,7 @@ test("a sandboxed program gets the variables its version names, not the others",
   assert.ok(!JSON.stringify(evidence).includes("hunter2"), "no value is recorded");
 });
 
-test("a version with the sandbox off runs as before, and its evidence says so", posixOnly, async () => {
+test("a version with the sandbox off runs as before, and its evidence says so", async () => {
   const bed = await setup(tries({
     secret: "return env.SANDBOX_TEST_SECRET_TOKEN ?? 'unset';",
     newFile: "await fs.writeFile('made.txt', 'x'); return 'wrote';",

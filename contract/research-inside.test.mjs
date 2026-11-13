@@ -7,7 +7,7 @@ import { existsSync } from "node:fs";
 import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, sha, until } from "./files-support.mjs";
+import { bench, shellPython, sha, until } from "./files-support.mjs";
 import { placeProgram } from "./programs.mjs";
 
 let saturn;
@@ -320,7 +320,7 @@ test("an SAE in a local folder is asked about afresh when its files change", asy
   assert.notEqual(fresh.key, first.key);
 });
 
-test("the real helper says when sae_lens is missing or an SAE reads another layer", { ...posixOnly, skip: posixOnly.skip || spawnSync("python3", ["--version"]).error ? "needs python3" : false }, async () => {
+test("the real helper says when sae_lens is missing or an SAE reads another layer", { ...shellPython, skip: shellPython.skip || spawnSync("python3", ["--version"]).error ? "needs python3" : false }, async () => {
   const { folder, route, run, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   // A real interpreter runs the helper, with just enough of torch and transformers to reach what is being tested.

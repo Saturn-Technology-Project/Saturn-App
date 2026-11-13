@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, command, posixOnly } from "./files-support.mjs";
+import { bench, command } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -19,7 +19,7 @@ function sandboxed(t, result) {
   return false;
 }
 
-test("a sandboxed command can neither read nor change Saturn's token, keys or records, so it cannot loosen its own approvals", posixOnly, async (t) => {
+test("a sandboxed command can neither read nor change Saturn's token, keys or records, so it cannot loosen its own approvals", async (t) => {
   const data = saturn.runtime.dataDir;
   const token = (await readFile(path.join(data, "runtime-token"), "utf8")).trim();
   await saturn.api("POST", "/connections/models", { name: "Victim", provider: "openai", model: "gpt-x", secret: "sk-sandbox-test-value" });
@@ -50,7 +50,7 @@ test("a sandboxed command can neither read nor change Saturn's token, keys or re
   assert.match(action.result.stderr, /credential folders/, "the model is told why");
 });
 
-test("a chat outside any project still works in its own folder inside Saturn's data, but not in the rest of it", posixOnly, async (t) => {
+test("a chat outside any project still works in its own folder inside Saturn's data, but not in the rest of it", async (t) => {
   const setup = await saturn.chat();
   const run = await setup.turn([
     command("echo kept > notes.txt && cat notes.txt"),

@@ -7,7 +7,7 @@ import { mkdtemp, mkdir, readFile, realpath, rm, stat, symlink, writeFile } from
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, commitAll, sha, until } from "./files-support.mjs";
+import { bench, cannotPause, commitAll, sha, until } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -266,7 +266,7 @@ test("on Windows a run cannot be paused, says so, and goes on running", { skip: 
   assert.equal((await ended(bed, started.id)).status, "stopped");
 });
 
-test("a paused run writes nothing until it is continued, and a paused run still stops", { skip: process.platform === "win32" && "Windows cannot pause a process" }, async () => {
+test("a paused run writes nothing until it is continued, and a paused run still stops", cannotPause, async () => {
   const bed = await setup(LONG);
   const started = await start(bed);
   const samples = path.join(runFolder(bed, started.id), "samples.jsonl");

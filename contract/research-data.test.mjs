@@ -6,7 +6,7 @@ import { chmod, mkdir, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { promisify } from "node:util";
-import { bench, posixOnly, sha, until } from "./files-support.mjs";
+import { bench, shellPython, sha, until } from "./files-support.mjs";
 
 const run = promisify(execFile);
 const MIB = 1024 * 1024;
@@ -371,7 +371,7 @@ def load_from_disk(path):
     return {"train": Table(os.path.join(path, "train.lines")), "test": Table(os.path.join(path, "test.lines"))}
 `;
 
-test("Parquet, Arrow and dataset folders are read by a helper in the project's Python", posixOnly, async () => {
+test("Parquet, Arrow and dataset folders are read by a helper in the project's Python", shellPython, async () => {
   const rows = Array.from({ length: 5 }, (_, index) => ({ a: index, b: `row ${index}` }));
   const setup = await project({
     "probe.mjs": SAMPLE_PROGRAM,
@@ -440,7 +440,7 @@ test("a frozen dataset folder is one entry, and any change in it counts", async 
   assert.equal(item.changed, true);
 });
 
-test("without datasets the answer says so and points at the Post-training kit, without failing silently", posixOnly, async () => {
+test("without datasets the answer says so and points at the Post-training kit, without failing silently", shellPython, async () => {
   const { route } = await project({ "train.parquet": "x", "set/state.json": "{}", "plain.csv": "a\n1\n" });
   await saturn.api("PUT", `${route}/environment`, { python: await interpreter({ "datasets.py": "raise ImportError('no such package')\n" }) });
   for (const answer of [await preview(route, { path: "train.parquet" }), await profile(route, { path: "set" }), await overlap(route, { left: "train.parquet", right: "plain.csv" })]) {
@@ -452,7 +452,7 @@ test("without datasets the answer says so and points at the Post-training kit, w
   assert.equal((await preview(route, { path: "plain.csv" })).status, 200, "a plain file needs no Python");
 });
 
-test("a helper that fails says how, and a project with no Python is told to name one", posixOnly, async () => {
+test("a helper that fails says how, and a project with no Python is told to name one", shellPython, async () => {
   const { route } = await project({ "train.parquet": "x" });
   const none = await preview(route, { path: "train.parquet" });
   assert.equal(none.status, 422);
