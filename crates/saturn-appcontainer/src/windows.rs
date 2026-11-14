@@ -168,9 +168,12 @@ unsafe fn allowed(list: *const ACL, identity: PSID, rights: u32, folder: bool) -
             if header.AceType != ALLOWS || (folder && !handed_down) {
                 continue;
             }
-            let entry = entry.cast::<ACCESS_ALLOWED_ACE>();
-            let whose: PSID = (&raw mut (*entry).SidStart).cast();
-            if (*entry).Mask & rights == rights && EqualSid(whose, identity) != 0 {
+            let Some(allows) = entry.cast::<ACCESS_ALLOWED_ACE>().as_ref() else {
+                continue;
+            };
+            // The identity starts where the entry's last field does and runs on behind it; it is only compared.
+            let whose: PSID = std::ptr::from_ref(&allows.SidStart).cast_mut().cast();
+            if allows.Mask & rights == rights && EqualSid(whose, identity) != 0 {
                 return true;
             }
         }
