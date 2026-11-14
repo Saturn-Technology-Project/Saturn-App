@@ -118,11 +118,14 @@ fn capability(name: &str) -> Result<PSID, String> {
             &mut count,
         )
     };
-    if made == 0 || count == 0 || capabilities.is_null() {
+    if made == 0 || count == 0 {
         return Err(format!("no shared capability ({})", last_error()));
     }
-    // SAFETY: the call said `capabilities` holds `count` identities, and there is at least one.
-    Ok(unsafe { *capabilities })
+    // SAFETY: the call said `capabilities` holds `count` identities, and there is at least one; a null pointer is
+    // answered as none.
+    unsafe { capabilities.as_ref() }
+        .copied()
+        .ok_or_else(|| format!("no shared capability ({})", last_error()))
 }
 
 /// One of the system's own identities, such as a network capability, in memory of this program's. Words, not bytes, so it is aligned as an
@@ -149,12 +152,17 @@ unsafe fn allowed(list: *const ACL, identity: PSID, rights: u32, folder: bool) -
     // SAFETY: the caller's `list` is valid, so its count is, and each entry `GetAce` returns lies inside it. Only
     // entries that allow are read, which are a header, a mask and an identity.
     unsafe {
-        for index in 0..u32::from((*list).AceCount) {
+        let Some(counted) = list.as_ref() else {
+            return false;
+        };
+        for index in 0..u32::from(counted.AceCount) {
             let mut entry: *mut c_void = null_mut();
-            if GetAce(list, index, &mut entry) == 0 || entry.is_null() {
+            if GetAce(list, index, &mut entry) == 0 {
                 continue;
             }
-            let header = &*entry.cast::<ACE_HEADER>();
+            let Some(header) = entry.cast::<ACE_HEADER>().as_ref() else {
+                continue;
+            };
             let handed_down = u32::from(header.AceFlags) & SUB_CONTAINERS_AND_OBJECTS_INHERIT
                 == SUB_CONTAINERS_AND_OBJECTS_INHERIT;
             if header.AceType != ALLOWS || (folder && !handed_down) {
