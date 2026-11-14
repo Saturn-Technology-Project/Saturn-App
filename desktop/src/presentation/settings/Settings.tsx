@@ -1372,7 +1372,7 @@ function General(props: {
                 <strong>{t("Read-only")}</strong>
                 {t(" lets it write nowhere; ")}
                 <strong>{t("Off")}</strong>
-                {t(" runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows cannot. A project can override this.")}
+                {t(" runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows does after a one-time setup. A project can override this.")}
               </RowDescription>
             </RowText>
             <Choice ariaLabel={t("Sandbox mode")} value={sandbox.mode} options={[{ value: "workspace-write", label: t("Workspace") }, { value: "read-only", label: t("Read-only") }, { value: "off", label: t("Off") }]} onChange={(next) => void chooseSandbox({ ...sandbox, mode: next as SandboxMode })} />

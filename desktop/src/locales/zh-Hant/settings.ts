@@ -231,8 +231,8 @@ export default {
   "Read-only": "唯讀",
   " lets it write nowhere; ": "完全禁止寫入；",
   Off: "已關閉",
-  " runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows cannot. A project can override this.":
-    "則以你的身分執行。代理可以要求在沙箱外執行單一指令，此時會顯示核准卡片。沙箱支援 macOS 與 Linux（需 bubblewrap），不支援 Windows。專案可覆寫此設定。",
+  " runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows does after a one-time setup. A project can override this.":
+    "則以你的身分執行。代理可以要求在沙箱外執行單一指令，此時會顯示核准卡片。沙箱支援 macOS 與 Linux（需 bubblewrap）；Windows 需由系統管理員先設定一次（見 README），而且沙箱裡的指令連不到這台電腦上的伺服器（localhost）。專案可覆寫此設定。",
   "Sandbox mode": "沙箱模式",
   Network: "網路",
   "Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.":

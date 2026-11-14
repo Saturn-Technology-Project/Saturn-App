@@ -23,7 +23,7 @@ By taking part you agree to the [code of conduct](CODE_OF_CONDUCT.md). How decis
 
 Saturn's code follows one standard, enforced automatically:
 
-- **Rust**: `cargo fmt` for formatting, and `cargo clippy --all-targets` with every lint in clippy's `all` group denied and `unsafe_code` forbidden ([`Cargo.toml`](Cargo.toml)). [`clippy.toml`](clippy.toml) refuses a request sent any way but `saturn_telemetry::network::SendNoted`, so that it is in the network log.
+- **Rust**: `cargo fmt` for formatting, and `cargo clippy --all-targets` with every lint in clippy's `all` group denied and `unsafe_code` forbidden ([`Cargo.toml`](Cargo.toml)), but for `crates/saturn-appcontainer`, which makes the Windows sandbox from Win32 calls and keeps them to one file, each with the reason it is sound. [`clippy.toml`](clippy.toml) refuses a request sent any way but `saturn_telemetry::network::SendNoted`, so that it is in the network log.
 - **TypeScript strict mode** (`strict: true`) for the desktop interface; `npm run typecheck` must pass with no errors.
 - **oxlint with [`.oxlintrc.json`](.oxlintrc.json)**: every rule in its correctness category is an error, including unused code and React's rules of hooks; `npm run lint` must pass with no warnings. CI runs it on every push and pull request ([supply-chain workflow](.github/workflows/supply-chain.yml)). React's effect-dependency and set-state-in-effect rules are not enforced yet, until the existing effects have been reviewed.
 - **Write like the code around it**: the same naming, comment density and idiom; names in whole words; a short comment above a function or type that says what it is for.

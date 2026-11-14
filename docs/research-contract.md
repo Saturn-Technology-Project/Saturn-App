@@ -184,8 +184,8 @@ edited:
 
 ### Run sandbox
 
-A run's program runs in the system sandbox, seatbelt (`sandbox-exec`) on macOS and bubblewrap on Linux, unless its
-version turns it off. An experiment's `sandbox` holds two switches, `isolated` and `network` (both `true` when left
+A run's program runs in the system sandbox, seatbelt (`sandbox-exec`) on macOS, bubblewrap on Linux and an
+AppContainer on Windows, unless its version turns it off. An experiment's `sandbox` holds two switches, `isolated` and `network` (both `true` when left
 out), and `envNames` lists the environment variables its program is given. Both are frozen into each version; a
 version frozen before there was a `sandbox` gets the default.
 
@@ -580,7 +580,7 @@ jobs below) runs in the project's command sandbox: it writes only to the project
 caches (an environment job also to uv's own Python folder), and reads neither Saturn's data folder (but Saturn's own
 download of uv) nor the credential folders. The interpreter is named in the project's own files, and any interpreter
 runs its environment's `.pth` files as it starts, so the sandbox is what keeps a cloned project's environment from
-Saturn's token and keys. Where the system has no sandbox (Windows, Linux without bubblewrap), or the project's sandbox
+Saturn's token and keys. Where the system has no sandbox (Linux without bubblewrap, Windows before its one-time setup), or the project's sandbox
 is off, they run unconfined. The assistant's `research_environment_action` with `action: "set"` asks first in the
 default approval mode, and a package name may not start with a dot (`.` would build the project's own `setup.py`).
 

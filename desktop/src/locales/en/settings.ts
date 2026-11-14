@@ -106,8 +106,8 @@ export default {
     " confines it to the project folder (plus temp and cache folders) using the operating system's sandbox, so a stray ",
   " or a script cannot touch anything else; ": " or script can't touch anything else; ",
   " lets it write nowhere; ": " blocks all writes; ",
-  " runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows cannot. A project can override this.":
-    " runs it as you. An agent can ask to run a single command outside the sandbox, which shows an approval card. Sandboxing works on macOS and Linux (with bubblewrap), not on Windows. A project can override this.",
+  " runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows does after a one-time setup. A project can override this.":
+    " runs it as you. An agent can ask to run a single command outside the sandbox, which shows an approval card. Sandboxing works on macOS and Linux (with bubblewrap), and on Windows after a one-time setup by an administrator (see the README), where a sandboxed command cannot reach servers on this computer (localhost). A project can override this.",
   "Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.":
     "Whether sandboxed commands can use the network (package installs, git push, curl). When off, every connection except local sockets is blocked; the agent can still ask to run a command outside the sandbox.",
   "Network for commands": "Network access for commands",
