@@ -35,11 +35,12 @@ test("a sandboxed command can neither read nor change Saturn's token, keys or re
     "const fs = require('fs'), path = require('path')",
     `const { data, url } = JSON.parse(Buffer.from('${target}', 'base64').toString())`,
     "const tried = (what) => { try { return what(); } catch (error) { console.error(error.code || String(error)); return ''; } }",
-    "const tokens = tried(() => fs.readdirSync(data).filter((name) => name.startsWith('runtime-tok'))) || ['runtime-' + 'token']",
-    "const token = tried(() => fs.readFileSync(path.join(data, tokens[0]), 'utf8'))",
+    // Where the sandbox shows the folder empty (bubblewrap) there is no name to find, so the usual one is tried.
+    "const name = (tried(() => fs.readdirSync(data).filter((name) => name.startsWith('runtime-tok'))) || [])[0] || 'runtime-' + 'token'",
+    "const token = tried(() => fs.readFileSync(path.join(data, name), 'utf8'))",
     "console.log(token)",
     "console.log(tried(() => fs.readFileSync(path.join(data, 'state.json'), 'utf8').slice(0, 64)))",
-    "tried(() => fs.writeFileSync(path.join(data, tokens[0]), 'x'))",
+    "tried(() => fs.writeFileSync(path.join(data, name), 'x'))",
     "fetch(url, { method: 'PATCH', headers: { authorization: 'Bearer ' + token.trim(), 'content-type': 'application/json' }, body: JSON.stringify({ sandbox: { mode: 'off' } }) })"
       + ".then((answer) => console.log('answered', answer.status), () => console.log('unreachable')).then(() => process.exit(1))",
   ].join("; "));
