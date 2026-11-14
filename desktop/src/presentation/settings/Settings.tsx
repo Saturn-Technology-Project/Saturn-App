@@ -7,7 +7,7 @@ import { PermissionsPage, ProjectPermissions } from "./Permissions";
 import { InstructionsReview, useInstructions } from "../InstructionFiles";
 import { HooksPage } from "./Hooks";
 import { PluginsPage } from "./Plugins";
-import { EFFORT_LABELS, removalQuestion, runsLocally, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type LlmProvider, type LogLine, type ProviderModels, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type CliStatus } from "../../domain/model";
+import { EFFORT_LABELS, removalQuestion, runsLocally, splitCommandLine, supportsEffort, type Agent, type AgentBrowser, type LlmProvider, type LogLine, type ProviderModels, type Mcp, type Model, type Profile, type Project, type Rag, type RuntimeInfo, type SandboxMode, type SandboxSettings, type SandboxStatus, type CliStatus } from "../../domain/model";
 import type { CodexStatus, ProgramStatus } from "../../application/admin";
 import { UsageBilling } from "./UsageBilling";
 import { Telemetry } from "./Telemetry";
@@ -328,6 +328,49 @@ function CommandLine(props: { onError: (message: string) => void }) {
         </SettingsRow>
       </SettingsCard>
     </div>
+  );
+}
+
+/** Says when this computer cannot sandbox commands, and on Windows offers the one-time setup that makes it able to. */
+function SandboxSetup(props: { onError: (message: string) => void }) {
+  const [status, setStatus] = useState<SandboxStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    void desktop.admin.sandboxStatus().then(setStatus, () => setStatus(null));
+  }, []);
+  async function setUp() {
+    setBusy(true);
+    try {
+      const next = await desktop.admin.setUpSandbox();
+      setStatus(next);
+      setDone(next.available);
+      props.onError(next.available ? "" : t("The sandbox is still off: {reason}.", { reason: next.reason ?? "" }));
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : t("Could not set up the sandbox"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!status || (status.available && !done)) return null;
+  return (
+    <SettingsRow>
+      <RowText>
+        <RowLabel>{status.available ? t("The sandbox is set up") : t("The sandbox is off on this computer")}</RowLabel>
+        <RowDescription>
+          {status.available
+            ? t("Commands now run in the sandbox chosen above.")
+            : status.setup
+              ? t("Windows needs a one-time setup by an administrator before it can sandbox commands; until then they run as you, whatever is chosen above. The setup lets sandboxed programs see that the folders above your home folder and your projects exist, and read the programs on PATH. Windows asks for an administrator first.")
+              : t("Commands run as you, whatever is chosen above: {reason}.", { reason: status.reason ?? "" })}
+        </RowDescription>
+      </RowText>
+      {status.setup ? (
+        <Button type="button" variant="default" size="small" disabled={busy} onClick={() => void setUp()}>
+          {busy ? t("Setting up…") : t("Set up")}
+        </Button>
+      ) : null}
+    </SettingsRow>
   );
 }
 
@@ -1384,6 +1427,7 @@ function General(props: {
             </RowText>
             <Switch checked={sandbox.network} aria-label={t("Network for commands")} onCheckedChange={(next) => void chooseSandbox({ ...sandbox, network: next })} />
           </SettingsRow>
+          <SandboxSetup onError={props.onError} />
         </SettingsCard>
       </div>
 

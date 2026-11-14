@@ -107,10 +107,28 @@ export default {
   " or a script cannot touch anything else; ": " or script can't touch anything else; ",
   " lets it write nowhere; ": " blocks all writes; ",
   " runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows does after a one-time setup. A project can override this.":
-    " runs it as you. An agent can ask to run a single command outside the sandbox, which shows an approval card. Sandboxing works on macOS and Linux (with bubblewrap), and on Windows after a one-time setup by an administrator (see the README), where a sandboxed command cannot reach servers on this computer (localhost). A project can override this.",
+    " runs it as you. An agent can ask to run a single command outside the sandbox, which shows an approval card. Sandboxing works on macOS and Linux (with bubblewrap), and on Windows after a one-time setup by an administrator (the row below offers it), where a sandboxed command cannot reach servers on this computer (localhost). A project can override this.",
   "Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.":
     "Whether sandboxed commands can use the network (package installs, git push, curl). When off, every connection except local sockets is blocked; the agent can still ask to run a command outside the sandbox.",
   "Network for commands": "Network access for commands",
+  "The sandbox is set up":
+    "The sandbox is set up",
+  "The sandbox is off on this computer":
+    "The sandbox is off on this computer",
+  "Commands now run in the sandbox chosen above.":
+    "Commands now run in the sandbox chosen above.",
+  "Windows needs a one-time setup by an administrator before it can sandbox commands; until then they run as you, whatever is chosen above. The setup lets sandboxed programs see that the folders above your home folder and your projects exist, and read the programs on PATH. Windows asks for an administrator first.":
+    "Windows needs a one-time setup by an administrator before it can sandbox commands; until then they run as you, whatever is chosen above. The setup lets sandboxed programs see that the folders above your home folder and your projects exist, and read the programs on PATH. Windows asks for an administrator first.",
+  "Commands run as you, whatever is chosen above: {reason}.":
+    "Commands run as you, whatever is chosen above: {reason}.",
+  "Setting up…":
+    "Setting up…",
+  "Set up":
+    "Set up",
+  "The sandbox is still off: {reason}.":
+    "The sandbox is still off: {reason}.",
+  "Could not set up the sandbox":
+    "Could not set up the sandbox",
   "Workspace Name": "Workspace name",
   "Shown in the title bar and settings.": "Shown in the title bar and in Settings.",
   "Log Level": "Log level",

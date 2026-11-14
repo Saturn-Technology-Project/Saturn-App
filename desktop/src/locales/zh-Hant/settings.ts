@@ -232,12 +232,30 @@ export default {
   " lets it write nowhere; ": "完全禁止寫入；",
   Off: "已關閉",
   " runs it as you. An agent can ask to run one command outside the sandbox, which shows an approval card. macOS and Linux (with bubblewrap) sandbox; Windows does after a one-time setup. A project can override this.":
-    "則以你的身分執行。代理可以要求在沙箱外執行單一指令，此時會顯示核准卡片。沙箱支援 macOS 與 Linux（需 bubblewrap）；Windows 需由系統管理員先設定一次（見 README），而且沙箱裡的指令連不到這台電腦上的伺服器（localhost）。專案可覆寫此設定。",
+    "則以你的身分執行。代理可以要求在沙箱外執行單一指令，此時會顯示核准卡片。沙箱支援 macOS 與 Linux（需 bubblewrap）；Windows 需由系統管理員先設定一次（下面那一列可以執行），而且沙箱裡的指令連不到這台電腦上的伺服器（localhost）。專案可覆寫此設定。",
   "Sandbox mode": "沙箱模式",
   Network: "網路",
   "Whether sandboxed commands may use the network (package installs, git push, curl). Off blocks every connection except local sockets; the agent can still ask to run a command outside the sandbox.":
     "沙箱中的指令能否使用網路（安裝套件、git push、curl）。關閉時，會封鎖本機 socket 以外的所有連線；代理仍可要求在沙箱外執行指令。",
   "Network for commands": "指令的網路存取",
+  "The sandbox is set up":
+    "沙箱已設定完成",
+  "The sandbox is off on this computer":
+    "這台電腦的沙箱沒有啟用",
+  "Commands now run in the sandbox chosen above.":
+    "指令現在會在上面選的沙箱裡執行。",
+  "Windows needs a one-time setup by an administrator before it can sandbox commands; until then they run as you, whatever is chosen above. The setup lets sandboxed programs see that the folders above your home folder and your projects exist, and read the programs on PATH. Windows asks for an administrator first.":
+    "Windows 要先由系統管理員設定一次，才能把指令放進沙箱；在那之前，不論上面選什麼，指令都以你的身分執行。設定會讓沙箱裡的程式看得到家目錄與專案上層的資料夾存在，並讀得到 PATH 上的程式。執行前 Windows 會先要求系統管理員同意。",
+  "Commands run as you, whatever is chosen above: {reason}.":
+    "不論上面選什麼，指令都以你的身分執行：{reason}。",
+  "Setting up…":
+    "設定中…",
+  "Set up":
+    "設定",
+  "The sandbox is still off: {reason}.":
+    "沙箱仍未啟用：{reason}。",
+  "Could not set up the sandbox":
+    "無法設定沙箱",
   "Workspace Name": "工作區名稱",
   "Shown in the title bar and settings.": "顯示在標題列與設定中。",
   "Workspace name": "工作區名稱",

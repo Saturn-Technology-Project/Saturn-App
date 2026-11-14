@@ -1,4 +1,4 @@
-import type { AgentBrowser, LlmChoice, LlmProvider, ProviderModels, LogLine, Mcp, CliStatus, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, UsageSummary } from "../domain/model.js";
+import type { AgentBrowser, LlmChoice, LlmProvider, ProviderModels, LogLine, Mcp, CliStatus, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, SandboxStatus, UsageSummary } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -99,6 +99,16 @@ export class AdminService {
 
   updateSettings(patch: { name?: string; environment?: string; logging?: string; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; onboardedAt?: string | null; sandbox?: SandboxSettings | null; claudeProjectSettings?: boolean; browser?: AgentBrowser }): Promise<Profile> {
     return this.runtime.request<Profile>("/settings", { method: "PATCH", body: JSON.stringify(patch) });
+  }
+
+  /** Whether this computer can sandbox commands, and whether a setup would help. */
+  sandboxStatus(): Promise<SandboxStatus> {
+    return this.runtime.request<SandboxStatus>("/sandbox");
+  }
+
+  /** Runs the Windows sandbox's one-time setup as an administrator (Windows asks first), and says how it stands afterwards. */
+  setUpSandbox(): Promise<SandboxStatus> {
+    return this.runtime.request<SandboxStatus>("/sandbox/setup", { method: "POST" });
   }
 
   /** The permission layers that apply to an agent in a project (both optional). */
