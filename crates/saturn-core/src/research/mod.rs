@@ -31,7 +31,7 @@ mod trash;
 mod workers;
 
 pub use data::DataOverlapRequest;
-pub(crate) use isolation::{hidden_from_commands, research_invocation};
+pub(crate) use isolation::{hidden_from_commands, sandboxed_invocation};
 pub use labels::RunDigest;
 pub use remote::worker_entry;
 

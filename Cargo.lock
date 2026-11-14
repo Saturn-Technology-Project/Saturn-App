@@ -3465,6 +3465,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "saturn-appcontainer"
+version = "0.6.2"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "saturn-browser"
 version = "0.6.2"
 dependencies = [
@@ -3610,6 +3620,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.3.4",
  "regex",
+ "saturn-appcontainer",
  "saturn-core",
  "saturn-domain",
  "saturn-store",
@@ -3664,6 +3675,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rustix",
+ "saturn-appcontainer",
  "saturn-domain",
  "saturn-telemetry",
  "serde",

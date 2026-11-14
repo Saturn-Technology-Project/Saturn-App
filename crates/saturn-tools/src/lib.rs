@@ -5,6 +5,7 @@ use saturn_domain::Arguments;
 use saturn_domain::js;
 use serde_json::Value;
 
+pub mod appcontainer;
 pub mod code;
 pub mod confine;
 pub mod file;

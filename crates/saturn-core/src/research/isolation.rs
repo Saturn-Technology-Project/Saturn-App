@@ -360,15 +360,24 @@ pub(super) async fn command(
         hidden: hidden.clone(),
         visible: visible.clone(),
         network: asked.network,
+        // Everything visible but the snapshot is there after the run: a linked environment, data, weights.
+        lasting: visible
+            .iter()
+            .filter(|path| **path != placement.tree)
+            .cloned()
+            .collect(),
+        group: placement
+            .sources
+            .first()
+            .map(|project| project.to_string_lossy().into_owned())
+            .unwrap_or_default(),
     };
     let (variables, environment) = environment(version, std::env::vars_os());
     let wrapped = {
-        let invocation = Invocation {
-            file: "/bin/sh".to_owned(),
-            args: vec!["-c".to_owned(), script.to_owned()],
-            verbatim: false,
-        };
         let env: saturn_tools::shell::Env = std::env::vars_os().collect();
+        // The system's shell, as an unconfined run gets it: `/bin/sh -c`, or cmd with its line as written.
+        let invocation: Invocation =
+            saturn_tools::shell::shell_invocation(script, "/bin/sh", Platform::current(), &env);
         let working = working.to_path_buf();
         tokio::task::spawn_blocking(move || confine(invocation, &confinement, &working, &env))
             .await
@@ -385,11 +394,17 @@ pub(super) async fn command(
         Ok(confined) => {
             let mut command = Command::new(&confined.invocation.file);
             saturn_tools::no_window(&mut command);
+            #[cfg(windows)]
+            for argument in &confined.invocation.args {
+                command.raw_arg(argument);
+            }
+            #[cfg(not(windows))]
             command.args(&confined.invocation.args);
             let observed = json!({
                 "requested": true,
                 "isolation": "sandbox",
                 "mechanism": confined.mechanism,
+                "container": confined.container,
                 "network": if asked.network { "allowed" } else { "blocked" },
                 "writable": {
                     "records": placement.records,
@@ -471,6 +486,19 @@ pub(crate) fn research_invocation(
         args,
         verbatim: false,
     };
+    sandboxed_invocation(settings, data_root, invocation, root, writable, readable)
+}
+
+/// The same for an invocation that is already made, such as the system shell's with a script: cmd's stays written as
+/// cmd reads it.
+pub(crate) fn sandboxed_invocation(
+    settings: saturn_tools::sandbox::SandboxSettings,
+    data_root: &Path,
+    invocation: saturn_tools::shell::Invocation,
+    root: &Path,
+    writable: &[String],
+    readable: &[String],
+) -> saturn_tools::shell::Invocation {
     saturn_tools::sandbox::wrap_command(
         invocation,
         settings,

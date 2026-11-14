@@ -840,6 +840,12 @@ impl Kernel {
         if self.research.ending.load(Ordering::SeqCst) {
             return;
         }
+        // On Windows the run had a container registered for itself; nothing runs in it any more.
+        if let Ok(Some(evidence)) = super::read_record(&directory.join(evidence::EVIDENCE)).await
+            && let Some(container) = evidence["observed"]["sandbox"]["container"].as_str()
+        {
+            saturn_tools::appcontainer::forget(container);
+        }
         let closed = self
             .close_snapshot(&id, &directory, &observed, &source, true)
             .await;

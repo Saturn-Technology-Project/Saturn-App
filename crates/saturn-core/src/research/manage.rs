@@ -554,30 +554,26 @@ impl Kernel {
         // The system shell runs the script: /bin/sh, or cmd on Windows. Installing runs code the packages bring (a build
         // backend, a setup.py), so the job runs in the project's command sandbox: it writes to the project, the caches,
         // the temporary folders and uv's own Python folder, and reads Saturn's download of uv, but not the rest of
-        // Saturn's data or the credential folders. Windows has no sandbox, and cmd takes its line verbatim.
-        let mut shell = shell_invocation(&script, "/bin/sh", Platform::current(), &process_env());
-        if !shell.verbatim {
-            let tools = self.environment_tools(&source);
-            let readable: Vec<String> = (text(&tools, "uvSource") == "saturn")
-                .then(|| {
-                    Path::new(text(&tools, "uv"))
-                        .parent()
-                        .map(Path::to_path_buf)
-                })
-                .flatten()
-                .map(|folder| folder.to_string_lossy().into_owned())
-                .into_iter()
-                .collect();
-            shell = super::isolation::research_invocation(
-                self.project_sandbox(project),
-                self.store.root(),
-                &shell.file,
-                shell.args,
-                &source,
-                &uv_python_folders(),
-                &readable,
-            );
-        }
+        // Saturn's data or the credential folders. cmd takes its line verbatim, in the sandbox as outside it.
+        let tools = self.environment_tools(&source);
+        let readable: Vec<String> = (text(&tools, "uvSource") == "saturn")
+            .then(|| {
+                Path::new(text(&tools, "uv"))
+                    .parent()
+                    .map(Path::to_path_buf)
+            })
+            .flatten()
+            .map(|folder| folder.to_string_lossy().into_owned())
+            .into_iter()
+            .collect();
+        let shell = super::isolation::sandboxed_invocation(
+            self.project_sandbox(project),
+            self.store.root(),
+            shell_invocation(&script, "/bin/sh", Platform::current(), &process_env()),
+            &source,
+            &uv_python_folders(),
+            &readable,
+        );
         let mut command = Command::new(&shell.file);
         shell_arguments(&mut command, &shell);
         launch_env(&mut command);
