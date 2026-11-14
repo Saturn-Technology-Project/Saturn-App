@@ -9,11 +9,11 @@
 //! can exempt a container. And programs ask about the folders above the one they work in (Node to resolve a script's
 //! path, git to find a repository), up to the drive's top folder, which with `Users` and a program's folder under
 //! Program Files is an administrator's to open. So the sandbox is used only once an administrator has run
-//! `saturn-server --appcontainer-setup`, which `ready` finds out by trying; until then commands run as they did
-//! before there was a sandbox, and say so.
+//! `saturn-server --appcontainer-setup` (Settings has a button that does, see `elevated_setup`), which `ready` finds
+//! out by trying; until then commands run as they did before there was a sandbox, and say so.
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use saturn_appcontainer::{FLAG, Policy, Shared};
 use saturn_domain::plain_path;
@@ -47,7 +47,7 @@ pub fn forget(container: &str) {
 /// The argument that makes Saturn's program open, once, what only an administrator can.
 pub const SETUP_FLAG: &str = "--appcontainer-setup";
 /// What a command is told where the sandbox was never set up.
-pub const NOT_SET_UP: &str = "the Windows sandbox is not set up: an administrator runs `saturn-server --appcontainer-setup` once (see the README)";
+pub const NOT_SET_UP: &str = "the Windows sandbox is not set up: Settings → General → Sandbox sets it up once, as an administrator (or `saturn-server --appcontainer-setup`; see the README)";
 
 /// What the one-time setup opens: the folders on `PATH` and the caches, with the folders above them and above
 /// `folders` (a project kept on another drive, say), as every sandbox will ask for them.
@@ -77,6 +77,29 @@ pub fn setup(env: &Env, folders: &[String]) -> Result<Vec<String>, String> {
     saturn_appcontainer::prepare(&setup_policy(env, folders))
 }
 
+/// What trying a container found, kept until `try_again` forgets it.
+static READY: Mutex<Option<bool>> = Mutex::new(None);
+
+/// Whether a program in a container can ask about the folders above the home folder, which is what the setup makes
+/// possible. Tried once, with cmd in a container that is opened to nothing.
+pub fn ready(env: &Env) -> Result<(), &'static str> {
+    let Some(launcher) = launcher() else {
+        return Err("this program cannot start a Windows sandbox");
+    };
+    let mut ready = READY
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let tried = *ready.get_or_insert_with(|| probe(launcher, env));
+    if tried { Ok(()) } else { Err(NOT_SET_UP) }
+}
+
+/// Forgets what `ready` found, so the next question tries a container again: asked after the setup has been run.
+pub fn try_again() {
+    *READY
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+}
+
 /// The cmd line that asks whether the home folder and each folder above it is there, and ends with 9 at the first
 /// that is not. Each question stands in brackets of its own: without them cmd reads everything after the first `if`
 /// as what that `if` does, and a home folder that is there would answer for all of them.
@@ -93,46 +116,100 @@ pub fn probe_line(home: &str) -> String {
         .join(" & ")
 }
 
-/// Whether a program in a container can ask about the folders above the home folder, which is what the setup makes
-/// possible. Tried once, with cmd in a container that is opened to nothing.
-pub fn ready(env: &Env) -> Result<(), &'static str> {
-    static READY: OnceLock<bool> = OnceLock::new();
-    let Some(launcher) = launcher() else {
-        return Err("this program cannot start a Windows sandbox");
+/// Runs cmd in a container opened to nothing and has it ask about the home folder and each folder above it.
+fn probe(launcher: &Path, env: &Env) -> bool {
+    let checks = probe_line(&plain(&home(env)));
+    let policy = Policy {
+        shared: vec![Shared {
+            name: TOOLS.to_owned(),
+            write: Vec::new(),
+            read: Vec::new(),
+        }],
+        ..Policy::default()
     };
-    let tried = *READY.get_or_init(|| {
-        let checks = probe_line(&plain(&home(env)));
-        let policy = Policy {
-            shared: vec![Shared {
-                name: TOOLS.to_owned(),
-                write: Vec::new(),
-                read: Vec::new(),
-            }],
-            ..Policy::default()
-        };
-        let shell =
-            crate::shell::shell_invocation(&checks, "", crate::sandbox::Platform::Windows, env);
-        let wrapped = wrapped(launcher, &policy, shell);
-        let mut command = std::process::Command::new(&wrapped.file);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            for argument in &wrapped.args {
-                command.raw_arg(argument);
-            }
-            // No console window of its own.
-            command.creation_flags(0x0800_0000);
+    let shell = crate::shell::shell_invocation(&checks, "", crate::sandbox::Platform::Windows, env);
+    let wrapped = wrapped(launcher, &policy, shell);
+    let mut command = std::process::Command::new(&wrapped.file);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        for argument in &wrapped.args {
+            command.raw_arg(argument);
         }
-        #[cfg(not(windows))]
-        command.args(&wrapped.args);
-        command
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok_and(|status| status.success())
-    });
-    if tried { Ok(()) } else { Err(NOT_SET_UP) }
+        // No console window of its own.
+        command.creation_flags(0x0800_0000);
+    }
+    #[cfg(not(windows))]
+    command.args(&wrapped.args);
+    command
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+/// The PowerShell line that starts the setup as an administrator and waits for it. Windows asks the person first
+/// (the User Account Control prompt); a refusal there ends PowerShell with an error. The program and its arguments
+/// come from the environment, so no path is ever read as PowerShell.
+const ELEVATED: &str = "$setup = Start-Process -FilePath $env:SATURN_SETUP_PROGRAM -ArgumentList $env:SATURN_SETUP_ARGUMENTS -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $setup.ExitCode";
+
+/// The setup's arguments as one command line: the flag, then each folder in quotes. A folder's name cannot hold a
+/// quote on Windows, and a backslash at its end would take the closing quote with it, so it is left off.
+pub fn setup_arguments(folders: &[String]) -> String {
+    std::iter::once(SETUP_FLAG.to_owned())
+        .chain(
+            folders
+                .iter()
+                .filter(|folder| !folder.contains('"'))
+                .map(|folder| {
+                    let kept = folder.trim_end_matches('\\');
+                    // A drive's top folder keeps its backslash, doubled so that the quote after it still closes.
+                    if kept.ends_with(':') {
+                        format!("\"{kept}\\\\\"")
+                    } else {
+                        format!("\"{kept}\"")
+                    }
+                }),
+        )
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+/// Runs the one-time setup as an administrator, for `folders` too, and waits for it. Windows asks the person first.
+/// Says why when the setup did not run to its end; what it could not open is found by `ready` afterwards.
+pub fn elevated_setup(env: &Env, folders: &[String]) -> Result<(), String> {
+    let launcher = launcher().ok_or("this program cannot start a Windows sandbox")?;
+    let root = variable(env, "SystemRoot")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("C:\\Windows"));
+    let mut command =
+        std::process::Command::new(root.join("System32\\WindowsPowerShell\\v1.0\\powershell.exe"));
+    command
+        .args(["-NoProfile", "-NonInteractive", "-Command", ELEVATED])
+        .env("SATURN_SETUP_PROGRAM", launcher)
+        .env("SATURN_SETUP_ARGUMENTS", setup_arguments(folders))
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // No console window of its own.
+        command.creation_flags(0x0800_0000);
+    }
+    let output = command
+        .output()
+        .map_err(|error| format!("PowerShell could not be started: {error}"))?;
+    try_again();
+    if output.status.success() {
+        return Ok(());
+    }
+    let said = String::from_utf8_lossy(&output.stderr);
+    if said.contains("canceled by the user") || said.contains("1223") {
+        return Err("the administrator prompt was declined".to_owned());
+    }
+    Err("the setup could not open everything, or did not run as an administrator".to_owned())
 }
 
 /// A path resolved and written the way people write it, which is how an access list is asked for it.

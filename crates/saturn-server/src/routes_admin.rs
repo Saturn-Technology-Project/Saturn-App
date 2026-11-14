@@ -57,6 +57,14 @@ async fn information(State(kernel): Shared) -> Answer {
     ok(kernel.information().await)
 }
 
+async fn sandbox() -> Answer {
+    ok(Kernel::sandbox_status())
+}
+
+async fn set_up_sandbox(State(kernel): Shared) -> Answer {
+    ok(kernel.set_up_sandbox().await?)
+}
+
 async fn logs(Query(query): QueryText) -> Answer {
     let text = |key: &str| wanted(&query, key).unwrap_or("");
     ok(Kernel::list_logs(text("service"), text("level"), text("q")))
@@ -1173,6 +1181,8 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/agent-mcp", post(agent_mcp).fallback(agent_mcp_other))
         .route("/settings", get(settings).patch(update_settings))
         .route("/information", get(information))
+        .route("/sandbox", get(sandbox))
+        .route("/sandbox/setup", post(set_up_sandbox))
         .route("/logs", get(logs))
         .route(
             "/storage/snapshots",

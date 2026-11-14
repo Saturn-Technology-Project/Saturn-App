@@ -241,6 +241,25 @@ fn the_setup_names_the_programs_folders_the_caches_and_a_folder_given() {
 }
 
 #[test]
+fn the_setup_run_as_an_administrator_is_given_each_folder_in_quotes() {
+    use saturn_tools::appcontainer::{SETUP_FLAG, setup_arguments};
+    assert_eq!(setup_arguments(&[]), SETUP_FLAG);
+    let folders = [
+        r"D:\My Studies\one".to_owned(),
+        // A backslash at the end would take the closing quote with it.
+        r"D:\two\".to_owned(),
+        // A drive's top folder keeps its backslash, doubled.
+        r"E:\".to_owned(),
+        // No folder's name holds a quote on Windows; one that does is not passed on.
+        "D:\\odd\" --other".to_owned(),
+    ];
+    assert_eq!(
+        setup_arguments(&folders),
+        format!(r#"{SETUP_FLAG} "D:\My Studies\one" "D:\two" "E:\\""#)
+    );
+}
+
+#[test]
 fn the_question_whether_the_sandbox_is_set_up_asks_about_every_folder_above_home() {
     // On Windows a path's parts are found by its backslashes; elsewhere this one is a single name.
     let line = saturn_tools::appcontainer::probe_line(r"C:\Users\ada");

@@ -71,3 +71,20 @@ test("a chat outside any project still works in its own folder inside Saturn's d
   assert.notEqual(around.result.exitCode, 0, JSON.stringify(around.result));
   assert.equal(around.result.stdout, "");
 });
+
+test("the runtime says whether this computer can sandbox commands, and offers a setup only where one would help", async () => {
+  const status = await saturn.api("GET", "/sandbox");
+  assert.equal(typeof status.available, "boolean");
+  if (status.available) {
+    const mechanism = { darwin: "seatbelt", linux: "bubblewrap", win32: "AppContainer" }[process.platform];
+    assert.deepEqual(status, { available: true, mechanism, reason: null, setup: false });
+    // Nothing to set up where the sandbox works: the answer is how it stands, and nobody is asked anything.
+    assert.deepEqual(await saturn.api("POST", "/sandbox/setup"), status);
+    return;
+  }
+  assert.equal(status.mechanism, null);
+  assert.ok(status.reason, "says why not");
+  // Only Windows has a setup. It asks for an administrator on the screen, so it is not run from here.
+  assert.equal(status.setup, process.platform === "win32");
+  if (!status.setup) assert.equal((await saturn.call("POST", "/sandbox/setup")).status, 409);
+});
