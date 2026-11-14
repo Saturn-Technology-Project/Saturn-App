@@ -239,3 +239,21 @@ fn the_setup_names_the_programs_folders_the_caches_and_a_folder_given() {
     }));
     assert!(!shared.read.contains(&elsewhere));
 }
+
+#[test]
+fn the_question_whether_the_sandbox_is_set_up_asks_about_every_folder_above_home() {
+    // On Windows a path's parts are found by its backslashes; elsewhere this one is a single name.
+    let line = saturn_tools::appcontainer::probe_line(r"C:\Users\ada");
+    if cfg!(windows) {
+        assert_eq!(
+            line,
+            r#"(if not exist "C:\Users\ada\" exit 9) & (if not exist "C:\Users\" exit 9) & (if not exist "C:\" exit 9)"#
+        );
+    }
+    // Every question in brackets of its own, or cmd takes the rest of the line as the first one's consequence.
+    assert!(
+        line.split(" & ").all(
+            |question| question.starts_with("(if not exist ") && question.ends_with(" exit 9)")
+        )
+    );
+}

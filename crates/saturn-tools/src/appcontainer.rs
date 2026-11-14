@@ -77,6 +77,22 @@ pub fn setup(env: &Env, folders: &[String]) -> Result<Vec<String>, String> {
     saturn_appcontainer::prepare(&setup_policy(env, folders))
 }
 
+/// The cmd line that asks whether the home folder and each folder above it is there, and ends with 9 at the first
+/// that is not. Each question stands in brackets of its own: without them cmd reads everything after the first `if`
+/// as what that `if` does, and a home folder that is there would answer for all of them.
+pub fn probe_line(home: &str) -> String {
+    Path::new(home)
+        .ancestors()
+        .map(|folder| {
+            format!(
+                "(if not exist \"{}\\\" exit 9)",
+                folder.to_string_lossy().trim_end_matches('\\')
+            )
+        })
+        .collect::<Vec<String>>()
+        .join(" & ")
+}
+
 /// Whether a program in a container can ask about the folders above the home folder, which is what the setup makes
 /// possible. Tried once, with cmd in a container that is opened to nothing.
 pub fn ready(env: &Env) -> Result<(), &'static str> {
@@ -85,16 +101,7 @@ pub fn ready(env: &Env) -> Result<(), &'static str> {
         return Err("this program cannot start a Windows sandbox");
     };
     let tried = *READY.get_or_init(|| {
-        let home = plain(&home(env));
-        let checks: Vec<String> = Path::new(&home)
-            .ancestors()
-            .map(|folder| {
-                format!(
-                    "if not exist \"{}\\\" exit 9",
-                    folder.to_string_lossy().trim_end_matches('\\')
-                )
-            })
-            .collect();
+        let checks = probe_line(&plain(&home(env)));
         let policy = Policy {
             shared: vec![Shared {
                 name: TOOLS.to_owned(),
@@ -103,12 +110,8 @@ pub fn ready(env: &Env) -> Result<(), &'static str> {
             }],
             ..Policy::default()
         };
-        let shell = crate::shell::shell_invocation(
-            &checks.join(" & "),
-            "",
-            crate::sandbox::Platform::Windows,
-            env,
-        );
+        let shell =
+            crate::shell::shell_invocation(&checks, "", crate::sandbox::Platform::Windows, env);
         let wrapped = wrapped(launcher, &policy, shell);
         let mut command = std::process::Command::new(&wrapped.file);
         #[cfg(windows)]
