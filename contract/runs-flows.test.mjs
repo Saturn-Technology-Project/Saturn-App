@@ -3,7 +3,7 @@
 // state.json between two runs of a runtime, to put it in a state that would otherwise take hours or weeks to reach.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -122,7 +122,8 @@ async function until(what, read, done, ms = 30_000) {
 
 const getRun = (id, target = runtime) => api(target, "GET", `/runs/${id}`);
 const finished = (run) => !["queued", "running", "waiting_approval", "sleeping"].includes(run.status);
-const untilFinished = (id, target = runtime) => until("the end of the run", () => getRun(id, target), finished);
+// Windows starts every sandboxed command through a launcher, which a turn of sixty commands takes a while over.
+const untilFinished = (id, target = runtime) => until("the end of the run", () => getRun(id, target), finished, process.platform === "win32" ? 120_000 : 30_000);
 const untilStatus = (id, status, target = runtime) => until(`the run ${status}`, () => getRun(id, target), (run) => run.status === status || finished(run));
 
 /** A model connection and an agent on it. */
@@ -686,7 +687,13 @@ test("a sub-agent may delegate once more, and the one below that is refused", as
 });
 
 test("stopping the delegating run stops its sub-agents, and the parent's stream shows them", async () => {
-  const marker = path.join(scratch, "sub-agent-started");
+  // The sub-agent's command leaves a file where a sandboxed command may: on Windows that is only the chat's own
+  // folder, so it is named without a folder and looked for under the runtime's data.
+  const windows = process.platform === "win32";
+  const marker = windows ? "sub-agent-started" : path.join(scratch, "sub-agent-started");
+  const made = async () => windows
+    ? (await readdir(runtime.dataDir, { recursive: true })).some((name) => path.basename(name) === marker)
+    : stat(marker).then(() => true, () => false);
   const model = await fakeModel({
     answer: (body) => {
       const input = body.messages.find((item) => item.role === "user")?.content ?? "";
@@ -700,7 +707,7 @@ test("stopping the delegating run stops its sub-agents, and the parent's stream 
   const run = await startRun(agent, "go", { threadId: thread.id });
   const stream = await openStream(runtime, `/runs/${run.id}/events`);
   try {
-    await until("the sub-agent's command", () => stat(marker).then(() => true, () => false), Boolean);
+    await until("the sub-agent's command", made, Boolean);
     const seen = await until("the sub-agent on the parent's stream", () => stream.events.findLast((item) => item.event === "run" && item.data.children?.length), Boolean);
     const child = seen.data.children[0];
     assert.equal(child.delegated.tools, "all");

@@ -414,7 +414,7 @@ test("a run started before the project was edited runs the version it was given"
     assert.equal(evidence.reported.seed, null, "a seed the program did not report is unknown");
   } finally {
     await first.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -582,7 +582,7 @@ test("a runtime killed mid-run: the process is ended, the run is interrupted, an
     await ended(bed, next.id, second);
   } finally {
     await second.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -602,7 +602,7 @@ test("a runtime killed before the process existed: the run is interrupted and no
     assert.equal(run.process, "none");
   } finally {
     await second.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -625,7 +625,7 @@ test("a runtime killed just after the process started still finds it, by what Sa
     await until("the process to end", () => !alive(pid));
   } finally {
     await second.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -656,7 +656,7 @@ test("a process id now used by something else is not ended", async () => {
       // Already gone.
     }
     await second.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
@@ -670,7 +670,7 @@ test("a runtime stopped normally ends its runs and records them as interrupted",
   const saved = JSON.parse(await readFile(path.join(runFolder(bed, started.id), "run.json"), "utf8"));
   assert.equal(saved.status, "interrupted");
   assert.equal(saved.process, "ended");
-  await rm(home, { recursive: true, force: true });
+  await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 });
 
 test("what a run wrote to SATURN_RUN_OUTPUT is listed and read within that folder, and nothing outside it", async () => {

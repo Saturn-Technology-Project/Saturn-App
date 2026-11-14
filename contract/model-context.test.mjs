@@ -206,7 +206,7 @@ test("the check is off without a command, a turn that changes nothing skips it, 
   assert.equal((await api(runtime, "GET", `/runs/${unchanged.id}`)).verification, undefined);
 });
 
-test("the project's check runs as a command does: in the sandbox, with PATH alone, and what it prints goes back marked as output", { skip: process.platform === "win32" && "Windows has no command sandbox, and the check here is a POSIX shell line" }, async (t) => {
+test("the project's check runs as a command does: in the sandbox, with PATH alone, and what it prints goes back marked as output", { skip: process.platform === "win32" && "the check here is a POSIX shell line" }, async (t) => {
   const folder = await gitProject();
   const setup = await agentOn(runtime, await writingModel(), { folder });
   const token = path.join(runtime.dataDir, "runtime-token");

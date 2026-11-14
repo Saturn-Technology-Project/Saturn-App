@@ -44,8 +44,14 @@ test("a background command returns at once, and the agent can read it, wait for 
 test("a background command that fails at once comes back with its exit code", async () => {
   const setup = await saturn.chat();
   const run = await setup.turn([command("exit 3", { background: true })]);
-  assert.equal(run.actions[0].result.running, false);
-  assert.equal(run.actions[0].result.exitCode, 3);
+  let { running, exitCode, jobId } = run.actions[0].result;
+  // Windows's sandbox opens the chat's folder to the command before it starts it, which can take longer than the
+  // first look at a background command waits; the job then says how it ended.
+  if (process.platform === "win32" && running) {
+    ({ running, exitCode } = await until("the command to end", async () => (await jobs(setup.thread)).find((job) => job.id === jobId), (job) => job && !job.running));
+  }
+  assert.equal(running, false);
+  assert.equal(exitCode, 3);
 });
 
 test("the app lists a chat's background commands and stops them, with the processes they started", async () => {

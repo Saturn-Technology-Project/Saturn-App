@@ -26,7 +26,16 @@ export async function placeProgram(file, script) {
     await chmod(file, 0o755);
     return file;
   }
-  await copyFile(path.join(path.dirname(runtimeProgram()), "saturn-standin.exe"), `${file}.exe`);
+  // A stand-in that was just stopped is still held by Windows for a moment, and cannot be replaced until it is let go.
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await copyFile(path.join(path.dirname(runtimeProgram()), "saturn-standin.exe"), `${file}.exe`);
+      break;
+    } catch (error) {
+      if (error.code !== "EBUSY" || attempt === 50) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
   await writeFile(`${file}.cjs`, script);
   await writeFile(`${file}.node`, process.execPath);
   return `${file}.exe`;

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, command } from "./files-support.mjs";
+import { bench, command, node } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -27,23 +27,31 @@ test("a sandboxed command can neither read nor change Saturn's token, keys or re
   await writeFile(path.join(folder, "README.md"), "# project\n");
   const setup = await saturn.chat(folder, { autonomy: "execute_when_allowed" });
   const projectId = setup.project.id;
-  // One command that the risky patterns miss (the token's name is a glob here, as an injected command can make it), so
-  // the default mode does not ask: it reads the token and tries to use it. Only the sandbox stands in the way.
-  const token_glob = `'${data}'/runtime-tok*`;
-  const steal = [
-    `cat ${token_glob}`,
-    `cat '${path.join(data, "state.json")}' | head -c 64`,
-    `T=$(cat ${token_glob} 2>/dev/null)`,
-    `curl -s -o /dev/null -w '%{http_code}' -X PATCH -H "Authorization: Bearer $T" -H 'content-type: application/json' -d '{"sandbox":{"mode":"off"}}' ${saturn.runtime.origin}/projects/${projectId}`,
-    `for f in ${token_glob}; do echo x > "$f"; done`,
-  ].join("; ");
+  // One command that the risky patterns miss (the token's name is looked up, not written, as an injected command can do),
+  // so the default mode does not ask: it reads the token and tries to use it. Only the sandbox stands in the way. It
+  // is Node, so `sh` and `cmd` run the same thing; what it is to reach travels as base64.
+  const target = Buffer.from(JSON.stringify({ data, url: `${saturn.runtime.origin}/projects/${projectId}` })).toString("base64");
+  const steal = node([
+    "const fs = require('fs'), path = require('path')",
+    `const { data, url } = JSON.parse(Buffer.from('${target}', 'base64').toString())`,
+    "const tried = (what) => { try { return what(); } catch (error) { console.error(error.code || String(error)); return ''; } }",
+    "const tokens = tried(() => fs.readdirSync(data).filter((name) => name.startsWith('runtime-tok'))) || ['runtime-' + 'token']",
+    "const token = tried(() => fs.readFileSync(path.join(data, tokens[0]), 'utf8'))",
+    "console.log(token)",
+    "console.log(tried(() => fs.readFileSync(path.join(data, 'state.json'), 'utf8').slice(0, 64)))",
+    "tried(() => fs.writeFileSync(path.join(data, tokens[0]), 'x'))",
+    "fetch(url, { method: 'PATCH', headers: { authorization: 'Bearer ' + token.trim(), 'content-type': 'application/json' }, body: JSON.stringify({ sandbox: { mode: 'off' } }) })"
+      + ".then((answer) => console.log('answered', answer.status), () => console.log('unreachable')).then(() => process.exit(1))",
+  ].join("; "));
   const run = await setup.turn([command(steal)], "summarize the README");
   const action = run.actions[0];
   assert.equal(action.status, "completed", "no card: the command matched no risky pattern");
   if (!sandboxed(t, action.result)) return;
   const said = `${action.result.stdout}${action.result.stderr}`;
   assert.ok(!said.includes(token), "the token never reached the command");
-  assert.match(action.result.stdout, /401/, "without the token the runtime refuses the change");
+  // Without the token the runtime refuses the change. On Windows the command does not get that far: a container
+  // cannot reach a server on this computer outside it.
+  assert.match(action.result.stdout, process.platform === "win32" ? /answered 401|unreachable/ : /answered 401/);
   assert.equal((await readFile(path.join(data, "runtime-token"), "utf8")).trim(), token, "and the token file is unchanged");
   const project = (await saturn.api("GET", "/projects")).find((item) => item.id === projectId);
   assert.equal(project.sandbox, undefined, "the project's sandbox is as it was");
@@ -53,8 +61,8 @@ test("a sandboxed command can neither read nor change Saturn's token, keys or re
 test("a chat outside any project still works in its own folder inside Saturn's data, but not in the rest of it", async (t) => {
   const setup = await saturn.chat();
   const run = await setup.turn([
-    command("echo kept > notes.txt && cat notes.txt"),
-    command("cat ../runtime-token"),
+    command(node("require('fs').writeFileSync('notes.txt', 'kept'); console.log(require('fs').readFileSync('notes.txt', 'utf8'))")),
+    command(node("console.log(require('fs').readFileSync('../runtime-token', 'utf8'))")),
   ]);
   const [own, around] = run.actions;
   if (!sandboxed(t, own.result)) return;

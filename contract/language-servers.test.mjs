@@ -1,7 +1,7 @@
 // Installed LSP processes are stand-ins. All boundaries, child lifetime, framing and settings run through real Rust.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -15,7 +15,10 @@ const OTHER_PROGRAM = process.platform === "win32" ? process.env.ComSpec : "/bin
 let saturn, tools, token;
 before(async () => {
   tools = await mkdtemp(path.join(os.tmpdir(), "saturn-lsp-tools-"));
-  const fixture = fileURLToPath(new URL("./fixtures/language-server.mjs", import.meta.url));
+  // The stand-in's script is copied beside it: a sandbox that opens only named folders (Windows's) opens the folder
+  // of a program on PATH, not this repository.
+  const fixture = path.join(tools, "language-server.mjs");
+  await copyFile(fileURLToPath(new URL("./fixtures/language-server.mjs", import.meta.url)), fixture);
   for (const name of ["basedpyright-langserver", "pyright-langserver", "typescript-language-server", "rust-analyzer"]) {
     await placeProgram(path.join(tools, name), `#!${process.execPath}\nimport(${JSON.stringify(pathToFileURL(fixture).href)});\n`);
   }
@@ -148,7 +151,7 @@ test("TypeScript 7's project compiler runs its own LSP without a legacy tsserver
   await mkdir(path.join(packageRoot, "bin"), { recursive: true });
   await mkdir(path.join(p.folder, "node_modules", ".bin"));
   await writeFile(path.join(packageRoot, "package.json"), JSON.stringify({ name: "typescript", version: "7.0.2" }));
-  const script = `#!${process.execPath}\nimport(${JSON.stringify(new URL("./fixtures/language-server.mjs", import.meta.url).href)});\n`;
+  const script = `#!${process.execPath}\nimport(${JSON.stringify(pathToFileURL(path.join(tools, "language-server.mjs")).href)});\n`;
   if (process.platform === "win32") {
     // npm puts a program Windows can start in .bin, not a link into the package.
     await placeProgram(path.join(p.folder, "node_modules", ".bin", "tsc"), script);
