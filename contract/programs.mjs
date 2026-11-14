@@ -1,14 +1,45 @@
 // Stand-ins for the official `claude` and `codex` programs, for the contract tests. Each one is placed where the runtime finds its
 // own download, so no test starts a real program. They were checked against the official SDKs, which talked to them on the
 // TypeScript runtime until it was removed: what these answer is what those SDKs accept, and the tests expect what they sent.
-import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { startRuntime } from "./runtime.mjs";
+import { program as runtimeProgram, startRuntime } from "./runtime.mjs";
 
 /** The version a test's manifest pins, and so the folder its stand-ins live in. */
 export const VERSION = "9.9.9";
-export const PLATFORM = `${process.platform}-${process.arch}`;
+/**
+ * The platform the runtime looks its programs up under. It is the runtime's own, which is Node's too unless the two
+ * were built for different processors, as on Windows on ARM, where Saturn is an x64 program: SATURN_CONTRACT_PLATFORM
+ * then says which.
+ */
+export const PLATFORM = process.env.SATURN_CONTRACT_PLATFORM ?? `${process.platform}-${process.arch}`;
+
+/**
+ * Puts a stand-in program at `file`. Elsewhere it is the script itself, made executable. Windows starts only an `.exe`
+ * by a bare name, so there it is a copy of the `saturn-standin` program, which runs the script beside it with this
+ * Node. Gives back the path of the program.
+ */
+export async function placeProgram(file, script) {
+  if (process.platform !== "win32") {
+    await writeFile(file, script);
+    await chmod(file, 0o755);
+    return file;
+  }
+  // A stand-in that was just stopped is still held by Windows for a moment, and cannot be replaced until it is let go.
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await copyFile(path.join(path.dirname(runtimeProgram()), "saturn-standin.exe"), `${file}.exe`);
+      break;
+    } catch (error) {
+      if (error.code !== "EBUSY" || attempt === 50) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  await writeFile(`${file}.cjs`, script);
+  await writeFile(`${file}.node`, process.execPath);
+  return `${file}.exe`;
+}
 
 /** Environment variables a stand-in writes down when it starts. */
 const NOTED = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "ELECTRON_RUN_AS_NODE", "NO_COLOR", "SATURN_SKILLS_TOKEN", "CLAUDE_CODE_USE_BEDROCK"];
@@ -22,7 +53,8 @@ const scenario = JSON.parse(fs.readFileSync(path.join(folder, "scenario.json"), 
 const note = (entry) => fs.appendFileSync(path.join(folder, "journal.jsonl"), JSON.stringify(entry) + "\\n");
 const env = {};
 for (const key of ${JSON.stringify(NOTED)}) if (process.env[key] !== undefined) env[key] = process.env[key];
-note({ started: true, program: path.basename(process.argv[1]), args: process.argv.slice(2), cwd: process.cwd(), env });
+fs.appendFileSync(path.join(folder, "pids.txt"), process.pid + "\\n");
+note({ started: true, program: path.basename(process.argv[1], ".cjs"), args: process.argv.slice(2), cwd: process.cwd(), env });
 process.on("SIGTERM", () => { note({ signal: "SIGTERM" }); process.exit(143); });
 const finish = (answer) => {
   if (answer.stdout) process.stdout.write(answer.stdout);
@@ -138,7 +170,9 @@ if (args[0] === "login" && args[1] === "status") {
 `;
 
 /** The `uv` program: it only says its version here; contract/research-manage.test.mjs has one that makes environments. */
-const uvProgram = `#!/bin/sh
+const uvProgram = process.platform === "win32"
+  ? `if (process.argv[2] === "--version") console.log("uv 9.9.9 (stand-in)");\n`
+  : `#!/bin/sh
 if [ "$1" = --version ]; then echo "uv 9.9.9 (stand-in)"; fi
 `;
 
@@ -161,9 +195,7 @@ export async function startWithPrograms({ install = ["claude-code", "codex"], pa
     const directory = path.join(dataDir, "tools", id, VERSION, "package", inner);
     await mkdir(directory, { recursive: true });
     const file = path.join(directory, id === "claude-code" ? "claude" : id);
-    await writeFile(file, id === "claude-code" ? claudeProgram(folder) : id === "codex" ? codexProgram(folder) : uvProgram);
-    await chmod(file, 0o755);
-    placed[id] = file;
+    placed[id] = await placeProgram(file, id === "claude-code" ? claudeProgram(folder) : id === "codex" ? codexProgram(folder) : uvProgram);
   }
 
   const manifestFile = path.join(folder, "packages.json");
@@ -171,7 +203,7 @@ export async function startWithPrograms({ install = ["claude-code", "codex"], pa
   await writeFile(manifestFile, JSON.stringify(packages ?? { "claude-code": { [PLATFORM]: pinned }, codex: { [PLATFORM]: pinned }, uv: { [PLATFORM]: pinned } }));
   const runtime = await startRuntime({
     dataDir,
-    env: { PATH: `${bin}:/usr/bin:/bin`, SATURN_PROGRAM_PACKAGES: manifestFile, ...env },
+    env: { PATH: process.platform === "win32" ? `${bin};${process.env.SystemRoot}\\System32;${process.env.SystemRoot}` : `${bin}:/usr/bin:/bin`, SATURN_PROGRAM_PACKAGES: manifestFile, ...env },
   });
   const token = (await readFile(path.join(dataDir, "runtime-token"), "utf8")).trim();
 
@@ -207,6 +239,26 @@ export async function startWithPrograms({ install = ["claude-code", "codex"], pa
       return text.split("\n").filter(Boolean).map((line) => JSON.parse(line));
     },
     forget: () => rm(path.join(folder, "journal.jsonl"), { force: true }),
+    /**
+     * Whether the stand-ins have ended. Asked to stop, one writes down the signal it got, or that its input closed,
+     * and `noted` tells that entry. Windows has no such signal and ends a program at once, so there it is whether
+     * every stand-in that started is gone, the Node its launcher ran included.
+     */
+    ended: async (noted) => {
+      if (process.platform !== "win32") {
+        const text = await readFile(path.join(folder, "journal.jsonl"), "utf8").catch(() => "");
+        return text.split("\n").filter(Boolean).map((line) => JSON.parse(line)).some(noted);
+      }
+      const pids = (await readFile(path.join(folder, "pids.txt"), "utf8").catch(() => "")).split("\n").filter(Boolean).map(Number);
+      return pids.length > 0 && pids.every((pid) => {
+        try {
+          process.kill(pid, 0);
+          return false;
+        } catch {
+          return true;
+        }
+      });
+    },
     opened: async () => (await readFile(opened, "utf8").catch(() => "")).split("\n").filter(Boolean),
     /** Polls until `done(value)` holds, and answers the value. */
     until: async (what, read, done, ms = 20_000) => {

@@ -8,8 +8,8 @@ import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { fileURLToPath } from "node:url";
-import { startRuntime } from "./runtime.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { placed, startRuntime } from "./runtime.mjs";
 
 const casesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "cases/origin.json");
 const TOKEN = "made-up-github-token";
@@ -127,7 +127,7 @@ before(async () => {
   git(seed, "commit", "-q", "-m", "mirror");
   git(seed, "push", "-q", mirrored, "main");
   const gitConfig = path.join(scratch, "gitconfig");
-  await writeFile(gitConfig, `[url "file://${mirrored}"]\n\tinsteadOf = https://github.com/acme/mirrored.git\n[url "file:///nonexistent/blocked/"]\n\tinsteadOf = https://github.com/acme/never/\n`);
+  await writeFile(gitConfig, `[url "${pathToFileURL(mirrored).href}"]\n\tinsteadOf = https://github.com/acme/mirrored.git\n[url "file:///nonexistent/blocked/"]\n\tinsteadOf = https://github.com/acme/never/\n`);
   runtime = await startRuntime({ env: { SATURN_GITHUB_API: github.url, GH_TOKEN: TOKEN, GITHUB_TOKEN: "", GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
 });
 after(async () => {
@@ -233,7 +233,7 @@ async function runTools(steps, folder) {
 
 /** Compares with the recording, or makes it. */
 async function matchesRecording(name, value) {
-  const normalized = JSON.parse(JSON.stringify(value).replaceAll(runtime.dataDir, "<data>").replaceAll(scratch, "<scratch>").replaceAll(github.url, "<github>").replaceAll(TOKEN, "<token>"));
+  const normalized = JSON.parse(JSON.stringify(placed(value, [[runtime.dataDir, "<data>"], [scratch, "<scratch>"]])).replaceAll(github.url, "<github>").replaceAll(TOKEN, "<token>"));
   const all = await readFile(casesFile, "utf8").then(JSON.parse).catch(() => ({}));
   assert.ok(all[name], `${name} is not recorded`);
   for (const [index, expected] of (Array.isArray(all[name]) ? all[name] : [all[name]]).entries()) {

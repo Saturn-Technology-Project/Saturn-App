@@ -1,8 +1,8 @@
 //! The operating system's sandbox around an experiment run's program, stricter than the one around the `code` tool:
 //! the program writes only to the folders it is given, cannot read the folders hidden from it (the project it was
 //! copied from, Saturn's own data, the usual credential folders), and reaches the network only when allowed. macOS
-//! uses seatbelt (`sandbox-exec`), Linux bubblewrap; where neither works the run is not confined, and the caller says
-//! why.
+//! uses seatbelt (`sandbox-exec`), Linux bubblewrap, Windows an AppContainer; where none works the run is not confined,
+//! and the caller says why.
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -22,6 +22,12 @@ pub struct Confinement {
     pub visible: Vec<PathBuf>,
     /// Whether the program may use the network.
     pub network: bool,
+    /// The visible paths that outlast the program, such as an environment, data or weights. Windows opens them once
+    /// for everything that names the same `group`, where a path opened for each program by itself would gather an
+    /// entry in its access list per program.
+    pub lasting: Vec<PathBuf>,
+    /// Who shares the lasting paths: the project whose runs these are.
+    pub group: String,
 }
 
 /// What a sandbox hides, relative to the home folder: where credentials are usually kept.
@@ -307,7 +313,9 @@ fn check_support(platform: Platform, env: &Env) -> Result<&'static str, String> 
                 Err(error) => Err(format!("bubblewrap could not start: {error}")),
             }
         }
-        Platform::Windows => Err("Windows has no sandbox for programs".to_owned()),
+        Platform::Windows => crate::appcontainer::ready(env)
+            .map(|()| crate::appcontainer::MECHANISM)
+            .map_err(str::to_owned),
     }
 }
 
@@ -336,6 +344,8 @@ pub struct Confined {
     pub invocation: Invocation,
     pub mechanism: &'static str,
     pub shared_writable: Vec<String>,
+    /// On Windows, the container registered for this program alone, to be forgotten when it has ended.
+    pub container: Option<String>,
 }
 
 /// Wraps `invocation` in the sandbox, or says why it cannot be. `working` is the folder it starts in.
@@ -347,6 +357,17 @@ pub fn confine(
 ) -> Result<Confined, String> {
     let mechanism = confinement_support(env)?;
     let platform = Platform::current();
+    if platform == Platform::Windows {
+        let launcher =
+            crate::appcontainer::launcher().ok_or("this program cannot start a Windows sandbox")?;
+        let policy = windows_confinement(confinement, env);
+        return Ok(Confined {
+            container: Some(policy.name()),
+            invocation: crate::appcontainer::wrapped(launcher, &policy, invocation),
+            mechanism,
+            shared_writable: Vec::new(),
+        });
+    }
     if platform == Platform::Mac {
         let temporary = shared_temporary(platform);
         let mut args = vec![
@@ -363,6 +384,7 @@ pub fn confine(
             },
             mechanism,
             shared_writable: resolved(&temporary),
+            container: None,
         });
     }
     let program = bwrap_path(env).ok_or("bubblewrap (bwrap) is not installed")?;
@@ -378,5 +400,63 @@ pub fn confine(
         },
         mechanism,
         shared_writable: Vec::new(),
+        container: None,
     })
+}
+
+/// What a confined program's AppContainer is opened to on Windows. The writable folders are its own, but for the
+/// caches, which every Saturn sandbox shares; the visible ones are its own to read, but for the lasting ones, which
+/// the group shares; the folders on `PATH` are read as every sandbox reads them. A hidden path inside any of these is
+/// closed again, and so is a protected file inside a writable folder, which the program then cannot read either.
+/// Like bubblewrap, this cannot protect a record Saturn later replaces by renaming a new file over it: the new file
+/// takes the folder's access list.
+pub fn windows_confinement(confinement: &Confinement, env: &Env) -> saturn_appcontainer::Policy {
+    use crate::appcontainer::{closed, home, plain, tools, windows_caches, within};
+    let listed = |paths: &[PathBuf]| -> Vec<String> {
+        let mut unique: Vec<String> = Vec::new();
+        for path in paths.iter().map(|path| plain(path)) {
+            if !unique.contains(&path) {
+                unique.push(path);
+            }
+        }
+        unique
+    };
+    let home = home(env);
+    let caches: Vec<String> = listed(
+        &shared_caches(&home, Platform::Windows)
+            .into_iter()
+            .chain(windows_caches(&home))
+            .collect::<Vec<_>>(),
+    );
+    let (shared_write, write): (Vec<String>, Vec<String>) = listed(&confinement.writable)
+        .into_iter()
+        .partition(|folder| caches.contains(folder));
+    let lasting = listed(&confinement.lasting);
+    let read: Vec<String> = listed(&confinement.visible)
+        .into_iter()
+        .filter(|path| !lasting.contains(path))
+        .collect();
+    let hidden = listed(&confinement.hidden);
+    let mut policy = saturn_appcontainer::Policy {
+        write,
+        read,
+        shared: vec![tools(env, &shared_write, true, &hidden)],
+        network: confinement.network,
+        ..saturn_appcontainer::Policy::default()
+    };
+    if !lasting.is_empty() {
+        policy.shared.push(saturn_appcontainer::Shared {
+            name: format!("saturnRuns:{}", confinement.group.to_lowercase()),
+            write: Vec::new(),
+            read: lasting,
+        });
+    }
+    let mut deny = closed(&policy, &hidden);
+    for path in listed(&confinement.protected) {
+        if policy.write.iter().any(|folder| within(&path, folder)) && !deny.contains(&path) {
+            deny.push(path);
+        }
+    }
+    policy.deny = deny;
+    policy
 }

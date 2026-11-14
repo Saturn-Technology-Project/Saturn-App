@@ -1,7 +1,8 @@
 //! The operating system's sandbox around the `code` tool's commands. `workspace-write` lets a command write only inside
 //! the workspace (and the usual temporary and cache folders); `read-only` lets it write nowhere; `off` runs it as the
-//! runtime itself. macOS uses seatbelt (`sandbox-exec`), Linux bubblewrap when it is installed; Windows has no sandbox,
-//! and the result says so.
+//! runtime itself. macOS uses seatbelt (`sandbox-exec`), Linux bubblewrap when it is installed, and Windows an
+//! AppContainer (see `appcontainer`), which opens folders to a command where the other two close them. Where there is
+//! no sandbox the result says so.
 //!
 //! Seatbelt profiles do not nest: this works because the packaged app does not carry the App Sandbox entitlement. A build
 //! that adds `com.apple.security.app-sandbox` would need another way.
@@ -116,7 +117,17 @@ pub fn sandbox_support(platform: Platform, env: &Env) -> SandboxSupport {
         Platform::Mac => SandboxSupport::Unavailable("sandbox-exec is missing"),
         Platform::Linux if bwrap_path(env).is_some() => SandboxSupport::Available("bubblewrap"),
         Platform::Linux => SandboxSupport::Unavailable("bubblewrap (bwrap) is not installed"),
-        Platform::Windows => SandboxSupport::Unavailable("Windows has no sandbox for commands"),
+        // Tried only on Windows itself; a test that names Windows elsewhere has nothing to try.
+        Platform::Windows if cfg!(windows) => match crate::appcontainer::ready(env) {
+            Ok(()) => SandboxSupport::Available(crate::appcontainer::MECHANISM),
+            Err(reason) => SandboxSupport::Unavailable(reason),
+        },
+        Platform::Windows if crate::appcontainer::launcher().is_some() => {
+            SandboxSupport::Available(crate::appcontainer::MECHANISM)
+        }
+        Platform::Windows => {
+            SandboxSupport::Unavailable("this program cannot start a Windows sandbox")
+        }
     }
 }
 
@@ -342,6 +353,21 @@ pub fn wrap_command(
             reason: Some(reason.to_owned()),
         };
     }
+    if platform == Platform::Windows {
+        let Some(launcher) = crate::appcontainer::launcher() else {
+            return SandboxPlan {
+                invocation,
+                sandboxed: false,
+                reason: Some("this program cannot start a Windows sandbox".to_owned()),
+            };
+        };
+        let policy = windows_policy(settings, root, extra_writable, hidden, readable, env);
+        return SandboxPlan {
+            invocation: crate::appcontainer::wrapped(launcher, &policy, invocation),
+            sandboxed: true,
+            reason: None,
+        };
+    }
     let writable = writable_folders(root, extra_writable, env, platform);
     let mut hidden: Vec<String> = hidden.iter().map(|path| real(Path::new(path))).collect();
     hidden.dedup();
@@ -406,6 +432,55 @@ pub fn wrap_command(
     }
 }
 
+/// What a command's AppContainer is opened to on Windows: the workspace and the extra folders, to write or, read-only,
+/// to read; a temporary folder of its own either way, as under bubblewrap; the caches and the folders on `PATH`, shared
+/// with Saturn's other sandboxes; and `readable`, which are programs Saturn downloaded. A hidden path inside any of
+/// these is closed again. Nothing else of the person's is opened, so there is nothing else to hide.
+pub fn windows_policy(
+    settings: SandboxSettings,
+    root: &str,
+    extra_writable: &[String],
+    hidden: &[String],
+    readable: &[String],
+    env: &Env,
+) -> saturn_appcontainer::Policy {
+    use crate::appcontainer::{closed, home, plain, temporary, tools, windows_caches};
+    let writes = settings.mode == SandboxMode::WorkspaceWrite;
+    let mut folders: Vec<String> = Vec::new();
+    for folder in std::iter::once(root).chain(extra_writable.iter().map(String::as_str)) {
+        let folder = plain(Path::new(folder));
+        if !folders.contains(&folder) {
+            folders.push(folder);
+        }
+    }
+    let hidden: Vec<String> = hidden.iter().map(|path| plain(Path::new(path))).collect();
+    let home = home(env);
+    let caches: Vec<String> = cache_folders(&home, Platform::Windows)
+        .into_iter()
+        .chain(windows_caches(&home))
+        .map(|folder| plain(&folder))
+        .collect();
+    let mut shared = tools(env, &caches, writes, &hidden);
+    shared
+        .read
+        .extend(readable.iter().map(|path| plain(Path::new(path))));
+    let mut policy = saturn_appcontainer::Policy {
+        network: settings.network,
+        shared: vec![shared],
+        ..saturn_appcontainer::Policy::default()
+    };
+    if writes {
+        policy.write = folders;
+    } else {
+        policy.read = folders;
+    }
+    let temporary = temporary(&policy);
+    policy.write.push(temporary.clone());
+    policy.temporary = Some(temporary);
+    policy.deny = closed(&policy, &hidden);
+    policy
+}
+
 /// bubblewrap's mounts that hide `hidden`, after the writable folders are bound: a hidden folder becomes an empty
 /// one and a hidden file an empty file; a writable folder inside a hidden one is bound back (read-only unless it takes
 /// writes), and a hidden path inside that is hidden again. Mounts made later lie on top. The empty folders are made
@@ -464,6 +539,38 @@ static OFFLINE: LazyLock<Regex> = LazyLock::new(|| {
         "could not resolve|network is unreachable|connection refused|ENOTFOUND|ENETUNREACH|ECONNREFUSED|getaddrinfo",
     )
 });
+
+static CLOSED: LazyLock<Regex> = LazyLock::new(|| pattern("access is denied|EPERM|EACCES"));
+static UNKNOWN_PROGRAM: LazyLock<Regex> =
+    LazyLock::new(|| pattern("is not recognized as an internal or external command"));
+static UNREACHED: LazyLock<Regex> = LazyLock::new(|| {
+    pattern(
+        "ECONNREFUSED|EACCES|connection refused|could not connect|failed to connect|actively refused|forbidden by its access permissions",
+    )
+});
+
+/// A hint for the model when a command failed the way Windows's sandbox makes one fail, which is not the way the
+/// other systems' do: a container reads only the folders opened to it, runs only the programs in them, and does not
+/// reach a server on this computer outside it, whether or not it may use the network.
+pub fn windows_hint(stderr: &str, settings: SandboxSettings) -> Option<String> {
+    const LEAVE: &str = "call code with sandbox: \"off\"; that asks the user first";
+    if UNKNOWN_PROGRAM.is_match(stderr) {
+        return Some(format!(
+            "(On Windows the sandbox runs only programs in folders opened to it: Windows's own, those on PATH when the sandbox was set up, and the workspace. If this command needs another, {LEAVE}.)"
+        ));
+    }
+    if !settings.network && OFFLINE.is_match(stderr) {
+        return Some(format!(
+            "(The sandbox blocks network access for commands. If this command needs the network, {LEAVE}.)"
+        ));
+    }
+    if CLOSED.is_match(stderr) || UNREACHED.is_match(stderr) {
+        return Some(format!(
+            "(On Windows the sandbox reads and writes only the workspace, its temporary folder, the caches and the programs' folders, and cannot reach a server on this computer (localhost) that runs outside it. If this command needs more, {LEAVE}.)"
+        ));
+    }
+    None
+}
 
 /// A hint for the model when a sandboxed command failed the way a blocked write or connection fails.
 pub fn sandbox_hint(stderr: &str, settings: SandboxSettings) -> Option<String> {

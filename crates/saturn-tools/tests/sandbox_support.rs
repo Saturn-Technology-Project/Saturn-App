@@ -13,10 +13,10 @@ fn env(entries: &[(&str, &str)]) -> Env {
 }
 
 #[test]
-fn windows_has_no_sandbox_and_says_so() {
+fn windows_has_no_sandbox_in_a_program_that_named_no_launcher() {
     assert_eq!(
         sandbox_support(Platform::Windows, &env(&[])),
-        SandboxSupport::Unavailable("Windows has no sandbox for commands")
+        SandboxSupport::Unavailable("this program cannot start a Windows sandbox")
     );
 }
 

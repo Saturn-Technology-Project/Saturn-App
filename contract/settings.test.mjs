@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { posixOnly } from "./files-support.mjs";
+import { node } from "./files-support.mjs";
 import { startRuntime } from "./runtime.mjs";
 
 let runtime;
@@ -332,14 +332,19 @@ test("the terminal panel runs a command in the folder and follows cd", async () 
   await api("POST", `/projects/${project.id}/active`);
   assert.equal((await api("GET", "/workspace/info")).cwd, folder);
   await mkdir(path.join(folder, "sub"), { recursive: true });
-  const moved = await api("POST", "/workspace/terminal", { command: "cd sub; echo hello" });
+  // The panel runs the system's shell: cmd on Windows, where commands are joined with "&".
+  const moved = await api("POST", "/workspace/terminal", { command: process.platform === "win32" ? "cd sub & echo hello" : "cd sub; echo hello" });
   assert.equal(moved.stdout.trim(), "hello");
   assert.equal(moved.exitCode, 0);
   assert.equal(moved.cwd, path.join(folder, "sub"));
   assert.equal((await api("POST", "/workspace/terminal", { command: "exit 3" })).exitCode, 3);
+  // A command that fails gives its own code, and the panel still learns where it ended.
+  const failed = await api("POST", "/workspace/terminal", { command: process.platform === "win32" ? "cd sub & dir no-such-file" : "cd sub; ls no-such-file" });
+  assert.notEqual(failed.exitCode, 0);
+  assert.equal(failed.cwd, path.join(folder, "sub"));
 });
 
-test("the token a launcher gives the runtime reaches no command the terminal panel runs", posixOnly, async () => {
+test("the token a launcher gives the runtime reaches no command the terminal panel runs", async () => {
   const launcherToken = "0123456789abcdef".repeat(4);
   const launched = await startRuntime({ env: { SATURN_RUNTIME_TOKEN: launcherToken } });
   try {
@@ -347,7 +352,7 @@ test("the token a launcher gives the runtime reaches no command the terminal pan
     const answer = await fetch(`${launched.origin}/workspace/terminal`, {
       method: "POST",
       headers: { authorization: `Bearer ${launcherToken}`, "content-type": "application/json" },
-      body: JSON.stringify({ command: "printf '[%s]' \"$SATURN_RUNTIME_TOKEN\"; env | grep -c SATURN_RUNTIME_TOKEN || true", cwd: folder }),
+      body: JSON.stringify({ command: node("process.stdout.write('[' + (process.env.SATURN_RUNTIME_TOKEN || '') + ']' + Object.keys(process.env).filter((name) => name.toUpperCase() === 'SATURN_RUNTIME_TOKEN').length)"), cwd: folder }),
     }).then((response) => response.json());
     assert.equal(answer.stdout.trim(), "[]0", JSON.stringify(answer));
   } finally {
@@ -355,7 +360,7 @@ test("the token a launcher gives the runtime reaches no command the terminal pan
   }
 });
 
-test("a terminal panel keeps what activate and export set for its next command, and only that panel does", posixOnly, async () => {
+test("a terminal panel keeps what activate and export set for its next command, and only that panel does", { skip: process.platform === "win32" && "a panel keeps its shell's state only on macOS and Linux" }, async () => {
   const project = await api("POST", "/projects", { path: folder, grant: true }, 201);
   await api("POST", `/projects/${project.id}/active`);
   // A stand-in for a virtual environment's activate script: like the real one, it keeps the old PATH in a variable it does

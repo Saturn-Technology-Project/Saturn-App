@@ -1,12 +1,13 @@
 // Experiment runs: a process per run, saved before it exists, found again after a crash, and sealed when it ends.
 // docs/research-contract.md is the contract. The stand-in experiments are small Node scripts.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, mkdir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, commitAll, posixOnly, sha, until } from "./files-support.mjs";
+import { bench, cannotPause, commitAll, sha, until } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -58,7 +59,7 @@ function alive(pid) {
   }
 }
 
-test("a run that writes valid samples and exits 0 completes, sealed with what it wrote", posixOnly, async () => {
+test("a run that writes valid samples and exits 0 completes, sealed with what it wrote", async () => {
   const lines = [`${line("a")}\n`, `${line("b")}\n`];
   const bed = await setup(writes(lines));
   const started = await start(bed);
@@ -73,7 +74,7 @@ test("a run that writes valid samples and exits 0 completes, sealed with what it
   assert.deepEqual((await saturn.api("GET", `${bed.route}/runs`)).items.map((item) => item.id), [run.id]);
 });
 
-test("the process is told where to write, and its output goes to log files", posixOnly, async () => {
+test("the process is told where to write, and its output goes to log files", async () => {
   const bed = await setup(`
     import { appendFileSync } from "node:fs";
     console.log("out", process.env.SATURN_RUN_ID, process.env.SATURN_RUN_VERSION, process.env.SATURN_DATA_DIR ?? "no-data-dir");
@@ -86,7 +87,7 @@ test("the process is told where to write, and its output goes to log files", pos
   assert.equal((await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8")).trim(), "err true");
 });
 
-test("a non-zero exit fails, and keeps its samples", posixOnly, async () => {
+test("a non-zero exit fails, and keeps its samples", async () => {
   const bed = await setup(writes([`${line("a")}\n`], 3));
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "failed");
@@ -94,14 +95,14 @@ test("a non-zero exit fails, and keeps its samples", posixOnly, async () => {
   assert.equal(run.samples, 1);
 });
 
-test("exit 0 with no valid output is a protocol error, not a success", posixOnly, async () => {
+test("exit 0 with no valid output is a protocol error, not a success", async () => {
   const bed = await setup(writes([]));
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "protocol_error");
   assert.equal(run.samples, 0);
 });
 
-test("a bad line, a repeated identity and a broken field each name their line, and valid lines still count", posixOnly, async () => {
+test("a bad line, a repeated identity and a broken field each name their line, and valid lines still count", async () => {
   const bed = await setup(writes([`${line("a")}\n`, "not json\n", `${line("a")}\n`, `${JSON.stringify({ schemaVersion: 1 })}\n`, `${line("b", { error: { kind: "weather" } })}\n`, `${line("c")}\n`]));
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "protocol_error");
@@ -111,7 +112,7 @@ test("a bad line, a repeated identity and a broken field each name their line, a
   assert.ok(existsSync(path.join(runFolder(bed, run.id), "samples.jsonl")), "the raw file is kept");
 });
 
-test("a last line with no newline is a protocol error once the process has ended", posixOnly, async () => {
+test("a last line with no newline is a protocol error once the process has ended", async () => {
   const bed = await setup(writes([`${line("a")}\n`, line("b")]));
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "protocol_error");
@@ -119,27 +120,27 @@ test("a last line with no newline is a protocol error once the process has ended
   assert.equal(run.partialLine, true);
 });
 
-test("the same sample in another trial or on another model is a different sample, in any language", posixOnly, async () => {
+test("the same sample in another trial or on another model is a different sample, in any language", async () => {
   const bed = await setup(writes([`${line("a")}\n`, `${line("a", { trial: 1 })}\n`, `${line("a", { modelId: "model_x" })}\n`, `${line("名字", { output: "瑪麗 🌙" })}\n`]));
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed", JSON.stringify(run.problems));
   assert.equal(run.samples, 4);
 });
 
-test("infrastructure errors are counted apart", posixOnly, async () => {
+test("infrastructure errors are counted apart", async () => {
   const bed = await setup(writes([`${line("a")}\n`, `${line("b", { error: { kind: "infrastructure", message: "GPU gone" }, scores: null })}\n`]));
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed");
   assert.equal(run.infrastructureErrors, 1);
 });
 
-test("a very long line is read", posixOnly, async () => {
+test("a very long line is read", async () => {
   const bed = await setup(writes([`${line("a", { output: "x".repeat(2 * 1024 * 1024) })}\n`]));
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed");
 });
 
-test("a command that does not exist fails and says so in its log", posixOnly, async () => {
+test("a command that does not exist fails and says so in its log", async () => {
   const folder = await saturn.folder();
   const made = await saturn.api("POST", "/projects", { path: folder });
   await saturn.api("POST", `/projects/${made.id}/access`, {});
@@ -152,7 +153,7 @@ test("a command that does not exist fails and says so in its log", posixOnly, as
   assert.match(await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8"), /no-such-program-here/);
 });
 
-test("repeating a start returns the same run and starts nothing, even at the same moment", posixOnly, async () => {
+test("repeating a start returns the same run and starts nothing, even at the same moment", async () => {
   const bed = await setup(writes([`${line("a")}\n`]));
   const body = { clientId: "once" };
   const answers = await Promise.all([1, 2, 3].map(() => saturn.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, body)));
@@ -163,7 +164,7 @@ test("repeating a start returns the same run and starts nothing, even at the sam
   assert.equal((await saturn.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, {})).status, 400);
 });
 
-test("a start refuses when the frozen content has changed, and starts nothing", posixOnly, async () => {
+test("a start refuses when the frozen content has changed, and starts nothing", async () => {
   const bed = await setup(writes([`${line("a")}\n`]));
   await writeFile(path.join(bed.folder, "probe.mjs"), writes([`${line("b")}\n`]));
   const refused = await saturn.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: "changed" });
@@ -172,7 +173,7 @@ test("a start refuses when the frozen content has changed, and starts nothing", 
   assert.equal((await saturn.api("GET", `${bed.route}/runs`)).items.length, 0);
 });
 
-test("a run reads its own read-only snapshot: a write to an input is refused and the project is untouched", posixOnly, async () => {
+test("a run reads its own read-only snapshot: a write to an input is refused and the project is untouched", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "set.jsonl"), "{}\n");
   const bed = await setup(`
@@ -188,7 +189,7 @@ test("a run reads its own read-only snapshot: a write to an input is refused and
 });
 
 // Without the sandbox only the files' permissions protect the snapshot; research-sandbox.test.mjs has the sandbox.
-test("without the sandbox, an input replaced during the run is recorded as changed, and the project keeps its own copy", posixOnly, async () => {
+test("without the sandbox, an input replaced during the run is recorded as changed, and the project keeps its own copy", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "set.jsonl"), "{}\n");
   const bed = await setup(`
@@ -209,7 +210,7 @@ test("without the sandbox, an input replaced during the run is recorded as chang
   assert.deepEqual(evidence.observed.afterRun.changed, ["set.jsonl"]);
 });
 
-test("a committed link out of the project is uncontrolled, and its target changing during the run is caught", posixOnly, async () => {
+test("a committed link out of the project is uncontrolled, and its target changing during the run is caught", async () => {
   const folder = await saturn.folder();
   const outside = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-outside-")));
   await writeFile(path.join(outside, "set.jsonl"), "{\"v\":1}\n");
@@ -253,7 +254,19 @@ test("a committed link out of the project is uncontrolled, and its target changi
   await rm(outside, { recursive: true, force: true });
 });
 
-test("a paused run writes nothing until it is continued, and a paused run still stops", posixOnly, async () => {
+test("on Windows a run cannot be paused, says so, and goes on running", { skip: process.platform !== "win32" && "the other systems pause" }, async () => {
+  const bed = await setup(LONG);
+  const started = await start(bed);
+  await until("samples", () => stat(path.join(runFolder(bed, started.id), "samples.jsonl")).then((info) => info.size > 0, () => false));
+  const refused = await saturn.call("POST", `${bed.route}/runs/${started.id}/pause`, {});
+  assert.equal(refused.status, 409);
+  assert.match(JSON.stringify(refused.body), /cannot be paused on Windows/);
+  assert.equal((await saturn.api("GET", `${bed.route}/runs/${started.id}`)).status, "running");
+  await saturn.api("POST", `${bed.route}/runs/${started.id}/stop`, {});
+  assert.equal((await ended(bed, started.id)).status, "stopped");
+});
+
+test("a paused run writes nothing until it is continued, and a paused run still stops", cannotPause, async () => {
   const bed = await setup(LONG);
   const started = await start(bed);
   const samples = path.join(runFolder(bed, started.id), "samples.jsonl");
@@ -281,7 +294,7 @@ test("a paused run writes nothing until it is continued, and a paused run still 
   assert.equal((await saturn.call("POST", `${route}/continue`, {})).status, 409);
 });
 
-test("a run that failed partway is resumed by a new run that keeps its samples and does only what is left", posixOnly, async () => {
+test("a run that failed partway is resumed by a new run that keeps its samples and does only what is left", async () => {
   // The program skips what SATURN_RUN_SAMPLES already holds; the first time it fails after two samples.
   const bed = await setup(`
     import { appendFileSync, existsSync, readFileSync } from "node:fs";
@@ -316,7 +329,7 @@ test("a run that failed partway is resumed by a new run that keeps its samples a
   assert.equal((await saturn.call("POST", `${bed.route}/runs/${run.id}/resume`, { clientId: "resume-2" })).status, 409, "a completed run has nothing left");
 });
 
-test("a training run resumes from its last checkpoint, which it can read, and its curve goes on from that step", posixOnly, async () => {
+test("a training run resumes from its last checkpoint, which it can read, and its curve goes on from that step", async () => {
   const metric = (step) => JSON.stringify({ schemaVersion: 1, step, values: { loss: 1 / step } }) + "\n";
   // The first time it writes four steps, saves a checkpoint at step 2 and fails; resumed, it reads the checkpoint and
   // writes from step 3 on.
@@ -380,7 +393,7 @@ test("training metrics are read while the run writes them, and a reader goes on 
   assert.equal(rest.end, Buffer.byteLength(first + third + metric(4, 0.5)));
 });
 
-test("a run started before the project was edited runs the version it was given", posixOnly, async () => {
+test("a run started before the project was edited runs the version it was given", async () => {
   const release = path.join(await saturn.folder(), "release");
   const { home, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "before-process", SATURN_RESEARCH_TEST_RELEASE: release });
   try {
@@ -401,11 +414,11 @@ test("a run started before the project was edited runs the version it was given"
     assert.equal(evidence.reported.seed, null, "a seed the program did not report is unknown");
   } finally {
     await first.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
-test("what the program reports about itself is kept apart from what was expected", posixOnly, async () => {
+test("what the program reports about itself is kept apart from what was expected", async () => {
   const bed = await setup(`
     import { appendFileSync } from "node:fs";
     appendFileSync(process.env.SATURN_RUN_REPORT, JSON.stringify({ kind: "seed", value: Number(process.env.SATURN_RUN_SEED ?? -1), applied: ["python", "numpy"] }) + "\\n");
@@ -421,7 +434,7 @@ test("what the program reports about itself is kept apart from what was expected
   assert.match(evidence.limits, /does not show that the program used/);
 });
 
-test("samples changed after the seal are caught wherever the run is read", posixOnly, async () => {
+test("samples changed after the seal are caught wherever the run is read", async () => {
   const bed = await setup(writes([`${line("a")}\n`, `${line("b")}\n`]));
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.sealIntact, true);
@@ -434,7 +447,7 @@ test("samples changed after the seal are caught wherever the run is read", posix
   assert.equal(listed.sealIntact, false);
 });
 
-test("stopping a run stops it, keeps its samples, and is stopped rather than completed", posixOnly, async () => {
+test("stopping a run stops it, keeps its samples, and is stopped rather than completed", async () => {
   const bed = await setup(LONG);
   const started = await start(bed);
   await until("samples", () => stat(path.join(runFolder(bed, started.id), "samples.jsonl")).then((info) => info.size > 0, () => false));
@@ -446,7 +459,7 @@ test("stopping a run stops it, keeps its samples, and is stopped rather than com
   assert.equal(alive(started.pid), false);
 });
 
-test("stopping a run that has ended leaves it as it ended", posixOnly, async () => {
+test("stopping a run that has ended leaves it as it ended", async () => {
   const bed = await setup(writes([`${line("a")}\n`]));
   const run = await ended(bed, (await start(bed)).id);
   const again = await saturn.api("POST", `${bed.route}/runs/${run.id}/stop`, {});
@@ -454,7 +467,7 @@ test("stopping a run that has ended leaves it as it ended", posixOnly, async () 
   assert.deepEqual(again, run);
 });
 
-test("a process that ignores the request to stop is ended by force, with what it left behind", posixOnly, async () => {
+test("a process that ignores the request to stop is ended by force, with what it left behind", async () => {
   const bed = await setup(`
     import { spawn } from "node:child_process";
     import { appendFileSync, writeFileSync } from "node:fs";
@@ -473,7 +486,7 @@ test("a process that ignores the request to stop is ended by force, with what it
   await until("the child to end", () => !alive(child));
 });
 
-test("what a finished process left running does not outlive the seal", posixOnly, async () => {
+test("what a finished process left running does not outlive the seal", async () => {
   const bed = await setup(`
     import { spawn } from "node:child_process";
     import { appendFileSync, writeFileSync } from "node:fs";
@@ -489,7 +502,7 @@ test("what a finished process left running does not outlive the seal", posixOnly
   await until("the child to end", () => !alive(child));
 });
 
-test("a run in a chat's worktree holds it until the run ends", posixOnly, async () => {
+test("a run in a chat's worktree holds it until the run ends", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "probe.mjs"), LONG);
   commitAll(folder);
@@ -539,10 +552,10 @@ async function restartable(env = {}) {
   return { home, dataDir, folder, first };
 }
 
-/** Waits until the app's own data is on disk, so a killed runtime still knows the project. */
-const projectSaved = (dataDir, folder) => until("the project to be saved", () => readFile(path.join(dataDir, "state.json"), "utf8").then((text) => text.includes(folder) && text.includes('"access"'), () => false));
+/** Waits until the app's own data is on disk, so a killed runtime still knows the project. The folder is looked for as JSON writes it. */
+const projectSaved = (dataDir, folder) => until("the project to be saved", () => readFile(path.join(dataDir, "state.json"), "utf8").then((text) => text.includes(JSON.stringify(folder).slice(1, -1)) && text.includes('"access"'), () => false));
 
-test("a runtime killed mid-run: the process is ended, the run is interrupted, and its samples are kept and sealed", posixOnly, async () => {
+test("a runtime killed mid-run: the process is ended, the run is interrupted, and its samples are kept and sealed", async () => {
   const { home, dataDir, folder, first } = await restartable();
   const bed = await setup(LONG, { on: first, folder });
   await projectSaved(dataDir, folder);
@@ -569,11 +582,11 @@ test("a runtime killed mid-run: the process is ended, the run is interrupted, an
     await ended(bed, next.id, second);
   } finally {
     await second.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
-test("a runtime killed before the process existed: the run is interrupted and no process is claimed", posixOnly, async () => {
+test("a runtime killed before the process existed: the run is interrupted and no process is claimed", async () => {
   const { home, dataDir, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "before-process" });
   const bed = await setup(writes([`${line("a")}\n`]), { on: first, folder });
   await projectSaved(dataDir, folder);
@@ -589,11 +602,11 @@ test("a runtime killed before the process existed: the run is interrupted and no
     assert.equal(run.process, "none");
   } finally {
     await second.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
-test("a runtime killed just after the process started still finds it, by what Saturn recorded", posixOnly, async () => {
+test("a runtime killed just after the process started still finds it, by what Saturn recorded", async () => {
   const { home, dataDir, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "after-process" });
   const bed = await setup(LONG, { on: first, folder });
   await projectSaved(dataDir, folder);
@@ -612,11 +625,11 @@ test("a runtime killed just after the process started still finds it, by what Sa
     await until("the process to end", () => !alive(pid));
   } finally {
     await second.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
-test("a process id now used by something else is not ended", posixOnly, async () => {
+test("a process id now used by something else is not ended", async () => {
   const { home, dataDir, folder, first } = await restartable();
   const bed = await setup(LONG, { on: first, folder });
   await projectSaved(dataDir, folder);
@@ -637,16 +650,17 @@ test("a process id now used by something else is not ended", posixOnly, async ()
   } finally {
     // The program may have ended on its own by now; the runtime is stopped either way, or the file never ends.
     try {
-      process.kill(-pid, "SIGKILL");
+      if (process.platform === "win32") execFileSync("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore" });
+      else process.kill(-pid, "SIGKILL");
     } catch {
       // Already gone.
     }
     await second.stop();
-    await rm(home, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
 });
 
-test("a runtime stopped normally ends its runs and records them as interrupted", posixOnly, async () => {
+test("a runtime stopped normally ends its runs and records them as interrupted", async () => {
   const { home, dataDir, folder, first } = await restartable();
   const bed = await setup(LONG, { on: first, folder });
   await projectSaved(dataDir, folder);
@@ -656,10 +670,10 @@ test("a runtime stopped normally ends its runs and records them as interrupted",
   const saved = JSON.parse(await readFile(path.join(runFolder(bed, started.id), "run.json"), "utf8"));
   assert.equal(saved.status, "interrupted");
   assert.equal(saved.process, "ended");
-  await rm(home, { recursive: true, force: true });
+  await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 });
 
-test("what a run wrote to SATURN_RUN_OUTPUT is listed and read within that folder, and nothing outside it", posixOnly, async () => {
+test("what a run wrote to SATURN_RUN_OUTPUT is listed and read within that folder, and nothing outside it", async () => {
   const bed = await setup(`
     import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
     mkdirSync(process.env.SATURN_RUN_OUTPUT + "/notes", { recursive: true });

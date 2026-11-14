@@ -37,21 +37,30 @@ export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keep
   const port = await freePort();
   const file = program();
   let output = "";
+  // Windows has no signal that asks a program to stop: there the runtime is started as the desktop app starts it,
+  // holding a pipe, and is asked to stop as the app asks, by closing the pipe. Killing it would lose what it saves
+  // as it stops.
+  const piped = process.platform === "win32" && stdin === "ignore";
   const child = spawn(file, [], {
     cwd,
-    stdio: [stdin, "pipe", "pipe"],
-    env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_RUNTIME_TOKEN: "", ...env },
+    stdio: [piped ? "pipe" : stdin, "pipe", "pipe"],
+    env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_RUNTIME_TOKEN: "", ...(piped ? { SATURN_DESKTOP_ATTACHED: "1" } : {}), ...env },
   });
   child.stdout.on("data", (chunk) => { output += chunk; });
   child.stderr.on("data", (chunk) => { output += chunk; });
   let failed;
   child.once("error", (error) => { failed = error; });
-  const exited = new Promise((resolve) => child.once("close", resolve));
+  // For finding out why a runtime went: SATURN_CONTRACT_TRACE prints how each one ended and the last it said.
+  if (process.env.SATURN_CONTRACT_TRACE) child.once("exit", (code, signal) => console.error(`runtime ${child.pid} on ${port} ended: code ${code}, signal ${signal}\n${output.slice(-1500)}`));
+  // On Windows a program the runtime started holds the runtime's own output pipes, so they close only when that
+  // program ends too: there the runtime is gone when it exits.
+  const exited = new Promise((resolve) => child.once(process.platform === "win32" ? "exit" : "close", resolve));
   const origin = `http://${host}:${port}`;
   const stop = async () => {
     // A child that never started has no process to wait for.
     if (child.pid !== undefined) {
-      child.kill("SIGTERM");
+      if (piped) child.stdin.end();
+      else child.kill("SIGTERM");
       // The runtime gives itself ten seconds to stop; one still there long after is ended, and what it said is shown,
       // so a test file never hangs on it.
       let timer;
@@ -87,3 +96,29 @@ export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keep
 
   return { origin, port, dataDir, stop, child };
 }
+
+/**
+ * A value with each of `folders` (pairs of a folder and a name for it) written as its name, in every string in it.
+ * A path that held one is then written with "/", as macOS writes it, so that what was recorded there reads the same
+ * on Windows.
+ */
+export function placed(value, folders) {
+  const each = (item) => {
+    if (typeof item === "string") {
+      let text = item;
+      for (const [folder, name] of folders) {
+        if (!text.includes(folder)) continue;
+        text = text.replaceAll(folder, name);
+        if (path.sep === "\\") text = text.replaceAll("\\", "/");
+      }
+      return text;
+    }
+    if (Array.isArray(item)) return item.map(each);
+    if (item && typeof item === "object") return Object.fromEntries(Object.entries(item).map(([key, inner]) => [key, each(inner)]));
+    return item;
+  };
+  return each(value);
+}
+
+/** Why a test that waits for Saturn to open a web page is skipped on Windows, where it runs. */
+export const opensPages = { skip: process.platform === "win32" && "Windows opens a page through its own rundll32, found before anything on PATH, so no stand-in can note it" };

@@ -8,7 +8,8 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { PLATFORM, VERSION, startWithPrograms } from "./programs.mjs";
+import { PLATFORM, VERSION, placeProgram, startWithPrograms } from "./programs.mjs";
+import { opensPages } from "./runtime.mjs";
 
 test("the pinned downloads cover the systems Saturn ships on, come from the npm registry or uv's release, and carry a sha512", async () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -25,13 +26,18 @@ test("the pinned downloads cover the systems Saturn ships on, come from the npm 
   }
 });
 
+/** A program that only says its version, as a shell script or, for the launcher Windows needs, as JavaScript. */
+const SAYS_ITS_VERSION = process.platform === "win32" ? "console.log('9.9.9 (from the package)');\n" : "#!/bin/sh\necho '9.9.9 (from the package)'\n";
+/** A program's file name on this system. */
+const named = (file) => (process.platform === "win32" ? `${file}.exe` : file);
+
 /** A platform package as npm packs it, or, with `bare`, as uv's release archive packs its folder: with no `package` root. */
-async function fakePackage(folder, inner, name, { bare = false, program = "#!/bin/sh\necho '9.9.9 (from the package)'\n" } = {}) {
+async function fakePackage(folder, inner, name, { bare = false, program = SAYS_ITS_VERSION } = {}) {
   const root = path.join(folder, "build");
   await rm(root, { recursive: true, force: true });
   const top = bare ? inner.split("/")[0] : "package";
   await mkdir(path.join(root, bare ? inner : path.join("package", inner)), { recursive: true });
-  await writeFile(path.join(root, bare ? inner : path.join("package", inner), name), program, { mode: 0o755 });
+  await placeProgram(path.join(root, bare ? inner : path.join("package", inner), name), program);
   const file = path.join(folder, "fake.tgz");
   execFileSync("tar", ["-czf", file, "-C", root, top]);
   const archive = await readFile(file);
@@ -102,8 +108,7 @@ test("with no program anywhere the status says so, and everything that needs one
 test("a program on the system is used when Saturn has none, and removing Saturn's copy leaves it alone", async () => {
   const saturn = await startWithPrograms({ install: ["claude-code"] });
   try {
-    const system = path.join(saturn.bin, "claude");
-    await writeFile(system, "#!/bin/sh\necho 'from the system'\n", { mode: 0o755 });
+    const system = await placeProgram(path.join(saturn.bin, "claude"), process.platform === "win32" ? "console.log('from the system');\n" : "#!/bin/sh\necho 'from the system'\n");
     assert.equal((await saturn.api("GET", "/programs/claude-code")).source, "saturn", "Saturn's own copy comes first");
     const removed = await saturn.api("DELETE", "/programs/claude-code");
     assert.deepEqual([removed.source, removed.path, removed.version], ["system", system, "from the system"]);
@@ -124,8 +129,9 @@ test("a download that matches its pin is unpacked into the data folder, made exe
     const started = await saturn.call("POST", "/programs/claude-code/install", {});
     assert.equal(started.status, 202);
     const status = await saturn.until("the download", () => saturn.api("GET", "/programs/claude-code"), (item) => item.source === "saturn");
-    assert.deepEqual(status, { id: "claude-code", label: "Claude Code", installed: true, source: "saturn", path: path.join(saturn.dataDir, "tools", "claude-code", VERSION, "package", "claude"), version: "9.9.9 (from the package)", downloadVersion: VERSION, downloadSize: archive.length });
-    assert.ok((statSync(status.path).mode & 0o111) !== 0, "the program is executable");
+    assert.deepEqual(status, { id: "claude-code", label: "Claude Code", installed: true, source: "saturn", path: named(path.join(saturn.dataDir, "tools", "claude-code", VERSION, "package", "claude")), version: "9.9.9 (from the package)", downloadVersion: VERSION, downloadSize: archive.length });
+    // Windows has no such mode: there a program is one by its name.
+    if (process.platform !== "win32") assert.ok((statSync(status.path).mode & 0o111) !== 0, "the program is executable");
     assert.equal(existsSync(path.join(saturn.dataDir, "tools", "claude-code", "1.0.0")), false, "only this version stays");
     const removed = await saturn.api("DELETE", "/programs/claude-code");
     assert.deepEqual([removed.installed, removed.source], [false, null]);
@@ -175,7 +181,7 @@ test("Codex's program is found under vendor in its package", async () => {
     await pinned(saturn, "codex", server.url, integrity, archive.length);
     assert.equal((await saturn.call("POST", "/programs/codex/install", {})).status, 202);
     const status = await saturn.until("the download", () => saturn.api("GET", "/programs/codex"), (item) => item.source === "saturn");
-    assert.equal(status.path, path.join(saturn.dataDir, "tools", "codex", VERSION, "package", "vendor", "aarch64-apple-darwin", "bin", "codex"));
+    assert.equal(status.path, named(path.join(saturn.dataDir, "tools", "codex", VERSION, "package", "vendor", "aarch64-apple-darwin", "bin", "codex")));
   } finally {
     server.close();
     await saturn.stop();
@@ -274,7 +280,7 @@ test("a dropped connection resumes with a range request, and the whole file is s
 test("a platform with no published package cannot download, and says so", async () => {
   const saturn = await startWithPrograms({ install: [], packages: { "claude-code": {}, codex: {} } });
   try {
-    assert.deepEqual(await saturn.call("POST", "/programs/codex/install", {}), { status: 409, body: { error: `Codex has no download for ${process.platform}-${process.arch}.` } });
+    assert.deepEqual(await saturn.call("POST", "/programs/codex/install", {}), { status: 409, body: { error: `Codex has no download for ${PLATFORM}.` } });
     const status = await saturn.api("GET", "/programs/codex");
     assert.deepEqual([status.downloadVersion, status.downloadSize], [null, 0]);
   } finally {
@@ -287,7 +293,10 @@ test("Claude Code's login comes from the program, in Saturn's own config folder,
   const saturn = await startWithPrograms({ env: { ANTHROPIC_API_KEY: "the-users-own-key", CLAUDE_CODE_USE_BEDROCK: "1", ELECTRON_RUN_AS_NODE: "1", OPENAI_API_KEY: "another-services-key" } });
   try {
     const configDir = path.join(saturn.dataDir, "claude");
-    const loginCommand = `CLAUDE_CONFIG_DIR=${configDir} ${saturn.placed["claude-code"]} auth login --claudeai`;
+    // The command to paste in a terminal: PowerShell's way on Windows.
+    const loginCommand = process.platform === "win32"
+      ? `$env:CLAUDE_CONFIG_DIR='${configDir}'; & '${saturn.placed["claude-code"]}' auth login --claudeai`
+      : `CLAUDE_CONFIG_DIR=${configDir} ${saturn.placed["claude-code"]} auth login --claudeai`;
     assert.deepEqual(await saturn.api("GET", "/claude-code/status"), { loggedIn: false, authMethod: "none", loginCommand, configDir }, "signed out exits 1 and still prints its answer");
     const [started] = (await saturn.journal()).filter((entry) => entry.started && entry.args[0] === "auth");
     assert.deepEqual(started.args, ["auth", "status", "--json"]);
@@ -349,7 +358,7 @@ test("Codex's login comes from the program, without any credential that would ou
   }
 });
 
-test("a device sign-in relays the program's link and code, and can be opened and cancelled", async () => {
+test("a device sign-in relays the program's link and code, and can be opened and cancelled", opensPages, async () => {
   const saturn = await startWithPrograms();
   try {
     const url = "https://auth.openai.com/codex/device";
@@ -373,7 +382,7 @@ test("a device sign-in relays the program's link and code, and can be opened and
   }
 });
 
-test("a browser sign-in opens the page once; a link that is not https is never opened", async () => {
+test("a browser sign-in opens the page once; a link that is not https is never opened", opensPages, async () => {
   const saturn = await startWithPrograms();
   try {
     const url = "https://auth.openai.com/oauth/authorize?response_type=code&client_id=x";

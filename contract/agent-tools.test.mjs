@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { startRuntime } from "./runtime.mjs";
+import { placed, startRuntime } from "./runtime.mjs";
 
 const casesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "cases/agent-tools.json");
 
@@ -75,9 +75,7 @@ async function run(steps, folder) {
 }
 
 async function matchesRecording(name, value) {
-  const normalized = JSON.parse(JSON.stringify(value)
-    .replaceAll(runtime.dataDir, "<data>")
-    .replaceAll(scratch, "<scratch>")
+  const normalized = JSON.parse(JSON.stringify(placed(value, [[runtime.dataDir, "<data>"], [scratch, "<scratch>"]]))
     .replaceAll(agent.id, "<agent>")
     .replace(/(auto|run)_[0-9a-f]{8,}/g, "<$1>")
     .replace(/"(nextRun|lastRunAt)":"[^"]*"/g, '"$1":"<time>"')

@@ -387,10 +387,23 @@ impl Kernel {
 
     /// Removes Saturn's own copy (a system install is left alone).
     pub async fn remove_program(&self, id: &str) -> Result<Value, CoreError> {
-        match tokio::fs::remove_dir_all(self.program_root(id)).await {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(CoreError::new(500, error.to_string())),
+        // Windows keeps the file of a program that has only just ended (asked for its version a moment ago, say) for
+        // an instant longer, and refuses to delete it meanwhile: tried again a few times before it is an error.
+        let mut tries = 0;
+        loop {
+            match tokio::fs::remove_dir_all(self.program_root(id)).await {
+                Ok(()) => break,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+                Err(error)
+                    if cfg!(windows)
+                        && tries < 20
+                        && error.kind() == std::io::ErrorKind::PermissionDenied =>
+                {
+                    tries += 1;
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+                Err(error) => return Err(CoreError::new(500, error.to_string())),
+            }
         }
         locked(&self.programs.installs).remove(id);
         log(

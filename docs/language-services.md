@@ -27,7 +27,7 @@ F12 opens definitions in the project through the same file-reading route as the 
 installed package opens read-only in its own tab: the runtime reads it only from the folders that session's packages
 live in (the selected Python's `sys.path`, or the Rust toolchains' and the cargo registry's sources), only a source file of
 that language (`.py`, `.pyi`, `.rs`), at most 4 MiB, and as where a link leads. Anything else outside the project is
-refused. Such a tab is not restored with the workspace and offers no further language features. These services currently apply to source files, not notebook cells, and are unavailable on Windows.
+refused. Such a tab is not restored with the workspace and offers no further language features. These services currently apply to source files, not notebook cells. On Windows a server is found as an `.exe` or the `.cmd` npm writes, and the environment's own in `.venv\Scripts`.
 They infer programming-language types, not runtime tensor shapes, values or numerical correctness.
 
 ## State and diagnostics

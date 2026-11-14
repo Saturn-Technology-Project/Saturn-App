@@ -54,18 +54,14 @@ impl Kernel {
     ) -> Value {
         let env = process_env();
         let platform = Platform::current();
-        let mut shell = shell_invocation(command, "/bin/sh", platform, &env);
-        if !shell.verbatim {
-            shell = crate::research::research_invocation(
-                self.project_sandbox(project_id),
-                self.store.root(),
-                &shell.file,
-                shell.args,
-                cwd,
-                &[],
-                &[],
-            );
-        }
+        let shell = crate::research::sandboxed_invocation(
+            self.project_sandbox(project_id),
+            self.store.root(),
+            shell_invocation(command, "/bin/sh", platform, &env),
+            cwd,
+            &[],
+            &[],
+        );
         let mut variables = command_env(platform, &env);
         variables.push(("CI".into(), "1".into()));
         variables.push(("FORCE_COLOR".into(), "0".into()));

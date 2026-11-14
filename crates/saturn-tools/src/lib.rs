@@ -5,6 +5,7 @@ use saturn_domain::Arguments;
 use saturn_domain::js;
 use serde_json::Value;
 
+pub mod appcontainer;
 pub mod code;
 pub mod confine;
 pub mod file;
@@ -20,6 +21,8 @@ pub use process::{
     Captured, EndOnDrop, continue_group, force, group_alive, group_of, in_own_group, launch_env,
     leave_session, no_window, no_window_blocking, pause_group, run_captured, terminate,
 };
+#[cfg(windows)]
+pub use process::{process_started, tree_usage};
 
 /// What a tool returns to the model, or the message saying why it could not.
 pub type ToolResult = Result<Value, String>;

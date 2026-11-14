@@ -52,7 +52,8 @@ contract, workflow and skills).
   `node scripts/agent-programs-manifest.mjs <claude-agent-sdk version> <codex version> <uv version>`, after trying them
   against the protocol `contract/programs.mjs` records; the same command moves uv.
 - A new or changed route in `crates/saturn-server/src/`: run `node scripts/contract-routes.mjs` and commit the list.
-- Windows has only been type-checked since the rewrite, not run. Do not claim otherwise, in docs or in reports.
+- Windows is tested by hand in a virtual machine (Windows 11 for ARM, the x64 build under emulation), not by CI's
+  contract tests and not on x64 hardware. Claim only what was run there, in docs or in reports.
 
 ## Don't
 - Don't log or return a secret: log which credential was used (provider or model), never its value.

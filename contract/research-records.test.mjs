@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, commitAll, git, posixOnly, sha } from "./files-support.mjs";
+import { bench, commitAll, git, sha } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -132,7 +132,7 @@ test("records need the user's grant, and ids and links cannot lead elsewhere", a
   assert.equal((await saturn.call("GET", `${route}/questions/question_nothere00000000`)).status, 404);
 });
 
-test("a symbolic link at the records folder is refused rather than followed", posixOnly, async () => {
+test("a symbolic link at the records folder is refused rather than followed", async () => {
   const { route, folder } = await project();
   const elsewhere = await saturn.folder();
   await symlink(elsewhere, path.join(folder, ".saturn"));
@@ -280,7 +280,7 @@ test("a version cannot be made from a missing input, a path outside the project,
   assert.equal((await saturn.api("GET", `${route}/versions`)).items.length, 0);
 });
 
-test("a linked input is recorded as a link and not followed", posixOnly, async () => {
+test("a linked input is recorded as a link and not followed", async () => {
   const { route, folder } = await project({ "probe.py": "print(1)\n" });
   const elsewhere = await saturn.folder();
   await writeFile(path.join(elsewhere, "secret.txt"), "secret");

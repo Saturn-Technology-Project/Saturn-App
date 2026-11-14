@@ -25,6 +25,7 @@ fn sample() -> (tempfile::TempDir, Confinement) {
         hidden: vec![project, real.join("data")],
         visible: vec![tree, linked],
         network: false,
+        ..Confinement::default()
     };
     (root, confinement)
 }

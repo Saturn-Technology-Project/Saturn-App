@@ -193,7 +193,11 @@ impl Kernel {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                     return Err(CoreError::new(
                         409,
-                        "ffmpeg is not installed; install it (brew install ffmpeg) to export MP4s. The frames play in the app without it.",
+                        if cfg!(target_os = "macos") {
+                            "ffmpeg is not installed; install it (brew install ffmpeg) to export MP4s. The frames play in the app without it."
+                        } else {
+                            "ffmpeg is not installed; install it and put it on PATH to export MP4s. The frames play in the app without it."
+                        },
                     ));
                 }
                 Err(error) => return Err(CoreError::new(500, format!("ffmpeg failed: {error}"))),

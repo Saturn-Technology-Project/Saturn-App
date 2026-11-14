@@ -192,27 +192,59 @@ impl Session {
     }
 }
 
+/// The file names a program may have on this system: its own on macOS and Linux, and on Windows an `.exe` or the
+/// `.cmd` npm writes for a package's program.
+fn spellings(name: &str) -> Vec<String> {
+    if cfg!(windows) {
+        vec![format!("{name}.exe"), format!("{name}.cmd")]
+    } else {
+        vec![name.to_owned()]
+    }
+}
+
+/// The program by one of its spellings in a folder.
+fn program_in(folder: &Path, name: &str) -> Option<PathBuf> {
+    spellings(name)
+        .into_iter()
+        .map(|spelling| folder.join(spelling))
+        .find(|path| path.is_file())
+}
+
 /// Resolve a program using the runtime's launch PATH, without a shell or project-supplied command arguments.
 fn program(name: &str, nearby: Option<&Path>) -> Option<PathBuf> {
     nearby
-        .map(|folder| folder.join(name))
-        .filter(|path| path.is_file())
+        .and_then(|folder| program_in(folder, name))
         .or_else(|| {
             std::env::var_os("PATH").and_then(|path| {
-                std::env::split_paths(&path)
-                    .map(|folder| folder.join(name))
-                    .find(|path| path.is_file())
+                std::env::split_paths(&path).find_map(|folder| program_in(&folder, name))
             })
         })
 }
 
+/// The `package.json` of the package a compiler belongs to. On macOS and Linux the program is a link into the package's
+/// `bin`; on Windows it is a `.cmd` in `node_modules/.bin`, or beside a `node_modules` for one installed for everyone.
+fn compiler_package(candidate: &Path) -> Option<PathBuf> {
+    if cfg!(windows) {
+        let folder = candidate.parent()?;
+        [
+            folder.parent()?.join("typescript"),
+            folder.join("node_modules").join("typescript"),
+        ]
+        .into_iter()
+        .map(|package| package.join("package.json"))
+        .find(|package| package.is_file())
+    } else {
+        let executable = std::fs::canonicalize(candidate).ok()?;
+        Some(executable.parent()?.parent()?.join("package.json"))
+    }
+}
+
 /// TypeScript 7 ships its own LSP and no tsserver.js. Prefer the project's compiler, then one installed on PATH.
 fn native_typescript(root: &Path) -> Option<PathBuf> {
-    let local = root.join("node_modules/.bin/tsc");
-    let candidates = [Some(local), program("tsc", None)];
+    let local = program_in(&root.join("node_modules").join(".bin"), "tsc");
+    let candidates = [local, program("tsc", None)];
     candidates.into_iter().flatten().find_map(|candidate| {
-        let executable = std::fs::canonicalize(&candidate).ok()?;
-        let package = executable.parent()?.parent()?.join("package.json");
+        let package = compiler_package(&candidate)?;
         let metadata: Value = serde_json::from_slice(&std::fs::read(package).ok()?).ok()?;
         let version = text(&metadata, "version")
             .split('.')
@@ -339,12 +371,6 @@ impl Kernel {
             .changes
             .load(Ordering::SeqCst);
         let root = self.research_source(project, None)?;
-        if cfg!(windows) {
-            return Err(CoreError::new(
-                501,
-                "Language servers are not supported on Windows yet.",
-            ));
-        }
         let python = if language == "python" {
             Some(self.research_python(project).await?)
         } else {
@@ -367,12 +393,13 @@ impl Kernel {
             ));
         }
         let nearby = python.as_deref().and_then(Path::parent);
-        let managed = root.join(super::manage::VENV).join("bin");
+        let managed =
+            root.join(super::manage::VENV)
+                .join(if cfg!(windows) { "Scripts" } else { "bin" });
         let (name, executable, args): (&str, PathBuf, &[&str]) = match language {
             "python" => {
                 if let Some(path) = nearby
-                    .map(|folder| folder.join("basedpyright-langserver"))
-                    .filter(|path| path.is_file())
+                    .and_then(|folder| program_in(folder, "basedpyright-langserver"))
                     .or_else(|| program("basedpyright-langserver", Some(&managed)))
                 {
                     ("basedpyright", path, &["--stdio"])

@@ -7,50 +7,67 @@ import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, until } from "./files-support.mjs";
+import { bench, until } from "./files-support.mjs";
+import { placeProgram } from "./programs.mjs";
 
 /**
  * A "uv" that makes a venv whose python answers the environment check, and records every install in the project.
  */
-const UV = `#!/bin/sh
-case "$1" in
-  venv)
-    shift
-    while [ $# -gt 1 ]; do shift; done
-    mkdir -p "$1/bin"
-    cat > "$1/bin/python" <<'PY'
-#!/bin/sh
-cat > /dev/null
-installed=$(cat installed.txt 2>/dev/null | tr '\\n' ' ')
-torch=null; case " $installed " in *" torch "*) torch='"2.5.0"';; esac
-lens=null; case " $installed " in *" transformer_lens "*) lens='"2.0.0"';; esac
-printf '{"executable":"venv","version":"3.12.0","platform":"stand-in","cpus":2,"packages":{"torch":%s,"transformers":null,"transformer_lens":%s},"devices":{"torch":null,"reason":"none"}}' "$torch" "$lens"
-PY
-    chmod +x "$1/bin/python"
-    echo "made $1"
-    ;;
-  pip)
-    shift; shift; shift; shift
-    for name in "$@"; do echo "$name" >> installed.txt; done
-    echo "installed $*"
-    ;;
-  sync)
-    echo "synced" >> installed.txt
-    ;;
-  python)
-    shift; shift
-    echo "installed python $* bin=$UV_PYTHON_INSTALL_BIN registry=$UV_PYTHON_INSTALL_REGISTRY managed=$UV_MANAGED_PYTHON"
-    ;;
-esac
+const UV = `#!${process.execPath}
+const fs = require("node:fs");
+const path = require("node:path");
+const args = process.argv.slice(2);
+// The venv's python: it reads the check's helper and answers with what was "installed" in the project.
+const python = "#!" + process.execPath + String.raw\`
+const fs = require("node:fs");
+process.stdin.resume();
+process.stdin.on("end", () => {
+  let installed = [];
+  try { installed = fs.readFileSync("installed.txt", "utf8").split(/\\r?\\n/); } catch { /* nothing installed yet */ }
+  const version = (name, is) => (installed.includes(name) ? is : null);
+  process.stdout.write(JSON.stringify({ executable: "venv", version: "3.12.0", platform: "stand-in", cpus: 2, packages: { torch: version("torch", "2.5.0"), transformers: null, transformer_lens: version("transformer_lens", "2.0.0") }, devices: { torch: null, reason: "none" } }));
+});
+\`;
+if (args[0] === "venv") {
+  const target = args.at(-1);
+  if (process.platform === "win32") {
+    // Windows starts only an .exe by name: the launcher this stand-in itself runs through, with the script beside it.
+    const folder = path.join(target, "Scripts");
+    fs.mkdirSync(folder, { recursive: true });
+    fs.copyFileSync(process.argv[1].replace(/\\.cjs$/, ".exe"), path.join(folder, "python.exe"));
+    fs.writeFileSync(path.join(folder, "python.cjs"), python);
+    fs.writeFileSync(path.join(folder, "python.node"), process.execPath);
+  } else {
+    fs.mkdirSync(path.join(target, "bin"), { recursive: true });
+    fs.writeFileSync(path.join(target, "bin/python"), python, { mode: 0o755 });
+  }
+  console.log("made " + target);
+} else if (args[0] === "pip") {
+  for (const name of args.slice(4)) fs.appendFileSync("installed.txt", name + "\\n");
+  console.log("installed " + args.slice(4).join(" "));
+} else if (args[0] === "sync") {
+  fs.appendFileSync("installed.txt", "synced\\n");
+} else if (args[0] === "python") {
+  const set = (name) => process.env[name] ?? "";
+  console.log("installed python " + args.slice(2).join(" ") + " bin=" + set("UV_PYTHON_INSTALL_BIN") + " registry=" + set("UV_PYTHON_INSTALL_REGISTRY") + " managed=" + set("UV_MANAGED_PYTHON"));
+}
 `;
+
+/** How this system writes the environment's python, and a word in a job's command. */
+const WINDOWS = process.platform === "win32";
+const VENV_PYTHON = WINDOWS ? ".venv/Scripts/python.exe" : ".venv/bin/python";
+const q = (word) => (WINDOWS ? `"${word}"` : `'${word}'`);
+/** Some tests' stand-ins are shell scripts, or need the command sandbox. */
+const shellOnly = { skip: WINDOWS && "its stand-ins are shell scripts" };
 
 let saturn;
 let tools;
 before(async () => {
   tools = await import("node:fs/promises").then(async (fs) => {
     const folder = await fs.mkdtemp(path.join(os.tmpdir(), "saturn-stand-in-uv-"));
-    await writeFile(path.join(folder, "uv"), UV);
-    await chmod(path.join(folder, "uv"), 0o755);
+    await placeProgram(path.join(folder, "uv"), UV);
+    // A Python on the PATH whatever this computer has, so uv is not asked to install one first. Nothing runs it.
+    await placeProgram(path.join(folder, "python3"), `#!${process.execPath}\n`);
     return folder;
   });
   saturn = await bench({ env: { PATH: `${tools}${path.delimiter}${process.env.PATH}` } });
@@ -66,10 +83,10 @@ async function project() {
   return { folder, route: `/projects/${made.id}/research/environment` };
 }
 
-test("creating the environment makes a venv with uv, installs the bundled kit, and names its python", posixOnly, async () => {
+test("creating the environment makes a venv with uv, installs the bundled kit, and names its python", async () => {
   const { folder, route } = await project();
   const before = await saturn.api("GET", route);
-  assert.ok(before.tools.uv.endsWith("/uv"));
+  assert.equal(path.parse(before.tools.uv).name, "uv");
   assert.equal(before.tools.uvSource, "system");
   assert.equal(before.tools.managed.exists, false);
   assert.equal(before.job, null);
@@ -81,11 +98,11 @@ test("creating the environment makes a venv with uv, installs the bundled kit, a
   const done = await until("the job to end", () => saturn.api("GET", route), settled);
   assert.equal(done.job.status, "completed", done.job.logTail);
   assert.equal(done.job.exitCode, 0);
-  assert.deepEqual(done.job.commands, ["uv venv '.venv'", "uv pip install --python '.venv/bin/python' 'torch' 'transformers' 'numpy'"]);
+  assert.deepEqual(done.job.commands, [`uv venv ${q(".venv")}`, `uv pip install --python ${q(VENV_PYTHON)} ${q("torch")} ${q("transformers")} ${q("numpy")}`]);
   assert.deepEqual(done.job.env, { UV_PYTHON_INSTALL_BIN: "0", UV_PYTHON_INSTALL_REGISTRY: "0" });
-  assert.match(done.job.logTail, /\$ uv venv '.venv'\nmade .venv\n\$ uv pip install/);
+  assert.match(done.job.logTail.replaceAll("\r", ""), /\$ uv venv ['"].venv['"] ?\nmade .venv\n\$ uv pip install/);
   assert.equal(done.tools.managed.exists, true);
-  assert.equal(done.python, ".venv/bin/python");
+  assert.equal(done.python, VENV_PYTHON);
   assert.deepEqual((await readFile(path.join(folder, "installed.txt"), "utf8")).trim().split("\n"), ["torch", "transformers", "numpy"]);
   const log = await readFile(path.join(folder, ".saturn/research/environment-job.log"), "utf8");
   assert.match(log, /installed torch transformers numpy/);
@@ -96,19 +113,19 @@ test("creating the environment makes a venv with uv, installs the bundled kit, a
   assert.deepEqual(core.packages.map((item) => [item.name, item.installed]), [["torch", "2.5.0"], ["transformers", null], ["numpy", null]]);
 });
 
-test("a kit, named packages and a lock file are installed by jobs, one at a time, and bad names are refused", posixOnly, async () => {
+test("a kit, named packages and a lock file are installed by jobs, one at a time, and bad names are refused", async () => {
   const { folder, route } = await project();
   const nothing = await saturn.call("POST", `${route}/install`, { kit: "interpretability" });
   assert.equal(nothing.status, 422);
   await saturn.api("POST", `${route}/create`, { withCore: false });
   const made = await until("the environment", () => saturn.api("GET", route), settled);
-  assert.deepEqual(made.job.commands, ["uv venv '.venv'"]);
+  assert.deepEqual(made.job.commands, [`uv venv ${q(".venv")}`]);
 
   await saturn.api("POST", `${route}/install`, { kit: "interpretability", packages: ["rich>=13"] });
   const installed = await until("the install", () => saturn.api("GET", route), settled);
   assert.equal(installed.job.kind, "install");
   assert.deepEqual(installed.job.env, {});
-  assert.equal(installed.job.commands[0], "uv pip install --python '.venv/bin/python' 'transformer_lens' 'sae_lens' 'einops' 'rich>=13'");
+  assert.equal(installed.job.commands[0], `uv pip install --python ${q(VENV_PYTHON)} ${q("transformer_lens")} ${q("sae_lens")} ${q("einops")} ${q("rich>=13")}`);
   const bad = await saturn.call("POST", `${route}/install`, { packages: ["--upgrade"] });
   assert.equal(bad.status, 400);
   const unknown = await saturn.call("POST", `${route}/install`, { kit: "nope" });
@@ -122,7 +139,7 @@ test("a kit, named packages and a lock file are installed by jobs, one at a time
   await saturn.api("POST", `${route}/install`, { sync: true });
   const synced = await until("the sync", () => saturn.api("GET", route), settled);
   assert.equal(synced.job.kind, "sync");
-  assert.equal(synced.job.commands[0], "uv pip install --python '.venv/bin/python' -r 'requirements.txt'");
+  assert.equal(synced.job.commands[0], `uv pip install --python ${q(VENV_PYTHON)} -r ${q("requirements.txt")}`);
   await writeFile(path.join(folder, "uv.lock"), "version = 1\n");
   await saturn.api("POST", `${route}/install`, { sync: true });
   const locked = await until("the uv sync", () => saturn.api("GET", route), settled);
@@ -130,11 +147,11 @@ test("a kit, named packages and a lock file are installed by jobs, one at a time
   assert.equal((await saturn.call("POST", `${route}/job/stop`)).status, 409);
   const checked = await saturn.api("POST", `${route}/check`);
   assert.equal(checked.kits.find((kit) => kit.id === "interpretability").packages[0].installed, "2.0.0");
-  assert.ok(await readFile(path.join(folder, ".venv/bin/python"), "utf8"));
+  assert.ok(await readFile(path.join(folder, VENV_PYTHON)));
   await mkdir(path.join(folder, "unused"));
 });
 
-test("with uv and no Python on this computer, making the environment has uv install a Python first", posixOnly, async () => {
+test("with uv and no Python on this computer, making the environment has uv install a Python first", shellOnly, async () => {
   // A PATH with the stand-in uv and only what its venv step runs: no python3 anywhere on it.
   const bare = await mkdtemp(path.join(os.tmpdir(), "saturn-no-python-"));
   await writeFile(path.join(bare, "uv"), UV);
@@ -151,7 +168,7 @@ test("with uv and no Python on this computer, making the environment has uv inst
     const route = `/projects/${made.id}/research/environment`;
     const before = await alone.api("GET", route);
     assert.equal(before.tools.python3, null);
-    assert.ok(before.tools.uv.endsWith("/uv"));
+    assert.equal(path.parse(before.tools.uv).name, "uv");
 
     await alone.api("POST", `${route}/create`, { withCore: false, python: "3.12" });
     const done = await until("the job to end", () => alone.api("GET", route), settled);
@@ -160,7 +177,7 @@ test("with uv and no Python on this computer, making the environment has uv inst
     assert.deepEqual(done.job.env, { UV_PYTHON_INSTALL_BIN: "0", UV_PYTHON_INSTALL_REGISTRY: "0", UV_MANAGED_PYTHON: "1" });
     assert.equal(done.job.status, "completed", done.job.logTail);
     assert.match(done.job.logTail, /\$ uv python install '3.12'\ninstalled python 3.12 bin=0 registry=0 managed=1\n\$ uv venv/);
-    assert.equal(done.python, ".venv/bin/python");
+    assert.equal(done.python, VENV_PYTHON);
 
     // With no version asked for, uv installs its newest stable Python.
     await rm(path.join(folder, ".venv"), { recursive: true, force: true });
@@ -172,10 +189,9 @@ test("with uv and no Python on this computer, making the environment has uv inst
   }
 });
 
-test("a job can be stopped, and one started by another runtime reads as interrupted", posixOnly, async () => {
+test("a job can be stopped, and one started by another runtime reads as interrupted", async () => {
   const { folder, route } = await project();
-  await writeFile(path.join(tools, "uv"), `#!/bin/sh\nif [ "$1" = venv ]; then sleep 30; fi\n`);
-  await chmod(path.join(tools, "uv"), 0o755);
+  await placeProgram(path.join(tools, "uv"), `#!${process.execPath}\nif (process.argv[2] === "venv") setTimeout(() => {}, 30_000);\n`);
   const started = await saturn.api("POST", `${route}/create`, { withCore: false });
   assert.equal(started.job.status, "running");
   const stopped = await saturn.api("POST", `${route}/job/stop`);
@@ -185,10 +201,10 @@ test("a job can be stopped, and one started by another runtime reads as interrup
   await writeFile(path.join(folder, ".saturn/research/environment-job.json"), JSON.stringify({ ...ended.job, status: "running", logTail: undefined, logLines: undefined }));
   const orphan = await saturn.api("GET", route);
   assert.equal(orphan.job.status, "interrupted");
-  await writeFile(path.join(tools, "uv"), UV);
+  await placeProgram(path.join(tools, "uv"), UV);
 });
 
-test("an environment job times out, stops even uncooperative descendants, and releases the project for retry", posixOnly, async () => {
+test("an environment job times out, stops even uncooperative descendants, and releases the project for retry", shellOnly, async () => {
   const { folder, route } = await project();
   for (const timeoutSeconds of [0, -1, 1.5, "1", 86401]) {
     assert.equal((await saturn.call("POST", `${route}/create`, { withCore: false, timeoutSeconds })).status, 400);
@@ -226,7 +242,7 @@ function canSandbox() {
   }
 }
 
-test("the project's interpreter and its environment jobs run in the sandbox: neither reads Saturn's data", posixOnly, async (t) => {
+test("the project's interpreter and its environment jobs run in the sandbox: neither reads Saturn's data", shellOnly, async (t) => {
   if (!canSandbox()) return t.skip("no sandbox for commands here");
   const data = await mkdtemp(path.join(os.tmpdir(), "saturn-interpreter-data-"));
   const outside = await mkdtemp(path.join(os.tmpdir(), "saturn-interpreter-"));
@@ -267,7 +283,7 @@ mkdir -p "$3/bin" 2>/dev/null; mkdir -p .venv/bin
   }
 });
 
-test("the assistant asks before it changes the project's interpreter, and a path is never a package", posixOnly, async () => {
+test("the assistant asks before it changes the project's interpreter, and a path is never a package", async () => {
   const folder = await saturn.folder();
   const setup = await saturn.chat(folder, { autonomy: "execute_when_allowed", mcpConnectionIds: ["research"] });
   const run = await setup.start([["research_environment_action", { action: "set", python: "/somewhere/python" }]], "use my python");

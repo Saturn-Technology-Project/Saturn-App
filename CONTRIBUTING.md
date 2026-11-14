@@ -23,7 +23,7 @@ By taking part you agree to the [code of conduct](CODE_OF_CONDUCT.md). How decis
 
 Saturn's code follows one standard, enforced automatically:
 
-- **Rust**: `cargo fmt` for formatting, and `cargo clippy --all-targets` with every lint in clippy's `all` group denied and `unsafe_code` forbidden ([`Cargo.toml`](Cargo.toml)). [`clippy.toml`](clippy.toml) refuses a request sent any way but `saturn_telemetry::network::SendNoted`, so that it is in the network log.
+- **Rust**: `cargo fmt` for formatting, and `cargo clippy --all-targets` with every lint in clippy's `all` group denied and `unsafe_code` forbidden ([`Cargo.toml`](Cargo.toml)), but for `crates/saturn-appcontainer`, which makes the Windows sandbox from Win32 calls and keeps them to one file, each with the reason it is sound. [`clippy.toml`](clippy.toml) refuses a request sent any way but `saturn_telemetry::network::SendNoted`, so that it is in the network log.
 - **TypeScript strict mode** (`strict: true`) for the desktop interface; `npm run typecheck` must pass with no errors.
 - **oxlint with [`.oxlintrc.json`](.oxlintrc.json)**: every rule in its correctness category is an error, including unused code and React's rules of hooks; `npm run lint` must pass with no warnings. CI runs it on every push and pull request ([supply-chain workflow](.github/workflows/supply-chain.yml)). React's effect-dependency and set-state-in-effect rules are not enforced yet, until the existing effects have been reviewed.
 - **Write like the code around it**: the same naming, comment density and idiom; names in whole words; a short comment above a function or type that says what it is for.
@@ -36,7 +36,7 @@ This policy is mandatory for every change to Saturn's own code (the runtime, the
 1. **New functionality comes with tests.** A pull request that adds major functionality must add tests for it to the automated suite (`contract/`, a crate's tests, `scripts/eval/`), or say why it cannot be tested automatically; such a pull request is not merged until it does.
 2. **Every bug fix comes with a regression test** that fails before the fix and passes after it, wherever the bug can be reproduced in a test.
 3. **Tests use no credentials and touch no real data**: a temporary data folder and fake or scripted model servers, as the existing tests do. `contract/cases` were recorded from the old TypeScript runtime and are frozen: do not re-record them.
-4. **The suite must pass** (`npm test`) before a change merges; CI runs it on every pull request and push to `main` and before every release. On Windows, which has only been type-checked since the rewrite in Rust and Tauri, the workflows run `cargo test` without the contract tests.
+4. **The suite must pass** (`npm test`) before a change merges; CI runs it on every pull request and push to `main` and before every release. On Windows the workflows run `cargo test` without the contract tests; those are run by hand in a Windows virtual machine (set `SATURN_CONTRACT_PLATFORM=win32-x64` when Node there is not x64).
 
 ## Adding or updating a dependency
 

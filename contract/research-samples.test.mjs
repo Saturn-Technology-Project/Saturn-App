@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFile, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, posixOnly, until } from "./files-support.mjs";
+import { bench, until } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -36,7 +36,7 @@ async function project() {
   return { folder, route, run };
 }
 
-test("one sample across runs, with a reason where they cannot be compared", posixOnly, async () => {
+test("one sample across runs, with a reason where they cannot be compared", async () => {
   const { route, run } = await project();
   const base = await run([line("a", { output: "Mary" }), line("b")]);
   const tuned = await run([line("a", { output: "John" })]);
@@ -48,7 +48,7 @@ test("one sample across runs, with a reason where they cannot be compared", posi
   assert.deepEqual(rows[2].comparison.differs, ["chatTemplate"]);
 });
 
-test("a label never changes the samples, and is kept in its own file", posixOnly, async () => {
+test("a label never changes the samples, and is kept in its own file", async () => {
   const { route, folder, run } = await project();
   const done = await run([line("a"), line("b")]);
   const samplesFile = path.join(folder, ".saturn/research/runs", done.id, "samples.jsonl");
@@ -64,7 +64,7 @@ test("a label never changes the samples, and is kept in its own file", posixOnly
   assert.equal((await saturn.call("POST", `${route}/runs/run_nothere/labels`, { sampleId: "a", label: "x" })).status, 404);
 });
 
-test("relabeling replaces the earlier label, and labels on one sample do not leak to another trial", posixOnly, async () => {
+test("relabeling replaces the earlier label, and labels on one sample do not leak to another trial", async () => {
   const { route, run } = await project();
   const done = await run([line("a"), line("a", { trial: 1 })]);
   await saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId: "a", label: "First" });
@@ -74,7 +74,7 @@ test("relabeling replaces the earlier label, and labels on one sample do not lea
   assert.deepEqual(Object.values(labels).map((item) => [item.trial, item.label]).sort(), [[0, "Second"], [1, "Other"]]);
 });
 
-test("many labels at once all land", posixOnly, async () => {
+test("many labels at once all land", async () => {
   const { route, run } = await project();
   const ids = Array.from({ length: 10 }, (_, index) => `s${index}`);
   const done = await run(ids.map((id) => line(id)));
@@ -83,7 +83,7 @@ test("many labels at once all land", posixOnly, async () => {
   assert.equal(Object.keys(labels).length, 10);
 });
 
-test("agreement counts only samples the scorer labeled, in this run", posixOnly, async () => {
+test("agreement counts only samples the scorer labeled, in this run", async () => {
   const { route, run } = await project();
   const done = await run([line("a", { scorerLabel: "Refused" }), line("b", { scorerLabel: "Refused" }), line("c"), line("d", { scorerLabel: "Refused" })]);
   const label = (sampleId, value) => saturn.api("POST", `${route}/runs/${done.id}/labels`, { sampleId, label: value });
@@ -95,7 +95,7 @@ test("agreement counts only samples the scorer labeled, in this run", posixOnly,
   assert.deepEqual(agreement, { labeled: 4, compared: 2, agreed: 1 });
 });
 
-test("pages read while a run writes never show half a line, and reach every sample once", posixOnly, async () => {
+test("pages read while a run writes never show half a line, and reach every sample once", async () => {
   const folder = await saturn.folder();
   await writeFile(path.join(folder, "probe.mjs"), `
     import { appendFileSync } from "node:fs";
@@ -134,7 +134,7 @@ test("pages read while a run writes never show half a line, and reach every samp
   assert.deepEqual(seen, Array.from({ length: 40 }, (_, index) => `s${index}`));
 });
 
-test("disputed samples are filtered across the whole run, with the same explicit label aliases as agreement", posixOnly, async () => {
+test("disputed samples are filtered across the whole run, with the same explicit label aliases as agreement", async () => {
   const { route, run } = await project();
   const done = await run(Array.from({ length: 5103 }, (_, index) => line(`s${index}`, { scorerLabel: "Wrong", ...(index === 5102 ? { error: { kind: "model" } } : {}) })));
   const draft = await saturn.api("GET", `${route}/experiments/${done.experimentId}`);
@@ -158,7 +158,7 @@ test("disputed samples are filtered across the whole run, with the same explicit
   assert.equal(bad.status, 400);
 });
 
-test("a sealed run's summary is read from its file once, and again when the file changes", posixOnly, async () => {
+test("a sealed run's summary is read from its file once, and again when the file changes", async () => {
   const { route, folder, run } = await project();
   const done = await run([line("a"), line("b")]);
   const file = path.join(folder, ".saturn/research/runs", done.id, "samples.jsonl");
@@ -175,7 +175,7 @@ test("a sealed run's summary is read from its file once, and again when the file
   assert.equal((await saturn.api("GET", `${route}/runs/${done.id}/summary`)).models[0].scores.s.mean, 3, "a changed file is");
 });
 
-test("labels compare with the scorer from one reading of a sealed run, and nothing labeled needs no reading", posixOnly, async () => {
+test("labels compare with the scorer from one reading of a sealed run, and nothing labeled needs no reading", async () => {
   const { route, folder, run } = await project();
   const done = await run([line("a", { scorerLabel: "good" }), line("b", { scorerLabel: "bad" })]);
   const empty = await saturn.api("GET", `${route}/runs/${done.id}/labels`);
@@ -189,7 +189,7 @@ test("labels compare with the scorer from one reading of a sealed run, and nothi
   assert.ok(folder);
 });
 
-test("a summary adds up each model's samples, without letting infrastructure errors count as scores", posixOnly, async () => {
+test("a summary adds up each model's samples, without letting infrastructure errors count as scores", async () => {
   const { route, folder, run } = await project();
   const done = await run([
     line("a", { modelId: "m1", scores: { logit: 1, correct: true, note: "x" } }),
@@ -224,7 +224,7 @@ test("a counterexample is a record that names its run and sample", async () => {
   assert.equal((await saturn.api("GET", `${route}/counterexamples`)).items[0].id, kept.id);
 });
 
-test("a run that measures a different number of samples than the last comparable run of its experiment is warned about", posixOnly, async () => {
+test("a run that measures a different number of samples than the last comparable run of its experiment is warned about", async () => {
   const { folder, route } = await project();
   let experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", evaluation });
   const run = async (lines) => {
@@ -247,7 +247,7 @@ test("a run that measures a different number of samples than the last comparable
   assert.deepEqual(apart.warnings, []);
 });
 
-test("a failed run is neither warned about nor compared with", posixOnly, async () => {
+test("a failed run is neither warned about nor compared with", async () => {
   const { folder, route } = await project();
   const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", evaluation });
   const run = async (lines, exit = 0) => {
@@ -266,7 +266,7 @@ test("a failed run is neither warned about nor compared with", posixOnly, async 
   assert.deepEqual(after.warnings, [], "compared with the last whole run, not the failed one");
 });
 
-test("raters label apart from the adjudicated label, and their agreement is measured as kappa", posixOnly, async () => {
+test("raters label apart from the adjudicated label, and their agreement is measured as kappa", async () => {
   const { route, run } = await project();
   const done = await run([line("a", { scorerLabel: "Correct" }), line("b", { scorerLabel: "Wrong" }), line("c", { scorerLabel: "Correct" }), line("d", { scorerLabel: "Wrong" })]);
   for (const [sampleId, alice, bob] of [["a", "Correct", "Correct"], ["b", "Wrong", "Wrong"], ["c", "Correct", "Wrong"], ["d", "Wrong", "Wrong"]]) {

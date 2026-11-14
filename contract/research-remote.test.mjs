@@ -12,7 +12,7 @@ import { startRuntime } from "./runtime.mjs";
 import { until } from "./files-support.mjs";
 
 let runtime, folder, remote, binaries, data, origin, releases, served, runtimeEnv;
-const worker = path.resolve("target/debug/saturn-server");
+const worker = path.resolve("target/debug", process.platform === "win32" ? "saturn-server.exe" : "saturn-server");
 /** A JSON request to the isolated runtime. */
 async function api(method, route, body) {
   const response = await fetch(origin + route, { method, headers: { "content-type": "application/json", authorization: `Bearer ${(await readFile(path.join(data, "runtime-token"), "utf8")).trim()}` }, ...(body ? { body: JSON.stringify(body) } : {}) });

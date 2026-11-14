@@ -3,16 +3,29 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { startRuntime } from "./runtime.mjs";
 
+/** A git configuration with nothing in it. Git for Windows cannot open the null device, so there it is an empty file. */
+const NO_CONFIG = process.platform === "win32" ? emptyFile() : os.devNull;
 /** Git settings that keep the developer's own out of a test, for the runtime and the test's own git calls. */
-export const GIT_ALONE = { GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_SYSTEM: os.devNull };
+export const GIT_ALONE = { GIT_CONFIG_GLOBAL: NO_CONFIG, GIT_CONFIG_SYSTEM: NO_CONFIG };
 
-export const posixOnly = { skip: process.platform === "win32" && "the scripted commands are POSIX shell" };
+function emptyFile() {
+  const file = path.join(mkdtempSync(path.join(os.tmpdir(), "saturn-contract-git-")), "empty.gitconfig");
+  writeFileSync(file, "");
+  return file;
+}
+
+/** Why a test does not run on Windows: each names what Windows lacks, or what the test would need written for it. */
+const notOnWindows = (reason) => ({ skip: process.platform === "win32" && reason });
+export const cannotPause = notOnWindows("Windows cannot pause a process");
+export const fileModes = notOnWindows("Windows has no file modes");
+export const shellPython = notOnWindows("its Python is a shell script around python3");
 
 export const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
@@ -33,6 +46,31 @@ export function commitAll(folder) {
 /** A tool call in a step of the script: `[tool, arguments]`. */
 export const write = (file, content) => ["files", { action: "write", path: file, content }];
 export const command = (text, options = {}) => ["code", { command: text, ...options }];
+/**
+ * A command line that `sh` and `cmd` both read the same way: Node running this code. The code is written without
+ * double quotes, `$`, `%`, backticks or backslashes, which the two shells treat differently inside double quotes.
+ */
+export const node = (code) => `node -e "${code}"`;
+/**
+ * A command line that does these things in turn, on either shell: `["write", file, text]`, `["append", file, text]`,
+ * `["remove", file]`, `["move", from, to]`, `["mkdir", folder]`, `["wait", milliseconds]`. A file's folders are made.
+ * The list travels as base64, so names and texts in any script reach Node as they were written.
+ */
+export function files(...steps) {
+  const list = Buffer.from(JSON.stringify(steps)).toString("base64");
+  return node([
+    "const fs = require('fs'), path = require('path')",
+    `for (const [step, a, b] of JSON.parse(Buffer.from('${list}', 'base64').toString())) {`
+      + " if (step === 'write' || step === 'append') { fs.mkdirSync(path.dirname(path.resolve(a)), { recursive: true }); fs[step + 'FileSync'](a, b); }"
+      + " else if (step === 'remove') fs.rmSync(a);"
+      + " else if (step === 'move') fs.renameSync(a, b);"
+      + " else if (step === 'mkdir') fs.mkdirSync(a, { recursive: true });"
+      + " else if (step === 'wait') Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, a);"
+      + " }",
+  ].join("; "));
+}
+/** A command line that does nothing for this many seconds, on either shell. */
+export const idle = (seconds) => node(`setTimeout(() => {}, ${seconds * 1000})`);
 
 /** Reads until `done` says so, for up to `seconds`. */
 export async function until(what, read, done = Boolean, seconds = 30) {
@@ -148,7 +186,7 @@ export async function bench({ env = {}, dataDir, keepData, cwd } = {}) {
   const stop = async () => {
     await Promise.all(models.map((model) => model.stop()));
     await runtime.stop();
-    await Promise.all(folders.map((item) => rm(item, { recursive: true, force: true })));
+    await Promise.all(folders.map((item) => rm(item, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })));
   };
 
   return { runtime, call, api, folder, finished, chat, stop };

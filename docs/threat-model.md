@@ -31,7 +31,7 @@ Web pages, repository files, issue and review comments, MCP and tool results and
 
 - **Approvals and rules decide every call**, not the model: deny beats ask beats allow; a shell line is judged one command at a time; the built-in sensitive-operation check applies when no rule speaks (`crates/saturn-domain/src/permissions.rs`, `crates/saturn-domain/src/policies.rs`, `run_tools` in `crates/saturn-core/src/runs.rs`).
 - **Rules that come with a folder cannot loosen approvals on their own.** A project's `.saturn/settings.json` and `.claude/settings.json` arrive with the repository, so their deny and ask rules apply at once, but their allow rules apply only after the user has reviewed and allowed that exact set; any change asks again. Rules that allow every shell command are refused wherever they come from (`crates/saturn-core/src/permissions.rs`).
-- **The OS sandbox** confines shell commands' writes to the workspace, temp folders and package caches, and keeps Saturn's own data folder (its token, keys and conversations) and the usual credential folders (`~/.ssh`, `~/.aws`, `~/.config/gh`, `.npmrc` and the others an experiment run hides) from being read or written (macOS seatbelt, Linux bubblewrap); leaving it is an approval in every mode but full autonomy (`crates/saturn-tools/src/sandbox.rs`). A command therefore cannot read the runtime's token and use the runtime's own API to loosen its approvals. The project's check command, the project's Python (for the environment check, a notebook's kernel, looking inside a model, reading data, the language server) and environment jobs run in the same sandbox, with PATH alone for the check (`crates/saturn-core/src/verify.rs`, `research_invocation` in `crates/saturn-core/src/research/isolation.rs`).
+- **The OS sandbox** confines shell commands' writes to the workspace, temp folders and package caches, and keeps Saturn's own data folder (its token, keys and conversations) and the usual credential folders (`~/.ssh`, `~/.aws`, `~/.config/gh`, `.npmrc` and the others an experiment run hides) from being read or written (macOS seatbelt, Linux bubblewrap, a Windows AppContainer, which opens nothing else of the person's to a command at all); leaving it is an approval in every mode but full autonomy (`crates/saturn-tools/src/sandbox.rs`). A command therefore cannot read the runtime's token and use the runtime's own API to loosen its approvals. The project's check command, the project's Python (for the environment check, a notebook's kernel, looking inside a model, reading data, the language server) and environment jobs run in the same sandbox, with PATH alone for the check (`crates/saturn-core/src/verify.rs`, `sandboxed_invocation` in `crates/saturn-core/src/research/isolation.rs`).
 - **Chats that only read send nothing out.** In Ask and Plan, the web tool and `browser_navigate` open plain addresses only: one with a query, a fragment or a long path could carry what the chat read to the site, and is refused (`sends_data_out` in `crates/saturn-domain/src/policies.rs`).
 - **What the user asked is kept apart from what tools said.** A failed check's output and a pull request's check logs go back to the agent between markers that say they are output, not instructions; memory notes come only from what the user typed (`crates/saturn-core/src/verify.rs`, `crates/saturn-core/src/pull_requests.rs`, `crates/saturn-core/src/memory.rs`).
 - **Checkpoints** record every change, including what shell commands change, so it can be reviewed and reverted (`crates/saturn-core/src/checkpoints.rs`).
@@ -87,8 +87,8 @@ Out of scope: a process already running as the same user can read the token file
 
 ## Known gaps
 
-- **Windows has no command sandbox**; commands say so in their result.
-- **The Windows version has been type-checked, not run,** since the rewrite in Rust and Tauri, so the Windows controls here are what the code does, untested in use.
+- **The Windows sandbox changes access lists, and has gaps of its own.** A command runs in an AppContainer, which reads and writes only folders whose access list names the container, so Saturn adds entries to the lists of the project folder, the package caches, the folders on `PATH` and what a run's snapshot links to, and leaves them there. An entry names a container or a capability only Saturn's sandboxes hold, so it opens the folder to them and to nothing else; but every Saturn sandbox reads the folders on `PATH` and writes the caches, and every run of one project reads what any of its runs was shown. A path hidden inside an opened folder (a token in a shared cache) is closed by cutting it off from the folder's list, which Windows offers no gentler way to do, and only if it exists when the command starts: one made later is open. A record Saturn replaces by renaming, such as `run.json`, takes the folder's list again, so a run's program can overwrite it, as on Linux. The sandbox is off until an administrator has run `saturn-server --appcontainer-setup` once, which opens the folders above the home folder (as far as knowing they are there) and the programs' folders to Saturn's sandboxes; until then commands and runs are unconfined and say so, which is what every Windows installation starts as. A sandboxed command cannot reach `localhost` servers outside it, which pushes a person who runs a local model server towards turning the sandbox off. The launcher (`crates/saturn-appcontainer`) is the one place Saturn calls the system in `unsafe` code.
+- **The Windows version is tested by hand, not by CI's contract tests**: in a virtual machine (Windows 11 for ARM, the x64 build under emulation), not on x64 hardware.
 - **macOS builds are not Developer ID-signed or notarized**, and Windows builds use a self-signed certificate, so users cannot rely on the OS to confirm a download's origin; the SHA-256 files and build provenance are the check.
 - **Network access is on by default** inside the sandbox, so package installs work; switch it off per project for sensitive work.
 - **A crate's build script runs at build time.** Cargo cannot deny it as npm can an install script, so a compromised crate could run code in CI or on a machine that builds Saturn.
@@ -100,7 +100,7 @@ Out of scope: a process already running as the same user can read the token file
 
 ## Assurance case
 
-Why Saturn's security requirements are met: each requirement, the argument, and the evidence that can be checked. The controls are described above; the tests named here are in `contract/` and the crates' `tests/` folders. They run on Linux for every change and on macOS for every release; on Windows the workflows run the crates' tests only, and have not run on the Rust code yet.
+Why Saturn's security requirements are met: each requirement, the argument, and the evidence that can be checked. The controls are described above; the tests named here are in `contract/` and the crates' `tests/` folders. They run on Linux for every change and on macOS for every release; on Windows the workflows run the crates' tests only; the contract is run there by hand, in a virtual machine.
 
 ### Requirements and evidence
 
@@ -143,7 +143,7 @@ For an external audit, in priority order.
 |---|---|---|
 | 1 | Local API authentication: token, Host and Origin checks, the unauthenticated and Codex-token routes | `crates/saturn-server/src/guards.rs`, `auth.rs`, `crates/saturn-core/src/agent_sessions.rs`, `codex.rs` |
 | 1 | Tool authorization: permission rules (including rules from project files), approvals, modes, sub-agents | `crates/saturn-domain/src/permissions.rs`, `policies.rs`, `crates/saturn-core/src/permissions.rs`, `runs.rs` |
-| 1 | Command execution and the sandbox: shell selection, seatbelt and bubblewrap profiles, background jobs | `crates/saturn-tools/src/sandbox.rs`, `shell.rs`, `code.rs`, `jobs.rs` |
+| 1 | Command execution and the sandbox: shell selection, seatbelt and bubblewrap profiles, the Windows AppContainer and its launcher, background jobs | `crates/saturn-tools/src/sandbox.rs`, `appcontainer.rs`, `shell.rs`, `code.rs`, `jobs.rs`, `crates/saturn-appcontainer` |
 | 1 | File access scoping: workspace and project path resolution, symlinks | `crates/saturn-domain/src/skills/workspace.rs`, `crates/saturn-tools/src/file.rs`, `crates/saturn-core/src/projects.rs` |
 | 2 | SSRF and fetching: public address checks, DNS rebinding, redirects, the Browser tab proxy | `crates/saturn-domain/src/skills/public_address.rs`, `crates/saturn-tools/src/public_host.rs`, `web.rs`, `crates/saturn-server/src/routes_admin.rs` |
 | 2 | Hooks, plugins and local MCP servers: approval by fingerprint, environment passed | `crates/saturn-core/src/hooks.rs`, `plugins.rs`, `catalog.rs`, `crates/saturn-mcp/src/local.rs` |
@@ -191,7 +191,7 @@ Agent 的一個回合：Runtime 把對話與工具定義送給模型；模型要
 
 - **每個呼叫由核准與規則決定**，不是模型：拒絕優先於詢問，詢問優先於允許；shell 指令串逐一判斷；沒有規則適用時套用內建的敏感操作檢查（`crates/saturn-domain/src/permissions.rs`、`crates/saturn-domain/src/policies.rs`、`crates/saturn-core/src/runs.rs` 的 `run_tools`）。
 - **隨資料夾而來的規則不能自行放寬核准。** 專案的 `.saturn/settings.json` 與 `.claude/settings.json` 隨 repository 而來，其中的拒絕與詢問規則立即生效，允許規則則要在使用者看過並允許那一組規則後才生效；任何變更都會再次詢問。允許所有 shell 指令的規則無論來自哪裡都會被拒絕（`crates/saturn-core/src/permissions.rs`）。
-- **作業系統沙箱**把 shell 指令的寫入限制在工作目錄、暫存資料夾與套件快取，並讓指令讀不到也寫不了 Saturn 自己的資料夾（token、金鑰與對話）與常見的憑證資料夾（`~/.ssh`、`~/.aws`、`~/.config/gh`、`.npmrc`，以及實驗執行會隱藏的其他資料夾）（macOS seatbelt、Linux bubblewrap）；離開沙箱在完全自主以外的所有模式都需要核准（`crates/saturn-tools/src/sandbox.rs`）。因此指令無法讀走 Runtime 的 token，再用 Runtime 自己的 API 放寬核准。專案的檢查指令、專案的 Python（環境檢查、筆記本核心、檢視模型內部、讀取資料、語言伺服器）與環境工作都在同一個沙箱中執行，檢查指令只帶 PATH（`crates/saturn-core/src/verify.rs`、`crates/saturn-core/src/research/isolation.rs` 的 `research_invocation`）。
+- **作業系統沙箱**把 shell 指令的寫入限制在工作目錄、暫存資料夾與套件快取，並讓指令讀不到也寫不了 Saturn 自己的資料夾（token、金鑰與對話）與常見的憑證資料夾（`~/.ssh`、`~/.aws`、`~/.config/gh`、`.npmrc`，以及實驗執行會隱藏的其他資料夾）（macOS seatbelt、Linux bubblewrap、Windows AppContainer，後者不開放使用者的其他任何檔案給指令）；離開沙箱在完全自主以外的所有模式都需要核准（`crates/saturn-tools/src/sandbox.rs`）。因此指令無法讀走 Runtime 的 token，再用 Runtime 自己的 API 放寬核准。專案的檢查指令、專案的 Python（環境檢查、筆記本核心、檢視模型內部、讀取資料、語言伺服器）與環境工作都在同一個沙箱中執行，檢查指令只帶 PATH（`crates/saturn-core/src/verify.rs`、`crates/saturn-core/src/research/isolation.rs` 的 `sandboxed_invocation`）。
 - **只讀的對話不會往外送資料。** 在 Ask 與 Plan 中，web 工具與 `browser_navigate` 只開啟單純的位址：帶查詢字串、片段或很長路徑的位址可能把對話讀到的內容送給網站，會被拒絕（`crates/saturn-domain/src/policies.rs` 的 `sends_data_out`）。
 - **使用者的要求與工具的輸出分開。** 檢查失敗的輸出與 pull request 檢查的紀錄，都以標記包住送回 Agent，註明那是輸出而不是指示；記憶筆記只取自使用者自己輸入的內容（`crates/saturn-core/src/verify.rs`、`crates/saturn-core/src/pull_requests.rs`、`crates/saturn-core/src/memory.rs`）。
 - **檢查點**記錄每一次變更，包含 shell 指令造成的變更，可供檢視與還原（`crates/saturn-core/src/checkpoints.rs`）。
@@ -247,8 +247,8 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 
 ## 已知缺口
 
-- **Windows 沒有指令沙箱**；指令的結果會註明。
-- **改寫為 Rust 與 Tauri 之後，Windows 版本只做過型別檢查，尚未實際執行**，所以這裡關於 Windows 的控制是程式碼的行為，尚未經實際使用驗證。
+- **Windows 的沙箱會修改存取清單，也有自己的缺口。** 指令在 AppContainer 裡執行，只能讀寫存取清單列出該容器的資料夾，所以 Saturn 會在專案資料夾、套件快取、`PATH` 上的資料夾，以及執行快照連結到的地方加上項目，而且不會移除。項目指名的是容器，或只有 Saturn 沙箱持有的能力，所以只對它們開放；但每個 Saturn 沙箱都讀得到 `PATH` 上的資料夾、寫得到快取，同一專案的每次執行也讀得到任何一次執行被開放的內容。位於已開放資料夾裡的隱藏路徑（共用快取裡的 token）是靠切斷它對上層清單的繼承來關閉，Windows 沒有更溫和的做法，而且只有在指令啟動時已存在的才關得到，之後才建立的仍是開放的。Saturn 以改名方式取代的紀錄（例如 `run.json`）會重新套用資料夾的清單，所以執行的程式可以覆寫它，和 Linux 一樣。在系統管理員執行一次 `saturn-server --appcontainer-setup` 之前沙箱不會啟用；這個指令把家目錄以上的資料夾（只到「知道它存在」的程度）與程式的資料夾開放給 Saturn 的沙箱。在那之前，指令與執行都不受限制並會註明，每個 Windows 安裝一開始都是這個狀態。沙箱裡的指令連不到沙箱外的 `localhost` 伺服器，這會促使使用本機模型伺服器的人關閉沙箱。啟動器（`crates/saturn-appcontainer`）是 Saturn 唯一以 `unsafe` 程式碼呼叫系統的地方。
+- **Windows 版本由人工測試，沒有經過 CI 的合約測試**：在虛擬機裡（Windows 11 ARM 版，x64 版本以模擬方式執行），不是 x64 實體機器。
 - **macOS 版本未以 Developer ID 簽章或公證**，Windows 版本使用自簽憑證，使用者無法依賴作業系統確認下載來源；應以 SHA-256 檔與建置來源證明檢查。
 - **沙箱內預設可連網**，以便安裝套件；處理敏感工作時可針對專案關閉。
 - **crate 的 build script 會在建置時執行。** Cargo 無法像 npm 拒絕安裝腳本那樣拒絕它，所以遭入侵的 crate 可能在 CI 或建置 Saturn 的電腦上執行程式碼。
@@ -260,7 +260,7 @@ loopback 不是信任邊界：任何本機程式，以及透過使用者瀏覽�
 
 ## 保證論證
 
-Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗的證據。各項控制已在上文說明；這裡列出的測試位於 `contract/` 與各 crate 的 `tests/` 資料夾，在每次變更時於 Linux、每次發布時於 macOS 執行；Windows 的 workflow 只跑 crate 的測試，且還沒有在 Rust 程式碼上執行過。
+Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗的證據。各項控制已在上文說明；這裡列出的測試位於 `contract/` 與各 crate 的 `tests/` 資料夾，在每次變更時於 Linux、每次發布時於 macOS 執行；Windows 的 workflow 只跑 crate 的測試；合約測試由人工在虛擬機裡執行。
 
 ### 需求與證據
 
@@ -303,7 +303,7 @@ Saturn 的安全需求為何成立：每一項需求、論證，以及可檢驗�
 |---|---|---|
 | 1 | 本機 API 驗證：token、Host 與 Origin 檢查、免驗證與 Codex token 的路由 | `crates/saturn-server/src/guards.rs`、`auth.rs`、`crates/saturn-core/src/agent_sessions.rs`、`codex.rs` |
 | 1 | 工具授權：權限規則（含專案檔案中的規則）、核准、模式、子 Agent | `crates/saturn-domain/src/permissions.rs`、`policies.rs`、`crates/saturn-core/src/permissions.rs`、`runs.rs` |
-| 1 | 指令執行與沙箱：shell 選擇、seatbelt 與 bubblewrap 設定、背景工作 | `crates/saturn-tools/src/sandbox.rs`、`shell.rs`、`code.rs`、`jobs.rs` |
+| 1 | 指令執行與沙箱：shell 選擇、seatbelt 與 bubblewrap 設定、Windows AppContainer 與其啟動器、背景工作 | `crates/saturn-tools/src/sandbox.rs`、`appcontainer.rs`、`shell.rs`、`code.rs`、`jobs.rs`、`crates/saturn-appcontainer` |
 | 1 | 檔案存取範圍：工作目錄與專案路徑解析、符號連結 | `crates/saturn-domain/src/skills/workspace.rs`、`crates/saturn-tools/src/file.rs`、`crates/saturn-core/src/projects.rs` |
 | 2 | SSRF 與擷取：公開位址檢查、DNS rebinding、重新導向、Browser 分頁代理 | `crates/saturn-domain/src/skills/public_address.rs`、`crates/saturn-tools/src/public_host.rs`、`web.rs`、`crates/saturn-server/src/routes_admin.rs` |
 | 2 | Hooks、外掛與本機 MCP 伺服器：依指紋核准、傳入的環境變數 | `crates/saturn-core/src/hooks.rs`、`plugins.rs`、`catalog.rs`、`crates/saturn-mcp/src/local.rs` |

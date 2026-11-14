@@ -412,7 +412,7 @@ test("Stopping a Claude Code turn ends the program and leaves the run cancelled;
     await untilCard(saturn, begun.id);
     await saturn.api("POST", `/runs/${begun.id}/stop`, {});
     assert.equal((await saturn.api("GET", `/runs/${begun.id}`)).status, "cancelled");
-    await saturn.until("the program to end", () => saturn.journal(), (entries) => entries.some((entry) => entry.signal === "SIGTERM" || entry.stdin === "closed"));
+    await saturn.until("the program to end", () => saturn.ended((entry) => entry.signal === "SIGTERM" || entry.stdin === "closed"), Boolean);
     await saturn.call("POST", `/runs/${begun.id}/actions/tu_wait/decision`, { allow: true });
     assert.equal((await saturn.api("GET", `/runs/${begun.id}`)).status, "cancelled", "a late answer changes nothing");
   } finally {
@@ -767,7 +767,7 @@ test("Stopping a Codex turn ends the program and closes its token", async () => 
     await saturn.until("the program to read its prompt", () => saturn.journal(), (entries) => entries.some((entry) => entry.prompt !== undefined));
     await saturn.api("POST", `/runs/${begun.id}/stop`, {});
     assert.equal((await saturn.api("GET", `/runs/${begun.id}`)).status, "cancelled");
-    await saturn.until("the program to end", () => saturn.journal(), (entries) => entries.some((entry) => entry.signal === "SIGTERM"));
+    await saturn.until("the program to end", () => saturn.ended((entry) => entry.signal === "SIGTERM"), Boolean);
     const [program] = await started(saturn);
     await saturn.until("the token to close", async () => (await fetch(`${saturn.origin}/agent-mcp`, { method: "POST", headers: { authorization: `Bearer ${program.env.SATURN_SKILLS_TOKEN}`, "content-type": "application/json" }, body: "{}" })).status, (status) => status === 401);
   } finally {

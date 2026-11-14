@@ -144,7 +144,7 @@ JS／TS 與 JSX 優先使用專案的 TypeScript 7 原生 LSP（`node_modules/.b
 連線後可使用語意補全、懸浮推斷型別、函式簽章（**Ctrl/Cmd+Shift+Space**）、診斷（**Ctrl/Cmd+Shift+M**）與定義跳轉
 （**F12**，限專案內）。未儲存的 import 檔案在切換分頁後仍保持同步。更換 Python 或安裝伺服器後，按重新啟動即可。
 目前服務對象是原始碼檔案，Notebook 儲存格維持既有編輯器。型別品質取決於專案套件、型別 stub 與檢查設定，不會推斷張量形狀。
-詳見[設定、協定與邊界](docs/language-services.md)。Windows 尚未支援。
+詳見[設定、協定與邊界](docs/language-services.md)。
 
 ## 安裝
 
@@ -199,8 +199,8 @@ npm run archive                     # 下載檔與校驗碼，輸出至 desktop/
 - **電腦操作**支援 macOS（輔助使用 API）與 Windows（SendInput 與 UI Automation）；見[電腦操作](#電腦操作)。
 - Windows 上的 **Claude Code** 需要 [Git for Windows](https://git-scm.com/downloads/win)，它提供 Claude Code 執行指令所用的 Bash。
 - Windows 上的 `code` 工具與終端機面板以 `cmd.exe` 執行指令。
-- **實驗執行**支援 macOS 與 Linux，Windows 尚未支援。遠端執行需要 Linux 或 macOS 主機。
-- **改寫為 Rust 與 Tauri 之後，Windows 只做過型別檢查，尚未實際執行：** CI 與實體機器上都還沒有。本文關於 Windows 的說明是程式碼的行為，不是實際看過它運作。
+- **實驗執行**支援 macOS、Linux 與 Windows。Windows 上的執行不能暫停，沙箱的運作方式也不同（見[安全與信任](#安全與信任)）。遠端執行需要 Linux 或 macOS 主機。
+- **Windows 由人工測試，不由 CI 測試。** 2026 年 11 月，Runtime、它的 Rust 測試與 HTTP 合約測試在虛擬機裡的 Windows 11 ARM 版上執行過（x64 版本以模擬方式執行）。CI 在 Windows 上只跑 Rust 測試；改寫為 Rust 與 Tauri 之後，Saturn 還沒有在 x64 實體機器上試過。
 
 ## 架構
 
@@ -450,7 +450,8 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<v
 - **本機 MCP 伺服器須經你核准才會執行。** 遠端 MCP 伺服器是一個 HTTP(S) URL。本機伺服器（由 Saturn 啟動、透過 stdio 溝通的程式，例如 `npx -y @modelcontextprotocol/server-filesystem …`）新增後只會被儲存，必須在你看過確切指令並允許之後才會啟動；程式、參數或環境變數任何變更都會重新詢問，且核准時必須指定你看到的那個版本。它在 Saturn 的工作區資料夾中啟動，只帶最小的環境（PATH 與程式需要的少數系統變數）加上你設定的變數，變數值加密存放於 `secrets.json`；Saturn 自己的環境（包括其中的 API 金鑰）絕不會傳給它。移除伺服器即停止該程式。
 - **Hooks；專案的 hooks 須經你核准。** Hook 是在 Agent 呼叫工具之前或之後（exit 2 會阻擋或回饋；stdout 可回答 allow、ask 或 deny），或在回合結束時執行的指令（exit 2 會讓 Agent 繼續處理，每則訊息最多兩次）。你自己的 hooks 在 **設定 → Hooks** 設定。專案的 `.saturn/hooks.json`，以及其 `.claude/settings.json` 中的 PreToolUse、PostToolUse 與 Stop hooks，是隨資料夾而來的，因此必須在你看過並允許那一組之後才會執行；任何變更都會重新詢問。只有在你開啟 **Use the project's Claude Code settings** 時，Claude Code 才會載入專案的 `.claude/settings.json`。
 - **檔案系統範圍限制。** Agent 只能在 Saturn 工作區與你授權的專案資料夾內讀寫與執行，授權可隨時撤銷。
-- **指令的作業系統沙箱。** Agent 執行的每個 shell 指令都由作業系統限制：macOS 用 seatbelt（`sandbox-exec`），Linux 在安裝 bubblewrap 時使用。預設的 *workspace-write* 只允許寫入專案資料夾、暫存資料夾與常見的套件快取；*read-only* 除暫存資料夾外不允許寫入；也可以關閉指令的網路。在任何模式下，指令都讀不到也寫不了 Saturn 的資料夾（token、金鑰與對話）與常見的憑證資料夾（`~/.ssh`、`~/.aws`、`~/.config/gh`、`.npmrc`、`.netrc` 等）。專案的檢查指令、Saturn 執行的專案 Python（環境檢查、筆記本、檢視模型內部、讀取資料、語言伺服器）與環境工作也在同一個沙箱中執行。Agent 需要寫到其他地方時會以 `sandbox: "off"` 要求，除了完全自主模式外都會出現核准卡。在 **設定 → 一般 → Sandbox** 設定，或針對單一專案覆寫。Windows 沒有沙箱，指令的結果會註明。
+- **指令的作業系統沙箱。** Agent 執行的每個 shell 指令都由作業系統限制：macOS 用 seatbelt（`sandbox-exec`），Linux 在安裝 bubblewrap 時使用，Windows 用 AppContainer。預設的 *workspace-write* 只允許寫入專案資料夾、暫存資料夾與常見的套件快取；*read-only* 除暫存資料夾外不允許寫入；也可以關閉指令的網路。在任何模式下，指令都讀不到也寫不了 Saturn 的資料夾（token、金鑰與對話）與常見的憑證資料夾（`~/.ssh`、`~/.aws`、`~/.config/gh`、`.npmrc`、`.netrc` 等）。專案的檢查指令、Saturn 執行的專案 Python（環境檢查、筆記本、檢視模型內部、讀取資料、語言伺服器）與環境工作也在同一個沙箱中執行。Agent 需要寫到其他地方時會以 `sandbox: "off"` 要求，除了完全自主模式外都會出現核准卡。在 **設定 → 一般 → Sandbox** 設定，或針對單一專案覆寫。
+- **Windows 的沙箱是「開放」資料夾，其他系統是「關閉」資料夾，而且要先設定一次。** 在 AppContainer 裡的指令只能讀寫 Saturn 開放給它的地方：專案資料夾、它自己的暫存資料夾、套件快取，以及 `PATH` 上的資料夾（讓程式能執行）。你的其他檔案完全讀不到。程式還會查詢工作資料夾以上的每一層資料夾（Node 要解析腳本路徑，git 要找儲存庫），一路到磁碟最上層；這些資料夾和 Program Files 底下的程式資料夾一樣，只有系統管理員能開放。所以在設定完成之前沙箱不會啟用，指令的結果會註明。設定要以系統管理員身分執行一次，而且要用平常使用 Saturn 的同一個帳號。**設定 → 一般 → 沙箱**會在沙箱沒啟用時說明，並有一個**設定**按鈕：Windows 會先要求系統管理員同意，設定會連同你的專案資料夾一起處理，完成後立刻使用沙箱。也可以在系統管理員的終端機裡，於 Saturn 的安裝資料夾執行 `saturn-server.exe --appcontainer-setup`（專案在別的磁碟時，把專案資料夾加在後面）；它會列出仍然關閉的資料夾，Saturn 下次啟動後就會使用沙箱。之後仍有兩點不同。Saturn 會在它開放的資料夾的存取清單加上項目，而且會留著。沙箱裡的指令即使可以用網路，也連不到同一台電腦上在沙箱外執行的伺服器（`localhost`，包括本機的模型伺服器）；需要這個的指令或專案要關閉沙箱執行。
 - **權限規則、核准策略、檢查點。** 規則指定工具與樣式（`code: npm test *`、`files: write src/**`）並決定允許、詢問或拒絕；拒絕優先於詢問，詢問優先於允許，shell 指令串逐一判斷。規則可在 **設定 → Permissions** 針對所有專案、單一專案或單一 Agent 設定，也可寫在專案自己的 `.saturn/settings.json`；`.claude/settings.json` 的 `permissions` 也會讀取。這兩個檔案隨資料夾而來（例如 clone 下來的 repository），因此其中的拒絕與詢問規則立即生效，允許規則則要在你於該專案的規則中允許那一組之後才生效，任何變更都會再次詢問。允許所有指令的規則，包括 shell 或啟動器加萬用字元（`sh *`、`env *`），無論來自哪裡都會被拒絕。檔案 patch 以它改動的每個檔案判斷。核准卡上的 **Always allow…** 會直接存成一條規則。規則同樣約束 Claude Code 的回合（依它詢問的工具對應：`Bash` 視為 `code`，檔案工具視為 `files`），以及 Codex 回合呼叫的 Saturn skill；Codex 自己的 shell 指令不經詢問就執行，規則管不到。沒有規則適用時，除非你選擇完全自主，符合危險樣式的指令（刪除、`sudo`、碰觸 Saturn 的金鑰）、刪除檔案、工作目錄外的寫入、更換專案的直譯器與排程自動化都會等待核准；這份樣式清單只是輔助，真正把關的是沙箱。Agent 委派給另一個 Agent 的工作，詢問的程度至少與發起的對話相同。在 Ask 或 Plan 對話中，web 工具只開啟單純的位址，不會開啟查詢字串或路徑可能夾帶對話內容的位址。每次修改都有檢查點，可回復到單一步驟，shell 指令（前景或背景）改動的檔案也包含在內。在 git 專案中由 git 判斷改了什麼（被忽略的檔案除外）；在其他資料夾，Saturn 會在自己的資料夾裡為它保留一份私有的 git 快照（不會寫進你的資料夾），排除 `node_modules`、建置輸出與快取；幾秒內無法完成快照的超大資料夾則略過。**設定 → 一般 → Storage** 會列出每個資料夾快照的大小，確認後可刪除；先前的變更仍可還原。
 - **訂閱憑證隔離。** Claude Code 與 Codex 透過官方 CLI 驗證，憑證存於 Saturn 專用的設定目錄。Saturn 從不讀取、複製或轉送這些憑證，也從不加入自己的金鑰。Claude Code 取得 Runtime 的環境，移除 Saturn 自己的 session 變數與其他服務的憑證，因此你為它設定的任何驗證方式（你自己的 `ANTHROPIC_API_KEY`、Bedrock、Vertex AI 或 Foundry）都依 Anthropic 的條款保持可用，而你匯出的 OpenAI 金鑰或 GitHub token 不會進入它的 shell；Codex 則會移除 API 金鑰變數，避免多餘的金鑰覆蓋 ChatGPT 登入。
 - **專案的指示檔案要經你核准。** `AGENTS.md`、`CLAUDE.md`、`.saturn/rules` 與 `.agents/rules` 資料夾、`.cursorrules` 以及專案的 skills 都隨資料夾而來，所以要等你讀過並允許那份確切的內容後，Agent 才會拿到（在你允許之前，研究助理會顯示一行提示，**設定 → 專案** 也看得到）；任何變更，包括 Agent 自己的修改，都會再次詢問。你在 Saturn 裡儲存的規則一律適用。
@@ -498,7 +499,7 @@ gh attestation verify Saturn-<version>-sbom.cdx.json -R Saturn-Technology-Projec
 
 ### 已知限制
 
-Saturn 仍為早期預覽版，尚未經過第三方安全稽核。改寫為 Rust 與 Tauri 之後，Windows 版本只做過型別檢查，尚未實際執行。macOS 版本尚未以 Developer ID 簽章或公證，Windows 版本則以 Windows 不信任的自簽憑證簽章。API 金鑰已靜態加密，不會以明文出現在備份、同步資料夾、磁碟映像或被複製的資料夾中；但任何以你的使用者身分執行的程序仍可向作業系統金鑰庫要求金鑰，這與所有使用鑰匙圈或 DPAPI 保存憑證的應用程式相同。設定 → 關於 會顯示目前使用的金鑰庫。被賦予完全自主的 Agent 可以在授權資料夾內執行任意指令；這是設計本質，請據此控管授權範圍。Claude Code、Codex、git、本機 MCP 伺服器、Agent 瀏覽器與系統網頁檢視的程序各自獨立執行，不會出現在 Runtime 的網路紀錄中，請用作業系統層的工具觀察。你允許的本機 MCP 伺服器以你的使用者權限執行，請只允許你信任的程式。
+Saturn 仍為早期預覽版，尚未經過第三方安全稽核。Windows 版本由人工在虛擬機測試（Windows 11 ARM 版，x64 版本以模擬方式執行），沒有經過 CI 的合約測試，也沒有在 x64 實體機器上試過。macOS 版本尚未以 Developer ID 簽章或公證，Windows 版本則以 Windows 不信任的自簽憑證簽章。API 金鑰已靜態加密，不會以明文出現在備份、同步資料夾、磁碟映像或被複製的資料夾中；但任何以你的使用者身分執行的程序仍可向作業系統金鑰庫要求金鑰，這與所有使用鑰匙圈或 DPAPI 保存憑證的應用程式相同。設定 → 關於 會顯示目前使用的金鑰庫。被賦予完全自主的 Agent 可以在授權資料夾內執行任意指令；這是設計本質，請據此控管授權範圍。Claude Code、Codex、git、本機 MCP 伺服器、Agent 瀏覽器與系統網頁檢視的程序各自獨立執行，不會出現在 Runtime 的網路紀錄中，請用作業系統層的工具觀察。你允許的本機 MCP 伺服器以你的使用者權限執行，請只允許你信任的程式。
 
 發現安全漏洞請私下寄至 [security@saturn-core.com](mailto:security@saturn-core.com)，不要開公開 issue；[`SECURITY.md`](SECURITY.md) 說明要附上什麼、之後的處理流程與範圍。
 
@@ -645,7 +646,6 @@ SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_
 - 以 Developer ID 簽章並經公證的 macOS 版本，以及使用 CA 核發 Authenticode 憑證簽章的 Windows 版本
 - Linux 套件
 - 工作區中的 debugger
-- Windows 上的實驗執行
 
 專案如何運作、由誰決定，見 [`GOVERNANCE.md`](GOVERNANCE.md)；所有參與者都遵守[行為準則](CODE_OF_CONDUCT.md)。
 

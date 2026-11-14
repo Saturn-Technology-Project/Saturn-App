@@ -480,7 +480,7 @@ fn the_sandbox_plan_says_what_it_runs() {
     assert!(!windows.sandboxed);
     assert_eq!(
         windows.reason.as_deref(),
-        Some("Windows has no sandbox for commands")
+        Some("this program cannot start a Windows sandbox")
     );
     let mut no_path = Env::new();
     no_path.insert("PATH".into(), "/nonexistent".into());

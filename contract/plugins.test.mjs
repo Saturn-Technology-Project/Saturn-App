@@ -82,7 +82,8 @@ test("a plugin installs from a folder and brings its skills, hooks and servers, 
   assert.deepEqual(plugin.skills, ["review"]);
   assert.equal(plugin.hooksApproved, false);
   assert.equal(plugin.hooks[0].matcher, "code");
-  assert.equal(plugin.hooks[0].command, path.join(runtime.dataDir, "plugins/good-plugin/check.sh"));
+  // The plugin's folder as this system writes it, then what the plugin wrote after it.
+  assert.equal(plugin.hooks[0].command, `${path.join(runtime.dataDir, "plugins/good-plugin")}/check.sh`);
   assert.deepEqual(plugin.mcpServers.map((item) => [item.name, item.kind]), [["local", "command"], ["remote", "url"]]);
   assert.ok(plugin.mcpServers.every((item) => item.id));
   await assert.rejects(readFile(path.join(plugin.path, ".git/config")));

@@ -112,6 +112,34 @@ fn start_wakeups(kernel: Arc<Kernel>) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arguments: Vec<String> = env::args().collect();
+    // Started by itself as the Windows sandbox's launcher: runs the rest of the command line in an AppContainer.
+    if arguments.get(1).map(String::as_str) == Some(saturn_appcontainer::FLAG) {
+        std::process::exit(saturn_appcontainer::launch());
+    }
+    // Run once by an administrator: opens to the sandbox what only an administrator can, and says what is left.
+    if arguments.get(1).map(String::as_str) == Some(saturn_tools::appcontainer::SETUP_FLAG) {
+        let env = saturn_tools::shell::process_env();
+        match saturn_tools::appcontainer::setup(&env, &arguments[2..]) {
+            Ok(closed) if closed.is_empty() => println!("The Windows sandbox is set up."),
+            Ok(closed) => {
+                println!(
+                    "Still closed to the sandbox (run this as an administrator to open them):"
+                );
+                for path in closed {
+                    println!("  {path}");
+                }
+                std::process::exit(1);
+            }
+            Err(reason) => {
+                eprintln!("The Windows sandbox could not be set up: {reason}");
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
+    if let Ok(program) = env::current_exe() {
+        saturn_tools::appcontainer::set_launcher(program);
+    }
     if arguments.get(1).is_some_and(|argument| {
         argument == "--research-worker" || argument == "--research-worker-execute"
     }) {

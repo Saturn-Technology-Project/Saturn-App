@@ -2,6 +2,21 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **Windows: a sandbox for commands and experiment runs, once it is set up.** Windows had no sandbox; a command ran as you. It can now run in an AppContainer, which reads and writes only what Saturn opens to it: the project folder, a temporary folder, the package caches and the folders on `PATH`. A run reads its snapshot and writes its own records and output, as on macOS and Linux, and with the network off nothing leaves the computer. It is off until a one-time setup has run as an administrator: **Settings → General → Sandbox** says so and has a **Set up** button, and `saturn-server.exe --appcontainer-setup` does the same from a terminal (the README says what it opens and why). Until then commands run as before and say so. Two differences from the other systems remain. A sandboxed command cannot reach a server on the same computer outside the sandbox (`localhost`, a local model server included), even with the network on. And Saturn adds entries to the access lists of the folders it opens, which stay.
+- **Windows: experiments run.** Starting a run on Windows answered "not supported yet". A version's command now runs there through `cmd`, from its own checked snapshot, with its evidence, resuming and stopping as on macOS and Linux. One difference: a run cannot be paused.
+- **Windows: the environment check, notebooks, looking inside a model and language servers work.** Each of these refused on Windows. The project's Python is found the Windows way (`python.exe`, `.venv\Scripts`), and a language server as an `.exe` or the `.cmd` npm writes. Reading Parquet and dataset folders through the project's Python is no longer refused either, but has not been tried on Windows with a real Python yet.
+
+### Fixed
+
+- **Windows: the Terminal panel reports the right folder and exit code.** After a command it showed the folder from before the command ran, so `cd` seemed to do nothing, and every command read as having succeeded.
+- **Windows: Claude Code and Codex are given the project folder in its plain form.** They were handed its `\\?\` long-path spelling.
+- **Windows: removing a program Saturn downloaded no longer fails with "Access is denied".** Windows holds a program's file for a moment after it ends; Saturn now tries again.
+- **The message for a missing ffmpeg no longer tells Windows and Linux users to use Homebrew.**
+
 ## 0.6.2 (2026-11-12)
 
 ### Fixed
