@@ -159,6 +159,70 @@ impl Kernel {
         })
     }
 
+    /// Whether commands can be sandboxed on this computer, with what, and whether a setup from here would help.
+    pub fn sandbox_status() -> Value {
+        use saturn_tools::sandbox::{Platform, SandboxSupport, sandbox_support};
+        let platform = Platform::current();
+        let env = saturn_tools::shell::process_env();
+        let (mechanism, reason) = match sandbox_support(platform, &env) {
+            SandboxSupport::Available(mechanism) => (Some(mechanism), None),
+            SandboxSupport::Unavailable(reason) => (None, Some(reason)),
+        };
+        let windows = matches!(platform, Platform::Windows);
+        json!({
+            "available": mechanism.is_some(),
+            "mechanism": mechanism,
+            "reason": reason,
+            // Only Windows has a setup, and only Saturn's own program can run it.
+            "setup": windows && mechanism.is_none() && saturn_tools::appcontainer::launcher().is_some(),
+        })
+    }
+
+    /// Runs the Windows sandbox's one-time setup as an administrator, for every project's folder too, and says how
+    /// the sandbox stands afterwards. Windows asks the person before anything runs. Nothing to do where the sandbox
+    /// already works.
+    pub async fn set_up_sandbox(&self) -> Result<Value, CoreError> {
+        let before = Self::sandbox_status();
+        if before["available"] == Value::Bool(true) {
+            return Ok(before);
+        }
+        if before["setup"] != Value::Bool(true) {
+            return Err(CoreError::new(
+                409,
+                "This computer's sandbox has no setup to run from Saturn",
+            ));
+        }
+        let folders: Vec<String> = self.store.read(|state| {
+            state
+                .projects
+                .iter()
+                .map(|project| text(project, "path").to_owned())
+                .filter(|path| !path.is_empty())
+                .collect()
+        });
+        let ran = tokio::task::spawn_blocking(move || {
+            saturn_tools::appcontainer::elevated_setup(
+                &saturn_tools::shell::process_env(),
+                &folders,
+            )
+        })
+        .await
+        .map_err(|error| CoreError::new(500, error.to_string()))?;
+        match &ran {
+            Ok(()) => log("runtime", "info", "The Windows sandbox's setup was run"),
+            Err(reason) => log(
+                "runtime",
+                "warning",
+                &format!("The Windows sandbox's setup did not finish: {reason}"),
+            ),
+        }
+        let mut after = Self::sandbox_status();
+        if let (Err(reason), false) = (ran, after["available"] == Value::Bool(true)) {
+            after["reason"] = Value::String(reason);
+        }
+        Ok(after)
+    }
+
     /// The recent log, by service, lowest level and text.
     pub fn list_logs(service: &str, level: &str, query: &str) -> Vec<Value> {
         let floor = match level {

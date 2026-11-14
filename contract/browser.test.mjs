@@ -10,12 +10,13 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { startRuntime } from "./runtime.mjs";
+import { placeProgram } from "./programs.mjs";
+import { placed, startRuntime } from "./runtime.mjs";
 
 const casesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "cases/browser.json");
 const ELEMENT = "element-6066-11e4-a52f-4a8f-b8c4-f3bc2b7a1b40";
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const chromes = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium", "/usr/bin/google-chrome", "/usr/bin/chromium"];
+const chromes = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium", "/usr/bin/google-chrome", "/usr/bin/chromium", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"];
 const hasChrome = Boolean(process.env.SATURN_BROWSER) || chromes.some((item) => existsSync(item));
 
 let scratch;
@@ -171,7 +172,7 @@ async function fakeSafaridriver({ refuse } = {}) {
 
 /** Compares with the recording, or makes it. */
 async function matchesRecording(name, value, runtime) {
-  const normalized = JSON.parse(JSON.stringify(value).replaceAll(runtime.dataDir, "<data>").replaceAll(scratch, "<scratch>"));
+  const normalized = placed(value, [[runtime.dataDir, "<data>"], [scratch, "<scratch>"]]);
   const all = await readFile(casesFile, "utf8").then(JSON.parse).catch(() => ({}));
   assert.ok(all[name], `${name} is not recorded`);
   assert.deepEqual(normalized, all[name]);
@@ -179,6 +180,15 @@ async function matchesRecording(name, value, runtime) {
 
 /** The processes running on a data folder's browser profile. */
 function browsersOn(dataDir) {
+  if (process.platform === "win32") {
+    // No pgrep: the system is asked for the command line of every Chrome.
+    try {
+      const all = JSON.parse(execFileSync("powershell", ["-NoProfile", "-Command", "ConvertTo-Json @(Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | ForEach-Object { $_.CommandLine })"], { encoding: "utf8" }) || "[]");
+      return all.filter((line) => String(line).includes(`user-data-dir=${dataDir}`)).length ? "running" : "";
+    } catch {
+      return "";
+    }
+  }
   try {
     return execFileSync("pgrep", ["-f", `user-data-dir=${dataDir}`], { encoding: "utf8" }).trim();
   } catch {
@@ -190,9 +200,10 @@ test("in Safari mode the tools become WebDriver commands, and a run's recordings
   const driver = await fakeSafaridriver();
   const programs = path.join(scratch, "with-ffmpeg");
   await mkdir(programs, { recursive: true });
-  const ffmpeg = path.join(programs, "ffmpeg");
-  await writeFile(ffmpeg, '#!/bin/sh\ncount=$(/bin/cat count 2>/dev/null || echo 0)\necho $((count + 1)) > count\n/bin/cat frames.txt > out.mp4\n');
-  await chmod(ffmpeg, 0o755);
+  // A stand-in for ffmpeg: it counts how often it ran and writes the frame list as the film.
+  await placeProgram(path.join(programs, "ffmpeg"), process.platform === "win32"
+    ? 'const fs = require("node:fs");\nlet count = 0;\ntry { count = Number(fs.readFileSync("count", "utf8")); } catch {}\nfs.writeFileSync("count", String(count + 1) + "\\n");\nfs.writeFileSync("out.mp4", fs.readFileSync("frames.txt"));\n'
+    : '#!/bin/sh\ncount=$(/bin/cat count 2>/dev/null || echo 0)\necho $((count + 1)) > count\n/bin/cat frames.txt > out.mp4\n');
   const runtime = await start({ SATURN_SAFARI_ENDPOINT: driver.endpoint, PATH: programs });
   const workspace = path.join(runtime.dataDir, "workspace");
   await mkdir(workspace, { recursive: true });

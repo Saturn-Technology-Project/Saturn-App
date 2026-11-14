@@ -12,7 +12,7 @@ use crate::file::inside_workspace;
 use crate::jobs::JobTable;
 use crate::sandbox::{
     DEFAULT_SANDBOX, Platform, SandboxMode, SandboxPlan, SandboxSettings, sandbox_hint,
-    wrap_command,
+    windows_hint, wrap_command,
 };
 use crate::shell::{command_env, process_env, shell_invocation};
 use crate::{TEXT_LIMIT, ToolResult, clip, either, process, text};
@@ -255,7 +255,12 @@ pub async fn run_code(
             stderr = js::trim(&stderr).to_owned();
         }
         let hint = if plan.sandboxed {
-            sandbox_hint(&stderr, settings).map(|hint| {
+            let hint = if platform == Platform::Windows {
+                windows_hint(&stderr, settings)
+            } else {
+                sandbox_hint(&stderr, settings)
+            };
+            hint.map(|hint| {
                 if options.hidden.is_empty() {
                     hint
                 } else {

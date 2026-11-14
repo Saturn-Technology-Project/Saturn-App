@@ -84,11 +84,41 @@ pub(super) fn settings(version: &Value) -> Settings {
     }
 }
 
+/// What Windows itself and nearly every program on it need to start: where the system, the programs and this
+/// account's folders are, and how a command's name becomes a file. Windows writes these names in any case.
+const PASSED_ON_WINDOWS: [&str; 22] = [
+    "SYSTEMROOT",
+    "SYSTEMDRIVE",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "PATH",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "USERNAME",
+    "USERDOMAIN",
+    "COMPUTERNAME",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PROGRAMDATA",
+    "PROGRAMFILES",
+    "PROGRAMFILES(X86)",
+    "COMMONPROGRAMFILES",
+    "NUMBER_OF_PROCESSORS",
+    "PROCESSOR_ARCHITECTURE",
+];
+
 /// Whether a variable is one every confined program gets.
 fn passed_always(name: &str) -> bool {
     let upper = name.to_ascii_uppercase();
     if SECRET_WORDS.iter().any(|word| upper.contains(word)) {
         return false;
+    }
+    if cfg!(windows) && PASSED_ON_WINDOWS.contains(&upper.as_str()) {
+        return true;
     }
     PASSED.contains(&name)
         || PASSED_PREFIXES
@@ -245,7 +275,7 @@ pub(super) async fn command(
     let output = placement.records.join(OUTPUT);
     tokio::fs::create_dir_all(&output).await?;
     if !asked.isolated {
-        let mut command = Command::new("/bin/sh");
+        let mut command = shell(script);
         saturn_tools::launch_env(&mut command);
         for (key, _) in std::env::vars_os() {
             if key.to_string_lossy().starts_with("SATURN_") {
@@ -253,7 +283,6 @@ pub(super) async fn command(
             }
         }
         command
-            .args(["-c", script])
             .current_dir(working)
             .env("SATURN_RUN_OUTPUT", &output);
         let observed = json!({
@@ -331,15 +360,24 @@ pub(super) async fn command(
         hidden: hidden.clone(),
         visible: visible.clone(),
         network: asked.network,
+        // Everything visible but the snapshot is there after the run: a linked environment, data, weights.
+        lasting: visible
+            .iter()
+            .filter(|path| **path != placement.tree)
+            .cloned()
+            .collect(),
+        group: placement
+            .sources
+            .first()
+            .map(|project| project.to_string_lossy().into_owned())
+            .unwrap_or_default(),
     };
     let (variables, environment) = environment(version, std::env::vars_os());
     let wrapped = {
-        let invocation = Invocation {
-            file: "/bin/sh".to_owned(),
-            args: vec!["-c".to_owned(), script.to_owned()],
-            verbatim: false,
-        };
         let env: saturn_tools::shell::Env = std::env::vars_os().collect();
+        // The system's shell, as an unconfined run gets it: `/bin/sh -c`, or cmd with its line as written.
+        let invocation: Invocation =
+            saturn_tools::shell::shell_invocation(script, "/bin/sh", Platform::current(), &env);
         let working = working.to_path_buf();
         tokio::task::spawn_blocking(move || confine(invocation, &confinement, &working, &env))
             .await
@@ -356,11 +394,17 @@ pub(super) async fn command(
         Ok(confined) => {
             let mut command = Command::new(&confined.invocation.file);
             saturn_tools::no_window(&mut command);
+            #[cfg(windows)]
+            for argument in &confined.invocation.args {
+                command.raw_arg(argument);
+            }
+            #[cfg(not(windows))]
             command.args(&confined.invocation.args);
             let observed = json!({
                 "requested": true,
                 "isolation": "sandbox",
                 "mechanism": confined.mechanism,
+                "container": confined.container,
                 "network": if asked.network { "allowed" } else { "blocked" },
                 "writable": {
                     "records": placement.records,
@@ -377,8 +421,7 @@ pub(super) async fn command(
         }
         Err(reason) => {
             // No sandbox here: the run goes ahead as it did before there was one, and says so.
-            let mut command = Command::new("/bin/sh");
-            command.args(["-c", script]);
+            let command = shell(script);
             let observed = json!({
                 "requested": true,
                 "isolation": super::snapshot::ISOLATION,
@@ -395,7 +438,32 @@ pub(super) async fn command(
         .envs(variables)
         .env("TMPDIR", &placement.temporary)
         .env("SATURN_RUN_OUTPUT", &output);
+    if cfg!(windows) {
+        // Windows names its temporary folder by these two.
+        command
+            .env("TEMP", &placement.temporary)
+            .env("TMP", &placement.temporary);
+    }
     Ok((command, observed))
+}
+
+/// The system's shell running `script`: `/bin/sh -c` on macOS and Linux, and cmd on Windows, which takes its line as
+/// it is written and not as arguments are usually quoted.
+fn shell(script: &str) -> Command {
+    let invocation = saturn_tools::shell::shell_invocation(
+        script,
+        "/bin/sh",
+        saturn_tools::sandbox::Platform::current(),
+        &saturn_tools::shell::process_env(),
+    );
+    let mut command = Command::new(&invocation.file);
+    #[cfg(windows)]
+    for argument in &invocation.args {
+        command.raw_arg(argument);
+    }
+    #[cfg(not(windows))]
+    command.args(&invocation.args);
+    command
 }
 
 /// A program Saturn starts for a project's research (its interpreter for the environment check, a notebook's kernel,
@@ -418,6 +486,19 @@ pub(crate) fn research_invocation(
         args,
         verbatim: false,
     };
+    sandboxed_invocation(settings, data_root, invocation, root, writable, readable)
+}
+
+/// The same for an invocation that is already made, such as the system shell's with a script: cmd's stays written as
+/// cmd reads it.
+pub(crate) fn sandboxed_invocation(
+    settings: saturn_tools::sandbox::SandboxSettings,
+    data_root: &Path,
+    invocation: saturn_tools::shell::Invocation,
+    root: &Path,
+    writable: &[String],
+    readable: &[String],
+) -> saturn_tools::shell::Invocation {
     saturn_tools::sandbox::wrap_command(
         invocation,
         settings,

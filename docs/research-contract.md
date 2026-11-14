@@ -158,7 +158,8 @@ starting → running ⇄ paused
   `path` answers one file's text up to 256 KiB (`binary: true` and no text for a file with NUL bytes). A path that leads
   out of the folder, or through a link, is refused with 403. Nothing in the folder is run.
 - A running run holds its worktree: discarding it, or the chat that owns it, gets 409.
-- Process identity is implemented for macOS and Linux. On Windows, starting a run says it is not supported yet.
+- Process identity is implemented for macOS, Linux and Windows. On Windows the command is given to `cmd` as written,
+  the run has no sandbox, and pausing answers 409.
 
 ## Run evidence
 
@@ -183,8 +184,8 @@ edited:
 
 ### Run sandbox
 
-A run's program runs in the system sandbox, seatbelt (`sandbox-exec`) on macOS and bubblewrap on Linux, unless its
-version turns it off. An experiment's `sandbox` holds two switches, `isolated` and `network` (both `true` when left
+A run's program runs in the system sandbox, seatbelt (`sandbox-exec`) on macOS, bubblewrap on Linux and an
+AppContainer on Windows, unless its version turns it off. An experiment's `sandbox` holds two switches, `isolated` and `network` (both `true` when left
 out), and `envNames` lists the environment variables its program is given. Both are frozen into each version; a
 version frozen before there was a `sandbox` gets the default.
 
@@ -325,8 +326,8 @@ escape the configured job's state directory through symlinks. The worker's state
 `.saturn/remote-jobs/<run>` and does not load Saturn settings or credentials or expose an HTTP server.
 
 An experiment can explicitly set `kind: "training"` before freezing. Local and remote training runs can complete with
-valid metrics alone; evaluation runs still require scored samples. Malformed metrics are protocol errors. Windows has
-not been run; the detached worker is POSIX-only.
+valid metrics alone; evaluation runs still require scored samples. Malformed metrics are protocol errors. The detached
+worker is POSIX-only.
 
 ## Samples: JSONL version 1
 
@@ -393,7 +394,7 @@ Model output is data. It is shown as plain text and is never put in a system pro
 A model's activations on one sample, and one layer patched in from another model, are computed by a helper the runtime
 runs with the Python the experiment's command starts with (`.venv/bin/python probe.py`), so the model loads in the
 environment that ran the experiment; a command that starts with anything else is refused with 422. The helper needs
-`torch` and `transformers`, loads weights in float32, and is run in the version's working folder. Not on Windows.
+`torch` and `transformers`, loads weights in float32, and is run in the version's working folder.
 
 - `POST /projects/{id}/research/runs/{run}/activations` with `{"sampleId","modelId"?}` answers with
   `{"sampleId","modelId","measure","tokens":[...],"layers":[{"layer":0,"values":[...]}],"top","patched":null}`: one
@@ -524,7 +525,7 @@ carries rows has a `note` saying so.
   Python, using `datasets` if it is there, in the project's folder without the folder on its import path, offline, in streaming mode for files. The helper's rows
   go through the same reading as any other file, and `cursor` and `next` count rows there. A folder with splits answers `splits`
   and `split`, and takes `split`; the first one is read otherwise. Without `datasets` the answer is 422 and says to install the Post-training kit on the Environment screen.
-  With no Python set it is 422 too, and a helper that fails is 422 with the end of its error output. Not on Windows.
+  With no Python set it is 422 too, and a helper that fails is 422 with the end of its error output.
 
 ## What a run costs
 
@@ -579,7 +580,7 @@ jobs below) runs in the project's command sandbox: it writes only to the project
 caches (an environment job also to uv's own Python folder), and reads neither Saturn's data folder (but Saturn's own
 download of uv) nor the credential folders. The interpreter is named in the project's own files, and any interpreter
 runs its environment's `.pth` files as it starts, so the sandbox is what keeps a cloned project's environment from
-Saturn's token and keys. Where the system has no sandbox (Windows, Linux without bubblewrap), or the project's sandbox
+Saturn's token and keys. Where the system has no sandbox (Linux without bubblewrap, Windows before its one-time setup), or the project's sandbox
 is off, they run unconfined. The assistant's `research_environment_action` with `action: "set"` asks first in the
 default approval mode, and a package name may not start with a dot (`.` would build the project's own `setup.py`).
 
@@ -618,7 +619,7 @@ against its sha512, as for Claude Code and Codex. The record carries `tools` (`u
   `.saturn/research` changes as it starts and ends.
 - The installs are made by uv or pip, which reach the package index on their own, as uv's Python download reaches its
   release; Saturn's network log does not see them (the download of uv itself it does). On Windows the job runs
-  through cmd; Windows is type-checked only, not run.
+  through cmd.
 
 ## Notebooks
 
@@ -657,7 +658,7 @@ cannot start, answers 422. The notebook still opens, edits and saves. `input()` 
 A kernel ends when its notebook is closed, its project is removed or loses access, or the runtime stops. The helper is
 asked, then signalled, then ended by force. If the runtime dies, the helper's standard input closes and it ends the kernel,
 and a kernel whose helper was killed ends by itself. A path that leads out of the project or into `.saturn` or `.git` answers
-403, as for the editor, and one that is not a `.ipynb` answers 400. Running a notebook answers 501 on Windows.
+403, as for the editor, and one that is not a `.ipynb` answers 400.
 
 ## What is enforced, and what is not
 

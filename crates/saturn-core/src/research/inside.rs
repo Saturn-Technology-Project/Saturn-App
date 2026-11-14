@@ -268,12 +268,6 @@ impl Kernel {
         run_id: &str,
         request: &Value,
     ) -> Result<Value, CoreError> {
-        if cfg!(windows) {
-            return Err(CoreError::new(
-                501,
-                "Looking inside a model is not supported on Windows yet.",
-            ));
-        }
         let (file, key) = self.inside_place(project, run_id, request).await?;
         if let Some(saved) = read_record(&file)
             .await
@@ -437,12 +431,6 @@ impl Kernel {
         run_id: &str,
         request: &Value,
     ) -> Result<Value, CoreError> {
-        if cfg!(windows) {
-            return Err(CoreError::new(
-                501,
-                "Looking inside a model is not supported on Windows yet.",
-            ));
-        }
         if !is_id(run_id) {
             return Err(CoreError::new(404, "No such run"));
         }
@@ -572,12 +560,6 @@ impl Kernel {
     /// Patches every layer in turn, from one model into another, on several samples of a run, in one helper process.
     /// Saved with the run like a single reading.
     pub async fn research_sweep(&self, project: &str, request: &Value) -> Result<Value, CoreError> {
-        if cfg!(windows) {
-            return Err(CoreError::new(
-                501,
-                "Looking inside a model is not supported on Windows yet.",
-            ));
-        }
         let run_id = text(request, "runId");
         let sample_ids: Vec<&str> = request
             .get("sampleIds")

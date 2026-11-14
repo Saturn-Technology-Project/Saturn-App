@@ -523,18 +523,12 @@ impl Kernel {
             ));
         };
         let helper = if matches!(reading, Reading::Helper(_)) {
-            if cfg!(windows) {
-                return Err(CoreError::new(
-                    501,
-                    "Reading this kind of data is not supported on Windows yet.",
-                ));
-            }
             let python = self.research_python(project).await?;
-            super::environment::interpreter_exists(&python, &root)?;
+            let program = super::environment::interpreter_program(&python, &root)?;
             Some(super::isolation::research_invocation(
                 self.project_sandbox(project),
                 self.store.root(),
-                &python,
+                &program,
                 vec!["-".to_owned()],
                 &root,
                 &[],

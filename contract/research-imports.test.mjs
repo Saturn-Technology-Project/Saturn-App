@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile, symlink } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { bench, sha, posixOnly, until } from "./files-support.mjs";
+import { bench, sha, until } from "./files-support.mjs";
 
 let saturn;
 before(async () => { saturn = await bench(); });
@@ -81,7 +81,7 @@ test("invalid, duplicate, changed and escaped inputs fail before writing records
   assert.deepEqual((await saturn.api("GET", `${route}/experiments`)).items, []);
 });
 
-test("an explicit training command can finish with metrics alone, while malformed metrics remain protocol errors", posixOnly, async () => {
+test("an explicit training command can finish with metrics alone, while malformed metrics remain protocol errors", async () => {
   const { folder, route } = await setup("train.mjs", `import {writeFileSync} from 'node:fs'; writeFileSync(process.env.SATURN_RUN_METRICS,JSON.stringify({schemaVersion:1,step:1,values:{loss:2}})+'\\n');`);
   const draft = await saturn.api("POST", `${route}/experiments`, { title: "Train", kind: "training", command: "node train.mjs" });
   const version = await saturn.api("POST", `${route}/experiments/${draft.id}/versions`, {});

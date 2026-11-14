@@ -515,12 +515,6 @@ impl Kernel {
 
     /// The kernel that takes a notebook's cells, started when needed.
     async fn notebook_kernel(&self, project: &str, relative: &str) -> Result<Arc<Held>, CoreError> {
-        if cfg!(windows) {
-            return Err(CoreError::new(
-                501,
-                "Running a notebook is not supported on Windows yet.",
-            ));
-        }
         if let Some(held) = self.notebook_held(project, relative)
             && held.usable()
         {

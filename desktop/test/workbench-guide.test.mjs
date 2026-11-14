@@ -1,5 +1,6 @@
 // What the assistant is told about the interface, and what it may do with it: name a known place, and nothing else.
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
@@ -9,7 +10,7 @@ import { isAtEnd } from "../src/domain/follow.ts";
 import { shownSources } from "../src/domain/slash.ts";
 import { assistantInstructions, GUIDE_PLACES, guideIn, guidePlace, HELP_REQUESTS, isWorkScreen, SCREENS, statusText, TOUR_STEPS, windowTitle, workbenchState } from "../src/domain/workbench.ts";
 
-const presentation = new URL("../src/presentation", import.meta.url).pathname;
+const presentation = fileURLToPath(new URL("../src/presentation", import.meta.url));
 const sources = readdirSync(presentation, { recursive: true }).filter((name) => String(name).endsWith(".tsx")).map((name) => readFileSync(path.join(presentation, String(name)), "utf8")).join("\n");
 
 test("every place the assistant may point at is marked in the interface", () => {

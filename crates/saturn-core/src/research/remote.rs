@@ -153,7 +153,9 @@ pub(super) fn check_target(target: &Value) -> Result<(), CoreError> {
             "Use an SSH host alias or user@host, without options or shell syntax.",
         ));
     }
-    if !Path::new(text(target, "workdir")).is_absolute()
+    // The host is Linux or macOS whatever this computer is: on Windows `Path::is_absolute` asks for a drive letter, and
+    // refused every remote folder.
+    if !text(target, "workdir").starts_with('/')
         || text(target, "program").is_empty()
         || text(target, "program").contains(['\n', '\r', '\0'])
     {
@@ -1395,6 +1397,16 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The remote folder is a path on the host, so it is judged as one there, on whatever system Saturn runs.
+    #[test]
+    fn a_remote_folder_is_absolute_the_way_the_host_writes_it() {
+        let target = |workdir: &str| json!({ "host": "gpu-box", "workdir": workdir, "program": "saturn-server" });
+        assert!(check_target(&target("/home/someone/study")).is_ok());
+        for refused in ["study", "~/study", "C:\\study", ""] {
+            assert!(check_target(&target(refused)).is_err(), "{refused}");
+        }
+    }
 
     #[test]
     fn a_message_moves_each_cursor_to_where_its_chunk_ended() {

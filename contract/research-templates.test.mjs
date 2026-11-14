@@ -7,11 +7,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { bench, posixOnly, until } from "./files-support.mjs";
+import { bench, until } from "./files-support.mjs";
 
 const TEMPLATES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../crates/saturn-core/src/research/templates");
-const python = spawnSync("python3", ["--version"]).error ? null : "python3";
-const needsPython = { ...posixOnly, skip: posixOnly.skip || (python ? false : "needs python3") };
+// Asked for its version, not only looked for: on Windows `python3` can be a pointer to the Store that runs nothing.
+const python = spawnSync("python3", ["--version"]).status === 0 ? "python3" : null;
+const needsPython = { skip: python ? false : "needs python3" };
+const hasShell = !spawnSync("sh", ["-c", "exit 0"]).error;
 // The training template runs for real only where torch and numpy are installed; elsewhere it is parsed like the rest.
 const hasTorch = python !== null && spawnSync(python, ["-c", "import torch, numpy"], { timeout: 60_000 }).status === 0;
 const needsTorch = { ...needsPython, skip: needsPython.skip || (hasTorch ? false : "needs torch and numpy") };
@@ -21,7 +23,7 @@ before(async () => { saturn = await bench(); });
 after(async () => { await saturn?.stop(); });
 
 test("every Python template parses and the shell template parses", needsPython, () => {
-  for (const name of readdirSync(TEMPLATES).filter((name) => /\.(py|sh)$/.test(name))) {
+  for (const name of readdirSync(TEMPLATES).filter((name) => /\.py$/.test(name) || (hasShell && name.endsWith(".sh")))) {
     const file = path.join(TEMPLATES, name);
     // A parse, not py_compile, so nothing is written beside the templates.
     const checked = name.endsWith(".sh") ? spawnSync("sh", ["-n", file]) : spawnSync(python, ["-I", "-c", "import ast, sys; ast.parse(open(sys.argv[1], encoding='utf-8').read(), sys.argv[1])", file]);

@@ -1,0 +1,33 @@
+[package]
+name = "saturn-appcontainer"
+description = "Starts a program in a Windows AppContainer: the one crate where Saturn calls the system without the compiler's checks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+
+# The calls an AppContainer needs: its identity, the access lists of the folders it may use, and the process itself.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Security_Isolation",
+    "Win32_System_Console",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Environment",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
+
+# The workspace forbids unsafe code; this crate is the exception, and keeps it to `src/windows.rs`.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }

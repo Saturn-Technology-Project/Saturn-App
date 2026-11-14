@@ -13,7 +13,9 @@ import { until } from "./files-support.mjs";
 import { startRuntime } from "./runtime.mjs";
 
 const SSHD = ["/usr/sbin/sshd", "/usr/bin/sshd"].find((candidate) => existsSync(candidate));
-const skip = process.platform === "win32" || !SSHD ? "needs an sshd binary" : false;
+// A remote host is Linux or macOS: the worker is started and talked to through a POSIX shell, which Windows's sshd
+// does not give.
+const skip = process.platform === "win32" ? "a remote host is Linux or macOS, and this test's host is this computer" : !SSHD ? "needs an sshd binary" : false;
 const worker = path.resolve("target/debug/saturn-server");
 let folder, runtime, data, route;
 

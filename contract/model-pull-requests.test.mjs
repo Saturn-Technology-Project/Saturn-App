@@ -156,9 +156,15 @@ test("a chat's pull request opens from https, ssh and git remotes, and a project
 
 test("without any GitHub token, opening a pull request says how to sign in, and GitHub is not asked", async () => {
   // A PATH with git and no gh, so the developer's own token is never looked at.
-  const tools = path.join(scratch, "only-git");
-  await mkdir(tools, { recursive: true });
-  await symlink(execFileSync("/bin/sh", ["-c", "command -v git"], { encoding: "utf8" }).trim(), path.join(tools, "git"));
+  // On Windows git's own folder is that PATH: Git for Windows keeps git there with nothing else beside it, and a
+  // link to git.exe would not find the rest of git.
+  let tools = path.join(scratch, "only-git");
+  if (process.platform === "win32") {
+    tools = path.dirname(execFileSync("where", ["git"], { encoding: "utf8" }).split(/\r?\n/)[0]);
+  } else {
+    await mkdir(tools, { recursive: true });
+    await symlink(execFileSync("/bin/sh", ["-c", "command -v git"], { encoding: "utf8" }).trim(), path.join(tools, "git"));
+  }
   const quiet = await fakeGitHub();
   const own = await startRuntime({ env: { SATURN_GITHUB_API: quiet.url, GH_TOKEN: "", GITHUB_TOKEN: "", PATH: tools, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
   try {

@@ -57,6 +57,14 @@ async fn information(State(kernel): Shared) -> Answer {
     ok(kernel.information().await)
 }
 
+async fn sandbox() -> Answer {
+    ok(Kernel::sandbox_status())
+}
+
+async fn set_up_sandbox(State(kernel): Shared) -> Answer {
+    ok(kernel.set_up_sandbox().await?)
+}
+
 async fn logs(Query(query): QueryText) -> Answer {
     let text = |key: &str| wanted(&query, key).unwrap_or("");
     ok(Kernel::list_logs(text("service"), text("level"), text("q")))
@@ -500,7 +508,12 @@ async fn workspace_terminal(State(kernel): Shared, body: Body) -> Answer {
         .filter(|state| !state.definitions.trim().is_empty())
         .map(|state| state.definitions.clone());
     let wrapped = if cfg!(windows) {
-        format!("{command} & echo {CWD_MARKER}%CD%")
+        // cmd reads %CD% when it reads the line, before the command has run, so a plain `echo %CD%` named the folder
+        // the command started in, and the line's exit code was echo's. `%^CD%` is no variable at that first reading;
+        // `call` reads the line again once the command is done, and the last `call` gives the command's own code back.
+        format!(
+            "{command} & call set __saturn_ec=%^ERRORLEVEL%& call echo {CWD_MARKER}%^CD%& call exit /b %^__saturn_ec%"
+        )
     } else {
         // The snapshot comes before the kept definitions, so those count as set by the panel and are kept again.
         let mut before = String::new();
@@ -1168,6 +1181,8 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/agent-mcp", post(agent_mcp).fallback(agent_mcp_other))
         .route("/settings", get(settings).patch(update_settings))
         .route("/information", get(information))
+        .route("/sandbox", get(sandbox))
+        .route("/sandbox/setup", post(set_up_sandbox))
         .route("/logs", get(logs))
         .route(
             "/storage/snapshots",
