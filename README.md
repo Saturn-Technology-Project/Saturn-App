@@ -529,7 +529,7 @@ macOS keys these grants to the app's code signature. Ad-hoc-signed builds presen
 
 ### Windows
 
-Windows asks for no permission. A single helper process (Windows PowerShell running a small compiled C# module) handles every action: SendInput for the mouse, wheel and keys, Unicode input for typing (any language, without touching the clipboard), GDI+ for screenshots, and UI Automation for reading and acting on an app's elements. It is DPI aware, so coordinates match on scaled displays. A chord written the macOS way (`cmd+c`) means Ctrl.
+Windows asks for no permission. A single helper process (Windows PowerShell running a small compiled C# module) handles every action: SendInput for the mouse, wheel and keys, a paste for typing (any language; the clipboard is put back afterwards, and what Saturn pastes stays out of clipboard history), GDI+ for screenshots, and UI Automation for reading and acting on an app's elements. It is DPI aware, so coordinates match on scaled displays. A chord written the macOS way (`cmd+c`) means Ctrl.
 
 - Windows lets an app control only apps at its own privilege level: an app running as administrator ignores Saturn's input unless Saturn runs as administrator too, and agents say so.
 - Nothing can be seen or clicked while the lock screen or a UAC prompt (the secure desktop) is showing; agents report it rather than act.

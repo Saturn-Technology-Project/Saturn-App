@@ -381,9 +381,12 @@ impl Helper {
         self.quick("key", parse_chord(chord)?).await.map(|_| ())
     }
 
-    /// Types text into the focused field as Unicode input, so any language works and the clipboard is never touched.
+    /// Types text into the focused field by pasting it, so any language arrives whole; the clipboard is put back after,
+    /// and nothing Saturn pastes enters clipboard history. Each line and tab-separated cell is a paste of its own.
     pub async fn type_text(&self, text: &str) -> Result<(), Failure> {
-        self.call("type", json!({ "text": text }), SLOW_TIMEOUT)
+        let pastes = text.matches(['\n', '\t']).count() as u64 + 1;
+        let typing = Duration::from_millis(400 * pastes);
+        self.call("type", json!({ "text": text }), SLOW_TIMEOUT + typing)
             .await
             .map(|_| ())
     }
