@@ -159,6 +159,20 @@ impl Kernel {
         })
     }
 
+    /// What is still working here and would stop with the runtime: chats whose turn is under way, experiment runs
+    /// started on this computer, and background commands. The app asks before quitting while any of these is going.
+    pub fn activity(&self) -> Value {
+        let chats = crate::locked(&self.stops).len();
+        let runs = self.research.running_runs();
+        let commands = self
+            .jobs
+            .list(None)
+            .iter()
+            .filter(|job| job.running)
+            .count();
+        json!({ "chats": chats, "runs": runs, "commands": commands })
+    }
+
     /// Whether commands can be sandboxed on this computer, with what, and whether a setup from here would help.
     pub fn sandbox_status() -> Value {
         use saturn_tools::sandbox::{Platform, SandboxSupport, sandbox_support};

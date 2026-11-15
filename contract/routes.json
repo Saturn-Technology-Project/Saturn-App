@@ -21,6 +21,7 @@
   "DELETE /storage/snapshots/:id",
   "DELETE /telemetry",
   "DELETE /threads/:id",
+  "GET /activity",
   "GET /agents",
   "GET /agents/:id",
   "GET /agents/:id/messages",

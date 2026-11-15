@@ -57,6 +57,10 @@ async fn information(State(kernel): Shared) -> Answer {
     ok(kernel.information().await)
 }
 
+async fn activity(State(kernel): Shared) -> Answer {
+    ok(kernel.activity())
+}
+
 async fn sandbox() -> Answer {
     ok(Kernel::sandbox_status())
 }
@@ -1181,6 +1185,7 @@ pub fn router(kernel: Arc<Kernel>) -> Router {
         .route("/agent-mcp", post(agent_mcp).fallback(agent_mcp_other))
         .route("/settings", get(settings).patch(update_settings))
         .route("/information", get(information))
+        .route("/activity", get(activity))
         .route("/sandbox", get(sandbox))
         .route("/sandbox/setup", post(set_up_sandbox))
         .route("/logs", get(logs))
