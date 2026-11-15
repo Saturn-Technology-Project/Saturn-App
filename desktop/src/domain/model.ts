@@ -325,6 +325,9 @@ export type Profile = {
 export type SandboxMode = "workspace-write" | "read-only" | "off";
 export type SandboxSettings = { mode: SandboxMode; network: boolean };
 /** Whether this computer can sandbox commands, with what, why not, and whether a setup run from Saturn would help (Windows). */
+/** What is still working in the runtime and would stop if it quit. */
+export type Activity = { chats: number; runs: number; commands: number };
+
 export type SandboxStatus = { available: boolean; mechanism: string | null; reason: string | null; setup: boolean };
 export type RunMode = "agent" | "ask" | "plan";
 export type PendingTask = { id: string; agentId: string; agentName: string; input: string; toolId: string };

@@ -8,7 +8,7 @@ import { assistantRole, assistantRunMode, CHAT_MODES, chatModeOf } from "../src/
 import { isWaitingStep, runSteps } from "../src/domain/conversation.ts";
 import { isAtEnd } from "../src/domain/follow.ts";
 import { shownSources } from "../src/domain/slash.ts";
-import { assistantInstructions, GUIDE_PLACES, guideIn, guidePlace, HELP_REQUESTS, isWorkScreen, SCREENS, statusText, TOUR_STEPS, windowTitle, workbenchState } from "../src/domain/workbench.ts";
+import { assistantInstructions, GUIDE_PLACES, guideIn, guidePlace, HELP_REQUESTS, isWorkScreen, quitQuestion, SCREENS, statusText, TOUR_STEPS, windowTitle, workbenchState } from "../src/domain/workbench.ts";
 
 const presentation = fileURLToPath(new URL("../src/presentation", import.meta.url));
 const sources = readdirSync(presentation, { recursive: true }).filter((name) => String(name).endsWith(".tsx")).map((name) => readFileSync(path.join(presentation, String(name)), "utf8")).join("\n");
@@ -98,4 +98,12 @@ test("a chat keeps up only while the person is reading its end", () => {
 test("a step waiting for an answer can be told apart, however much the turn has said", () => {
   const run = { id: "r", status: "waiting_approval", output: "A lot was said.", actions: [{ id: "a", toolId: "code", status: "completed" }, { id: "b", toolId: "code", status: "waiting_approval" }, { toolId: "code", status: "waiting_approval" }] };
   assert.deepEqual(runSteps(run).filter(isWaitingStep).map((step) => step.action.id), ["b"]);
+});
+
+test("quitting asks first only while something still works, and names only what does", () => {
+  assert.equal(quitQuestion({ chats: 0, runs: 0, commands: 0 }), null);
+  assert.equal(quitQuestion({ chats: 1, runs: 0, commands: 2 }), "Quit Saturn? These stop when it quits:\n• Chats still answering: 1\n• Background commands: 2");
+  const runs = quitQuestion({ chats: 0, runs: 3, commands: 0 });
+  assert.match(runs, /Experiment runs on this computer: 3/);
+  assert.match(runs, /can be resumed later/);
 });

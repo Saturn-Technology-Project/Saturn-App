@@ -14,6 +14,8 @@ const COMMANDS: &[&str] = &[
     "runtime_status",
     "restart_runtime",
     "set_window_title",
+    "close_heard",
+    "quit_app",
 ];
 
 fn main() {

@@ -14,6 +14,12 @@ export default {
   "Protection": "防護",
   "Environment": "環境",
   "A workbench for AI research": "AI 研究工作台",
+  // Asked before quitting while something still works (Windows, closing the window).
+  "Quit Saturn? These stop when it quits:": "要結束 Saturn 嗎？結束後以下工作會停止：",
+  "Chats still answering: {count}": "仍在回答的對話：{count}",
+  "Experiment runs on this computer: {count}": "這台電腦上的實驗 run：{count}",
+  "Background commands: {count}": "背景指令：{count}",
+  "A run that stops this way can be resumed later.": "這樣停下的 run 之後可以接續。",
   "Read the method, write the code yourself, run the experiment and inspect every sample, on your own computer. This tour boxes each part of Saturn and says what it is for, then helps you start a piece of research. Skip it any time; it is in Commands (⌘K) as \"Take the tour\".":
     "閱讀方法、親手寫程式、執行實驗並檢視每個樣本，全都在你自己的電腦上完成。這份導覽會標示 Saturn 的每個部分並說明用途，接著協助你開始研究。你可以隨時略過，之後在「指令」（⌘K）中選擇「瀏覽導覽」即可重新開啟。",
   "The screens": "畫面總覽",

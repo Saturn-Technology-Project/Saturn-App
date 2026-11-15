@@ -1,4 +1,4 @@
-import type { AgentBrowser, LlmChoice, LlmProvider, ProviderModels, LogLine, Mcp, CliStatus, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, SandboxStatus, UsageSummary } from "../domain/model.js";
+import type { Activity, AgentBrowser, LlmChoice, LlmProvider, ProviderModels, LogLine, Mcp, CliStatus, Hook, HookSet, PermissionLayer, Plugin, PermissionRule, PermissionScope, Profile, RuntimeInfo, SandboxSettings, SandboxStatus, UsageSummary } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 import { userAction } from "../infrastructure/telemetry.js";
 
@@ -99,6 +99,11 @@ export class AdminService {
 
   updateSettings(patch: { name?: string; environment?: string; logging?: string; completionModelId?: string | null; memory?: boolean; planApproval?: boolean; onboardedAt?: string | null; sandbox?: SandboxSettings | null; claudeProjectSettings?: boolean; browser?: AgentBrowser }): Promise<Profile> {
     return this.runtime.request<Profile>("/settings", { method: "PATCH", body: JSON.stringify(patch) });
+  }
+
+  /** What is still working in the runtime: chats answering, experiment runs here, background commands. */
+  activity(): Promise<Activity> {
+    return this.runtime.request<Activity>("/activity");
   }
 
   /** Whether this computer can sandbox commands, and whether a setup would help. */

@@ -8,6 +8,7 @@ mod update;
 
 use std::process::{Command, Stdio};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use runtime::{Layout, Runtime, Status};
 use serde::Deserialize;
@@ -62,6 +63,46 @@ async fn confirm_action(window: WebviewWindow, message: String) -> bool {
         .title("Saturn")
         .buttons(MessageDialogButtons::OkCancel)
         .blocking_show()
+}
+
+/// Set once quitting was decided, so the window's close goes through instead of asking again.
+static QUITTING: AtomicBool = AtomicBool::new(false);
+/// Whether the interface heard the last request to close the window.
+static CLOSE_HEARD: AtomicBool = AtomicBool::new(false);
+/// How long the interface has to say it heard a request to close before the app quits without it.
+const CLOSE_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// The interface heard the request to close and is deciding, asking the user if something still works.
+#[tauri::command]
+fn close_heard() {
+    CLOSE_HEARD.store(true, Ordering::SeqCst);
+}
+
+/// Quits Saturn and its runtime.
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    QUITTING.store(true, Ordering::SeqCst);
+    app.exit(0);
+}
+
+/// Hands a request to close the window to the interface, which quits at once or asks first while something still works.
+/// An interface that does not answer (hung, or never loaded) does not keep the window open: the app quits after a moment.
+fn ask_before_quitting(app: &AppHandle) {
+    CLOSE_HEARD.store(false, Ordering::SeqCst);
+    let asked = app
+        .get_webview_window(MAIN_WINDOW)
+        .is_some_and(|window| window.eval("window.__saturnCloseRequested?.()").is_ok());
+    if !asked {
+        quit_app(app.clone());
+        return;
+    }
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(CLOSE_WAIT);
+        if !CLOSE_HEARD.load(Ordering::SeqCst) {
+            quit_app(handle);
+        }
+    });
 }
 
 /// Opens a web address in the user's browser. Links that open a new window end up here: the app has only its one window.
@@ -317,6 +358,7 @@ fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
         "permissions": [
             "allow-pick-folders", "allow-confirm-action", "allow-start-dragging", "allow-toggle-maximize", "allow-minimize-window",
             "allow-close-window", "allow-notify", "allow-request-permission", "allow-runtime-status", "allow-restart-runtime", "allow-set-window-title",
+            "allow-close-heard", "allow-quit-app",
         ],
     });
     app.add_capability(capability.to_string())
@@ -389,7 +431,9 @@ fn main() {
             request_permission,
             runtime_status,
             restart_runtime,
-            set_window_title
+            set_window_title,
+            close_heard,
+            quit_app
         ])
         .setup(move |app| {
             let layout = if cfg!(debug_assertions) {
@@ -418,7 +462,19 @@ fn main() {
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } if INTERFACE.get().is_some() => show_main_window(app),
         // Closing the window quits Saturn, except on macOS, where the Dock still shows the app and brings the window
-        // back. Elsewhere nothing showed it: the pointer window kept Saturn and its runtime running out of sight.
+        // back. Elsewhere nothing showed it: the pointer window kept Saturn and its runtime running out of sight. The
+        // interface is asked first, since quitting stops what still works.
+        RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::CloseRequested { api, .. },
+            ..
+        } if label == MAIN_WINDOW
+            && !cfg!(target_os = "macos")
+            && !QUITTING.load(Ordering::SeqCst) =>
+        {
+            api.prevent_close();
+            ask_before_quitting(app);
+        }
         RunEvent::WindowEvent {
             label,
             event: tauri::WindowEvent::Destroyed,

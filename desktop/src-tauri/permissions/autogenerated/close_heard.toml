@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-heard"
+description = "Enables the close_heard command without any pre-configured scope."
+commands.allow = ["close_heard"]
+
+[[permission]]
+identifier = "deny-close-heard"
+description = "Denies the close_heard command without any pre-configured scope."
+commands.deny = ["close_heard"]

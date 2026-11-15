@@ -20,6 +20,8 @@ declare global {
       runtimeStatus?(): Promise<RuntimeStatus>;
       restartRuntime?(): Promise<void>;
       setTitle?(title: string): Promise<void>;
+      onCloseRequested?(listener: () => void): () => void;
+      quit?(): Promise<void>;
     };
   }
 }
