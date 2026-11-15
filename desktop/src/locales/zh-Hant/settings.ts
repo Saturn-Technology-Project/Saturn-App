@@ -254,6 +254,21 @@ export default {
     "設定",
   "The sandbox is still off: {reason}.":
     "沙箱仍未啟用：{reason}。",
+  // Why the sandbox is off, as the runtime says it (domain/sandbox.ts).
+  "sandbox-exec is missing":
+    "找不到 sandbox-exec",
+  "bubblewrap (bwrap) is not installed":
+    "沒有安裝 bubblewrap（bwrap）",
+  "this program cannot start a Windows sandbox":
+    "這個程式無法啟動 Windows 沙箱",
+  "the Windows sandbox is not set up: Settings → General → Sandbox sets it up once, as an administrator (or `saturn-server --appcontainer-setup`; see the README)":
+    "Windows 沙箱尚未設定：在「設定 → 一般 → 沙箱」以系統管理員身分設定一次（或執行 `saturn-server --appcontainer-setup`，詳見 README）",
+  "the administrator prompt was declined":
+    "系統管理員的確認被拒絕了",
+  "the setup could not open everything, or did not run as an administrator":
+    "設定沒能開放所有資料夾，或沒有以系統管理員身分執行",
+  "This computer's sandbox has no setup to run from Saturn":
+    "這台電腦的沙箱沒有能從 Saturn 執行的設定",
   "Could not set up the sandbox":
     "無法設定沙箱",
   "Workspace Name": "工作區名稱",
