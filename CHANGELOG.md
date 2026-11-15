@@ -2,6 +2,12 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Changed
+
+- **Automations (scheduled prompts) are removed.** They were only reachable from Settings → Still running, where an automation from the earlier interface could be turned off. Saturn no longer runs them on a schedule, agents no longer have the `automation_` tools, and the `/automations` routes are gone (a script that called them now gets a 404). Automations you saved stay in `state.json` but no longer run. The rest of that toolkit (widget templates, rules and skills, legacy workflows and plugins) is now called **Customizations**; agents that had Automations get Customizations, and tools you turned off stay off. The Background Model setting now only writes memory notes.
+
 ## 0.6.3 (2026-11-15)
 
 ### Added
