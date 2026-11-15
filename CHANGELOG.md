@@ -4,12 +4,15 @@ The major changes in each Saturn release, for deciding whether to upgrade and wh
 
 ## Unreleased
 
+How Windows was tried: on Windows 11 for ARM in a virtual machine, running the x64 build under emulation, signed in as an administrator. Nothing in this version or the Windows work before it has been tried on x64 hardware, or under a standard (non-administrator) account, where the sandbox's **Set up** asks for an administrator's password instead of a yes.
+
 ### Added
 
 - **Windows: closing the window asks first while something is still working.** Closing Saturn's window quits it, and quitting stops what it was doing. When a chat is still answering, an experiment run is going on this computer or a background command is running, Saturn now names them and asks before it quits; otherwise it quits at once.
 
 ### Fixed
 
+- **Windows: computer use types every character into Windows 11's Notepad.** Typed text came out scrambled: letters repeated or replaced, and everything after Chinese text lost, with an English keyboard or Bopomofo. Text is now pasted, as on macOS, and your clipboard is put back afterwards; what Saturn pastes is kept out of clipboard history and cloud clipboard.
 - **Why the sandbox is off is shown in your language.** Settings → General → Sandbox gave the reason (the setup not run, the administrator prompt declined, bubblewrap missing) in English inside a Chinese sentence.
 
 ### Changed
