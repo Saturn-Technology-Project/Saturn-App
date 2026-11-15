@@ -72,7 +72,7 @@ test("an agent sees the skills in its prompt and loads one with the skill tool; 
   const setup = await saturn.chat({
     root,
     autonomy: "bypass",
-    mcpConnectionIds: ["general-skills", "automations"],
+    mcpConnectionIds: ["general-skills", "customizations"],
     steps: [
       ["skill", { name: "ship" }],
       ["skill", { name: "nothing-like-it" }],

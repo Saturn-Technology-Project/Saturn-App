@@ -147,7 +147,7 @@
    {
     "toolId": "load_tools",
     "serverId": "general-skills",
-    "description": "Load toolkits listed as not loaded in your instructions (github, computer, browser, automations); their tools are available from the next step on, for the rest of the chat.",
+    "description": "Load toolkits listed as not loaded in your instructions (github, computer, browser, customizations); their tools are available from the next step on, for the rest of the chat.",
     "inputSchema": {
      "type": "object",
      "properties": {
@@ -2582,148 +2582,13 @@
   ]
  },
  {
-  "id": "automations",
-  "name": "Automations",
-  "url": "builtin://automations",
+  "id": "customizations",
+  "name": "Customizations",
+  "url": "builtin://customizations",
   "tools": [
    {
-    "toolId": "automation_list",
-    "serverId": "automations",
-    "category": "read",
-    "description": "List all scheduled background automations, including their schedule (cron), assigned agent, enabled status, and last/next execution slots.",
-    "inputSchema": {
-     "type": "object",
-     "properties": {
-      "filter": {
-       "type": "string",
-       "enum": [
-        "all",
-        "enabled",
-        "disabled"
-       ],
-       "description": "Optional filter by enabled status."
-      }
-     },
-     "additionalProperties": false
-    },
-    "environments": [
-     "production"
-    ]
-   },
-   {
-    "toolId": "automation_create",
-    "serverId": "automations",
-    "category": "write",
-    "description": "Create a new scheduled background automation (cron job) that runs a fresh agent conversation on each trigger.",
-    "inputSchema": {
-     "type": "object",
-     "properties": {
-      "name": {
-       "type": "string",
-       "description": "Descriptive name for the scheduled automation (e.g. 'Daily Git Summary' or 'Hourly Issue Sync')."
-      },
-      "prompt": {
-       "type": "string",
-       "description": "The instruction prompt to execute on each scheduled run."
-      },
-      "cron": {
-       "type": "string",
-       "description": "5-field cron, optionally prefixed with CRON_TZ=<IANA zone>. Supported: hourly 'M * * * *', daily 'M H * * *', weekdays 'M H * * 1-5', weekly 'M H * * D' (0 = Sunday). E.g. 'CRON_TZ=Asia/Taipei 0 9 * * 1-5'. Without CRON_TZ the computer's time zone is used."
-      },
-      "agentId": {
-       "type": "string",
-       "description": "The ID of the agent to execute this automation. If omitted, the agent making this call runs it."
-      },
-      "enabled": {
-       "type": "boolean",
-       "description": "Whether the automation is active upon creation. Defaults to true."
-      }
-     },
-     "required": [
-      "name",
-      "prompt",
-      "cron"
-     ],
-     "additionalProperties": false
-    },
-    "environments": [
-     "production"
-    ]
-   },
-   {
-    "toolId": "automation_trigger",
-    "serverId": "automations",
-    "category": "write",
-    "description": "Immediately trigger execution of a scheduled automation without waiting for its next cron slot.",
-    "inputSchema": {
-     "type": "object",
-     "properties": {
-      "automationId": {
-       "type": "string",
-       "description": "The ID of the automation to trigger."
-      }
-     },
-     "required": [
-      "automationId"
-     ],
-     "additionalProperties": false
-    },
-    "environments": [
-     "production"
-    ]
-   },
-   {
-    "toolId": "automation_toggle",
-    "serverId": "automations",
-    "category": "write",
-    "description": "Enable or disable a scheduled automation.",
-    "inputSchema": {
-     "type": "object",
-     "properties": {
-      "automationId": {
-       "type": "string",
-       "description": "The ID of the automation."
-      },
-      "enabled": {
-       "type": "boolean",
-       "description": "True to enable, false to disable."
-      }
-     },
-     "required": [
-      "automationId",
-      "enabled"
-     ],
-     "additionalProperties": false
-    },
-    "environments": [
-     "production"
-    ]
-   },
-   {
-    "toolId": "automation_delete",
-    "serverId": "automations",
-    "category": "write",
-    "description": "Delete a scheduled background automation.",
-    "inputSchema": {
-     "type": "object",
-     "properties": {
-      "automationId": {
-       "type": "string",
-       "description": "The ID of the automation to delete."
-      }
-     },
-     "required": [
-      "automationId"
-     ],
-     "additionalProperties": false
-    },
-    "environments": [
-     "production"
-    ]
-   },
-   {
     "toolId": "generative_ui_template",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "read",
     "description": "Retrieve recommended Generative UI templates, design system tokens, and boilerplate code.",
     "inputSchema": {
@@ -2752,7 +2617,7 @@
    },
    {
     "toolId": "customizations_list",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "read",
     "description": "List the workspace's project rules (.agents/rules/*.md) and on-demand skills (.agents/skills/<name>/SKILL.md).",
     "inputSchema": {
@@ -2775,7 +2640,7 @@
    },
    {
     "toolId": "customizations_create_skill",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "write",
     "description": "Create an on-demand skill directory under .agents/skills/<name>/ with SKILL.md containing metadata, description, and multi-step procedures.",
     "inputSchema": {
@@ -2807,7 +2672,7 @@
    },
    {
     "toolId": "customizations_create_rule",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "write",
     "description": "Create or update a project or directory coding rule (.agents/rules/<name>.md or AGENTS.md) to enforce guidelines and styles.",
     "inputSchema": {
@@ -2838,7 +2703,7 @@
    },
    {
     "toolId": "workflows_scan",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "read",
     "description": "Scan the workspace and global configuration for deprecated legacy workflow files (.agents/workflows/*.md, workflows.json) that can be migrated to modern skills.",
     "inputSchema": {
@@ -2857,7 +2722,7 @@
    },
    {
     "toolId": "workflows_migrate",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "write",
     "description": "Migrate legacy workflow files into modern .agents/skills/<name>/SKILL.md structures and safely archive old files.",
     "inputSchema": {
@@ -2883,7 +2748,7 @@
    },
    {
     "toolId": "plugins_list",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "read",
     "description": "List all installed, workspace, and global plugins with their lifecycle status and bundled components.",
     "inputSchema": {
@@ -2902,7 +2767,7 @@
    },
    {
     "toolId": "plugins_bundle",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "write",
     "description": "Create or package a new plugin bundle manifest (plugin.json) declaring bundled skills, rules, MCP servers, and hooks.",
     "inputSchema": {
@@ -2948,7 +2813,7 @@
    },
    {
     "toolId": "plugins_toggle",
-    "serverId": "automations",
+    "serverId": "customizations",
     "category": "write",
     "description": "Enable or disable a plugin bundle and all its constituent components at once.",
     "inputSchema": {

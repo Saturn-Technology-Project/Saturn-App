@@ -22,7 +22,7 @@ use saturn_tools::sandbox::{DEFAULT_SANDBOX, SandboxSettings};
 use serde_json::{Value, json};
 
 use crate::builtins::{
-    AUTOMATIONS_ID, BROWSER_ID, COMPUTER_USE_ID, GENERAL_SKILLS_ID, ORIGIN_ID, RESEARCH_ID,
+    BROWSER_ID, COMPUTER_USE_ID, CUSTOMIZATIONS_ID, GENERAL_SKILLS_ID, ORIGIN_ID, RESEARCH_ID,
 };
 use crate::checkpoints::{CommandSnapshot, StepCheckpoint};
 use crate::origin::Origin;
@@ -380,17 +380,14 @@ impl Kernel {
             self.load_toolkits(run_id, std::slice::from_ref(&server))
                 .await?;
         }
-        if matches!(server.as_str(), AUTOMATIONS_ID | "antigravity-skills") {
+        if matches!(server.as_str(), CUSTOMIZATIONS_ID | "antigravity-skills") {
             // Rules and skills are written in the chat's project (or the agent's workspace), not the runtime's own folder.
             let run = self.get_run(run_id)?;
             let workspace = self
                 .workdir_of(&run)?
                 .unwrap_or_else(|| self.store.root().join("workspace"));
             return Ok(
-                match self
-                    .run_agent_tool(tool, arguments, agent_id, &workspace)
-                    .await
-                {
+                match self.run_agent_tool(tool, arguments, &workspace).await {
                     Ok(result) => completed(result),
                     Err(reason) => failed(&reason),
                 },

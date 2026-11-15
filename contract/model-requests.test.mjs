@@ -2,7 +2,7 @@
 // after tool calls, and what is left behind when a call is refused. All providers here are fake, on this computer.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { actedSinceAsking, agentOn, api, call, fakeModel, fakeServer, request, turn, until } from "./model-harness.mjs";
+import { actedSinceAsking, agentOn, api, call, fakeModel, fakeServer, turn, until } from "./model-harness.mjs";
 import { startRuntime } from "./runtime.mjs";
 
 const anthropicMessage = { id: "msg_1", type: "message", role: "assistant", model: "m", content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } };
@@ -165,17 +165,23 @@ test("after a round of tool calls, the next model call never ends on the assista
 
 test("a call refused for a missing key says so, and its span fails with the reason", async () => {
   const connection = await api(runtime, "POST", "/connections/models", { name: "Gemini", provider: "gemini", model: "gemini-3.8-flash" });
-  const agent = await api(runtime, "POST", "/agents", { name: "On Gemini", modelConnectionId: connection.id });
-  const refused = await request(runtime, "POST", "/automations/draft", { text: "every morning summarize", agentId: agent.id });
-  assert.equal(refused.status, 409);
-  assert.match(refused.body.error, /no Gemini API key/);
+  // The background model, here one without its key, is asked what to remember after the sixth turn of a chat.
+  await api(runtime, "PATCH", "/settings", { completionModelId: connection.id });
+  try {
+    const setup = await agentOn(runtime, await model(() => "ok"));
+    for (let index = 1; index <= 6; index += 1) assert.equal((await turn(runtime, setup, `question ${index}.`)).status, "completed");
 
-  const spans = await until("the refused call's span", async () => {
-    const traces = await api(runtime, "GET", "/telemetry/traces");
-    const lists = await Promise.all(traces.map((item) => api(runtime, "GET", `/telemetry/traces/${item.traceId}`)));
-    return lists.flat().filter((span) => span.name === "chat gemini-3.8-flash");
-  }, (found) => found.length > 0);
-  assert.equal(spans[0].status, "error");
-  assert.equal(spans[0].attributes["error.type"], "http_409");
-  assert.equal(spans[0].events.filter((event) => event.name === "exception").length, 1);
+    const spans = await until("the refused call's span", async () => {
+      const traces = await api(runtime, "GET", "/telemetry/traces");
+      const lists = await Promise.all(traces.map((item) => api(runtime, "GET", `/telemetry/traces/${item.traceId}`)));
+      return lists.flat().filter((span) => span.name === "chat gemini-3.8-flash");
+    }, (found) => found.length > 0);
+    assert.equal(spans[0].status, "error");
+    assert.equal(spans[0].attributes["error.type"], "http_409");
+    const exceptions = spans[0].events.filter((event) => event.name === "exception");
+    assert.equal(exceptions.length, 1);
+    assert.match(exceptions[0].attributes["exception.message"], /no Gemini API key/);
+  } finally {
+    await api(runtime, "PATCH", "/settings", { completionModelId: null });
+  }
 });

@@ -1,19 +1,15 @@
-//! The tools an agent has for automations, widget templates, customizations, legacy workflows and plugins. Automations and
-//! plugins go through the kernel, so they get the same checks and scheduling as their pages in the app. What they write in
-//! the workspace stays there: a cloned repository can bring links that lead elsewhere.
+//! The tools an agent has for widget templates, customizations, legacy workflows and plugins. Plugins go through the
+//! kernel, so they get the same checks as their page in the app. What they write in the workspace stays there: a cloned
+//! repository can bring links that lead elsewhere.
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use jiff::tz::TimeZone;
 use regex::Regex;
 use saturn_domain::js;
-use saturn_domain::schedule::{cron_to_trigger, trigger_to_cron};
 use saturn_domain::skills::workspace::Workspace;
 use saturn_tools::file::inside_workspace;
 use serde_json::{Value, json};
 
-use crate::automations::valid_time_zone;
-use crate::records::text;
 use crate::{CoreError, Kernel};
 
 /// Starter snippets for a widget, by type.
@@ -106,26 +102,14 @@ async fn listing(folder: &Path) -> Vec<(String, std::fs::FileType)> {
 }
 
 impl Kernel {
-    /// Runs one of these tools for `agent_id`, in `workspace`.
+    /// Runs one of these tools in `workspace`.
     pub async fn run_agent_tool(
         self: &Arc<Self>,
         tool: &str,
         args: &Value,
-        agent_id: &str,
         workspace: &Path,
     ) -> Result<Value, String> {
         match tool {
-            "automation_list" => Ok(self.automation_list(args)),
-            "automation_create" => self.automation_create(args, agent_id).await,
-            "automation_trigger" => self.automation_trigger(args).await,
-            "automation_toggle" => self.automation_toggle(args).await,
-            "automation_delete" => {
-                let id = js::text(args.get("automationId"));
-                self.delete_automation(&id).await.map_err(said)?;
-                Ok(
-                    json!({ "success": true, "automationId": id, "message": format!("Automation {id} deleted.") }),
-                )
-            }
             "generative_ui_template" => Ok(widget_template(args)),
             "customizations_list" => Ok(customizations_list(args, workspace).await),
             "customizations_create_skill" => create_skill(args, workspace).await,
@@ -159,116 +143,6 @@ impl Kernel {
             _ => Err(format!("Unknown Antigravity skill tool: {tool}")),
         }
     }
-
-    fn automation_list(&self, args: &Value) -> Value {
-        let automations = self.list_automations();
-        let filter = or_default(args, "filter", "all");
-        let shown: Vec<Value> = automations
-            .iter()
-            .filter(|item| {
-                let enabled = js::truthy(item.get("enabled"));
-                match filter.as_str() {
-                    "enabled" => enabled,
-                    "disabled" => !enabled,
-                    _ => true,
-                }
-            })
-            .map(describe)
-            .collect();
-        json!({ "total": automations.len(), "filter": filter, "automations": shown })
-    }
-
-    async fn automation_create(&self, args: &Value, agent_id: &str) -> Result<Value, String> {
-        let agent = if js::truthy(args.get("agentId")) {
-            js::text(args.get("agentId"))
-        } else {
-            agent_id.to_owned()
-        };
-        let cron = js::text(args.get("cron"));
-        let (trigger, zone) = cron_to_trigger(&cron, |zone| {
-            valid_time_zone(Some(&json!(zone))).map_err(said)
-        })?;
-        let zone = zone.unwrap_or_else(|| {
-            match TimeZone::system().iana_name().unwrap_or("UTC") {
-                // Linux names UTC by its alias in the zone database; it is the same zone.
-                "Etc/UTC" | "Etc/UCT" | "Etc/Universal" | "Etc/Zulu" | "UCT" | "Universal"
-                | "Zulu" => "UTC",
-                zone => zone,
-            }
-            .to_owned()
-        });
-        let created = self
-            .create_automation(&json!({
-                "name": js::text(args.get("name")),
-                "prompt": js::text(args.get("prompt")),
-                "agentId": agent,
-                "trigger": trigger,
-                "timeZone": zone,
-                "enabled": args.get("enabled") != Some(&Value::Bool(false)),
-            }))
-            .await
-            .map_err(said)?;
-        let next = created["nextRun"].as_str().unwrap_or("when enabled");
-        Ok(json!({
-            "success": true,
-            "automation": describe(&created),
-            "message": format!("Automation \"{}\" created; next run {next} ({}).", text(&created, "name"), text(&created, "timeZone")),
-        }))
-    }
-
-    async fn automation_trigger(self: &Arc<Self>, args: &Value) -> Result<Value, String> {
-        let ran = self
-            .run_automation(&js::text(args.get("automationId")))
-            .await
-            .map_err(said)?;
-        let name = text(&ran, "name");
-        let error = ran.get("lastError").filter(|error| js::truthy(Some(error)));
-        Ok(json!({
-            "success": error.is_none(),
-            "automationId": ran["id"],
-            "status": if error.is_some() { "failed" } else { "started" },
-            "runId": ran.get("lastRunId").cloned().unwrap_or(Value::Null),
-            "error": error.cloned().unwrap_or(Value::Null),
-            "message": match error {
-                Some(error) => format!("Automation \"{name}\" could not start: {}", js::text(Some(error))),
-                None => format!("Automation \"{name}\" started a run."),
-            },
-        }))
-    }
-
-    async fn automation_toggle(&self, args: &Value) -> Result<Value, String> {
-        let id = js::text(args.get("automationId"));
-        let updated = self
-            .update_automation(&id, &json!({ "enabled": js::truthy(args.get("enabled")) }))
-            .await
-            .map_err(said)?;
-        let enabled = js::truthy(updated.get("enabled"));
-        Ok(json!({
-            "success": true,
-            "automationId": updated["id"],
-            "enabled": enabled,
-            "nextRun": updated.get("nextRun").cloned().unwrap_or(Value::Null),
-            "message": format!("Automation \"{}\" is now {}.", text(&updated, "name"), if enabled { "enabled" } else { "disabled" }),
-        }))
-    }
-}
-
-/// An automation as the tools show it.
-fn describe(item: &Value) -> Value {
-    let or_null = |name: &str| item.get(name).cloned().unwrap_or(Value::Null);
-    json!({
-        "id": item["id"],
-        "name": item["name"],
-        "prompt": item["prompt"],
-        "cron": format!("CRON_TZ={} {}", text(item, "timeZone"), trigger_to_cron(&item["trigger"])),
-        "timeZone": item["timeZone"],
-        "enabled": item["enabled"],
-        "agentId": item["agentId"],
-        "agentName": item["agentName"],
-        "nextRun": or_null("nextRun"),
-        "lastRunAt": or_null("lastRunAt"),
-        "lastError": or_null("lastError"),
-    })
 }
 
 /// A starter snippet for a widget; an unknown type gets the empty one.

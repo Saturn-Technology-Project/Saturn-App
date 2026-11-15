@@ -21,7 +21,6 @@ pub mod admin;
 pub mod agent_programs;
 mod agent_sessions;
 pub mod agent_tools;
-pub mod automations;
 pub mod builtins;
 pub mod catalog;
 pub mod checkpoints;

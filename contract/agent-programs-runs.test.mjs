@@ -261,32 +261,32 @@ test("Permission rules govern the Saturn skills a Codex turn calls: a deny refus
   const saturn = await startWithPrograms();
   try {
     const rule = (tool, pattern, effect) => ({ tool, pattern, effect });
-    const agent = await coder(saturn, "codex", { model: "default", autonomy: "bypass", mcpConnectionIds: ["automations"] });
-    await saturn.api("POST", "/permissions/rules", { scope: "agent", agentId: agent.id, rule: rule("automation_list", "*", "deny") });
-    await saturn.api("POST", "/permissions/rules", { scope: "agent", agentId: agent.id, rule: rule("automation_create", "*", "ask") });
+    const agent = await coder(saturn, "codex", { model: "default", autonomy: "bypass", mcpConnectionIds: ["customizations"] });
+    await saturn.api("POST", "/permissions/rules", { scope: "agent", agentId: agent.id, rule: rule("customizations_list", "*", "deny") });
+    await saturn.api("POST", "/permissions/rules", { scope: "agent", agentId: agent.id, rule: rule("customizations_create_rule", "*", "ask") });
     const item = (id, tool, args = {}) => ({ id, type: "mcp_tool_call", server: "saturn", tool, arguments: args });
     await saturn.scenario({
       steps: [
         { send: { type: "thread.started", thread_id: "thread-R" } },
         { skills: { rpc: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "stand-in", version: "1" } } } },
-        { send: { type: "item.started", item: { ...item("mcp1", "automation_list"), status: "in_progress" } } },
-        { skills: { rpc: "tools/call", id: 3, params: { name: "automation_list", arguments: {} } } },
-        { send: { type: "item.completed", item: { ...item("mcp1", "automation_list"), status: "failed", error: { message: "Denied" } } } },
-        { send: { type: "item.started", item: { ...item("mcp2", "automation_create", { name: "nightly" }), status: "in_progress" } } },
-        { skills: { rpc: "tools/call", id: 4, params: { name: "automation_create", arguments: { name: "nightly" } } } },
-        { send: { type: "item.completed", item: { ...item("mcp2", "automation_create", { name: "nightly" }), status: "failed", error: { message: "Denied" } } } },
+        { send: { type: "item.started", item: { ...item("mcp1", "customizations_list"), status: "in_progress" } } },
+        { skills: { rpc: "tools/call", id: 3, params: { name: "customizations_list", arguments: {} } } },
+        { send: { type: "item.completed", item: { ...item("mcp1", "customizations_list"), status: "failed", error: { message: "Denied" } } } },
+        { send: { type: "item.started", item: { ...item("mcp2", "customizations_create_rule", { name: "nightly" }), status: "in_progress" } } },
+        { skills: { rpc: "tools/call", id: 4, params: { name: "customizations_create_rule", arguments: { name: "nightly" } } } },
+        { send: { type: "item.completed", item: { ...item("mcp2", "customizations_create_rule", { name: "nightly" }), status: "failed", error: { message: "Denied" } } } },
         { send: { type: "turn.completed", usage: {} } },
       ],
     });
-    const begun = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "schedule" });
+    const begun = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "write a rule" });
     const card = await untilCard(saturn, begun.id);
-    assert.equal(card.action.toolId, "automation_create", "the denied call made no card");
-    assert.match(card.action.reason, /Asks by a permission rule \(agent: automation_create: \*\)/);
+    assert.equal(card.action.toolId, "customizations_create_rule", "the denied call made no card");
+    assert.match(card.action.reason, /Asks by a permission rule \(agent: customizations_create_rule: \*\)/);
     await saturn.api("POST", `/runs/${begun.id}/actions/${card.action.id}/decision`, { allow: false });
     const done = await untilFinished(saturn, begun.id);
     assert.equal(done.status, "completed", done.error);
-    assert.deepEqual(done.actions.map((action) => [action.toolId, action.status]), [["automation_list", "denied"], ["automation_create", "denied"]]);
-    assert.match(done.actions[0].reason, /Denied by a permission rule \(agent: automation_list: \*\)/);
+    assert.deepEqual(done.actions.map((action) => [action.toolId, action.status]), [["customizations_list", "denied"], ["customizations_create_rule", "denied"]]);
+    assert.match(done.actions[0].reason, /Denied by a permission rule \(agent: customizations_list: \*\)/);
   } finally {
     await saturn.stop();
   }
@@ -295,12 +295,12 @@ test("Permission rules govern the Saturn skills a Codex turn calls: a deny refus
 test("An Ask turn refuses anything that changes things, and still runs a read-only skill", async () => {
   const saturn = await startWithPrograms();
   try {
-    const agent = await coder(saturn, "claude-code", { autonomy: "bypass", mcpConnectionIds: ["automations"] });
+    const agent = await coder(saturn, "claude-code", { autonomy: "bypass", mcpConnectionIds: ["customizations"] });
     await saturn.scenario({
       steps: [
         { permission: { tool: "Read", input: {}, id: "tu_read" } },
-        { permission: { tool: "mcp__saturn__automation_list", input: {}, id: "tu_list" } },
-        { permission: { tool: "mcp__saturn__automation_delete", input: { id: "x" }, id: "tu_delete" } },
+        { permission: { tool: "mcp__saturn__customizations_list", input: {}, id: "tu_list" } },
+        { permission: { tool: "mcp__saturn__customizations_create_skill", input: { id: "x" }, id: "tu_delete" } },
         { permission: { tool: "Bash", input: { command: "ls" }, id: "tu_bash" } },
         result("answered"),
       ],
@@ -309,7 +309,7 @@ test("An Ask turn refuses anything that changes things, and still runs a read-on
     assert.equal(run.status, "completed", run.error);
     const answers = (await saturn.journal()).filter((entry) => entry.permission).map((entry) => [entry.permission, entry.response.behavior]);
     assert.deepEqual(answers, [["tu_read", "allow"], ["tu_list", "allow"], ["tu_delete", "deny"], ["tu_bash", "deny"]]);
-    assert.deepEqual(run.actions.map((item) => [item.id, item.toolId, item.status]), [["tu_delete", "automation_delete", "denied"], ["tu_bash", "Bash", "denied"]]);
+    assert.deepEqual(run.actions.map((item) => [item.id, item.toolId, item.status]), [["tu_delete", "customizations_create_skill", "denied"], ["tu_bash", "Bash", "denied"]]);
     assert.match(run.actions[1].reason, /read/i);
   } finally {
     await saturn.stop();
@@ -345,26 +345,26 @@ test("An edit in a project keeps its original, so the chat can show the change a
 test("Saturn's skills reach Claude Code as a server in its own process, and their calls run through Saturn", async () => {
   const saturn = await startWithPrograms();
   try {
-    const agent = await coder(saturn, "claude-code", { autonomy: "bypass", mcpConnectionIds: ["automations"] });
+    const agent = await coder(saturn, "claude-code", { autonomy: "bypass", mcpConnectionIds: ["customizations"] });
     await saturn.scenario({
       steps: [
         { mcp: { method: "initialize", id: 1, params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "stand-in", version: "1" } } } },
         { mcp: { method: "notifications/initialized", notification: true } },
         { mcp: { method: "tools/list", id: 2 } },
-        { mcp: { method: "tools/call", id: 3, params: { name: "automation_list", arguments: {} } } },
+        { mcp: { method: "tools/call", id: 3, params: { name: "customizations_list", arguments: {} } } },
         { mcp: { method: "tools/call", id: 4, params: { name: "no_such_tool", arguments: {} } } },
-        { mcp: { method: "tools/call", id: 5, server: "other", params: { name: "automation_list", arguments: {} } } },
+        { mcp: { method: "tools/call", id: 5, server: "other", params: { name: "customizations_list", arguments: {} } } },
         result("used a skill"),
       ],
     });
-    const run = await runToEnd(saturn, agent.id, { input: "list automations" });
+    const run = await runToEnd(saturn, agent.id, { input: "list customizations" });
     assert.equal(run.status, "completed", run.error);
 
     const [initialize] = await received(saturn);
     assert.deepEqual(initialize.request.sdkMcpServers, ["saturn"]);
     const manifest = initialize.request.sdkMcpServerManifests.saturn;
     assert.deepEqual(manifest.initializeResult.serverInfo, { name: "saturn", version: "1.0.0" });
-    assert.ok(manifest.toolsListResult.tools.some((tool) => tool.name === "automation_list" && tool.inputSchema.type === "object"));
+    assert.ok(manifest.toolsListResult.tools.some((tool) => tool.name === "customizations_list" && tool.inputSchema.type === "object"));
 
     const answers = Object.fromEntries((await saturn.journal()).filter((entry) => entry.mcp).map((entry, index) => [`${index}:${entry.mcp}`, entry.response]));
     assert.deepEqual(answers["0:initialize"].mcp_response.result.serverInfo, { name: "saturn", version: "1.0.0" });
@@ -375,7 +375,7 @@ test("Saturn's skills reach Claude Code as a server in its own process, and thei
     assert.deepEqual(listed.map((tool) => tool.name).sort(), manifest.toolsListResult.tools.map((tool) => tool.name).sort());
     const called = answers["3:tools/call"].mcp_response.result;
     assert.equal(called.isError, undefined);
-    assert.deepEqual(JSON.parse(called.content[0].text), { total: 0, filter: "all", automations: [] });
+    assert.deepEqual(JSON.parse(called.content[0].text).discovered, { skillsCount: 0, skills: [], rulesCount: 0, rules: [] });
     assert.deepEqual(answers["4:tools/call"].mcp_response.result, { content: [{ type: "text", text: "Unknown tool: no_such_tool" }], isError: true });
     assert.ok(answers["5:tools/call"].error, "only the server Saturn gave it");
   } finally {
@@ -606,9 +606,9 @@ test("A resumed Claude Code session gets instructions that changed", async () =>
 test("A second call that arrives before Codex reports the first gets its own card", async () => {
   const saturn = await startWithPrograms();
   try {
-    const agent = await coder(saturn, "codex", { model: "default", autonomy: "review", mcpConnectionIds: ["automations"] });
-    const call = { name: "automation_list", arguments: {} };
-    const item = { id: "mcp1", type: "mcp_tool_call", server: "saturn", tool: "automation_list", arguments: {} };
+    const agent = await coder(saturn, "codex", { model: "default", autonomy: "review", mcpConnectionIds: ["customizations"] });
+    const call = { name: "customizations_list", arguments: {} };
+    const item = { id: "mcp1", type: "mcp_tool_call", server: "saturn", tool: "customizations_list", arguments: {} };
     await saturn.scenario({
       steps: [
         { send: { type: "thread.started", thread_id: "thread-M" } },
@@ -631,7 +631,7 @@ test("A second call that arrives before Codex reports the first gets its own car
     await saturn.api("POST", `/runs/${begun.id}/actions/${waiting.id}/decision`, { allow: false });
     const done = await untilFinished(saturn, begun.id);
     assert.equal(done.status, "completed", done.error);
-    assert.deepEqual(done.actions.map((action) => [action.toolId, action.status]), [["automation_list", "completed"], ["automation_list", "denied"]]);
+    assert.deepEqual(done.actions.map((action) => [action.toolId, action.status]), [["customizations_list", "completed"], ["customizations_list", "denied"]]);
   } finally {
     await saturn.stop();
   }
@@ -676,9 +676,9 @@ test("A Codex turn that fails says why, or how to sign in", async () => {
 test("Saturn's skills reach Codex over /agent-mcp with a token only that turn holds, and Review asks for them", async () => {
   const saturn = await startWithPrograms();
   try {
-    const agent = await coder(saturn, "codex", { model: "default", autonomy: "review", mcpConnectionIds: ["automations"] });
-    const call = { name: "automation_list", arguments: {} };
-    const item = { id: "mcp1", type: "mcp_tool_call", server: "saturn", tool: "automation_list", arguments: {} };
+    const agent = await coder(saturn, "codex", { model: "default", autonomy: "review", mcpConnectionIds: ["customizations"] });
+    const call = { name: "customizations_list", arguments: {} };
+    const item = { id: "mcp1", type: "mcp_tool_call", server: "saturn", tool: "customizations_list", arguments: {} };
     await saturn.scenario({
       steps: [
         { send: { type: "thread.started", thread_id: "thread-M" } },
@@ -696,14 +696,14 @@ test("Saturn's skills reach Codex over /agent-mcp with a token only that turn ho
     });
     const begun = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "list" });
     const card = await untilCard(saturn, begun.id);
-    assert.deepEqual([card.action.id, card.action.toolId, card.action.reason], ["mcp1", "automation_list", "automation_list needs your approval"]);
+    assert.deepEqual([card.action.id, card.action.toolId, card.action.reason], ["mcp1", "customizations_list", "customizations_list needs your approval"]);
     await saturn.api("POST", `/runs/${begun.id}/actions/mcp1/decision`, { allow: true });
     const second = await saturn.until("the next card", () => saturn.api("GET", `/runs/${begun.id}`), (run) => run.status === "waiting_approval" && run.actions.some((action) => action.id !== "mcp1" && action.status === "waiting_approval"));
     const waiting = second.actions.find((action) => action.status === "waiting_approval");
     await saturn.api("POST", `/runs/${begun.id}/actions/${waiting.id}/decision`, { allow: false });
     const done = await untilFinished(saturn, begun.id);
     assert.equal(done.status, "completed", done.error);
-    assert.deepEqual(done.actions.map((action) => [action.toolId, action.status]), [["automation_list", "completed"], ["automation_list", "denied"]]);
+    assert.deepEqual(done.actions.map((action) => [action.toolId, action.status]), [["customizations_list", "completed"], ["customizations_list", "denied"]]);
 
     const [program] = await started(saturn);
     const settings = program.args.filter((argument) => argument.startsWith("mcp_servers.saturn."));
@@ -718,8 +718,8 @@ test("Saturn's skills reach Codex over /agent-mcp with a token only that turn ho
     const skills = (await saturn.journal()).filter((entry) => entry.skills);
     assert.deepEqual(skills.map((entry) => [entry.skills, entry.status]), [["initialize", 200], ["tools/list", 200], ["tools/call", 200], ["tools/call", 200], ["tools/call", 200]]);
     assert.deepEqual(skills[0].body.result.serverInfo, { name: "saturn", version: "1.0.0" });
-    assert.ok(skills[1].body.result.tools.some((tool) => tool.name === "automation_list"));
-    assert.deepEqual(JSON.parse(skills[2].body.result.content[0].text), { total: 0, filter: "all", automations: [] });
+    assert.ok(skills[1].body.result.tools.some((tool) => tool.name === "customizations_list"));
+    assert.deepEqual(JSON.parse(skills[2].body.result.content[0].text).discovered, { skillsCount: 0, skills: [], rulesCount: 0, rules: [] });
     assert.deepEqual(skills[3].body.result, { content: [{ type: "text", text: "Denied by the user" }], isError: true });
     assert.deepEqual(skills[4].body.result, { content: [{ type: "text", text: "Unknown tool: no_such_tool" }], isError: true });
 
@@ -736,12 +736,12 @@ test("Saturn's skills reach Codex over /agent-mcp with a token only that turn ho
 test("The skills endpoint only takes POST, and an Ask turn refuses a skill that changes things", async () => {
   const saturn = await startWithPrograms();
   try {
-    const agent = await coder(saturn, "codex", { model: "default", autonomy: "bypass", mcpConnectionIds: ["automations"] });
+    const agent = await coder(saturn, "codex", { model: "default", autonomy: "bypass", mcpConnectionIds: ["customizations"] });
     await saturn.scenario({
       steps: [
         { skills: { method: "GET" } },
-        { skills: { rpc: "tools/call", id: 2, params: { name: "automation_list", arguments: {} } } },
-        { skills: { rpc: "tools/call", id: 3, params: { name: "automation_delete", arguments: { id: "x" } } } },
+        { skills: { rpc: "tools/call", id: 2, params: { name: "customizations_list", arguments: {} } } },
+        { skills: { rpc: "tools/call", id: 3, params: { name: "customizations_create_skill", arguments: { id: "x" } } } },
         { send: { type: "turn.completed", usage: {} } },
       ],
     });
@@ -760,7 +760,7 @@ test("The skills endpoint only takes POST, and an Ask turn refuses a skill that 
 test("Stopping a Codex turn ends the program and closes its token", async () => {
   const saturn = await startWithPrograms();
   try {
-    const agent = await coder(saturn, "codex", { model: "default", autonomy: "bypass", mcpConnectionIds: ["automations"] });
+    const agent = await coder(saturn, "codex", { model: "default", autonomy: "bypass", mcpConnectionIds: ["customizations"] });
     await saturn.scenario({ steps: [{ send: { type: "thread.started", thread_id: "thread-S" } }, { hang: true }] });
     const begun = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "go" });
     await saturn.until("the program", () => started(saturn), (list) => list.length === 1);

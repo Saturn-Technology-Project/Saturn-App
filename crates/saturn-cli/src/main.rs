@@ -428,7 +428,7 @@ async fn run(client: &Client, arguments: &Arguments) -> Result<i32, CliError> {
             .iter()
             .find(|item| item["id"] == agent["modelConnectionId"])
     });
-    // The same rule as automations: Anthropic's terms allow automated access to Claude only through an API key.
+    // Anthropic's terms allow automated access to Claude only through an API key, so an unattended run on it is refused.
     if model.is_some_and(|model| model["provider"] == "claude-code") && !interactive {
         return Err(misuse(format!(
             "{agent_name} runs on Claude (via Claude Code), which saturn cannot run unattended: that would be a violation of Anthropic's policy on automated access. Use an agent on an API model, or run it from a terminal."

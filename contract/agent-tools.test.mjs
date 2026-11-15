@@ -1,5 +1,6 @@
-// The tools an agent has for automations, customizations, workflows and plugins, whichever language runs them. Answers are
-// compared with contract/cases/agent-tools.json, recorded from the TypeScript runtime before it was removed; a change here is a deliberate one.
+// The tools an agent has for customizations, workflows and plugins, whichever language runs them. Answers are compared
+// with contract/cases/agent-tools.json, recorded from the TypeScript runtime before it was removed; a change here is a
+// deliberate one. Its recording of the automation tools, which are gone, is no longer compared.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
@@ -32,8 +33,7 @@ async function call(method, route, body) {
 
 before(async () => {
   scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-tools-")));
-  // A fixed zone, so an automation in "this computer's" zone records the same everywhere.
-  runtime = await startRuntime({ env: { TZ: "UTC" } });
+  runtime = await startRuntime();
   server = createServer((request, response) => {
     let raw = "";
     request.on("data", (chunk) => { raw += chunk; });
@@ -46,7 +46,7 @@ before(async () => {
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const connection = await call("POST", "/connections/models", { name: "Scripted", provider: "openai", model: "s", baseUrl: `http://127.0.0.1:${server.address().port}` });
-  agent = await call("POST", "/agents", { name: "Tools", modelConnectionId: connection.id, autonomy: "bypass", mcpConnectionIds: ["automations"] });
+  agent = await call("POST", "/agents", { name: "Tools", modelConnectionId: connection.id, autonomy: "bypass", mcpConnectionIds: ["customizations"] });
 });
 after(async () => {
   await runtime?.stop();
@@ -77,50 +77,11 @@ async function run(steps, folder) {
 async function matchesRecording(name, value) {
   const normalized = JSON.parse(JSON.stringify(placed(value, [[runtime.dataDir, "<data>"], [scratch, "<scratch>"]]))
     .replaceAll(agent.id, "<agent>")
-    .replace(/(auto|run)_[0-9a-f]{8,}/g, "<$1>")
-    .replace(/"(nextRun|lastRunAt)":"[^"]*"/g, '"$1":"<time>"')
-    .replace(/next run [0-9:\-TZ. ]+\(/g, "next run <time> ("));
+    .replace(/run_[0-9a-f]{8,}/g, "<run>"));
   const all = await readFile(casesFile, "utf8").then(JSON.parse).catch(() => ({}));
   assert.ok(all[name], `${name} is not recorded`);
   assert.deepEqual(normalized, all[name]);
 }
-
-test("automations made by an agent are the ones on the Automations page", async () => {
-  const [created] = await run([["automation_create", { name: "Nightly", prompt: "Sum it up", cron: "CRON_TZ=Asia/Taipei 0 9 * * 1-5" }]]);
-  const id = created.result.automation.id;
-  assert.equal(created.result.automation.agentId, agent.id, "the calling agent runs it");
-  const [local] = await run([["automation_create", { name: "Here", prompt: "x", cron: "30 * * * *", enabled: false }]]);
-  assert.equal(local.result.automation.timeZone, "UTC", "this computer's zone, here set to UTC");
-  assert.equal(local.result.automation.enabled, false);
-  assert.match(local.result.message, /next run when enabled/);
-  const localId = local.result.automation.id;
-
-  const answers = await run([
-    ["automation_create", { name: "Each week", prompt: "x", cron: "CRON_TZ=UTC 5 7 * * 7" }],
-    ["automation_create", { name: "Each day", prompt: "x", cron: "CRON_TZ=UTC 5 7 * * *" }],
-    ["automation_create", { name: "Often", prompt: "x", cron: "*/5 * * * *" }],
-    ["automation_create", { name: "Elsewhere", prompt: "x", cron: "CRON_TZ=No/Such 0 9 * * *" }],
-    ["automation_create", { name: "Too few", prompt: "x", cron: "0 9 *" }],
-    ["automation_create", { name: "", prompt: "", cron: "0 9 * * *" }],
-    ["automation_create", { name: "Nobody", prompt: "x", cron: "0 9 * * *", agentId: "agt_none" }],
-    ["automation_list", { filter: "disabled" }],
-    ["automation_list", { filter: "enabled" }],
-    ["automation_toggle", { automationId: id, enabled: false }],
-    ["automation_toggle", { automationId: "aut_none", enabled: true }],
-    ["automation_delete", { automationId: "aut_none" }],
-    ["automation_trigger", { automationId: "aut_none" }],
-  ]);
-  await matchesRecording("automations", answers);
-  assert.equal((await call("GET", "/automations")).find((item) => item.id === id).enabled, false);
-
-  const [triggered] = await run([["automation_trigger", { automationId: localId }]]);
-  assert.equal(triggered.result.success, true);
-  assert.equal(triggered.result.status, "started");
-  assert.ok(triggered.result.runId);
-  const [removed] = await run([["automation_delete", { automationId: localId }]]);
-  assert.equal(removed.result.message, `Automation ${localId} deleted.`);
-  assert.ok(!(await call("GET", "/automations")).some((item) => item.id === localId));
-});
 
 test("the widget templates are the ones the tool promises", async () => {
   await matchesRecording("templates", await run([
