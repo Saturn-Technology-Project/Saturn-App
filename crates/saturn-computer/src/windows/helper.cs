@@ -352,13 +352,20 @@ public static class SaturnDesktop
             if ((shift & 2) != 0 && !mods.Contains(0x11)) mods.Add(0x11);
             if ((shift & 4) != 0 && !mods.Contains(0x12)) mods.Add(0x12);
         }
-        var inputs = new List<INPUT>();
-        foreach (var mod in mods) inputs.Add(KeyInput((ushort)mod, 0, mod == 0x5B ? EXTENDED : 0));
-        inputs.Add(KeyInput((ushort)vk, 0, extended ? EXTENDED : 0));
-        inputs.Add(KeyInput((ushort)vk, 0, (extended ? EXTENDED : 0) | KEYUP));
-        for (int i = mods.Count - 1; i >= 0; i--) inputs.Add(KeyInput((ushort)mods[i], 0, (mods[i] == 0x5B ? EXTENDED : 0) | KEYUP));
-        Send(inputs);
+        // The modifiers, the key and the modifiers' release each go on their own, a moment apart: Windows 11's own apps
+        // (Notepad among them) read a modifier's state when they get to the key, and in one burst Ctrl+V arrived as "v".
+        var down = new List<INPUT>();
+        foreach (var mod in mods) down.Add(KeyInput((ushort)mod, 0, mod == 0x5B ? EXTENDED : 0));
+        var key = new List<INPUT> { KeyInput((ushort)vk, 0, extended ? EXTENDED : 0), KeyInput((ushort)vk, 0, (extended ? EXTENDED : 0) | KEYUP) };
+        var up = new List<INPUT>();
+        for (int i = mods.Count - 1; i >= 0; i--) up.Add(KeyInput((ushort)mods[i], 0, (mods[i] == 0x5B ? EXTENDED : 0) | KEYUP));
+        if (mods.Count > 0) { Send(down); Thread.Sleep(MODIFIER_PAUSE); }
+        Send(key);
+        if (mods.Count > 0) { Thread.Sleep(MODIFIER_PAUSE); Send(up); }
     }
+
+    // How long a held modifier is given before its key, and the key before the modifier is let go.
+    const int MODIFIER_PAUSE = 30;
 
     // How long the app in front is given to read a paste before the clipboard changes again.
     const int PASTE_READ = 250;
@@ -380,9 +387,9 @@ public static class SaturnDesktop
                 for (int c = 0; c < cells.Length; c++)
                 {
                     if (cells[c].Length > 0) Paste(cells[c]);
-                    if (c < cells.Length - 1) Key(new int[0], 0x09, "", false);
+                    if (c < cells.Length - 1) { Key(new int[0], 0x09, "", false); Settle(); }
                 }
-                if (l < lines.Length - 1) Key(new int[0], 0x0D, "", false);
+                if (l < lines.Length - 1) { Key(new int[0], 0x0D, "", false); Settle(); }
             }
         }
         finally
