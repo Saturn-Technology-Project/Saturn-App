@@ -31,7 +31,7 @@ Saturn's code follows one standard, enforced automatically:
 
 ## Test policy
 
-This policy is mandatory for every change to Saturn's own code (the runtime, the desktop app, the scripts; the [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) follows it in its own repository):
+This policy is mandatory for every change to Saturn's own code (the runtime, the desktop app, the scripts):
 
 1. **New functionality comes with tests.** A pull request that adds major functionality must add tests for it to the automated suite (`contract/`, a crate's tests, `scripts/eval/`), or say why it cannot be tested automatically; such a pull request is not merged until it does.
 2. **Every bug fix comes with a regression test** that fails before the fix and passes after it, wherever the bug can be reproduced in a test.

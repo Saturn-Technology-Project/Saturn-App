@@ -564,23 +564,6 @@ saturn approve RUN ACTION
 
 `saturn run` 會把 Agent 的步驟輸出到 stderr、答案輸出到 stdout（`--json` 輸出整個 run）。需要核准時，在終端機會直接詢問；在腳本中 `saturn` 會以代碼 3 結束，並印出可回答它的 `saturn approve` 指令。使用 Claude（透過 Claude Code）的 Agent 只能在終端機中執行，不能無人值守。
 
-**從程式呼叫。** [Saturn SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)（獨立的 repository）提供同一套 API 的 TypeScript client，沒有任何相依套件：啟動 run、即時取得每個步驟、在 callback 裡回答核准、讀取它改了哪些檔案。
-
-```ts
-import { Saturn } from "@saturn-app/sdk";
-
-const saturn = new Saturn(); // 自動找到執行中的 Saturn 與其 token
-const run = await saturn.run("fix the failing test", {
-  agent: "Saturn",
-  project: process.cwd(),
-  onStep: (step) => console.log("·", step.toolId),
-  onApproval: (step) => step.toolId === "code" && String(step.arguments.command).startsWith("npm test"),
-});
-console.log(run.status, run.output);
-```
-
-規則相同：使用 Claude（透過 Claude Code）的 Agent 會被拒絕，因為 SDK 是從程式執行它。
-
 ## 本機 API
 
 桌面應用程式是同一個 HTTP API 的用戶端，你的腳本也可以是。[`contract/routes.json`](contract/routes.json) 列出所有路由；最常用的如下：

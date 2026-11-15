@@ -49,8 +49,7 @@ function freePort() {
 }
 
 /**
- * Starts a runtime from this checkout on a free port, with its own data folder and token. The SDK repository's tests
- * (Saturn-Technology-Project/Saturn-SDK) call it too: keep its result's api, base, token and stop.
+ * Starts a runtime from this checkout on a free port, with its own data folder and token.
  */
 export async function startRuntime() {
 	const port = await freePort();

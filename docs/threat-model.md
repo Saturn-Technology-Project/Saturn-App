@@ -6,7 +6,7 @@ What Saturn protects, from whom, how, and what it deliberately leaves to you. It
 
 ## The system
 
-Saturn is a desktop app (Tauri with the system's web view, `desktop/`), a client of one local **runtime** (`crates/`): a Rust HTTP server on `127.0.0.1:4700` that runs the agent loop, calls model providers, executes tools and keeps all state in `~/.saturn-app`. The `saturn` CLI and the [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) (its own repository) are clients of the same API. There is no Saturn server: nothing is sent to Saturn's developers.
+Saturn is a desktop app (Tauri with the system's web view, `desktop/`), a client of one local **runtime** (`crates/`): a Rust HTTP server on `127.0.0.1:4700` that runs the agent loop, calls model providers, executes tools and keeps all state in `~/.saturn-app`. The `saturn` CLI is a client of the same API, as a user's own scripts can be. There is no Saturn server: nothing is sent to Saturn's developers.
 
 Saturn is a workbench for AI research. A project's research records (questions, hypotheses, experiments, frozen versions, runs, samples, labels, findings) are files in the project's `.saturn/research` folder. Runs execute the project's own programs, on this computer or on an SSH host the user configured; the research assistant is an agent that works on those records through `research_*` tools, in the chat's mode (Ask, Approve, Auto, Agent).
 
@@ -166,7 +166,7 @@ Saturn 保護什麼、防範誰、如何防範，以及刻意交由你決定的�
 
 ## 系統概要
 
-Saturn 是一個桌面應用程式（Tauri 與系統的網頁檢視，`desktop/`），是本機 **Runtime**（`crates/`）的 client：一個在 `127.0.0.1:4700` 的 Rust HTTP 伺服器，負責執行 Agent 迴圈、呼叫模型供應商、執行工具，所有狀態存在 `~/.saturn-app`。`saturn` CLI 與 [SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)（獨立的 repository）也是同一套 API 的 client。Saturn 沒有伺服器，不會傳送任何資料給 Saturn 的開發者。
+Saturn 是一個桌面應用程式（Tauri 與系統的網頁檢視，`desktop/`），是本機 **Runtime**（`crates/`）的 client：一個在 `127.0.0.1:4700` 的 Rust HTTP 伺服器，負責執行 Agent 迴圈、呼叫模型供應商、執行工具，所有狀態存在 `~/.saturn-app`。`saturn` CLI 也是同一套 API 的 client，使用者自己的腳本也可以是。Saturn 沒有伺服器，不會傳送任何資料給 Saturn 的開發者。
 
 Saturn 是 AI 研究工作台。專案的研究紀錄（問題、假說、實驗、凍結的版本、執行、樣本、標註、發現）都是專案 `.saturn/research` 資料夾裡的檔案。執行跑的是專案自己的程式，在這台電腦或使用者設定的 SSH 主機上；研究助理是一個 Agent，依對話的模式（Ask、Approve、Auto、Agent）透過 `research_*` 工具處理這些紀錄。
 

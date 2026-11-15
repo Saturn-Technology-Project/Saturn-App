@@ -570,23 +570,6 @@ saturn approve RUN ACTION
 
 `saturn run` streams the agent's steps to stderr and its answer to stdout (`--json` prints the whole run). An approval is asked on a terminal; in a script `saturn` exits with code 3 and prints the `saturn approve` command that answers it. An agent on Claude (via Claude Code) only runs from a terminal, never unattended.
 
-**From code.** The [Saturn SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK) (its own repository) has a dependency-free TypeScript client for the same API: start a run, get its steps as they happen, answer approvals in a callback, read its changes.
-
-```ts
-import { Saturn } from "@saturn-app/sdk";
-
-const saturn = new Saturn(); // finds the running Saturn and its token
-const run = await saturn.run("fix the failing test", {
-  agent: "Saturn",
-  project: process.cwd(),
-  onStep: (step) => console.log("·", step.toolId),
-  onApproval: (step) => step.toolId === "code" && String(step.arguments.command).startsWith("npm test"),
-});
-console.log(run.status, run.output);
-```
-
-The same rule applies: an agent on Claude (via Claude Code) is refused, since the SDK runs it from code.
-
 ## Local API
 
 The desktop app is a client of the same HTTP API, and so can your scripts be. [`contract/routes.json`](contract/routes.json) lists every route; the most used:
