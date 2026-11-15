@@ -1,0 +1,48 @@
+# Fuzz targets for the parsers that read text Saturn did not write: an agent's patch, a hook's answer, a project's
+# skill file and the Windows sandbox launcher's command line. Run with cargo-fuzz on a nightly toolchain, as the Fuzz
+# workflow does: `cargo +nightly fuzz run patch`. Not part of the workspace, and nothing here ships.
+[package]
+name = "saturn-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+saturn-appcontainer = { path = "../crates/saturn-appcontainer" }
+saturn-domain = { path = "../crates/saturn-domain" }
+
+# Its own workspace, so the repository's does not take it in.
+[workspace]
+
+[[bin]]
+name = "patch"
+path = "fuzz_targets/patch.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "hook_answer"
+path = "fuzz_targets/hook_answer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "skill_file"
+path = "fuzz_targets/skill_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sandbox_launcher"
+path = "fuzz_targets/sandbox_launcher.rs"
+test = false
+doc = false
+bench = false

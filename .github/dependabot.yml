@@ -29,6 +29,20 @@ updates:
         update-types: [minor, patch]
     labels: [dependencies, rust]
 
+  # The fuzz targets' own lock file (fuzz/); nothing there ships.
+  - package-ecosystem: cargo
+    directory: /fuzz
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
+    groups:
+      fuzz:
+        patterns: ["*"]
+    labels: [dependencies, rust]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
