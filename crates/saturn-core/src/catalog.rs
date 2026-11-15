@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use url::Url;
 
 use crate::builtins::{
-    AUTOMATIONS_ID, COMPUTER_USE_ID, GENERAL_SKILLS_ID, ORIGIN_ID, RESEARCH_ID, builtin_server,
+    COMPUTER_USE_ID, CUSTOMIZATIONS_ID, GENERAL_SKILLS_ID, ORIGIN_ID, RESEARCH_ID, builtin_server,
     with_general_skills,
 };
 use crate::records::{by_id, by_id_mut, remove, strings, text};
@@ -595,31 +595,28 @@ impl Kernel {
         Ok(agent)
     }
 
-    /// Deletes an agent with its runs, chats and automations.
+    /// Deletes an agent with its runs and chats.
     pub async fn delete_agent(&self, id: &str) -> Result<(), CoreError> {
         let agent = self.get_agent(id)?;
-        let count = |records: &[Value]| {
-            records
+        let runs = self.store.read(|state| {
+            state
+                .runs
                 .iter()
                 .filter(|item| text(item, "agentId") == id)
                 .count()
-        };
-        let (runs, automations) = self
-            .store
-            .read(|state| (count(&state.runs), count(&state.automations)));
+        });
         self.store
             .update(|state| {
                 state.agents.retain(|item| text(item, "id") != id);
                 state.runs.retain(|item| text(item, "agentId") != id);
                 state.threads.retain(|item| text(item, "agentId") != id);
-                state.automations.retain(|item| text(item, "agentId") != id);
             })
             .await?;
         log(
             "catalog",
             "info",
             &format!(
-                "Agent \"{}\" deleted with {runs} runs and {automations} automations",
+                "Agent \"{}\" deleted with {runs} runs",
                 text(&agent, "name")
             ),
         );
@@ -1155,7 +1152,7 @@ impl Kernel {
             .store
             .read(|state| by_id(&state.mcp, id).cloned())
             .ok_or_else(|| CoreError::new(404, "MCP connection not found"))?;
-        let tools = if [COMPUTER_USE_ID, ORIGIN_ID, AUTOMATIONS_ID].contains(&id) {
+        let tools = if [COMPUTER_USE_ID, ORIGIN_ID, CUSTOMIZATIONS_ID].contains(&id) {
             builtin_server(id)["tools"].clone()
         } else {
             let listed = self.listed_tools(id, &server).await?;

@@ -15,15 +15,9 @@ pub const ON_DEMAND_TOOLKITS: [(&str, &str, &[&str]); 4] = [
     ),
     ("browser", "browser", &["browser"]),
     (
-        "automations",
-        "automations",
-        &[
-            "automations",
-            "automation",
-            "customizations",
-            "plugins",
-            "antigravity",
-        ],
+        "customizations",
+        "customizations",
+        &["customizations", "plugins", "antigravity"],
     ),
 ];
 

@@ -14,7 +14,6 @@ use saturn_domain::prompt::{
     PromptInput, RunMode, build_system_prompt, clip, explain_run_error, join_thinking, number_of,
     read_only_refusal,
 };
-use saturn_domain::schedule::{next_slot, previous_slot, slot_label, trigger_of};
 use saturn_domain::skill_files::{parse_skill, skills_prompt};
 use saturn_domain::toolkits::{load_note, toolkit_server};
 use serde::de::DeserializeOwned;
@@ -170,28 +169,13 @@ fn answer(case: &Value) -> Value {
                 })
                 .collect()
         }
-        "localMinute" => json!(saturn_core::automations::local_minute(
-            saturn_domain::time::parse_iso(&words(case, "at")).expect("a time"),
-            &words(case, "zone")
-        )),
-        "previousSlot" => json!(previous_slot(&case["trigger"], field(case, "local"))),
-        "nextSlot" => json!(next_slot(&case["trigger"], field(case, "local"))),
-        "slotLabel" => json!(slot_label(field(case, "minute"))),
-        "triggerOf" => json!(trigger_of(
-            &case["value"],
-            Some(&case["fallback"]).filter(|item| !item.is_null())
-        )),
-        "validTimeZone" => match saturn_core::automations::valid_time_zone(Some(&case["value"])) {
-            Ok(zone) => json!(zone),
-            Err(error) => json!({ "error": error.message }),
-        },
         other => panic!("unknown check {other}"),
     }
 }
 
-/// Checks recorded for what Saturn no longer has (the editor's completions and group chats). Their cases stay in the
-/// recorded file, which is never edited, and are passed over here.
-const REMOVED: [&str; 11] = [
+/// Checks recorded for what Saturn no longer has (the editor's completions, group chats and automations' schedules).
+/// Their cases stay in the recorded file, which is never edited, and are passed over here.
+const REMOVED: [&str; 17] = [
     "fim",
     "cutAtStop",
     "lineComment",
@@ -203,7 +187,34 @@ const REMOVED: [&str; 11] = [
     "trimInline",
     "mentions",
     "isPass",
+    "localMinute",
+    "previousSlot",
+    "nextSlot",
+    "slotLabel",
+    "triggerOf",
+    "validTimeZone",
 ];
+
+/// Whether a recorded case is about the toolkit that was called automations. Its scheduled prompts are gone and the
+/// rest is the customizations toolkit now, so its prompt section, the name it loads by and its load note are not what
+/// was recorded; `the_customizations_toolkit_replaces_automations` checks them instead.
+fn about_the_automations_toolkit(case: &Value) -> bool {
+    let named = |item: &Value| {
+        item.as_str()
+            .is_some_and(|id| ["automations", "antigravity-skills"].contains(&id))
+    };
+    let lists_it = |key: &str| {
+        case[key]
+            .as_array()
+            .is_some_and(|items| items.iter().any(named))
+    };
+    match case["check"].as_str().unwrap_or_default() {
+        "prompt" => lists_it("serverIds"),
+        "toolkitServer" => named(&case["expect"]),
+        "loadNote" => named(&case["server"]),
+        _ => false,
+    }
+}
 
 #[test]
 fn answers_the_agent_loop_cases() {
@@ -212,7 +223,10 @@ fn answers_the_agent_loop_cases() {
             .expect("the cases are JSON");
     let cases: Vec<&Value> = recorded
         .iter()
-        .filter(|case| !REMOVED.contains(&case["check"].as_str().unwrap_or_default()))
+        .filter(|case| {
+            !REMOVED.contains(&case["check"].as_str().unwrap_or_default())
+                && !about_the_automations_toolkit(case)
+        })
         .collect();
     assert!(cases.len() > 90);
     let mut wrong = Vec::new();
@@ -237,5 +251,38 @@ fn answers_the_agent_loop_cases() {
         "{} wrong:\n{}",
         wrong.len(),
         wrong.join("\n")
+    );
+}
+
+#[test]
+fn the_customizations_toolkit_replaces_automations() {
+    assert_eq!(toolkit_server("plugins"), Some("customizations"));
+    assert_eq!(toolkit_server("Customizations"), Some("customizations"));
+    assert_eq!(toolkit_server("automations"), None);
+    assert_eq!(
+        load_note("customizations"),
+        "- Not loaded yet: call `load_tools` with toolkits: [\"customizations\"] before using these."
+    );
+    for server in ["customizations", "antigravity-skills"] {
+        let ids = [server.to_owned()];
+        let prompt = build_system_prompt(&PromptInput {
+            server_ids: &ids,
+            ..PromptInput::default()
+        });
+        assert!(
+            prompt.contains("### Customizations & Plugins (Customizations)\n- Generative UI:"),
+            "{prompt}"
+        );
+        assert!(!prompt.contains("automation_"), "{prompt}");
+    }
+    let ids = ["customizations".to_owned()];
+    let deferred = build_system_prompt(&PromptInput {
+        server_ids: &ids,
+        deferred: &ids,
+        ..PromptInput::default()
+    });
+    assert!(
+        deferred.contains(&load_note("customizations")),
+        "{deferred}"
     );
 }

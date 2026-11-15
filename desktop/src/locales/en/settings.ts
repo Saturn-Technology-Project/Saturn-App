@@ -20,7 +20,7 @@ export default {
 
   // Saturn's own tool servers
   "Files, commands, web and plans": "Files, commands, web, and plans",
-  "Schedules, rules, skills and plugins": "Schedules, rules, skills, and plugins",
+  "Rules, skills and plugins": "Rules, skills, and plugins",
   "A browser agents can drive": "A browser that agents can control",
   "Research records, runs and looking inside models": "Research records, runs, and model inspection",
 
@@ -95,8 +95,8 @@ export default {
   ": its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.":
     ": its hooks, permission rules, and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, because a project's hooks run commands.",
   "Background Model": "Background model",
-  "Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.":
-    "Writes memory notes from your chats and drafts automations when an agent's model has no API. Chat content is sent to this model. On Automatic, memory notes use the agent's model.",
+  "Writes memory notes from your chats. Chat content goes to this model. On Automatic, memory notes use the agent's model.":
+    "Writes memory notes from your chats. Chat content is sent to this model. On Automatic, memory notes use the agent's model.",
   "Every few turns, Saturn notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.":
     "Every few turns, Saturn notes lasting facts from the chat (how you like to work, a project's conventions) and shares them with agents in later chats. View and edit the notes under Memory.",
   "A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.":

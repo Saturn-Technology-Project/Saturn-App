@@ -62,17 +62,9 @@ fn changes_the_interpreter(tool: &str, arguments: &Arguments) -> bool {
     tool == "research_environment_action" && argument_text(arguments, "action") == "set"
 }
 
-/// Automation calls that leave a prompt to run later, unattended, or run one now: an agent steered by what it read could
-/// otherwise schedule itself.
-const SCHEDULING_TOOLS: [&str; 3] = [
-    "automation_create",
-    "automation_toggle",
-    "automation_trigger",
-];
-
 /// Whether a call is risky enough to ask about in the default approval mode.
 pub fn is_sensitive_operation(tool: &str, arguments: &Arguments) -> bool {
-    if changes_the_interpreter(tool, arguments) || SCHEDULING_TOOLS.contains(&tool) {
+    if changes_the_interpreter(tool, arguments) {
         return true;
     }
     if tool == "code"
@@ -103,7 +95,7 @@ fn file_call_is_sensitive(arguments: &Arguments) -> bool {
 }
 
 /// Tools that only look: they read files, pages, the screen or a repository and change nothing.
-const READ_ONLY_TOOLS: [&str; 15] = [
+const READ_ONLY_TOOLS: [&str; 14] = [
     "web",
     "code_output",
     "delegate",
@@ -117,7 +109,6 @@ const READ_ONLY_TOOLS: [&str; 15] = [
     "computer_wait",
     "customizations_list",
     "plugins_list",
-    "automation_list",
     "workflows_scan",
 ];
 

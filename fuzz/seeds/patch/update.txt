@@ -1,0 +1,15 @@
+*** Begin Patch
+*** Update File: src/a.py
+@@ def main():
+-    print(1)
++    print(2)
+*** Add File: b.txt
++hello
+*** Delete File: c.txt
+*** Update File: d.txt
+*** Move to: e.txt
+@@
+-x
++y
+*** End of File
+*** End Patch

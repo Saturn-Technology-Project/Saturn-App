@@ -303,6 +303,21 @@ export function helpRequests(t: Words = english): { label: string; prompt: strin
 /** The requests in English. */
 export const HELP_REQUESTS = helpRequests();
 
+/**
+ * What to ask before quitting while something still works, since quitting stops it; null when nothing does and the app
+ * can quit at once.
+ */
+export function quitQuestion(activity: { chats: number; runs: number; commands: number }, t: Words = english): string | null {
+  const lines = [
+    activity.chats > 0 ? t("Chats still answering: {count}", { count: activity.chats }) : null,
+    activity.runs > 0 ? t("Experiment runs on this computer: {count}", { count: activity.runs }) : null,
+    activity.commands > 0 ? t("Background commands: {count}", { count: activity.commands }) : null,
+  ].filter((line): line is string => line !== null);
+  if (lines.length === 0) return null;
+  const resume = activity.runs > 0 ? `\n\n${t("A run that stops this way can be resumed later.")}` : "";
+  return `${t("Quit Saturn? These stop when it quits:")}\n${lines.map((line) => `• ${line}`).join("\n")}${resume}`;
+}
+
 /** The window's title, and what assistive technology reads as the page's name, given the screen's name as shown. */
 export function windowTitle(screen: string | null, project: string | null): string {
   return [screen, project, "Saturn"].filter(Boolean).join(" – ");

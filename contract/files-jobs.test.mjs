@@ -76,6 +76,19 @@ test("the app lists a chat's background commands and stops them, with the proces
   await until("the list to show it ended", () => jobs(setup.thread), ([job]) => job.running === false);
 });
 
+test("the runtime says what is still working, so the app can ask before quitting", async () => {
+  const commands = async () => (await saturn.api("GET", "/activity")).commands;
+  const before = await saturn.api("GET", "/activity");
+  assert.deepEqual(Object.keys(before).sort(), ["chats", "commands", "runs"]);
+  assert.equal(before.chats, 0);
+  const setup = await saturn.chat();
+  const run = await setup.turn([command(WAITING, { background: true })]);
+  const { jobId } = run.actions[0].result;
+  assert.equal(await commands(), before.commands + 1);
+  await saturn.api("POST", `/threads/${setup.thread.id}/jobs/${jobId}/stop`);
+  await until("the command to count as ended", commands, (count) => count === before.commands);
+});
+
 test("the agent stops its own command with code_stop, and an unknown one is refused", async () => {
   const setup = await saturn.chat();
   const run = await setup.turn([command(WAITING, { background: true })]);

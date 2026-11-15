@@ -2,6 +2,21 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
+## Unreleased
+
+### Added
+
+- **Windows: closing the window asks first while something is still working.** Closing Saturn's window quits it, and quitting stops what it was doing. When a chat is still answering, an experiment run is going on this computer or a background command is running, Saturn now names them and asks before it quits; otherwise it quits at once.
+
+### Fixed
+
+- **Why the sandbox is off is shown in your language.** Settings → General → Sandbox gave the reason (the setup not run, the administrator prompt declined, bubblewrap missing) in English inside a Chinese sentence.
+
+### Changed
+
+- **Automations (scheduled prompts) are removed.** They were only reachable from Settings → Still running, where an automation from the earlier interface could be turned off. Saturn no longer runs them on a schedule, agents no longer have the `automation_` tools, and the `/automations` routes are gone (a script that called them now gets a 404). Automations you saved stay in `state.json` but no longer run. The rest of that toolkit (widget templates, rules and skills, legacy workflows and plugins) is now called **Customizations**; agents that had Automations get Customizations, and tools you turned off stay off. The Background Model setting now only writes memory notes.
+- **The README no longer points to a Saturn SDK.** Its repository is no longer offered; scripts reach the same local API directly (README, Local API) or through the `saturn` command.
+
 ## 0.6.3 (2026-11-15)
 
 ### Added

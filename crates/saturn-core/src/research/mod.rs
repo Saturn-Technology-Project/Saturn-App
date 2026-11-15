@@ -199,6 +199,13 @@ fn cannot_use(id: &str, reason: &str) -> CoreError {
     CoreError::new(422, format!("The record {id} was left as it is. {reason}"))
 }
 
+impl ResearchState {
+    /// How many experiment runs this runtime started are still going.
+    pub(crate) fn running_runs(&self) -> usize {
+        locked(&self.active).len()
+    }
+}
+
 impl Kernel {
     /// The records' folder of a project the user has allowed; a link anywhere on the way is refused.
     async fn records_folder(&self, project: &str) -> Result<PathBuf, CoreError> {

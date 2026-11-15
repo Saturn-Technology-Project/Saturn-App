@@ -290,7 +290,7 @@ test("on a terminal it asks about an approval itself", { skip: process.platform 
   assert.equal(allowed.code, 0);
 });
 
-test("Claude Code is refused unattended, as automations are", async () => {
+test("Claude Code is refused unattended", async () => {
   const refused = await saturn(["run", "plan it", "--agent", "Planner", "--json"]);
   assert.equal(refused.code, 2);
   assert.match(refused.err, /Planner runs on Claude \(via Claude Code\).*violation of Anthropic's policy/s);

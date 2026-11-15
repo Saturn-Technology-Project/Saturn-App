@@ -27,6 +27,7 @@ import { Textarea } from "../ui/base/Textarea.js";
 import { CardRow, InlineForm, LinkButton, Pills, RowActions, RowDescription, RowError, RowLabel, RowText, SectionTitle, SettingsCard, SettingsRow, Status, SubTitle } from "./Parts";
 import { chooseLanguage, languageChoice } from "../../application/language";
 import { shortcut, t } from "../../domain/i18n";
+import { sandboxReason } from "../../domain/sandbox";
 
 export type SettingsPage =
   | "settings"
@@ -287,7 +288,7 @@ const BUILT_IN_SUMMARIES: Record<string, string> = {
   "general-skills": t("Files, commands, web and plans"),
   "computer-use": t("Mouse, keyboard and screen"),
   origin: t("GitHub repositories and pull requests"),
-  automations: t("Schedules, rules, skills and plugins"),
+  customizations: t("Rules, skills and plugins"),
   browser: t("A browser agents can drive"),
   research: t("Research records, runs and looking inside models"),
 };
@@ -345,9 +346,9 @@ function SandboxSetup(props: { onError: (message: string) => void }) {
       const next = await desktop.admin.setUpSandbox();
       setStatus(next);
       setDone(next.available);
-      props.onError(next.available ? "" : t("The sandbox is still off: {reason}.", { reason: next.reason ?? "" }));
+      props.onError(next.available ? "" : t("The sandbox is still off: {reason}.", { reason: sandboxReason(next.reason, t) }));
     } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : t("Could not set up the sandbox"));
+      props.onError(reason instanceof Error ? sandboxReason(reason.message, t) : t("Could not set up the sandbox"));
     } finally {
       setBusy(false);
     }
@@ -362,7 +363,7 @@ function SandboxSetup(props: { onError: (message: string) => void }) {
             ? t("Commands now run in the sandbox chosen above.")
             : status.setup
               ? t("Windows needs a one-time setup by an administrator before it can sandbox commands; until then they run as you, whatever is chosen above. The setup lets sandboxed programs see that the folders above your home folder and your projects exist, and read the programs on PATH. Windows asks for an administrator first.")
-              : t("Commands run as you, whatever is chosen above: {reason}.", { reason: status.reason ?? "" })}
+              : t("Commands run as you, whatever is chosen above: {reason}.", { reason: sandboxReason(status.reason, t) })}
         </RowDescription>
       </RowText>
       {status.setup ? (
@@ -542,7 +543,7 @@ function McpPage(props: {
 
   const isBuiltin = (item: Mcp) =>
     item.url.startsWith("builtin:") ||
-    ["general-skills", "computer-use", "origin", "automations", "cursor-computer-use", "cursor-origin", "antigravity-skills"].includes(item.id);
+    ["general-skills", "computer-use", "origin", "customizations", "cursor-computer-use", "cursor-origin", "antigravity-skills"].includes(item.id);
 
   const builtinServers = props.mcp.filter(isBuiltin);
   const installedServers = props.mcp.filter((item) => !isBuiltin(item));
@@ -1356,7 +1357,7 @@ function General(props: {
             <RowText>
               <RowLabel>{t("Background Model")}</RowLabel>
               <RowDescription>
-                {t("Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.")}
+                {t("Writes memory notes from your chats. Chat content goes to this model. On Automatic, memory notes use the agent's model.")}
               </RowDescription>
             </RowText>
             <Choice

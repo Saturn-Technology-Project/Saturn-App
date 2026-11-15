@@ -10,14 +10,17 @@ use crate::{CoreError, Kernel};
 pub const GENERAL_SKILLS_ID: &str = "general-skills";
 pub const COMPUTER_USE_ID: &str = "computer-use";
 pub const ORIGIN_ID: &str = "origin";
-pub const AUTOMATIONS_ID: &str = "automations";
+pub const CUSTOMIZATIONS_ID: &str = "customizations";
 pub const BROWSER_ID: &str = "browser";
 pub const RESEARCH_ID: &str = "research";
 const SATURN_AGENT_ID: &str = "saturn-agent";
 /// The editor tools of the removed IDE, which an earlier version saved in the state.
 const REMOVED_IDE_SERVER: &str = "ide";
+/// What customizations were called before: "antigravity-skills", then "automations" while the toolkit also scheduled
+/// prompts (removed). Agents and the list of servers saved under them move to customizations.
+const EARLIER_CUSTOMIZATIONS_IDS: [&str; 2] = ["antigravity-skills", "automations"];
 
-/// General skills, computer use, origin, automations, the browser and research, in that order.
+/// General skills, computer use, origin, customizations, the browser and research, in that order.
 static SERVERS: LazyLock<Vec<Value>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("builtin-servers.json")).expect("this file is valid JSON")
 });
@@ -42,8 +45,9 @@ fn builtin_id(id: &str) -> bool {
             | "cursor-computer-use"
             | ORIGIN_ID
             | "cursor-origin"
-            | AUTOMATIONS_ID
+            | CUSTOMIZATIONS_ID
             | "antigravity-skills"
+            | "automations"
             | BROWSER_ID
             | RESEARCH_ID
     )
@@ -59,13 +63,13 @@ pub fn with_general_skills(mut ids: Vec<String>) -> Vec<String> {
 
 /// True when `install` would change nothing.
 pub fn installed(state: &AppState) -> bool {
-    let current = |id: &str, old: &str| {
+    let current = |id: &str, old: &[&str]| {
         state
             .mcp
             .iter()
-            .find(|item| text(item, "id") == id || text(item, "id") == old)
+            .find(|item| text(item, "id") == id || old.contains(&text(item, "id")))
     };
-    let same_address = |id: &str, old: &str| {
+    let same_address = |id: &str, old: &[&str]| {
         current(id, old).is_some_and(|item| {
             text(item, "id") == id && text(item, "url") == text(&server(id), "url")
         })
@@ -94,9 +98,18 @@ pub fn installed(state: &AppState) -> bool {
             .filter(|item| text(item, "id") == GENERAL_SKILLS_ID)
             .count()
             == 1
-        && same_address(COMPUTER_USE_ID, "cursor-computer-use")
-        && same_address(ORIGIN_ID, "cursor-origin")
-        && same_address(AUTOMATIONS_ID, "antigravity-skills")
+        && same_address(COMPUTER_USE_ID, &["cursor-computer-use"])
+        && same_address(ORIGIN_ID, &["cursor-origin"])
+        && same_address(CUSTOMIZATIONS_ID, &EARLIER_CUSTOMIZATIONS_IDS)
+        && !state
+            .mcp
+            .iter()
+            .any(|item| EARLIER_CUSTOMIZATIONS_IDS.contains(&text(item, "id")))
+        && !state.agents.iter().any(|agent| {
+            strings(agent, "mcpConnectionIds")
+                .iter()
+                .any(|id| EARLIER_CUSTOMIZATIONS_IDS.contains(&id.as_str()))
+        })
         && !state
             .agents
             .iter()
@@ -114,12 +127,12 @@ pub fn installed(state: &AppState) -> bool {
 
 /// Puts Saturn's own servers first in the list, keeping which tools the user turned off, and every agent on the current names.
 pub fn install(state: &mut AppState) {
-    let keeping = |state: &AppState, id: &str, old: &str| {
+    let keeping = |state: &AppState, id: &str, old: &[&str]| {
         let mut fresh = server(id);
         let disabled = state
             .mcp
             .iter()
-            .find(|item| text(item, "id") == id || text(item, "id") == old)
+            .find(|item| text(item, "id") == id || old.contains(&text(item, "id")))
             .and_then(|item| item.get("disabledTools"))
             .cloned();
         if let Some(disabled) = disabled {
@@ -129,11 +142,11 @@ pub fn install(state: &mut AppState) {
     };
     let mut servers = vec![
         server(GENERAL_SKILLS_ID),
-        keeping(state, COMPUTER_USE_ID, "cursor-computer-use"),
-        keeping(state, ORIGIN_ID, "cursor-origin"),
-        keeping(state, AUTOMATIONS_ID, "antigravity-skills"),
-        keeping(state, BROWSER_ID, BROWSER_ID),
-        keeping(state, RESEARCH_ID, RESEARCH_ID),
+        keeping(state, COMPUTER_USE_ID, &["cursor-computer-use"]),
+        keeping(state, ORIGIN_ID, &["cursor-origin"]),
+        keeping(state, CUSTOMIZATIONS_ID, &EARLIER_CUSTOMIZATIONS_IDS),
+        keeping(state, BROWSER_ID, &[]),
+        keeping(state, RESEARCH_ID, &[]),
     ];
     servers.extend(
         state
@@ -153,30 +166,31 @@ pub fn install(state: &mut AppState) {
         GENERAL_SKILLS_ID,
         COMPUTER_USE_ID,
         ORIGIN_ID,
-        AUTOMATIONS_ID,
+        CUSTOMIZATIONS_ID,
         BROWSER_ID,
     ]
     .map(str::to_owned);
     for agent in &mut state.agents {
-        let mapped: Vec<String> = strings(agent, "mcpConnectionIds")
-            .into_iter()
-            .filter(|id| id != REMOVED_IDE_SERVER)
-            .map(|id| {
-                match id.as_str() {
-                    "cursor-computer-use" => COMPUTER_USE_ID,
-                    "cursor-origin" => ORIGIN_ID,
-                    "antigravity-skills" => AUTOMATIONS_ID,
-                    other => other,
-                }
-                .to_owned()
-            })
-            .collect();
+        let mut mapped: Vec<String> = Vec::new();
+        for id in strings(agent, "mcpConnectionIds") {
+            let id = match id.as_str() {
+                "cursor-computer-use" => COMPUTER_USE_ID,
+                "cursor-origin" => ORIGIN_ID,
+                "antigravity-skills" | "automations" => CUSTOMIZATIONS_ID,
+                other => other,
+            }
+            .to_owned();
+            // An agent that had both earlier names of customizations gets it once.
+            if id != REMOVED_IDE_SERVER && !mapped.contains(&id) {
+                mapped.push(id);
+            }
+        }
         let ids = if mapped == [GENERAL_SKILLS_ID] {
             defaults.to_vec()
         } else {
             let mut next = with_general_skills(mapped);
             // The browser joins agents that have the other built-in servers (an earlier default set), not custom picks.
-            let had_defaults = [COMPUTER_USE_ID, ORIGIN_ID, AUTOMATIONS_ID]
+            let had_defaults = [COMPUTER_USE_ID, ORIGIN_ID, CUSTOMIZATIONS_ID]
                 .iter()
                 .all(|id| next.iter().any(|item| item == id));
             if had_defaults && !next.iter().any(|item| item == BROWSER_ID) {

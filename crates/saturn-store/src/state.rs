@@ -10,6 +10,8 @@ pub struct AppState {
     pub projects: Vec<Value>,
     pub active_project_id: Option<String>,
     pub agents: Vec<Value>,
+    /// Scheduled prompts, from versions that had automations. Nothing reads or runs these now; they are kept so that a
+    /// save writes them back instead of dropping what a person once wrote.
     pub automations: Vec<Value>,
     pub models: Vec<Value>,
     pub mcp: Vec<Value>,

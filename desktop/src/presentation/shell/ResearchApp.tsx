@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { desktop } from "../../application/desktop.js";
 import { shortcut, t } from "../../domain/i18n.js";
-import { firstLaunchSteps, isWorkScreen, screenLabels, statusText, windowTitle } from "../../domain/workbench.js";
+import { firstLaunchSteps, isWorkScreen, quitQuestion, screenLabels, statusText, windowTitle } from "../../domain/workbench.js";
 import type { Model, Profile, Project } from "../../domain/model.js";
+import { askToConfirm } from "../../infrastructure/confirm.js";
 import { useRuntimeStatus } from "../../infrastructure/runtime-status.js";
 import { syncWindowControls } from "../../infrastructure/window-controls.js";
 import { AccessDialog, chooseFolder, homeShortened } from "../ProjectAccess.js";
@@ -152,6 +153,9 @@ export function ResearchApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, [go, toggleAssistant]);
 
+  // Closing the window (outside macOS, where that quits) asks first while something still works, since quitting stops it.
+  useEffect(() => window.saturnDesktop?.onCloseRequested?.(() => void confirmQuit()), []);
+
   // A notification about a task opens Tasks.
   useEffect(() => window.saturnDesktop?.onOpenThread?.(() => go("Tasks")), [go]);
 
@@ -283,4 +287,15 @@ export function ResearchApp() {
       ) : null}
     </div>
   );
+}
+
+/** How long the runtime is given to say what still works before the window closes without asking. */
+const ACTIVITY_WAIT = 1500;
+
+/** Quits, after asking when the runtime says something still works; a runtime that does not answer has nothing to stop. */
+async function confirmQuit(): Promise<void> {
+  const waited = new Promise<null>((resolve) => setTimeout(() => resolve(null), ACTIVITY_WAIT));
+  const activity = await Promise.race([desktop.admin.activity().catch(() => null), waited]);
+  const question = activity ? quitQuestion(activity, t) : null;
+  if (question === null || (await askToConfirm(question))) await window.saturnDesktop?.quit?.();
 }

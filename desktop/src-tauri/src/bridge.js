@@ -4,6 +4,7 @@
   if (window.location.origin !== __SATURN_INTERFACE__) return;
   const invoke = (command, args) => window.__TAURI_INTERNALS__.invoke(command, args);
   const threadListeners = new Set();
+  const closeListeners = new Set();
   let windowButtons = null;
 
   // On Windows the window has no frame: Saturn draws the three buttons over the top right of the page.
@@ -58,6 +59,13 @@
     setTitle: (title) => invoke("set_window_title", { title }),
     /** Recolors the minimize, maximize and close buttons (Windows only). */
     setWindowControls: (colors) => paintWindowButtons(colors ?? {}),
+    /** Called when the window is asked to close (outside macOS); the listener decides, and calls quit to go ahead. */
+    onCloseRequested: (listener) => {
+      closeListeners.add(listener);
+      return () => closeListeners.delete(listener);
+    },
+    /** Quits Saturn and its runtime. */
+    quit: () => invoke("quit_app"),
     /** Called with { agentId, threadId } when a notification is clicked. */
     onOpenThread: (listener) => {
       threadListeners.add(listener);
@@ -67,6 +75,16 @@
   // The app calls this when a notification is clicked.
   Object.defineProperty(window, "__saturnOpenThread", {
     value: (payload) => threadListeners.forEach((listener) => listener(payload)),
+  });
+
+  // The app calls this when the window is asked to close. With no listener (the interface never loaded) it quits; with
+  // one, it tells the app it was heard, or the app quits after a moment anyway.
+  Object.defineProperty(window, "__saturnCloseRequested", {
+    value: () => {
+      if (closeListeners.size === 0) return void invoke("quit_app");
+      void invoke("close_heard");
+      closeListeners.forEach((listener) => listener());
+    },
   });
 
   // Dragging the window. WebKit has no app-region, so the stylesheet marks regions with --app-region (inherited, and

@@ -3521,7 +3521,6 @@ version = "0.6.3"
 dependencies = [
  "axum",
  "base64 0.23.1",
- "jiff",
  "percent-encoding",
  "regex",
  "reqwest",

@@ -4,8 +4,7 @@ name: Evals
 # model, graded by hidden tests, nightly and on demand. A drop of more than 15 points under the committed baseline
 # fails the run. Each run spends model tokens, so it runs only where the repository has the secret
 # SATURN_EVAL_API_KEY and the variables SATURN_EVAL_PROVIDER and SATURN_EVAL_MODEL (an API provider, never a plan).
-# The harness self-test (a scripted model, no tokens) runs on every change instead. The SDK repository
-# (Saturn-Technology-Project/Saturn-SDK) starts runtimes with this harness's startRuntime for its own tests.
+# The harness self-test (a scripted model, no tokens) runs on every change instead.
 
 on:
   schedule:

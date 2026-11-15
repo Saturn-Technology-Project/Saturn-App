@@ -6,6 +6,22 @@ use std::time::Duration;
 use saturn_computer::Computer;
 use serde_json::{Value, json};
 
+/// Sets or reads the clipboard's text through PowerShell, to check typing puts back what the user had there.
+fn clipboard(set: Option<&str>) -> String {
+    let script = match set {
+        Some(text) => format!("Set-Clipboard -Value '{text}'"),
+        None => "Get-Clipboard -Raw".to_owned(),
+    };
+    use std::os::windows::process::CommandExt;
+    // No console window, which would take the front from Notepad.
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .creation_flags(0x0800_0000)
+        .output()
+        .expect("PowerShell runs");
+    String::from_utf8_lossy(&output.stdout).trim().to_owned()
+}
+
 /// The tree, read until it shows `wanted`: Notepad reports its text to UI Automation a moment after drawing it.
 async fn state_showing(computer: &Computer, target: &Value, wanted: &str) -> String {
     let mut text = String::new();
@@ -92,6 +108,7 @@ async fn computer_use_drives_notepad_end_to_end() {
         .and_then(|(id, _)| id.parse().ok())
         .expect("an element id");
 
+    clipboard(Some("what the user copied"));
     computer
         .run(
             "computer_type",
@@ -102,7 +119,12 @@ async fn computer_use_drives_notepad_end_to_end() {
     let after = state_showing(&computer, &target, "Hello Saturn 你好").await;
     assert!(
         after.contains("Hello Saturn 你好"),
-        "typed text, including Chinese, reached the editor"
+        "typed text, including Chinese, reached the editor:\n{after}"
+    );
+    assert_eq!(
+        clipboard(None),
+        "what the user copied",
+        "typing put the clipboard back"
     );
 
     computer

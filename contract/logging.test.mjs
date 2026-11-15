@@ -63,12 +63,8 @@ test("configuration changes are logged with what changed, and never the key or t
     await api("PATCH", `/agents/${agent.id}`, { name: "Writer" });
     assert.equal((await lines()).filter((line) => line.includes('Agent "Writer" updated')).length, before, "no change, no line");
 
-    const automation = await api("POST", "/automations", { name: "Digest", agentId: agent.id, prompt: "Summarize", trigger: { frequency: "daily", time: "09:00", weekday: 1 }, timeZone: "UTC" });
-    await api("PATCH", `/automations/${automation.id}`, { enabled: false });
-    assert.ok((await lines()).some((line) => line.includes("Automation Digest paused")));
-
     await api("DELETE", `/agents/${agent.id}`);
-    assert.ok((await lines()).some((line) => line.includes('Agent "Writer" deleted with 0 runs and 1 automations')));
+    assert.ok((await lines()).some((line) => line.includes('Agent "Writer" deleted with 0 runs')));
     const all = JSON.stringify(await lines());
     for (const secret of ["sk-very-secret", "sk-entered-secret", "private text"]) assert.ok(!all.includes(secret), `${secret} stays out of the log`);
   } finally {

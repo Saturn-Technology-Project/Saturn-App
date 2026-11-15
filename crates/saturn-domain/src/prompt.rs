@@ -121,7 +121,7 @@ fn section_head(server: &str) -> Option<&'static str> {
         "browser" => Some("### Browser (Browser)"),
         "computer-use" => Some("### Computer Use:"),
         "origin" => Some("### Origin & Git Repository Tools"),
-        "automations" => Some("### Automations & Antigravity Capabilities"),
+        "customizations" => Some("### Customizations & Plugins"),
         _ => None,
     }
 }
@@ -195,10 +195,9 @@ pub fn build_system_prompt(input: &PromptInput<'_>) -> String {
             "- Version Control & Collaboration: `create_repository`, `sync_mirror`, `create_pull_request`, `update_pull_request`, `update_pull_request_base`, `merge_pull_request`, `create_pull_request_review`, `create_pull_request_comment`, `create_pull_request_inline_comment`, `reply_pull_request_review_thread`, `update_pull_request_review_thread`, `update_pull_request_comment`, `update_pull_request_labels`, `create_label`, `request_pull_request_reviewers`, `remove_pull_request_reviewers`."
         ));
     }
-    if has("automations") || has("antigravity-skills") {
+    if has("customizations") || has("antigravity-skills") {
         capabilities.push(concat!(
-            "### Automations & Antigravity Capabilities (Automations)\n",
-            "- Automations: `automation_list`, `automation_create`, `automation_trigger`, `automation_toggle`, `automation_delete` (manage recurring scheduled background cron tasks and agent runs).\n",
+            "### Customizations & Plugins (Customizations)\n",
             "- Generative UI: `generative_ui_template` (starter HTML/Tailwind snippets for a widget the files tool then writes).\n",
             "- Customizations: `customizations_list`, `customizations_create_skill`, `customizations_create_rule` (manage on-demand skills, project rules, and discovery hierarchy).\n",
             "- Workflows: `workflows_scan`, `workflows_migrate` (scan legacy workflow files and automatically migrate them to modern skills).\n",

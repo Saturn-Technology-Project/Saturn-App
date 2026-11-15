@@ -277,8 +277,8 @@ Saturn 如何遵循 Anthropic 的 [Claude Code 法律與合規條款](https://co
 - **未修改的程式。** Saturn 以 Anthropic 發布的原樣執行 Claude Code：Saturn 固定的 Agent SDK 版本之 npm 套件中的程式，並以固定的 SHA-512 驗證，或使用你自己安裝的版本。
 - **你自己的方案，費用由你支付。** 每位使用者以自己的訂閱登入；Saturn 不代付、轉售或居中處理 Claude 的用量。
 - **不移除任何驗證方式。** Claude Code 以 Runtime 的環境執行，只移除 Saturn 自己的 session 變數，因此它支援的每種方式都保持可用：你的訂閱，或你自己的 `ANTHROPIC_API_KEY`、Bedrock、Vertex AI、Foundry 設定，由它依自己公布的順序選擇。Saturn 從不加入憑證：為 Claude 供應商儲存的金鑰只留給該供應商使用。
-- **由程式強制，而非靠慣例。** 模型代理層會拒絕對 Claude（透過 Claude Code）模型發出任何 API 請求，這類模型無法設定 API 金鑰，Saturn 的附屬工作（記憶整理、自動化草稿、補全）只使用 API 模型。測試確保這一點不會被改壞。
-- **一般、個人的使用。** Anthropic 的方案額度以此為前提，其 Consumer Terms 也只允許透過 API 金鑰進行自動化存取，因此自動化任務無法使用 Claude（透過 Claude Code）：這類 Agent 在自動化表單中是停用的，Runtime 也會拒絕。
+- **由程式強制，而非靠慣例。** 模型代理層會拒絕對 Claude（透過 Claude Code）模型發出任何 API 請求，這類模型無法設定 API 金鑰，Saturn 的附屬工作（記憶整理）只使用 API 模型。測試確保這一點不會被改壞。
+- **一般、個人的使用。** Anthropic 的方案額度以此為前提，其 Consumer Terms 也只允許透過 API 金鑰進行自動化存取，因此使用 Claude（透過 Claude Code）的 Agent 不會無人值守執行：`saturn run` 在終端機之外會拒絕它。
 - **命名。** Saturn 以純文字說明此供應商執行 Claude Code；不以 Claude Code 或 Anthropic 作為自己產品或功能的名稱，也並非由 Anthropic 打造、背書或與其合作。
 
 以上是我們對 Anthropic 公開條款的解讀，不構成法律意見，最終由 Anthropic 決定：若你的用法不同（團隊部署、託管服務），請改用 Claude 供應商與 API 金鑰，或[洽詢 Anthropic](https://code.claude.com/docs/en/legal-and-compliance)。
@@ -298,7 +298,7 @@ Saturn 如何遵循 OpenAI 的[使用條款](https://openai.com/policies/terms-o
 - **官方程式。** Codex 以 Apache-2.0 開源，OpenAI 也發布了讓其他應用程式整合 Codex 的 SDK。Saturn 以該 SDK 的方式啟動程式：Saturn 固定的 npm 版本，並以固定的 SHA-512 驗證，或使用你自己安裝的版本。
 - **你自己的帳號。** OpenAI 的條款不允許分享帳號或憑證；每個人以自己的帳號登入，Saturn 不轉售或居中處理 ChatGPT 的用量。用量計入你方案的額度，Saturn 不會繞過。
 - **由程式強制。** 模型代理層會拒絕對 Codex 模型發出任何 API 請求，Codex 模型無法設定 API 金鑰，Saturn 也會從 Codex 的環境中移除 API 金鑰變數（`OPENAI_API_KEY`、`OPENAI_BASE_URL`、`CODEX_API_KEY`、`CODEX_ACCESS_TOKEN`），讓它一律使用你選擇的登入方式。
-- **自動化任務。** OpenAI 的文件允許可信任的腳本與排程使用 ChatGPT 登入，但建議自動化使用 API 金鑰；排程工作建議改用 OpenAI 供應商的 Agent。
+- **無人值守的使用。** OpenAI 的文件允許可信任的腳本與排程使用 ChatGPT 登入，但建議它們使用 API 金鑰；在腳本中執行 `saturn run` 時，建議改用 OpenAI 供應商的 Agent。
 - **命名。** Saturn 提到 OpenAI 的產品，只是為了說明供應商執行的是什麼。Saturn 不在自己的名稱或功能中使用 ChatGPT、GPT、Codex 或 OpenAI 的 logo，也並非由 OpenAI 打造、背書或與其合作。
 
 以上是我們對 OpenAI 公開條款的解讀，不構成法律意見；你的帳號受 OpenAI 的條款約束。
@@ -452,7 +452,7 @@ gh attestation verify Saturn-<version>-mac-arm64-unsigned.dmg --bundle Saturn-<v
 - **檔案系統範圍限制。** Agent 只能在 Saturn 工作區與你授權的專案資料夾內讀寫與執行，授權可隨時撤銷。
 - **指令的作業系統沙箱。** Agent 執行的每個 shell 指令都由作業系統限制：macOS 用 seatbelt（`sandbox-exec`），Linux 在安裝 bubblewrap 時使用，Windows 用 AppContainer。預設的 *workspace-write* 只允許寫入專案資料夾、暫存資料夾與常見的套件快取；*read-only* 除暫存資料夾外不允許寫入；也可以關閉指令的網路。在任何模式下，指令都讀不到也寫不了 Saturn 的資料夾（token、金鑰與對話）與常見的憑證資料夾（`~/.ssh`、`~/.aws`、`~/.config/gh`、`.npmrc`、`.netrc` 等）。專案的檢查指令、Saturn 執行的專案 Python（環境檢查、筆記本、檢視模型內部、讀取資料、語言伺服器）與環境工作也在同一個沙箱中執行。Agent 需要寫到其他地方時會以 `sandbox: "off"` 要求，除了完全自主模式外都會出現核准卡。在 **設定 → 一般 → Sandbox** 設定，或針對單一專案覆寫。
 - **Windows 的沙箱是「開放」資料夾，其他系統是「關閉」資料夾，而且要先設定一次。** 在 AppContainer 裡的指令只能讀寫 Saturn 開放給它的地方：專案資料夾、它自己的暫存資料夾、套件快取，以及 `PATH` 上的資料夾（讓程式能執行）。你的其他檔案完全讀不到。程式還會查詢工作資料夾以上的每一層資料夾（Node 要解析腳本路徑，git 要找儲存庫），一路到磁碟最上層；這些資料夾和 Program Files 底下的程式資料夾一樣，只有系統管理員能開放。所以在設定完成之前沙箱不會啟用，指令的結果會註明。設定要以系統管理員身分執行一次，而且要用平常使用 Saturn 的同一個帳號。**設定 → 一般 → 沙箱**會在沙箱沒啟用時說明，並有一個**設定**按鈕：Windows 會先要求系統管理員同意，設定會連同你的專案資料夾一起處理，完成後立刻使用沙箱。也可以在系統管理員的終端機裡，於 Saturn 的安裝資料夾執行 `saturn-server.exe --appcontainer-setup`（專案在別的磁碟時，把專案資料夾加在後面）；它會列出仍然關閉的資料夾，Saturn 下次啟動後就會使用沙箱。之後仍有兩點不同。Saturn 會在它開放的資料夾的存取清單加上項目，而且會留著。沙箱裡的指令即使可以用網路，也連不到同一台電腦上在沙箱外執行的伺服器（`localhost`，包括本機的模型伺服器）；需要這個的指令或專案要關閉沙箱執行。
-- **權限規則、核准策略、檢查點。** 規則指定工具與樣式（`code: npm test *`、`files: write src/**`）並決定允許、詢問或拒絕；拒絕優先於詢問，詢問優先於允許，shell 指令串逐一判斷。規則可在 **設定 → Permissions** 針對所有專案、單一專案或單一 Agent 設定，也可寫在專案自己的 `.saturn/settings.json`；`.claude/settings.json` 的 `permissions` 也會讀取。這兩個檔案隨資料夾而來（例如 clone 下來的 repository），因此其中的拒絕與詢問規則立即生效，允許規則則要在你於該專案的規則中允許那一組之後才生效，任何變更都會再次詢問。允許所有指令的規則，包括 shell 或啟動器加萬用字元（`sh *`、`env *`），無論來自哪裡都會被拒絕。檔案 patch 以它改動的每個檔案判斷。核准卡上的 **Always allow…** 會直接存成一條規則。規則同樣約束 Claude Code 的回合（依它詢問的工具對應：`Bash` 視為 `code`，檔案工具視為 `files`），以及 Codex 回合呼叫的 Saturn skill；Codex 自己的 shell 指令不經詢問就執行，規則管不到。沒有規則適用時，除非你選擇完全自主，符合危險樣式的指令（刪除、`sudo`、碰觸 Saturn 的金鑰）、刪除檔案、工作目錄外的寫入、更換專案的直譯器與排程自動化都會等待核准；這份樣式清單只是輔助，真正把關的是沙箱。Agent 委派給另一個 Agent 的工作，詢問的程度至少與發起的對話相同。在 Ask 或 Plan 對話中，web 工具只開啟單純的位址，不會開啟查詢字串或路徑可能夾帶對話內容的位址。每次修改都有檢查點，可回復到單一步驟，shell 指令（前景或背景）改動的檔案也包含在內。在 git 專案中由 git 判斷改了什麼（被忽略的檔案除外）；在其他資料夾，Saturn 會在自己的資料夾裡為它保留一份私有的 git 快照（不會寫進你的資料夾），排除 `node_modules`、建置輸出與快取；幾秒內無法完成快照的超大資料夾則略過。**設定 → 一般 → Storage** 會列出每個資料夾快照的大小，確認後可刪除；先前的變更仍可還原。
+- **權限規則、核准策略、檢查點。** 規則指定工具與樣式（`code: npm test *`、`files: write src/**`）並決定允許、詢問或拒絕；拒絕優先於詢問，詢問優先於允許，shell 指令串逐一判斷。規則可在 **設定 → Permissions** 針對所有專案、單一專案或單一 Agent 設定，也可寫在專案自己的 `.saturn/settings.json`；`.claude/settings.json` 的 `permissions` 也會讀取。這兩個檔案隨資料夾而來（例如 clone 下來的 repository），因此其中的拒絕與詢問規則立即生效，允許規則則要在你於該專案的規則中允許那一組之後才生效，任何變更都會再次詢問。允許所有指令的規則，包括 shell 或啟動器加萬用字元（`sh *`、`env *`），無論來自哪裡都會被拒絕。檔案 patch 以它改動的每個檔案判斷。核准卡上的 **Always allow…** 會直接存成一條規則。規則同樣約束 Claude Code 的回合（依它詢問的工具對應：`Bash` 視為 `code`，檔案工具視為 `files`），以及 Codex 回合呼叫的 Saturn skill；Codex 自己的 shell 指令不經詢問就執行，規則管不到。沒有規則適用時，除非你選擇完全自主，符合危險樣式的指令（刪除、`sudo`、碰觸 Saturn 的金鑰）、刪除檔案、工作目錄外的寫入與更換專案的直譯器都會等待核准；這份樣式清單只是輔助，真正把關的是沙箱。Agent 委派給另一個 Agent 的工作，詢問的程度至少與發起的對話相同。在 Ask 或 Plan 對話中，web 工具只開啟單純的位址，不會開啟查詢字串或路徑可能夾帶對話內容的位址。每次修改都有檢查點，可回復到單一步驟，shell 指令（前景或背景）改動的檔案也包含在內。在 git 專案中由 git 判斷改了什麼（被忽略的檔案除外）；在其他資料夾，Saturn 會在自己的資料夾裡為它保留一份私有的 git 快照（不會寫進你的資料夾），排除 `node_modules`、建置輸出與快取；幾秒內無法完成快照的超大資料夾則略過。**設定 → 一般 → Storage** 會列出每個資料夾快照的大小，確認後可刪除；先前的變更仍可還原。
 - **訂閱憑證隔離。** Claude Code 與 Codex 透過官方 CLI 驗證，憑證存於 Saturn 專用的設定目錄。Saturn 從不讀取、複製或轉送這些憑證，也從不加入自己的金鑰。Claude Code 取得 Runtime 的環境，移除 Saturn 自己的 session 變數與其他服務的憑證，因此你為它設定的任何驗證方式（你自己的 `ANTHROPIC_API_KEY`、Bedrock、Vertex AI 或 Foundry）都依 Anthropic 的條款保持可用，而你匯出的 OpenAI 金鑰或 GitHub token 不會進入它的 shell；Codex 則會移除 API 金鑰變數，避免多餘的金鑰覆蓋 ChatGPT 登入。
 - **專案的指示檔案要經你核准。** `AGENTS.md`、`CLAUDE.md`、`.saturn/rules` 與 `.agents/rules` 資料夾、`.cursorrules` 以及專案的 skills 都隨資料夾而來，所以要等你讀過並允許那份確切的內容後，Agent 才會拿到（在你允許之前，研究助理會顯示一行提示，**設定 → 專案** 也看得到）；任何變更，包括 Agent 自己的修改，都會再次詢問。你在 Saturn 裡儲存的規則一律適用。
 
@@ -523,7 +523,7 @@ macOS 以 App 的程式碼簽章識別這些授權。ad-hoc 簽章的版本每�
 
 ### Windows
 
-Windows 不需要任何權限。所有動作由單一輔助程序處理（Windows PowerShell 執行一個小型的已編譯 C# 模組）：以 SendInput 送出滑鼠、滾輪與按鍵，以 Unicode 輸入打字（任何語言皆可，不碰剪貼簿），以 GDI+ 截圖，並以 UI Automation 讀取與操作 App 的元素。它支援 DPI 感知，在縮放的螢幕上座標也正確。以 macOS 寫法表示的組合鍵（`cmd+c`）在 Windows 上代表 Ctrl。
+Windows 不需要任何權限。所有動作由單一輔助程序處理（Windows PowerShell 執行一個小型的已編譯 C# 模組）：以 SendInput 送出滑鼠、滾輪與按鍵，以貼上的方式打字（任何語言皆可；之後放回原本的剪貼簿內容，Saturn 貼上的內容不進剪貼簿歷程），以 GDI+ 截圖，並以 UI Automation 讀取與操作 App 的元素。它支援 DPI 感知，在縮放的螢幕上座標也正確。以 macOS 寫法表示的組合鍵（`cmd+c`）在 Windows 上代表 Ctrl。
 
 - Windows 只允許 App 控制與自己權限等級相同的 App：以系統管理員身分執行的 App 會忽略 Saturn 的輸入，除非 Saturn 也以系統管理員身分執行，Agent 會說明這個情況。
 - 鎖定畫面或 UAC 提示（安全桌面）顯示時，什麼都看不到也點不到；Agent 會回報狀況而不執行操作。
@@ -562,24 +562,7 @@ saturn runs
 saturn approve RUN ACTION
 ```
 
-`saturn run` 會把 Agent 的步驟輸出到 stderr、答案輸出到 stdout（`--json` 輸出整個 run）。需要核准時，在終端機會直接詢問；在腳本中 `saturn` 會以代碼 3 結束，並印出可回答它的 `saturn approve` 指令。與自動化任務相同，使用 Claude（透過 Claude Code）的 Agent 只能在終端機中執行，不能無人值守。
-
-**從程式呼叫。** [Saturn SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)（獨立的 repository）提供同一套 API 的 TypeScript client，沒有任何相依套件：啟動 run、即時取得每個步驟、在 callback 裡回答核准、讀取它改了哪些檔案。
-
-```ts
-import { Saturn } from "@saturn-app/sdk";
-
-const saturn = new Saturn(); // 自動找到執行中的 Saturn 與其 token
-const run = await saturn.run("fix the failing test", {
-  agent: "Saturn",
-  project: process.cwd(),
-  onStep: (step) => console.log("·", step.toolId),
-  onApproval: (step) => step.toolId === "code" && String(step.arguments.command).startsWith("npm test"),
-});
-console.log(run.status, run.output);
-```
-
-規則相同：使用 Claude（透過 Claude Code）的 Agent 會被拒絕，因為 SDK 是從程式執行它。
+`saturn run` 會把 Agent 的步驟輸出到 stderr、答案輸出到 stdout（`--json` 輸出整個 run）。需要核准時，在終端機會直接詢問；在腳本中 `saturn` 會以代碼 3 結束，並印出可回答它的 `saturn approve` 指令。使用 Claude（透過 Claude Code）的 Agent 只能在終端機中執行，不能無人值守。
 
 ## 本機 API
 
@@ -606,7 +589,6 @@ curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4700/projects
 | `POST` | `/runs/:id/stop` | 取消回合 |
 | `POST` | `/threads/:id/worktree` · `/worktree/finish` · `/pull-request` | 隔離 worktree：建立、合併／保留／捨棄、開 PR |
 | `POST` | `/threads/:id/pull-request/check` · `/watch` · `/feedback/send` · `/feedback/dismiss` | 追蹤 PR：立即檢查、停止或恢復追蹤、送出或略過 review 留言 |
-| `GET` `POST` | `/automations` | 排程執行 |
 | `GET` | `/usage/summary?from=&to=` | 指定期間的 token 數與成本 |
 | `GET` | `/events` · `/runs/:id/events` | 以 server-sent events 即時更新：哪些 run 有變化，或單一 run 的每次變化 |
 | `GET` | `/network` | 對外請求紀錄：主機與最近的請求 |

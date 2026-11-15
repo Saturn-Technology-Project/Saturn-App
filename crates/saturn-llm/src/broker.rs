@@ -57,7 +57,7 @@ pub struct CallContext {
     pub agent_id: String,
     pub agent_name: String,
     pub run_id: Option<String>,
-    /// "run", "automation_draft", "memory" or "compaction".
+    /// "run", "memory" or "compaction".
     pub purpose: &'static str,
 }
 

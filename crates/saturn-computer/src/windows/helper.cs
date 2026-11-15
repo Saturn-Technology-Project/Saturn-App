@@ -360,23 +360,108 @@ public static class SaturnDesktop
         Send(inputs);
     }
 
-    // Unicode input types any text (Chinese, emoji) regardless of the keyboard layout; line breaks are Return.
+    // How long the app in front is given to read a paste before the clipboard changes again.
+    const int PASTE_READ = 250;
+
+    // Types text by pasting it, with line breaks as Return and tabs as Tab. Windows 11's own apps (Notepad among them)
+    // scramble Unicode keyboard input: letters came out repeated or as others, and the rest was lost after Chinese, with
+    // English and with Bopomofo, even a character every 60 ms; a paste arrived whole every time. The clipboard the user
+    // had is put back afterwards, and neither what Saturn pastes nor the restored copy enters clipboard history or cloud
+    // sync, as on macOS, where text other than plain ASCII is pasted the same way.
     static void TypeText(string text)
     {
-        var inputs = new List<INPUT>();
-        foreach (char c in text)
+        var lines = text.Replace("\r", "").Split('\n');
+        var saved = OnClipboardThread(() => SavedClipboard());
+        try
         {
-            if (c == '\r') continue;
-            if (c == '\n') { inputs.Add(KeyInput(0x0D, 0, 0)); inputs.Add(KeyInput(0x0D, 0, KEYUP)); continue; }
-            if (c == '\t') { inputs.Add(KeyInput(0x09, 0, 0)); inputs.Add(KeyInput(0x09, 0, KEYUP)); continue; }
-            inputs.Add(KeyInput(0, c, UNICODE));
-            inputs.Add(KeyInput(0, c, UNICODE | KEYUP));
+            for (int l = 0; l < lines.Length; l++)
+            {
+                var cells = lines[l].Split('\t');
+                for (int c = 0; c < cells.Length; c++)
+                {
+                    if (cells[c].Length > 0) Paste(cells[c]);
+                    if (c < cells.Length - 1) Key(new int[0], 0x09, "", false);
+                }
+                if (l < lines.Length - 1) Key(new int[0], 0x0D, "", false);
+            }
         }
-        for (int start = 0; start < inputs.Count; start += 200)
+        finally
         {
-            Send(inputs.GetRange(start, Math.Min(200, inputs.Count - start)));
-            Thread.Sleep(10);
+            OnClipboardThread(() => { Restore(saved); return true; });
         }
+    }
+
+    // Puts text on the clipboard, presses Ctrl+V and waits until the app in front has had time to read it.
+    static void Paste(string text)
+    {
+        OnClipboardThread(() =>
+        {
+            var data = new System.Windows.Forms.DataObject();
+            data.SetData(System.Windows.Forms.DataFormats.UnicodeText, true, text);
+            KeepOutOfHistory(data);
+            System.Windows.Forms.Clipboard.SetDataObject(data, true, 10, 50);
+            return true;
+        });
+        Key(new int[] { 0x11 }, 0x56, "", false);
+        Settle();
+        Thread.Sleep(PASTE_READ);
+    }
+
+    // Windows's own formats that keep clipboard content out of clipboard history and cloud clipboard.
+    static void KeepOutOfHistory(System.Windows.Forms.DataObject data)
+    {
+        data.SetData("ExcludeClipboardContentFromMonitorProcessing", false, new MemoryStream(new byte[] { 0, 0, 0, 0 }));
+        data.SetData("CanIncludeInClipboardHistory", false, new MemoryStream(new byte[] { 0, 0, 0, 0 }));
+        data.SetData("CanUploadToCloudClipboard", false, new MemoryStream(new byte[] { 0, 0, 0, 0 }));
+    }
+
+    // A copy of what the clipboard holds, format by format; null when it holds nothing. A format that cannot be read is
+    // left out.
+    static System.Windows.Forms.DataObject SavedClipboard()
+    {
+        System.Windows.Forms.IDataObject current;
+        try { current = System.Windows.Forms.Clipboard.GetDataObject(); } catch { return null; }
+        if (current == null) return null;
+        var copy = new System.Windows.Forms.DataObject();
+        int kept = 0;
+        foreach (var format in current.GetFormats(false))
+        {
+            try
+            {
+                var value = current.GetData(format, false);
+                if (value == null) continue;
+                copy.SetData(format, false, value);
+                kept++;
+            }
+            catch { }
+        }
+        return kept > 0 ? copy : null;
+    }
+
+    // Puts the saved clipboard back, or empties the clipboard when it held nothing.
+    static void Restore(System.Windows.Forms.DataObject saved)
+    {
+        try
+        {
+            if (saved == null) { System.Windows.Forms.Clipboard.Clear(); return; }
+            KeepOutOfHistory(saved);
+            System.Windows.Forms.Clipboard.SetDataObject(saved, true, 10, 50);
+        }
+        catch { }
+    }
+
+    // The clipboard can only be used from a single-threaded apartment, which the helper's own thread need not be.
+    static T OnClipboardThread<T>(Func<T> work)
+    {
+        if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA) return work();
+        T result = default(T);
+        Exception failed = null;
+        var thread = new Thread(() => { try { result = work(); } catch (Exception error) { failed = error; } });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        if (failed != null) throw failed;
+        return result;
     }
 
     static AutomationElement Element(int pid, int[] path)

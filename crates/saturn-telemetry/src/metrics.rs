@@ -92,11 +92,6 @@ const DEFINITIONS: &[Definition] = &[
         "Duration of MCP JSON-RPC requests.",
         DURATION_BUCKETS,
     ),
-    counter(
-        "saturn.automation.runs",
-        "{run}",
-        "Automation firings, by trigger and outcome.",
-    ),
     histogram(
         "saturn.store.write.duration",
         "s",

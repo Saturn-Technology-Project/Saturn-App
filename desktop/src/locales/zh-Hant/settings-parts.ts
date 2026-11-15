@@ -112,12 +112,10 @@ export default {
   "No project has hooks in either file:": "沒有專案在這兩個檔案中設定 Hooks：",
 
   // Older features
-  "Scheduled runs and pull request follow-up came from the earlier interface. The runtime keeps doing them until they are turned off here. They can use your models and your GitHub token.":
-    "排程執行與 pull request 追蹤是在先前的介面中設定的。在你於此處關閉之前，執行環境會持續執行它們。它們可以使用你的模型與 GitHub 權杖。",
+  "Pull request follow-up came from the earlier interface. The runtime keeps doing it until it is turned off here. It can use your models and your GitHub token.":
+    "Pull request 追蹤是在先前的介面中設定的。在你於此處關閉之前，執行環境會持續執行它。它可以使用你的模型與 GitHub 權杖。",
   "Nothing is still running.": "目前沒有仍在執行的項目。",
   "Turn them all off": "全部關閉",
-  "scheduled, on {agent}": "排程於 {agent}",
-  "Turn off": "關閉",
   "pull request": "pull request",
   "Stop following": "停止追蹤",
 
@@ -298,7 +296,7 @@ export default {
   "Hide polling ({count})": "隱藏輪詢（{count}）",
   "Errors only": "只顯示錯誤",
   "No traces yet": "尚無追蹤",
-  "Send a message to an agent or run an automation, then come back.": "傳送訊息給代理或執行自動化後，再回來這裡查看。",
+  "Send a message to an agent, then come back.": "傳送訊息給代理後，再回來這裡查看。",
   Trace: "追蹤",
   Spans: "Span 數",
   Duration: "持續時間",
@@ -318,7 +316,6 @@ export default {
   "No attributes.": "沒有屬性。",
   Events: "事件",
   "Stack trace": "堆疊追蹤",
-  Automations: "自動化",
   "No metrics recorded yet": "尚未記錄任何指標",
   "Metrics appear once the runtime has handled requests or runs.": "執行環境處理過請求或執行後，就會顯示指標。",
   counter: "計數器",

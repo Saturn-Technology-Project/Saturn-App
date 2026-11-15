@@ -45,7 +45,7 @@ pub fn run_fingerprint(run: &Value) -> String {
     .join("|")
 }
 
-/// What besides runs a refresh depends on: agents, chats, projects, connections and automations.
+/// What besides runs a refresh depends on: agents, chats, projects and connections.
 fn other_fingerprint(state: &AppState) -> String {
     json!([
         state
@@ -95,15 +95,6 @@ fn other_fingerprint(state: &AppState) -> String {
                 server.get("id"),
                 server.get("status"),
                 server.get("tools").and_then(Value::as_array).map(Vec::len)
-            ]))
-            .collect::<Vec<_>>(),
-        state
-            .automations
-            .iter()
-            .map(|automation| json!([
-                automation.get("id"),
-                automation.get("lastRunAt"),
-                automation.get("enabled")
             ]))
             .collect::<Vec<_>>(),
     ])

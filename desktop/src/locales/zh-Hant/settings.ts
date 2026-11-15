@@ -41,7 +41,7 @@ export default {
   "Files, commands, web and plans": "檔案、指令、網頁與計畫",
   "Mouse, keyboard and screen": "滑鼠、鍵盤與螢幕",
   "GitHub repositories and pull requests": "GitHub 儲存庫與 pull request",
-  "Schedules, rules, skills and plugins": "排程、規則、技能與外掛",
+  "Rules, skills and plugins": "規則、技能與外掛",
   "A browser agents can drive": "代理可操作的瀏覽器",
   "Research records, runs and looking inside models": "研究紀錄、執行與模型檢視",
 
@@ -208,8 +208,8 @@ export default {
   ": its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.":
     "：包括 Hooks、權限規則與其他設定，與在該專案的終端機中執行時相同。絕不會載入你自己的 Claude 設定。預設關閉，因為專案的 Hooks 會執行指令。",
   "Background Model": "背景模型",
-  "Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.":
-    "從你的對話中撰寫記憶筆記，並在代理的模型沒有 API 時草擬自動化。對話內容會傳送給這個模型。選擇「自動」時，記憶筆記會使用代理的模型。",
+  "Writes memory notes from your chats. Chat content goes to this model. On Automatic, memory notes use the agent's model.":
+    "從你的對話中撰寫記憶筆記。對話內容會傳送給這個模型。選擇「自動」時，記憶筆記會使用代理的模型。",
   "Background model": "背景模型",
   Automatic: "自動",
   Agents: "代理",
@@ -254,6 +254,21 @@ export default {
     "設定",
   "The sandbox is still off: {reason}.":
     "沙箱仍未啟用：{reason}。",
+  // Why the sandbox is off, as the runtime says it (domain/sandbox.ts).
+  "sandbox-exec is missing":
+    "找不到 sandbox-exec",
+  "bubblewrap (bwrap) is not installed":
+    "沒有安裝 bubblewrap（bwrap）",
+  "this program cannot start a Windows sandbox":
+    "這個程式無法啟動 Windows 沙箱",
+  "the Windows sandbox is not set up: Settings → General → Sandbox sets it up once, as an administrator (or `saturn-server --appcontainer-setup`; see the README)":
+    "Windows 沙箱尚未設定：在「設定 → 一般 → 沙箱」以系統管理員身分設定一次（或執行 `saturn-server --appcontainer-setup`，詳見 README）",
+  "the administrator prompt was declined":
+    "系統管理員的確認被拒絕了",
+  "the setup could not open everything, or did not run as an administrator":
+    "設定沒能開放所有資料夾，或沒有以系統管理員身分執行",
+  "This computer's sandbox has no setup to run from Saturn":
+    "這台電腦的沙箱沒有能從 Saturn 執行的設定",
   "Could not set up the sandbox":
     "無法設定沙箱",
   "Workspace Name": "工作區名稱",

@@ -329,7 +329,7 @@ function TraceList(props: { traces: TraceSummary[]; onOpen: (traceId: string) =>
         </label>
       </div>
       {shown.length === 0 ? (
-        <Nothing title={t("No traces yet")}>{t("Send a message to an agent or run an automation, then come back.")}</Nothing>
+        <Nothing title={t("No traces yet")}>{t("Send a message to an agent, then come back.")}</Nothing>
       ) : (
         <Card className="gap-0 overflow-hidden p-0">
           <div className={classes(TRACE_ROW, "border-t-0 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase")}>
@@ -568,7 +568,6 @@ const GROUPS: { prefix: string; title: string }[] = [
   { prefix: "saturn.agent", title: t("Agents") },
   { prefix: "saturn.tool", title: t("Tools") },
   { prefix: "saturn.mcp", title: "MCP" },
-  { prefix: "saturn.automation", title: t("Automations") },
   { prefix: "http.", title: "HTTP" },
   { prefix: "", title: t("Runtime") },
 ];
