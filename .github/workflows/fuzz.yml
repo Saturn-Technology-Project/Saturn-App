@@ -48,7 +48,8 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           mkdir -p "corpus/$TARGET"
-          cargo "+$NIGHTLY" fuzz run "$TARGET" "corpus/$TARGET" "seeds/$TARGET" -- -max_total_time=180
+          # cargo-fuzz builds for the target it was itself built for unless told; the installed one is a musl build.
+          cargo "+$NIGHTLY" fuzz run --target x86_64-unknown-linux-gnu "$TARGET" "corpus/$TARGET" "seeds/$TARGET" -- -max_total_time=180
 
       - name: Keep the input that crashed
         if: failure()
