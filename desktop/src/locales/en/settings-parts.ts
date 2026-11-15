@@ -63,10 +63,9 @@ export default {
     "These commands come with the folder and run with your permissions. Review them before you allow them.",
 
   // Older features
-  "Scheduled runs and pull request follow-up came from the earlier interface. The runtime keeps doing them until they are turned off here. They can use your models and your GitHub token.":
-    "Scheduled runs and pull request follow-ups were set up in the earlier interface. The runtime keeps running them until you turn them off here. They can use your models and your GitHub token.",
+  "Pull request follow-up came from the earlier interface. The runtime keeps doing it until it is turned off here. It can use your models and your GitHub token.":
+    "Pull request follow-ups were set up in the earlier interface. The runtime keeps running them until you turn them off here. They can use your models and your GitHub token.",
   "Turn them all off": "Turn all off",
-  "scheduled, on {agent}": "Scheduled on {agent}",
   "pull request": "Pull request",
 
   // Permissions
@@ -136,7 +135,7 @@ export default {
   "Empties the page and telemetry.json": "Clears this page and telemetry.json",
   "Show {count} more ({left} left)": "Show {count} more ({left} remaining)",
   "Filter by span name or trace id…": "Filter by span name or trace ID…",
-  "Send a message to an agent or run an automation, then come back.": "Send a message to an agent or run an automation, then check back here.",
+  "Send a message to an agent, then come back.": "Send a message to an agent, then check back here.",
   "Trace id": "Trace ID",
   "Span id": "Span ID",
   counter: "Counter",

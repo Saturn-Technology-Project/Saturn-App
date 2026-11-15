@@ -361,26 +361,6 @@ export type LogLine = {
   attributes?: Record<string, unknown>;
 };
 
-export type AutomationFrequency = "hourly" | "daily" | "weekdays" | "weekly";
-export type AutomationTrigger = { frequency: AutomationFrequency; time: string; weekday: number };
-export type Automation = {
-  id: string;
-  name: string;
-  agentId: string;
-  agentName: string;
-  prompt: string;
-  trigger: AutomationTrigger;
-  timeZone: string;
-  enabled: boolean;
-  createdAt: string;
-  lastRunAt?: string;
-  lastRunId?: string;
-  lastError?: string;
-  nextRun: string | null;
-};
-export type AutomationInput = Pick<Automation, "name" | "agentId" | "prompt" | "trigger" | "timeZone"> & { enabled?: boolean };
-export type AutomationDraft = Pick<Automation, "name" | "prompt" | "trigger">;
-
 export type AttributeValue = string | number | boolean | (string | number | boolean | null)[] | null | undefined;
 export type Attributes = Record<string, AttributeValue>;
 

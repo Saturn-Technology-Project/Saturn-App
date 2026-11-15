@@ -226,9 +226,6 @@ export function actionSummary(action: RunAction): string {
   if (action.toolId === "grep_contents") {
     return `/${args.query || ""}/`;
   }
-  if (action.toolId === "automation_create") {
-    return String(args.name || "new automation");
-  }
   if (action.toolId === "generative_ui_render") {
     return String(args.title || "render widget");
   }

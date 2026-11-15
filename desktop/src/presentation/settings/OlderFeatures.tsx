@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
-import type { Automation, Conversation } from "../../domain/model.js";
+import type { Conversation } from "../../domain/model.js";
 import { Button } from "../ui/base/Button.js";
 import { messageOf } from "../ui/Parts.js";
 
@@ -15,7 +15,6 @@ const OLDER_TEXT = "min-w-0 flex-[1_1_220px] [overflow-wrap:anywhere]";
  */
 export function OlderFeatures(props: { onError: (message: string) => void }) {
   const { onError } = props;
-  const [automations, setAutomations] = useState<Automation[]>([]);
   const [watched, setWatched] = useState<Conversation[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -23,7 +22,6 @@ export function OlderFeatures(props: { onError: (message: string) => void }) {
     try {
       const agents = await desktop.catalog.listAgents();
       const threads = (await Promise.all(agents.map((agent) => desktop.catalog.listThreads(agent.id)))).flat();
-      setAutomations((await desktop.automations.list()).filter((item) => item.enabled));
       setWatched(threads.filter((thread) => thread.pullRequest?.watching));
     } catch (error) {
       onError(messageOf(error));
@@ -45,10 +43,10 @@ export function OlderFeatures(props: { onError: (message: string) => void }) {
     }
   }
 
-  const count = automations.length + watched.length;
+  const count = watched.length;
   return (
     <div>
-      <p className="max-w-[680px] text-muted-foreground">{t("Scheduled runs and pull request follow-up came from the earlier interface. The runtime keeps doing them until they are turned off here. They can use your models and your GitHub token.")}</p>
+      <p className="max-w-[680px] text-muted-foreground">{t("Pull request follow-up came from the earlier interface. The runtime keeps doing it until it is turned off here. It can use your models and your GitHub token.")}</p>
       {loaded && count === 0 ? <p className="mt-3 text-xs text-muted-foreground">{t("Nothing is still running.")}</p> : null}
       {count > 1 ? (
         <Button
@@ -56,27 +54,12 @@ export function OlderFeatures(props: { onError: (message: string) => void }) {
           variant="outline"
           className="mt-3"
           onClick={() =>
-            void act(() =>
-              Promise.all([
-                ...automations.map((item) => desktop.automations.update(item.id, { enabled: false })),
-                ...watched.map((thread) => desktop.catalog.watchPullRequest(thread.id, false)),
-              ]),
-            )
+            void act(() => Promise.all(watched.map((thread) => desktop.catalog.watchPullRequest(thread.id, false))))
           }
         >
           {t("Turn them all off")}
         </Button>
       ) : null}
-      {automations.map((item) => (
-        <div className={OLDER_ROW} key={item.id}>
-          <span className={OLDER_TEXT}>
-            {item.name} <span className="text-xs text-muted-foreground">{t("scheduled, on {agent}", { agent: item.agentName })}</span>
-          </span>
-          <Button type="button" variant="outline" onClick={() => void act(() => desktop.automations.update(item.id, { enabled: false }))}>
-            {t("Turn off")}
-          </Button>
-        </div>
-      ))}
       {watched.map((thread) => (
         <div className={OLDER_ROW} key={thread.id}>
           <span className={OLDER_TEXT}>

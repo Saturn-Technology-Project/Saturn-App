@@ -1,6 +1,5 @@
 import { AdminService } from "./admin.js";
 import { AssistantService } from "./assistant.js";
-import { AutomationService } from "./automations.js";
 import { CatalogService } from "./catalog.js";
 import { NotebookService } from "./notebooks.js";
 import { ProjectService } from "./projects.js";
@@ -17,7 +16,6 @@ export class DesktopApp {
   readonly runs: RunService;
   readonly admin: AdminService;
   readonly workspace: WorkspaceService;
-  readonly automations: AutomationService;
   readonly telemetry: TelemetryService;
   readonly projects: ProjectService;
   readonly research: ResearchService;
@@ -30,7 +28,6 @@ export class DesktopApp {
     this.runs = new RunService(runtime);
     this.admin = new AdminService(runtime);
     this.workspace = new WorkspaceService(runtime);
-    this.automations = new AutomationService(runtime);
     this.telemetry = new TelemetryService(runtime);
     this.projects = new ProjectService(runtime);
     this.research = new ResearchService(runtime);

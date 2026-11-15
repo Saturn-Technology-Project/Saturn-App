@@ -288,7 +288,7 @@ const BUILT_IN_SUMMARIES: Record<string, string> = {
   "general-skills": t("Files, commands, web and plans"),
   "computer-use": t("Mouse, keyboard and screen"),
   origin: t("GitHub repositories and pull requests"),
-  automations: t("Schedules, rules, skills and plugins"),
+  customizations: t("Rules, skills and plugins"),
   browser: t("A browser agents can drive"),
   research: t("Research records, runs and looking inside models"),
 };
@@ -543,7 +543,7 @@ function McpPage(props: {
 
   const isBuiltin = (item: Mcp) =>
     item.url.startsWith("builtin:") ||
-    ["general-skills", "computer-use", "origin", "automations", "cursor-computer-use", "cursor-origin", "antigravity-skills"].includes(item.id);
+    ["general-skills", "computer-use", "origin", "customizations", "cursor-computer-use", "cursor-origin", "antigravity-skills"].includes(item.id);
 
   const builtinServers = props.mcp.filter(isBuiltin);
   const installedServers = props.mcp.filter((item) => !isBuiltin(item));
@@ -1357,7 +1357,7 @@ function General(props: {
             <RowText>
               <RowLabel>{t("Background Model")}</RowLabel>
               <RowDescription>
-                {t("Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.")}
+                {t("Writes memory notes from your chats. Chat content goes to this model. On Automatic, memory notes use the agent's model.")}
               </RowDescription>
             </RowText>
             <Choice

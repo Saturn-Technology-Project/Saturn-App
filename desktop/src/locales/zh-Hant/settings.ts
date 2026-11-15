@@ -41,7 +41,7 @@ export default {
   "Files, commands, web and plans": "檔案、指令、網頁與計畫",
   "Mouse, keyboard and screen": "滑鼠、鍵盤與螢幕",
   "GitHub repositories and pull requests": "GitHub 儲存庫與 pull request",
-  "Schedules, rules, skills and plugins": "排程、規則、技能與外掛",
+  "Rules, skills and plugins": "規則、技能與外掛",
   "A browser agents can drive": "代理可操作的瀏覽器",
   "Research records, runs and looking inside models": "研究紀錄、執行與模型檢視",
 
@@ -208,8 +208,8 @@ export default {
   ": its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.":
     "：包括 Hooks、權限規則與其他設定，與在該專案的終端機中執行時相同。絕不會載入你自己的 Claude 設定。預設關閉，因為專案的 Hooks 會執行指令。",
   "Background Model": "背景模型",
-  "Writes memory notes from your chats, and drafts automations when an agent's own model has no API. Chat content goes to this model. On Automatic, memory notes use the agent's model.":
-    "從你的對話中撰寫記憶筆記，並在代理的模型沒有 API 時草擬自動化。對話內容會傳送給這個模型。選擇「自動」時，記憶筆記會使用代理的模型。",
+  "Writes memory notes from your chats. Chat content goes to this model. On Automatic, memory notes use the agent's model.":
+    "從你的對話中撰寫記憶筆記。對話內容會傳送給這個模型。選擇「自動」時，記憶筆記會使用代理的模型。",
   "Background model": "背景模型",
   Automatic: "自動",
   Agents: "代理",
