@@ -12,7 +12,7 @@ workspace = true
 [dependencies]
 axum = "0.8"
 futures-util = { version = "0.3", default-features = false }
-getrandom = { version = "0.3", features = ["std"] }
+getrandom = { version = "0.4", features = ["std"] }
 saturn-appcontainer = { path = "../saturn-appcontainer" }
 saturn-core = { path = "../saturn-core" }
 saturn-domain = { path = "../saturn-domain" }
