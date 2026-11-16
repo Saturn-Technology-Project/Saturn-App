@@ -1,5 +1,6 @@
 //! What a run costs while it lives: its process group's processor time and memory, the GPUs when `nvidia-smi` can
-//! say, and how fast its samples file grows. Sampled every two seconds into the run's folder, never interpreted.
+//! say, and how fast its samples file grows. Sampled every two seconds into the run's folder, more often in its first
+//! seconds, never interpreted.
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -16,8 +17,11 @@ use super::runs::group_exists;
 use crate::records::text;
 use crate::{CoreError, Kernel};
 
-/// How often a run is sampled.
+/// How often a run is sampled once it has run a while.
 const EVERY: Duration = Duration::from_secs(2);
+/// The wait after a run's first reading, doubled after each reading until it reaches `EVERY`, so a run of a second or
+/// two is read while it works and not only as it starts.
+const FIRST_WAIT: Duration = Duration::from_millis(250);
 /// The file in a run's folder that holds its samples.
 const FILE: &str = "resources.jsonl";
 /// How many of the newest points a reading gives.
@@ -238,8 +242,13 @@ pub(super) fn system() -> Value {
     })
 }
 
-/// Samples a process group every two seconds into `resources.jsonl` in its folder, until the group is gone or `stop`
-/// is set. A local run and a remote worker's job are sampled alike, so their readings read alike.
+/// The wait after a reading: `FIRST_WAIT` after the first, twice the one before after each next, `EVERY` at most.
+fn next_wait(before: Duration) -> Duration {
+    (before * 2).min(EVERY)
+}
+
+/// Samples a process group into `resources.jsonl` in its folder, often at first and then every two seconds, until the
+/// group is gone or `stop` is set. A local run and a remote worker's job are sampled alike, so their readings read alike.
 pub(super) async fn sample_until(pid: u32, directory: PathBuf, stop: Option<Arc<AtomicBool>>) {
     let started = Instant::now();
     let samples = directory.join("samples.jsonl");
@@ -251,6 +260,7 @@ pub(super) async fn sample_until(pid: u32, directory: PathBuf, stop: Option<Arc<
     let mut counted = Counted::default();
     let mut gpu_present = true;
     let mut earlier = None;
+    let mut wait = FIRST_WAIT;
     loop {
         if !group_exists(pid) || stopped() {
             break;
@@ -292,7 +302,8 @@ pub(super) async fn sample_until(pid: u32, directory: PathBuf, stop: Option<Arc<
                 .and_then(|mut handle| handle.write_all(line.as_bytes()))
         })
         .await;
-        tokio::time::sleep(EVERY).await;
+        tokio::time::sleep(wait).await;
+        wait = next_wait(wait);
     }
 }
 
@@ -410,6 +421,49 @@ mod tests {
         file.write_all(b"\n").unwrap();
         let appended = count_lines(&path, partial);
         assert_eq!((appended.lines, appended.input_tokens), (6, 270));
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn the_waits_grow_from_a_quarter_second_to_two_seconds() {
+        let mut wait = FIRST_WAIT;
+        let mut waits = vec![wait];
+        for _ in 0..5 {
+            wait = next_wait(wait);
+            waits.push(wait);
+        }
+        let millis: Vec<u128> = waits.iter().map(Duration::as_millis).collect();
+        assert_eq!(millis, [250, 500, 1000, 2000, 2000, 2000]);
+    }
+
+    /// A run that lives about a second, as the SSH contract's job does, was read once, as it started, before it had
+    /// any memory to show; it is now read while it works.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_run_of_a_second_is_read_while_it_works() {
+        let folder = std::env::temp_dir().join(saturn_domain::new_id("research_short").unwrap());
+        std::fs::create_dir_all(&folder).unwrap();
+        let mut command = Command::new("sleep");
+        command.arg("1.2");
+        saturn_tools::in_own_group(&mut command);
+        let mut child = command.spawn().unwrap();
+        let pid = child.id().unwrap();
+        // The run is reaped while it is sampled, as a run's own loop does, or its group would outlive it.
+        let sampler = tokio::spawn(sample_until(pid, folder.clone(), None));
+        child.wait().await.unwrap();
+        sampler.await.unwrap();
+        let points: Vec<Value> = std::fs::read_to_string(folder.join(FILE))
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert!(points.len() >= 3, "{points:?}");
+        let working = points
+            .iter()
+            .filter(|point| point["elapsedMs"].as_u64().unwrap() >= 200)
+            .filter(|point| point["memoryBytes"].as_u64().unwrap_or(0) > 0)
+            .count();
+        assert!(working >= 1, "{points:?}");
         std::fs::remove_dir_all(folder).unwrap();
     }
 }

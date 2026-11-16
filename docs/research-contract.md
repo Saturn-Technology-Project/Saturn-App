@@ -529,7 +529,8 @@ carries rows has a `note` saying so.
 
 ## What a run costs
 
-While a run lives the runtime samples its process group every two seconds into `runs/{id}/resources.jsonl`, one
+While a run lives the runtime samples its process group into `runs/{id}/resources.jsonl` as it starts, then after
+0.25, 0.5 and 1 second, and every two seconds from there, one
 object per line: `at`, `elapsedMs`, `cpuPercent` and `memoryBytes` (every process in the group, added up, from `ps`),
 `processes`, `samplesBytes` and `samplesLines` (the samples file so far), `inputTokens` and `outputTokens` (the
 `usage` of the lines so far, added up), `deviceMemoryBytes` (the last `usage.deviceMemoryBytes` a line gave, or null),
