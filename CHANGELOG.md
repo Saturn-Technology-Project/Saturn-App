@@ -2,7 +2,7 @@
 
 The major changes in each Saturn release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/Saturn-Technology-Project/Saturn-App/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories).
 
-## Unreleased
+## 0.6.4 (2026-11-16)
 
 How Windows was tried: on Windows 11 for ARM in a virtual machine, running the x64 build under emulation, signed in as an administrator. Nothing in this version or the Windows work before it has been tried on x64 hardware, or under a standard (non-administrator) account, where the sandbox's **Set up** asks for an administrator's password instead of a yes.
 

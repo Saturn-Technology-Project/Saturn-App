@@ -3466,7 +3466,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-appcontainer"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "serde",
  "serde_json",
@@ -3476,7 +3476,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-browser"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -3493,7 +3493,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-cli"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "percent-encoding",
  "reqwest",
@@ -3503,7 +3503,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-computer"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "base64 0.23.1",
  "regex",
@@ -3517,7 +3517,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-core"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -3542,7 +3542,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-desktop"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "core-graphics",
@@ -3563,7 +3563,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-domain"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "getrandom 0.3.4",
  "jiff",
@@ -3577,7 +3577,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-llm"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "percent-encoding",
@@ -3595,7 +3595,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-mcp"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -3613,7 +3613,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-server"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "futures-util",
@@ -3635,11 +3635,11 @@ dependencies = [
 
 [[package]]
 name = "saturn-standin"
-version = "0.6.3"
+version = "0.6.4"
 
 [[package]]
 name = "saturn-store"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "aes-gcm",
  "base64 0.23.1",
@@ -3655,7 +3655,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-telemetry"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "reqwest",
  "saturn-domain",
@@ -3667,7 +3667,7 @@ dependencies = [
 
 [[package]]
 name = "saturn-tools"
-version = "0.6.3"
+version = "0.6.4"
 dependencies = [
  "axum",
  "flate2",
