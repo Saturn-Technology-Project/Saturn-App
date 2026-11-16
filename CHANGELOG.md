@@ -13,6 +13,7 @@ How Windows was tried: on Windows 11 for ARM in a virtual machine, running the x
 ### Fixed
 
 - **Windows: computer use types every character into Windows 11's Notepad.** Typed text came out scrambled: letters repeated or replaced, and everything after Chinese text lost, with an English keyboard or Bopomofo. Text is now pasted, as on macOS, and your clipboard is put back afterwards; what Saturn pastes is kept out of clipboard history and cloud clipboard.
+- **A short experiment run shows what it cost.** Runs were read every two seconds, so a run of a second or two had one reading, taken as it started, with no memory yet. A run is now read after a quarter, a half and a whole second, then every two seconds as before.
 - **Why the sandbox is off is shown in your language.** Settings → General → Sandbox gave the reason (the setup not run, the administrator prompt declined, bubblewrap missing) in English inside a Chinese sentence.
 
 ### Changed
