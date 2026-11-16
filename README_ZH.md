@@ -150,7 +150,7 @@ JS／TS 與 JSX 優先使用專案的 TypeScript 7 原生 LSP（`node_modules/.b
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。
 
-macOS 版本尚未以 Apple Developer ID 簽章：首次開啟時請到 **系統設定 → 隱私權與安全性 → 強制打開**。Windows 版本以 Saturn 的自簽憑證進行 Authenticode 簽章（SHA-1 指紋 `D285DA425077C16A3D115D61F9748AFA574BC786`，公開憑證位於 [`desktop/build/saturn-code-signing.cer`](desktop/build/saturn-code-signing.cer)）。Windows 不信任自簽的發行者，所以 SmartScreen 仍會詢問：請選擇 **其他資訊 → 仍要執行**。改寫為 Rust 與 Tauri 之後，Windows 版本只做過型別檢查，尚未實際執行（見[平台說明](#平台說明)）。不需另外安裝任何東西：Runtime 是 App 內的原生程式，介面則使用系統的網頁檢視（macOS 12 以上的 WebKit、Windows 的 WebView2）。
+macOS 版本尚未以 Apple Developer ID 簽章：首次開啟時請到 **系統設定 → 隱私權與安全性 → 強制打開**。Windows 版本以 Saturn 的自簽憑證進行 Authenticode 簽章（SHA-1 指紋 `D285DA425077C16A3D115D61F9748AFA574BC786`，公開憑證位於 [`desktop/build/saturn-code-signing.cer`](desktop/build/saturn-code-signing.cer)）。Windows 不信任自簽的發行者，所以 SmartScreen 仍會詢問：請選擇 **其他資訊 → 仍要執行**。Windows 版本只在虛擬機裡試過（見[已知限制](#已知限制)）。不需另外安裝任何東西：Runtime 是 App 內的原生程式，介面則使用系統的網頁檢視（macOS 12 以上的 WebKit、Windows 的 WebView2）。
 
 **只有一個 App。** Runtime 與 `saturn` 指令都包在 Saturn 裡。「應用程式」、Launchpad 與 Spotlight 都只會列出 Saturn。
 
@@ -200,7 +200,7 @@ npm run archive                     # 下載檔與校驗碼，輸出至 desktop/
 - Windows 上的 **Claude Code** 需要 [Git for Windows](https://git-scm.com/downloads/win)，它提供 Claude Code 執行指令所用的 Bash。
 - Windows 上的 `code` 工具與終端機面板以 `cmd.exe` 執行指令。
 - **實驗執行**支援 macOS、Linux 與 Windows。Windows 上的執行不能暫停，沙箱的運作方式也不同（見[安全與信任](#安全與信任)）。遠端執行需要 Linux 或 macOS 主機。
-- **Windows 由人工測試，不由 CI 測試。** 2026 年 11 月，Runtime、它的 Rust 測試與 HTTP 合約測試在虛擬機裡的 Windows 11 ARM 版上執行過（x64 版本以模擬方式執行）。CI 在 Windows 上只跑 Rust 測試；改寫為 Rust 與 Tauri 之後，Saturn 還沒有在 x64 實體機器上試過。
+- **Windows 由人工測試，不由 CI 測試。** 2026 年 11 月，Runtime、它的 Rust 測試、HTTP 合約測試與安裝好的 App 在虛擬機裡的 Windows 11 ARM 版上執行過（x64 版本以模擬方式執行），使用系統管理員帳號。CI 在 Windows 上只跑 Rust 測試。還沒試過的部分見[已知限制](#已知限制)。
 
 ## 架構
 
@@ -244,7 +244,7 @@ crates/                                   desktop/src/
 
 ### 生命週期
 
-啟動 Saturn 會啟動自己的 Runtime 並持續看顧：Runtime 當掉會自動重啟，若該埠已被另一個 Saturn 占用則會拒絕沿用（想沿用自己啟動的 Runtime，請設定 `SATURN_RUNTIME_PORT`）。Runtime 回應之前，視窗會顯示它目前的狀態。關閉最後一個視窗會停止它所啟動的 Runtime。Runtime 持有一條來自 App 的管線，管線關閉就停止，所以 App 當掉或被強制結束時，Runtime 也不會繼續存活。
+啟動 Saturn 會啟動自己的 Runtime 並持續看顧：Runtime 當掉會自動重啟，若該埠已被另一個 Saturn 占用則會拒絕沿用（想沿用自己啟動的 Runtime，請設定 `SATURN_RUNTIME_PORT`）。Runtime 回應之前，視窗會顯示它目前的狀態。關閉最後一個視窗會停止它所啟動的 Runtime。在 Windows 上，關閉視窗就會結束 Saturn：如果有對話正在回答、實驗正在這台電腦上執行或背景指令正在執行，會先列出它們並詢問。Runtime 持有一條來自 App 的管線，管線關閉就停止，所以 App 當掉或被強制結束時，Runtime 也不會繼續存活。
 
 **上下文。** 研究助理對話中較早的回合會在依模型 context window 計算的預算內送出（視窗的一半；模型連線可自行指定 `contextTokens`）。超過預算時，最舊的回合會由同一個模型摘要成對話的累積摘要，之後的回合都以它為基礎；對話中會在發生處顯示「⤵ 已將 n 個較早回合併入摘要」。標頭的 **Context · n%** 標籤顯示對話的用量，點它或送出 `/compact` 可立即摘要。Claude Code 與 Codex 自行管理各自的上下文。
 
@@ -499,7 +499,7 @@ gh attestation verify Saturn-<version>-sbom.cdx.json -R Saturn-Technology-Projec
 
 ### 已知限制
 
-Saturn 仍為早期預覽版，尚未經過第三方安全稽核。Windows 版本由人工在虛擬機測試（Windows 11 ARM 版，x64 版本以模擬方式執行），沒有經過 CI 的合約測試，也沒有在 x64 實體機器上試過。macOS 版本尚未以 Developer ID 簽章或公證，Windows 版本則以 Windows 不信任的自簽憑證簽章。API 金鑰已靜態加密，不會以明文出現在備份、同步資料夾、磁碟映像或被複製的資料夾中；但任何以你的使用者身分執行的程序仍可向作業系統金鑰庫要求金鑰，這與所有使用鑰匙圈或 DPAPI 保存憑證的應用程式相同。設定 → 關於 會顯示目前使用的金鑰庫。被賦予完全自主的 Agent 可以在授權資料夾內執行任意指令；這是設計本質，請據此控管授權範圍。Claude Code、Codex、git、本機 MCP 伺服器、Agent 瀏覽器與系統網頁檢視的程序各自獨立執行，不會出現在 Runtime 的網路紀錄中，請用作業系統層的工具觀察。你允許的本機 MCP 伺服器以你的使用者權限執行，請只允許你信任的程式。
+Saturn 仍為早期預覽版，尚未經過第三方安全稽核。Windows 版本由人工在虛擬機測試（Windows 11 ARM 版，x64 版本以模擬方式執行，系統管理員帳號），沒有經過 CI 的合約測試。它沒有在 x64 實體機器上試過，也沒有用標準（非系統管理員）帳號試過；標準帳號按沙箱的 **Set up** 時，要輸入系統管理員密碼，而不是按「是」。作業系統沙箱有兩個缺口：Claude Code 自己的 shell 指令在沙箱之外執行（Saturn 的權限規則仍然適用），而在 macOS 與 Linux 上，沙箱中的指令仍讀得到家目錄的其他地方，只有 Saturn 的資料資料夾與被隱藏的憑證資料夾除外。macOS 版本尚未以 Developer ID 簽章或公證，Windows 版本則以 Windows 不信任的自簽憑證簽章。API 金鑰已靜態加密，不會以明文出現在備份、同步資料夾、磁碟映像或被複製的資料夾中；但任何以你的使用者身分執行的程序仍可向作業系統金鑰庫要求金鑰，這與所有使用鑰匙圈或 DPAPI 保存憑證的應用程式相同。設定 → 關於 會顯示目前使用的金鑰庫。被賦予完全自主的 Agent 可以在授權資料夾內執行任意指令；這是設計本質，請據此控管授權範圍。Claude Code、Codex、git、本機 MCP 伺服器、Agent 瀏覽器與系統網頁檢視的程序各自獨立執行，不會出現在 Runtime 的網路紀錄中，請用作業系統層的工具觀察。你允許的本機 MCP 伺服器以你的使用者權限執行，請只允許你信任的程式。
 
 發現安全漏洞請私下寄至 [security@saturn-core.com](mailto:security@saturn-core.com)，不要開公開 issue；[`SECURITY.md`](SECURITY.md) 說明要附上什麼、之後的處理流程與範圍。
 
