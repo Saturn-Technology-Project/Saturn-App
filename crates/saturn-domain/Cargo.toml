@@ -10,7 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-getrandom = { version = "0.3", features = ["std"] }
+getrandom = { version = "0.4", features = ["std"] }
 # The calendar: dates, days and clock times in UTC. Time zones are saturn-core's.
 jiff = { version = "0.2", default-features = false, features = ["std"] }
 regex = "1"
