@@ -606,7 +606,7 @@ test("a runtime killed before the process existed: the run is interrupted and no
   }
 });
 
-test("a runtime killed just after the process started still finds it, by what Eisoptric Workbench recorded", async () => {
+test("a runtime killed just after the process started still finds it, by what the app recorded", async () => {
   const { home, dataDir, folder, first } = await restartable({ WORKBENCH_RESEARCH_TEST_HOLD: "after-process" });
   const bed = await setup(LONG, { on: first, folder });
   await projectSaved(dataDir, folder);

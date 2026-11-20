@@ -210,7 +210,7 @@ test("a long wait suspends the run without calling the model, a restart keeps it
     assert.equal(model.turns().length, 1, "not due yet: nothing happens");
     await second.stop();
 
-    // The time passes while Eisoptric Workbench is closed.
+    // The time passes while the app is closed.
     const past = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
     await editState(first.dataDir, (state) => {
       const wake = state.runs.find((item) => item.id === started.id).wake;
@@ -319,7 +319,7 @@ test("a turn left over from a group chat is ended at start, and what the group s
     second = await fresh({ dataDir: first.dataDir });
     const run = await getRun(started.id, second);
     assert.equal(run.status, "failed");
-    assert.match(run.error, /Group chats are no longer part of Eisoptric Workbench/);
+    assert.match(run.error, /Group chats are no longer part of the app/);
     assert.equal(model.turns().length, 1, "it does not go on under the agent's own setting");
     assert.ok((await api(second, "GET", `/agents/${agent.id}/messages`)).every((item) => item.id !== started.id), "it is not a chat's turn");
     assert.equal((await raw(second, "GET", "/groups")).status, 404, "there is no route to a group");
@@ -552,7 +552,7 @@ test("an Ask turn is offered only reading tools, is told so, and a write it trie
   assert.match(run.actions[0].reason, /Switch to Agent mode/);
 });
 
-test("a run's mode must be one Eisoptric Workbench knows", async () => {
+test("a run's mode must be one the app knows", async () => {
   const agent = await agentOn(await fakeModel());
   const answer = await raw(runtime, "POST", `/agents/${agent.id}/runs`, { input: "go", mode: "yolo" });
   assert.equal(answer.status, 400);
@@ -839,7 +839,7 @@ test("usage from before costs were stored is priced at the time it was made", as
   try {
     const summary = await api(second, "GET", "/usage/summary");
     assert.equal(summary.totals.costUsd, 6);
-    assert.equal(summary.models[0].label, "gemini-4-argon", "its id: the connection is gone, and Eisoptric Workbench has no names of its own for a provider's models");
+    assert.equal(summary.models[0].label, "gemini-4-argon", "its id: the connection is gone, and the app has no names of its own for a provider's models");
     assert.equal(summary.agents[0].name, "Deleted agent");
     assert.equal(summary.since, "2026-11-01T00:00:00Z");
   } finally {

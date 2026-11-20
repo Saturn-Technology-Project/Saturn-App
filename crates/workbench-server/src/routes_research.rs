@@ -858,7 +858,7 @@ async fn artifact_content(
         .await?)
 }
 
-/// The user-configured SSH target, with no credentials stored by Eisoptric Workbench.
+/// The user-configured SSH target, with no credentials stored by the app.
 async fn remote_target(State(kernel): Shared, Path(project): Path<String>) -> Answer {
     ok(kernel.research_remote(&project, None).await?)
 }

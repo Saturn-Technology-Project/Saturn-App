@@ -56,7 +56,7 @@ export type Mcp = {
   origin?: "local";
   tools: McpTool[];
   disabledTools?: string[];
-  /** A local server Eisoptric Workbench starts itself (stdio): the program, its arguments and the names of its variables. */
+  /** A local server the app starts itself (stdio): the program, its arguments and the names of its variables. */
   command?: { program: string; args: string[]; env?: string[] };
   /** The command as it reads in a terminal, and the fingerprint the user approves. */
   commandLine?: string;
@@ -126,7 +126,7 @@ export type Project = {
   rules?: string;
   /** Run after an agent changes files here: a shell command, or "auto" for package.json's typecheck/lint script. */
   verifyCommand?: string;
-  /** Permission rules for agents working here, kept by Eisoptric Workbench (the folder's .workbench/settings.json is read too). */
+  /** Permission rules for agents working here, kept by the app (the folder's .workbench/settings.json is read too). */
   permissions?: PermissionRule[];
   /** The sandbox for commands run here; unset uses the setting for everywhere. */
   sandbox?: SandboxSettings;
@@ -146,7 +146,7 @@ export type Conversation = {
   chatMode?: ChatMode;
   /** Set while the chat works in its own git worktree and branch. */
   worktree?: { branch: string; base: string };
-  /** The pull request Eisoptric Workbench opened from this chat, and what following it found. */
+  /** The pull request the app opened from this chat, and what following it found. */
   pullRequest?: PullRequestWatch;
   /** The running summary of the chat's earlier turns; later turns are sent whole. */
   summary?: { text: string; throughRunId: string; turns: number; createdAt: string };
@@ -247,7 +247,7 @@ export type Run = {
   inputImages?: string[];
   /** What this turn may do: change things (agent, the default), only read and answer, or only read and plan. */
   mode?: RunMode;
-  /** Eisoptric Workbench sent this message itself (an automatic fix round after verification). */
+  /** The app sent this message itself (an automatic fix round after verification). */
   automatic?: boolean;
   /** Started because tasks this chat started reported back: their chats' ids. */
   fromTasks?: string[];
@@ -324,7 +324,7 @@ export type Profile = {
 /** How the `code` tool's commands are confined: writes only in the workspace, none at all, or no sandbox. */
 export type SandboxMode = "workspace-write" | "read-only" | "off";
 export type SandboxSettings = { mode: SandboxMode; network: boolean };
-/** Whether this computer can sandbox commands, with what, why not, and whether a setup run from Eisoptric Workbench would help (Windows). */
+/** Whether this computer can sandbox commands, with what, why not, and whether a setup run from the app would help (Windows). */
 /** What is still working in the runtime and would stop if it quit. */
 export type Activity = { chats: number; runs: number; commands: number };
 
@@ -337,7 +337,7 @@ export type LlmProvider = { id: string; label: string; needsKey: boolean; baseUr
 export type LlmChoice = { id: string; label: string; contextTokens?: number; capabilities?: Record<string, boolean> };
 /**
  * A cloud provider's models and where they are from: those it listed for a key (`provider`), the names a program that
- * runs on your own plan takes (`program`), or none, with a note saying why (`none`). Eisoptric Workbench keeps no list of its own.
+ * runs on your own plan takes (`program`), or none, with a note saying why (`none`). The app keeps no list of its own.
  */
 export type ProviderModels = { models: LlmChoice[]; source: "provider" | "program" | "none"; note?: string };
 

@@ -26,7 +26,7 @@ pub struct AppState {
     pub settings: Map<String, Value>,
 }
 
-/// Settings of features Eisoptric Workbench no longer has, dropped when loading.
+/// Settings of features the app no longer has, dropped when loading.
 const RETIRED_SETTINGS: [&str; 2] = ["launchApp", "claudeCodeAuth"];
 /// Provider ids earlier versions saved for a model server on this computer, now all the one local-server provider.
 const LOCAL_PROVIDER_ALIASES: [&str; 1] = ["mlx"];
@@ -98,7 +98,7 @@ fn local_provider(model: &mut Value) {
 fn settings_over_defaults(mut saved: Map<String, Value>) -> Map<String, Value> {
     let mut settings = Map::new();
     for (name, default) in [
-        ("name", Value::from("Eisoptric Workbench")),
+        ("name", Value::from("Workbench")),
         ("environment", Value::from("production")),
         ("logging", Value::from("info")),
         ("completionModelId", Value::Null),

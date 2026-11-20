@@ -1,4 +1,4 @@
-//! Eisoptric Workbench's rules: what an agent may do, with no I/O. `contract/cases` holds the cases they must answer.
+//! The app's rules: what an agent may do, with no I/O. `contract/cases` holds the cases they must answer.
 pub mod chunks;
 pub mod context;
 pub mod diff;

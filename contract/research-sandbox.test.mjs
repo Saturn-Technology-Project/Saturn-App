@@ -1,5 +1,5 @@
 // The sandbox an experiment run's program runs in: it reads its snapshot, writes only its own records, output and
-// temporary folders, cannot read the project it came from, Eisoptric Workbench's data or the credential folders, uses the network
+// temporary folders, cannot read the project it came from, the app's data or the credential folders, uses the network
 // only when its version allows, and gets only the environment variables the version names. docs/research-contract.md
 // ("Run sandbox") is the contract. Where this computer has no working sandbox the runs say so and these tests say
 // why they were skipped.
@@ -119,7 +119,7 @@ test("a sandboxed run cannot write into its project by the project's path", asyn
   assert.equal(existsSync(escaped), false, "nothing reached the project");
 });
 
-test("a sandboxed run cannot read the project's own files, its records, Eisoptric Workbench's data or the credential folders, but reads what the snapshot links to", async (t) => {
+test("a sandboxed run cannot read the project's own files, its records, the app's data or the credential folders, but reads what the snapshot links to", async (t) => {
   const bed = await setup("");
   await writeFile(path.join(bed.folder, "probe.mjs"), tries({
     live: `return await fs.readFile(${JSON.stringify(path.join(bed.folder, "probe.mjs"))}, 'utf8');`,
@@ -149,7 +149,7 @@ test("a sandboxed run cannot read the project's own files, its records, Eisoptri
   assert.equal(results.beside, "not part of the version", "what the project has beside the version stays reachable, as uncontrolled");
 });
 
-test("a model's source cannot open Eisoptric Workbench's data to the run, but a file in the project still can", async (t) => {
+test("a model's source cannot open the app's data to the run, but a file in the project still can", async (t) => {
   const bed = await setup("");
   await mkdir(path.join(bed.folder, "weights"));
   await writeFile(path.join(bed.folder, "weights", "model.bin"), "weights");
@@ -159,7 +159,7 @@ test("a model's source cannot open Eisoptric Workbench's data to the run, but a 
     weights: `return await fs.readFile(${JSON.stringify(path.join(bed.folder, "weights", "model.bin"))}, 'utf8');`,
   }));
   const models = [];
-  // Sources that do not change while the version runs: a folder that does (Eisoptric Workbench's data, the project with its records)
+  // Sources that do not change while the version runs: a folder that does (The app's data, the project with its records)
   // already stops the run as changed since it was frozen.
   for (const [name, source] of [["workbench", path.join(workbench.runtime.dataDir, "runtime-token")], ["file", "weights/model.bin"]]) {
     const model = await workbench.api("POST", `${bed.route}/models`, { name, source });
@@ -176,9 +176,9 @@ test("a model's source cannot open Eisoptric Workbench's data to the run, but a 
   assert.equal(results.weights, "weights", "a model file inside the project is read where it is");
 });
 
-// On Linux a program can overwrite these files: bubblewrap cannot keep a file read-only that Eisoptric Workbench replaces by
+// On Linux a program can overwrite these files: bubblewrap cannot keep a file read-only that the app replaces by
 // renaming. docs/research-contract.md says so.
-test("a sandboxed run cannot change the records Eisoptric Workbench keeps about it, on macOS", { skip: process.platform !== "darwin" && "bubblewrap cannot protect a file that is replaced by renaming" }, async (t) => {
+test("a sandboxed run cannot change the records the app keeps about it, on macOS", { skip: process.platform !== "darwin" && "bubblewrap cannot protect a file that is replaced by renaming" }, async (t) => {
   const bed = await setup(tries({
     run: "await fs.writeFile(env.WORKBENCH_RUN_DIRECTORY + '/run.json', '{}'); return 'wrote';",
     evidence: "await fs.writeFile(env.WORKBENCH_RUN_DIRECTORY + '/evidence.json', '{}'); return 'wrote';",

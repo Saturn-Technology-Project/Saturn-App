@@ -2,7 +2,7 @@
 //! AES-256-GCM; the key itself lives in the operating system's key store, or in a key file when there is none. A plaintext
 //! `secrets.json` from an early version is encrypted on first load.
 //!
-//! Nothing is ever lost silently: a file whose key cannot be found is copied aside before Eisoptric Workbench starts fresh.
+//! Nothing is ever lost silently: a file whose key cannot be found is copied aside before the app starts fresh.
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;

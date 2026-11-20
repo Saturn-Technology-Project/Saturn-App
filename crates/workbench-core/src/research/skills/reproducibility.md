@@ -4,7 +4,7 @@ description: Make a run repeatable with seeds, pinned weights and declared input
 ---
 # Reproducibility
 
-Eisoptric Workbench records what a run computed. You make sure that is enough to repeat it.
+The app records what a run computed. You make sure that is enough to repeat it.
 
 ## In the experiment
 - `seeds`: list them. Read the seed in the program from an argument or an environment variable named in `envNames`.

@@ -13,7 +13,7 @@ export default {
   "Usage & Billing": "用量與計費",
   "Token spend & costs": "Token 用量與費用",
   Memory: "記憶",
-  "What Eisoptric Workbench remembers across chats": "Eisoptric Workbench 在各對話之間記住的內容",
+  "What the app remembers across chats": "本 App 在各對話之間記住的內容",
   Permissions: "權限",
   "What agents may do without asking": "代理無須詢問即可執行的操作",
   Hooks: "Hooks",
@@ -26,18 +26,18 @@ export default {
   Logs: "日誌",
   "Live runtime event stream": "即時執行環境事件",
   About: "關於",
-  "What Eisoptric Workbench is and how it fits together": "Eisoptric Workbench 簡介與架構",
+  "What the app is and how it fits together": "本 App 簡介與架構",
   "Could not load settings": "無法載入設定",
   "Project configuration & custom rules ({path})": "專案設定與規則（{path}）",
   Shortcuts: "快捷鍵",
-  "Quick keyboard shortcuts for Eisoptric Workbench": "Eisoptric Workbench 中的鍵盤快捷鍵",
+  "Quick keyboard shortcuts for the app": "本 App 中的鍵盤快捷鍵",
   "Still running": "仍在執行",
   "What the earlier interface set going": "先前介面啟動、仍在執行的工作",
   "Close (Esc)": "關閉（Esc）",
   "Close settings": "關閉設定",
   Projects: "專案",
 
-  // Eisoptric Workbench's own tool servers
+  // The app's own tool servers
   "Files, commands, web and plans": "檔案、指令、網頁與計畫",
   "Mouse, keyboard and screen": "滑鼠、鍵盤與螢幕",
   "GitHub repositories and pull requests": "GitHub 儲存庫與 pull request",
@@ -49,10 +49,10 @@ export default {
   "Could not install the command": "無法安裝指令",
   "Command Line": "命令列",
   "The workbench command": "workbench 指令",
-  "Run agents from a terminal or a script while Eisoptric Workbench is open:": "Eisoptric Workbench 開啟時，可從終端機或指令碼執行代理：",
+  "Run agents from a terminal or a script while the app is open:": "本 App 開啟時，可從終端機或指令碼執行代理：",
   ". It uses this app's own runtime, so it never goes out of date.": "。它使用本應用程式的執行環境，因此一律保持最新。",
   "Installed at {path}.": "已安裝於 {path}。",
-  "Installed at {path}, for another copy of Eisoptric Workbench: reinstall to point it here.": "已安裝於 {path}，但屬於另一份 Eisoptric Workbench。重新安裝即可改用這一份。",
+  "Installed at {path}, for another copy of Reinstall to point it here.": "已安裝於 {path}，但屬於另一份本 App。重新安裝即可改用這一份。",
   'Add {folder} to your PATH to type just "workbench".': "將 {folder} 加入 PATH，即可直接輸入「workbench」執行。",
   Installed: "已安裝",
   Reinstall: "重新安裝",
@@ -63,8 +63,8 @@ export default {
   "Could not load memory": "無法載入記憶",
   "Could not save": "無法儲存",
   Notes: "筆記",
-  "One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Eisoptric Workbench forget it.":
-    "每行一項事實。代理會在每次對話開始時讀取：專案筆記用於該專案的對話，關於你的筆記用於所有對話。刪除一行，Eisoptric Workbench 就會忘記它。",
+  "One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make the app forget it.":
+    "每行一項事實。代理會在每次對話開始時讀取：專案筆記用於該專案的對話，關於你的筆記用於所有對話。刪除一行，本 App 就會忘記它。",
   "Memory scope": "記憶範圍",
   "About you (every chat)": "關於你（所有對話）",
   "Memory notes": "記憶筆記",
@@ -94,17 +94,17 @@ export default {
   Enabled: "已啟用",
   Disabled: "已停用",
   "This server runs a program on your computer": "這個伺服器會在你的電腦上執行程式",
-  ", with your user account's permissions. Allow it only if you trust it. It starts with only a minimal environment, not Eisoptric Workbench's keys.":
-    "，並擁有你使用者帳號的權限。請只在信任它時允許。它啟動時只有最基本的環境，不含 Eisoptric Workbench 的任何金鑰。",
+  ", with your user account's permissions. Allow it only if you trust it. It starts with only a minimal environment, not the app's keys.":
+    "，並擁有你使用者帳號的權限。請只在信任它時允許。它啟動時只有最基本的環境，不含本 App 的任何金鑰。",
   "Environment variables: {names} (values hidden)": "環境變數：{names}（值已隱藏）",
   "Allow and Start": "允許並啟動",
   "Connect an MCP server": "連線 MCP 伺服器",
   "Kind of MCP server": "MCP 伺服器類型",
   "Local Program": "本機程式",
-  "An MCP server reached over HTTP(S). Tools are discovered automatically.": "透過 HTTP(S) 連線的 MCP 伺服器。Eisoptric Workbench 會自動偵測它的工具。",
+  "An MCP server reached over HTTP(S). Tools are discovered automatically.": "透過 HTTP(S) 連線的 MCP 伺服器。本 App 會自動偵測它的工具。",
   "Connect MCP": "連線伺服器",
-  "A server Eisoptric Workbench starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is used, so ~, $VARIABLES and pipes are not expanded: write full paths.":
-    "由 Eisoptric Workbench 在這台電腦上啟動，並透過 stdio 通訊的伺服器。你必須先允許它的確切指令，它才會執行。指令不經過 shell，因此 ~、$VARIABLES 與管線都不會展開，請使用完整路徑。",
+  "A server the app starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is used, so ~, $VARIABLES and pipes are not expanded: write full paths.":
+    "由本 App 在這台電腦上啟動，並透過 stdio 通訊的伺服器。你必須先允許它的確切指令，它才會執行。指令不經過 shell，因此 ~、$VARIABLES 與管線都不會展開，請使用完整路徑。",
   "Name (optional)": "名稱（選填）",
   "Environment variables, one per line (optional)\nGITHUB_TOKEN=…": "環境變數，每行一個（選填）\nGITHUB_TOKEN=…",
   "Add Local Server": "新增本機伺服器",
@@ -157,8 +157,8 @@ export default {
   Effort: "推理強度",
   "Model default": "模型預設",
   "How much the model reasons before answering. Higher is slower and costs more.": "模型在回答前推理的程度。越高越慢，費用也越高。",
-  "Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Eisoptric Workbench never sends API requests for it, takes no API key, and does not schedule it.":
-    "透過官方 Claude Code 程式，使用你自己的 Claude 登入執行（設定 → 一般 → Claude Code）。Eisoptric Workbench 不會替它送出 API 請求、不需要 API 金鑰，也不會排程它。",
+  "Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). The app never sends API requests for it, takes no API key, and does not schedule it.":
+    "透過官方 Claude Code 程式，使用你自己的 Claude 登入執行（設定 → 一般 → Claude Code）。本 App 不會替它送出 API 請求、不需要 API 金鑰，也不會排程它。",
   "Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key.":
     "透過官方 Codex 程式，使用你自己的 ChatGPT 登入執行（設定 → 一般 → Codex）。不需要 API 金鑰。",
   "Server address": "伺服器位址",
@@ -192,15 +192,15 @@ export default {
   Light: "淺色",
   Dark: "深色",
   "Agent browser": "代理瀏覽器",
-  "Agents browse in a visible window of your Chrome (or Edge, Brave), with Eisoptric Workbench's own profile: your logins and tabs stay out of it. You watch the cursor there.":
-    "代理會在可見的 Chrome（或 Edge、Brave）視窗中瀏覽，並使用 Eisoptric Workbench 專用的設定檔，不會帶入你的登入狀態與分頁。你可以在該視窗中看到游標。",
+  "Agents browse in a visible window of your Chrome (or Edge, Brave), with the app's own profile: your logins and tabs stay out of it. You watch the cursor there.":
+    "代理會在可見的 Chrome（或 Edge、Brave）視窗中瀏覽，並使用本 App 專用的設定檔，不會帶入你的登入狀態與分頁。你可以在該視窗中看到游標。",
   "Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.":
     "代理會在 Safari 自動化視窗（網址列有條紋）中瀏覽，不會帶入你的登入狀態；代理工作時你無法點選該視窗。請先在 Safari 中開啟一次「開發 → 允許遠端自動化」。瀏覽器分頁大約每秒更新一次畫面。",
-  "Agents browse in Eisoptric Workbench's own browser, without a window, shown live with the agent's cursor in a Browser tab of the Workspace.":
-    "代理會在 Eisoptric Workbench 自己的瀏覽器中瀏覽（不開視窗），畫面連同代理的游標會即時顯示在 Workspace 的「瀏覽器」分頁。",
+  "Agents browse in the app's own browser, without a window, shown live with the agent's cursor in a Browser tab of the Workspace.":
+    "代理會在本 App 自己的瀏覽器中瀏覽（不開視窗），畫面連同代理的游標會即時顯示在 Workspace 的「瀏覽器」分頁。",
   "Light or dark appearance.": "淺色或深色外觀。",
   Language: "語言",
-  "The interface's language. Eisoptric Workbench reloads to show it.": "介面語言。Eisoptric Workbench 會重新載入以套用。",
+  "The interface's language. The app reloads to show it.": "介面語言。本 App 會重新載入以套用。",
   "Computer use": "電腦操作",
   Storage: "儲存空間",
   "Use the project's Claude Code settings": "使用專案的 Claude Code 設定",
@@ -213,8 +213,8 @@ export default {
   "Background model": "背景模型",
   Automatic: "自動",
   Agents: "代理",
-  "Every few turns, Eisoptric Workbench notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.":
-    "每隔幾個回合，Eisoptric Workbench 會從對話中記下長期適用的事實（例如你的工作習慣、專案慣例），並在之後的對話中提供給代理。可在「記憶」中檢視與編輯這些筆記。",
+  "Every few turns, the app notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.":
+    "每隔幾個回合，本 App 會從對話中記下長期適用的事實（例如你的工作習慣、專案慣例），並在之後的對話中提供給代理。可在「記憶」中檢視與編輯這些筆記。",
   Notifications: "通知",
   "A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.":
     "當代理完成、失敗或需要你核准，而你沒有在看該對話時，傳送系統通知。點選通知即可開啟對話。",
@@ -267,8 +267,8 @@ export default {
     "系統管理員的確認被拒絕了",
   "the setup could not open everything, or did not run as an administrator":
     "設定沒能開放所有資料夾，或沒有以系統管理員身分執行",
-  "This computer's sandbox has no setup to run from Eisoptric Workbench":
-    "這台電腦的沙箱沒有能從 Eisoptric Workbench 執行的設定",
+  "This computer's sandbox has no setup to run from the app":
+    "這台電腦的沙箱沒有能從本 App 執行的設定",
   "Could not set up the sandbox":
     "無法設定沙箱",
   "Workspace Name": "工作區名稱",
@@ -286,8 +286,8 @@ export default {
   "Kept on this Mac in a file only your user account can read.": "儲存在這台 Mac 上的檔案中，只有你的使用者帳號能讀取。",
 
   // A project
-  "Remove {name} from Eisoptric Workbench? Its chats go with it. The folder and its files stay where they are.":
-    "要從 Eisoptric Workbench 移除 {name} 嗎？它的對話也會一併移除。資料夾與其中的檔案會保留在原處。",
+  "Remove {name} from the app? Its chats go with it. The folder and its files stay where they are.":
+    "要從本 App 移除 {name} 嗎？它的對話也會一併移除。資料夾與其中的檔案會保留在原處。",
   "Could not remove the project": "無法移除專案",
   "Failed to save project rules": "無法儲存專案規則",
   "Project Details": "專案詳細資料",
@@ -314,7 +314,7 @@ export default {
   Actions: "動作",
   "Open in Terminal": "在終端機中開啟",
   "Reveal in Finder": "在 Finder 中顯示",
-  "Remove from Eisoptric Workbench": "從 Eisoptric Workbench 移除",
+  "Remove from the app": "從本 App 移除",
 
   // Shortcuts
   "⌘ 1 to 7": "⌘ 1 到 7",
@@ -330,8 +330,8 @@ export default {
   // Claude Code and Codex
   "Could not reach the runtime": "無法連線到執行環境",
   "Could not start the download": "無法開始下載",
-  "Remove Eisoptric Workbench's copy of {program}? {program} models stop working until it is downloaded again or found on your system.":
-    "要移除 Eisoptric Workbench 的 {program} 副本嗎？在重新下載，或 Eisoptric Workbench 在你的系統上找到它之前，{program} 模型都無法使用。",
+  "Remove the app's copy of {program}? {program} models stop working until it is downloaded again or found on your system.":
+    "要移除本 App 的 {program} 副本嗎？在重新下載，或本 App 在你的系統上找到它之前，{program} 模型都無法使用。",
   "Could not remove it": "無法移除",
   Program: "程式",
   "Checking…": "檢查中…",
@@ -339,28 +339,28 @@ export default {
   "Downloading… {received} of {total} MB": "下載中… {received} / {total} MB",
   "Checking the download against its pinned checksum…": "正在以固定的總和檢查碼驗證下載內容…",
   "Unpacking…": "解壓縮中…",
-  "Eisoptric Workbench downloads the official {program} program ({version}) from the npm registry and checks it against a checksum pinned in Eisoptric Workbench, or uses one you have installed yourself.":
-    "Eisoptric Workbench 會從 npm registry 下載官方 {program} 程式（{version}），並以 Eisoptric Workbench 內固定的總和檢查碼驗證；你也可以使用自己安裝的版本。",
-  "Eisoptric Workbench downloads the official {program} program from the npm registry and checks it against a checksum pinned in Eisoptric Workbench, or uses one you have installed yourself.":
-    "Eisoptric Workbench 會從 npm registry 下載官方 {program} 程式，並以 Eisoptric Workbench 內固定的總和檢查碼驗證；你也可以使用自己安裝的版本。",
+  "The app downloads the official {program} program ({version}) from the npm registry and checks it against a checksum pinned in the app, or uses one you have installed yourself.":
+    "本 App 會從 npm registry 下載官方 {program} 程式（{version}），並以本 App 內固定的總和檢查碼驗證；你也可以使用自己安裝的版本。",
+  "The app downloads the official {program} program from the npm registry and checks it against a checksum pinned in the app, or uses one you have installed yourself.":
+    "本 App 會從 npm registry 下載官方 {program} 程式，並以本 App 內固定的總和檢查碼驗證；你也可以使用自己安裝的版本。",
   "Not installed": "未安裝",
   "Downloading…": "下載中…",
   "Try Again": "再試一次",
   "Download ({size})": "下載（{size}）",
   Download: "下載",
-  "Eisoptric Workbench's copy": "Eisoptric Workbench 的版本",
+  "The app's copy": "本 App 的版本",
   "Your installed {program}": "你安裝的 {program}",
   "Development copy": "開發版本",
-  "Sign Eisoptric Workbench out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in.":
-    "要讓 Eisoptric Workbench 登出 Codex 嗎？在你重新登入之前，Codex 模型都無法使用。你自己的 Codex 仍會保持登入。",
+  "Sign the app out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in.":
+    "要讓本 App 登出 Codex 嗎？在你重新登入之前，Codex 模型都無法使用。你自己的 Codex 仍會保持登入。",
   "Could not sign out": "無法登出",
   "Could not open the page": "無法開啟頁面",
   "API key": "API 金鑰",
   "Codex Sign-In": "Codex 登入",
   "Status unavailable.": "無法取得狀態。",
   "Signed in": "已登入",
-  "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; Eisoptric Workbench never sees your credentials.":
-    "尚未登入。你會登入官方 Codex 程式，並使用你的 ChatGPT 方案。Eisoptric Workbench 永遠不會看到你的憑證。",
+  "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; the app never sees your credentials.":
+    "尚未登入。你會登入官方 Codex 程式，並使用你的 ChatGPT 方案。本 App 永遠不會看到你的憑證。",
   "Signed out": "已登出",
   "Signing out…": "登出中…",
   "Sign Out": "登出",
@@ -377,15 +377,15 @@ export default {
   "Device codes must be allowed in your ChatGPT security settings. If they aren't,": "你必須在 ChatGPT 的安全性設定中允許裝置代碼。若未允許，可以",
   "sign in with the browser instead": "改用瀏覽器登入",
   ".": "。",
-  "Finish signing in on the page that opened in your browser. Eisoptric Workbench keeps Codex listening for it until you're done.":
-    "請在瀏覽器開啟的頁面上完成登入。Eisoptric Workbench 會讓 Codex 持續等待，直到你完成為止。",
+  "Finish signing in on the page that opened in your browser. The app keeps Codex listening for it until you're done.":
+    "請在瀏覽器開啟的頁面上完成登入。本 App 會讓 Codex 持續等待，直到你完成為止。",
   "Open it again": "再次開啟",
-  "Sign Eisoptric Workbench out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in.":
-    "要讓 Eisoptric Workbench 登出 Claude Code 嗎？在你重新登入之前，Claude（透過 Claude Code）模型都無法使用。你的其他 Claude 應用程式仍會保持登入。",
+  "Sign the app out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in.":
+    "要讓本 App 登出 Claude Code 嗎？在你重新登入之前，Claude（透過 Claude Code）模型都無法使用。你的其他 Claude 應用程式仍會保持登入。",
   "{plan} plan": "{plan} 方案",
   "Claude Account": "Claude 帳號",
-  "Not signed in. Claude (via Claude Code) models run on your own Claude login; Eisoptric Workbench never sees your credentials.":
-    "尚未登入。Claude（透過 Claude Code）模型使用你自己的 Claude 帳號登入執行；Eisoptric Workbench 永遠不會看到你的憑證。",
+  "Not signed in. Claude (via Claude Code) models run on your own Claude login; the app never sees your credentials.":
+    "尚未登入。Claude（透過 Claude Code）模型使用你自己的 Claude 帳號登入執行；本 App 永遠不會看到你的憑證。",
   "Check Again": "重新檢查",
   "To sign in, run this in Terminal and keep that window open until it says you're signed in. This card updates on its own.":
     "若要登入，請在終端機中執行這個指令，並保持視窗開啟，直到顯示你已登入。這張卡片會自動更新。",

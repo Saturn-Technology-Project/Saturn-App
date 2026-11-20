@@ -173,7 +173,7 @@ fn answer(case: &Value) -> Value {
     }
 }
 
-/// Checks recorded for what Eisoptric Workbench no longer has (the editor's completions, group chats and automations' schedules).
+/// Checks recorded for what the app no longer has (the editor's completions, group chats and automations' schedules).
 /// Their cases stay in the recorded file, which is never edited, and are passed over here.
 const REMOVED: [&str; 17] = [
     "fim",

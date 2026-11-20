@@ -80,7 +80,7 @@ pub struct ParentRun {
 pub struct StartOptions {
     pub images: Vec<ImagePart>,
     pub mode: Option<RunMode>,
-    /// Started by Eisoptric Workbench (a failed check, a stop hook), not by the user's message.
+    /// Started by the app (a failed check, a stop hook), not by the user's message.
     pub automatic: bool,
     pub parent: Option<ParentRun>,
     /// Started because tasks this chat started reported back: their chats' ids.
@@ -412,7 +412,7 @@ impl Kernel {
     }
 
     /// Runs still marked running or queued at startup were cut off when the runtime last stopped; nothing resumes them, so they
-    /// are failed with the reason instead of spinning forever. A turn of a group chat, which Eisoptric Workbench no longer has, is ended
+    /// are failed with the reason instead of spinning forever. A turn of a group chat, which the app no longer has, is ended
     /// too, however it waits: its group's approval setting is no longer read, so it must not go on under the agent's own.
     pub async fn recover_interrupted(&self) -> Result<usize, CoreError> {
         let stuck: Vec<String> = self
@@ -439,7 +439,7 @@ impl Kernel {
                     if cut_off {
                         run["status"] = "failed".into();
                         run["error"] = if of_a_group {
-                            "Group chats are no longer part of Eisoptric Workbench, so this turn was ended.".into()
+                            "Group chats are no longer part of the app, so this turn was ended.".into()
                         } else {
                             "Interrupted when the runtime restarted. Send the message again to rerun it.".into()
                         };

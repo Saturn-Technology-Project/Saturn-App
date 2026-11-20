@@ -1,5 +1,5 @@
 // What the contract/config-*.test.mjs share: one isolated runtime with its token, temporary folders, fake servers, and
-// runs of agents on a scripted model. Nothing here reaches the developer's own Eisoptric Workbench, keys or any real provider.
+// runs of agents on a scripted model. Nothing here reaches the developer's own the app, keys or any real provider.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";

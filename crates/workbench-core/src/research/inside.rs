@@ -323,7 +323,7 @@ impl Kernel {
             ));
         }
         // The raw residual stream can be kept as a file in the project, for probes and directions to be trained on. It
-        // goes where the request says, inside the project and outside Eisoptric Workbench's records, so a run can declare it as data.
+        // goes where the request says, inside the project and outside the app's records, so a run can declare it as data.
         let save = match request.get("save").and_then(Value::as_str).map(str::trim) {
             Some(path) if !path.is_empty() => {
                 let wanted = if path.to_lowercase().ends_with(".npz") {

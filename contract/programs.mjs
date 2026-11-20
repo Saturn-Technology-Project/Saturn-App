@@ -10,7 +10,7 @@ import { program as runtimeProgram, startRuntime } from "./runtime.mjs";
 export const VERSION = "9.9.9";
 /**
  * The platform the runtime looks its programs up under. It is the runtime's own, which is Node's too unless the two
- * were built for different processors, as on Windows on ARM, where Eisoptric Workbench is an x64 program: WORKBENCH_CONTRACT_PLATFORM
+ * were built for different processors, as on Windows on ARM, where the app is an x64 program: WORKBENCH_CONTRACT_PLATFORM
  * then says which.
  */
 export const PLATFORM = process.env.WORKBENCH_CONTRACT_PLATFORM ?? `${process.platform}-${process.arch}`;
@@ -125,7 +125,7 @@ if (args[0] === "auth") {
 
 /**
  * The \`codex\` program: \`login\` and \`logout\` as scenario says, and \`exec\` reads its prompt from stdin, then plays the steps.
- * It reaches the skills server over HTTP, at the address and with the token Eisoptric Workbench gave it, as the real one does.
+ * It reaches the skills server over HTTP, at the address and with the token the app gave it, as the real one does.
  */
 const codexProgram = (folder) => `${preamble(folder)}
 if (args[0] === "login" && args[1] === "status") {

@@ -1,5 +1,5 @@
-// Starts the Eisoptric Workbench runtime for the contract tests, on a free port with a temporary data folder, never the developer's
-// own Eisoptric Workbench. WORKBENCH_RUST_BIN picks the program; the default is the workspace's debug build.
+// Starts the app's runtime for the contract tests, on a free port with a temporary data folder, never the developer's
+// own the app. WORKBENCH_RUST_BIN picks the program; the default is the workspace's debug build.
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -120,5 +120,5 @@ export function placed(value, folders) {
   return each(value);
 }
 
-/** Why a test that waits for Eisoptric Workbench to open a web page is skipped on Windows, where it runs. */
+/** Why a test that waits for the app to open a web page is skipped on Windows, where it runs. */
 export const opensPages = { skip: process.platform === "win32" && "Windows opens a page through its own rundll32, found before anything on PATH, so no stand-in can note it" };

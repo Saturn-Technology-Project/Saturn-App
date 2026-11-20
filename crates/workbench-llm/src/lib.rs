@@ -1,4 +1,4 @@
-//! Eisoptric Workbench's one door to every model provider, over plain HTTP. Each provider's module turns the same request into what that
+//! The app's one door to every model provider, over plain HTTP. Each provider's module turns the same request into what that
 //! provider expects, and its reply into a `Completion`. `contract/cases/llm.json` holds what the providers' official SDKs send, which
 //! these modules must send too. To stop a call, drop its future.
 pub mod broker;
@@ -157,7 +157,7 @@ pub struct ChatRequest {
 }
 
 /// What a provider says one of its models accepts, read from its own list of models (Anthropic's has it), so that no
-/// rule about a model's name is written in Eisoptric Workbench. `None` is "not said": a setting is then sent as for a current model,
+/// rule about a model's name is written in the app. `None` is "not said": a setting is then sent as for a current model,
 /// and one the provider refuses is dropped and the request sent again.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]

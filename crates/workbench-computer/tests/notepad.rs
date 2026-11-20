@@ -112,13 +112,13 @@ async fn computer_use_drives_notepad_end_to_end() {
     computer
         .run(
             "computer_type",
-            &json!({ "target": target, "text": "Hello Eisoptric Workbench 你好\nsecond line", "element_id": element, "snapshot_id": state["snapshot_id"] }),
+            &json!({ "target": target, "text": "Hello Workbench 你好\nsecond line", "element_id": element, "snapshot_id": state["snapshot_id"] }),
         )
         .await
         .expect("it types");
-    let after = state_showing(&computer, &target, "Hello Eisoptric Workbench 你好").await;
+    let after = state_showing(&computer, &target, "Hello Workbench 你好").await;
     assert!(
-        after.contains("Hello Eisoptric Workbench 你好"),
+        after.contains("Hello Workbench 你好"),
         "typed text, including Chinese, reached the editor:\n{after}"
     );
     assert_eq!(

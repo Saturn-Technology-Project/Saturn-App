@@ -44,7 +44,7 @@ impl Kernel {
     }
 
     /// Runs a project's check as the code tool runs a command: in the project's sandbox, with PATH alone. The command
-    /// comes from the project (with "auto", its own package.json's script), so it gets neither Eisoptric Workbench's data, the
+    /// comes from the project (with "auto", its own package.json's script), so it gets neither the app's data, the
     /// credential folders, nor the runtime's environment.
     pub(crate) async fn run_verification(
         &self,

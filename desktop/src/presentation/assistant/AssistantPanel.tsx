@@ -374,7 +374,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(comment) => void ask(comment)} />
         ))}
-        {ready && !conversation.runs.length ? <p className="m-auto max-w-[220px] text-center text-xs text-muted-foreground">{t("Ask about your work, or how to do something in Eisoptric Workbench.")}</p> : null}
+        {ready && !conversation.runs.length ? <p className="m-auto max-w-[220px] text-center text-xs text-muted-foreground">{t("Ask about your work, or how to do something in the app.")}</p> : null}
       </div>
 
       <div className="flex flex-none flex-col gap-1.5 border-t border-border px-3 py-2.5">

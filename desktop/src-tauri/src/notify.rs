@@ -47,7 +47,7 @@ fn deliver(app: &AppHandle, options: &Options) -> Result<(), Box<dyn std::error:
     use mac_notification_sys::{Notification, NotificationResponse, set_application};
     // Already set after the first notification; the library only allows it once.
     let _ = set_application(&app.config().identifier);
-    let title = options.title.as_deref().unwrap_or("Eisoptric Workbench");
+    let title = options.title.as_deref().unwrap_or("Workbench");
     let body = options.body.as_deref().unwrap_or("");
     let mut notification = Notification::new();
     notification.title(title).message(body).wait_for_click(true);
@@ -66,7 +66,7 @@ fn deliver(app: &AppHandle, options: &Options) -> Result<(), Box<dyn std::error:
     let handle = app.clone();
     let chosen = options.clone();
     Toast::new(&app.config().identifier)
-        .title(options.title.as_deref().unwrap_or("Eisoptric Workbench"))
+        .title(options.title.as_deref().unwrap_or("Workbench"))
         .text1(options.body.as_deref().unwrap_or(""))
         .sound(if options.silent == Some(true) {
             None
@@ -81,7 +81,7 @@ fn deliver(app: &AppHandle, options: &Options) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-/// Eisoptric Workbench ships for macOS and Windows; other builds have no notifications yet.
+/// The app ships for macOS and Windows; other builds have no notifications yet.
 #[cfg(not(any(target_os = "macos", windows)))]
 fn deliver(_app: &AppHandle, _options: &Options) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())

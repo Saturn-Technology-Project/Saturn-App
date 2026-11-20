@@ -1,5 +1,5 @@
-//! What a Claude Code turn and a Codex turn share: the session they resume, what Eisoptric Workbench knows going in, the run record they
-//! update, approval cards, and Eisoptric Workbench's skills as an MCP server.
+//! What a Claude Code turn and a Codex turn share: the session they resume, what the app knows going in, the run record they
+//! update, approval cards, and the app's skills as an MCP server.
 use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 use std::process::Stdio;
@@ -26,7 +26,7 @@ use crate::rules::{project_rules_without, stored_rules_only};
 use crate::tool_runs::tool_category;
 use crate::{CoreError, Kernel, locked, log};
 
-/// The MCP server name Claude Code and Codex see Eisoptric Workbench's skills under.
+/// The MCP server name Claude Code and Codex see the app's skills under.
 pub(crate) const SKILLS_SERVER: &str = "workbench";
 /// The newest MCP version the skills server speaks, and the others it accepts.
 const MCP_VERSIONS: [&str; 5] = [
@@ -110,7 +110,7 @@ pub(crate) fn with_knowledge(input: &str, knowledge: &str) -> String {
     }
 }
 
-/// What Eisoptric Workbench knows going into a turn.
+/// What the app knows going into a turn.
 pub(crate) struct TurnContext {
     pub(crate) memory: String,
     pub(crate) knowledge: String,
@@ -362,7 +362,7 @@ impl Drop for Waiting<'_> {
     }
 }
 
-/// A tool of Eisoptric Workbench's that the program sees, in MCP's own shape.
+/// A tool of the app's that the program sees, in MCP's own shape.
 fn bridged_tool(tool: &Value) -> Value {
     let schema = tool
         .get("inputSchema")
@@ -498,7 +498,7 @@ impl SkillsBridge {
         })
     }
 
-    /// Runs one call through Eisoptric Workbench's own tool path; its failure comes back as a failed action.
+    /// Runs one call through the app's own tool path; its failure comes back as a failed action.
     async fn call(&self, tool: &str, arguments: &Value) -> Value {
         match self.decide_and_run(tool, arguments).await {
             Ok(action) => action,
@@ -646,7 +646,7 @@ impl Kernel {
         Ok(())
     }
 
-    /// Where a turn works: the chat's project folder, or Eisoptric Workbench's own workspace, ready to use.
+    /// Where a turn works: the chat's project folder, or the app's own workspace, ready to use.
     pub(crate) async fn program_workdir(&self, run: &Value) -> Result<PathBuf, CoreError> {
         let thread = self.find_thread(text(run, "threadId"));
         let workdir = match self.workdir_for(thread.as_ref())? {
@@ -659,7 +659,7 @@ impl Kernel {
         Ok(workdir)
     }
 
-    /// What Eisoptric Workbench knows going into a turn, as every other provider gets it. A knowledge source that cannot be reached is logged
+    /// What the app knows going into a turn, as every other provider gets it. A knowledge source that cannot be reached is logged
     /// and left out, so the turn still runs. `skip` leaves out rule files the program reads by itself.
     pub(crate) async fn turn_context(
         &self,
@@ -712,7 +712,7 @@ impl Kernel {
         }
     }
 
-    /// The Eisoptric Workbench tools a Claude Code or Codex agent gets: every skill and MCP server attached to the agent, except General Skills,
+    /// The app's tools a Claude Code or Codex agent gets: every skill and MCP server attached to the agent, except General Skills,
     /// whose files, shell, web, MCP and plan tools are the program's own tools under other names.
     pub(crate) fn bridged_tools(&self, agent: &Value) -> Vec<Value> {
         let attached = strings(agent, "mcpConnectionIds");

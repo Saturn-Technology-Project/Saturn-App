@@ -372,7 +372,7 @@ test("stopping ends the helper, and one that ignores being asked and signalled i
   assert.equal(alive(held), false);
 });
 
-test("a kernel goes when its project is removed, and when Eisoptric Workbench loses access to the project", async () => {
+test("a kernel goes when its project is removed, and when the app loses access to the project", async () => {
   const place = await project();
   await workbench.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   const pid = await helperPid(place);

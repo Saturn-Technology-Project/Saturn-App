@@ -1,6 +1,6 @@
 [package]
 name = "workbench-server"
-description = "Eisoptric Workbench's local HTTP API"
+description = "The app's local HTTP API"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

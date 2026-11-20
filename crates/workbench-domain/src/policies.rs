@@ -22,8 +22,8 @@ pub fn autonomy_of(value: Option<&str>) -> GuardrailMode {
 }
 
 /// Shell commands that delete, wipe, kill or escalate, on POSIX shells, cmd and PowerShell, and ones that reach for
-/// Eisoptric Workbench's own data (its token, its keys) or a system key store. Matched on the lowercased line. A pattern is a
-/// heuristic: the sandbox, which hides Eisoptric Workbench's data and the credential folders from commands, is what holds.
+/// The app's own data (its token, its keys) or a system key store. Matched on the lowercased line. A pattern is a
+/// heuristic: the sandbox, which hides the app's data and the credential folders from commands, is what holds.
 static SENSITIVE_COMMANDS: LazyLock<RegexSet> = LazyLock::new(|| {
     RegexSet::new([
         r"\brm\s+(-[rf]+|--recursive)\b",
@@ -56,7 +56,7 @@ static SENSITIVE_COMMANDS: LazyLock<RegexSet> = LazyLock::new(|| {
     .expect("these patterns are valid")
 });
 
-/// Research tool calls that change what the project runs on, which the person decides: the interpreter Eisoptric Workbench starts for
+/// Research tool calls that change what the project runs on, which the person decides: the interpreter the app starts for
 /// the project's checks, notebooks, data and language server.
 fn changes_the_interpreter(tool: &str, arguments: &Arguments) -> bool {
     tool == "research_environment_action" && argument_text(arguments, "action") == "set"

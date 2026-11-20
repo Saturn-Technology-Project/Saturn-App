@@ -32,7 +32,7 @@ const toolResult = (id, content, isError = false) => ({ send: { type: "user", se
 const started = async (workbench) => (await workbench.journal()).filter((entry) => entry.started && entry.args[0] !== "--version" && entry.args[0] !== "auth");
 const received = async (workbench) => (await workbench.journal()).filter((entry) => entry.received).map((entry) => entry.received);
 
-test("a Claude Code turn starts the program as the SDK does, opens with what Eisoptric Workbench knows, and shows what happened", async () => {
+test("a Claude Code turn starts the program as the SDK does, opens with what the app knows, and shows what happened", async () => {
   const workbench = await startWithPrograms({ env: { ANTHROPIC_API_KEY: "the-users-own-key", ELECTRON_RUN_AS_NODE: "1" } });
   try {
     const agent = await coder(workbench, "claude-code", { effort: "high", instructions: "Be brief.", autonomy: "bypass", mcpConnectionIds: ["general-skills"] });
@@ -95,7 +95,7 @@ test("the next turn of a Claude Code chat resumes its session", async () => {
 });
 
 test("Claude Code is asked for a model by a name that follows its newest, and \"default\" leaves it the choice", async () => {
-  // Eisoptric Workbench names no version: "opus" is Claude Code's own name for its newest Opus, and "default" passes no model at all.
+  // The app names no version: "opus" is Claude Code's own name for its newest Opus, and "default" passes no model at all.
   const workbench = await startWithPrograms({ env: { ELECTRON_RUN_AS_NODE: "1" } });
   try {
     for (const [model, expected] of [["opus", "--model=opus"], ["default", undefined]]) {
@@ -112,7 +112,7 @@ test("Claude Code is asked for a model by a name that follows its newest, and \"
   }
 });
 
-test("Eisoptric Workbench's rules, memory, mode and an image reach Claude Code; Plan is the program's own plan mode", async () => {
+test("The app's rules, memory, mode and an image reach Claude Code; Plan is the program's own plan mode", async () => {
   const workbench = await startWithPrograms();
   try {
     const agent = await coder(workbench, "claude-code", { instructions: "Be brief." });
@@ -257,7 +257,7 @@ test("Permission rules govern a Claude Code turn: deny refuses with the rule, al
   }
 });
 
-test("Permission rules govern the Eisoptric Workbench skills a Codex turn calls: a deny refuses with the rule and an ask asks in Bypass", async () => {
+test("Permission rules govern the app's skills a Codex turn calls: a deny refuses with the rule and an ask asks in Bypass", async () => {
   const workbench = await startWithPrograms();
   try {
     const rule = (tool, pattern, effect) => ({ tool, pattern, effect });
@@ -342,7 +342,7 @@ test("An edit in a project keeps its original, so the chat can show the change a
   }
 });
 
-test("Eisoptric Workbench's skills reach Claude Code as a server in its own process, and their calls run through Eisoptric Workbench", async () => {
+test("The app's skills reach Claude Code as a server in its own process, and their calls run through the app", async () => {
   const workbench = await startWithPrograms();
   try {
     const agent = await coder(workbench, "claude-code", { autonomy: "bypass", mcpConnectionIds: ["customizations"] });
@@ -377,7 +377,7 @@ test("Eisoptric Workbench's skills reach Claude Code as a server in its own proc
     assert.equal(called.isError, undefined);
     assert.deepEqual(JSON.parse(called.content[0].text).discovered, { skillsCount: 0, skills: [], rulesCount: 0, rules: [] });
     assert.deepEqual(answers["4:tools/call"].mcp_response.result, { content: [{ type: "text", text: "Unknown tool: no_such_tool" }], isError: true });
-    assert.ok(answers["5:tools/call"].error, "only the server Eisoptric Workbench gave it");
+    assert.ok(answers["5:tools/call"].error, "only the server the app gave it");
   } finally {
     await workbench.stop();
   }
@@ -388,7 +388,7 @@ test("A turn that fails for want of a login says how to sign in; any other failu
   try {
     const agent = await coder(workbench, "claude-code", { autonomy: "bypass" });
     await workbench.scenario({ steps: [{ send: { type: "result", subtype: "error_during_execution", is_error: true, result: "Invalid API key · please run /login", errors: [], session_id: "s" } }] });
-    assert.match((await runToEnd(workbench, agent.id, { input: "hi" })).error, /Claude Code isn't signed in for Eisoptric Workbench yet\. In Settings → General → Claude Code/);
+    assert.match((await runToEnd(workbench, agent.id, { input: "hi" })).error, /Claude Code isn't signed in for the app yet\. In Settings → General → Claude Code/);
 
     await workbench.scenario({ steps: [{ send: { type: "result", subtype: "error_max_turns", is_error: true, errors: ["too many turns", "and more"], session_id: "s" } }] });
     const many = await runToEnd(workbench, agent.id, { input: "hi" });
@@ -663,7 +663,7 @@ test("A Codex turn that fails says why, or how to sign in", async () => {
   try {
     const agent = await coder(workbench, "codex", { model: "default" });
     await workbench.scenario({ steps: [{ send: { type: "turn.failed", error: { message: "401 Unauthorized: not logged in" } } }] });
-    assert.match((await runToEnd(workbench, agent.id, { input: "hi" })).error, /Codex isn't signed in for Eisoptric Workbench yet\. Sign in under Settings → General → Codex\./);
+    assert.match((await runToEnd(workbench, agent.id, { input: "hi" })).error, /Codex isn't signed in for the app yet\. Sign in under Settings → General → Codex\./);
     await workbench.scenario({ steps: [{ send: { type: "error", message: "the sandbox broke" } }] });
     assert.equal((await runToEnd(workbench, agent.id, { input: "hi" })).error, "the sandbox broke");
     await workbench.scenario({ steps: [{ exit: 7, stderr: "it crashed\n" }] });
@@ -673,7 +673,7 @@ test("A Codex turn that fails says why, or how to sign in", async () => {
   }
 });
 
-test("Eisoptric Workbench's skills reach Codex over /agent-mcp with a token only that turn holds, and Review asks for them", async () => {
+test("The app's skills reach Codex over /agent-mcp with a token only that turn holds, and Review asks for them", async () => {
   const workbench = await startWithPrograms();
   try {
     const agent = await coder(workbench, "codex", { model: "default", autonomy: "review", mcpConnectionIds: ["customizations"] });

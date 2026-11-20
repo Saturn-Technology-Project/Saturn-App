@@ -69,7 +69,7 @@ fn last_error() -> String {
 /// only in a container it knows. `forget` takes the registration away again.
 fn container(name: &str) -> Result<PSID, String> {
     let name = wide(name);
-    let about = wide("A sandbox Eisoptric Workbench runs a command in");
+    let about = wide("A sandbox the app runs a command in");
     let mut identity: PSID = null_mut();
     // SAFETY: the texts end in a zero and outlive the call; no capabilities are passed, as counted; `identity` is a
     // place for the pointer the call allocates.

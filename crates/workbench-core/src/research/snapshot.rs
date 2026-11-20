@@ -12,7 +12,7 @@ use crate::records::text;
 use crate::worktrees::run_git;
 use crate::{CoreError, Kernel};
 
-/// Where runs' snapshots are made, in Eisoptric Workbench's own data folder.
+/// Where runs' snapshots are made, in the app's own data folder.
 const SNAPSHOTS: &str = "run-snapshots";
 /// A data file larger than this is linked rather than copied where copying is not copy-on-write; it is then checked
 /// before and after the run instead of being fixed.

@@ -9,7 +9,7 @@ let workbench;
 before(async () => { workbench = await bench(); });
 after(async () => { await workbench?.stop(); });
 
-/** A project holding old results, with no Eisoptric Workbench experiment yet. */
+/** A project holding old results, with no experiment yet. */
 async function setup(name, content) {
   const folder = await workbench.folder();
   await writeFile(path.join(folder, name), content);

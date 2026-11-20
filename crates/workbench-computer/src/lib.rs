@@ -522,7 +522,7 @@ impl Computer {
         }
     }
 
-    /// What the settings page shows: whether this computer lets Eisoptric Workbench control it.
+    /// What the settings page shows: whether this computer lets the app control it.
     pub async fn permission_status(&self) -> Value {
         if !matches!(self.desktop, Desktop::Mac) {
             let platform = if matches!(self.desktop, Desktop::Windows(_)) {

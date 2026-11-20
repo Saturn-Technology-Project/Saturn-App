@@ -1,4 +1,4 @@
-//! The tools Eisoptric Workbench itself provides, as saved in the state's list of MCP servers. Their list is in `builtin-servers.json`.
+//! The tools the app itself provides, as saved in the state's list of MCP servers. Their list is in `builtin-servers.json`.
 use std::sync::LazyLock;
 
 use serde_json::Value;
@@ -25,7 +25,7 @@ static SERVERS: LazyLock<Vec<Value>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("builtin-servers.json")).expect("this file is valid JSON")
 });
 
-/// One of Eisoptric Workbench's own servers as it ships.
+/// One of the app's own servers as it ships.
 pub(crate) fn builtin_server(id: &str) -> Value {
     server(id)
 }
@@ -36,7 +36,7 @@ fn server(id: &str) -> Value {
         .expect("every built-in server is in the file")
 }
 
-/// Whether a server is one of Eisoptric Workbench's, under its name now or an earlier one.
+/// Whether a server is one of the app's, under its name now or an earlier one.
 fn builtin_id(id: &str) -> bool {
     matches!(
         id,
@@ -125,7 +125,7 @@ pub fn installed(state: &AppState) -> bool {
         })
 }
 
-/// Puts Eisoptric Workbench's own servers first in the list, keeping which tools the user turned off, and every agent on the current names.
+/// Puts the app's own servers first in the list, keeping which tools the user turned off, and every agent on the current names.
 pub fn install(state: &mut AppState) {
     let keeping = |state: &AppState, id: &str, old: &[&str]| {
         let mut fresh = server(id);

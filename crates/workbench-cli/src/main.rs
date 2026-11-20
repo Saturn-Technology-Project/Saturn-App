@@ -1,4 +1,4 @@
-//! `workbench`: the local runtime from a terminal or a script. It talks to the running Eisoptric Workbench over its HTTP API with the runtime
+//! `workbench`: the local runtime from a terminal or a script. It talks to the running the app over its HTTP API with the runtime
 //! token, like the apps do; it starts nothing itself.
 //!
 //!   workbench run "fix the failing test" [--agent NAME] [--project PATH] [--mode agent|ask|plan] [--chat ID] [--json]
@@ -18,7 +18,7 @@ const USAGE_CODE: i32 = 2;
 const WAITING: i32 = 3;
 const UNREACHABLE: i32 = 4;
 
-const USAGE: &str = r#"workbench: the Eisoptric Workbench runtime from a terminal
+const USAGE: &str = r#"workbench: the app's runtime from a terminal
 
 Usage:
   workbench run PROMPT [--agent NAME] [--project PATH] [--mode agent|ask|plan] [--chat ID] [--json]
@@ -31,7 +31,7 @@ Usage:
 
 PROMPT may be "-" to read it from stdin. A run waiting for approval asks on a terminal; elsewhere workbench exits
 with code 3 and prints how to answer it. Exit codes: 0 done, 1 failed, 2 usage, 3 waiting for approval,
-4 Eisoptric Workbench is not running.
+4 the app is not running.
 
 Environment: WORKBENCH_RUNTIME_PORT (default 4700), WORKBENCH_DATA_DIR (default ~/.workbench-app)."#;
 
@@ -133,7 +133,7 @@ fn encoded(text: &str) -> String {
     utf8_percent_encode(text, PATH_COMPONENT).to_string()
 }
 
-/// The running Eisoptric Workbench.
+/// The running the app.
 struct Client {
     base: String,
     token: String,
@@ -161,7 +161,7 @@ impl Client {
                 .map(|text| text.trim().to_owned())
                 .map_err(|_| CliError {
                     message: format!(
-                        "Eisoptric Workbench has not run on this computer yet (no {}). Open Eisoptric Workbench first.",
+                        "The app has not run on this computer yet (no {}). Open the app first.",
                         file.display()
                     ),
                     code: UNREACHABLE,
@@ -197,7 +197,7 @@ impl Client {
         }
         let response = request.send().await.map_err(|_| CliError {
             message: format!(
-                "Eisoptric Workbench is not running (nothing answers on {}). Open Eisoptric Workbench and try again.",
+                "The app is not running (nothing answers on {}). Open the app and try again.",
                 self.base
             ),
             code: UNREACHABLE,
@@ -215,7 +215,7 @@ impl Client {
         });
         Err(failed(said.unwrap_or_else(|| {
             if text.is_empty() {
-                format!("Eisoptric Workbench returned {status}")
+                format!("The app returned {status}")
             } else {
                 text
             }
@@ -341,7 +341,7 @@ async fn pick_agent(client: &Client, wanted: Option<&str>) -> Result<Value, CliE
     let agents = agents.as_array().map_or(&[][..], Vec::as_slice);
     if agents.is_empty() {
         return Err(failed(
-            "There are no agents yet. Create one in Eisoptric Workbench first.",
+            "There are no agents yet. Create one in the app first.",
         ));
     }
     if let Some(wanted) = wanted {
@@ -389,12 +389,12 @@ async fn pick_project(client: &Client, wanted: Option<&str>) -> Result<Option<Va
         })
         .ok_or_else(|| {
             misuse(format!(
-                "{wanted} is not an Eisoptric Workbench project. Add the folder in Eisoptric Workbench and allow access first."
+                "{wanted} is not a project. Add the folder in the app and allow access first."
             ))
         })?;
     if project["access"].is_null() {
         return Err(misuse(format!(
-            "Eisoptric Workbench does not have access to {} yet. Allow it in Eisoptric Workbench first.",
+            "The app does not have access to {} yet. Allow it in the app first.",
             project["path"].as_str().unwrap_or_default()
         )));
     }
@@ -709,7 +709,7 @@ mod tests {
             "fix",
             "it",
             "--agent",
-            "Eisoptric Workbench",
+            "Workbench",
             "--json",
             "--mode=plan",
             "--a=b=c",
@@ -721,7 +721,7 @@ mod tests {
         .collect();
         let parsed = Arguments::parse(&argv);
         assert_eq!(parsed.positional, ["fix", "it", "--literal"]);
-        assert_eq!(parsed.text("agent"), Some("Eisoptric Workbench"));
+        assert_eq!(parsed.text("agent"), Some("Workbench"));
         assert!(parsed.on("json"));
         assert_eq!(parsed.text("mode"), Some("plan"));
         assert_eq!(parsed.text("a"), Some("b=c"));

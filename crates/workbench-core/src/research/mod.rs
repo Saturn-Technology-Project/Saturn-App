@@ -136,7 +136,7 @@ pub(crate) async fn write_whole(path: &Path, bytes: &[u8]) -> Result<(), CoreErr
 /// A record read from its file, or why it cannot be used. `None` is a file that does not exist.
 async fn read_record(path: &Path) -> Result<Option<Value>, String> {
     if is_link(path).await {
-        return Err("It is a symbolic link, which Eisoptric Workbench does not follow.".to_owned());
+        return Err("It is a symbolic link, which the app does not follow.".to_owned());
     }
     let bytes = match tokio::fs::read(path).await {
         Ok(bytes) => bytes,
@@ -215,7 +215,7 @@ impl Kernel {
         if is_link(&parent).await || is_link(&records).await {
             return Err(CoreError::new(
                 409,
-                "The project's .workbench/research is a symbolic link, which Eisoptric Workbench does not follow. Remove it to keep records here.",
+                "The project's .workbench/research is a symbolic link, which the app does not follow. Remove it to keep records here.",
             ));
         }
         Ok(records)
@@ -239,7 +239,7 @@ impl Kernel {
             return Err(CoreError::new(
                 409,
                 format!(
-                    "The records' {collection} folder is a symbolic link, which Eisoptric Workbench does not follow."
+                    "The records' {collection} folder is a symbolic link, which the app does not follow."
                 ),
             ));
         }

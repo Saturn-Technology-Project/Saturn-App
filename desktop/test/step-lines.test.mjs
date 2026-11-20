@@ -13,7 +13,7 @@ test("a step names a file by the end of its path, whichever way the path is writ
   assert.deepEqual(line("Write", { file_path: "\\\\server\\share\\study\\notes.md" }), { verb: "Wrote", target: "study\\notes.md", badge: "MD" });
   assert.deepEqual(line("Edit", { file_path: "/Users/someone/research/study/tools/workbench_run.py" }), { verb: "Edited", target: "tools/workbench_run.py", badge: "PY" });
 
-  // Eisoptric Workbench's own file tool takes paths inside the project: a deep one is cut to its end and says so, a short one is whole.
+  // The app's own file tool takes paths inside the project: a deep one is cut to its end and says so, a short one is whole.
   const deep = line("files", { action: "read", path: "experiments\\2026-11-08-impossible-specificity\\tools\\workbench_run.py" }, { totalLines: 3 });
   assert.equal(deep.target, "…\\tools\\workbench_run.py");
   assert.equal(deep.badge, "PY");

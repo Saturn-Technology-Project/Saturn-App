@@ -10,7 +10,7 @@ use tokio::process::Command;
 use crate::shell::Invocation;
 
 /// Variables that only make sense for this process: the launcher's token, and how the desktop app or Electron started
-/// it. No program Eisoptric Workbench starts gets them.
+/// it. No program the app starts gets them.
 pub const OWN_VARIABLES: [&str; 3] = [
     "WORKBENCH_DESKTOP_ATTACHED",
     "WORKBENCH_DESKTOP_PID",
@@ -141,13 +141,13 @@ pub fn group_of(pid: u32) -> Option<u32> {
         .and_then(|group| u32::try_from(group.as_raw_nonzero().get()).ok())
 }
 
-/// Windows has no process groups: a command's processes are named by the process Eisoptric Workbench started.
+/// Windows has no process groups: a command's processes are named by the process the app started.
 #[cfg(windows)]
 pub fn group_of(pid: u32) -> Option<u32> {
     process_tree(pid).first().map(|_| pid)
 }
 
-/// Whether the process Eisoptric Workbench started, or anything started under it, is still there.
+/// Whether the process the app started, or anything started under it, is still there.
 #[cfg(windows)]
 pub fn group_alive(pid: u32) -> bool {
     !process_tree(pid).is_empty()
@@ -291,7 +291,7 @@ fn signal_group(pid: u32, signal: rustix::process::Signal) -> bool {
         .is_some_and(|group| rustix::process::kill_process_group(group, signal).is_ok())
 }
 
-/// Ends the process Eisoptric Workbench started and everything started under it, innermost first, so that nothing is left to start
+/// Ends the process the app started and everything started under it, innermost first, so that nothing is left to start
 /// more. Windows has no request to end that a program without a window hears, so this is at once and by force; the
 /// processes are gone when it returns.
 #[cfg(windows)]
@@ -482,7 +482,7 @@ mod windows_tests {
         }
     }
 
-    /// A command's processes are the one Eisoptric Workbench started and what was started under it, and not a process that was
+    /// A command's processes are the one the app started and what was started under it, and not a process that was
     /// given the id of one that ended, nor one that only names a dead parent whose id was given away.
     #[test]
     fn a_commands_processes_are_found_by_who_started_whom() {

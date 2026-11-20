@@ -1,6 +1,6 @@
 ---
 name: scaling-and-efficiency
-description: Scaling curves on a small grid, distillation and quantization as Eisoptric Workbench experiments with fair evaluation. Read before claiming a trend, a smaller model or a cheaper one.
+description: Scaling curves on a small grid, distillation and quantization as the app experiments with fair evaluation. Read before claiming a trend, a smaller model or a cheaper one.
 ---
 # Scaling and efficiency
 

@@ -20,7 +20,7 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
- * Settings → Storage: the private snapshots Eisoptric Workbench keeps of project folders outside git (to review and revert what
+ * Settings → Storage: the private snapshots the app keeps of project folders outside git (to review and revert what
  * shell commands change there), with their size; each can be deleted, or all, after a confirmation.
  */
 export function SnapshotStorage(props: { onError: (message: string) => void }) {
@@ -57,7 +57,7 @@ export function SnapshotStorage(props: { onError: (message: string) => void }) {
         <RowText>
           <RowLabel>{t("Folder snapshots")}</RowLabel>
           <RowDescription>
-            {t("For project folders outside git, Eisoptric Workbench keeps a private snapshot in its own data folder, so what a shell command changes can be reviewed and reverted.")}{" "}
+            {t("For project folders outside git, the app keeps a private snapshot in its own data folder, so what a shell command changes can be reviewed and reverted.")}{" "}
             {storage
               ? storage.folders.length === 1
                 ? t("1 folder, {size} in all.", { size: formatBytes(storage.bytes) })

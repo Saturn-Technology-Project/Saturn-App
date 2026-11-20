@@ -1,6 +1,6 @@
 [package]
 name = "workbench-domain"
-description = "Eisoptric Workbench's rules: what an agent may do, with no I/O"
+description = "The app's rules: what an agent may do, with no I/O"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

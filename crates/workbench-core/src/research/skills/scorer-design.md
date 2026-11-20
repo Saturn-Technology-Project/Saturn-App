@@ -20,7 +20,7 @@ A scorer is code, and has bugs. Most wrong conclusions in evaluation start here.
 ## Output
 Write the numeric score in `scores`, and the verdict in words in `scorerLabel` when a person may label the same samples: labels and `scorerLabel` are compared directly.
 
-Use `labels` on the experiment for the words a person labels with, and `labelAliases` for explicit matches such as `{"Wrong name":"Wrong"}`. Eisoptric Workbench does not guess that two words mean the same.
+Use `labels` on the experiment for the words a person labels with, and `labelAliases` for explicit matches such as `{"Wrong name":"Wrong"}`. The app does not guess that two words mean the same.
 
 Write `expected`, and `alternative` for a two-way comparison, so that sweeps can compute margins. Tell scorer errors from model failures with `error.kind: "scorer"`.
 

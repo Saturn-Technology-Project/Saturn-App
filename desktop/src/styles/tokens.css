@@ -1,4 +1,4 @@
-/* Eisoptric Workbench's colors, type and sizes, in light and dark. Every screen's style uses these names. */
+/* The app's colors, type and sizes, in light and dark. Every screen's style uses these names. */
 :root {
   --bg: #f1f0ec;
   --stage: rgba(255, 255, 255, 0.3);

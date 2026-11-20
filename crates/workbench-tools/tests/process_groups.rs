@@ -27,7 +27,7 @@ async fn until(what: &str, mut done: impl FnMut() -> bool) {
 async fn a_paused_group_writes_nothing_until_it_goes_on_and_still_ends_when_asked() {
     let folder = tempfile::tempdir().expect("a folder");
     let file = folder.path().join("ticks");
-    // A child of the shell writes, so the whole group has to stop, not only the process Eisoptric Workbench started.
+    // A child of the shell writes, so the whole group has to stop, not only the process the app started.
     let mut command = Command::new("/bin/sh");
     command.args([
         "-c",

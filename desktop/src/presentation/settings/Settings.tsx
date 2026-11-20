@@ -52,7 +52,7 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
       ["llm", t("Models"), t("LLM providers & models")],
       ["mcp", t("MCP & Skills"), t("Tool servers & knowledge sources")],
       ["usage", t("Usage & Billing"), t("Token spend & costs")],
-      ["memory", t("Memory"), t("What Eisoptric Workbench remembers across chats")],
+      ["memory", t("Memory"), t("What the app remembers across chats")],
       ["permissions", t("Permissions"), t("What agents may do without asking")],
       ["hooks", t("Hooks"), t("Commands around tool calls and turns")],
       ["plugins", t("Plugins"), t("Bundles of skills, hooks and MCP servers")],
@@ -63,7 +63,7 @@ const GROUPS: { title: string; items: [SettingsPage, string, string][] }[] = [
     items: [
       ["telemetry", t("Telemetry"), t("OpenTelemetry traces & logs")],
       ["logs", t("Logs"), t("Live runtime event stream")],
-      ["information", t("About"), t("What Eisoptric Workbench is and how it fits together")],
+      ["information", t("About"), t("What the app is and how it fits together")],
     ],
   },
 ];
@@ -123,7 +123,7 @@ export function Settings(props: {
   const currentMeta = selectedProject
     ? ["project", selectedProject.name, t("Project configuration & custom rules ({path})", { path: selectedProject.path })]
     : page === "shortcuts"
-      ? ["shortcuts", t("Shortcuts"), t("Quick keyboard shortcuts for Eisoptric Workbench")]
+      ? ["shortcuts", t("Shortcuts"), t("Quick keyboard shortcuts for the app")]
       : page === "older"
         ? ["older", t("Still running"), t("What the earlier interface set going")]
       : GROUPS.flatMap((group) => group.items).find(([id]) => id === page);
@@ -283,7 +283,7 @@ function RailLink(props: { active: boolean; onClick: () => void; children: React
 }
 
 /** Settings → General → Command line: install the `workbench` command, which runs this app's own CLI. */
-/** What each of Eisoptric Workbench's own tool servers is for. */
+/** What each of the app's own tool servers is for. */
 const BUILT_IN_SUMMARIES: Record<string, string> = {
   "general-skills": t("Files, commands, web and plans"),
   "computer-use": t("Mouse, keyboard and screen"),
@@ -318,8 +318,8 @@ function CommandLine(props: { onError: (message: string) => void }) {
           <RowText>
             <RowLabel>{t("The workbench command")}</RowLabel>
             <RowDescription>
-              {t("Run agents from a terminal or a script while Eisoptric Workbench is open:")} <code>workbench run "fix the failing test" --agent "Eisoptric Workbench" --project .</code>, <code>workbench runs</code>, <code>workbench approve</code>{t(". It uses this app's own runtime, so it never goes out of date.")}
-              {status?.installed ? " " + (status.current ? t("Installed at {path}.", { path: status.path ?? "" }) : t("Installed at {path}, for another copy of Eisoptric Workbench: reinstall to point it here.", { path: status.path ?? "" })) : ""}
+              {t("Run agents from a terminal or a script while the app is open:")} <code>workbench run "fix the failing test" --agent "Workbench" --project .</code>, <code>workbench runs</code>, <code>workbench approve</code>{t(". It uses this app's own runtime, so it never goes out of date.")}
+              {status?.installed ? " " + (status.current ? t("Installed at {path}.", { path: status.path ?? "" }) : t("Installed at {path}, for another copy of Reinstall to point it here.", { path: status.path ?? "" })) : ""}
               {status?.installed && !status.onPath ? " " + t('Add {folder} to your PATH to type just "workbench".', { folder: status.folder ?? "" }) : ""}
             </RowDescription>
           </RowText>
@@ -378,7 +378,7 @@ function SandboxSetup(props: { onError: (message: string) => void }) {
 /** The box that shows a command or a code to copy. */
 const COMMAND_BOX = "my-1.5 mb-1 flex items-center gap-2 rounded-lg border border-border bg-muted px-2.5 py-2";
 
-/** Settings → Memory: the notes Eisoptric Workbench keeps, global and per project, as text the user can edit. */
+/** Settings → Memory: the notes the app keeps, global and per project, as text the user can edit. */
 function Memory(props: { projects: Project[] }) {
   const [scope, setScope] = useState("global");
   const [content, setContent] = useState("");
@@ -419,7 +419,7 @@ function Memory(props: { projects: Project[] }) {
         <SettingsRow>
           <RowText>
             <RowLabel>{t("Notes")}</RowLabel>
-            <RowDescription>{t("One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Eisoptric Workbench forget it.")}</RowDescription>
+            <RowDescription>{t("One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make the app forget it.")}</RowDescription>
           </RowText>
           <Choice className="w-45" ariaLabel={t("Memory scope")} value={scope} options={[{ value: "global", label: t("About you (every chat)") }, ...props.projects.map((project) => ({ value: project.id, label: project.name }))]} onChange={setScope} />
         </SettingsRow>
@@ -620,7 +620,7 @@ function McpPage(props: {
           <Notice tone="wait" className="mt-2.5 grid gap-2 whitespace-normal">
             <p className="m-0 text-[12.5px] leading-snug">
               <strong>{t("This server runs a program on your computer")}</strong>
-              {t(", with your user account's permissions. Allow it only if you trust it. It starts with only a minimal environment, not Eisoptric Workbench's keys.")}
+              {t(", with your user account's permissions. Allow it only if you trust it. It starts with only a minimal environment, not the app's keys.")}
             </p>
             <code className="block rounded-md bg-card px-2 py-1.5 text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">{item.commandLine}</code>
             {item.command.env?.length ? <p className="m-0 text-[12.5px] text-muted-foreground">{t("Environment variables: {names} (values hidden)", { names: item.command.env.join(", ") })}</p> : null}
@@ -664,7 +664,7 @@ function McpPage(props: {
         ) : (
           <>
             <p className="text-[12.5px] text-muted-foreground">
-              {t("A server Eisoptric Workbench starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is used, so ~, $VARIABLES and pipes are not expanded: write full paths.")}
+              {t("A server the app starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is used, so ~, $VARIABLES and pipes are not expanded: write full paths.")}
             </p>
             <div className="mt-2 grid gap-2">
               <Input aria-label={t("Server name")} value={commandName} placeholder={t("Name (optional)")} onChange={(event) => setCommandName(event.target.value)} />
@@ -820,7 +820,7 @@ export function LlmPage(props: {
     return () => clearTimeout(timer);
   }, [secret]);
 
-  // Eisoptric Workbench has no list of a provider's models: the provider is asked, with its saved key or the one being typed, and
+  // The app has no list of a provider's models: the provider is asked, with its saved key or the one being typed, and
   // again when a key is saved. Until it answers, or when there is no key yet, the model ID can be typed.
   const keyed = props.models.filter((item) => item.provider === providerId && item.hasSecret).length;
   useEffect(() => {
@@ -1049,7 +1049,7 @@ export function LlmPage(props: {
             />
             <p className="m-0 text-[12.5px] leading-snug text-muted-foreground">
               {EFFORT_HINTS[providerId] ?? t("How much the model reasons before answering. Higher is slower and costs more.")}
-              {providerId === "claude-code" ? " " + t("Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Eisoptric Workbench never sends API requests for it, takes no API key, and does not schedule it.") : ""}
+              {providerId === "claude-code" ? " " + t("Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). The app never sends API requests for it, takes no API key, and does not schedule it.") : ""}
               {providerId === "codex" ? " " + t("Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key.") : ""}
             </p>
           </div>
@@ -1274,16 +1274,16 @@ function General(props: {
               <RowLabel>{t("Agent browser")}</RowLabel>
               <RowDescription>
                 {agentBrowser === "system"
-                  ? t("Agents browse in a visible window of your Chrome (or Edge, Brave), with Eisoptric Workbench's own profile: your logins and tabs stay out of it. You watch the cursor there.")
+                  ? t("Agents browse in a visible window of your Chrome (or Edge, Brave), with the app's own profile: your logins and tabs stay out of it. You watch the cursor there.")
                   : agentBrowser === "safari"
                     ? t("Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.")
-                    : t("Agents browse in Eisoptric Workbench's own browser, without a window, shown live with the agent's cursor in a Browser tab of the Workspace.")}
+                    : t("Agents browse in the app's own browser, without a window, shown live with the agent's cursor in a Browser tab of the Workspace.")}
               </RowDescription>
             </RowText>
             <Pills
               label={t("Agent browser")}
               value={agentBrowser}
-              options={isMac ? ([["workbench", "Eisoptric Workbench"], ["system", "Chrome"], ["safari", "Safari"]] as const) : ([["workbench", "Eisoptric Workbench"], ["system", "Chrome"]] as const)}
+              options={isMac ? ([["workbench", "Workbench"], ["system", "Chrome"], ["safari", "Safari"]] as const) : ([["workbench", "Workbench"], ["system", "Chrome"]] as const)}
               onChoose={(value) => void chooseAgentBrowser(value)}
             />
           </SettingsRow>
@@ -1297,7 +1297,7 @@ function General(props: {
           <SettingsRow>
             <RowText>
               <RowLabel>{t("Language")}</RowLabel>
-              <RowDescription>{t("The interface's language. Eisoptric Workbench reloads to show it.")}</RowDescription>
+              <RowDescription>{t("The interface's language. The app reloads to show it.")}</RowDescription>
             </RowText>
             <Pills
               label={t("Language")}
@@ -1378,7 +1378,7 @@ function General(props: {
           <SettingsRow>
             <RowText>
               <RowLabel>{t("Memory")}</RowLabel>
-              <RowDescription>{t("Every few turns, Eisoptric Workbench notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.")}</RowDescription>
+              <RowDescription>{t("Every few turns, the app notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.")}</RowDescription>
             </RowText>
             <Switch checked={memory} aria-label={t("Memory")} onCheckedChange={(next) => void chooseFlag("memory", next)} />
           </SettingsRow>
@@ -1516,9 +1516,9 @@ function ProjectSettingsTab(props: {
     }
   }
 
-  /** Takes the project and its chats out of Eisoptric Workbench. Its folder and everything in it stay. */
+  /** Takes the project and its chats out of the app. Its folder and everything in it stay. */
   async function removeProject() {
-    if (!await askToConfirm(t("Remove {name} from Eisoptric Workbench? Its chats go with it. The folder and its files stay where they are.", { name: props.project.name }))) return;
+    if (!await askToConfirm(t("Remove {name} from the app? Its chats go with it. The folder and its files stay where they are.", { name: props.project.name }))) return;
     try {
       await desktop.projects.delete(props.project.id);
       props.onRemoved?.();
@@ -1681,7 +1681,7 @@ function ProjectSettingsTab(props: {
             {t("Reveal in Finder")}
           </Button>
           <Button type="button" variant="danger" size="small" onClick={() => void removeProject()}>
-            {t("Remove from Eisoptric Workbench")}
+            {t("Remove from the app")}
           </Button>
         </SettingsCard>
       </div>
@@ -1755,8 +1755,8 @@ function Chevron(props: { open: boolean }) {
 }
 
 /**
- * Claude Code and Codex are separate official programs that Eisoptric Workbench no longer ships in its installer. Until one is
- * found (Eisoptric Workbench's download, or the user's own install on the PATH), this offers the download; once it is, it shows
+ * Claude Code and Codex are separate official programs that the app no longer ships in its installer. Until one is
+ * found (The app's download, or the user's own install on the PATH), this offers the download; once it is, it shows
  * where it comes from and then the sign-in (children).
  */
 export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNode }) {
@@ -1785,7 +1785,7 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
   }
 
   async function remove() {
-    if (!await askToConfirm(t("Remove Eisoptric Workbench's copy of {program}? {program} models stop working until it is downloaded again or found on your system.", { program: status?.label ?? "" }))) return;
+    if (!await askToConfirm(t("Remove the app's copy of {program}? {program} models stop working until it is downloaded again or found on your system.", { program: status?.label ?? "" }))) return;
     try {
       setStatus(await desktop.admin.removeProgram(props.id));
     } catch (reason) {
@@ -1819,8 +1819,8 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
                   ? t("Downloading… {received} of {total} MB", { received: Math.round(progress!.received / 1048576), total: Math.round(progress!.total / 1048576) })
                   : progress!.state === "verifying" ? t("Checking the download against its pinned checksum…") : t("Unpacking…")
                 : status.downloadVersion
-                  ? t("Eisoptric Workbench downloads the official {program} program ({version}) from the npm registry and checks it against a checksum pinned in Eisoptric Workbench, or uses one you have installed yourself.", { program: label, version: status.downloadVersion })
-                  : t("Eisoptric Workbench downloads the official {program} program from the npm registry and checks it against a checksum pinned in Eisoptric Workbench, or uses one you have installed yourself.", { program: label })}
+                  ? t("The app downloads the official {program} program ({version}) from the npm registry and checks it against a checksum pinned in the app, or uses one you have installed yourself.", { program: label, version: status.downloadVersion })
+                  : t("The app downloads the official {program} program from the npm registry and checks it against a checksum pinned in the app, or uses one you have installed yourself.", { program: label })}
             </RowDescription>
             {busy ? (
               <div className="mt-2 h-1 overflow-hidden rounded-full bg-border" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
@@ -1840,7 +1840,7 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
     );
   }
   const where =
-    status.source === "workbench" ? `${t("Eisoptric Workbench's copy")}${status.version ? ` · ${status.version}` : ""}`
+    status.source === "workbench" ? `${t("The app's copy")}${status.version ? ` · ${status.version}` : ""}`
     : status.source === "system" ? `${t("Your installed {program}", { program: label })}${status.version ? ` · ${status.version}` : ""} · ${status.path}`
     : `${t("Development copy")}${status.version ? ` · ${status.version}` : ""}`;
   return (
@@ -1866,7 +1866,7 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
 /**
  * Codex models run on the user's own ChatGPT login, made by the official `codex` program. The runtime starts
  * its `codex login` and relays what it prints: a one-time code to type at OpenAI (no localhost redirect), or
- * the sign-in page it opened in the browser. Eisoptric Workbench never handles the credential itself.
+ * the sign-in page it opened in the browser. The app never handles the credential itself.
  */
 export function CodexLogin() {
   const [status, setStatus] = useState<CodexStatus | null>(null);
@@ -1902,7 +1902,7 @@ export function CodexLogin() {
   }, [waiting]);
 
   async function signOut() {
-    if (!await askToConfirm(t("Sign Eisoptric Workbench out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in."))) return;
+    if (!await askToConfirm(t("Sign the app out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in."))) return;
     await run("signing_out", () => desktop.admin.codexLogout(), t("Could not sign out"));
   }
 
@@ -1936,7 +1936,7 @@ export function CodexLogin() {
               ? busy ? t("Checking…") : t("Status unavailable.")
               : status.loggedIn
                 ? [t("Signed in"), method].filter(Boolean).join(" · ")
-                : t("Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; Eisoptric Workbench never sees your credentials.")}
+                : t("Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; the app never sees your credentials.")}
           </RowDescription>
         </RowText>
         <RowActions>
@@ -1977,7 +1977,7 @@ export function CodexLogin() {
             </>
           ) : (
             <RowDescription>
-              {t("Finish signing in on the page that opened in your browser. Eisoptric Workbench keeps Codex listening for it until you're done.")}
+              {t("Finish signing in on the page that opened in your browser. The app keeps Codex listening for it until you're done.")}
               {signIn.url ? <> <LinkButton onClick={() => void openPage()}>{t("Open it again")}</LinkButton>{t(".")}</> : null}
             </RowDescription>
           )}
@@ -1992,7 +1992,7 @@ export function CodexLogin() {
 
 /**
  * Claude Code models run on the user's own Claude login, made once with the official `claude` program in a
- * terminal. Eisoptric Workbench shows what that program reports, the command to run, and signing out through the same
+ * terminal. The app shows what that program reports, the command to run, and signing out through the same
  * program; it never handles the credential itself.
  */
 export function ClaudeCodeLogin() {
@@ -2028,7 +2028,7 @@ export function ClaudeCodeLogin() {
   }, [signedOut]);
 
   async function signOut() {
-    if (!await askToConfirm(t("Sign Eisoptric Workbench out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in."))) return;
+    if (!await askToConfirm(t("Sign the app out of Claude Code? Claude (via Claude Code) models stop working until you sign in again. Your other Claude apps stay signed in."))) return;
     setBusy("signing_out");
     setError("");
     try {
@@ -2062,7 +2062,7 @@ export function ClaudeCodeLogin() {
               ? busy ? t("Checking…") : t("Status unavailable.")
               : status.loggedIn
                 ? [status.email ?? t("Signed in"), plan].filter(Boolean).join(" · ")
-                : t("Not signed in. Claude (via Claude Code) models run on your own Claude login; Eisoptric Workbench never sees your credentials.")}
+                : t("Not signed in. Claude (via Claude Code) models run on your own Claude login; the app never sees your credentials.")}
           </RowDescription>
         </RowText>
         <RowActions>

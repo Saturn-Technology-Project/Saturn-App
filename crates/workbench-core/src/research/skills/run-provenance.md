@@ -17,7 +17,7 @@ By default the program runs in the system sandbox (seatbelt on macOS, bubblewrap
 - The snapshot is read-only, new files included. Write outputs to `WORKBENCH_RUN_OUTPUT` (kept in the run's `written/`),
   scratch files to `TMPDIR`, and records to the `WORKBENCH_RUN_*` files. The shared caches (`~/.cache` and the like) stay
   writable so downloaded models are found again.
-- The project's own copies of the version's files, its `.git` and `.workbench`, Eisoptric Workbench's data and credential folders
+- The project's own copies of the version's files, its `.git` and `.workbench`, the app's data and credential folders
   (`~/.ssh`, `~/.aws`, `~/.netrc` …) cannot be read. Linked, uncontrolled folders can be read, not written.
 - Only the environment variables the experiment's `envNames` lists, plus those that say where things are (`PATH`,
   `HOME`, `HF_HOME`, `CUDA_*` …), reach the program. A key it needs must be listed; only the person can add one.
@@ -30,7 +30,7 @@ By default the program runs in the system sandbox (seatbelt on macOS, bubblewrap
 ## Reading the evidence
 `research_read { what: "evidence", run }` answers three things, kept apart:
 - `expected`: what the version says (command, commit, inputs, models, seeds).
-- `observed`: what Eisoptric Workbench saw (the snapshot's files and hashes, how each input got there, what is uncontrolled, what
+- `observed`: what the app saw (the snapshot's files and hashes, how each input got there, what is uncontrolled, what
   changed during the run, the seeds passed, and `sandbox`: how the program was confined, whether it had the network,
   and the names of the variables it was given).
 - `reported`: what the program said about itself. `null` means it did not say. Never fill it in from `expected`.
@@ -62,7 +62,7 @@ report(kind="model", source="huggingface", id=name, revision=model.config._commi
 report(kind="config", resolved=config_as_dict)
 report(kind="resume", checkpoint=path, restored=["weights", "optimizer", "scheduler", "step", "rng:cpu", "rng:cuda"])
 ```
-- `WORKBENCH_RUN_SEED` is the version's first seed and `WORKBENCH_RUN_SEEDS` all of them. Eisoptric Workbench passes them; only the
+- `WORKBENCH_RUN_SEED` is the version's first seed and `WORKBENCH_RUN_SEEDS` all of them. The app passes them; only the
   program can say it applied them.
 - Report the model revision the library actually loaded, not the one you asked for.
 - For a resumed run, report what was restored, and only that. A run that restored only the weights is not the same as

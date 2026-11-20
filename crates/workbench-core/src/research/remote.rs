@@ -34,7 +34,7 @@ const OUTPUTS: [&str; 8] = [
     "resources.jsonl",
 ];
 /// How much of one output a job may write before synchronization stops. Logs, metrics and resource readings grow with a
-/// long training run; the records Eisoptric Workbench reads whole (samples, the report, the snapshot, the artifact list) stay small.
+/// long training run; the records the app reads whole (samples, the report, the snapshot, the artifact list) stay small.
 fn output_limit(name: &str) -> u64 {
     match name {
         "stdout.log" | "stderr.log" | "metrics.jsonl" | "resources.jsonl" => 1024 * 1024 * 1024,
@@ -51,18 +51,18 @@ const FOLLOW_EVERY: Duration = Duration::from_millis(200);
 const FOLLOW_SILENCE: Duration = Duration::from_secs(5);
 /// How long this side waits for a word from the worker before it treats the connection as gone.
 const FOLLOW_TIMEOUT: Duration = Duration::from_secs(20);
-const NOTE: &str = "Uses your SSH configuration and host verification. Install this version of workbench-server on the remote host first. Code and data are not uploaded: the host builds the run's snapshot from its own working tree and checks every file against the version, and a difference refuses the run before anything starts. Closing Eisoptric Workbench detaches; stopping explicitly requests cancellation.";
+const NOTE: &str = "Uses your SSH configuration and host verification. Install this version of workbench-server on the remote host first. Code and data are not uploaded: the host builds the run's snapshot from its own working tree and checks every file against the version, and a difference refuses the run before anything starts. Closing the app detaches; stopping explicitly requests cancellation.";
 /// What a refused remote run is told to do.
 const REMOTE_HINT: &str = "Bring the host's working folder to the version (with git, say), or freeze a new version, then start again.";
 
 /// Whether this job's remote execution has a final status.
-/// The record of what this computer's runtime launched remotely, in Eisoptric Workbench's own data folder. A project's files say
-/// what a run was, but they may come from anyone, so only this decides whether Eisoptric Workbench connects to a run, where to, and
+/// The record of what this computer's runtime launched remotely, in the app's own data folder. A project's files say
+/// what a run was, but they may come from anyone, so only this decides whether the app connects to a run, where to, and
 /// whether it may still start it.
 const LEDGER: &str = "remote-launches.json";
 
 /// Said of a run whose remote record came with the project rather than from this runtime.
-const NOT_LAUNCHED_HERE: &str = "Eisoptric Workbench did not start this remote run from this computer, so it does not connect to it or start it. Its record came with the project's files.";
+const NOT_LAUNCHED_HERE: &str = "The app did not start this remote run from this computer, so it does not connect to it or start it. Its record came with the project's files.";
 
 /// Errors that will not go away by trying again: the job is gone or was never recorded, the run is gone, the request
 /// is refused, or an output is too large. Anything else, such as SSH not answering, may be temporary.
@@ -187,14 +187,14 @@ pub(super) fn ssh(host: &str, remote: String) -> Invocation {
     }
 }
 
-/// This process's environment without Eisoptric Workbench's own variables, for the SSH client.
+/// This process's environment without the app's own variables, for the SSH client.
 pub(super) fn ssh_env() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
     std::env::vars_os()
         .filter(|(name, _)| !name.to_string_lossy().starts_with("WORKBENCH_"))
         .collect()
 }
 
-/// A time-bounded exchange with the worker. Every request carries this Eisoptric Workbench's version, which a worker of another
+/// A time-bounded exchange with the worker. Every request carries this app's version, which a worker of another
 /// version refuses.
 pub(super) async fn rpc(target: &Value, request: &Value) -> Result<Value, CoreError> {
     check_target(target)?;
@@ -287,12 +287,12 @@ impl Kernel {
             &json!({ "action": "check", "workdir": settings["target"]["workdir"] }),
         )
         .await?;
-        // A worker from before versions were told says none, and it is not this Eisoptric Workbench's either.
+        // A worker from before versions were told says none, and it is not this app's either.
         if text(&check, "version") != super::workers::VERSION {
             return Err(CoreError::new(
                 409,
                 format!(
-                    "The worker on the host is not Eisoptric Workbench {}. Connect in Environment to install the matching one.",
+                    "The worker on the host is not the app {}. Connect in Environment to install the matching one.",
                     super::workers::VERSION
                 ),
             ));
@@ -682,7 +682,7 @@ impl Kernel {
                 }
                 _ = tokio::time::sleep(Duration::from_secs(1)) => {
                     if self.research.ending.load(Ordering::SeqCst) {
-                        return Err(CoreError::new(503, "Eisoptric Workbench is stopping."));
+                        return Err(CoreError::new(503, "The app is stopping."));
                     }
                 }
             }
@@ -958,13 +958,13 @@ async fn safe_child(parent: &Path, name: &str) -> Result<PathBuf, CoreError> {
 
 /// A single bounded worker exchange; repeated launch intents find the same job directory.
 async fn worker_rpc(request: &Value) -> Result<Value, CoreError> {
-    // An Eisoptric Workbench of another version may expect another worker; it is told so rather than half understood.
+    // A copy of the app of another version may expect another worker; it is told so rather than half understood.
     let asking = text(request, "workbenchVersion");
     if !asking.is_empty() && asking != super::workers::VERSION {
         return Err(CoreError::new(
             409,
             format!(
-                "This worker is Eisoptric Workbench {}, and Eisoptric Workbench {asking} asked. Install the matching worker from Environment.",
+                "This worker is the app {}, and the app {asking} asked. Install the matching worker from Environment.",
                 super::workers::VERSION
             ),
         ));
@@ -1044,7 +1044,7 @@ async fn worker_rpc(request: &Value) -> Result<Value, CoreError> {
         if request.get("start").is_none_or(Value::is_null) {
             return Err(CoreError::new(
                 410,
-                "This job is not on the remote host: its folder is gone, or it was never started. Eisoptric Workbench does not start it again; start a new run.",
+                "This job is not on the remote host: its folder is gone, or it was never started. The app does not start it again; start a new run.",
             ));
         }
         let claim = safe_child(&folder, "launch.claim").await?;
@@ -1256,7 +1256,7 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
         "Remote source was rebuilt on the host from its working tree and git, and every file in the version was checked against the version's hash before the command ran; what the version does not name is listed as uncontrolled."
     };
     let source = json!({ "workdir": start["workdir"], "gitCommit": git.filter(|result| result.status.success()).map(|result| String::from_utf8_lossy(&result.stdout).trim().to_owned()), "note": note });
-    // A job with a snapshot runs in the sandbox its version asks for, as a local run does; one sent by an Eisoptric Workbench from
+    // A job with a snapshot runs in the sandbox its version asks for, as a local run does; one sent by a from
     // before snapshots runs in the working folder, as it did then.
     let (mut command, sandbox) = if observed.is_null() {
         let mut command = Command::new("/bin/sh");
@@ -1398,7 +1398,7 @@ async fn execute_worker(folder: &Path) -> Result<(), CoreError> {
 mod tests {
     use super::*;
 
-    /// The remote folder is a path on the host, so it is judged as one there, on whatever system Eisoptric Workbench runs.
+    /// The remote folder is a path on the host, so it is judged as one there, on whatever system the app runs.
     #[test]
     fn a_remote_folder_is_absolute_the_way_the_host_writes_it() {
         let target = |workdir: &str| json!({ "host": "gpu-box", "workdir": workdir, "program": "workbench-server" });

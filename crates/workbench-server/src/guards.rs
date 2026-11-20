@@ -13,11 +13,11 @@ use workbench_telemetry::{Context, Kind, Span};
 use crate::auth::token_matches;
 
 /// Open to callers without the token: the health probe, and where a browser comes back from an MCP sign-in (it
-/// finishes only a sign-in Eisoptric Workbench started).
+/// finishes only a sign-in the app started).
 const OPEN_PATHS: [&str; 2] = ["/health", "/oauth/callback"];
 const AGENT_SKILLS_PATH: &str = "/agent-mcp";
 
-/// The only cross-origin callers are Eisoptric Workbench's own windows, which load from a loopback origin. A sandboxed iframe or a
+/// The only cross-origin callers are the app's own windows, which load from a loopback origin. A sandboxed iframe or a
 /// `data:` or `file:` document sends the literal "null", which is never echoed back.
 pub fn allowed_origin(origin: &str) -> bool {
     let Some((scheme, rest)) = origin.split_once("://") else {

@@ -1,4 +1,4 @@
-//! Eisoptric Workbench's data folder, in the format earlier versions wrote, so their data stays readable: `state.json`, and `secrets.json`
+//! The app's data folder, in the format earlier versions wrote, so their data stays readable: `state.json`, and `secrets.json`
 //! with its key in the operating system's key store. `contract/cases` holds files written by those versions.
 pub mod json;
 pub mod key_store;
@@ -36,7 +36,7 @@ pub(crate) fn write_private(file: &Path, contents: &[u8]) -> io::Result<()> {
     fs::rename(temporary, file)
 }
 
-/// Copies a file Eisoptric Workbench cannot use next to itself, named `<file>.<reason>-<time>`, so that starting fresh loses nothing.
+/// Copies a file the app cannot use next to itself, named `<file>.<reason>-<time>`, so that starting fresh loses nothing.
 /// Returns the copy's name for the log.
 pub(crate) fn set_aside(file: &Path, reason: &str) -> Option<String> {
     let name = format!(

@@ -51,7 +51,7 @@ async function api(method, route, body, expected = 200) {
 test("a model's key is saved, serves its provider and is never returned", async () => {
   const secret = "contract-secret-value";
   const model = await api("POST", "/connections/models", { provider: "openai", model: "gpt-6-astra", secret }, 201);
-  assert.equal(model.name, "gpt-6-astra", "its id, when no name came with it: Eisoptric Workbench has no names of its own for a provider's models");
+  assert.equal(model.name, "gpt-6-astra", "its id, when no name came with it: the app has no names of its own for a provider's models");
   assert.equal(model.hasSecret, true);
   const other = await api("POST", "/connections/models", { provider: "openai", model: "gpt-6-luna" }, 201);
   assert.equal(other.hasSecret, true, "the provider's saved key");
@@ -78,10 +78,10 @@ test("a connection an agent uses cannot be removed, and removing a model turns o
   assert.equal((await call("GET", `/agents/${agent.id}`)).status, 404);
 });
 
-test("providers are listed, and Eisoptric Workbench names no version of any model", async () => {
+test("providers are listed, and the app names no version of any model", async () => {
   const providers = await api("GET", "/llm/providers");
   assert.deepEqual(providers.map((item) => item.id), ["openai", "claude", "claude-code", "codex", "gemini", "deepseek", "lmstudio"]);
-  // A provider reached with a key lists its own models: Eisoptric Workbench carries no list of them to go out of date.
+  // A provider reached with a key lists its own models: the app carries no list of them to go out of date.
   for (const id of ["openai", "claude", "gemini", "deepseek"]) {
     assert.deepEqual(providers.find((item) => item.id === id).models, [], id);
   }

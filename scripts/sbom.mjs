@@ -1,4 +1,4 @@
-// Writes one CycloneDX 1.5 SBOM for an Eisoptric Workbench release: the crates of the runtime and the app (from Cargo.lock), the npm packages
+// Writes one CycloneDX 1.5 SBOM for a release: the crates of the runtime and the app (from Cargo.lock), the npm packages
 // the interface ships (from its lock file), without installing anything, plus the bundled embedding model with its pinned hashes.
 //
 //   node scripts/sbom.mjs <version> <output.cdx.json>
@@ -62,8 +62,8 @@ const sbom = {
   version: 1,
   metadata: {
     timestamp: new Date().toISOString(),
-    tools: [{ vendor: "Eisoptric Workbench", name: "scripts/sbom.mjs" }],
-    component: { type: "application", name: "Eisoptric Workbench", version, purl: `pkg:github/eisoptric/Workbench@v${version}`, "bom-ref": "workbench" },
+    tools: [{ vendor: "Workbench", name: "scripts/sbom.mjs" }],
+    component: { type: "application", name: "Workbench", version, purl: `pkg:github/eisoptric/Workbench@v${version}`, "bom-ref": "workbench" },
   },
   components: [...components.values()].sort((a, b) => a.purl.localeCompare(b.purl)),
 };

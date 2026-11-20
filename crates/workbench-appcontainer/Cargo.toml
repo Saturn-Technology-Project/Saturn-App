@@ -1,6 +1,6 @@
 [package]
 name = "workbench-appcontainer"
-description = "Starts a program in a Windows AppContainer: the one crate where Eisoptric Workbench calls the system without the compiler's checks"
+description = "Starts a program in a Windows AppContainer: the one crate where the app calls the system without the compiler's checks"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

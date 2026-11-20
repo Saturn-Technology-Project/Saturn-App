@@ -50,7 +50,7 @@ const SHADOW_EXCLUDES: [&str; 16] = [
 const DIFF_LIMIT: usize = 200_000;
 
 /// What a project folder's files were just before a shell command. In a git folder: git's view, plus the bytes of files already
-/// changed. Elsewhere: a tree in a private git repository Eisoptric Workbench keeps for that folder in its own data, never in the folder.
+/// changed. Elsewhere: a tree in a private git repository the app keeps for that folder in its own data, never in the folder.
 #[derive(Clone, Debug)]
 pub enum CommandSnapshot {
     Git {
@@ -584,7 +584,7 @@ impl Kernel {
         Ok(())
     }
 
-    /// A private git repository for a folder outside git, in Eisoptric Workbench's data; its index makes repeat snapshots fast.
+    /// A private git repository for a folder outside git, in the app's data; its index makes repeat snapshots fast.
     async fn shadow_snapshot(&self, root: &Path) -> Option<CommandSnapshot> {
         if locked(&self.too_big)
             .get(root)

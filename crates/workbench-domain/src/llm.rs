@@ -1,7 +1,7 @@
-//! What Eisoptric Workbench knows about model providers: who needs a key, and what a call costs.
+//! What the app knows about model providers: who needs a key, and what a call costs.
 use crate::time::{civil_date, days_from_civil, weekday};
 
-/// A provider Eisoptric Workbench can talk to.
+/// A provider the app can talk to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LlmProvider {
     pub id: &'static str,
@@ -67,7 +67,7 @@ pub fn runs_locally(provider: &str) -> bool {
     provider == "lmstudio"
 }
 
-/// Providers that run on the user's own subscription through the vendor's official program. Eisoptric Workbench never sends an API
+/// Providers that run on the user's own subscription through the vendor's official program. The app never sends an API
 /// request for their models.
 pub fn runs_on_plan(provider: &str) -> bool {
     matches!(provider, "claude-code" | "codex")

@@ -8,7 +8,7 @@ with an optional "sampleId" (else the file's stem). `path` is relative to the ma
 as `research_inspect activations` with `save` writes them, or as a hook script of your own saves them.
 
 What it writes: one sample line per held-out example with scores `layer_<n>`, `layer_<n>_shuffled` and
-`layer_<n>_random` (1.0 right, 0.0 wrong), so Eisoptric Workbench's summary is accuracy per layer and per control; `probes.json` in
+`layer_<n>_random` (1.0 right, 0.0 wrong), so the app's summary is accuracy per layer and per control; `probes.json` in
 the run's output with every probe's weights, accuracies and bootstrap intervals, listed as a json artifact; and
 `probe_layer_<n>.npz` beside it with each direction in activation space, which `steering_sweep.py --direction` loads.
 What to change: the regularization constants below, or `fit` for another probe type.

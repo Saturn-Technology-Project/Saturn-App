@@ -1,6 +1,6 @@
 //! The sandbox a run's program runs in, as its version asks. By default the program reads its snapshot and writes only
 //! its own records, its output folder, a temporary folder of its own and the shared caches; the project it was copied
-//! from, Eisoptric Workbench's data and the usual credential folders are hidden from it; it gets only the environment variables the
+//! from, the app's data and the usual credential folders are hidden from it; it gets only the environment variables the
 //! version names and a few that say where things are; and it uses the network unless the version says not to. A
 //! version may turn the sandbox off, which leaves the snapshot protected by its permissions only.
 use std::ffi::OsString;
@@ -127,7 +127,7 @@ fn passed_always(name: &str) -> bool {
 }
 
 /// The environment a confined program gets from `from`: the variables that say where things are, and those the
-/// version names. Eisoptric Workbench's own are never passed; the run's are added by the caller. Also what to record: the names
+/// version names. The app's own are never passed; the run's are added by the caller. Also what to record: the names
 /// passed, and the named ones that were not set.
 pub(super) fn environment(
     version: &Value,
@@ -167,7 +167,7 @@ pub(super) fn environment(
 }
 
 /// Where a run's program is, in folders: its snapshot, its own temporary folder, the folder it writes its records in
-/// with Eisoptric Workbench's own files there that it may only read, the folders it was made from, which it may not read, and what
+/// with the app's own files there that it may only read, the folders it was made from, which it may not read, and what
 /// else it may read though it lies there, such as the run it resumes and that run's checkpoint.
 pub(super) struct Placement {
     pub tree: PathBuf,
@@ -181,7 +181,7 @@ pub(super) struct Placement {
 /// What the snapshot's links lead to that the run may read, wherever it lies: a folder of the project such as an
 /// environment, or a file elsewhere that a committed link names. Either is listed as uncontrolled with the snapshot;
 /// reading it here keeps the program's view the same on every system (on Linux `/tmp` is otherwise the sandbox's own).
-/// Links into Eisoptric Workbench's data or the credential folders stay hidden.
+/// Links into the app's data or the credential folders stay hidden.
 fn link_targets(
     tree: &Path,
     sources: &[PathBuf],
@@ -262,7 +262,7 @@ pub(super) fn home() -> PathBuf {
 }
 
 /// The command that starts `script` in `working` as the version asks: in the sandbox, with the environment it allows,
-/// or, with the sandbox off, as before. `data` is Eisoptric Workbench's data folder on this computer. Returns the command (without
+/// or, with the sandbox off, as before. `data` is the app's data folder on this computer. Returns the command (without
 /// the run's own variables, its output or its process group, which the caller adds) and what to record about it.
 pub(super) async fn command(
     version: &Value,
@@ -304,7 +304,7 @@ pub(super) async fn command(
         }
     }
     for file in &placement.protected {
-        // A record Eisoptric Workbench writes later is made now, so the program cannot make it first.
+        // A record the app writes later is made now, so the program cannot make it first.
         if tokio::fs::symlink_metadata(file).await.is_err() {
             let _ = tokio::fs::write(file, b"").await;
         }
@@ -327,7 +327,7 @@ pub(super) async fn command(
         visible.insert(0, placement.tree.clone());
         // The local weights the version names, such as a checkpoint another run wrote, are read where they are, and so
         // is what a resumed run continues from.
-        // Never Eisoptric Workbench's own data or a credential folder, nor the whole project, which the snapshot is there to replace:
+        // Never the app's own data or a credential folder, nor the whole project, which the snapshot is there to replace:
         // a version could otherwise name one as a model's source and read it from the run.
         let real = |paths: &[PathBuf]| -> Vec<PathBuf> {
             paths
@@ -467,9 +467,9 @@ fn shell(script: &str) -> Command {
     command
 }
 
-/// A program Eisoptric Workbench starts for a project's research (its interpreter for the environment check, a notebook's kernel,
+/// A program the app starts for a project's research (its interpreter for the environment check, a notebook's kernel,
 /// looking inside a model or reading data, a language server, an environment job), wrapped in the sandbox the project's
-/// commands run in: it writes only to the project, the temporary folders, the caches and `writable`, cannot read Eisoptric Workbench's
+/// commands run in: it writes only to the project, the temporary folders, the caches and `writable`, cannot read the app's
 /// data (but `readable`, inside it) or the credential folders, and reaches the network only when the project's commands
 /// may. Where the system has
 /// no sandbox, or the project's is off, it runs as before.
@@ -513,7 +513,7 @@ pub(crate) fn sandboxed_invocation(
     .invocation
 }
 
-/// What a sandboxed command may neither read nor write: Eisoptric Workbench's data folders (the runtime's token, the keys, every
+/// What a sandboxed command may neither read nor write: the app's data folders (the runtime's token, the keys, every
 /// conversation) and the usual credential folders. A command that could read the token could use the runtime's own API
 /// to turn its sandbox off or allow itself, and one that could read the keys could send them anywhere.
 pub(crate) fn hidden_from_commands(root: &Path) -> Vec<String> {
@@ -525,7 +525,7 @@ pub(crate) fn hidden_from_commands(root: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Eisoptric Workbench's data folders on this computer: the one in use and the usual one, which may differ when a test or a second
+/// The app's data folders on this computer: the one in use and the usual one, which may differ when a test or a second
 /// copy runs.
 pub(super) fn data_folders(root: &Path) -> Vec<PathBuf> {
     let mut folders = vec![root.to_path_buf()];
@@ -560,7 +560,7 @@ mod tests {
                 ("ANTHROPIC_API_KEY", "not named"),
                 ("HF_TOKEN", "not named"),
                 ("PYTHON_KEYRING", "looks like a key"),
-                ("WORKBENCH_RUNTIME_TOKEN", "Eisoptric Workbench's own"),
+                ("WORKBENCH_RUNTIME_TOKEN", "The app's own"),
             ])
             .into_iter(),
         );

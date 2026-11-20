@@ -174,7 +174,7 @@ async fn restore(file: &std::path::Path) -> Option<String> {
     };
     if saved.get("format").and_then(Value::as_str) != Some("workbench-telemetry") {
         return Some(format!(
-            "{} is not an Eisoptric Workbench telemetry file; it will be replaced on the next save",
+            "{} is not a telemetry file; it will be replaced on the next save",
             file.display()
         ));
     }

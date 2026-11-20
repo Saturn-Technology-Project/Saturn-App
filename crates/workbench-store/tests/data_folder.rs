@@ -143,7 +143,7 @@ async fn an_empty_folder_starts_with_the_defaults() {
         json!({
             "projects": [], "activeProjectId": null, "agents": [], "automations": [], "models": [], "mcp": [], "rag": [],
             "runs": [], "threads": [], "groups": [], "groupMessages": [], "usage": [],
-            "settings": { "name": "Eisoptric Workbench", "environment": "production", "logging": "info", "completionModelId": null },
+            "settings": { "name": "Workbench", "environment": "production", "logging": "info", "completionModelId": null },
         })
     );
     assert!(

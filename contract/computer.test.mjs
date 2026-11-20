@@ -342,7 +342,7 @@ test("a locked screen and missing permissions are said plainly, and the settings
   assert.deepEqual(await api("GET", "/computer/permissions"), { platform: "darwin", required: true, accessibility: true, screenRecording: true });
 });
 
-test("the pointer stream says where each action lands, before it lands, so Eisoptric Workbench can draw the assistant's cursor", macOnly, async () => {
+test("the pointer stream says where each action lands, before it lands, so the app can draw the assistant's cursor", macOnly, async () => {
   await configure({});
   const token = (await readFile(path.join(runtime.dataDir, "runtime-token"), "utf8")).trim();
   const stop = new AbortController();

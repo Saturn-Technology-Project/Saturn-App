@@ -46,7 +46,7 @@ impl Kernel {
         self.store.root().join("workspace").join("recordings")
     }
 
-    /// A recording folder from a tool result, only when it is one of Eisoptric Workbench's own under the data directory.
+    /// A recording folder from a tool result, only when it is one of the app's own under the data directory.
     fn recording_folder(&self, recorded: &str) -> Option<PathBuf> {
         let full = normalized(Path::new(recorded));
         let root = self.recordings_root();

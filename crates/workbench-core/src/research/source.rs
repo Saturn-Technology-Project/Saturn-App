@@ -61,7 +61,7 @@ impl Kernel {
         if is_bookkeeping(&relative) {
             return Err(CoreError::new(
                 403,
-                "Eisoptric Workbench's records and git's own folder are not edited here.",
+                "The app's records and git's own folder are not edited here.",
             ));
         }
         Ok((target, relative))
@@ -337,7 +337,7 @@ impl Kernel {
         if super::is_link(&written).await {
             return Err(CoreError::new(
                 403,
-                "The run's output folder is a symbolic link, which Eisoptric Workbench does not follow.",
+                "The run's output folder is a symbolic link, which the app does not follow.",
             ));
         }
         let Some(requested) = requested.filter(|path| !path.trim().is_empty() && *path != ".")
@@ -357,7 +357,7 @@ impl Kernel {
         if super::is_link(&path).await {
             return Err(CoreError::new(
                 403,
-                "Eisoptric Workbench does not follow a link in a run's output.",
+                "The app does not follow a link in a run's output.",
             ));
         }
         let relative = workspace.relative(&path);

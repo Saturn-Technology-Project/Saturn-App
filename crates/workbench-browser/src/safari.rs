@@ -295,7 +295,7 @@ impl Safari {
     /// Starts safaridriver on a free port and gives its address.
     async fn start_driver(&self) -> Result<String, String> {
         if !cfg!(target_os = "macos") || !Path::new(SAFARIDRIVER).exists() {
-            return Err("Safari is only on macOS. Pick Eisoptric Workbench or Chrome in Settings → General → Agent browser.".to_owned());
+            return Err("Safari is only on macOS. Pick the app or Chrome in Settings → General → Agent browser.".to_owned());
         }
         let port = {
             let free =

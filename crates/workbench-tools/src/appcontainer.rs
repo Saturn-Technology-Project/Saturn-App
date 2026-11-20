@@ -1,4 +1,4 @@
-//! The Windows sandbox: a command runs in an AppContainer, started by Eisoptric Workbench's own program as the launcher (see the
+//! The Windows sandbox: a command runs in an AppContainer, started by the app's own program as the launcher (see the
 //! `workbench-appcontainer` crate). A container reads and writes nothing of the person's until a folder is opened to it,
 //! the other way round from seatbelt and bubblewrap, where everything can be read until it is hidden. So here the
 //! sandbox is a list of what to open: the workspace, a temporary folder, the caches, and where the programs on `PATH`
@@ -23,12 +23,12 @@ use crate::shell::{Env, Invocation};
 
 /// The name of this sandbox, in results and records.
 pub const MECHANISM: &str = "AppContainer";
-/// The capability every Eisoptric Workbench sandbox holds: the caches and the programs' folders are opened to it.
+/// The capability every sandbox the app makes holds: the caches and the programs' folders are opened to it.
 const TOOLS: &str = "workbenchSandboxTools";
 
 static LAUNCHER: OnceLock<PathBuf> = OnceLock::new();
 
-/// Names the program that starts containers: Eisoptric Workbench's own, which calls `workbench_appcontainer::launch` when its first
+/// Names the program that starts containers: the app's own, which calls `workbench_appcontainer::launch` when its first
 /// argument says so. A program that has not said this (a test, a tool built on these crates) has no Windows sandbox.
 pub fn set_launcher(program: PathBuf) {
     let _ = LAUNCHER.set(program);
@@ -44,7 +44,7 @@ pub fn forget(container: &str) {
     workbench_appcontainer::forget(container);
 }
 
-/// The argument that makes Eisoptric Workbench's program open, once, what only an administrator can.
+/// The argument that makes the app's program open, once, what only an administrator can.
 pub const SETUP_FLAG: &str = "--appcontainer-setup";
 /// What a command is told where the sandbox was never set up.
 pub const NOT_SET_UP: &str = "the Windows sandbox is not set up: Settings → General → Sandbox sets it up once, as an administrator (or `workbench-server --appcontainer-setup`; see the README)";
@@ -256,7 +256,7 @@ pub(crate) fn windows_caches(home: &Path) -> Vec<PathBuf> {
     .collect()
 }
 
-/// What every Eisoptric Workbench sandbox shares: the folders on `PATH` to read, so the programs a command names can be found and
+/// What every sandbox the app makes shares: the folders on `PATH` to read, so the programs a command names can be found and
 /// run, and the caches. Windows's own folders are left out, being open to containers already, and so is a folder that
 /// holds something hidden or the home folder itself, which would open far more than a program.
 pub(crate) fn tools(env: &Env, caches: &[String], writes: bool, hidden: &[String]) -> Shared {

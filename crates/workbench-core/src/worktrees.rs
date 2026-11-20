@@ -162,7 +162,7 @@ impl Kernel {
     }
 
     /// Where a chat's worktree stands against its base.
-    /// Commits whatever the chat's worktree has pending (as Eisoptric Workbench) and pushes its branch to origin. Gives whether anything was
+    /// Commits whatever the chat's worktree has pending (as the app) and pushes its branch to origin. Gives whether anything was
     /// committed, and the head. The pull request flow and the CI follow-up both push through here.
     pub(crate) async fn push_worktree(
         &self,
@@ -186,7 +186,7 @@ impl Kernel {
                 &folder,
                 &[
                     "-c",
-                    "user.name=Eisoptric Workbench",
+                    "user.name=Workbench",
                     "-c",
                     "user.email=workbench@localhost",
                     "commit",
@@ -279,7 +279,7 @@ impl Kernel {
             git_checked(&folder, &["add", "-A"]).await?;
             let chosen = js::trim(message.unwrap_or(""));
             let subject = if chosen.is_empty() {
-                format!("Eisoptric Workbench: {title}")
+                title.to_string()
             } else {
                 chosen.to_owned()
             };
@@ -287,7 +287,7 @@ impl Kernel {
                 &folder,
                 &[
                     "-c",
-                    "user.name=Eisoptric Workbench",
+                    "user.name=Workbench",
                     "-c",
                     "user.email=workbench@localhost",
                     "commit",
@@ -308,7 +308,7 @@ impl Kernel {
                     "The project has uncommitted changes; commit or stash them before merging a chat's branch into it",
                 ));
             }
-            // The merge commit is the user's when git knows who they are; otherwise it is Eisoptric Workbench's, like the branch's commit.
+            // The merge commit is the user's when git knows who they are; otherwise it is the app's, like the branch's commit.
             let known = !git_or_empty(&root, &["config", "user.email"])
                 .await
                 .is_empty();
@@ -318,7 +318,7 @@ impl Kernel {
             } else {
                 vec![
                     "-c",
-                    "user.name=Eisoptric Workbench",
+                    "user.name=Workbench",
                     "-c",
                     "user.email=workbench@localhost",
                 ]

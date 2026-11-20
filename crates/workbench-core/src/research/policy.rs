@@ -290,9 +290,7 @@ impl Kernel {
                 "{path} is locked for this experiment. Changing it needs the user, and makes a new version."
             ),
             PolicyVerdict::Records => {
-                format!(
-                    "{path} is one of Eisoptric Workbench's research records, which agents do not change."
-                )
+                format!("{path} is one of the app's research records, which agents do not change.")
             }
             PolicyVerdict::NeedsApproval | PolicyVerdict::Allowed => return None,
         };
@@ -472,7 +470,7 @@ impl Kernel {
         }
     }
 
-    /// Forgets what a run's protected files looked like, after a change the run made through Eisoptric Workbench itself.
+    /// Forgets what a run's protected files looked like, after a change the run made through the app itself.
     pub(super) fn research_forget_baseline(&self, run: &Value) {
         locked(&self.research.baselines).remove(text(run, "id"));
     }

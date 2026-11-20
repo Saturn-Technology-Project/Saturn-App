@@ -17,7 +17,7 @@ const restore = (run, body = {}) => workbench.api("POST", `/runs/${run.id}/resto
 const text = (...parts) => readFile(path.join(...parts), "utf8");
 const bytes = (...parts) => readFile(path.join(...parts));
 
-test("the first write in a turn keeps the original bytes, and the folder gets no Eisoptric Workbench files or git state", async () => {
+test("the first write in a turn keeps the original bytes, and the folder gets no files of the app's or git state", async () => {
   const folder = await workbench.folder();
   const original = Buffer.from("line one\r\nline two\r\nno newline: café", "utf8");
   await writeFile(path.join(folder, "notes.md"), original);

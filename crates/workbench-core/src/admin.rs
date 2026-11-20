@@ -188,7 +188,7 @@ impl Kernel {
             "available": mechanism.is_some(),
             "mechanism": mechanism,
             "reason": reason,
-            // Only Windows has a setup, and only Eisoptric Workbench's own program can run it.
+            // Only Windows has a setup, and only the app's own program can run it.
             "setup": windows && mechanism.is_none() && workbench_tools::appcontainer::launcher().is_some(),
         })
     }
@@ -204,7 +204,7 @@ impl Kernel {
         if before["setup"] != Value::Bool(true) {
             return Err(CoreError::new(
                 409,
-                "This computer's sandbox has no setup to run from Eisoptric Workbench",
+                "This computer's sandbox has no setup to run from the app",
             ));
         }
         let folders: Vec<String> = self.store.read(|state| {

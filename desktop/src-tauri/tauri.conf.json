@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Eisoptric Workbench",
+  "productName": "Workbench",
   "version": "../package.json",
   "identifier": "com.eisoptric.desktop",
   "build": {

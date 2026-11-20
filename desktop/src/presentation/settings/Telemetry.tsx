@@ -27,7 +27,7 @@ import { SubTitle } from "./Parts";
 type Tab = "traces" | "metrics" | "logs" | "network";
 
 const EXPORTS: { format: TelemetryExportFormat; label: string; detail: string }[] = [
-  { format: "workbench", label: "Eisoptric Workbench JSON", detail: t("telemetry.json as saved, for this page") },
+  { format: "workbench", label: "The app JSON", detail: t("telemetry.json as saved, for this page") },
   { format: "otlp", label: "OTLP JSON", detail: t("JSON Lines for the OpenTelemetry Collector (otlpjsonfile)") },
   { format: "siem", label: "SIEM · ECS NDJSON", detail: t("One event per line for Elastic, Splunk, Sentinel") },
 ];
@@ -754,7 +754,7 @@ function Network(props: { view: NetworkView | null }) {
   return (
     <div className="flex flex-col gap-3">
       <p className={HINT}>
-        {t("Every HTTP(S) request the Eisoptric Workbench runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.", { time: new Date(view.since).toLocaleString() })}
+        {t("Every HTTP(S) request the app's runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.", { time: new Date(view.since).toLocaleString() })}
         {view.file ? <> {t("Also written to:")} <code>{view.file}</code></> : null}
       </p>
       <Card className="gap-0 overflow-hidden p-0">

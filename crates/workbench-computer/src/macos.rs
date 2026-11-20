@@ -15,12 +15,12 @@ use workbench_tools::launch_env;
 use crate::{Canvas, Failure, Region, Tree};
 
 /// What the user has to do when macOS refuses input or the accessibility tree.
-pub(crate) const ACCESSIBILITY_HELP: &str = "Eisoptric Workbench needs the Accessibility permission to control apps. Open System Settings → Privacy & Security → Accessibility and turn on Eisoptric Workbench. If Eisoptric Workbench is already on but this keeps happening, remove it with the − button and add it again: each Eisoptric Workbench update is a new app to macOS.";
+pub(crate) const ACCESSIBILITY_HELP: &str = "The app needs the Accessibility permission to control apps. Open System Settings → Privacy & Security → Accessibility and turn on the app. If the app is already on but this keeps happening, remove it with the − button and add it again: each update of the app is a new app to macOS.";
 /// What the user has to do when macOS refuses screenshots.
-pub(crate) const SCREEN_RECORDING_HELP: &str = "Eisoptric Workbench needs the Screen Recording permission to take screenshots. Open System Settings → Privacy & Security → Screen & System Audio Recording and turn on Eisoptric Workbench, then restart Eisoptric Workbench. If it is already on, remove it with the − button and add it again: each Eisoptric Workbench update is a new app to macOS.";
+pub(crate) const SCREEN_RECORDING_HELP: &str = "The app needs the Screen Recording permission to take screenshots. Open System Settings → Privacy & Security → Screen & System Audio Recording and turn on the app, then restart the app. If it is already on, remove it with the − button and add it again: each update of the app is a new app to macOS.";
 /// What the agent tells the user when the screen is locked.
 pub(crate) const SCREEN_LOCKED_HELP: &str = "The Mac's screen is locked, so nothing on it can be seen or controlled. Ask the user to unlock it, then try again.";
-const AUTOMATION_HELP: &str = "Eisoptric Workbench is not allowed to control System Events. Open System Settings → Privacy & Security → Automation and allow Eisoptric Workbench to control System Events.";
+const AUTOMATION_HELP: &str = "The app is not allowed to control System Events. Open System Settings → Privacy & Security → Automation and allow the app to control System Events.";
 
 /// How long a script or program gets.
 const TIMEOUT: Duration = Duration::from_secs(15);
@@ -121,7 +121,7 @@ async fn act(script: &str, params: &Value) -> Result<(), Failure> {
     jxa(script, params, TIMEOUT).await.map(|_| ())
 }
 
-/// Asks macOS itself (AXIsProcessTrusted, CGPreflightScreenCaptureAccess) for the permissions Eisoptric Workbench holds.
+/// Asks macOS itself (AXIsProcessTrusted, CGPreflightScreenCaptureAccess) for the permissions the app holds.
 pub(crate) async fn permissions() -> Result<(bool, bool), Failure> {
     let granted = jxa(include_str!("macos/permissions.js"), &json!({}), TIMEOUT).await?;
     Ok((
@@ -273,7 +273,7 @@ pub(crate) async fn accessibility_tree(
     let params = json!({ "pid": pid, "root": root, "limit": limit, "depth": 12, "budget": TREE_BUDGET_MS, "wide": 150 });
     let timeout = Duration::from_millis(TREE_BUDGET_MS) + TIMEOUT;
     let mut tree = read_tree(&params, timeout).await?;
-    // WebKit builds a web view's tree only once something asks for it: the first read of a window holding one (Eisoptric Workbench
+    // WebKit builds a web view's tree only once something asks for it: the first read of a window holding one (The app
     // itself, Safari, any WebKit app) finds an empty group where the page will be. It is read again once it is built.
     for _ in 0..WEB_VIEW_RETRIES {
         if !root.is_empty() || !web_view_unbuilt(&tree.nodes) {
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn a_web_view_not_built_yet_is_an_empty_group_near_the_window() {
-        // Eisoptric Workbench's window on the first read: the traffic lights, and two nested groups with nothing in them.
+        // The app's window on the first read: the traffic lights, and two nested groups with nothing in them.
         let first = [
             node(&[0], "AXButton", ""),
             node(&[1], "AXButton", ""),
@@ -469,7 +469,7 @@ mod tests {
             node(&[3], "AXGroup", ""),
             node(&[3, 0], "AXGroup", ""),
             node(&[3, 0, 0], "AXScrollArea", ""),
-            node(&[3, 0, 0, 0], "AXWebArea", "Home – Eisoptric Workbench"),
+            node(&[3, 0, 0, 0], "AXWebArea", "Home – Workbench"),
             node(&[3, 0, 0, 0, 0], "AXButton", "Home"),
         ];
         assert!(!web_view_unbuilt(&built));

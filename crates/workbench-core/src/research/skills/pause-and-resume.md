@@ -12,7 +12,7 @@ research_run { action: "continue", run: "<id>" }   → the run, status "running"
 - Pausing holds the whole process where it is. It keeps its memory, the GPU's included, so a paused run still blocks the device for others. Pause for minutes, not for a night.
 - A paused run is still going. `research_wait` returns as soon as it is paused (`paused: true`), so ask yourself whether to continue it; do not wait on it.
 - The run records `pausedSeconds`. Say it when you report the run's speed or cost.
-- Stopping a paused run works: it ends as stopped. If Eisoptric Workbench restarts while a run is paused, the run ends as interrupted.
+- Stopping a paused run works: it ends as stopped. If the app restarts while a run is paused, the run ends as interrupted.
 - Remote runs cannot be paused yet.
 
 ## Resume
@@ -27,7 +27,7 @@ research_run { action: "resume", run: "<id>", checkpoint: "written/step-2000", s
 - A repeated call with the same `attempt` starts nothing. Use a new attempt to resume the same run again.
 
 ## What the program has to do
-Eisoptric Workbench carries what it can; skipping and restoring are the program's job, and only its report says it did them.
+The app carries what it can; skipping and restoring are the program's job, and only its report says it did them.
 
 **Evaluation.** The samples the resumed run finished are already in `WORKBENCH_RUN_SAMPLES` when the program starts. Read the file first and skip every sample whose identity (`sampleId`, with `trial` and `modelId` when you use them) is there:
 ```python

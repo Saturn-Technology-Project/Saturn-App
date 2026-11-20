@@ -1,6 +1,6 @@
 ---
 name: pretraining
-description: Train a base model from scratch as an Eisoptric Workbench experiment, with checkpoints in the lineage. Read when training a model from raw text.
+description: Train a base model from scratch as an experiment, with checkpoints in the lineage. Read when training a model from raw text.
 ---
 # Pretraining
 

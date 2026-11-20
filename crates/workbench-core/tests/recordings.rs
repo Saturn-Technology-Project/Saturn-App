@@ -1,4 +1,4 @@
-//! A run's recordings: only folders of Eisoptric Workbench's own count, whatever a tool result says.
+//! A run's recordings: only folders of the app's own count, whatever a tool result says.
 use std::path::Path;
 use std::sync::Arc;
 

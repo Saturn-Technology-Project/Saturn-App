@@ -152,8 +152,8 @@ fn request_of(case: &Value, base_url: &str) -> ChatRequest {
 
 /// What Anthropic's list of models says of the one older model the cases were recorded with: no adaptive thinking and
 /// no effort setting, and thinking with a budget, which marks a model that still takes a temperature. The cases hold
-/// only a model's name, and Eisoptric Workbench no longer reads anything from a name, so the test says it. Of every other model
-/// nothing is said, as for a connection made before Eisoptric Workbench asked.
+/// only a model's name, and the app no longer reads anything from a name, so the test says it. Of every other model
+/// nothing is said, as for a connection made before the app asked.
 fn said_of(model: &str) -> Capabilities {
     if model == "claude-haiku-4-5" {
         Capabilities {
@@ -386,7 +386,7 @@ fn input_with_tool_turn() -> CompletionInput {
     CompletionInput {
         context: CallContext {
             agent_id: "agent_1".to_owned(),
-            agent_name: "Eisoptric Workbench".to_owned(),
+            agent_name: "Workbench".to_owned(),
             run_id: Some("run_1".to_owned()),
             purpose: "run",
         },
@@ -455,7 +455,7 @@ async fn a_call_leaves_a_priced_line_for_the_usage_history() {
         .expect("it answers");
     let record = completion.usage_record.expect("tokens were reported");
     assert_eq!(record["runId"], "run_1");
-    assert_eq!(record["agentName"], "Eisoptric Workbench");
+    assert_eq!(record["agentName"], "Workbench");
     assert_eq!(record["modelId"], "mdl_1");
     assert_eq!(record["purpose"], "run");
     assert_eq!(record["inputTokens"], 1000);

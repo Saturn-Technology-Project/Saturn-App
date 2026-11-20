@@ -15,6 +15,8 @@ them through `research_*` tools in the chat's mode. Three parts:
   `src/infrastructure/runtime-client.ts`.
 - `contract/`: what the runtime must do over HTTP, tested against the real programs. `contract/routes.json` lists every
   route. `contract/cases` were recorded from the old TypeScript runtime (git tag `archive/ts-runtime`) and are frozen.
+  The one exception so far is the rename from Saturn: its name and identifiers inside the cases were changed with the
+  app, and nothing else. Change a case only for a rename like that, and say so in the commit.
 
 Also `scripts/` (lock-file check, SBOM, `eval/` task evals) and `docs/` (threat model, known advisories, the research
 contract, workflow and skills).

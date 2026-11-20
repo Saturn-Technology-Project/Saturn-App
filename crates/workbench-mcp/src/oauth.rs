@@ -196,7 +196,7 @@ impl McpClient {
         }
         let register = endpoints.registration.as_ref().ok_or_else(|| McpError::failed("This server does not let apps register themselves. Create an OAuth client with the provider and paste its ID."))?;
         let body = json!({
-            "client_name": "Eisoptric Workbench",
+            "client_name": "Workbench",
             "redirect_uris": [self.redirect_url],
             "grant_types": ["authorization_code", "refresh_token"],
             "response_types": ["code"],
@@ -212,7 +212,7 @@ impl McpClient {
             .map_err(|error| McpError::failed(error.without_url().to_string()))?;
         if !response.status().is_success() {
             return Err(McpError::failed(format!(
-                "The server refused to register Eisoptric Workbench ({}). Create an OAuth client with the provider and paste its ID.",
+                "The server refused to register the app ({}). Create an OAuth client with the provider and paste its ID.",
                 response.status().as_u16()
             )));
         }

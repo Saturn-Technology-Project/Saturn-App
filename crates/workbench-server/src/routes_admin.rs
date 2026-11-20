@@ -768,7 +768,7 @@ async fn proxied_page(target: &str) -> Result<(String, String), String> {
 /// The in-app browser's page loader. Public addresses only, like the agents' web tool: this runs as the user, and a page shown
 /// here could otherwise read anything on localhost or the private network, the runtime included.
 /// Where a provider sends the browser back after an MCP server's sign-in. The browser carries no token, so the route is
-/// open: it finishes only a sign-in whose random state Eisoptric Workbench started and has not finished, exchanging the code with
+/// open: it finishes only a sign-in whose random state the app started and has not finished, exchanging the code with
 /// that sign-in's PKCE verifier, and answers with a page that runs nothing and links nowhere.
 async fn oauth_callback(State(kernel): Shared, Query(query): QueryText) -> Response {
     let given = |name: &str| query.get(name).map(String::as_str).unwrap_or("");
@@ -800,7 +800,7 @@ async fn oauth_callback(State(kernel): Shared, Query(query): QueryText) -> Respo
                 );
                 (
                     "Signed in",
-                    format!("Eisoptric Workbench is signed in to {host}. You can close this tab."),
+                    format!("The app is signed in to {host}. You can close this tab."),
                 )
             }
             Err(error) => ("Sign-in was not completed", error.to_string()),
@@ -943,7 +943,7 @@ async fn uninstall_plugin(State(kernel): Shared, Path(name): Path<String>) -> An
     no_content()
 }
 
-/// Whether this computer lets Eisoptric Workbench control it, and so whether Settings asks for anything.
+/// Whether this computer lets the app control it, and so whether Settings asks for anything.
 async fn computer_permissions(State(kernel): Shared) -> Answer {
     ok(kernel.computer.permission_status().await)
 }
@@ -1059,7 +1059,7 @@ async fn open_permission_pane(body: Body) -> Answer {
 }
 
 /// Settings, connections, projects, usage and the workspace views.
-/// Claude Code and Codex: whether each is installed (and where from), and downloading Eisoptric Workbench's tested copy.
+/// Claude Code and Codex: whether each is installed (and where from), and downloading the app's tested copy.
 async fn programs(State(kernel): Shared) -> Answer {
     ok(kernel.program_statuses().await)
 }
@@ -1109,7 +1109,7 @@ async fn codex_logout(State(kernel): Shared) -> Answer {
     ok(kernel.codex_logout().await?)
 }
 
-/// Eisoptric Workbench's skills as a stateless MCP server for Codex, which only reaches MCP servers out of process. The bearer token picks the
+/// The app's skills as a stateless MCP server for Codex, which only reaches MCP servers out of process. The bearer token picks the
 /// turn; it stops working when the turn ends.
 async fn agent_mcp(
     State(kernel): Shared,

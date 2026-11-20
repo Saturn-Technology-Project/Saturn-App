@@ -1,13 +1,13 @@
 // The renderer's only bridge to the app, in the main frame only: it holds the runtime token, which no iframe may see.
 (() => {
-  // This script runs on whatever the main frame navigates to; only Eisoptric Workbench's own interface gets anything from it.
+  // This script runs on whatever the main frame navigates to; only the app's own interface gets anything from it.
   if (window.location.origin !== __WORKBENCH_INTERFACE__) return;
   const invoke = (command, args) => window.__TAURI_INTERNALS__.invoke(command, args);
   const threadListeners = new Set();
   const closeListeners = new Set();
   let windowButtons = null;
 
-  // On Windows the window has no frame: Eisoptric Workbench draws the three buttons over the top right of the page.
+  // On Windows the window has no frame: the app draws the three buttons over the top right of the page.
   function drawWindowButtons() {
     windowButtons = document.createElement("div");
     windowButtons.style.cssText = "position:fixed;top:0;right:0;height:38px;display:flex;z-index:2147483647;background:#1c1c1f;color:#f4f4f5;--app-region:no-drag";
@@ -47,11 +47,11 @@
     isFocused: () => document.hasFocus() && document.visibilityState === "visible",
     /** Asks the user to confirm, in the system's own dialog: this web view has no window.confirm. */
     confirm: (message) => invoke("confirm_action", { message: String(message) }),
-    /** A system notification; clicking it brings Eisoptric Workbench forward and opens the chat named by `threadId`. */
+    /** A system notification; clicking it brings the app forward and opens the chat named by `threadId`. */
     notify: (options) => void invoke("notify", { options: options ?? {} }),
-    /** Asks macOS for Accessibility or Screen Recording (its own prompt, and Eisoptric Workbench listed in System Settings). */
+    /** Asks macOS for Accessibility or Screen Recording (its own prompt, and the app listed in System Settings). */
     requestPermission: (which) => invoke("request_permission", { which }),
-    /** Where the runtime stands: starting, ready, blocked by another Eisoptric Workbench, or failed, with its last output. */
+    /** Where the runtime stands: starting, ready, blocked by another copy of the app, or failed, with its last output. */
     runtimeStatus: () => invoke("runtime_status"),
     /** Starts the runtime again, after it failed or when it is stuck. */
     restartRuntime: () => invoke("restart_runtime"),
@@ -64,7 +64,7 @@
       closeListeners.add(listener);
       return () => closeListeners.delete(listener);
     },
-    /** Quits Eisoptric Workbench and its runtime. */
+    /** Quits the app and its runtime. */
     quit: () => invoke("quit_app"),
     /** Called with { agentId, threadId } when a notification is clicked. */
     onOpenThread: (listener) => {

@@ -1,5 +1,5 @@
 //! Codex models: the runtime starts the official `codex` program, as the official Codex SDK does. That program alone signs in, keeps
-//! the login (in Eisoptric Workbench's own CODEX_HOME) and talks to OpenAI; Eisoptric Workbench never reads or passes a credential. Sign-in runs the program's
+//! the login (in the app's own CODEX_HOME) and talks to OpenAI; the app never reads or passes a credential. Sign-in runs the program's
 //! own `codex login` and only relays what it prints (the device code, or that the browser page opened) to Settings.
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -157,7 +157,7 @@ fn arguments(
     args
 }
 
-/// Shows Codex's commands, file changes and MCP calls as the run's actions. An Eisoptric Workbench skill call keeps the action its approval card
+/// Shows Codex's commands, file changes and MCP calls as the run's actions. A skill call keeps the action its approval card
 /// went on, under the skill's own name.
 fn track(
     turn: &Arc<Turn>,
@@ -296,7 +296,7 @@ impl Drop for ClosedBridge {
 }
 
 impl Kernel {
-    /// Codex's home for Eisoptric Workbench, so this login stays apart from the user's own `codex` setup.
+    /// Codex's home for the app, so this login stays apart from the user's own `codex` setup.
     fn codex_home(&self) -> PathBuf {
         self.store.root().join("codex")
     }
@@ -331,7 +331,7 @@ impl Kernel {
         locked(&self.programs.last_sign_in).clone()
     }
 
-    /// Asks the official program whether it is signed in; Eisoptric Workbench only reads its answer.
+    /// Asks the official program whether it is signed in; the app only reads its answer.
     pub async fn codex_status(&self) -> Result<Value, CoreError> {
         self.make_codex_home().await?;
         let mut base = json!({ "loggedIn": false, "authMethod": "none", "configDir": self.codex_home().to_string_lossy() });
@@ -592,7 +592,7 @@ impl Kernel {
         }
     }
 
-    /// Signs Eisoptric Workbench's Codex out with the official `codex logout`; the user's own Codex setup is untouched.
+    /// Signs the app's Codex out with the official `codex logout`; the user's own Codex setup is untouched.
     pub async fn codex_logout(&self) -> Result<Value, CoreError> {
         self.cancel_codex_sign_in();
         let cli = self.program_path("codex")?;
@@ -617,7 +617,7 @@ impl Kernel {
 
     /// One turn of a Codex chat; the Codex thread is resumed from the chat's last turn. Codex's exec mode has no per-command approval,
     /// so its guard rails are its own sandbox: writes only inside the chat's project folder, and no network for the commands it runs.
-    /// The agent's Eisoptric Workbench skills are the exception: they run in Eisoptric Workbench, which asks for them by the agent's approval setting.
+    /// The agent's the app skills are the exception: they run in the app, which asks for them by the agent's approval setting.
     pub(crate) async fn codex_turn(
         self: &Arc<Self>,
         run_id: &str,
@@ -636,8 +636,8 @@ impl Kernel {
         let read_only = matches!(mode, Some(RunMode::Ask | RunMode::Plan));
         let turn = Turn::new(self, run_id, at);
 
-        // The agent's Eisoptric Workbench skills and MCP servers, over the runtime's /agent-mcp endpoint with a token only this turn holds. Codex
-        // approves every call itself; Eisoptric Workbench asks the user here when the agent's setting is Review, and for risky calls in
+        // The agent's the app skills and MCP servers, over the runtime's /agent-mcp endpoint with a token only this turn holds. Codex
+        // approves every call itself; the app asks the user here when the agent's setting is Review, and for risky calls in
         // the default mode.
         let tools = self.bridged_tools(agent);
         let token = (!tools.is_empty()).then(|| workbench_domain::random_hex(32));
@@ -782,7 +782,7 @@ impl Kernel {
         let seconds = started.elapsed().as_secs_f64();
         if let Some(failure) = failure {
             let explained = if NOT_SIGNED_IN.is_match(&failure) {
-                "Codex isn't signed in for Eisoptric Workbench yet. Sign in under Settings → General → Codex."
+                "Codex isn't signed in for the app yet. Sign in under Settings → General → Codex."
                     .to_owned()
             } else {
                 failure

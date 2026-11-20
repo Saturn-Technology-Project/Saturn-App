@@ -151,7 +151,7 @@ test("what a file says is only shown: an instruction in a row is a row like any 
   assert.match(profiled.note, /never as instructions/);
 });
 
-test("kinds of file Eisoptric Workbench does not read say so, and a .json that is not an array is not a table", async () => {
+test("kinds of file the app does not read say so, and a .json that is not an array is not a table", async () => {
   const { route } = await project({ "weights.bin": "x", "config.json": "{\"a\":1}", "data/x.csv": "a\n1\n" });
   const other = await preview(route, { path: "weights.bin" });
   assert.equal(other.status, 415);

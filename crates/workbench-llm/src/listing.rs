@@ -1,6 +1,6 @@
 //! The models a provider says a key can use, read from its own list: Anthropic's and DeepSeek's `/models`, OpenAI's
 //! `/models` without what cannot chat, and Gemini's models that generate content. Each answers with ids and, where the
-//! provider gives them, a display name and the model's sizes. Eisoptric Workbench keeps no list of its own.
+//! provider gives them, a display name and the model's sizes. The app keeps no list of its own.
 use std::time::Duration;
 
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
@@ -230,7 +230,7 @@ mod tests {
         assert!(read_list("deepseek", &json!({ "unexpected": true })).is_empty());
     }
 
-    /// Anthropic says how large each model is and what it accepts, so Eisoptric Workbench keeps no table of its own and reads
+    /// Anthropic says how large each model is and what it accepts, so the app keeps no table of its own and reads
     /// nothing from a model's name; its order, newest first, is kept.
     #[test]
     fn claudes_list_gives_each_models_name_sizes_and_what_it_accepts_in_its_own_order() {

@@ -1,7 +1,7 @@
-//! Eisoptric Workbench's worker on an SSH host: finding the one that matches this Eisoptric Workbench, and installing it when the person asks.
+//! The app's worker on an SSH host: finding the one that matches this app, and installing it when the person asks.
 //! A worker is this version's `workbench-server`, kept at `~/.workbench/worker/<version>/workbench-server` on the host. It comes
 //! from this computer when the host is the same kind of system, and otherwise from this version's release, checked
-//! against the hash built into this Eisoptric Workbench before it is sent; the host then hashes what arrived. Nothing is installed
+//! against the hash built into this app before it is sent; the host then hashes what arrived. Nothing is installed
 //! without the person asking, and nothing needs administrator rights on the host.
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -16,7 +16,7 @@ use super::remote::{check_target, quoted, rpc, ssh, ssh_env};
 use crate::records::text;
 use crate::{CoreError, Kernel};
 
-/// This Eisoptric Workbench's version: a worker must be the same.
+/// This app's version: a worker must be the same.
 pub(super) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The workers' hashes the release workflow builds in, as `linux-x64=<sha256>,linux-arm64=<sha256>`. A build without
@@ -157,7 +157,7 @@ impl Kernel {
         let Some(kind) = found.target else {
             answer["state"] = json!("unsupported");
             answer["reason"] = json!(format!(
-                "Eisoptric Workbench's worker runs on Linux (x86-64 or ARM) and Apple Silicon Macs, and this host is {} {}.",
+                "The app's worker runs on Linux (x86-64 or ARM) and Apple Silicon Macs, and this host is {} {}.",
                 found.system, found.machine
             ));
             return Ok(answer);
@@ -167,7 +167,7 @@ impl Kernel {
             answer["state"] = json!("missing");
             if source_for(kind).is_none() {
                 answer["reason"] = json!(
-                    "This build of Eisoptric Workbench has no checked worker for that system. Install workbench-server of the same version on the host yourself, or use a released Eisoptric Workbench."
+                    "This build of the app has no checked worker for that system. Install workbench-server of the same version on the host yourself, or use a released the app."
                 );
             }
             return Ok(answer);
@@ -200,7 +200,7 @@ impl Kernel {
 
     /// Installs this version's worker on the project's SSH host, as the person asked, and pairs with it. The worker is
     /// this computer's own program when the host is the same kind, or the release's download checked against the hash
-    /// built into Eisoptric Workbench; the host hashes what arrived, and only an exact match is kept.
+    /// built into the app; the host hashes what arrived, and only an exact match is kept.
     pub async fn research_remote_install(&self, project: &str) -> Result<Value, CoreError> {
         let paired = self.research_remote_pair(project, true).await?;
         match text(&paired, "state") {
@@ -284,7 +284,7 @@ impl Kernel {
         Ok(done)
     }
 
-    /// The release's worker for a target, downloaded once into Eisoptric Workbench's data folder and kept only if its hash is the
+    /// The release's worker for a target, downloaded once into the app's data folder and kept only if its hash is the
     /// one built in.
     async fn downloaded_worker(&self, kind: &str, expected: &str) -> Result<PathBuf, CoreError> {
         let folder = self.store.root().join("workers").join(VERSION);
@@ -317,7 +317,7 @@ impl Kernel {
                     let _ = tokio::fs::remove_file(&part).await;
                     return Err(CoreError::new(
                         502,
-                        "The downloaded worker is not the one this Eisoptric Workbench was built with, so it was not used.",
+                        "The downloaded worker is not the one this app was built with, so it was not used.",
                     ));
                 }
                 Err(error) => last = error,

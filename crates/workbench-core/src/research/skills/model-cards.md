@@ -1,10 +1,10 @@
 ---
 name: model-cards
-description: Write a model card, datasheet or system card from Eisoptric Workbench's records, claiming only what runs measured. Read before describing a model for others.
+description: Write a model card, datasheet or system card from the app's records, claiming only what runs measured. Read before describing a model for others.
 ---
 # Model cards
 
-A model card tells someone who was not there what a model is, how it was made, how it was measured and where it fails. In Eisoptric Workbench every sentence of it can point at a record. Write it so that it does.
+A model card tells someone who was not there what a model is, how it was made, how it was measured and where it fails. In the app every sentence of it can point at a record. Write it so that it does.
 
 ## Gather from the records
 - **Lineage**: the model record and its `parentId` chain up to a base model, with each `weightsRevision`. `research_read { what: "record", collection: "models", id }` for each. Pinned revisions (a 40-hex commit or a sha256) go in as they are; a floating name such as `main` goes in with the word floating next to it, since the card cannot say which weights it means.

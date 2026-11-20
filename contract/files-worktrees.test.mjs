@@ -67,13 +67,13 @@ test("merging brings the work to the base branch, and removes the worktree and b
   assert.equal((await finish(thread, "merge")).status, 404, "there is nothing to finish now");
 });
 
-test("the merge commit is the user's when git knows who they are, otherwise Eisoptric Workbench's", async () => {
+test("the merge commit is the user's when git knows who they are, otherwise the app's", async () => {
   const { repo, thread, newThread } = await repositoryChat();
   const created = await open(thread);
   await writeFile(path.join(created.path, "a.txt"), "x\n");
   assert.equal((await finish(thread, "merge")).status, 200);
-  assert.equal(git(repo, "log", "-1", "--format=%an <%ae>"), "Eisoptric Workbench <workbench@localhost>");
-  assert.equal(git(repo, "log", "-1", "--format=%an", "HEAD^2"), "Eisoptric Workbench", "and so is the branch's commit");
+  assert.equal(git(repo, "log", "-1", "--format=%an <%ae>"), "Workbench <workbench@localhost>");
+  assert.equal(git(repo, "log", "-1", "--format=%an", "HEAD^2"), "Workbench", "and so is the branch's commit");
 
   git(repo, "config", "user.name", "The User");
   git(repo, "config", "user.email", "user@example.test");
@@ -100,7 +100,7 @@ test("keeping commits what is pending and leaves the branch for a pull request",
   const unnamed = await open(second);
   await writeFile(path.join(unnamed.path, "other.txt"), "x\n");
   assert.equal((await finish(second, "keep")).status, 200);
-  assert.equal(git(repo, "log", "--format=%s", "-1", unnamed.branch), "Eisoptric Workbench: Named after the chat");
+  assert.equal(git(repo, "log", "--format=%s", "-1", unnamed.branch), "Named after the chat");
 });
 
 test("discarding removes the worktree, the branch and the work", async () => {

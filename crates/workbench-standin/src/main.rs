@@ -2,7 +2,7 @@
 //! `claude`, `codex`, `uv` or `python` is a script with the program's name. Windows starts only `.exe` files by a bare
 //! name, so there a test copies this program under the name it needs and puts the script beside it: `claude.exe` runs
 //! `claude.cjs` with Node, hands it its own arguments, input and output, and ends with its exit code. The Node to use
-//! is named in `claude.node`, since the runtime does not hand every program its PATH. Nothing in Eisoptric Workbench uses this.
+//! is named in `claude.node`, since the runtime does not hand every program its PATH. Nothing in the app uses this.
 use std::process::{Command, exit};
 
 fn main() {

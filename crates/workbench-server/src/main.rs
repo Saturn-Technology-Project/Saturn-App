@@ -1,4 +1,4 @@
-//! Eisoptric Workbench's local HTTP API. It speaks the same API and keeps the same data folder as the TypeScript runtime it is
+//! The app's local HTTP API. It speaks the same API and keeps the same data folder as the TypeScript runtime it is
 //! replacing; `contract/` holds what both must do and `contract/routes.json` the routes still to bring over.
 mod auth;
 mod guards;
@@ -37,7 +37,7 @@ fn stopping_step(step: &'static str) {
 const BODY_LIMIT: usize = 10 * 1024 * 1024;
 
 /// Which runtime this is: the id its launcher gave it, or one of its own, so a launcher can tell its runtime from
-/// another Eisoptric Workbench on the same port.
+/// another copy of the app on the same port.
 static INSTANCE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 fn instance() -> &'static str {
@@ -53,7 +53,7 @@ async fn health() -> Json<Value> {
     Json(json!({ "ok": true, "version": env!("CARGO_PKG_VERSION"), "instance": instance() }))
 }
 
-/// The folder Eisoptric Workbench keeps its data in: `WORKBENCH_DATA_DIR`, or `~/.workbench-app`.
+/// The folder the app keeps its data in: `WORKBENCH_DATA_DIR`, or `~/.workbench-app`.
 fn data_directory() -> Result<PathBuf, &'static str> {
     if let Some(directory) = env::var_os("WORKBENCH_DATA_DIR") {
         return Ok(directory.into());
@@ -95,11 +95,7 @@ async fn app_is_gone() {
     let mut pipe = tokio::io::stdin();
     let mut chunk = [0_u8; 256];
     while matches!(pipe.read(&mut chunk).await, Ok(read) if read > 0) {}
-    workbench_core::logger::log(
-        "runtime",
-        "info",
-        "The Eisoptric Workbench app is gone; stopping",
-    );
+    workbench_core::logger::log("runtime", "info", "The app is gone; stopping");
 }
 
 /// Resumes sleeping runs whose wake time has come, including runs that slept through a restart.
@@ -213,7 +209,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let stopping = Arc::clone(&kernel);
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
-    println!("Eisoptric Workbench Runtime listening on http://{host}:{port}");
+    println!("The app Runtime listening on http://{host}:{port}");
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             stop_requested().await;
@@ -222,7 +218,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tokio::time::sleep(STOP_LIMIT).await;
                 let step = STOPPING_STEP.lock().map(|step| *step).unwrap_or_default();
                 eprintln!(
-                    "Eisoptric Workbench Runtime: stopping took longer than {} s, at {step}; exiting",
+                    "The app Runtime: stopping took longer than {} s, at {step}; exiting",
                     STOP_LIMIT.as_secs()
                 );
                 std::process::exit(0);

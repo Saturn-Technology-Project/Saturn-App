@@ -18,7 +18,7 @@ A missing field makes comparisons `unknown`, which helps nobody. Use `null` for 
 ## Keep it true
 It is your statement of what the program does, and the runtime cannot verify it. If you change the prompt format in code and not in the spec, the comparison lies. Read the program after writing the spec. Files named in `inputs.data` and `inputs.scorer` are hashed, and changed ones make versions `not_comparable` whatever the spec says.
 
-Eisoptric Workbench adds a warning when a run's samples per model differ from the last comparable completed run. Read `warnings` on a run: a stale evaluation often shows up there.
+The app adds a warning when a run's samples per model differ from the last comparable completed run. Read `warnings` on a run: a stale evaluation often shows up there.
 
 ## What belongs here
 Only what changes the measurement. Training data does not belong here: pretraining, supervised fine-tuning and preference training are meant to differ, and that is what you compare across.

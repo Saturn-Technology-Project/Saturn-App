@@ -46,7 +46,7 @@ export class AdminService {
     return this.runtime.request(`/programs/${id}`);
   }
 
-  /** Starts downloading Eisoptric Workbench's tested copy of the program; the status reports progress. */
+  /** Starts downloading the app's tested copy of the program; the status reports progress. */
   installProgram(id: ProgramStatus["id"]): Promise<ProgramStatus> {
     return userAction("program.install", { "workbench.program": id }, () => this.runtime.request<ProgramStatus>(`/programs/${id}/install`, { method: "POST" }));
   }
@@ -55,12 +55,12 @@ export class AdminService {
     return this.runtime.request(`/programs/${id}`, { method: "DELETE" });
   }
 
-  /** Claude Code's login, as the official `claude` program reports it; Eisoptric Workbench never handles the credential. */
+  /** Claude Code's login, as the official `claude` program reports it; the app never handles the credential. */
   claudeCodeStatus(): Promise<{ loggedIn: boolean; authMethod: string; email?: string; subscriptionType?: string; loginCommand: string; configDir: string; error?: string }> {
     return this.runtime.request("/claude-code/status");
   }
 
-  /** Signs Eisoptric Workbench's Claude Code out through the official program; returns the new status. */
+  /** Signs the app's Claude Code out through the official program; returns the new status. */
   claudeCodeLogout(): Promise<Awaited<ReturnType<AdminService["claudeCodeStatus"]>>> {
     return this.runtime.request("/claude-code/logout", { method: "POST" });
   }
@@ -88,7 +88,7 @@ export class AdminService {
     return this.runtime.request("/codex/logout", { method: "POST" });
   }
 
-  /** Eisoptric Workbench's notes about the user (scope "global") or a project (its id), as editable text. */
+  /** The app's notes about the user (scope "global") or a project (its id), as editable text. */
   memory(scope: string): Promise<{ scope: string; content: string }> {
     return this.runtime.request(`/memory/${encodeURIComponent(scope)}`);
   }
@@ -271,12 +271,12 @@ export class AdminService {
     return this.runtime.request("/connections/rag", { method: "POST", body: JSON.stringify({ name: "RAG", url }) });
   }
 
-  /** Whether this computer lets Eisoptric Workbench control it (macOS Accessibility and Screen Recording). */
+  /** Whether this computer lets the app control it (macOS Accessibility and Screen Recording). */
   computerPermissions(): Promise<{ platform: string; required: boolean; accessibility: boolean; screenRecording: boolean; error?: string }> {
     return this.runtime.request("/computer/permissions");
   }
 
-  /** The private snapshots Eisoptric Workbench keeps of project folders outside git, with their size on disk. */
+  /** The private snapshots the app keeps of project folders outside git, with their size on disk. */
   snapshotStorage(): Promise<{ folders: { id: string; folder: string | null; bytes: number }[]; bytes: number }> {
     return this.runtime.request("/storage/snapshots");
   }

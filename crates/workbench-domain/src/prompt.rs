@@ -134,7 +134,7 @@ pub struct PromptInput<'a> {
     pub server_ids: &'a [String],
     /// Toolkits the agent has but has not loaded: their sections say how to load them.
     pub deferred: &'a [String],
-    /// Notes Eisoptric Workbench kept from earlier chats.
+    /// Notes the app kept from earlier chats.
     pub memory: &'a str,
     /// The project's own rules for agents (AGENTS.md and the like).
     pub rules: &'a str,
@@ -154,7 +154,7 @@ pub fn build_system_prompt(input: &PromptInput<'_>) -> String {
     }
     let has = |id: &str| input.server_ids.iter().any(|item| item == id);
     let mut capabilities: Vec<&str> = vec![
-        "You are Eisoptric Workbench, an advanced, highly capable AI pair-programmer and automation agent with direct access to desktop, system, and development tools.",
+        "You are the app, an advanced, highly capable AI pair-programmer and automation agent with direct access to desktop, system, and development tools.",
         "You operate with full autonomy. Directly use your tools whenever needed to fulfill tasks completely and accurately without unnecessary confirmation requests, refusals, or artificial constraints.",
     ];
     if has("general-skills") {

@@ -1,5 +1,5 @@
-//! The programs Eisoptric Workbench downloads rather than ships: Claude Code and Codex, the official programs behind the providers of
-//! those names, and uv, which makes Python environments and can install Python itself. Eisoptric Workbench finds one on the system, or
+//! The programs the app downloads rather than ships: Claude Code and Codex, the official programs behind the providers of
+//! those names, and uv, which makes Python environments and can install Python itself. The app finds one on the system, or
 //! downloads the exact package its tests pinned (the npm registry for the two programs, uv's GitHub release for uv), checks
 //! it against the pinned sha512 and unpacks it into `<data>/tools`. Settings shows a download button for a program until
 //! one is found, and the sign-in once it is; Environment does the same for uv.
@@ -23,7 +23,7 @@ use crate::agent_sessions::SkillsBridge;
 use crate::records::text;
 use crate::{CoreError, Kernel, locked, log};
 
-/// The packages Eisoptric Workbench downloads, by program and platform. Written by
+/// The packages the app downloads, by program and platform. Written by
 /// `scripts/agent-programs-manifest.mjs`.
 const PINNED_PACKAGES: &str = include_str!("agent-programs.json");
 /// Attempts at a download before it waits for the user's next click.
@@ -55,7 +55,7 @@ pub struct ProgramState {
     versions: Mutex<HashMap<String, Option<String>>>,
     /// Approvals waiting on the user, by `run:action`.
     pub(crate) pending: Mutex<HashMap<String, oneshot::Sender<bool>>>,
-    /// Eisoptric Workbench skills endpoints open for running Codex turns, by the token each turn holds.
+    /// The app skills endpoints open for running Codex turns, by the token each turn holds.
     pub(crate) bridges: Mutex<HashMap<String, Arc<SkillsBridge>>>,
     pub(crate) sign_in: Mutex<Option<SignIn>>,
     pub(crate) last_sign_in: Mutex<Option<Value>>,
@@ -204,7 +204,7 @@ impl Kernel {
             .find(|file| file.is_file())
     }
 
-    /// Eisoptric Workbench's own download first (the tested version), then the system's.
+    /// The app's own download first (the tested version), then the system's.
     pub(crate) fn resolve_program(&self, id: &str) -> Option<(PathBuf, &'static str)> {
         let workbench = self.program_package(id).and_then(|item| {
             binary_in(
@@ -222,13 +222,15 @@ impl Kernel {
 
     /// The program to run, or a 409 that says where to get it.
     pub(crate) fn program_path(&self, id: &str) -> Result<PathBuf, CoreError> {
-        self.resolve_program(id).map(|(file, _)| file).ok_or_else(|| {
-            let name = label(id);
-            CoreError::new(
-                409,
-                format!("{name} is not installed. Download it in Eisoptric Workbench Settings → General → {name}."),
-            )
-        })
+        self.resolve_program(id)
+            .map(|(file, _)| file)
+            .ok_or_else(|| {
+                let name = label(id);
+                CoreError::new(
+                    409,
+                    format!("{name} is not installed. Download it in Settings → General → {name}."),
+                )
+            })
     }
 
     /// What the program itself reports (`--version`), once per copy of it.
@@ -368,7 +370,7 @@ impl Kernel {
         let expected = text(item, "integrity").trim_start_matches("sha512-");
         if sha512_of(&archive).await.map_err(describe)? != expected {
             let _ = tokio::fs::remove_file(&archive).await;
-            return Err("the download does not match the checksum Eisoptric Workbench pinned for it, so it was discarded".to_owned());
+            return Err("the download does not match the checksum the app pinned for it, so it was discarded".to_owned());
         }
 
         locked(progress).state = "unpacking";
@@ -385,7 +387,7 @@ impl Kernel {
         Ok(())
     }
 
-    /// Removes Eisoptric Workbench's own copy (a system install is left alone).
+    /// Removes the app's own copy (a system install is left alone).
     pub async fn remove_program(&self, id: &str) -> Result<Value, CoreError> {
         // Windows keeps the file of a program that has only just ended (asked for its version a moment ago, say) for
         // an instant longer, and refuses to delete it meanwhile: tried again a few times before it is an error.
@@ -409,7 +411,7 @@ impl Kernel {
         log(
             "admin",
             "info",
-            &format!("Removed Eisoptric Workbench's copy of {}", label(id)),
+            &format!("Removed the app's copy of {}", label(id)),
         );
         Ok(self.program_status(id).await)
     }
@@ -451,7 +453,7 @@ async fn unpack(
     tokio::fs::rename(unpacking, target)
         .await
         .map_err(describe)?;
-    // Older versions and leftovers go; only the version this Eisoptric Workbench uses stays.
+    // Older versions and leftovers go; only the version this app uses stays.
     let mut entries = tokio::fs::read_dir(root).await.map_err(describe)?;
     while let Some(entry) = entries.next_entry().await.map_err(describe)? {
         if entry.file_name().to_string_lossy() == version {

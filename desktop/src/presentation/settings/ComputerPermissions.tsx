@@ -14,7 +14,7 @@ const ROWS: { which: Which; label: string; detail: string }[] = [
 ];
 
 /**
- * Asks macOS for a permission from the app itself, so macOS shows its prompt and lists Eisoptric Workbench in System Settings;
+ * Asks macOS for a permission from the app itself, so macOS shows its prompt and lists the app in System Settings;
  * in a plain browser (no desktop bridge) it opens the System Settings pane instead.
  */
 export async function requestPermission(which: Which): Promise<void> {

@@ -482,7 +482,7 @@ impl Kernel {
             return Err(CoreError::new(
                 409,
                 format!(
-                    "{} runs in its own program, which manages its own context; there is nothing for Eisoptric Workbench to compact.",
+                    "{} runs in its own program, which manages its own context; there is nothing for the app to compact.",
                     text(&model, "name")
                 ),
             ));

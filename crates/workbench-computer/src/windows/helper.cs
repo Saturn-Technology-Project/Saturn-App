@@ -259,7 +259,7 @@ public static class WorkbenchDesktop
         if (inputs.Count == 0) return;
         uint sent = SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf(typeof(INPUT)));
         if (sent != inputs.Count)
-            throw new Exception("Windows blocked the input (error " + Marshal.GetLastWin32Error() + "). The app may be running as administrator, which Eisoptric Workbench cannot control unless it runs as administrator too.");
+            throw new Exception("Windows blocked the input (error " + Marshal.GetLastWin32Error() + "). The app may be running as administrator, which the app cannot control unless it runs as administrator too.");
     }
 
     // SendInput only queues input: wait until the app in front has processed it, so what is read next sees the result.
@@ -373,7 +373,7 @@ public static class WorkbenchDesktop
     // Types text by pasting it, with line breaks as Return and tabs as Tab. Windows 11's own apps (Notepad among them)
     // scramble Unicode keyboard input: letters came out repeated or as others, and the rest was lost after Chinese, with
     // English and with Bopomofo, even a character every 60 ms; a paste arrived whole every time. The clipboard the user
-    // had is put back afterwards, and neither what Eisoptric Workbench pastes nor the restored copy enters clipboard history or cloud
+    // had is put back afterwards, and neither what the app pastes nor the restored copy enters clipboard history or cloud
     // sync, as on macOS, where text other than plain ASCII is pasted the same way.
     static void TypeText(string text)
     {

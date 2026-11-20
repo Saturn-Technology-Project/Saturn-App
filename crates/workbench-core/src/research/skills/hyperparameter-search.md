@@ -16,7 +16,7 @@ description: Search settings within a budget, without contaminating the test set
 - Early-stop poor configurations on validation: spend the remaining budget on the good ones.
 - Keep a budget: a fixed number of trials, written before starting.
 
-## With Eisoptric Workbench
+## With the app
 - Put settings in a config file named in `inputs.code`, or as arguments in the command. Either way, each setting is a new version, and the record shows it.
 - Keep the evaluation identical across trials: `research_read { what: "compare" }`.
 - Use validation scores. Note the split in `evaluation`.

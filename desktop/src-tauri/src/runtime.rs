@@ -1,4 +1,4 @@
-//! Keeps an Eisoptric Workbench runtime running for this app: starts it, knows it apart from any other Eisoptric Workbench on the port, restarts it
+//! Keeps a runtime running for this app: starts it, knows it apart from any other copy of the app on the port, restarts it
 //! when it dies, and says where it stands. The runtime holds a pipe from this app; closing it asks the runtime to stop,
 //! on every system, and it closes by itself if this app crashes.
 use std::collections::VecDeque;
@@ -177,7 +177,7 @@ impl Runtime {
                 Some(answering) => {
                     self.set_status(Status::Blocked {
                         reason: format!(
-                            "Another Eisoptric Workbench runtime (version {}) is on port {}. Quit it, or start this Eisoptric Workbench with another WORKBENCH_RUNTIME_PORT.",
+                            "Another runtime of the app (version {}) is on port {}. Quit it, or start this app with another WORKBENCH_RUNTIME_PORT.",
                             answering.version, self.port
                         ),
                     });
@@ -216,7 +216,7 @@ impl Runtime {
             if up_since.elapsed() > STEADY {
                 attempt = 0;
             }
-            let reason = format!("Eisoptric Workbench's runtime stopped unexpectedly ({ended}).");
+            let reason = format!("The app's runtime stopped unexpectedly ({ended}).");
             eprintln!("{reason}");
             if attempt >= RESTARTS {
                 self.set_status(Status::Failed {
@@ -245,10 +245,8 @@ impl Runtime {
             .lock()
             .expect("the log lock is not poisoned")
             .clear();
-        let mut child =
-            spawn(layout, self.port, &self.instance, &self.session_token).map_err(|error| {
-                format!("Eisoptric Workbench's runtime could not be started: {error}")
-            })?;
+        let mut child = spawn(layout, self.port, &self.instance, &self.session_token)
+            .map_err(|error| format!("The app's runtime could not be started: {error}"))?;
         if let Some(stderr) = child.stderr.take() {
             let log = Arc::clone(&self.log);
             std::thread::spawn(move || {
@@ -276,14 +274,12 @@ impl Runtime {
                 _ => {}
             }
             if let Some(code) = self.exited() {
-                return Err(format!(
-                    "Eisoptric Workbench's runtime ended as it started ({code})."
-                ));
+                return Err(format!("The app's runtime ended as it started ({code})."));
             }
             sleep(Duration::from_millis(250)).await;
         }
         self.end_child();
-        Err("Eisoptric Workbench's runtime did not answer within 20 seconds.".to_owned())
+        Err("The app's runtime did not answer within 20 seconds.".to_owned())
     }
 
     /// How the child ended, if it has.
@@ -378,7 +374,7 @@ impl Runtime {
     }
 
     /// A JSON request without the token; None when nothing answers or it refuses. The health probe needs no token, and
-    /// whoever answers on the port is not known to be Eisoptric Workbench until it has said so: something else listening there, while
+    /// whoever answers on the port is not known to be the app until it has said so: something else listening there, while
     /// the runtime is down, must not be handed the token.
     async fn request(&self, method: &str, route: &str, limit: Duration) -> Option<Value> {
         let exchange = async {

@@ -40,7 +40,7 @@ pub(super) fn python_of(command: &str) -> Option<&str> {
 /// would start and only then fail to find it, with a less helpful message. On macOS and Linux it is the
 /// interpreter as it was named: a path is looked for from `cwd`, where the program starts, and a bare name on PATH. On
 /// Windows it is the whole path of the file found. A program there is looked for from the folder of the process that
-/// starts it, not from the one it is started in, so `.venv/Scripts/python.exe` would be looked for beside Eisoptric Workbench; a
+/// starts it, not from the one it is started in, so `.venv/Scripts/python.exe` would be looked for beside the app; a
 /// name may be written without its `.exe`; and PATH holds empty `python.exe` files that only open the Store.
 pub(super) fn interpreter_program(python: &str, cwd: &Path) -> Result<String, CoreError> {
     let given = Path::new(python);
@@ -78,8 +78,8 @@ pub(super) fn interpreter_program(python: &str, cwd: &Path) -> Result<String, Co
 }
 
 impl Kernel {
-    /// A program Eisoptric Workbench starts for a project's research, in the project's command sandbox (see `research_invocation`),
-    /// with the user's environment but none of Eisoptric Workbench's own variables. `writable` adds folders it may write to.
+    /// A program the app starts for a project's research, in the project's command sandbox (see `research_invocation`),
+    /// with the user's environment but none of the app's own variables. `writable` adds folders it may write to.
     pub(super) fn research_command(
         &self,
         project: &str,
@@ -111,7 +111,7 @@ impl Kernel {
 
     /// The project's interpreter with `args`, sandboxed like any other research program. The interpreter is named in the
     /// project's own files, which a cloned repository brings, and even an installed one runs the `.pth` files of the
-    /// environment it belongs to as it starts: the sandbox, not the choice of interpreter, is what keeps it from Eisoptric Workbench's
+    /// environment it belongs to as it starts: the sandbox, not the choice of interpreter, is what keeps it from the app's
     /// data and the user's credentials.
     pub(super) fn interpreter_command(
         &self,

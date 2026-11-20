@@ -1,4 +1,4 @@
-// What a sandboxed command cannot reach: Eisoptric Workbench's own data (its token, its keys, the conversations) and the usual
+// What a sandboxed command cannot reach: the app's own data (its token, its keys, the conversations) and the usual
 // credential folders. A command that could read the token could use the runtime's API to turn its own sandbox off and
 // allow itself; one that could read the keys could send them anywhere. Driven through a chat in the default approval
 // mode, where a command that matches no risky pattern runs without a card.
@@ -19,7 +19,7 @@ function sandboxed(t, result) {
   return false;
 }
 
-test("a sandboxed command can neither read nor change Eisoptric Workbench's token, keys or records, so it cannot loosen its own approvals", async (t) => {
+test("a sandboxed command can neither read nor change the app's token, keys or records, so it cannot loosen its own approvals", async (t) => {
   const data = workbench.runtime.dataDir;
   const token = (await readFile(path.join(data, "runtime-token"), "utf8")).trim();
   await workbench.api("POST", "/connections/models", { name: "Victim", provider: "openai", model: "gpt-x", secret: "sk-sandbox-test-value" });
@@ -59,7 +59,7 @@ test("a sandboxed command can neither read nor change Eisoptric Workbench's toke
   assert.match(action.result.stderr, /credential folders/, "the model is told why");
 });
 
-test("a chat outside any project still works in its own folder inside Eisoptric Workbench's data, but not in the rest of it", async (t) => {
+test("a chat outside any project still works in its own folder inside the app's data, but not in the rest of it", async (t) => {
   const setup = await workbench.chat();
   const run = await setup.turn([
     command(node("require('fs').writeFileSync('notes.txt', 'kept'); console.log(require('fs').readFileSync('notes.txt', 'utf8'))")),

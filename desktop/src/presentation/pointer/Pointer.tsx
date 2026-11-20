@@ -9,7 +9,7 @@ const LINGER_MS = 4000;
 /** How long the pointer takes to glide to where it acts, a little under the runtime's lead before it acts. */
 const GLIDE_MS = 200;
 
-/** Eisoptric Workbench's colors, from its Nocturne icon: the night ground and the ivory of the left E. */
+/** The app's colors, from its Nocturne icon: the night ground and the ivory of the left E. */
 const INK = "#14161f";
 const IVORY = "#eee6d6";
 const IVORY_LINE = "rgba(238, 230, 214, 0.35)";
@@ -46,7 +46,7 @@ export function Pointer() {
       window.clearTimeout(hide.current);
       hide.current = window.setTimeout(() => setShown((current) => ({ ...current, visible: false })), LINGER_MS);
     };
-    // The stream ends when the runtime restarts; it is opened again, as the rest of Eisoptric Workbench reconnects.
+    // The stream ends when the runtime restarts; it is opened again, as the rest of the app reconnects.
     const watch = async () => {
       while (!stop.signal.aborted) {
         await desktop.live.watchPointer(place, stop.signal).catch(() => undefined);
@@ -62,7 +62,7 @@ export function Pointer() {
 
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
-      {/* The edge glows in Eisoptric Workbench's ivory while the assistant works, so it is clear the screen is not only the person's. */}
+      {/* The edge glows in the app's ivory while the assistant works, so it is clear the screen is not only the person's. */}
       <div className="absolute inset-0 rounded-[10px] transition-opacity duration-500" style={{ opacity: shown.visible ? 1 : 0, boxShadow: GLOW }} />
       <div
         className="absolute top-0 left-0 transition-[transform,opacity] ease-out"
@@ -73,9 +73,9 @@ export function Pointer() {
           <path d="M3 2 L3 24 L9 18.5 L13 27.5 L17 25.7 L13.2 17 L21 17 Z" fill={INK} stroke={IVORY} strokeWidth="1.8" strokeLinejoin="round" />
         </svg>
         <span className="absolute top-6 left-5 flex items-center gap-1 rounded-full py-0.5 pr-2 pl-1.5 text-[11px] font-semibold whitespace-nowrap shadow-md" style={{ background: INK, color: IVORY, boxShadow: `0 0 0 1px ${IVORY_LINE}, 0 4px 10px rgba(0, 0, 0, 0.35)` }}>
-          {/* Eisoptric Workbench's icon: at this size the mark's serifs close up, so the brand asks for the icon instead. */}
+          {/* the app's icon: at this size the mark's serifs close up, so the brand asks for the icon instead. */}
           <img src={workbenchMark} alt="" width={15} height={15} />
-          {shown.kind === "type" ? t("Eisoptric Workbench · typing…") : "Eisoptric Workbench"}
+          {shown.kind === "type" ? t("Workbench · typing…") : "Workbench"}
         </span>
       </div>
     </div>

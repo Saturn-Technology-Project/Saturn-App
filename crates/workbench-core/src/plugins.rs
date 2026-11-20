@@ -39,7 +39,7 @@ async fn read_manifest(folder: &Path) -> Option<Value> {
     }
 }
 
-/// The plugin's hooks: Eisoptric Workbench's list or Claude Code's event map, from hooks/hooks.json or the manifest.
+/// The plugin's hooks: the app's list or Claude Code's event map, from hooks/hooks.json or the manifest.
 async fn plugin_hooks(folder: &Path, manifest: &Value) -> Vec<Hook> {
     let file = read_json(&folder.join("hooks/hooks.json"))
         .await

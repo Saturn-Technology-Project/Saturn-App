@@ -28,9 +28,9 @@ Sample size: kappa's standard error shrinks with the square root of n. With two 
 ## Adjudication
 A third person, or the raters together, settles each disagreement against the guide, and a case the guide did not cover changes the guide. Record what changed and when: labels from before and after a guide change are not the same measure.
 
-## Into Eisoptric Workbench
-- The experiment's `labels` are the guide's words. `labelAliases` maps a rater's wording to the scorer's `scorerLabel` explicitly, for example `{"Wrong name": "Wrong"}`; Eisoptric Workbench does not guess.
-- Each rater's labels go in Eisoptric Workbench under the rater's name: `research_write { collection: "labels", fields: { runId, sampleId, modelId, trial, label, note, rater: "alice" } }` keeps them apart from the adjudicated label, which is the one the person writes on Samples (or you write without `rater`). Entering a rater's file for them is fine; the entry says you entered it. A rater's name is a short plain word.
+## Into the app
+- The experiment's `labels` are the guide's words. `labelAliases` maps a rater's wording to the scorer's `scorerLabel` explicitly, for example `{"Wrong name": "Wrong"}`; the app does not guess.
+- Each rater's labels go in the app under the rater's name: `research_write { collection: "labels", fields: { runId, sampleId, modelId, trial, label, note, rater: "alice" } }` keeps them apart from the adjudicated label, which is the one the person writes on Samples (or you write without `rater`). Entering a rater's file for them is fine; the entry says you entered it. A rater's name is a short plain word.
 - `research_read { what: "agreement", run }` gives Cohen's kappa for each pair of raters on the samples both labelled, Fleiss' kappa over the samples every rater labelled, and each rater's agreement and kappa against the adjudicated labels and against the scorer, all through `labelAliases`. Read it after the pilot and again after the overlap set; put the figures, with n, in a finding.
 - You may label samples you read in full without `rater`: they are recorded as yours (`by: "assistant"`), count as one more rater at most, and never replace the person's. Never relabel what a person labelled; disagree in a finding.
 

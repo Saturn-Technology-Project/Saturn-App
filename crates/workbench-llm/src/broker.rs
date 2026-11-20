@@ -210,7 +210,7 @@ impl<V: KeyVault> Broker<V> {
             return Err(LlmError::new(
                 None,
                 format!(
-                    "{} runs through {program} on your own plan; Eisoptric Workbench never sends API requests for it. Use a model with an API key for this.",
+                    "{} runs through {program} on your own plan; the app never sends API requests for it. Use a model with an API key for this.",
                     model.name
                 ),
             ));

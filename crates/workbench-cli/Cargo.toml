@@ -1,6 +1,6 @@
 [package]
 name = "workbench-cli"
-description = "The `workbench` command: the running Eisoptric Workbench from a terminal or a script"
+description = "The `workbench` command: the running the app from a terminal or a script"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

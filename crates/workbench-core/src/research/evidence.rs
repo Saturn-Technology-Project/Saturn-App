@@ -1,5 +1,5 @@
 //! A run's evidence, in `runs/<id>/evidence.json`, kept apart from its status in `run.json`: what the version
-//! expected, what Eisoptric Workbench observed while running it, and what the program reported about itself. Nothing reported is
+//! expected, what the app observed while running it, and what the program reported about itself. Nothing reported is
 //! filled in from what was expected, and each of the three verdicts says how far it goes.
 use std::path::Path;
 
@@ -13,7 +13,7 @@ use crate::records::text;
 pub(super) const EVIDENCE: &str = "evidence.json";
 /// What a run's program may write about itself, one JSON object per line.
 pub(super) const REPORT: &str = "report.jsonl";
-/// The longest report Eisoptric Workbench reads; a longer one is read up to here and marked cut short.
+/// The longest report the app reads; a longer one is read up to here and marked cut short.
 const REPORT_LIMIT: u64 = 1024 * 1024;
 /// What every evidence file says about what hashes can and cannot show.
 pub(super) const LIMITS: &str = "A hash confirms which content a file had. It does not show that the program used that content, or that the scorer or the conclusion is right.";
@@ -230,7 +230,7 @@ impl crate::Kernel {
 }
 
 /// The evidence of a remote run that has ended, from what its host recorded: its snapshot, what changed, and why it
-/// was refused if it was. The host observed it; Eisoptric Workbench here only received it.
+/// was refused if it was. The host observed it; the app here only received it.
 pub(super) async fn remote_finished(directory: &Path, version: &Value, state: &Value, run: &Value) {
     let snapshot = match tokio::fs::read(directory.join("snapshot.json")).await {
         Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or(Value::Null),

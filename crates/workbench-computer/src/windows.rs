@@ -20,7 +20,7 @@ use workbench_domain::js;
 use crate::{Canvas, Failure, Region, Tree};
 
 /// Windows asks for no permission; what blocks input is an app running as administrator (UIPI).
-pub(crate) const ACCESSIBILITY_HELP: &str = "Windows blocked input to this app. It is probably running as administrator, and Windows only lets Eisoptric Workbench control apps at Eisoptric Workbench's own privilege level. Run the app normally, or run Eisoptric Workbench as administrator.";
+pub(crate) const ACCESSIBILITY_HELP: &str = "Windows blocked input to this app. It is probably running as administrator, and Windows only lets the app control apps at the app's own privilege level. Run the app normally, or run the app as administrator.";
 pub(crate) const SCREEN_RECORDING_HELP: &str = "Windows did not return a screenshot. Make sure the screen is on and not showing the lock screen or a UAC prompt.";
 pub(crate) const SCREEN_LOCKED_HELP: &str = "The Windows screen is locked (or showing a secure desktop such as a UAC prompt), so nothing on it can be seen or controlled. Ask the user to unlock it, then try again.";
 
@@ -382,7 +382,7 @@ impl Helper {
     }
 
     /// Types text into the focused field by pasting it, so any language arrives whole; the clipboard is put back after,
-    /// and nothing Eisoptric Workbench pastes enters clipboard history. Each line and tab-separated cell is a paste of its own.
+    /// and nothing the app pastes enters clipboard history. Each line and tab-separated cell is a paste of its own.
     pub async fn type_text(&self, text: &str) -> Result<(), Failure> {
         let pastes = text.matches(['\n', '\t']).count() as u64 + 1;
         let typing = Duration::from_millis(400 * pastes);

@@ -46,7 +46,7 @@ A LaTeX draft is compiled as a run, so the PDF is tied to the sources that made 
   `action: "artifact_register"`, `kind: "document"`, `runId`: the PDF by its path in the run's manifest through
   `artifacts_from_run` (`{"path":"written/main.pdf","kind":"document"}`), the `.tex` or `.md` by its project path. Each
   is kept with its hash, so a finding can name the artifact that a reader opens in Experiments.
-- Eisoptric Workbench does not bring a TeX distribution: ask the person to install tectonic or TeX Live, and name the program in the
+- the app does not bring a TeX distribution: ask the person to install tectonic or TeX Live, and name the program in the
   command by absolute path when the shell's `PATH` is bare. A formula in a finding or a chat is written in `$…$` and is
   shown set; the `.tex` file is highlighted in the Workspace.
 

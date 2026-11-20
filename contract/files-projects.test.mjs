@@ -38,7 +38,7 @@ test("a project chat works in its folder only after the user grants access, and 
   assert.equal(existsSync(path.join(workbench.runtime.dataDir, "workspace/notes.md")), false);
 });
 
-test("a chat outside any project keeps to Eisoptric Workbench's private workspace", async () => {
+test("a chat outside any project keeps to the app's private workspace", async () => {
   const setup = await workbench.chat();
   const run = await setup.turn([write("private-notes.md", "hello")]);
   assert.equal(run.actions[0].status, "completed");

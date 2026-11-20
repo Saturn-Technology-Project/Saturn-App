@@ -23,7 +23,7 @@ export class AssistantService {
     if (!models.length) return { agent: null, models };
     const instructions = assistantInstructions();
     if (found) {
-      // Its model may have been removed with nothing to take over, and what it knows of Eisoptric Workbench changes with Eisoptric Workbench. Nothing
+      // Its model may have been removed with nothing to take over, and what it knows of the app changes with the app. Nothing
       // else can set either: it has no screen.
       const modelConnectionId = models.some((model) => model.id === found.modelConnectionId) ? found.modelConnectionId : models[0].id;
       const mcpConnectionIds = found.mcpConnectionIds.includes(RESEARCH_TOOLS) ? found.mcpConnectionIds : [...found.mcpConnectionIds, RESEARCH_TOOLS];

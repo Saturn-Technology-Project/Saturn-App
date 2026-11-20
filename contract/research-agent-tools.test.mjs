@@ -286,7 +286,7 @@ test("the tools refuse outside a project, and a skill's name that does not exist
   assert.ok((await call(setup, "research_skill", {})).skills.length >= 40, "skills do not need a project");
 });
 
-test("a project's skill of one of Eisoptric Workbench's names does not replace Eisoptric Workbench's; one of a new name joins once allowed", async () => {
+test("a project's skill of one of the app's names does not replace the app's; one of a new name joins once allowed", async () => {
   const setup = await bed();
   for (const [name, body] of [["study-report", "Our format."], ["lab-style", "Our house style."]]) {
     const skills = path.join(setup.folder, `.workbench/skills/${name}`);
