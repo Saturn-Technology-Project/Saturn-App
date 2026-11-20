@@ -10,7 +10,7 @@ Email **[security@eisoptric.com](mailto:security@eisoptric.com)**, or use GitHub
 
 Include what you can of:
 
-- the affected component (the desktop app, the runtime, the CLI or the SDK) and version (Settings → About, or the release tag);
+- the affected component (the desktop app, the runtime or the CLI) and version (Settings → About, or the release tag);
 - the steps to reproduce, or a proof of concept;
 - the impact as you see it (for example: a web page or file makes an agent run a command without approval, another local program or a website calls the runtime's API, a sandboxed command writes outside the workspace, a key leaves the machine, an imported research bundle writes outside `.workbench/research` or runs something, the assistant sets a verdict or a label);
 - whether, and when, you plan to disclose it.
@@ -27,7 +27,7 @@ Eisoptric Workbench is a preview. Only the latest release receives security fixe
 
 ## Scope
 
-In scope: this repository's own code, that is the runtime and the CLI (`crates/`), the desktop app (`desktop/`), the SDK ([SDK](https://github.com/eisoptric/SDK), its own repository), and the release and supply-chain workflows.
+In scope: this repository's own code, that is the runtime and the CLI (`crates/`), the desktop app (`desktop/`), and the release and supply-chain workflows.
 
 Out of scope, reported to their owners instead:
 
@@ -52,7 +52,7 @@ Eisoptric Workbench 是在你電腦上的 AI 研究工作台。它執行你的�
 
 請盡量附上：
 
-- 受影響的元件（桌面應用程式、Runtime、CLI 或 SDK）與版本（設定 → About，或發布的 tag）；
+- 受影響的元件（桌面應用程式、Runtime 或 CLI）與版本（設定 → About，或發布的 tag）；
 - 重現步驟或概念驗證；
 - 你認為的影響（例如：網頁或檔案讓 Agent 未經核准就執行指令、其他本機程式或網站呼叫了 Runtime 的 API、沙箱中的指令寫到工作目錄之外、金鑰離開了這台電腦、匯入的研究包寫到 `.workbench/research` 之外或執行了東西、研究助理設定了判定或標註）；
 - 你是否、以及何時打算公開。
@@ -69,7 +69,7 @@ Eisoptric Workbench 目前為預覽版，只有最新版本會收到安全修補
 
 ## 範圍
 
-範圍內：此 repository 自己的程式碼，即 Runtime 與 CLI（`crates/`）、桌面應用程式（`desktop/`）、SDK（[SDK](https://github.com/eisoptric/SDK)，獨立的 repository），以及發布與供應鏈的 workflow。
+範圍內：此 repository 自己的程式碼，即 Runtime 與 CLI（`crates/`）、桌面應用程式（`desktop/`），以及發布與供應鏈的 workflow。
 
 範圍外，請回報給各自的維護者：
 
