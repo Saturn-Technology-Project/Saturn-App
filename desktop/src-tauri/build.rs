@@ -1,6 +1,6 @@
 use tauri_build::{AppManifest, Attributes};
 
-/// Listing the commands makes each one need a permission, so only Eisoptric Workbench's own pages can call them. Otherwise any page
+/// Listing the commands makes each one need a permission, so only the app's own pages can call them. Otherwise any page
 /// the app shows in an iframe could.
 const COMMANDS: &[&str] = &[
     "pick_folders",

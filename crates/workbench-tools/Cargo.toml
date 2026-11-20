@@ -27,7 +27,7 @@ rustix = { version = "1", default-features = false, features = ["fs", "process",
 
 [target.'cfg(windows)'.dependencies]
 # Windows has no process groups: a command's processes are found by who started whom, which the system is asked
-# through this crate, without unsafe code of Eisoptric Workbench's own.
+# through this crate, without unsafe code of the app's own.
 sysinfo = { version = "0.40", default-features = false, features = ["system"] }
 
 [dev-dependencies]

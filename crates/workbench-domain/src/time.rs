@@ -1,4 +1,4 @@
-//! Times as Eisoptric Workbench saves them: UTC, in the form `Date.toISOString` writes.
+//! Times as the app saves them: UTC, in the form `Date.toISOString` writes.
 use jiff::Timestamp;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Eisoptric Workbench task evals: small coding tasks run end to end through Eisoptric Workbench's own agent loop with a real model, graded by
+// The app task evals: small coding tasks run end to end through the app's own agent loop with a real model, graded by
 // tests the agent never sees. They show whether a change to the loop, the prompts or the tools made agents better
 // or worse at real work, in pass rate, steps, tokens and cost.
 //
@@ -8,7 +8,7 @@
 //   node scripts/eval/run.mjs --baseline scripts/eval/baseline.json      (exit 1 when the pass rate drops)
 //
 // Optional: WORKBENCH_EVAL_BASE_URL (an OpenAI-compatible server), WORKBENCH_EVAL_EFFORT. Each run starts its own runtime on
-// a free port with a temporary data folder, so it never touches a running Eisoptric Workbench. Every task costs model tokens.
+// a free port with a temporary data folder, so it never touches a running the app. Every task costs model tokens.
 
 import { execFile, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -173,7 +173,7 @@ export function summarize(results, model) {
 
 export function markdown(summary, baseline) {
 	const lines = [
-		`## Eisoptric Workbench evals: ${summary.model}`,
+		`## the app evals: ${summary.model}`,
 		'',
 		`${summary.passed}/${summary.total} passed (${Math.round(summary.passRate * 100)}%)${baseline ? `, baseline ${Math.round(baseline.passRate * 100)}%` : ''} · ${summary.steps} steps · ${summary.inputTokens + summary.outputTokens} tokens · $${summary.cost} · ${summary.seconds}s`,
 		'',

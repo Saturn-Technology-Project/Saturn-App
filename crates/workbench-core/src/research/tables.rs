@@ -240,7 +240,7 @@ pub(super) fn read_header<R: BufRead>(
         if !fits {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                "The file's first line is longer than Eisoptric Workbench reads, so it has no usable header.",
+                "The file's first line is longer than the app reads, so it has no usable header.",
             ));
         }
         if without_line_end(&kept).is_empty() {
@@ -369,7 +369,7 @@ impl<R: BufRead> Rows<R> {
                 Some(_) => {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "This .json file is not an array of rows, so Eisoptric Workbench cannot read it as a table.",
+                        "This .json file is not an array of rows, so the app cannot read it as a table.",
                     ));
                 }
             }

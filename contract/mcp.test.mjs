@@ -158,7 +158,7 @@ test("a local program starts only once its exact command is allowed, with only t
   const server = await api("POST", "/connections/mcp", { name: "Local", command: { program: process.execPath, args: [script], env: { MY_VAR: "given" } } });
   const refused = await fetch(`${runtime.origin}/connections/mcp/${server.id}/discover`, { method: "POST", headers: { authorization: `Bearer ${(await readFile(path.join(runtime.dataDir, "runtime-token"), "utf8")).trim()}` } });
   assert.equal(refused.status, 409);
-  assert.match((await refused.json()).error, /Allow it in Eisoptric Workbench Settings/);
+  assert.match((await refused.json()).error, /Allow it in the app Settings/);
   await api("POST", `/connections/mcp/${server.id}/approve`, { fingerprint: server.commandFingerprint });
   assert.deepEqual((await api("POST", `/connections/mcp/${server.id}/discover`)).tools.map((tool) => tool.toolId), ["local_tool"]);
   const { run, requests } = await agentCalling(server.id, "local_tool");

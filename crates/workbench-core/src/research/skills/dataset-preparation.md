@@ -18,7 +18,7 @@ def split_of(key: str) -> str:
 ```
    Split by group (author, document, source) when examples within a group are related.
 6. **Write the splits to files** and keep them. JSONL with a stable `id` on each line.
-7. **Hash them**, and name evaluation files in `inputs.data`. Eisoptric Workbench then records their size and hash.
+7. **Hash them**, and name evaluation files in `inputs.data`. The app then records their size and hash.
 
 ## Training data vs evaluation data
 A version's `data` and `scorer` inputs are the evaluation's files, and a change to them makes versions `not_comparable`. They are also locked for agents once frozen.

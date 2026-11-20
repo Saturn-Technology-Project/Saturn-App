@@ -1,4 +1,4 @@
-// Sets Eisoptric Workbench's version everywhere it is recorded, so a release changes one number in one command: the workspace version
+// Sets the app's version everywhere it is recorded, so a release changes one number in one command: the workspace version
 // in Cargo.toml, desktop/package.json, and the entries for them in Cargo.lock and desktop/package-lock.json. It needs
 // neither cargo nor the network. The version must be newer than the one in the files.
 //

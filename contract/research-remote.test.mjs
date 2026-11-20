@@ -295,7 +295,7 @@ test("connecting finds no worker, installing one from this computer pairs with i
     assert.deepEqual([missing.state, missing.source, missing.version, missing.path], ["missing", "this computer", version, installed]);
     const ready = await api("POST", `${route}/remote/install`, {});
     assert.deepEqual([ready.state, ready.installed, ready.sha256], ["ready", true, await sha(worker)]);
-    assert.equal(await sha(installed), await sha(worker), "the host has exactly this Eisoptric Workbench's program");
+    assert.equal(await sha(installed), await sha(worker), "the host has exactly this app's program");
     assert.equal((await api("GET", `${route}/remote`)).target.program, installed, "pairing names the worker for runs");
     assert.equal((await api("POST", `${route}/remote/check`, {})).version, version);
     assert.equal((await api("POST", `${route}/remote/pair`, {})).state, "ready", "connecting again finds it ready");
@@ -305,7 +305,7 @@ test("connecting finds no worker, installing one from this computer pairs with i
   }
 });
 
-test("a host of another kind gets the release's worker only if it is the one Eisoptric Workbench was built with", { skip: process.platform === "win32" }, async () => {
+test("a host of another kind gets the release's worker only if it is the one the app was built with", { skip: process.platform === "win32" }, async () => {
   const { home, route, installed } = await freshHost(true);
   try {
     const missing = await api("POST", `${route}/remote/pair`, {});
@@ -313,7 +313,7 @@ test("a host of another kind gets the release's worker only if it is the one Eis
     served = Buffer.from("#!/bin/sh\necho not workbench\n");
     const refused = await refusedWith("POST", `${route}/remote/install`, {});
     assert.equal(refused.status, 502);
-    assert.match(refused.error, /not the one this Eisoptric Workbench was built with/);
+    assert.match(refused.error, /not the one this app was built with/);
     assert.equal(existsSync(installed), false, "nothing was sent to the host");
     served = await readFile(worker);
     const ready = await api("POST", `${route}/remote/install`, {});
@@ -340,7 +340,7 @@ test("a worker of another version is found as such, refused for runs, and replac
     await api("PUT", `${route}/remote`, { host: "fixture-host", workdir: remote, program: installed });
     const check = await refusedWith("POST", `${route}/remote/check`, {});
     assert.equal(check.status, 409);
-    assert.match(check.error, /not Eisoptric Workbench/);
+    assert.match(check.error, /not the app/);
     assert.equal((await api("POST", `${route}/remote/install`, {})).state, "ready");
     assert.equal(await sha(installed), await sha(worker));
   } finally {

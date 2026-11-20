@@ -174,13 +174,13 @@ impl Session {
                         section.split('.').fold(&self.settings, |value, part| value.get(part).unwrap_or(&Value::Null)).clone()
                     }).collect::<Vec<_>>())
                 }
-                "workspace/workspaceFolders" => json!([{ "uri": self.root_uri, "name": "Eisoptric Workbench" }]),
+                "workspace/workspaceFolders" => json!([{ "uri": self.root_uri, "name": "Workbench" }]),
                 "client/registerCapability" | "client/unregisterCapability" | "window/workDoneProgress/create" => Value::Null,
                 "workspace/diagnostic/refresh" => {
                     self.publish(json!({ "jsonrpc": "2.0", "method": "workspace/diagnostic/refresh", "params": {} }));
                     Value::Null
                 }
-                "workspace/applyEdit" => json!({ "applied": false, "failureReason": "Workspace edits are not enabled in Eisoptric Workbench's language client." }),
+                "workspace/applyEdit" => json!({ "applied": false, "failureReason": "Workspace edits are not enabled in the app's language client." }),
                 _ => return self.write(&json!({ "jsonrpc": "2.0", "id": id, "error": { "code": -32601, "message": "Client request not supported" } })).await,
             };
             self.write(&json!({ "jsonrpc": "2.0", "id": id, "result": result }))
@@ -678,7 +678,7 @@ impl Kernel {
                 message["params"]["rootPath"] = json!(session.root);
                 message["params"]["processId"] = Value::Null;
                 message["params"]["workspaceFolders"] =
-                    json!([{ "uri": session.root_uri, "name": "Eisoptric Workbench" }]);
+                    json!([{ "uri": session.root_uri, "name": "Workbench" }]);
                 message["params"]["capabilities"]["workspace"] = json!({ "configuration": true, "workspaceFolders": true, "applyEdit": false, "diagnostics": { "refreshSupport": true } });
                 message["params"]["capabilities"]["general"] =
                     json!({ "positionEncodings": ["utf-16"] });

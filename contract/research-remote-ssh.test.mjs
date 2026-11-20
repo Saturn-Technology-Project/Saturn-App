@@ -54,7 +54,7 @@ before(async () => {
   const hostKey = (await readFile(path.join(folder, "host_key.pub"), "utf8")).split(" ").slice(0, 2).join(" ");
   await writeFile(path.join(folder, "known_hosts"), `[127.0.0.1]:${port} ${hostKey}\n`);
   await writeFile(path.join(folder, "ssh_config"), ["Host testhost", "  HostName 127.0.0.1", `  Port ${port}`, `  User ${user}`, `  IdentityFile ${folder}/client_key`, "  IdentitiesOnly yes", `  UserKnownHostsFile ${folder}/known_hosts`, "  GlobalKnownHostsFile /dev/null", ""].join("\n"));
-  // Eisoptric Workbench calls plain `ssh`; this one is the real client, given the test's own configuration.
+  // The app calls plain `ssh`; this one is the real client, given the test's own configuration.
   await writeFile(path.join(bin, "ssh"), `#!/bin/sh\nexec /usr/bin/ssh -F ${folder}/ssh_config "$@"\n`);
   await chmod(path.join(bin, "ssh"), 0o755);
   // Started as a daemon, as the system's sshd is: one left in the foreground keeps the test's own session, under which

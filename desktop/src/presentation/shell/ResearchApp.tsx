@@ -109,7 +109,7 @@ export function ResearchApp() {
     if (!runtimeReady) return;
     syncProjects()
       .then(() => setNotice(null))
-      .catch((error: unknown) => setNotice(t("Eisoptric Workbench's runtime is not answering: {reason}", { reason: messageOf(error) })))
+      .catch((error: unknown) => setNotice(t("Workbench's runtime is not answering: {reason}", { reason: messageOf(error) })))
       .finally(() => setLoaded(true));
   }, [runtimeReady, syncProjects]);
 
@@ -192,7 +192,7 @@ export function ResearchApp() {
       { id: "theme", label: theme === "dark" ? t("Use the light theme") : t("Use the dark theme"), run: () => setTheme(theme === "dark" ? "light" : "dark") },
       { id: "settings", label: t("Open Settings"), hint: shortcut("⌘,"), run: () => setSettings(true) },
       { id: "tour", label: t("Take the tour"), run: () => setTour(true) },
-      ...(runtime.restart ? [{ id: "restart-runtime", label: t("Restart Eisoptric Workbench's runtime"), run: () => void runtime.restart?.() }] : []),
+      ...(runtime.restart ? [{ id: "restart-runtime", label: t("Restart the app's runtime"), run: () => void runtime.restart?.() }] : []),
     ],
     // The commands close over the latest state each time they are rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,7 +211,7 @@ export function ResearchApp() {
   } else if (!project.access) {
     body = (
       <Empty title={t("Allow access to {project}", { project: project.name })} action={<Button onClick={() => setAccessRequest({ path: project.path, name: project.name, projectId: project.id })}>{t("Review access")}</Button>}>
-        {t("Eisoptric Workbench reads and writes this folder only after you allow it.")}
+        {t("The app reads and writes this folder only after you allow it.")}
       </Empty>
     );
   } else {

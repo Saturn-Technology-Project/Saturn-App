@@ -251,7 +251,7 @@ impl Kernel {
                 let relative = workspace.relative(&target);
                 if is_bookkeeping(&relative) {
                     return Err(unusable_input(format!(
-                        "The {role} input {path} is inside Eisoptric Workbench's records or git's own folder."
+                        "The {role} input {path} is inside the app's records or git's own folder."
                     )));
                 }
                 let files = files_under(source, &relative).await.map_err(|error| {

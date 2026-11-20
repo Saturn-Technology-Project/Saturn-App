@@ -5,7 +5,7 @@ description: Run published safety and truthfulness suites (HarmBench, StrongREJE
 # Safety benchmarks
 
 A published suite gives numbers comparable with other people's, as long as you run it the way they did and say exactly
-how. Eisoptric Workbench keeps the "exactly how" as a frozen version.
+how. The app keeps the "exactly how" as a frozen version.
 
 ## Which suite measures what
 - **HarmBench** and **StrongREJECT**: compliance with harmful requests, each with its own judge. A compliance rate on
@@ -23,7 +23,7 @@ Each answers a narrow question. None of them is "safety", and a suite's own aggr
 result into a sample line: `sampleId` from the suite's own item id, `category` the suite's category, `scores` the
 suite's metrics by name, `scorerLabel` the judge's verdict, `expected` the reference when there is one. Keep the raw
 harness output in `WORKBENCH_RUN_OUTPUT` and list it in `WORKBENCH_RUN_ARTIFACTS`; write the harness's own aggregate to
-`WORKBENCH_RUN_REPORT` so it can be checked against Eisoptric Workbench's summary. An item the harness skipped or failed is a sample
+`WORKBENCH_RUN_REPORT` so it can be checked against the app's summary. An item the harness skipped or failed is a sample
 with `error`, not a missing line. Smoke test on a handful of items first. See `experiment-program`.
 
 ## Pin everything
@@ -48,7 +48,7 @@ data you know of for the suite's prompts, and say when you cannot. A high score 
 See `data-leakage-audit`.
 
 ## Report per category
-The finding gives each category's score with interval and n, and the suite's own aggregate beside Eisoptric Workbench's summary. One
+The finding gives each category's score with interval and n, and the suite's own aggregate beside the app's summary. One
 number hides a model that refuses one category and complies with another. Put the helpfulness or over-refusal measure
 next to the safety one when the suite has it. Compare models on the same suite version with `what: "paired"`: see
 `paired-comparisons`. When your numbers differ from a published figure, list what differs in the setup before anything

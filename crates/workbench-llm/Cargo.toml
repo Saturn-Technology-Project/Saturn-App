@@ -1,6 +1,6 @@
 [package]
 name = "workbench-llm"
-description = "Eisoptric Workbench's one door to every model provider"
+description = "Workbench's one door to every model provider"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

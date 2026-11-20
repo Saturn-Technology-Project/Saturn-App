@@ -26,7 +26,7 @@ const JOB_LABELS = { create: t("Making the environment"), install: t("Installing
 
 /** The runtime's package kits in the interface's language, by id; a kit not listed here shows the runtime's English. */
 const KIT_TEXT: Record<string, { title: string; what: string }> = {
-  core: { title: t("What Eisoptric Workbench's helpers need"), what: t("Looking inside a model and the environment check load models with these. Installed with the environment unless you say not to.") },
+  core: { title: t("What the app's helpers need"), what: t("Looking inside a model and the environment check load models with these. Installed with the environment unless you say not to.") },
   interpretability: { title: t("Interpretability"), what: t("TransformerLens for hooks and patching, SAELens for sparse autoencoders, einops for the tensor shapes.") },
   training: { title: t("Post-training"), what: t("TRL for SFT and DPO, PEFT for adapters, datasets and accelerate underneath them.") },
   analysis: { title: t("Analysis"), what: t("pandas and matplotlib for tables and figures from a run's samples.") },
@@ -35,7 +35,7 @@ const KIT_TEXT: Record<string, { title: string; what: string }> = {
 };
 
 /**
- * uv as a program Eisoptric Workbench downloads, offered while this computer has none: the pinned release, its size, the download's
+ * uv as a program the app downloads, offered while this computer has none: the pinned release, its size, the download's
  * progress, and why it matters here. With uv, a computer without Python gets one as the environment is made. Once uv is
  * installed the record is read again, and this gives way to the Create form.
  */
@@ -82,8 +82,8 @@ function UvDownload(props: { hasPython: boolean; onInstalled: () => void; notify
               ? t("Downloading… {received} of {total} MB", { received: Math.round(progress!.received / 1048576), total: Math.round(progress!.total / 1048576) })
               : progress!.state === "verifying" ? t("Checking the download against its pinned checksum…") : t("Unpacking…")
             : props.hasPython
-              ? t("With uv, a Python version can be picked and installs are faster. Eisoptric Workbench can download uv {version} from its release, checked against a checksum pinned in Eisoptric Workbench.", { version: status.downloadVersion })
-              : t("Neither uv nor Python is on this computer. Eisoptric Workbench can download uv {version} from its release, checked against a checksum pinned in Eisoptric Workbench; when the environment is made, uv installs a Python first.", { version: status.downloadVersion })}
+              ? t("With uv, a Python version can be picked and installs are faster. The app can download uv {version} from its release, checked against a checksum pinned in the app.", { version: status.downloadVersion })
+              : t("Neither uv nor Python is on this computer. The app can download uv {version} from its release, checked against a checksum pinned in the app; when the environment is made, uv installs a Python first.", { version: status.downloadVersion })}
       </div>
       {busy ? (
         <div className="h-1 overflow-hidden rounded-full bg-border" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
@@ -102,7 +102,7 @@ function UvDownload(props: { hasPython: boolean; onInstalled: () => void; notify
   );
 }
 
-/** The Python the project's experiments run in: a managed one Eisoptric Workbench makes and fills, or any other, what it has, and the files that pin it. */
+/** The Python the project's experiments run in: a managed one the app makes and fills, or any other, what it has, and the files that pin it. */
 export function Environment(props: ScreenProps) {
   const projectId = props.project.id;
   const { value, refresh } = useRecords(async () => ({ environment: await service.environment(projectId), drafts: (await service.experiments(projectId)).items }), props.notify);
@@ -167,7 +167,7 @@ export function Environment(props: ScreenProps) {
   const tool = record?.tools.uv ? "uv" : record?.tools.python3 ? "python3 -m venv" : null;
 
   return (
-    <Page title={t("Environment")} lead={t("Experiments and looking inside run with this Python. Eisoptric Workbench can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.")}>
+    <Page title={t("Environment")} lead={t("Experiments and looking inside run with this Python. The app can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.")}>
       <RemoteTargetEditor projectId={projectId} notify={props.notify} />
       <Heading data-tour="environment-managed">{t("Managed environment")}</Heading>
       <Field label={t("Job timeout (minutes)")} hint={timeoutValid ? t("For making it and for every install, kits included.") : null}>
@@ -215,7 +215,7 @@ export function Environment(props: ScreenProps) {
             {tool ? (
               <>
                 <div>
-                  {t("No managed environment yet. Eisoptric Workbench can make one in the project with {tool}:", { tool })} <code>{managed?.path}</code>
+                  {t("No managed environment yet. The app can make one in the project with {tool}:", { tool })} <code>{managed?.path}</code>
                 </div>
                 <form
                   className="flex flex-wrap items-end gap-2"
@@ -231,7 +231,7 @@ export function Environment(props: ScreenProps) {
                   ) : null}
                   <label className="flex min-w-0 flex-[1_1_160px] items-center gap-2 text-xs text-muted-foreground">
                     <Checkbox checked={withCore} onCheckedChange={setWithCore} />
-                    {t("Also install what Eisoptric Workbench's helpers need (torch, transformers, numpy)")}
+                    {t("Also install what the app's helpers need (torch, transformers, numpy)")}
                   </label>
                   <Button type="submit" disabled={running || !timeoutValid}>
                     {t("Create")}

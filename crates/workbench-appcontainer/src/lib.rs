@@ -1,9 +1,9 @@
-//! A program started in a Windows AppContainer, which is how Eisoptric Workbench sandboxes a command on Windows. A program in a
+//! A program started in a Windows AppContainer, which is how the app sandboxes a command on Windows. A program in a
 //! container reads and writes only what an access list names for the container, and reaches the network only with a
 //! capability, so the sandbox is made of two things: entries added to the access lists of the folders it may use, and
 //! the process itself, started with the container's identity.
 //!
-//! Eisoptric Workbench starts itself again as the launcher (`workbench-server --appcontainer <policy> <command line>`), so a sandboxed
+//! The app starts itself again as the launcher (`workbench-server --appcontainer <policy> <command line>`), so a sandboxed
 //! command is one program wrapping another, as with `sandbox-exec` and `bwrap`. This is the one crate that calls the
 //! system without the compiler's checks; the calls are in `windows.rs` and nothing else is.
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 #[allow(unsafe_code, reason = "the Win32 calls an AppContainer is made with")]
 mod windows;
 
-/// The argument that makes Eisoptric Workbench's own program the launcher.
+/// The argument that makes the app's own program the launcher.
 pub const FLAG: &str = "--appcontainer";
 
 /// Folders that several sandboxes reach, by a capability they all hold: opened once, however many sandboxes use them,
@@ -36,7 +36,7 @@ pub struct Policy {
     pub write: Vec<String>,
     /// Folders and files only this sandbox reads.
     pub read: Vec<String>,
-    /// Folders it reaches together with other sandboxes. Eisoptric Workbench cannot open every one of them (it does not own
+    /// Folders it reaches together with other sandboxes. The app cannot open every one of them (it does not own
     /// Program Files), so one that stays closed is passed over.
     pub shared: Vec<Shared>,
     /// Paths inside the above that are closed again.
@@ -122,14 +122,14 @@ pub fn launch() -> i32 {
     match windows::launch() {
         Ok(code) => code,
         Err(reason) => {
-            eprintln!("Eisoptric Workbench's sandbox could not start the command: {reason}");
+            eprintln!("Workbench's sandbox could not start the command: {reason}");
             126
         }
     }
 }
 
 /// Opens a policy's folders without starting anything, and says which of the shared folders, and of the folders above
-/// the ones it names, stayed closed. Run by an administrator, it opens the ones Eisoptric Workbench itself may not: a drive's top
+/// the ones it names, stayed closed. Run by an administrator, it opens the ones the app itself may not: a drive's top
 /// folder, `Users`, a program's folder under Program Files.
 #[cfg(windows)]
 pub fn prepare(policy: &Policy) -> Result<Vec<String>, String> {
@@ -193,7 +193,7 @@ mod tests {
     #[test]
     fn the_rest_of_the_command_line_is_passed_on_as_written() {
         let line = units(
-            r#""C:\Program Files\Eisoptric Workbench\workbench-server.exe" --appcontainer 7b7d cmd /d /c "echo "a  b" & dir""#,
+            r#""C:\Program Files\Workbench\workbench-server.exe" --appcontainer 7b7d cmd /d /c "echo "a  b" & dir""#,
         );
         let (policy, rest) = split_command_line(&line).expect("splits");
         assert_eq!(policy, "7b7d");

@@ -1,12 +1,12 @@
 #!/bin/sh
-# Compile a LaTeX draft into an Eisoptric Workbench run's output, recording whether it compiled and how many warnings it gave.
+# Compile a LaTeX draft into a run's output, recording whether it compiled and how many warnings it gave.
 #
 # How to use: put the paper's files in the experiment's inputs.code (figures and tables in inputs.data), then
 #     sh compile_paper.sh paper/main.tex              # tectonic or latexmk, whichever is on PATH
 #     sh compile_paper.sh paper/main.tex latexmk      # or a compiler by name or absolute path
 # The PDF and the compiler's output (compile.log) go to WORKBENCH_RUN_OUTPUT; the run's sample "paper" says in its
 # scores whether it compiled and how many lines of the compiler's output mention a warning. With no compiler the
-# sample carries an infrastructure error. Exits nonzero when nothing compiled. Outside Eisoptric Workbench it writes to ./workbench-run.
+# sample carries an infrastructure error. Exits nonzero when nothing compiled. Outside the app it writes to ./workbench-run.
 # What to change: the compiler flags in the case below, for a draft that needs shell escape or a bibliography pass.
 set -u
 

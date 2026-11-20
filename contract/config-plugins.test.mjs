@@ -15,7 +15,7 @@ after(async () => {
   await workbench?.close();
 });
 
-/** The files of a plugin laid out as Claude Code's are: .claude-plugin/plugin.json, skills/, commands/ (which Eisoptric Workbench does not use), hooks/hooks.json, .mcp.json. */
+/** The files of a plugin laid out as Claude Code's are: .claude-plugin/plugin.json, skills/, commands/ (which the app does not use), hooks/hooks.json, .mcp.json. */
 const claudeLayout = (name) => ({
   ".claude-plugin/plugin.json": { name, description: "Review helpers", version: "1.2.0" },
   "skills/security-review/SKILL.md": "---\nname: security-review\ndescription: Look for injection and secrets\n---\nCheck every input.",
@@ -55,7 +55,7 @@ test("a plugin in Claude Code's layout brings its skills, held hooks and held se
   assert.deepEqual(server.command.args, [`${folder}/server.js`]);
   assert.deepEqual(server.command.env, ["TOKEN_FILE"], "names only");
   assert.equal(server.approval, "needed");
-  await workbench.refused("POST", `/connections/mcp/${server.id}/discover`, undefined, 409, /Allow it in Eisoptric Workbench Settings/);
+  await workbench.refused("POST", `/connections/mcp/${server.id}/discover`, undefined, 409, /Allow it in the app Settings/);
   assert.equal(installed.mcpServers[0].id, server.id);
 
   // Off: silent, and its server gone. On again: back, and still not allowed.

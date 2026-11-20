@@ -242,11 +242,11 @@ function canSandbox() {
   }
 }
 
-test("the project's interpreter and its environment jobs run in the sandbox: neither reads Eisoptric Workbench's data", shellOnly, async (t) => {
+test("the project's interpreter and its environment jobs run in the sandbox: neither reads the app's data", shellOnly, async (t) => {
   if (!canSandbox()) return t.skip("no sandbox for commands here");
   const data = await mkdtemp(path.join(os.tmpdir(), "workbench-interpreter-data-"));
   const outside = await mkdtemp(path.join(os.tmpdir(), "workbench-interpreter-"));
-  // An interpreter (here a stand-in) that the project names, which tries to read Eisoptric Workbench's token as it starts: a cloned
+  // An interpreter (here a stand-in) that the project names, which tries to read the app's token as it starts: a cloned
   // project's environment can run code that way, through a .pth file in its site-packages.
   const python = path.join(outside, "python");
   await writeFile(python, `#!/bin/sh

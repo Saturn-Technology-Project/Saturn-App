@@ -11,11 +11,11 @@ import { fileURLToPath } from "node:url";
 import { PLATFORM, VERSION, placeProgram, startWithPrograms } from "./programs.mjs";
 import { opensPages } from "./runtime.mjs";
 
-test("the pinned downloads cover the systems Eisoptric Workbench ships on, come from the npm registry or uv's release, and carry a sha512", async () => {
+test("the pinned downloads cover the systems the app ships on, come from the npm registry or uv's release, and carry a sha512", async () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
   const pinned = JSON.parse(await readFile(path.join(root, "crates/workbench-core/src/agent-programs.json"), "utf8"));
   for (const id of ["claude-code", "codex", "uv"]) {
-    assert.ok(pinned[id]["darwin-arm64"] && pinned[id]["win32-x64"], `${id} covers the platforms Eisoptric Workbench ships`);
+    assert.ok(pinned[id]["darwin-arm64"] && pinned[id]["win32-x64"], `${id} covers the platforms the app ships`);
     for (const item of Object.values(pinned[id])) {
       const origin = id === "uv" ? "https://github.com/astral-sh/uv/releases/download/" : "https://registry.npmjs.org/";
       assert.ok(item.url.startsWith(origin), item.url);
@@ -61,7 +61,7 @@ async function pinned(workbench, id, url, integrity, size) {
   await writeFile(workbench.manifestFile, JSON.stringify({ "claude-code": {}, codex: {}, uv: {}, [id]: { [PLATFORM]: { version: VERSION, url, integrity, size } } }));
 }
 
-test("a program in Eisoptric Workbench's own folder is found and asked for its version; an unknown program is a 404", async () => {
+test("a program in the app's own folder is found and asked for its version; an unknown program is a 404", async () => {
   const workbench = await startWithPrograms({ install: ["claude-code", "codex", "uv"] });
   try {
     const list = await workbench.api("GET", "/programs");
@@ -89,9 +89,9 @@ test("with no program anywhere the status says so, and everything that needs one
     assert.deepEqual(await workbench.api("GET", "/programs/claude-code"), { id: "claude-code", label: "Claude Code", installed: false, source: null, path: null, version: null, downloadVersion: VERSION, downloadSize: 123 });
     assert.deepEqual(await workbench.api("GET", "/claude-code/status"), { loggedIn: false, authMethod: "none", loginCommand: "", configDir: path.join(workbench.dataDir, "claude"), installed: false });
     assert.deepEqual(await workbench.api("GET", "/codex/status"), { loggedIn: false, authMethod: "none", configDir: path.join(workbench.dataDir, "codex"), installed: false });
-    assert.deepEqual(await workbench.call("POST", "/claude-code/logout", {}), { status: 409, body: { error: "Claude Code is not installed. Download it in Eisoptric Workbench Settings → General → Claude Code." } });
-    assert.deepEqual(await workbench.call("POST", "/codex/logout", {}), { status: 409, body: { error: "Codex is not installed. Download it in Eisoptric Workbench Settings → General → Codex." } });
-    assert.deepEqual(await workbench.call("POST", "/codex/sign-in", {}), { status: 409, body: { error: "Codex is not installed. Download it in Eisoptric Workbench Settings → General → Codex." } });
+    assert.deepEqual(await workbench.call("POST", "/claude-code/logout", {}), { status: 409, body: { error: "Claude Code is not installed. Download it in Settings → General → Claude Code." } });
+    assert.deepEqual(await workbench.call("POST", "/codex/logout", {}), { status: 409, body: { error: "Codex is not installed. Download it in Settings → General → Codex." } });
+    assert.deepEqual(await workbench.call("POST", "/codex/sign-in", {}), { status: 409, body: { error: "Codex is not installed. Download it in Settings → General → Codex." } });
     assert.ok(statSync(path.join(workbench.dataDir, "claude")).isDirectory(), "the status makes the config folder");
     assert.ok(statSync(path.join(workbench.dataDir, "codex")).isDirectory());
 
@@ -99,17 +99,17 @@ test("with no program anywhere the status says so, and everything that needs one
     const agent = await workbench.api("POST", "/agents", { name: "Coder", modelConnectionId: connection.id });
     const started = await workbench.api("POST", `/agents/${agent.id}/runs`, { input: "hi" });
     const run = await workbench.until("the run", () => workbench.api("GET", `/runs/${started.id}`), (item) => item.status === "failed");
-    assert.match(run.error, /Codex is not installed\. Download it in Eisoptric Workbench Settings/);
+    assert.match(run.error, /Codex is not installed\. Download it in the app Settings/);
   } finally {
     await workbench.stop();
   }
 });
 
-test("a program on the system is used when Eisoptric Workbench has none, and removing Eisoptric Workbench's copy leaves it alone", async () => {
+test("a program on the system is used when the app has none, and removing the app's copy leaves it alone", async () => {
   const workbench = await startWithPrograms({ install: ["claude-code"] });
   try {
     const system = await placeProgram(path.join(workbench.bin, "claude"), process.platform === "win32" ? "console.log('from the system');\n" : "#!/bin/sh\necho 'from the system'\n");
-    assert.equal((await workbench.api("GET", "/programs/claude-code")).source, "workbench", "Eisoptric Workbench's own copy comes first");
+    assert.equal((await workbench.api("GET", "/programs/claude-code")).source, "workbench", "Workbench's own copy comes first");
     const removed = await workbench.api("DELETE", "/programs/claude-code");
     assert.deepEqual([removed.source, removed.path, removed.version], ["system", system, "from the system"]);
     assert.equal(existsSync(path.join(workbench.dataDir, "tools", "claude-code")), false);
@@ -196,7 +196,7 @@ test("a download that does not match its pin is thrown away, and the status repo
     await pinned(workbench, "claude-code", server.url, `sha512-${createHash("sha512").update("something else").digest("base64")}`, archive.length);
     await workbench.api("POST", "/programs/claude-code/install", {});
     const status = await workbench.until("the failure", () => workbench.api("GET", "/programs/claude-code"), (item) => item.install?.state === "failed");
-    assert.equal(status.install.error, "the download does not match the checksum Eisoptric Workbench pinned for it, so it was discarded");
+    assert.equal(status.install.error, "the download does not match the checksum the app pinned for it, so it was discarded");
     assert.equal(status.installed, false);
     assert.equal(existsSync(path.join(workbench.dataDir, "tools", "claude-code", VERSION)), false, "nothing was unpacked");
     assert.equal(existsSync(path.join(workbench.dataDir, "tools", "claude-code", `${VERSION}.tgz.part`)), false, "nothing is kept to resume");
@@ -288,7 +288,7 @@ test("a platform with no published package cannot download, and says so", async 
   }
 });
 
-test("Claude Code's login comes from the program, in Eisoptric Workbench's own config folder, with the command to sign in", async () => {
+test("Claude Code's login comes from the program, in the app's own config folder, with the command to sign in", async () => {
   // A key for another service in the user's environment has no use in Claude Code, whose shell could print it.
   const workbench = await startWithPrograms({ env: { ANTHROPIC_API_KEY: "the-users-own-key", CLAUDE_CODE_USE_BEDROCK: "1", ELECTRON_RUN_AS_NODE: "1", OPENAI_API_KEY: "another-services-key" } });
   try {

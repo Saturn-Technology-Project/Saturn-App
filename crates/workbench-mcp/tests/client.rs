@@ -291,7 +291,7 @@ async fn a_whole_sign_in_registers_uses_pkce_and_refreshes() {
             .finish_sign_in("not-the-state", "code")
             .await
             .is_err(),
-        "a state Eisoptric Workbench did not start"
+        "a state the app did not start"
     );
     let finished = client
         .finish_sign_in(&query["state"], "the-code")

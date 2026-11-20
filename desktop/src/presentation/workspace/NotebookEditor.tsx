@@ -253,7 +253,7 @@ export function NotebookEditor(props: {
       </div>
       {!canRun ? (
         <Notice tone="wait" className="flex-none rounded-none border-x-0">
-          {t("This notebook is written for {language}. Eisoptric Workbench runs notebooks in the project's Python, so it opens, edits and saves here but does not run.", { language })}
+          {t("This notebook is written for {language}. The app runs notebooks in the project's Python, so it opens, edits and saves here but does not run.", { language })}
         </Notice>
       ) : null}
       {message ? (
@@ -370,7 +370,7 @@ function Cell(props: {
           }}
         />
       ) : null}
-      {cell.kind === "other" ? <p className={MUTED}>{t("A cell Eisoptric Workbench does not edit. It stays in the file as it is.")}</p> : null}
+      {cell.kind === "other" ? <p className={MUTED}>{t("A cell the app does not edit. It stays in the file as it is.")}</p> : null}
       {props.note ? <p className={WARNING}>{props.note}</p> : null}
       {cell.outputs.length ? (
         <div className="flex max-h-[480px] flex-col gap-1.5 overflow-auto rounded-sm bg-panel px-2.5 py-2">

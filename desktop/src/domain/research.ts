@@ -10,7 +10,7 @@ export interface ResearchRecord {
 
 /** An experiment's draft. It keeps changing; running it freezes a version. */
 export interface ExperimentDraft extends ResearchRecord {
-  /** Made by importing results from a file: Eisoptric Workbench ran nothing of it. */
+  /** Made by importing results from a file: the app ran nothing of it. */
   imported?: boolean;
   kind?: "evaluation" | "training";
   title: string;
@@ -50,7 +50,7 @@ export function sandboxOf(draft: { sandbox?: SandboxSettings } | null | undefine
   return { isolated: draft?.sandbox?.isolated ?? true, network: draft?.sandbox?.network ?? true };
 }
 
-/** The sandbox a run's program was started in, as Eisoptric Workbench observed it. */
+/** The sandbox a run's program was started in, as the app observed it. */
 export interface RunSandbox {
   requested: boolean;
   isolation: string;
@@ -171,7 +171,7 @@ export interface ExperimentRun extends ResearchRecord {
 export interface EvidenceInput { path: string; role: string; sha256: string; size: number; how: "from the commit" | "saved copy" | "copied" | "linked" }
 
 /**
- * A run's evidence, kept apart from its status: what the version expected, what Eisoptric Workbench observed while running it, and
+ * A run's evidence, kept apart from its status: what the version expected, what the app observed while running it, and
  * what the program reported about itself. What the program did not report is null, never filled in from what was expected.
  */
 export interface RunEvidence {
@@ -219,7 +219,7 @@ export interface RunEvidence {
 /** An SSH target names a machine and existing working tree, never keys or passwords. */
 export interface RemoteTarget { host: string; workdir: string; program: string }
 
-/** What connecting to the SSH host found of this Eisoptric Workbench's worker there, and whether it can be installed from here. */
+/** What connecting to the SSH host found of this app's worker there, and whether it can be installed from here. */
 export interface WorkerPairing {
   host: string;
   system: string;
@@ -981,7 +981,7 @@ export interface EnvironmentRecord {
   checkedWith?: string;
   report: EnvironmentReport | null;
   lockFiles: { path: string; sha256: string; size: number }[];
-  /** What this computer can make environments with (uv is Eisoptric Workbench's own download or the system's), and whether the project's managed one exists. */
+  /** What this computer can make environments with (uv is the app's own download or the system's), and whether the project's managed one exists. */
   tools: { uv: string | null; uvSource: "workbench" | "system" | null; python3: string | null; managed: { path: string; python: string; exists: boolean } };
   kits: EnvironmentKit[];
   job: EnvironmentJob | null;

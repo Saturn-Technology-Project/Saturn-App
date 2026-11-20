@@ -28,11 +28,11 @@ use crate::{CoreError, Kernel, locked};
 const GRACE: Duration = Duration::from_secs(3);
 /// How many bad lines a run records.
 const PROBLEMS_KEPT: usize = 20;
-/// The process's id and start time, written by Eisoptric Workbench as soon as it starts, so a runtime that dies later still knows
+/// The process's id and start time, written by the app as soon as it starts, so a runtime that dies later still knows
 /// which process was the run's.
 const IDENTITY_FILE: &str = "process.identity";
-/// Starts the command. Eisoptric Workbench alone writes the identity: the program cannot run `ps` in the macOS sandbox, and in the
-/// Linux one its own id is not the one Eisoptric Workbench started, so a second writer could only replace the right record.
+/// Starts the command. The app alone writes the identity: the program cannot run `ps` in the macOS sandbox, and in the
+/// Linux one its own id is not the one the app started, so a second writer could only replace the right record.
 #[cfg(not(windows))]
 const WRAPPER: &str = r#"exec /bin/sh -c "$WORKBENCH_RUN_COMMAND""#;
 
@@ -401,7 +401,7 @@ impl Kernel {
         let mut observed = snapshot.observed;
         observed["source"] = json!(source);
         let mut starting = evidence::starting(&version, &observed, &seeds, &content["models"]);
-        // What a resumed run took over is part of what Eisoptric Workbench saw, beside the snapshot it ran from.
+        // What a resumed run took over is part of what the app saw, beside the snapshot it ran from.
         if let Some(carried) = &carried {
             starting["observed"]["resume"] = carried.clone();
         }
@@ -604,7 +604,7 @@ impl Kernel {
     }
 
     /// Pauses a running run's whole process where it is. It keeps its memory and devices, a GPU's included, and is still
-    /// going: it can be continued or stopped, and a restart of Eisoptric Workbench ends it as it would a running one.
+    /// going: it can be continued or stopped, and a restart of the app ends it as it would a running one.
     pub async fn research_pause_run(
         self: &Arc<Self>,
         project: &str,

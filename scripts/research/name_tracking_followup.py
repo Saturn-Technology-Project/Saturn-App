@@ -1,7 +1,7 @@
 """Offline follow-up to the Pythia name-tracking runs: embedding drift and residual prefix transplants.
 
 Uses an existing samples file and checkpoint map, never regenerates prompts, and never changes prior results.
-Run with the research project's Python (torch and transformers). Outputs baseline JSONL for Eisoptric Workbench and separate
+Run with the research project's Python (torch and transformers). Outputs baseline JSONL for the app and separate
 intervention artifacts: aggregating baseline and patched scores together would change the evaluation.
 """
 import argparse

@@ -1,4 +1,4 @@
-// Writes crates/workbench-core/src/agent-programs.json: for Claude Code, Codex and uv, the exact per-platform package Eisoptric Workbench
+// Writes crates/workbench-core/src/agent-programs.json: for Claude Code, Codex and uv, the exact per-platform package the app
 // downloads on demand (version, URL, sha512 integrity, and the download size for the button). Claude Code and Codex come from
 // the npm registry, with the integrity the registry publishes; uv from its GitHub release, each archive downloaded here, hashed,
 // and checked against the .sha256 file published beside it. Run it with the versions to move to, after trying the two programs
@@ -20,7 +20,7 @@ const PROGRAMS = {
   codex: { name: "@openai/codex", version: codex },
 };
 const PLATFORMS = ["darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-arm64", "win32-x64"];
-/** uv's archive for each platform Eisoptric Workbench names: a tar.gz with the program in a folder, a zip with it bare on Windows. */
+/** uv's archive for each platform the app names: a tar.gz with the program in a folder, a zip with it bare on Windows. */
 const UV_ARCHIVES = {
   "darwin-arm64": "uv-aarch64-apple-darwin.tar.gz",
   "darwin-x64": "uv-x86_64-apple-darwin.tar.gz",
@@ -71,7 +71,7 @@ for (const [program, { name, version }] of Object.entries(PROGRAMS)) {
     const item = await pin(name, version, platform);
     if (item) manifest[program][platform] = item;
   }
-  if (!manifest[program]["darwin-arm64"] || !manifest[program]["win32-x64"]) throw new Error(`${name} ${version} does not cover the systems Eisoptric Workbench ships on`);
+  if (!manifest[program]["darwin-arm64"] || !manifest[program]["win32-x64"]) throw new Error(`${name} ${version} does not cover the systems the app ships on`);
 }
 manifest.uv = {};
 for (const platform of PLATFORMS) manifest.uv[platform] = await pinUv(uv, platform);

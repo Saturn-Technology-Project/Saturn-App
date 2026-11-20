@@ -1,7 +1,7 @@
 //! The browser an agent drives. Pages are read as text with element ids rather than as pixels, so actions name what they
 //! mean. Set in Settings → General → Agent browser:
 //! - "workbench" (default): Chrome without a window, its page streaming live into the app's Browser panel;
-//! - "system": a visible Chrome window, with Eisoptric Workbench's own profile, never the user's;
+//! - "system": a visible Chrome window, with the app's own profile, never the user's;
 //! - "safari": a Safari automation window on macOS, through safaridriver.
 //!
 //! Every way a cursor drawn in the page moves to what the agent points at and ripples when it clicks.

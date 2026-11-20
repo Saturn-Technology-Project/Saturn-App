@@ -7,7 +7,7 @@ use workbench_tools::confine::{
 };
 
 /// A confinement over real temporary folders: a project hidden but for one linked folder, a records folder inside it
-/// that the program writes, with a record of Eisoptric Workbench's it may not write.
+/// that the program writes, with a record of the app's it may not write.
 fn sample() -> (tempfile::TempDir, Confinement) {
     let root = tempfile::tempdir().expect("a temporary folder");
     let real = std::fs::canonicalize(root.path()).expect("it exists");
@@ -95,7 +95,7 @@ fn bubblewrap_hides_before_it_binds_and_binds_protected_folders_read_only() {
     let records_bound = index("--bind-try", records);
     let tree_protected = index("--ro-bind-try", &confinement.protected[1]);
     assert!(project_hidden < records_bound && records_bound < tree_protected);
-    // A file bound over itself would be detached the first time Eisoptric Workbench renames a new record over it.
+    // A file bound over itself would be detached the first time the app renames a new record over it.
     let run_file = confinement.protected[0].to_string_lossy().into_owned();
     assert!(!args.contains(&run_file), "{args:?}");
     let remounted = index("--remount-ro", &confinement.hidden[0]);
@@ -111,7 +111,7 @@ fn bubblewrap_hides_before_it_binds_and_binds_protected_folders_read_only() {
     );
     assert!(
         !args.iter().any(|arg| arg == "--die-with-parent"),
-        "a run outlives Eisoptric Workbench"
+        "a run outlives the app"
     );
 }
 

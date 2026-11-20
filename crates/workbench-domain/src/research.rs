@@ -67,7 +67,7 @@ pub fn unusable(record: &Value) -> Option<String> {
     match record.get("schemaVersion").and_then(Value::as_u64) {
         None => Some("It has no schema version.".to_owned()),
         Some(version) if version > SCHEMA_VERSION => Some(format!(
-            "It was written by a newer Eisoptric Workbench (format {version})."
+            "It was written by a newer the app (format {version})."
         )),
         Some(_) => None,
     }
@@ -212,7 +212,7 @@ fn check(collection: &str, fields: &Map<String, Value>) -> Result<(), String> {
 }
 
 /// Whether a name can be an environment variable a run is given: letters, digits and underscores, not starting with a
-/// digit, and not one of Eisoptric Workbench's own.
+/// digit, and not one of the app's own.
 pub fn is_variable_name(name: &str) -> bool {
     let mut characters = name.chars();
     characters
@@ -244,7 +244,7 @@ fn check_sandbox(fields: &Map<String, Value>) -> Result<(), String> {
                 .all(|name| name.as_str().is_some_and(is_variable_name))
         });
         if !valid {
-            return Err("envNames lists environment variable names, such as HF_TOKEN; Eisoptric Workbench's own WORKBENCH_ variables are set for every run.".to_owned());
+            return Err("envNames lists environment variable names, such as HF_TOKEN; the app's own WORKBENCH_ variables are set for every run.".to_owned());
         }
     }
     Ok(())

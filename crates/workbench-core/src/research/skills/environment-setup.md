@@ -15,7 +15,7 @@ The check reports the interpreter, package versions, processors, the devices tor
 ```
 research_environment_action { action: "create", python: "3.12", withCore: true, timeoutSeconds: 1800 }
 ```
-It makes `.venv` with `uv` when present, else `python3 -m venv`. A version needs `uv`. `withCore` installs torch, transformers and numpy, which Eisoptric Workbench's helpers need.
+It makes `.venv` with `uv` when present, else `python3 -m venv`. A version needs `uv`. `withCore` installs torch, transformers and numpy, which the app's helpers need.
 
 Add what the study needs:
 ```
@@ -42,4 +42,4 @@ Keep a lock file at the project root: `uv.lock`, `requirements.lock` or similar.
 ## In the command
 Start the experiment's command with the interpreter's path, for example `.venv/bin/python probe.py`. Looking inside models uses that interpreter, and a command that starts otherwise is refused. In a task, see `task-worktrees`.
 
-Installs reach the package index directly and are not in Eisoptric Workbench's network log. Say so in the report if that matters.
+Installs reach the package index directly and are not in the app's network log. Say so in the report if that matters.

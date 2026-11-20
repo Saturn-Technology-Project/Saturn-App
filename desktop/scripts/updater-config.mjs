@@ -1,4 +1,4 @@
-// Prints the --config arguments that make a build look for updates, when this build has Eisoptric Workbench's updater key (UPDATER_PUBKEY and
+// Prints the --config arguments that make a build look for updates, when this build has the app's updater key (UPDATER_PUBKEY and
 // the bundler's TAURI_SIGNING_PRIVATE_KEY). Forks and builds without the key print nothing, and that build has no updater.
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";

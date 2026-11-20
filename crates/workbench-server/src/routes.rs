@@ -536,7 +536,7 @@ pub(crate) fn stream_of(
     )
 }
 
-/// Where the assistant's computer use is about to act, as it happens, for the pointer Eisoptric Workbench draws on the screen.
+/// Where the assistant's computer use is about to act, as it happens, for the pointer the app draws on the screen.
 async fn computer_pointer(State(kernel): Shared) -> Response {
     let (tx, rx) = mpsc::channel(16);
     let mut pointer = kernel.computer.pointer();

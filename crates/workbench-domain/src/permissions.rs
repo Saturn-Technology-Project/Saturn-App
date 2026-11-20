@@ -360,7 +360,7 @@ pub fn describe_rule(rule: &Rule) -> String {
 }
 
 /// Converts a rule from Claude Code's `.claude/settings.json` (`Bash(npm test:*)`, `Read(src/**)`, `Edit`,
-/// `WebFetch(domain:example.com)`, `mcp__github__create_issue`) to an Eisoptric Workbench rule, or None when there is no equivalent.
+/// `WebFetch(domain:example.com)`, `mcp__github__create_issue`) to a rule, or None when there is no equivalent.
 pub fn from_claude_rule(text: &str, effect: Effect) -> Option<Rule> {
     let shape = Regex::new(r"^([A-Za-z_][A-Za-z0-9_-]*)(?:\((.*)\))?$").ok()?;
     let found = shape.captures(text.trim())?;

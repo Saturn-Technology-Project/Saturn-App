@@ -1,8 +1,8 @@
-"""Keep Python analysis outputs with an Eisoptric Workbench run, using ordinary files and JSONL, without an SDK.
+"""Keep Python analysis outputs with a run, using ordinary files and JSONL, without an SDK.
 
 Import publish from this file in a training/analysis script. Save a plot, JSON result or notebook under
-WORKBENCH_RUN_DIRECTORY first, then publish its relative path. In Eisoptric Workbench choose Import run artifact manifest.
-Large activation caches or SAE weights can instead use publish_reference. Neither function contacts Eisoptric Workbench.
+WORKBENCH_RUN_DIRECTORY first, then publish its relative path. In the app choose Import run artifact manifest.
+Large activation caches or SAE weights can instead use publish_reference. Neither function contacts the app.
 """
 
 import json

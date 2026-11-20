@@ -127,7 +127,7 @@ function inputsText(inputs: { code?: string[]; data?: string[]; scorer?: string[
 }
 
 /**
- * A run's evidence in three columns: what the version expected, what Eisoptric Workbench observed, and what the program reported.
+ * A run's evidence in three columns: what the version expected, what the app observed, and what the program reported.
  * The verdicts say how far each goes, and the limits of hashes are always stated.
  */
 export function Evidence(props: { projectId: string; runId: string }) {
@@ -147,7 +147,7 @@ export function Evidence(props: { projectId: string; runId: string }) {
 
   if (problem) return <div className={WARNING}>{problem}</div>;
   if (!evidence) return <div className={MUTED}>{t("Loading…")}</div>;
-  if (!evidence.recorded) return <div className={MUTED}>{t("This run was recorded before Eisoptric Workbench kept run evidence.")}</div>;
+  if (!evidence.recorded) return <div className={MUTED}>{t("This run was recorded before the app kept run evidence.")}</div>;
 
   const { expected, observed, reported, verdicts, outputs } = evidence;
   const snapshot = observed?.snapshot;
@@ -186,10 +186,10 @@ export function Evidence(props: { projectId: string; runId: string }) {
           {expected?.resumeFrom ? <div className={MUTED}>{t("Resumes from")}: <code className="wrap-anywhere">{expected.resumeFrom}</code></div> : null}
         </section>
         <section>
-          <div className={LABEL}>{t("Observed by Eisoptric Workbench")}</div>
+          <div className={LABEL}>{t("Observed by the app")}</div>
           {observed?.executor === "ssh" ? (
             <div className={MUTED}>
-              {t("On {host}, by its Eisoptric Workbench worker", { host: observed.host ?? "" })}
+              {t("On {host}, by its worker", { host: observed.host ?? "" })}
               {observed.workdir ? <> · <code className="wrap-anywhere">{observed.workdir}</code></> : null}
               {observed.system?.platform ? <> · {observed.system.platform}{observed.system.cpus ? t(", {count} CPUs", { count: observed.system.cpus }) : ""}</> : null}
             </div>

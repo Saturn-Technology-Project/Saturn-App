@@ -5,7 +5,7 @@
     const cursor = document.createElement("div");
     cursor.id = "__workbench_cursor";
     cursor.setAttribute("aria-hidden", "true");
-    // A black pointer with a white edge, and Eisoptric Workbench beside it, so whoever watches knows whose cursor it is.
+    // A black pointer with a white edge, and the app beside it, so whoever watches knows whose cursor it is.
     cursor.style.cssText = "position:fixed;left:0;top:0;width:40px;height:32px;z-index:2147483647;pointer-events:none;transition:transform .28s cubic-bezier(.2,.8,.2,1);transform:translate(-60px,-60px);";
     cursor.innerHTML = '<svg width="40" height="32" viewBox="0 0 40 32"><path d="M3 2l15 8-6.5 1.6L8.6 18z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><g transform="rotate(-18 28 22)"><ellipse cx="28" cy="22" rx="10" ry="3.2" fill="none" stroke="#fff" stroke-width="3"/><ellipse cx="28" cy="22" rx="10" ry="3.2" fill="none" stroke="#111" stroke-width="1.4"/><circle cx="28" cy="22" r="5.6" fill="#111" stroke="#fff" stroke-width="1.4"/><path d="M18 22a10 3.2 0 0 0 20 0" fill="none" stroke="#fff" stroke-width="3"/><path d="M18 22a10 3.2 0 0 0 20 0" fill="none" stroke="#111" stroke-width="1.4"/></g></svg>';
     (document.body || document.documentElement).appendChild(cursor);

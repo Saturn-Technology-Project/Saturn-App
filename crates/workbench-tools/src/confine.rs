@@ -1,6 +1,6 @@
 //! The operating system's sandbox around an experiment run's program, stricter than the one around the `code` tool:
 //! the program writes only to the folders it is given, cannot read the folders hidden from it (the project it was
-//! copied from, Eisoptric Workbench's own data, the usual credential folders), and reaches the network only when allowed. macOS
+//! copied from, the app's own data, the usual credential folders), and reaches the network only when allowed. macOS
 //! uses seatbelt (`sandbox-exec`), Linux bubblewrap, Windows an AppContainer; where none works the run is not confined,
 //! and the caller says why.
 use std::path::{Path, PathBuf};
@@ -180,10 +180,10 @@ fn depth(path: &str) -> usize {
 /// visible and writable ones are bound back over them; a hidden path inside one of those is hidden again.
 ///
 /// Only protected folders are bound read-only. A protected file is not: a mount on a file is detached as soon as the
-/// supervisor replaces the file by renaming a new one over it, which is how Eisoptric Workbench saves every record, so it would
+/// supervisor replaces the file by renaming a new one over it, which is how the app saves every record, so it would
 /// protect nothing. On Linux the program can therefore overwrite such a file; seatbelt, which goes by path, cannot.
 ///
-/// There is no `--die-with-parent`: a run outlives Eisoptric Workbench, as an unconfined run does, and is found again after a
+/// There is no `--die-with-parent`: a run outlives the app, as an unconfined run does, and is found again after a
 /// restart.
 pub fn bubblewrap_confinement(confinement: &Confinement, working: &Path) -> Vec<String> {
     let mut args: Vec<String> = [
@@ -405,10 +405,10 @@ pub fn confine(
 }
 
 /// What a confined program's AppContainer is opened to on Windows. The writable folders are its own, but for the
-/// caches, which every Eisoptric Workbench sandbox shares; the visible ones are its own to read, but for the lasting ones, which
+/// caches, which every sandbox the app makes shares; the visible ones are its own to read, but for the lasting ones, which
 /// the group shares; the folders on `PATH` are read as every sandbox reads them. A hidden path inside any of these is
 /// closed again, and so is a protected file inside a writable folder, which the program then cannot read either.
-/// Like bubblewrap, this cannot protect a record Eisoptric Workbench later replaces by renaming a new file over it: the new file
+/// Like bubblewrap, this cannot protect a record the app later replaces by renaming a new file over it: the new file
 /// takes the folder's access list.
 pub fn windows_confinement(confinement: &Confinement, env: &Env) -> workbench_appcontainer::Policy {
     use crate::appcontainer::{closed, home, plain, tools, windows_caches, within};

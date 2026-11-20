@@ -1,9 +1,9 @@
-"""What an Eisoptric Workbench experiment program needs to write its records right, in one file with no dependencies.
+"""What an experiment program needs to write its records right, in one file with no dependencies.
 
-Copy this file into the project (Eisoptric Workbench hands it out as the template `workbench_run`) and import it from an experiment's
-program. It reads the WORKBENCH_RUN_* variables Eisoptric Workbench sets, and writes the records Eisoptric Workbench reads: sample lines, training
+Copy this file into the project (The app hands it out as the template `workbench_run`) and import it from an experiment's
+program. It reads the WORKBENCH_RUN_* variables the app sets, and writes the records the app reads: sample lines, training
 metrics, the program's report about itself, checkpoints and artifacts. Every write is one whole JSON line, flushed, so
-a stopped run keeps what was finished. Outside an Eisoptric Workbench run (no WORKBENCH_RUN_SAMPLES), it writes to ./workbench-run/ so the
+a stopped run keeps what was finished. Outside a run (no WORKBENCH_RUN_SAMPLES), it writes to ./workbench-run/ so the
 program can be tried by hand.
 
     from workbench_run import Run
@@ -92,7 +92,7 @@ class Run:
         self._append(self.metrics_path, {"schemaVersion": SCHEMA_VERSION, "step": int(step), "values": values})
 
     def report(self, kind: str, **fields) -> None:
-        """What the program says about itself: kind seed, model, config or resume. Unreported stays unknown in Eisoptric Workbench."""
+        """What the program says about itself: kind seed, model, config or resume. Unreported stays unknown in the app."""
         self._append(self.report_path, {"kind": kind, **fields})
 
     def checkpoint(self, path: str | os.PathLike, *, step: int | None = None, **metadata) -> None:
@@ -147,7 +147,7 @@ class Run:
         return [int(part) for part in raw.split(",") if part.strip()]
 
     def on_stop(self, handler) -> None:
-        """Calls `handler()` when Eisoptric Workbench stops the run (SIGTERM), so work in hand can be saved; `run.stopping` is set."""
+        """Calls `handler()` when the app stops the run (SIGTERM), so work in hand can be saved; `run.stopping` is set."""
         self._stop_handlers.append(handler)
         if len(self._stop_handlers) == 1:
             def stop(_signal, _frame):
@@ -172,7 +172,7 @@ class Run:
                 os.fsync(out.fileno())
 
     def _relative(self, path: str | os.PathLike) -> str:
-        """A checkpoint or artifact path as Eisoptric Workbench reads it: relative to the run's folder when it lies inside it."""
+        """A checkpoint or artifact path as the app reads it: relative to the run's folder when it lies inside it."""
         given = pathlib.Path(path)
         try:
             return given.resolve().relative_to(self.directory.resolve()).as_posix()
@@ -204,7 +204,7 @@ def _plain(value):
 
 
 if __name__ == "__main__":
-    # A trial by hand: writes one sample, one metric and a report into ./workbench-run/ (or the run's folder in Eisoptric Workbench).
+    # A trial by hand: writes one sample, one metric and a report into ./workbench-run/ (or the run's folder in the app).
     run = Run()
     run.report("config", resolved={"tried": "by hand", "at": time.time()})
     run.sample("example-1", input="2 + 2", output="4", scores={"correct": True}, expected="4")

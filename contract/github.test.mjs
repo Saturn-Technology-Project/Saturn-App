@@ -310,7 +310,7 @@ test("the repository tools read a local checkout, and refuse what would climb ou
   await matchesRecording("repository tools", answers);
 });
 
-test("the hosted tools ask GitHub with the user's token and answer in Eisoptric Workbench's shapes", async () => {
+test("the hosted tools ask GitHub with the user's token and answer in the app's shapes", async () => {
   const folder = await repository_("hosted", "https://github.com/acme/site.git");
   github.requests.length = 0;
   github.state.head = "sha-one";
@@ -442,7 +442,7 @@ test("a pull request from a chat's branch: pending work is committed and pushed,
   assert.deepEqual(opened.body, { url: "https://github.com/acme/site/pull/7", number: 7, branch: setup.worktree.branch });
   assert.equal(git(setup.bare, "rev-parse", "--verify", `refs/heads/${opened.body.branch}`).length, 40, "the branch was pushed");
   assert.equal(git(setup.worktree.path, "status", "--porcelain"), "", "pending work was committed first");
-  assert.equal(git(setup.bare, "log", "--format=%s %an", "-1", opened.body.branch), "Eisoptric Workbench: Add a feature Eisoptric Workbench");
+  assert.equal(git(setup.bare, "log", "--format=%s %an", "-1", opened.body.branch), "Add a feature Workbench");
   const create = github.requests.find((request) => request.method === "POST");
   assert.equal(create.url, "/repos/acme/site/pulls");
   assert.deepEqual(create.body, { title: "Add a feature", head: opened.body.branch, base: "main", body: "Added feature.ts.", draft: false });
@@ -521,7 +521,7 @@ test("a followed pull request: failing checks go to the agent with their logs, t
   // The fix round ends: its change is committed and pushed.
   await runEnds(first.fixRunId);
   const pushed = await noFixRun();
-  assert.equal(git(setup.bare, "log", "--format=%s", "-1", setup.worktree.branch), "Eisoptric Workbench: fix the checks on #7 (round 1)");
+  assert.equal(git(setup.bare, "log", "--format=%s", "-1", setup.worktree.branch), "Fix the checks on #7 (round 1)");
   assert.equal(git(setup.bare, "show", `${setup.worktree.branch}:fix.txt`), "fixed-1");
   assert.equal(pushed.pullRequest.checks, "pending");
   assert.equal(pushed.pullRequest.head, git(setup.bare, "rev-parse", setup.worktree.branch));

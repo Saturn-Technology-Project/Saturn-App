@@ -30,7 +30,7 @@ Comparing many checkpoints or settings, some differences will look real by chanc
 ## Common traps
 - **Regression to the mean**: selecting the worst samples and "improving" them.
 - **Selecting on the outcome**, then testing on the same data. Split it.
-- **Excluding errors unevenly**: if one model errors more, a mean over its survivors flatters it. Report error rates next to means. Eisoptric Workbench's summary counts them apart.
+- **Excluding errors unevenly**: if one model errors more, a mean over its survivors flatters it. Report error rates next to means. The app's summary counts them apart.
 - **Stopping when it looks good**: decide the size in advance. See `study-design`.
 - **Means hiding structure**: look at distributions, and at subgroups chosen in advance.
 

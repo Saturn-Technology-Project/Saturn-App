@@ -1,5 +1,5 @@
 """Says what this Python is and what it has: its version, the packages research code leans on, and the devices torch
-can see. Run by Eisoptric Workbench with the project's Python. The answer is one JSON object on standard output."""
+can see. Run by the app with the project's Python. The answer is one JSON object on standard output."""
 import importlib.metadata
 import json
 import os

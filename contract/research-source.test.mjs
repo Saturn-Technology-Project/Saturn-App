@@ -81,7 +81,7 @@ test("a new nested file is created once and renaming requires the project's gran
   assert.equal((await rename(`/projects/${made.id}/research`, { path: "a.py", newPath: "b.py" })).status, 403);
 });
 
-test("a folder lists its entries without Eisoptric Workbench's records or git's folder", async () => {
+test("a folder lists its entries without the app's records or git's folder", async () => {
   const { route } = await project({ "b.py": "b", "src/a.py": "a", ".git/config": "x" });
   await workbench.api("POST", `${route}/questions`, { title: "Q" });
   const listed = (await open(route, ".")).body;

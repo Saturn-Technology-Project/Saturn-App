@@ -1,5 +1,5 @@
 //! Claude Code models: the runtime starts the official `claude` program and speaks its stream-json protocol, the one the official
-//! Agent SDK speaks. That program alone reads the user's login and talks to Anthropic; Eisoptric Workbench never reads, copies or passes a
+//! Agent SDK speaks. That program alone reads the user's login and talks to Anthropic; the app never reads, copies or passes a
 //! credential. Its part is the guard rails: a working directory limited to the chat's project folder, and an approval for every
 //! tool that is not read-only.
 use std::collections::HashMap;
@@ -62,8 +62,8 @@ fn file_of<'a>(tool: &str, input: &'a Value) -> Option<&'a str> {
     input.get(field).and_then(Value::as_str)
 }
 
-/// A Claude Code tool call as the permission rules see it: its shell as Eisoptric Workbench's `code` tool with the command, its file
-/// tools as `files` with the action and path, an Eisoptric Workbench skill by its own name, and anything else by the name Claude Code
+/// A Claude Code tool call as the permission rules see it: its shell as the app's `code` tool with the command, its file
+/// tools as `files` with the action and path, a skill by its own name, and anything else by the name Claude Code
 /// gives it, so only a rule for every tool reaches it.
 fn ruled_call(tool: &str, input: &Value) -> (String, workbench_domain::Arguments) {
     let mut arguments = workbench_domain::Arguments::new();
@@ -102,7 +102,7 @@ fn ruled_call(tool: &str, input: &Value) -> (String, workbench_domain::Arguments
     }
 }
 
-/// How Claude Code names a tool of Eisoptric Workbench's skills server, without its prefix.
+/// How Claude Code names a tool of the app's skills server, without its prefix.
 fn skill_of(tool: &str) -> Option<&str> {
     tool.strip_prefix("mcp__")?
         .strip_prefix(SKILLS_SERVER)?
@@ -114,9 +114,9 @@ const CREDENTIAL_WORDS: [&str; 6] = ["TOKEN", "KEY", "SECRET", "PASSWORD", "CRED
 /// The credentials Claude Code itself uses: an Anthropic key or token, Bedrock's AWS credentials, Vertex's Google ones.
 const CLAUDE_CREDENTIALS: [&str; 4] = ["ANTHROPIC_", "CLAUDE_", "AWS_", "GOOGLE_"];
 
-/// "Ask for risky actions": a destructive shell command, one that names Eisoptric Workbench's data folder (which Eisoptric Workbench does not
+/// "Ask for risky actions": a destructive shell command, one that names the app's data folder (which the app does not
 /// hide from Claude Code's own shell, as it does from its sandboxed commands), an edit outside the working folder, or a
-/// Eisoptric Workbench skill call the default mode asks about.
+/// The app skill call the default mode asks about.
 fn risky(tool: &str, input: &Value, workdir: &Path, data: &Path) -> bool {
     if let Some(skill) = skill_of(tool) {
         return is_sensitive_operation(skill, &input.as_object().cloned().unwrap_or_default());
@@ -192,7 +192,7 @@ struct ClaudeTurn {
 }
 
 impl ClaudeTurn {
-    /// The action of a tool call, shown under the skill's own name when it is one of Eisoptric Workbench's.
+    /// The action of a tool call, shown under the skill's own name when it is one of the app's.
     /// Marks a noted action as refused, with why.
     fn mark_denied(&self, id: &str, reason: &str) {
         let mut record = locked(&self.turn.record);
@@ -274,7 +274,7 @@ impl ClaudeTurn {
             given.to_owned()
         };
         let allowed = json!({ "behavior": "allow", "updatedInput": input, "toolUseID": id });
-        // The permission rules first, as in Eisoptric Workbench's own loop: a deny refuses even a read; an allow or ask is applied
+        // The permission rules first, as in the app's own loop: a deny refuses even a read; an allow or ask is applied
         // below, after the turn's mode has had its say.
         let run = self.turn.kernel.get_run(&self.turn.run_id)?;
         let (ruled_tool, ruled_arguments) = ruled_call(tool, &input);
@@ -300,7 +300,7 @@ impl ClaudeTurn {
             return Ok(allowed);
         }
         if let Some(mode) = self.mode.filter(|mode| *mode != RunMode::Agent) {
-            // An Ask or Plan turn only reads: an Eisoptric Workbench skill that only reads still runs; anything else is refused.
+            // An Ask or Plan turn only reads: a skill that only reads still runs; anything else is refused.
             if let Some(skill) = skill_of(tool) {
                 let kernel = &self.turn.kernel;
                 let category = kernel
@@ -499,14 +499,14 @@ fn arguments(
 }
 
 impl Kernel {
-    /// Claude Code's own config directory for Eisoptric Workbench, so this login stays apart from the user's other Claude apps.
+    /// Claude Code's own config directory for the app, so this login stays apart from the user's other Claude apps.
     fn claude_config(&self) -> PathBuf {
         self.store.root().join("claude")
     }
 
     /// The program's environment: the runtime's own. Whatever the user set up for Claude Code (their own key, Bedrock, Vertex AI or
-    /// Foundry settings) reaches it, and it picks by its own documented order. Eisoptric Workbench adds no credential of its own.
-    /// The user's environment for Claude Code, without the credentials it has no use for. Its shell, which Eisoptric Workbench does
+    /// Foundry settings) reaches it, and it picks by its own documented order. The app adds no credential of its own.
+    /// The user's environment for Claude Code, without the credentials it has no use for. Its shell, which the app does
     /// not sandbox, could print any variable it inherits; it keeps the ones it signs in or reaches its provider with.
     fn claude_environment(&self, command: &mut Command) {
         workbench_tools::launch_env(command);
@@ -536,7 +536,7 @@ impl Kernel {
         Ok(())
     }
 
-    /// Asks the official program whether it is signed in; it reads the credential, Eisoptric Workbench only reads its answer.
+    /// Asks the official program whether it is signed in; it reads the credential, the app only reads its answer.
     pub async fn claude_status(&self) -> Result<Value, CoreError> {
         let config = self.claude_config();
         Self::make_private_folder(&config).await?;
@@ -583,7 +583,7 @@ impl Kernel {
         .await
     }
 
-    /// Signs Eisoptric Workbench's Claude Code out with the program's `auth logout`, which removes the credential it stored for this config
+    /// Signs the app's Claude Code out with the program's `auth logout`, which removes the credential it stored for this config
     /// directory. The user's other Claude apps keep their own logins.
     pub async fn claude_logout(&self) -> Result<Value, CoreError> {
         let cli = self.program_path("claude-code")?;
@@ -735,7 +735,7 @@ impl Kernel {
         let seconds = started.elapsed().as_secs_f64();
         if let Some(failure) = failure {
             let explained = if NOT_SIGNED_IN.is_match(&failure) {
-                "Claude Code isn't signed in for Eisoptric Workbench yet. In Settings → General → Claude Code, copy the login command and run it once in a terminal.".to_owned()
+                "Claude Code isn't signed in for the app yet. In Settings → General → Claude Code, copy the login command and run it once in a terminal.".to_owned()
             } else {
                 failure
             };

@@ -1,5 +1,5 @@
-//! A managed Python environment in the project: made with `uv` when it is on this computer (on PATH, or Eisoptric Workbench's own
-//! download of it), else with `python3 -m venv`, and filled with kits of packages, one that Eisoptric Workbench's own helpers need
+//! A managed Python environment in the project: made with `uv` when it is on this computer (on PATH, or the app's own
+//! download of it), else with `python3 -m venv`, and filled with kits of packages, one that the app's own helpers need
 //! and others the person picks. A computer with uv and no Python gets one from uv as the environment is made. Every
 //! change is a job whose output is kept, and nothing is installed without being asked.
 use std::collections::HashSet;
@@ -50,14 +50,14 @@ pub(super) struct Kit {
     pub title: &'static str,
     pub what: &'static str,
     pub packages: &'static [&'static str],
-    /// Installed with the environment unless declined: Eisoptric Workbench's own helpers need it.
+    /// Installed with the environment unless declined: the app's own helpers need it.
     pub bundled: bool,
 }
 
 pub(super) const KITS: [Kit; 6] = [
     Kit {
         id: "core",
-        title: "What Eisoptric Workbench's helpers need",
+        title: "What the app's helpers need",
         what: "Looking inside a model and the environment check load models with these. Installed with the environment unless you say not to.",
         packages: &["torch", "transformers", "numpy"],
         bundled: true,
@@ -205,7 +205,7 @@ fn uv_python_folders() -> Vec<String> {
 }
 
 /// The word a job's command calls uv by: its name when the one on PATH is used, since the shell finds it as the person
-/// would, and its quoted path when it is Eisoptric Workbench's own download.
+/// would, and its quoted path when it is the app's own download.
 fn uv_word(tools: &Value) -> Option<String> {
     let path = tools.get("uv")?.as_str()?;
     Some(if text(tools, "uvSource") == "system" {
@@ -217,7 +217,7 @@ fn uv_word(tools: &Value) -> Option<String> {
 
 impl Kernel {
     /// Which tools this computer has for making environments, and whether the project's managed one exists. uv is
-    /// Eisoptric Workbench's own download when there is one (`/programs/uv`), else the one on PATH.
+    /// The app's own download when there is one (`/programs/uv`), else the one on PATH.
     pub(super) fn environment_tools(&self, source: &Path) -> Value {
         let python = source.join(venv_python());
         let uv = self.resolve_program("uv");
@@ -553,8 +553,8 @@ impl Kernel {
         };
         // The system shell runs the script: /bin/sh, or cmd on Windows. Installing runs code the packages bring (a build
         // backend, a setup.py), so the job runs in the project's command sandbox: it writes to the project, the caches,
-        // the temporary folders and uv's own Python folder, and reads Eisoptric Workbench's download of uv, but not the rest of
-        // Eisoptric Workbench's data or the credential folders. cmd takes its line verbatim, in the sandbox as outside it.
+        // the temporary folders and uv's own Python folder, and reads the app's download of uv, but not the rest of
+        // The app's data or the credential folders. cmd takes its line verbatim, in the sandbox as outside it.
         let tools = self.environment_tools(&source);
         let readable: Vec<String> = (text(&tools, "uvSource") == "workbench")
             .then(|| {

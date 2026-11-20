@@ -106,7 +106,7 @@ export function AccessDialog(props: { path: string; name?: string; onAllow: () =
           </ul>
           <p className="text-xs text-muted-foreground">
             {t("You can revoke access any time from the project's menu.")}
-            {/Mac/i.test(navigator.platform) ? ` ${t("macOS may also ask once to let Eisoptric Workbench read this location.")}` : null}
+            {/Mac/i.test(navigator.platform) ? ` ${t("macOS may also ask once to let the app read this location.")}` : null}
           </p>
           {error ? <Notice tone="bad">{error}</Notice> : null}
         </div>

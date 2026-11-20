@@ -1,4 +1,4 @@
-// What the Eisoptric Workbench runtime must do over HTTP: the desktop app depends on it.
+// What the app's runtime must do over HTTP: the desktop app depends on it.
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import http from "node:http";

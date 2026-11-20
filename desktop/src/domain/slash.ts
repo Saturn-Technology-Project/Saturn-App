@@ -1,7 +1,7 @@
 /** One entry of the composer's "/" menu. */
 export type SlashEntry = { name: string; description: string; kind: "builtin" | "skill" | "command" };
 
-/** Commands Eisoptric Workbench itself understands in the composer. */
+/** Commands the app itself understands in the composer. */
 export const BUILTIN_COMMANDS: SlashEntry[] = [
   { name: "compact", description: "Fold this chat's earlier turns into a summary now", kind: "builtin" },
   { name: "plan", description: "Send the rest as a Plan turn: the agent reads and plans, changes nothing", kind: "builtin" },

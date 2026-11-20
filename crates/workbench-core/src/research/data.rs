@@ -85,7 +85,7 @@ fn format_of(path: &str) -> &'static str {
     }
 }
 
-/// How a format is read, or nothing when Eisoptric Workbench cannot read it.
+/// How a format is read, or nothing when the app cannot read it.
 fn reading_of(format: &str) -> Option<Reading> {
     match format {
         "jsonl" => Some(Reading::Direct(Shape::Lines)),
@@ -123,7 +123,7 @@ async fn checked_path(root: &Path, requested: &str) -> Result<(PathBuf, String),
     if relative == "." || is_bookkeeping(&relative) {
         return Err(CoreError::new(
             403,
-            "Eisoptric Workbench's records and git's own folder are not data.",
+            "Workbench's records and git's own folder are not data.",
         ));
     }
     let mut walked = root.to_path_buf();
@@ -136,7 +136,7 @@ async fn checked_path(root: &Path, requested: &str) -> Result<(PathBuf, String),
             {
                 return Err(CoreError::new(
                     403,
-                    "This goes through a symbolic link, which Eisoptric Workbench does not follow.",
+                    "This goes through a symbolic link, which the app does not follow.",
                 ));
             }
         }
@@ -361,7 +361,7 @@ fn open_helper(
         return Err(CoreError::new(
             422,
             format!(
-                "Eisoptric Workbench reads {} through the datasets package, and the project's Python ({python}) does not have it. On the Environment screen, install the Post-training kit, which brings datasets, and ask again.",
+                "The app reads {} through the datasets package, and the project's Python ({python}) does not have it. On the Environment screen, install the Post-training kit, which brings datasets, and ask again.",
                 place.relative
             ),
         ));
@@ -477,7 +477,7 @@ fn side_json(path: &str, split: Option<&String>, side: &OverlapSide) -> Value {
 
 impl Kernel {
     /// Everything about a request's file but its rows, or why it cannot be read: outside the project, through a link,
-    /// gone, or of a kind Eisoptric Workbench does not read.
+    /// gone, or of a kind the app does not read.
     async fn data_place(
         &self,
         project: &str,
@@ -507,7 +507,7 @@ impl Kernel {
             }) {
                 return Err(CoreError::new(
                     403,
-                    "This dataset holds a symbolic link, which Eisoptric Workbench does not follow.",
+                    "This dataset holds a symbolic link, which the app does not follow.",
                 ));
             }
             "dataset"
@@ -518,7 +518,7 @@ impl Kernel {
             return Err(CoreError::new(
                 415,
                 format!(
-                    "Eisoptric Workbench reads .jsonl, .json arrays, .csv and .tsv itself, and .parquet, .arrow and Hugging Face dataset folders through the project's Python. {relative} is none of these."
+                    "The app reads .jsonl, .json arrays, .csv and .tsv itself, and .parquet, .arrow and Hugging Face dataset folders through the project's Python. {relative} is none of these."
                 ),
             ));
         };

@@ -325,7 +325,7 @@ impl Kernel {
         if super::is_link(&folder).await {
             return Err(CoreError::new(
                 409,
-                "The labels folder is a symbolic link, which Eisoptric Workbench does not follow.",
+                "The labels folder is a symbolic link, which the app does not follow.",
             ));
         }
         tokio::fs::create_dir_all(&folder).await?;

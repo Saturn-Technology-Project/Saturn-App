@@ -13,16 +13,16 @@ import { useRecords } from "../ui/useRecords.js";
 function pairingText(pairing: WorkerPairing): string {
   const where = `${pairing.host} (${pairing.system} ${pairing.machine})`;
   switch (pairing.state) {
-    case "ready": return t("Eisoptric Workbench {version}'s worker is ready on {host}. Runs there use it.", { version: pairing.version, host: where });
-    case "missing": return t("{host} has no worker for Eisoptric Workbench {version} yet.", { host: where, version: pairing.version });
-    case "wrong_version": return t("The worker on {host} is not Eisoptric Workbench {version}{found}. Install the matching one.", { host: where, version: pairing.version, found: pairing.found ? ` (${pairing.found})` : "" });
+    case "ready": return t("The app {version}'s worker is ready on {host}. Runs there use it.", { version: pairing.version, host: where });
+    case "missing": return t("{host} has no worker for the app {version} yet.", { host: where, version: pairing.version });
+    case "wrong_version": return t("The worker on {host} is not the app {version}{found}. Install the matching one.", { host: where, version: pairing.version, found: pairing.found ? ` (${pairing.found})` : "" });
     case "broken": return t("The worker on {host} did not answer: {reason}", { host: where, reason: pairing.reason ?? "" });
     case "unsupported": return pairing.reason ?? t("This host's system is not supported.");
   }
 }
 
 /**
- * Configures an existing SSH host and pairs with this Eisoptric Workbench's worker there. Connecting saves the host, finds the
+ * Configures an existing SSH host and pairs with this app's worker there. Connecting saves the host, finds the
  * worker and, when it is ready, uses it; when it is missing or another version, the person can install it, after
  * reading where it goes and where it comes from. Connecting never starts compute or changes host trust.
  */
@@ -55,7 +55,7 @@ export function RemoteTargetEditor(props: { projectId: string; notify: (text: st
   const installable = pairing && (pairing.state === "missing" || pairing.state === "wrong_version" || pairing.state === "broken") && pairing.source;
   return <section className="my-4 rounded-lg border border-border p-3">
     <h2 className="mb-2 text-sm font-semibold">{t("Remote execution over SSH")}</h2>
-    <p className="mb-2 text-xs text-muted-foreground">{t("Name a Linux or macOS host you can already sign in to with ssh, and the project's folder there; the code and data must already be in it. Connecting finds Eisoptric Workbench's worker on the host and can install it. SSH uses your existing configuration and known_hosts; Eisoptric Workbench stores no keys or passwords.")}</p>
+    <p className="mb-2 text-xs text-muted-foreground">{t("Name a Linux or macOS host you can already sign in to with ssh, and the project's folder there; the code and data must already be in it. Connecting finds the app's worker on the host and can install it. SSH uses your existing configuration and known_hosts; the app stores no keys or passwords.")}</p>
     <div className="flex flex-wrap gap-2">
       <Field label={t("SSH host or user@host")} className="min-w-48 flex-1"><Input value={target.host} placeholder="gpu-box" onChange={(event) => change("host", event.target.value)} /></Field>
       <Field label={t("Existing remote project directory")} className="min-w-48 flex-1"><Input value={target.workdir} placeholder="/home/me/research" onChange={(event) => change("workdir", event.target.value)} /></Field>
@@ -68,8 +68,8 @@ export function RemoteTargetEditor(props: { projectId: string; notify: (text: st
     {pairing ? <Notice tone={pairing.state === "ready" ? "good" : "wait"} className="mt-2">{pairingText(pairing)}{pairing.installed ? ` ${t("Installed and checked.")}` : ""}</Notice> : null}
     {installable && !confirming ? <Button className="mt-2" disabled={busy !== ""} onClick={() => setConfirming(true)}>{busy === "installing" ? t("Installing…") : t("Install worker")}</Button> : null}
     {installable && confirming ? <Notice tone="wait" className="mt-2">
-      <p className="m-0">{t("Install Eisoptric Workbench {version}'s worker at {path} on {host}?", { version: pairing.version, path: pairing.path, host: pairing.host })}</p>
-      <p className="m-0 mt-1 text-xs">{pairing.source === "this computer" ? t("It is this computer's own Eisoptric Workbench program, sent over ssh.") : t("It is downloaded from this version's GitHub release, checked against the hash built into this Eisoptric Workbench, and sent over ssh only if it matches.")} {t("It goes into your home folder, needs no administrator rights, and is hashed again on the host.")}</p>
+      <p className="m-0">{t("Install the app {version}'s worker at {path} on {host}?", { version: pairing.version, path: pairing.path, host: pairing.host })}</p>
+      <p className="m-0 mt-1 text-xs">{pairing.source === "this computer" ? t("It is this computer's own the app program, sent over ssh.") : t("It is downloaded from this version's GitHub release, checked against the hash built into this app, and sent over ssh only if it matches.")} {t("It goes into your home folder, needs no administrator rights, and is hashed again on the host.")}</p>
       <div className="mt-2 flex gap-2"><Button onClick={() => void install()}>{t("Install")}</Button><Button variant="outline" onClick={() => setConfirming(false)}>{t("Cancel")}</Button></div>
     </Notice> : null}
   </section>;
@@ -89,7 +89,7 @@ export function RemoteRun(props: { projectId: string; versions: FrozenVersion[];
     setBusy(true);
     try {
       const run = await desktop.research.startRemote(props.projectId, { versionId: version.id, clientId: crypto.randomUUID(), timeoutSeconds: seconds, ...(checkpoint.trim() ? { resumeFrom: checkpoint.trim() } : {}) });
-      props.notify(t("Remote launch recorded: {run}. Closing Eisoptric Workbench detaches; Stop requests cancellation.", { run: run.id })); props.onStarted();
+      props.notify(t("Remote launch recorded: {run}. Closing the app detaches; Stop requests cancellation.", { run: run.id })); props.onStarted();
     } catch (error) { props.notify(messageOf(error)); }
     finally { setBusy(false); }
   }

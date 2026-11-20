@@ -37,7 +37,7 @@ fn program() -> Result<PathBuf, CoreError> {
     }))
 }
 
-/// What a runtime on another port or data folder (a second Eisoptric Workbench, a test copy) adds, so the launcher points at it.
+/// What a runtime on another port or data folder (a second the app, a test copy) adds, so the launcher points at it.
 fn extra_environment() -> Vec<(&'static str, String)> {
     let mut extra = Vec::new();
     if let Ok(port) = std::env::var("WORKBENCH_RUNTIME_PORT")
@@ -65,7 +65,7 @@ fn launcher_script() -> Result<String, CoreError> {
             .map(|(key, value)| format!("@set \"{key}={value}\"\r\n"))
             .collect();
         return Ok(format!(
-            "@rem Eisoptric Workbench command line: runs the Eisoptric Workbench app's own CLI. Written by Eisoptric Workbench (Settings → General).\r\n@setlocal\r\n{sets}@\"{program}\" %*\r\n"
+            "@rem The app's command line: runs the app's own CLI. Written by the app (Settings → General).\r\n@setlocal\r\n{sets}@\"{program}\" %*\r\n"
         ));
     }
     let quote = |value: &str| format!("'{}'", value.replace('\'', "'\\''"));
@@ -74,7 +74,7 @@ fn launcher_script() -> Result<String, CoreError> {
         .map(|(key, value)| format!("export {key}={}\n", quote(value)))
         .collect();
     Ok(format!(
-        "#!/bin/sh\n# Eisoptric Workbench command line: runs the Eisoptric Workbench app's own CLI. Written by Eisoptric Workbench (Settings → General).\n{exports}exec {} \"$@\"\n",
+        "#!/bin/sh\n# The app's command line: runs the app's own CLI. Written by the app (Settings → General).\n{exports}exec {} \"$@\"\n",
         quote(&program)
     ))
 }

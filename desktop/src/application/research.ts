@@ -145,7 +145,7 @@ export class ResearchService {
     return this.runtime.request(`${this.route(project)}/counterexample_sets`);
   }
 
-  /** SSH keeps credentials; Eisoptric Workbench saves only the configured host and working tree. */
+  /** SSH keeps credentials; the app saves only the configured host and working tree. */
   remoteTarget(project: string): Promise<{ target: RemoteTarget | null; note: string }> {
     return this.runtime.request(`${this.route(project)}/remote`);
   }
@@ -158,12 +158,12 @@ export class ResearchService {
     return this.send(`${this.route(project)}/remote/check`, "POST");
   }
 
-  /** Finds this Eisoptric Workbench's worker on the SSH host; a ready one becomes the program runs use. */
+  /** Finds this app's worker on the SSH host; a ready one becomes the program runs use. */
   pairRemoteWorker(project: string): Promise<WorkerPairing> {
     return this.send(`${this.route(project)}/remote/pair`, "POST");
   }
 
-  /** Installs this Eisoptric Workbench's worker on the SSH host, as the person asked, and pairs with it. */
+  /** Installs this app's worker on the SSH host, as the person asked, and pairs with it. */
   installRemoteWorker(project: string): Promise<WorkerPairing> {
     return this.send(`${this.route(project)}/remote/install`, "POST");
   }

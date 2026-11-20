@@ -1,6 +1,6 @@
 [package]
 name = "workbench-desktop"
-description = "The Eisoptric Workbench desktop app"
+description = "The desktop app"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

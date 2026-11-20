@@ -215,7 +215,7 @@ fn strictly_inside(path: &str, folder: &str) -> bool {
 }
 
 /// The writable and the readable folders that lie inside a hidden one, such as the agent's private workspace inside
-/// Eisoptric Workbench's data folder, or a program Eisoptric Workbench downloaded there: opened again after the hidden one is closed, the
+/// The app's data folder, or a program the app downloaded there: opened again after the hidden one is closed, the
 /// readable ones for reading only.
 fn reopened<'a>(
     writable: &'a [String],
@@ -237,7 +237,7 @@ fn hidden_again<'a>(hidden: &'a [String], opened: &[&String]) -> Vec<&'a String>
         .collect()
 }
 
-/// The seatbelt profile, with `hidden` (resolved) neither read nor written: Eisoptric Workbench's own data and the usual credential
+/// The seatbelt profile, with `hidden` (resolved) neither read nor written: the app's own data and the usual credential
 /// folders. A writable folder inside a hidden one is opened again, a `readable` one for reading only, and a hidden one
 /// inside those is closed again; rules later in a profile win. Names and sizes can still be looked up, as every path's
 /// can; contents and listings cannot.
@@ -322,8 +322,8 @@ pub fn seatbelt_profile_hiding(
 
 /// Wraps a shell invocation in the sandbox for `settings.mode`. When the platform cannot sandbox, the command runs
 /// unwrapped and the plan says why, so the tool result can tell the model and the user. `hidden` are folders and files
-/// the command may neither read nor write (Eisoptric Workbench's data, the usual credential folders), unless one is the workspace's
-/// own or a writable folder's parent; `readable` are folders inside a hidden one it may read again (a program Eisoptric Workbench
+/// the command may neither read nor write (The app's data, the usual credential folders), unless one is the workspace's
+/// own or a writable folder's parent; `readable` are folders inside a hidden one it may read again (a program the app
 /// downloaded into its data folder, say).
 #[expect(
     clippy::too_many_arguments,
@@ -434,7 +434,7 @@ pub fn wrap_command(
 
 /// What a command's AppContainer is opened to on Windows: the workspace and the extra folders, to write or, read-only,
 /// to read; a temporary folder of its own either way, as under bubblewrap; the caches and the folders on `PATH`, shared
-/// with Eisoptric Workbench's other sandboxes; and `readable`, which are programs Eisoptric Workbench downloaded. A hidden path inside any of
+/// with the app's other sandboxes; and `readable`, which are programs the app downloaded. A hidden path inside any of
 /// these is closed again. Nothing else of the person's is opened, so there is nothing else to hide.
 pub fn windows_policy(
     settings: SandboxSettings,

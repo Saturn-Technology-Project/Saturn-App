@@ -1,4 +1,4 @@
-"""Turn a published benchmark run from lm-eval or inspect_ai into Eisoptric Workbench samples, one per item, beside the harness's own aggregate.
+"""Turn a published benchmark run from lm-eval or inspect_ai into the app samples, one per item, beside the harness's own aggregate.
 
 Run the harness first and keep its output under the experiment's `inputs.data`, so it is frozen and hashed:
     lm_eval --model hf --model_args pretrained=<model> --tasks <task> --log_samples --output_path results/

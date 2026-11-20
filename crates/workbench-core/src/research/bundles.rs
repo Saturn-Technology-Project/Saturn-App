@@ -157,13 +157,13 @@ fn report(
     missing: &[Value],
 ) -> Value {
     let mut md = format!(
-        "# Eisoptric Workbench research evidence\n\n{NOTE}\n\n{} packaged files; {} external references; {} unavailable saved files.\n\n",
+        "# Research evidence\n\n{NOTE}\n\n{} packaged files; {} external references; {} unavailable saved files.\n\n",
         files.len(),
         external.len(),
         missing.len()
     );
     let mut html = format!(
-        "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Eisoptric Workbench research evidence</title><style>body{{font:15px/1.6 system-ui,sans-serif;max-width:1000px;margin:36px auto;padding:0 24px;color:#222}}section{{margin:28px 0}}pre,code{{overflow-wrap:anywhere;white-space:pre-wrap}}li{{margin:8px 0}}small{{color:#555}}</style><h1>Eisoptric Workbench research evidence</h1><p>{}</p><p>{} packaged files; {} external references; {} unavailable saved files.</p>",
+        "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Research evidence</title><style>body{{font:15px/1.6 system-ui,sans-serif;max-width:1000px;margin:36px auto;padding:0 24px;color:#222}}section{{margin:28px 0}}pre,code{{overflow-wrap:anywhere;white-space:pre-wrap}}li{{margin:8px 0}}small{{color:#555}}</style><h1>Research evidence</h1><p>{}</p><p>{} packaged files; {} external references; {} unavailable saved files.</p>",
         escaped(NOTE),
         files.len(),
         external.len(),

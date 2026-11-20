@@ -45,7 +45,7 @@ export function RunSandbox(props: { draft: ExperimentDraft; save: (fields: { san
     <>
       <h2 className={SECTION}>{t("Sandbox")}</h2>
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-        {t("A run's program reads its snapshot and writes only to WORKBENCH_RUN_OUTPUT, its temporary folder and the shared caches. The project, Eisoptric Workbench's data and credential folders such as ~/.ssh are hidden from it. Changes apply from the next version.")}
+        {t("A run's program reads its snapshot and writes only to WORKBENCH_RUN_OUTPUT, its temporary folder and the shared caches. The project, the app's data and credential folders such as ~/.ssh are hidden from it. Changes apply from the next version.")}
       </p>
       <div className="mt-2 flex flex-col gap-2">
         <label className="flex items-center gap-2 text-sm">

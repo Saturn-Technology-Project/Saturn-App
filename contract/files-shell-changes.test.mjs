@@ -1,5 +1,5 @@
 // What a shell command changes joins the turn's checkpoint, in a git folder through git's view and elsewhere through a
-// private snapshot in Eisoptric Workbench's data; Settings → Storage lists and deletes those snapshots.
+// private snapshot in the app's data; Settings → Storage lists and deletes those snapshots.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
@@ -184,7 +184,7 @@ test("outside git, a private snapshot tracks the same changes, leaves the folder
   const run = await setup.turn([command(COMMAND)]);
   const seen = await changes(run);
   assert.deepEqual(statuses(seen), EXPECTED, "build/ is left out by default");
-  assert.deepEqual((await readdir(folder)).sort(), ["added.txt", "build", "edited.txt", "tracked.txt"], "nothing of Eisoptric Workbench's is written into the folder");
+  assert.deepEqual((await readdir(folder)).sort(), ["added.txt", "build", "edited.txt", "tracked.txt"], "nothing of the app's is written into the folder");
 
   const storage = await workbench.api("GET", "/storage/snapshots");
   const listed = storage.folders.find((item) => item.folder === folder);

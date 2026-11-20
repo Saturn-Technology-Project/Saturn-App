@@ -1,6 +1,6 @@
 """Looks inside a model on one input: the residual stream at every layer, read through the unembedding, and the same
 after the residual stream leaving one layer is patched in from another model, so everything up to that layer comes
-from the other model and everything after it from this one. Run by Eisoptric Workbench with the project's own Python, which must
+from the other model and everything after it from this one. Run by the app with the project's own Python, which must
 have torch and transformers. The request is one JSON argument; the answer is one JSON object on standard output."""
 import json
 import sys

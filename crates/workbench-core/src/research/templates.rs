@@ -1,7 +1,7 @@
-//! The programs that ship with Eisoptric Workbench as starting points: a small SDK an experiment imports to write its records right,
+//! The programs that ship with the app as starting points: a small SDK an experiment imports to write its records right,
 //! and one runnable template per kind of study the skills teach. The assistant reads them through `research_template`
 //! and writes a copy into the project with its file tools, so the program is the project's, frozen with its versions
-//! and read by the evidence like any other. Nothing here runs inside Eisoptric Workbench.
+//! and read by the evidence like any other. Nothing here runs inside the app.
 
 use serde_json::{Value, json};
 

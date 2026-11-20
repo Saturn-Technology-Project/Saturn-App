@@ -53,13 +53,13 @@ export function tourSteps(t: Words = english): TourStep[] {
       id: "welcome",
       target: null,
       title: t("A workbench for AI research"),
-      text: t("Read the method, write the code yourself, run the experiment and inspect every sample, on your own computer. This tour boxes each part of Eisoptric Workbench and says what it is for, then helps you start a piece of research. Skip it any time; it is in Commands (⌘K) as \"Take the tour\"."),
+      text: t("Read the method, write the code yourself, run the experiment and inspect every sample, on your own computer. This tour boxes each part of the app and says what it is for, then helps you start a piece of research. Skip it any time; it is in Commands (⌘K) as \"Take the tour\"."),
     },
     {
       id: "rail",
       target: "rail",
       title: t("The screens"),
-      text: t("Eisoptric Workbench is organized around your research, not around chats: questions, code, models, experiments, samples, data, long tasks, protection and the environment. ⌘1 to ⌘9 switch to the first nine."),
+      text: t("The app is organized around your research, not around chats: questions, code, models, experiments, samples, data, long tasks, protection and the environment. ⌘1 to ⌘9 switch to the first nine."),
     },
     {
       id: "home",
@@ -86,7 +86,7 @@ export function tourSteps(t: Words = english): TourStep[] {
       target: "rail-Lineage",
       screen: "Lineage",
       title: t("Lineage: checkpoints and branches"),
-      text: t("Connect pretraining checkpoints to fine-tuned and preference-trained branches. Each node shows what was last measured on it, and Eisoptric Workbench warns when two nodes were not measured the same way, so a difference in method never reads as a difference in the model."),
+      text: t("Connect pretraining checkpoints to fine-tuned and preference-trained branches. Each node shows what was last measured on it, and the app warns when two nodes were not measured the same way, so a difference in method never reads as a difference in the model."),
     },
     {
       id: "experiments",
@@ -128,14 +128,14 @@ export function tourSteps(t: Words = english): TourStep[] {
       target: "rail-Protection",
       screen: "Protection",
       title: t("Protection: what was refused and what changed"),
-      text: t("Every refusal and every change noticed outside Eisoptric Workbench's tools is recorded here, with what each backend can and cannot enforce. Modes are a workflow constraint, not a security boundary, and this screen says so plainly."),
+      text: t("Every refusal and every change noticed outside the app's tools is recorded here, with what each backend can and cannot enforce. Modes are a workflow constraint, not a security boundary, and this screen says so plainly."),
     },
     {
       id: "environment",
       target: "rail-Environment",
       screen: "Environment",
       title: t("Environment: the Python it runs in"),
-      text: t("Name the Python your experiments run with, or have Eisoptric Workbench make one in the project. Ask it for its version, packages and devices, install kits of packages, and freeze the lock files with each version, so a changed environment is a new version rather than a surprise."),
+      text: t("Name the Python your experiments run with, or have the app make one in the project. Ask it for its version, packages and devices, install kits of packages, and freeze the lock files with each version, so a changed environment is a new version rather than a surprise."),
     },
     {
       id: "start",
@@ -148,7 +148,7 @@ export function tourSteps(t: Words = english): TourStep[] {
 }
 
 /**
- * The first launch's tour: what Eisoptric Workbench is, where the screens are, the assistant, and the project to start in. Home's
+ * The first launch's tour: what the app is, where the screens are, the assistant, and the project to start in. Home's
  * checklist takes it from there; the whole tour stays in Commands.
  */
 export function firstLaunchSteps(t: Words = english): TourStep[] {
@@ -249,32 +249,32 @@ export function guideIn(answer: string): { text: string; places: GuidePlace[] } 
   return { text, places };
 }
 
-/** What the assistant is told about Eisoptric Workbench, on every turn. Fixed text, written here; never built from project content. */
+/** What the assistant is told about the app, on every turn. Fixed text, written here; never built from project content. */
 export function assistantInstructions(): string {
   const screens = TOUR_STEPS.filter((step) => step.id !== "welcome" && step.id !== "start").map((step) => `- ${step.title}. ${step.text}`).join("\n");
   const places = GUIDE_PLACES.map((place) => `- ${place.id}: ${place.title}${place.screen ? ` (${place.screen})` : ""}${place.when ? `, once ${place.when}` : ""}`).join("\n");
-  return `You are the Research assistant inside Eisoptric Workbench, a desktop workbench for AI research on the person's own computer. Answer in the language they write in.
+  return `You are the Research assistant inside the app, a desktop workbench for AI research on the person's own computer. Answer in the language they write in.
 
 Besides helping with their research, you know this workbench, and you help them use it. If they ask what something is for, how to do something, or say something does not work, answer from what follows. Each message tells you which screen they are on.
 
 ## The workbench
 ${screens}
 
-Research records are plain files under .workbench/research in the project: questions, hypotheses, experiments, versions, models, findings, labels and runs/<id>/samples.jsonl. An experiment's program writes one JSON line per sample to the path in WORKBENCH_RUN_SAMPLES, with sampleId, modelId, input, output, scores and error, and optionally expected, alternative, scorerLabel and usage. docs/research-contract.md in Eisoptric Workbench's repository is the full contract.
+Research records are plain files under .workbench/research in the project: questions, hypotheses, experiments, versions, models, findings, labels and runs/<id>/samples.jsonl. An experiment's program writes one JSON line per sample to the path in WORKBENCH_RUN_SAMPLES, with sampleId, modelId, input, output, scores and error, and optionally expected, alternative, scorerLabel and usage. docs/research-contract.md in the app's repository is the full contract.
 
 ## Walking someone through it
 Without computer use you cannot click anything or press any button here: the person does the work, and you show them where. To show a place, write its mark on a line of its own at the step it belongs to:
 
 [[workbench:show experiments-freeze]]
 
-Eisoptric Workbench turns the marks into a "Walk me through" button that opens each screen in turn and boxes each place. Use a mark only when it helps, in the order the steps happen, say in words what to do at each one, and use only these ids:
+The app turns the marks into a "Walk me through" button that opens each screen in turn and boxes each place. Use a mark only when it helps, in the order the steps happen, say in words what to do at each one, and use only these ids:
 ${places}
 
 ## Doing research yourself
 You have research_* tools that work on the same records the person sees. They can make questions, hypotheses, experiments and models, freeze and run experiments here or on the configured SSH host, read samples and results, compare runs sample by sample, import existing results and bundles, keep analysis outputs, run notebook cells, set up the Python environment and look inside models. Skills tell you how: call research_skill with no name to list them, and read research-autopilot before carrying out a whole study. You can also start a task with research_task_start: another agent on its own in a separate worktree, which you follow with research_task_read and, once the person has merged or discarded it, can clear away with research_task_delete. Read the skill for what you are about to do. If a tool is refused because of this chat's mode, say so and name the mode that would allow it.
 
-## Operating Eisoptric Workbench yourself
-When this chat has the computer_* tools and the person asks you to do something in Eisoptric Workbench, you may operate Eisoptric Workbench itself as you would any app. Find it with computer_apps (the app named Eisoptric Workbench), and read its window with computer_app_state: every control has a role and a name, the screens are buttons in the rail named after them (Home, Experiments, Samples and so on), the window's title names the screen and project, and dialogs are named after their title. Act by those names, not by pixels. Prefer the research_* tools for what they do; use the interface for what only it does, or when the person wants to watch. Never click in the Assistant panel itself, which holds this conversation, and do not close or quit Eisoptric Workbench. In the interface, the same things stay with the person as below.
+## Operating the app yourself
+When this chat has the computer_* tools and the person asks you to do something in the app, you may operate the app itself as you would any app. Find it with computer_apps (the app named the app), and read its window with computer_app_state: every control has a role and a name, the screens are buttons in the rail named after them (Home, Experiments, Samples and so on), the window's title names the screen and project, and dialogs are named after their title. Act by those names, not by pixels. Prefer the research_* tools for what they do; use the interface for what only it does, or when the person wants to watch. Never click in the Assistant panel itself, which holds this conversation, and do not close or quit the app. In the interface, the same things stay with the person as below.
 
 ## What stays with the person
 You may set a hypothesis's verdict, label samples and write conclusions, from evidence you name in a finding; each is recorded as yours. Never overwrite a verdict or a label the person set: disagree in a finding. Modes, releasing a lock, merging a task and loosening a run's sandbox are theirs: say so rather than offering to do them. If something is not on their screen because a condition is not met, say what to do first. If you are not sure the interface works a certain way, say so instead of guessing.`;
@@ -315,12 +315,12 @@ export function quitQuestion(activity: { chats: number; runs: number; commands: 
   ].filter((line): line is string => line !== null);
   if (lines.length === 0) return null;
   const resume = activity.runs > 0 ? `\n\n${t("A run that stops this way can be resumed later.")}` : "";
-  return `${t("Quit Eisoptric Workbench? These stop when it quits:")}\n${lines.map((line) => `• ${line}`).join("\n")}${resume}`;
+  return `${t("Quit the app? These stop when it quits:")}\n${lines.map((line) => `• ${line}`).join("\n")}${resume}`;
 }
 
 /** The window's title, and what assistive technology reads as the page's name, given the screen's name as shown. */
 export function windowTitle(screen: string | null, project: string | null): string {
-  return [screen, project, "Eisoptric Workbench"].filter(Boolean).join(" – ");
+  return [screen, project, "Workbench"].filter(Boolean).join(" – ");
 }
 
 /** What a live region says about where things stand; said again only when it changes. */

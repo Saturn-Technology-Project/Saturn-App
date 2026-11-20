@@ -1,4 +1,4 @@
-// The programs Eisoptric Workbench hands out as starting points: the SDK writes the records a run is read by, with the real Python,
+// The programs the app hands out as starting points: the SDK writes the records a run is read by, with the real Python,
 // and every template compiles. docs/research-contract.md is the contract.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -31,7 +31,7 @@ test("every Python template parses and the shell template parses", needsPython, 
   }
 });
 
-test("a program on the SDK writes samples, metrics, a report and a checkpoint that Eisoptric Workbench reads as its records", needsPython, async () => {
+test("a program on the SDK writes samples, metrics, a report and a checkpoint that the app reads as its records", needsPython, async () => {
   const folder = await workbench.folder();
   await writeFile(path.join(folder, "workbench_run.py"), await readFile(path.join(TEMPLATES, "workbench_run.py")));
   await writeFile(path.join(folder, "probe.py"), `
@@ -73,7 +73,7 @@ run.artifact(run.output / "step-2", "json", note="not json, only listed")
 });
 
 test("the training template saves every generator's state and reports only what a resume put back", needsTorch, async () => {
-  // Outside Eisoptric Workbench the SDK writes under ./workbench-run, so two folders stand for the first run and its resume.
+  // Outside the app the SDK writes under ./workbench-run, so two folders stand for the first run and its resume.
   const first = await workbench.folder();
   const resumed = await workbench.folder();
   for (const folder of [first, resumed]) {

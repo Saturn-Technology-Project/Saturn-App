@@ -4,13 +4,13 @@ description: Keep figures, analysis JSON, notebook snapshots and references to l
 ---
 # Analysis outputs
 
-An output kept in Eisoptric Workbench is a snapshot with its hash, tied to a run or an inspection session, so a figure cannot drift from what produced it.
+An output kept in the app is a snapshot with its hash, tied to a run or an inspection session, so a figure cannot drift from what produced it.
 
 ## Register one
 `research_evidence` with `action: "artifact_register"`:
 - `kind`: `figure` (PNG, JPEG or WebP), `json`, `notebook` (version 4), `document` (a PDF, or Markdown, TeX or plain text: a model card, a paper, a compile log; never HTML), or `reference`.
 - `path` inside the project for the first four, up to 16 MiB. The source is left untouched; a later preview warns if it changed.
-- `uri` for a `reference`: large activation or SAE stores, weights, buckets. Eisoptric Workbench does not download or contact it. A URI must not carry credentials or a query string.
+- `uri` for a `reference`: large activation or SAE stores, weights, buckets. The app does not download or contact it. A URI must not carry credentials or a query string.
 - `title`, `runId` or `inspectionId`, and `metadata` (64 KiB at most) such as the method and its settings.
 
 ## From a run's program

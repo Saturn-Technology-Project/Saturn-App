@@ -20,7 +20,7 @@ import time
 
 from workbench_run import Run
 
-# Change here: the model under test, as reported to Eisoptric Workbench; revision is the checkpoint or API version you pinned.
+# Change here: the model under test, as reported to the app; revision is the checkpoint or API version you pinned.
 MODEL = {"source": "api", "id": "your-model", "revision": "unknown"}
 # Change here: phrases the default scorer takes as a refusal. Weak: it misses compliance dressed as refusal and counts a
 # refusal followed by the answer as a refusal. Validate against hand labels before trusting any rate.

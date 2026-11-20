@@ -54,7 +54,7 @@ export default {
   ", {count} infrastructure errors": "，{count} 個基礎設施錯誤",
   ", exit code {code}": "，結束代碼 {code}",
   "Changed during the run: {inputs}": "執行期間已變更：{inputs}",
-  "Its process could not be confirmed, so it was not ended.": "無法確認這次執行的處理程序，因此 Eisoptric Workbench 未將它結束。",
+  "Its process could not be confirmed, so it was not ended.": "無法確認這次執行的處理程序，因此本 App 未將它結束。",
   "Line {line}: {reason}": "第 {line} 行：{reason}",
   "Enter a command above and run it. What it writes appears here.": "在上方執行指令，輸出會顯示在這裡。",
   "Problem at byte {offset}": "第 {offset} 位元組有誤",
@@ -104,8 +104,8 @@ export default {
   Save: "儲存",
   "Running a cell records no run: it is not an experiment. For results to compare, freeze an experiment. Outputs are shown as text and images, never read as instructions.":
     "執行儲存格不會記錄執行，因為筆記本不是實驗。若要取得可比較的結果，請凍結實驗。輸出會以文字和圖片顯示，不會當成指令。",
-  "This notebook is written for {language}. Eisoptric Workbench runs notebooks in the project's Python, so it opens, edits and saves here but does not run.":
-    "這個筆記本是為 {language} 撰寫的。Eisoptric Workbench 使用專案的 Python 執行筆記本，因此你可以在這裡開啟、編輯和儲存，但無法執行。",
+  "This notebook is written for {language}. The app runs notebooks in the project's Python, so it opens, edits and saves here but does not run.":
+    "這個筆記本是為 {language} 撰寫的。本 App 使用專案的 Python 執行筆記本，因此你可以在這裡開啟、編輯和儲存，但無法執行。",
   "Open Environment": "開啟環境",
   "This notebook has no cells.": "這個筆記本沒有儲存格。",
   "Add code": "新增程式碼",
@@ -127,7 +127,7 @@ export default {
   Delete: "刪除",
   "Code of cell {position}": "儲存格 {position} 的程式碼",
   "Text of cell {position}": "儲存格 {position} 的文字",
-  "A cell Eisoptric Workbench does not edit. It stays in the file as it is.": "Eisoptric Workbench 不編輯這類儲存格，會原封不動保留在檔案中。",
+  "A cell the app does not edit. It stays in the file as it is.": "本 App 不編輯這類儲存格，會原封不動保留在檔案中。",
 
   // Resources
   "Reading…": "讀取中…",
@@ -185,7 +185,7 @@ export default {
   "Research assistant": "研究助理",
   "How much the assistant may do in this chat": "助理在這個對話中可執行的操作",
   "Conversation with the research assistant": "與研究助理的對話",
-  "Ask about your work, or how to do something in Eisoptric Workbench.": "詢問你的研究工作，或 Eisoptric Workbench 的使用方式。",
+  "Ask about your work, or how to do something in the app.": "詢問你的研究工作，或本 App 的使用方式。",
   "Explain the error": "解釋錯誤",
   "What goes with your message": "隨訊息傳送的內容",
   "Goes with your message. Select to leave it out.": "已附上。選取即可排除。",
@@ -353,7 +353,7 @@ export default {
   // Reading a notebook and its kernel
   "It is not JSON: {reason}.": "不是有效的 JSON：{reason}。",
   "It is not a JSON object.": "不是 JSON 物件。",
-  "It is nbformat {version}, and Eisoptric Workbench opens nbformat 4.": "格式為 nbformat {version}，Eisoptric Workbench 只能開啟 nbformat 4。",
+  "It is nbformat {version}, and the app opens nbformat 4.": "格式為 nbformat {version}，本 App 只能開啟 nbformat 4。",
   "It has no list of cells.": "沒有儲存格清單。",
   "Its list of cells could not be found.": "找不到儲存格清單。",
   "No kernel": "沒有核心",
@@ -368,11 +368,11 @@ export default {
   "Not run: an earlier cell did not finish.": "未執行，因為前面的儲存格沒有完成。",
   "The kernel stopped while this ran.": "執行這個儲存格時核心停止了。",
   "An image from this cell": "這個儲存格產生的圖片",
-  "An output Eisoptric Workbench does not show: {types}.": "Eisoptric Workbench 不顯示這種輸出類型：{types}。",
-  "An output Eisoptric Workbench does not show: it is empty.": "這個輸出是空的。",
-  "An output Eisoptric Workbench does not understand. It is kept in the file.": "Eisoptric Workbench 無法辨識這個輸出，已保留在檔案中。",
+  "An output the app does not show: {types}.": "本 App 不顯示這種輸出類型：{types}。",
+  "An output the app does not show: it is empty.": "這個輸出是空的。",
+  "An output the app does not understand. It is kept in the file.": "本 App 無法辨識這個輸出，已保留在檔案中。",
   "Some of this cell's output was left out.": "這個儲存格的部分輸出未顯示。",
-  "An output Eisoptric Workbench does not understand ({type}). It is kept in the file.": "Eisoptric Workbench 無法辨識這個輸出（{type}），已保留在檔案中。",
+  "An output the app does not understand ({type}). It is kept in the file.": "本 App 無法辨識這個輸出（{type}），已保留在檔案中。",
   "Find a file": "尋找檔案",
   "Files found": "找到的檔案",
   "No file matches.": "沒有符合的檔案。",

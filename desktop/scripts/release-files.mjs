@@ -51,7 +51,7 @@ function updaterPackage(source, name, platform) {
 
 if (process.platform === "darwin") {
   const arch = process.arch === "arm64" ? "arm64" : "x64";
-  const app = path.join(bundles, "macos", "Eisoptric Workbench.app");
+  const app = path.join(bundles, "macos", "Workbench.app");
   if (!existsSync(app)) throw new Error(`No packaged app at ${app}; run npm run package first.`);
   const base = path.join(release, `Workbench-${version}-mac-${arch}-unsigned`);
   rmSync(`${base}.zip`, { force: true });
@@ -59,16 +59,16 @@ if (process.platform === "darwin") {
   // The disk image: the app next to an Applications link, so installing is one drag.
   const staging = mkdtempSync(path.join(os.tmpdir(), "workbench-dmg-"));
   try {
-    execFileSync("ditto", [app, path.join(staging, "Eisoptric Workbench.app")]);
+    execFileSync("ditto", [app, path.join(staging, "Workbench.app")]);
     symlinkSync("/Applications", path.join(staging, "Applications"));
     rmSync(`${base}.dmg`, { force: true });
-    diskImage(["create", "-volname", "Eisoptric Workbench", "-srcfolder", staging, "-ov", "-format", "ULMO", "-fs", "HFS+", `${base}.dmg`]);
+    diskImage(["create", "-volname", "Workbench", "-srcfolder", staging, "-ov", "-format", "ULMO", "-fs", "HFS+", `${base}.dmg`]);
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
   sha256(`${base}.dmg`);
   sha256(`${base}.zip`);
-  updaterPackage(path.join(bundles, "macos", "Eisoptric Workbench.app.tar.gz"), `Workbench-${version}-mac-${arch}-update.tar.gz`, `darwin-${arch === "arm64" ? "aarch64" : "x86_64"}`);
+  updaterPackage(path.join(bundles, "macos", "Workbench.app.tar.gz"), `Workbench-${version}-mac-${arch}-update.tar.gz`, `darwin-${arch === "arm64" ? "aarch64" : "x86_64"}`);
 } else if (process.platform === "win32") {
   const folder = path.join(bundles, "nsis");
   const installer = readdirSync(folder).find((name) => name.endsWith("-setup.exe"));
@@ -84,5 +84,5 @@ if (process.platform === "darwin") {
     }));
   }
 } else {
-  throw new Error(`Eisoptric Workbench is released for macOS and Windows, not ${process.platform}`);
+  throw new Error(`The app is released for macOS and Windows, not ${process.platform}`);
 }

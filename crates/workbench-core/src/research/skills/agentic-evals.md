@@ -4,7 +4,7 @@ description: Evaluate a model that uses tools or acts over many steps: one traje
 ---
 # Agentic evaluations
 
-An agent run is many model calls and many actions for one task. Eisoptric Workbench sees one sample per task; the trajectory behind
+An agent run is many model calls and many actions for one task. The app sees one sample per task; the trajectory behind
 it is a file the sample points to.
 
 ## One trajectory per sample
@@ -33,7 +33,7 @@ rates apart and never fold them into one number. Validate the process scorer on 
 hand read a sample of trajectories in every study; a forbidden-action list misses what is not on it. See `scorer-design`.
 
 ## The agent's own sandbox
-The agent under test runs code and commands. Eisoptric Workbench's run sandbox keeps the project and the person's credential folders
+The agent under test runs code and commands. The app's run sandbox keeps the project and the person's credential folders
 away from the program, and the agent needs a sandbox of its own inside it: a container, a virtual machine, or at least a
 fresh temporary folder with its own copy of the task, per task, discarded afterwards. It gets the task's files and
 nothing of the person's: no credentials, SSH keys, tokens or project. A key a task needs is a key for a test account,

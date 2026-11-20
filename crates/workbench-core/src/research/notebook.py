@@ -1,6 +1,6 @@
-"""Holds one Jupyter kernel for a notebook open in Eisoptric Workbench, and speaks JSON lines: commands on standard input, events on
-standard output. Run by Eisoptric Workbench with the project's Python. The kernel ends when this program does, and this program
-ends when asked to or when Eisoptric Workbench closes its standard input."""
+"""Holds one Jupyter kernel for a notebook open in the app, and speaks JSON lines: commands on standard input, events on
+standard output. Run by the app with the project's Python. The kernel ends when this program does, and this program
+ends when asked to or when the app closes its standard input."""
 import sys
 
 # Run with -c, Python looks in the project's folder first, where a file named queue.py must not replace the real one.
@@ -28,7 +28,7 @@ os.dup2(2, 1)
 
 
 def say(**event):
-    """Sends one event. If Eisoptric Workbench is gone there is nobody to tell, and standard input closing ends this program."""
+    """Sends one event. If the app is gone there is nobody to tell, and standard input closing ends this program."""
     try:
         EVENTS.write(json.dumps(event) + "\n")
         EVENTS.flush()
@@ -37,7 +37,7 @@ def say(**event):
 
 
 def read_commands(commands):
-    """Queues what Eisoptric Workbench asks for. When Eisoptric Workbench goes, its pipe closes, and that asks for a stop."""
+    """Queues what the app asks for. When the app goes, its pipe closes, and that asks for a stop."""
     for line in sys.stdin:
         try:
             commands.put(json.loads(line))

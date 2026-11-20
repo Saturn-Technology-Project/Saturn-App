@@ -33,7 +33,7 @@ export function ScoreChart(props: { projectId: string; runs: ExperimentRun[]; ve
       const node = models.find((item) => item.id === model.modelId);
       return {
         key: `${summary.runId}:${model.modelId ?? ""}`,
-        // An imported score says so beside its name, so it is never read as one Eisoptric Workbench measured.
+        // An imported score says so beside its name, so it is never read as one the app measured.
         label: props.runs.find((run) => run.id === summary.runId)?.imported ? t("{name} (imported)", { name: node?.name ?? node?.source ?? model.modelId ?? t("This run") }) : (node?.name ?? node?.source ?? model.modelId ?? t("This run")),
         version: versions.find((version) => version.id === summary.versionId)?.number ?? 0,
         mean: model.scores[chosen]?.mean ?? null,

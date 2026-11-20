@@ -1,4 +1,4 @@
-"""A minimal torch training loop that Eisoptric Workbench can follow by its metrics, stop, and resume from its checkpoints.
+"""A minimal torch training loop that the app can follow by its metrics, stop, and resume from its checkpoints.
 
 How to use: declare the text file in the experiment's `inputs.data`, then run
     python3 train_loop.py --data data/train.txt --model tiny --steps 2000
@@ -109,7 +109,7 @@ def restore_generators(saved):
 
 
 def save_checkpoint(run, folder, model, optimizer, scheduler, step):
-    """Everything a resume needs, written to a temporary folder and renamed, then listed for Eisoptric Workbench."""
+    """Everything a resume needs, written to a temporary folder and renamed, then listed for the app."""
     import torch
     if folder.exists():
         return
@@ -157,7 +157,7 @@ def main():
     run.report("config", resolved={name: getattr(args, name) for name in DEFAULTS} | {"model": args.model, "device": device, "tokens": len(ids)})
 
     def evaluate():
-        """Loss on the fixed held-out batch, as a sample line Eisoptric Workbench's summary can follow."""
+        """Loss on the fixed held-out batch, as a sample line the app's summary can follow."""
         model.eval()
         with torch.inference_mode():
             value = model(input_ids=held_out, labels=held_out).loss.item()

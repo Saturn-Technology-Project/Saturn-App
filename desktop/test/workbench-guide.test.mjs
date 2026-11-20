@@ -50,7 +50,7 @@ test("the assistant is told every screen and place, and that the person does the
   for (const screen of SCREENS) assert.ok(told.includes(`${screen}:`), screen);
   for (const place of GUIDE_PLACES) assert.ok(told.includes(`- ${place.id}:`), place.id);
   assert.match(told, /Without computer use you cannot click/);
-  assert.match(told, /you may operate Eisoptric Workbench itself/);
+  assert.match(told, /you may operate the app itself/);
   assert.match(told, /Never click in the Assistant panel itself/);
   assert.match(told, /set a hypothesis's verdict, label samples and write conclusions/);
   assert.match(told, /Never overwrite a verdict or a label the person set/);
@@ -61,8 +61,8 @@ test("the assistant is told every screen and place, and that the person does the
 test("the state sent with a message and the names read from outside say where things stand", () => {
   assert.equal(workbenchState({ screen: "Home", project: "P" }), "Screen: Home\nProject: P");
   assert.equal(workbenchState({ screen: "Workspace", project: "P", chatMode: "manual", file: "a.py", run: { id: "r", status: "running" }, sampleId: "s" }), "Screen: Workspace\nProject: P\nThis chat's mode: manual\nOpen file: a.py\nLatest run: r, running\nSample on screen: s");
-  assert.equal(windowTitle("Samples", "Pythia"), "Samples – Pythia – Eisoptric Workbench");
-  assert.equal(windowTitle("Home", null), "Home – Eisoptric Workbench");
+  assert.equal(windowTitle("Samples", "Pythia"), "Samples – Pythia – Workbench");
+  assert.equal(windowTitle("Home", null), "Home – Workbench");
   assert.equal(statusText({ screen: "Home", project: "P", runtime: "ready" }), "Home screen, project P. Runtime ready.");
   assert.deepEqual(SCREENS.filter(isWorkScreen), ["Workspace", "Samples", "Inspect"]);
   assert.ok(HELP_REQUESTS.length >= 1);
@@ -102,7 +102,7 @@ test("a step waiting for an answer can be told apart, however much the turn has 
 
 test("quitting asks first only while something still works, and names only what does", () => {
   assert.equal(quitQuestion({ chats: 0, runs: 0, commands: 0 }), null);
-  assert.equal(quitQuestion({ chats: 1, runs: 0, commands: 2 }), "Quit Eisoptric Workbench? These stop when it quits:\n• Chats still answering: 1\n• Background commands: 2");
+  assert.equal(quitQuestion({ chats: 1, runs: 0, commands: 2 }), "Quit the app? These stop when it quits:\n• Chats still answering: 1\n• Background commands: 2");
   const runs = quitQuestion({ chats: 0, runs: 3, commands: 0 });
   assert.match(runs, /Experiment runs on this computer: 3/);
   assert.match(runs, /can be resumed later/);

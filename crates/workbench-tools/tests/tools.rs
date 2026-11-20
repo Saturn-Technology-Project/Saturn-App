@@ -1135,13 +1135,13 @@ async fn a_page_comes_back_decompressed_with_its_status_and_no_redirect_followed
     let resolver = Arc::new(ToThisComputer);
     let page = request_through(
         &page_url("/"),
-        &[("user-agent", "Eisoptric Workbench test")],
+        &[("user-agent", "The app test")],
         resolver.clone(),
     )
     .await
     .expect("fetched");
     assert_eq!(page.status(), 200);
-    assert_eq!(page.headers()["x-agent"], "Eisoptric Workbench test");
+    assert_eq!(page.headers()["x-agent"], "The app test");
     assert!(
         page.headers()["x-encodings"]
             .to_str()

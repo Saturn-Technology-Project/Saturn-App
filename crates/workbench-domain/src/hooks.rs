@@ -120,7 +120,7 @@ fn claude_event(name: &str) -> Option<HookEvent> {
     }
 }
 
-/// Eisoptric Workbench's tool for one of Claude Code's.
+/// The app's tool for one of Claude Code's.
 fn claude_tool(name: &str) -> &str {
     match name {
         "Bash" => "code",
@@ -130,7 +130,7 @@ fn claude_tool(name: &str) -> &str {
     }
 }
 
-/// Translates the `hooks` of a Claude Code settings file; matchers name Claude Code's tools, mapped to Eisoptric Workbench's.
+/// Translates the `hooks` of a Claude Code settings file; matchers name Claude Code's tools, mapped to the app's.
 pub fn from_claude_hooks(value: Option<&Value>) -> Vec<Hook> {
     let mut hooks = Vec::new();
     let Some(events) = value.and_then(Value::as_object) else {

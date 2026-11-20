@@ -200,7 +200,7 @@ fn truthy(value: Option<&Value>) -> bool {
     js::truthy(value)
 }
 
-/// A pull request in Eisoptric Workbench's shape.
+/// A pull request in the app's shape.
 fn pull(pr: &Value) -> Value {
     let merged = truthy(pr.get("merged_at"));
     let merged_state = json!("merged");

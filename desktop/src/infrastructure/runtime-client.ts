@@ -31,7 +31,7 @@ async function runtimeConfirmed(): Promise<boolean> {
   return true;
 }
 
-/** HTTP adapter for the local Eisoptric Workbench Runtime. The UI does not call fetch itself. */
+/** HTTP adapter for the local the app Runtime. The UI does not call fetch itself. */
 export class RuntimeClient {
   private readonly origin: string;
 
@@ -96,7 +96,7 @@ export class RuntimeClient {
   }
 
   private async send(path: string, init?: RequestInit): Promise<Response> {
-    if (!(await runtimeConfirmed())) throw new Error("Eisoptric Workbench's runtime is not running yet.");
+    if (!(await runtimeConfirmed())) throw new Error("Workbench's runtime is not running yet.");
     const token = runtimeToken();
     const response = await fetch(`${this.origin}${path}`, {
       ...init,
@@ -108,7 +108,7 @@ export class RuntimeClient {
     });
     if (!response.ok) {
       const text = await response.text();
-      let message = text.trim() || `Eisoptric Workbench Runtime returned ${response.status}`;
+      let message = text.trim() || `The app Runtime returned ${response.status}`;
       try {
         const body = JSON.parse(text) as { error?: string };
         if (body.error) message = body.error;
@@ -116,9 +116,9 @@ export class RuntimeClient {
         // Express's own HTML page ("Cannot POST /path") means the route is missing: the runtime is older than this app.
         const missing = /Cannot (GET|POST|PUT|PATCH|DELETE) ([^<\s]+)/.exec(text);
         if (missing) {
-          message = `The Eisoptric Workbench Runtime on this computer is out of date (it has no ${missing[1]} ${missing[2]}). Restart Eisoptric Workbench, or restart the runtime in development.`;
+          message = `The the app Runtime on this computer is out of date (it has no ${missing[1]} ${missing[2]}). Restart the app, or restart the runtime in development.`;
         } else if (/<html/i.test(text)) {
-          message = `Eisoptric Workbench Runtime returned ${response.status} ${response.statusText}`.trim();
+          message = `The app Runtime returned ${response.status} ${response.statusText}`.trim();
         }
       }
       throw new Error(message);

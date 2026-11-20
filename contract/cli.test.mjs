@@ -101,7 +101,7 @@ after(async () => {
 test("help and mistakes in how it is called", async () => {
   const none = await workbench([]);
   assert.equal(none.code, 2);
-  assert.match(none.out, /^workbench: the Eisoptric Workbench runtime from a terminal\n\nUsage:\n {2}workbench run PROMPT/);
+  assert.match(none.out, /^workbench: the app's runtime from a terminal\n\nUsage:\n {2}workbench run PROMPT/);
   for (const args of [["help"], ["--help"], ["-h"], ["agents", "--help"]]) {
     const help = await workbench(args);
     assert.equal(help.code, 0, args.join(" "));
@@ -109,7 +109,7 @@ test("help and mistakes in how it is called", async () => {
   }
   const unknown = await workbench(["frobnicate"]);
   assert.equal(unknown.code, 2);
-  assert.match(unknown.err, /^workbench: Unknown command "frobnicate"\.\n\nworkbench: the Eisoptric Workbench runtime/);
+  assert.match(unknown.err, /^workbench: Unknown command "frobnicate"\.\n\nworkbench: the app's runtime/);
   for (const [args, expected] of [
     [["run", ""], /Give the prompt/],
     [["show"], /workbench show RUN/],
@@ -119,7 +119,7 @@ test("help and mistakes in how it is called", async () => {
     [["run", "x"], /Name the agent with --agent\. Agents: /],
     [["run", "x", "--agent", "Nobody"], /No agent named "Nobody"\. Agents: /],
     [["run", "x", "--agent", "Doer", "--mode", "wild"], /--mode is agent, ask or plan/],
-    [["run", "x", "--agent", "Doer", "--project", "/not/a/project"], /is not an Eisoptric Workbench project/],
+    [["run", "x", "--agent", "Doer", "--project", "/not/a/project"], /is not a project/],
   ]) {
     const answer = await workbench(args);
     assert.equal(answer.code, 2, `${args.join(" ")}: ${answer.err}`);
@@ -128,11 +128,11 @@ test("help and mistakes in how it is called", async () => {
   }
 });
 
-test("workbench says when Eisoptric Workbench cannot be reached", async () => {
+test("workbench says when the app cannot be reached", async () => {
   const [command, ...before] = program();
   const away = await run(command, [...before, "agents"], { env: { WORKBENCH_RUNTIME_PORT: "9", WORKBENCH_RUNTIME_TOKEN: "made-up" } });
   assert.equal(away.code, 4);
-  assert.match(away.err, /^workbench: Eisoptric Workbench is not running \(nothing answers on http:\/\/127\.0\.0\.1:9\)\. Open Eisoptric Workbench and try again\.\n$/);
+  assert.match(away.err, /^workbench: the app is not running \(nothing answers on http:\/\/127\.0\.0\.1:9\)\. Open the app and try again\.\n$/);
   const empty = path.join(scratch, "never-ran");
   const unset = { ...process.env };
   delete unset.WORKBENCH_RUNTIME_TOKEN;
@@ -143,7 +143,7 @@ test("workbench says when Eisoptric Workbench cannot be reached", async () => {
     child.once("close", (code) => resolve({ code, err }));
   });
   assert.equal(fresh.code, 4);
-  assert.match(fresh.err, /Workbench has not run on this computer yet \(no .*runtime-token\)\. Open Eisoptric Workbench first\./);
+  assert.match(fresh.err, /Workbench has not run on this computer yet \(no .*runtime-token\)\. Open the app first\./);
   const refused = await run(command, [...before, "agents"], { env: { WORKBENCH_RUNTIME_TOKEN: "wrong-token" } });
   assert.equal(refused.code, 1);
   assert.match(refused.err, /^workbench: Unauthorized\n$/);
@@ -344,8 +344,8 @@ test("Settings installs the command, and what it installs works", { skip: proces
   assert.ok(existsSync(launcher));
   assert.ok(((await stat(launcher)).mode & 0o111) !== 0, "executable");
   const text = await readFile(launcher, "utf8");
-  assert.match(text, /^#!\/bin\/sh\n# Eisoptric Workbench command line: /);
-  assert.match(text, new RegExp(`export WORKBENCH_RUNTIME_PORT='${new URL(runtime.origin).port}'`), "a second Eisoptric Workbench gets a launcher pointing at it");
+  assert.match(text, /^#!\/bin\/sh\n# The app's command line: /);
+  assert.match(text, new RegExp(`export WORKBENCH_RUNTIME_PORT='${new URL(runtime.origin).port}'`), "a second the app gets a launcher pointing at it");
   assert.ok(text.includes(`export WORKBENCH_DATA_DIR='${runtime.dataDir}'`));
 
   const unset = { ...process.env };

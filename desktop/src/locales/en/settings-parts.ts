@@ -94,8 +94,8 @@ export default {
   everywhere: "Everywhere",
 
   // Plugins
-  "A plugin bundles skills, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Eisoptric Workbench and runs nothing: its hooks and local MCP servers each wait for your approval.":
-    "A plugin bundles skills, hooks, and MCP servers in one folder with a plugin.json. Claude Code plugins (.claude-plugin/plugin.json) install as is. Installing copies the folder, or clones the git repository, into Eisoptric Workbench and runs nothing: its hooks and local MCP servers each wait for your approval.",
+  "A plugin bundles skills, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into the app and runs nothing: its hooks and local MCP servers each wait for your approval.":
+    "A plugin bundles skills, hooks, and MCP servers in one folder with a plugin.json. Claude Code plugins (.claude-plugin/plugin.json) install as is. Installing copies the folder, or clones the git repository, into the app and runs nothing: its hooks and local MCP servers each wait for your approval.",
   "Choose Folder…": "Choose folder…",
   "Turn Off": "Turn off",
   "Turn On": "Turn on",
@@ -111,8 +111,8 @@ export default {
     "Delete the snapshots of {folder}? You can still revert changes made in earlier chats. The next command in a folder takes a new snapshot.",
   "Delete the snapshots of this folder? Changes made in earlier chats can still be reverted; the next command in a folder takes a fresh snapshot.":
     "Delete the snapshots of this folder? You can still revert changes made in earlier chats. The next command in a folder takes a new snapshot.",
-  "For project folders outside git, Eisoptric Workbench keeps a private snapshot in its own data folder, so what a shell command changes can be reviewed and reverted.":
-    "For project folders not in git, Eisoptric Workbench keeps a private snapshot in its data folder so you can review and revert changes made by shell commands.",
+  "For project folders outside git, the app keeps a private snapshot in its own data folder, so what a shell command changes can be reviewed and reverted.":
+    "For project folders not in git, the app keeps a private snapshot in its data folder so you can review and revert changes made by shell commands.",
   "1 folder, {size} in all.": "1 folder, {size} total.",
   "{count} folders, {size} in all.": "{count} folders, {size} total.",
 
@@ -127,7 +127,7 @@ export default {
   unpriced: "Unpriced",
 
   // Telemetry
-  "telemetry.json as saved, for this page": "The telemetry.json file as Eisoptric Workbench saves it",
+  "telemetry.json as saved, for this page": "The telemetry.json file as the app saves it",
   "One event per line for Elastic, Splunk, Sentinel": "One event per line, for Elastic, Splunk, or Sentinel",
   "Info and up": "Info and above",
   "Warnings and up": "Warnings and above",
@@ -143,8 +143,8 @@ export default {
   "No log records": "No logs yet",
   "Runtime log lines show up here as OpenTelemetry log records.": "Runtime log lines appear here as OpenTelemetry log records.",
   "trace {id}": "Trace {id}",
-  "Every HTTP(S) request the Eisoptric Workbench runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.":
-    "Every HTTP(S) request the Eisoptric Workbench runtime has sent since {time}, with hosts and paths only, never query strings or bodies. Claude Code, Codex, and git run as separate programs and aren't listed here. Use your system's firewall or network monitor to watch them.",
+  "Every HTTP(S) request the app's runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.":
+    "Every HTTP(S) request the app's runtime has sent since {time}, with hosts and paths only, never query strings or bodies. Claude Code, Codex, and git run as separate programs and aren't listed here. Use your system's firewall or network monitor to watch them.",
   "1 outside host": "1 external host",
   "{count} outside hosts": "{count} external hosts",
   "this computer": "This computer",

@@ -102,7 +102,7 @@ impl Kernel {
     }
 
     /// The list of skills, or one skill's instructions. The user's own skill of a name comes first (and a plugin's), then
-    /// Eisoptric Workbench's, then the project's: a folder cannot replace the guidance Eisoptric Workbench ships, such as research-autopilot, by
+    /// The app's, then the project's: a folder cannot replace the guidance the app ships, such as research-autopilot, by
     /// bringing a skill of its name. Project skills take part only once the user allowed the project's instruction files.
     async fn research_skill(&self, arguments: &Value, run: &Value) -> Result<Value, String> {
         let workdir = self.workdir_of_run(run).map_err(said)?;

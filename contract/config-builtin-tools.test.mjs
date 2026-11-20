@@ -1,5 +1,5 @@
 // The built-in tool servers: which tools they list, a user's disabled tools being saved, honoured and kept when the
-// built-ins are installed again, and what is left of the removed Eisoptric Workbench IDE and automations, whichever language runs them.
+// built-ins are installed again, and what is left of the removed the app IDE and automations, whichever language runs them.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -157,13 +157,13 @@ test("disabled tools outlast a restart and the built-ins being installed again, 
   }
 });
 
-test("state saved by a version with Eisoptric Workbench IDE loads without its server, its tools or its settings", async () => {
+test("state saved by a version with the app IDE loads without its server, its tools or its settings", async () => {
   const fresh = await open();
   try {
     const connection = await fresh.api("POST", "/connections/models", { name: "Local", provider: "openai", baseUrl: "http://127.0.0.1:9" });
     const agent = await fresh.api("POST", "/agents", { name: "Builder", modelConnectionId: connection.id, autonomy: "review" });
     await fresh.restart((state) => {
-      state.mcp.push({ id: "ide", name: "Eisoptric Workbench IDE", url: "builtin://ide", tools: [] });
+      state.mcp.push({ id: "ide", name: "The app IDE", url: "builtin://ide", tools: [] });
       state.agents.find((item) => item.id === agent.id).mcpConnectionIds.push("ide");
       state.settings.launchApp = "ide";
       state.settings.claudeCodeAuth = "api-key";
@@ -240,17 +240,17 @@ test("state saved by a version with automations loads, keeps them in the file, a
   }
 });
 
-test("a call to a tool of Eisoptric Workbench IDE fails and says why, and any other unknown tool says that", async () => {
+test("a call to a tool of the app's IDE fails and says why, and any other unknown tool says that", async () => {
   const setup = await workbench.chat({ autonomy: "bypass", steps: [["ide_rename", { path: "a.ts" }], ["no_such_tool", {}]] });
   const run = await workbench.finished((await workbench.start(setup)).id);
   assert.equal(run.status, "completed", run.error);
   const [removed, unknown] = run.actions;
   assert.equal(removed.status, "failed");
-  assert.match(removed.reason, /ide_rename was part of Eisoptric Workbench IDE/);
+  assert.match(removed.reason, /ide_rename was part of the app's IDE/);
   assert.equal(unknown.status, "failed");
   assert.equal(unknown.reason, "Unknown tool: no_such_tool");
 });
 
-test("the routes only Eisoptric Workbench IDE used are gone", async () => {
+test("the routes only the app IDE used are gone", async () => {
   for (const route of ["/v1/traces", "/v1/logs", "/runtime/wakeup"]) await workbench.refused("POST", route, {}, 404);
 });

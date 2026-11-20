@@ -1,4 +1,4 @@
-//! Where the key that encrypts `secrets.json` is kept. The same places and names earlier versions of Eisoptric Workbench used, so their data stays readable.
+//! Where the key that encrypts `secrets.json` is kept. The same places and names earlier versions of the app used, so their data stays readable.
 use std::env;
 use std::fs;
 use std::io::{self, Write as _};
@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use crate::write_private;
 
 pub const KEY_BYTES: usize = 32;
-const SERVICE: &str = "Eisoptric Workbench";
+const SERVICE: &str = "Workbench";
 
 /// A key that encrypts `secrets.json`.
 pub type Key = [u8; KEY_BYTES];
@@ -155,7 +155,7 @@ impl KeyStore for Keychain {
     fn set(&self, key: &Key) -> io::Result<()> {
         // `security -i` exits non-zero at end of input even after a successful command, so success is read back.
         let line = format!(
-            "add-generic-password -U -s \"{SERVICE}\" -a \"{}\" -l \"Eisoptric Workbench API key encryption\" -w {}\nquit\n",
+            "add-generic-password -U -s \"{SERVICE}\" -a \"{}\" -l \"The app API key encryption\" -w {}\nquit\n",
             self.account,
             workbench_domain::research::hex(key)
         );
@@ -280,7 +280,7 @@ impl KeyStore for Libsecret {
             Path::new(SECRET_TOOL),
             &[
                 "store",
-                "--label=Eisoptric Workbench API key encryption",
+                "--label=the app API key encryption",
                 "service",
                 SERVICE,
                 "account",

@@ -165,7 +165,7 @@ impl Kernel {
             return Err(CoreError::new(
                 403,
                 format!(
-                    "Eisoptric Workbench doesn't have access to {} yet. Allow access to {} to work in it.",
+                    "The app doesn't have access to {} yet. Allow access to {} to work in it.",
                     text(&project, "name"),
                     text(&project, "path")
                 ),
@@ -426,7 +426,7 @@ impl Kernel {
         self.project_view(id).await
     }
 
-    /// Removes the project and its chats from Eisoptric Workbench. The folder and its files are never touched.
+    /// Removes the project and its chats from the app. The folder and its files are never touched.
     pub async fn delete_project(&self, id: &str) -> Result<(), CoreError> {
         self.research_notebooks_stop_project(id).await;
         let stopped: Vec<String> = self
@@ -798,7 +798,7 @@ mod tests {
         let installed = Path::new("/opt/Workbench");
         assert!(part_of_the_app(installed, Some(installed)));
         assert!(part_of_the_app(
-            Path::new("/Applications/Eisoptric Workbench.app/Contents/Resources"),
+            Path::new("/Applications/Workbench.app/Contents/Resources"),
             None
         ));
         // A development build runs from target/debug with the repository as its folder.

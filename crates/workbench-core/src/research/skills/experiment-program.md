@@ -4,7 +4,7 @@ description: Write a program that runs as an experiment and writes valid samples
 ---
 # Writing an experiment program
 
-An experiment is a command. Eisoptric Workbench runs it and reads one JSON object per line from `WORKBENCH_RUN_SAMPLES`.
+An experiment is a command. The app runs it and reads one JSON object per line from `WORKBENCH_RUN_SAMPLES`.
 
 ## A sample line
 ```json
@@ -12,7 +12,7 @@ An experiment is a command. Eisoptric Workbench runs it and reads one JSON objec
 ```
 - `schemaVersion` must be 1, and `sampleId` is required and stable across runs.
 - `sampleId`, `trial` and `modelId` together must be unique in a run.
-- `modelId`: the Eisoptric Workbench model record's id, when the run measures several.
+- `modelId`: the app's model record's id, when the run measures several.
 - `scores`: numbers, strings or booleans, by scorer name.
 - `error`: null, or `{"kind":"infrastructure"|"model"|"scorer","message":"..."}`. Infrastructure errors are counted apart.
 - Optional: `scorerLabel` (the scorer's verdict in the words a person labels with), `expected` (what it compared with), `alternative` (the other word, for a two-way scorer: needed for logit margins in sweeps), `usage` (`inputTokens`, `outputTokens`, `deviceMemoryBytes`).
@@ -23,7 +23,7 @@ with no dependencies: write it into the project with your file tools, name it in
 ```python
 from workbench_run import Run
 
-run = Run()                      # reads WORKBENCH_RUN_*; outside Eisoptric Workbench it writes to ./workbench-run/
+run = Run()                      # reads WORKBENCH_RUN_*; outside the app it writes to ./workbench-run/
 seed = run.seed()                # the version's first seed, applied to random/numpy/torch and reported
 run.report("model", source="huggingface", id=MODEL_NAME, revision=model.config._commit_hash)
 for example in load_examples():
@@ -43,7 +43,7 @@ name lists them): a harness wrapper, a red-team harness, a trajectory recorder, 
 steering sweep, a training loop, a paper compiler. Copy one, change it where it says `# Change here:`, keep the rest.
 
 ## Rules
-- **Append only.** Never rewrite earlier lines. Eisoptric Workbench notices a rewrite and warns.
+- **Append only.** Never rewrite earlier lines. The app notices a rewrite and warns.
 - **Whole lines, flushed.** A final line with no newline counts as a protocol error after the process ends.
 - **Keep going past one bad sample**: record the error on its line. Crash only on what makes every later line meaningless.
 - **Exit nonzero on failure.** Exit 0 means it worked; do not hide a failure.

@@ -1,4 +1,4 @@
-//! The skills that ship with Eisoptric Workbench: how to use the research tools to carry out a study. They are read through `research_skill`,
+//! The skills that ship with How to use the research tools to carry out a study. They are read through `research_skill`,
 //! so they reach every backend. A project's or the user's skill of the same name comes first. `docs/research-skills.md` lists
 //! them for people.
 

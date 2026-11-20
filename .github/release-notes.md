@@ -6,8 +6,8 @@
 
 **macOS (Apple Silicon)**
 
-1. Download `Workbench-__VERSION__-mac-arm64-unsigned.dmg`, open it, and drag **Eisoptric Workbench** into **Applications** (the `.zip` has the same app).
-2. Open Eisoptric Workbench. When macOS says it can't verify the developer, go to **System Settings → Privacy & Security** and click **Open Anyway**.
+1. Download `Workbench-__VERSION__-mac-arm64-unsigned.dmg`, open it, and drag **Workbench** into **Applications** (the `.zip` has the same app).
+2. Open Workbench. When macOS says it can't verify the developer, go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
 **Windows (x64)**
 
@@ -30,7 +30,7 @@ The signed attestations are attached too (`*.sigstore.json`); with one, `gh atte
 
 `Workbench-__VERSION__-sbom.cdx.json` lists the crates, npm packages and model this release is built from (CycloneDX 1.5, with their hashes), for your scanner or your security team.
 
-`workbench-worker-__VERSION__-linux-x64` and `-linux-arm64` are the worker Eisoptric Workbench installs on a Linux SSH host when you press **Install worker** in Environment; you do not need to download them. Eisoptric Workbench checks each against the hash built into this release before sending it, and the host needs libssl 3 (Ubuntu 22.04, Debian 12, RHEL 9 or later).
+`workbench-worker-__VERSION__-linux-x64` and `-linux-arm64` are the worker Workbench installs on a Linux SSH host when you press **Install worker** in Environment; you do not need to download them. Eisoptric Workbench checks each against the hash built into this release before sending it, and the host needs libssl 3 (Ubuntu 22.04, Debian 12, RHEL 9 or later).
 
 ## Changes
 

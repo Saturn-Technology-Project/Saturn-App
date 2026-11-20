@@ -24,7 +24,7 @@ const LONGEST_WAIT: i64 = 30_000;
 const FIRST_LOOK: Duration = Duration::from_millis(300);
 const NO_JOBS: &str = "Background commands are not available here";
 /// Added to the sandbox's hint when folders are hidden, since a refused read fails the way a refused write does.
-const HIDDEN_HINT: &str = "(The sandbox also keeps Eisoptric Workbench's own data folder and the usual credential folders, such as ~/.ssh, ~/.aws and ~/.config/gh, from being read or written. A command that needs one must run with sandbox: \"off\"; that asks the user first.)";
+const HIDDEN_HINT: &str = "(The sandbox also keeps the app's own data folder and the usual credential folders, such as ~/.ssh, ~/.aws and ~/.config/gh, from being read or written. A command that needs one must run with sandbox: \"off\"; that asks the user first.)";
 
 /// What a command runs under.
 #[derive(Clone, Debug, Default)]
@@ -33,7 +33,7 @@ pub struct CodeOptions {
     pub sandbox: Option<SandboxSettings>,
     /// Folders outside the workspace the command may also write to (the agent's private workspace, say).
     pub writable: Vec<String>,
-    /// Folders and files the command may neither read nor write: Eisoptric Workbench's own data (its token, keys and conversations)
+    /// Folders and files the command may neither read nor write: the app's own data (its token, keys and conversations)
     /// and the usual credential folders. A sandboxed command that could read them could take the keys, or use the token
     /// to change its own approvals.
     pub hidden: Vec<String>,

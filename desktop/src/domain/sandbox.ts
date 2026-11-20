@@ -4,7 +4,7 @@ import type { TextParams } from "./i18n";
 type Words = (text: string, params?: TextParams) => string;
 
 /**
- * The runtime's reason the sandbox is off or its setup did not finish, translated when it is one Eisoptric Workbench itself gives
+ * The runtime's reason the sandbox is off or its setup did not finish, translated when it is one the app itself gives
  * (crates/workbench-tools sandbox.rs and appcontainer.rs, word for word); any other reason is shown as the runtime said it.
  */
 export function sandboxReason(reason: string | null, t: Words): string {
@@ -21,8 +21,8 @@ export function sandboxReason(reason: string | null, t: Words): string {
       return t("the administrator prompt was declined");
     case "the setup could not open everything, or did not run as an administrator":
       return t("the setup could not open everything, or did not run as an administrator");
-    case "This computer's sandbox has no setup to run from Eisoptric Workbench":
-      return t("This computer's sandbox has no setup to run from Eisoptric Workbench");
+    case "This computer's sandbox has no setup to run from the app":
+      return t("This computer's sandbox has no setup to run from the app");
     default:
       return reason ?? "";
   }

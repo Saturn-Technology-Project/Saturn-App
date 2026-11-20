@@ -13,7 +13,7 @@ An ablation asks what a part of the method contributes, by taking it away and me
 - **Seeds per arm.** A training arm on one seed is an anecdote. Give every arm the same seeds, at least 3 where the budget allows, as the experiment's `seeds`. See `study-design`.
 - **The plan first.** Write the arms, the matching rule, the primary score and the seeds as a finding before training. An arm added after the results is exploratory, and says so.
 
-## As Eisoptric Workbench records
+## As the app records
 - One experiment per arm, with its own version: the arm's setting in a config file named in `inputs.code` or in the command, so the version shows what differs. A shared evaluation experiment then measures every arm's checkpoints under one `evaluation` (see `evaluation-spec`); the checkpoints are model records with `parentId` and `producedBy`, as in `checkpoints-and-lineage`.
 - Keep the evaluation program and data identical across arms, so `research_read { what: "compare", left, right }` answers `comparable`. Anything else is not one table.
 - Name the arm in each model record's `name` and `note`, and the factor in the experiment's title, so the Lineage screen reads as the table does.

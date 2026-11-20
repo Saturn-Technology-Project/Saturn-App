@@ -53,7 +53,7 @@ test("slices read preserved metadata, explicit nested fields, and prefer a decla
   assert.deepEqual(explicit.items.map((item) => item.slice), ["zh", "en"]);
 });
 
-/** The same rows as two runs Eisoptric Workbench itself made, from one frozen evaluation, so that they are comparable. */
+/** The same rows as two runs the app itself made, from one frozen evaluation, so that they are comparable. */
 async function ranPair(left, right, spec = evaluation) {
   const folder = await workbench.folder();
   const project = await workbench.api("POST", "/projects", { path: folder, grant: true });

@@ -141,7 +141,7 @@ impl Log {
         self.over = true;
         let limit = MAX_CELL_OUTPUT / (1024 * 1024);
         let note = format!(
-            "Eisoptric Workbench kept the first {limit} MB of this cell's output and left out the rest. The cell itself went on. To keep more, write it to a file."
+            "The app kept the first {limit} MB of this cell's output and left out the rest. The cell itself went on. To keep more, write it to a file."
         );
         self.push(json!({
             "type": "output",
@@ -716,7 +716,7 @@ impl Kernel {
         Ok(receiver)
     }
 
-    /// Stops every kernel of a project: it is going, or Eisoptric Workbench lost access to it.
+    /// Stops every kernel of a project: it is going, or the app lost access to it.
     pub(crate) async fn research_notebooks_stop_project(&self, project: &str) {
         let going: Vec<Arc<Held>> = {
             let mut open = locked(&self.research.notebooks.open);

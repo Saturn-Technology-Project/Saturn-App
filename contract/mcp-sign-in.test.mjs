@@ -1,5 +1,5 @@
-// A browser sign-in to an MCP server, end to end: Eisoptric Workbench registers with the server's authorization server and opens its
-// sign-in page; the browser comes back to /oauth/callback, which carries no token, and finishes only a sign-in Eisoptric Workbench
+// A browser sign-in to an MCP server, end to end: the app registers with the server's authorization server and opens its
+// sign-in page; the browser comes back to /oauth/callback, which carries no token, and finishes only a sign-in the app
 // started, once. The browser is a stand-in that writes down what it was asked to open.
 import assert from "node:assert/strict";
 import { createServer, request } from "node:http";
@@ -43,7 +43,7 @@ async function signedServer() {
   return { base, forms, close: () => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }) };
 }
 
-test("a browser sign-in finishes at the callback, without the token, only for a sign-in Eisoptric Workbench started, and once", opensPages, async () => {
+test("a browser sign-in finishes at the callback, without the token, only for a sign-in the app started, and once", opensPages, async () => {
   const workbench = await startWithPrograms({ install: [] });
   const remote = await signedServer();
   try {
@@ -60,7 +60,7 @@ test("a browser sign-in finishes at the callback, without the token, only for a 
     assert.equal(callback.pathname, "/oauth/callback");
     const back = (query) => fetch(`${workbench.origin}/oauth/callback?${new URLSearchParams(query)}`).then(async (response) => ({ status: response.status, csp: response.headers.get("content-security-policy"), text: await response.text() }));
 
-    // A state Eisoptric Workbench did not start finishes nothing, and asks the token server nothing.
+    // A state the app did not start finishes nothing, and asks the token server nothing.
     const forged = await back({ state: "made-up", code: "the-code" });
     assert.equal(forged.status, 200);
     assert.match(forged.text, /Sign-in was not completed/);

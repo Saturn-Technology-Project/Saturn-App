@@ -132,7 +132,7 @@ impl Kernel {
             let (provider, model) = (text(record, "provider"), text(record, "model"));
             let key = format!("{provider}/{model}");
             // The name the call was recorded under, else the name of the connection it went through, else the id:
-            // Eisoptric Workbench has no names of its own for a provider's models.
+            // The app has no names of its own for a provider's models.
             let label = if text(record, "modelName").is_empty() {
                 self.store
                     .read(|state| {

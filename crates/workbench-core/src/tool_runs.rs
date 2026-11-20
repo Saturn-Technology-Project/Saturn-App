@@ -367,10 +367,10 @@ impl Kernel {
             action
         };
         let Some(server) = self.tool_server(&agent, tool) else {
-            // A saved chat can still hold a call to a tool of Eisoptric Workbench IDE, such as an approval waiting since before the upgrade.
+            // A saved chat can still hold a call to a tool of the app's IDE, such as an approval waiting since before the upgrade.
             return Ok(failed(&if tool.starts_with("ide_") {
                 format!(
-                    "{tool} was part of Eisoptric Workbench IDE, which Eisoptric Workbench no longer includes"
+                    "{tool} was part of the app's IDE, which the app no longer includes"
                 )
             } else {
                 format!("Unknown tool: {tool}")

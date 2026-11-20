@@ -45,7 +45,7 @@ pub fn llm_providers() -> &'static Value {
     &PROVIDERS
 }
 
-/// The name Eisoptric Workbench has for what a program on the person's own plan can be asked for (`opus`, `default`). A provider
+/// The name the app has for what a program on the person's own plan can be asked for (`opus`, `default`). A provider
 /// reached with a key names its own models, so there is none for those.
 fn known_label(provider: &str, model: &str) -> Option<&'static str> {
     let listed = PROVIDERS
@@ -80,18 +80,18 @@ fn host_of(url: &str) -> String {
         .unwrap_or_else(|| "(invalid url)".to_owned())
 }
 
-/// An MCP server is reached by URL, so adding one by address never makes Eisoptric Workbench start a program. Anything else (a command line,
+/// An MCP server is reached by URL, so adding one by address never makes the app start a program. Anything else (a command line,
 /// a file: or stdio: address) is refused.
 pub fn mcp_endpoint(url: &str) -> Result<String, CoreError> {
     let value = js::trim(url);
     let parsed = Url::parse(value).map_err(|_| {
-        CoreError::new(400, "An MCP server is added by its URL (https://…). Eisoptric Workbench does not start local programs as MCP servers.")
+        CoreError::new(400, "An MCP server is added by its URL (https://…). The app does not start local programs as MCP servers.")
     })?;
     if !matches!(parsed.scheme(), "https" | "http") {
         return Err(CoreError::new(
             400,
             format!(
-                "MCP servers are reached over HTTP(S), not {}. Eisoptric Workbench does not start local programs as MCP servers.",
+                "MCP servers are reached over HTTP(S), not {}. The app does not start local programs as MCP servers.",
                 parsed.scheme()
             ),
         ));
@@ -450,7 +450,7 @@ impl Kernel {
         let mut fields = Map::new();
         fields.insert("id".to_owned(), new_id("mdl")?.into());
         let given = named("name");
-        // The name that came with it (the provider's own, from its list), else the name Eisoptric Workbench has for what a program
+        // The name that came with it (the provider's own, from its list), else the name the app has for what a program
         // on the person's plan is asked for, else the id. A subscription model is named apart from the API model of the
         // same name, so the two are never confused.
         let known = known_label(provider.id, &model_id)
@@ -727,14 +727,14 @@ impl Kernel {
             return Err(CoreError::new(
                 409,
                 format!(
-                    "The MCP server \"{}\" runs a program on this computer ({}). Allow it in Eisoptric Workbench Settings → MCP Servers before it can start.",
+                    "The MCP server \"{}\" runs a program on this computer ({}). Allow it in Settings → MCP Servers before it can start.",
                     text(server, "name"),
                     command_line(command)
                 ),
             ));
         }
         let mut variables = env;
-        // Eisoptric Workbench adds a PATH that finds npx and uvx when it was started from the Dock; the rest are what the user set.
+        // The app adds a PATH that finds npx and uvx when it was started from the Dock; the rest are what the user set.
         if !cfg!(windows) && !variables.contains_key("PATH") {
             let inherited = std::env::var("PATH").unwrap_or_default();
             variables.insert(
@@ -1245,7 +1245,7 @@ impl Kernel {
 
     /// The models to offer for a cloud provider, with `source` saying where they are from: `provider` for those it lists
     /// for a key, `program` for a program that runs on the person's own plan and takes the names it is given, and `none`
-    /// with a note when there is no key to ask with or the provider did not answer. Eisoptric Workbench keeps no list of a provider's
+    /// with a note when there is no key to ask with or the provider did not answer. The app keeps no list of a provider's
     /// models of its own: one goes out of date with every release. `typed_key` is a key in the form that is not saved
     /// yet, and goes to the address typed with it, as connecting the model would send it. A saved key goes only to the
     /// provider's own address or to one a connected model of that provider already uses, never to an address given only

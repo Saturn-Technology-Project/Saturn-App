@@ -7,7 +7,7 @@
     ],
     "activeProjectId": "p1",
     "agents": [
-      { "id": "a1", "name": "Eisoptric Workbench", "temperature": 0.7, "maxOutput": 4096, "modelConnectionId": null, "mcpConnectionIds": [], "permissions": [{ "tool": "code", "pattern": "git push*", "effect": "deny" }] }
+      { "id": "a1", "name": "Workbench", "temperature": 0.7, "maxOutput": 4096, "modelConnectionId": null, "mcpConnectionIds": [], "permissions": [{ "tool": "code", "pattern": "git push*", "effect": "deny" }] }
     ],
     "automations": [{ "id": "t1", "lastSlot": 29000000, "trigger": { "frequency": "weekly", "time": "09:30", "weekday": 0 } }],
     "models": [{ "id": "m1", "provider": "openai", "model": "x", "baseUrl": "http://127.0.0.1:1/v1", "hasSecret": true, "contextTokens": 200000 }],
@@ -46,7 +46,7 @@
     ],
     "activeProjectId": "p1",
     "agents": [
-      { "id": "a1", "name": "Eisoptric Workbench", "temperature": 0.7, "maxOutput": 4096, "modelConnectionId": null, "mcpConnectionIds": [], "permissions": [{ "tool": "code", "pattern": "git push*", "effect": "deny" }] }
+      { "id": "a1", "name": "Workbench", "temperature": 0.7, "maxOutput": 4096, "modelConnectionId": null, "mcpConnectionIds": [], "permissions": [{ "tool": "code", "pattern": "git push*", "effect": "deny" }] }
     ],
     "automations": [{ "id": "t1", "lastSlot": 29000000, "trigger": { "frequency": "weekly", "time": "09:30", "weekday": 0 } }],
     "models": [{ "id": "m1", "provider": "openai", "model": "x", "baseUrl": "http://127.0.0.1:1/v1", "hasSecret": true, "contextTokens": 200000 }],
