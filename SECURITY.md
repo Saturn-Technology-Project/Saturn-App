@@ -2,17 +2,17 @@
 
 [中文](#安全政策)
 
-Saturn is a workbench for AI research on your computer. It runs your experiments, keeps your research records, and has a research assistant: an AI agent that can execute commands, edit files and control apps within the folders and the mode you allow. It also holds your model providers' API keys. We treat reports about any of that seriously and thank everyone who reports responsibly.
+Eisoptric Workbench is a workbench for AI research on your computer. It runs your experiments, keeps your research records, and has a research assistant: an AI agent that can execute commands, edit files and control apps within the folders and the mode you allow. It also holds your model providers' API keys. We treat reports about any of that seriously and thank everyone who reports responsibly.
 
 ## Reporting a vulnerability
 
-Email **[security@saturn-core.com](mailto:security@saturn-core.com)**, or use GitHub's **[Report a vulnerability](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories/new)** (private, under the Security tab). Please do not open a public issue, discussion or pull request for a vulnerability.
+Email **[security@eisoptric.com](mailto:security@eisoptric.com)**, or use GitHub's **[Report a vulnerability](https://github.com/eisoptric/Workbench/security/advisories/new)** (private, under the Security tab). Please do not open a public issue, discussion or pull request for a vulnerability.
 
 Include what you can of:
 
-- the affected component (the desktop app, the runtime, the CLI or the SDK) and version (Settings → About, or the release tag);
+- the affected component (the desktop app, the runtime or the CLI) and version (Settings → About, or the release tag);
 - the steps to reproduce, or a proof of concept;
-- the impact as you see it (for example: a web page or file makes an agent run a command without approval, another local program or a website calls the runtime's API, a sandboxed command writes outside the workspace, a key leaves the machine, an imported research bundle writes outside `.saturn/research` or runs something, the assistant sets a verdict or a label);
+- the impact as you see it (for example: a web page or file makes an agent run a command without approval, another local program or a website calls the runtime's API, a sandboxed command writes outside the workspace, a key leaves the machine, an imported research bundle writes outside `.workbench/research` or runs something, the assistant sets a verdict or a label);
 - whether, and when, you plan to disclose it.
 
 ## What happens next
@@ -23,18 +23,18 @@ Include what you can of:
 
 ## Supported versions
 
-Saturn is a preview. Only the latest release receives security fixes; please check that a problem reproduces on it.
+Eisoptric Workbench is a preview. Only the latest release receives security fixes; please check that a problem reproduces on it.
 
 ## Scope
 
-In scope: this repository's own code, that is the runtime and the CLI (`crates/`), the desktop app (`desktop/`), the SDK ([Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK), its own repository), and the release and supply-chain workflows.
+In scope: this repository's own code, that is the runtime and the CLI (`crates/`), the desktop app (`desktop/`), and the release and supply-chain workflows.
 
 Out of scope, reported to their owners instead:
 
-- Claude Code, Codex, MCP servers, model providers and other third-party programs Saturn starts or calls.
+- Claude Code, Codex, MCP servers, model providers and other third-party programs Eisoptric Workbench starts or calls.
 - Advisories in dependencies that do not ship, or that [`docs/known-advisories.md`](docs/known-advisories.md) already lists as reviewed.
 
-What Saturn defends against, and what it deliberately leaves to you, is in the [threat model](docs/threat-model.md), which also lists what an external review should cover first. For example, an agent you put in full autonomy running a harmful command inside a folder you granted it is the documented design, not a vulnerability; the same command run without the approval your settings require is one.
+What Eisoptric Workbench defends against, and what it deliberately leaves to you, is in the [threat model](docs/threat-model.md), which also lists what an external review should cover first. For example, an agent you put in full autonomy running a harmful command inside a folder you granted it is the documented design, not a vulnerability; the same command run without the approval your settings require is one.
 
 Please test only against your own installation and accounts, do not access other people's data, and avoid degrading anyone's service.
 
@@ -44,17 +44,17 @@ Please test only against your own installation and accounts, do not access other
 
 [English](#security-policy)
 
-Saturn 是在你電腦上的 AI 研究工作台。它執行你的實驗、保存你的研究紀錄，並有一位研究助理：一個能在你允許的資料夾與模式內執行指令、修改檔案與操作 App 的 AI Agent。它也保管你的模型供應商 API 金鑰。我們認真看待與這些相關的每一份回報，也感謝每一位負責任揭露的人。
+Eisoptric Workbench 是在你電腦上的 AI 研究工作台。它執行你的實驗、保存你的研究紀錄，並有一位研究助理：一個能在你允許的資料夾與模式內執行指令、修改檔案與操作 App 的 AI Agent。它也保管你的模型供應商 API 金鑰。我們認真看待與這些相關的每一份回報，也感謝每一位負責任揭露的人。
 
 ## 回報漏洞
 
-請寄信至 **[security@saturn-core.com](mailto:security@saturn-core.com)**，或使用 GitHub 的 **[Report a vulnerability](https://github.com/Saturn-Technology-Project/Saturn-App/security/advisories/new)**（私密回報，位於 Security 分頁）。請不要以公開的 issue、討論或 pull request 回報漏洞。
+請寄信至 **[security@eisoptric.com](mailto:security@eisoptric.com)**，或使用 GitHub 的 **[Report a vulnerability](https://github.com/eisoptric/Workbench/security/advisories/new)**（私密回報，位於 Security 分頁）。請不要以公開的 issue、討論或 pull request 回報漏洞。
 
 請盡量附上：
 
-- 受影響的元件（桌面應用程式、Runtime、CLI 或 SDK）與版本（設定 → About，或發布的 tag）；
+- 受影響的元件（桌面應用程式、Runtime 或 CLI）與版本（設定 → About，或發布的 tag）；
 - 重現步驟或概念驗證；
-- 你認為的影響（例如：網頁或檔案讓 Agent 未經核准就執行指令、其他本機程式或網站呼叫了 Runtime 的 API、沙箱中的指令寫到工作目錄之外、金鑰離開了這台電腦、匯入的研究包寫到 `.saturn/research` 之外或執行了東西、研究助理設定了判定或標註）；
+- 你認為的影響（例如：網頁或檔案讓 Agent 未經核准就執行指令、其他本機程式或網站呼叫了 Runtime 的 API、沙箱中的指令寫到工作目錄之外、金鑰離開了這台電腦、匯入的研究包寫到 `.workbench/research` 之外或執行了東西、研究助理設定了判定或標註）；
 - 你是否、以及何時打算公開。
 
 ## 接下來
@@ -65,17 +65,17 @@ Saturn 是在你電腦上的 AI 研究工作台。它執行你的實驗、保存
 
 ## 支援的版本
 
-Saturn 目前為預覽版，只有最新版本會收到安全修補；回報前請確認問題在最新版本上仍會發生。
+Eisoptric Workbench 目前為預覽版，只有最新版本會收到安全修補；回報前請確認問題在最新版本上仍會發生。
 
 ## 範圍
 
-範圍內：此 repository 自己的程式碼，即 Runtime 與 CLI（`crates/`）、桌面應用程式（`desktop/`）、SDK（[Saturn-SDK](https://github.com/Saturn-Technology-Project/Saturn-SDK)，獨立的 repository），以及發布與供應鏈的 workflow。
+範圍內：此 repository 自己的程式碼，即 Runtime 與 CLI（`crates/`）、桌面應用程式（`desktop/`），以及發布與供應鏈的 workflow。
 
 範圍外，請回報給各自的維護者：
 
-- Claude Code、Codex、MCP 伺服器、模型供應商，以及 Saturn 啟動或呼叫的其他第三方程式。
+- Claude Code、Codex、MCP 伺服器、模型供應商，以及 Eisoptric Workbench 啟動或呼叫的其他第三方程式。
 - 不會出貨的相依套件中的公告，或 [`docs/known-advisories.md`](docs/known-advisories.md) 已列為審視過的公告。
 
-Saturn 防範什麼、刻意交由你決定什麼，見[威脅模型](docs/threat-model.md)，其中也列出外部審查應優先涵蓋的範圍。例如：你設為完全自主的 Agent 在你授權的資料夾內執行了有害指令，是文件中說明的設計，不是漏洞；同一個指令若在你的設定要求核准時卻未經核准就執行，才是漏洞。
+Eisoptric Workbench 防範什麼、刻意交由你決定什麼，見[威脅模型](docs/threat-model.md)，其中也列出外部審查應優先涵蓋的範圍。例如：你設為完全自主的 Agent 在你授權的資料夾內執行了有害指令，是文件中說明的設計，不是漏洞；同一個指令若在你的設定要求核准時卻未經核准就執行，才是漏洞。
 
 請只在你自己的安裝與帳號上測試，不要存取他人的資料，也不要影響任何人的服務。

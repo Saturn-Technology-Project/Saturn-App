@@ -145,7 +145,7 @@ export class ResearchService {
     return this.runtime.request(`${this.route(project)}/counterexample_sets`);
   }
 
-  /** SSH keeps credentials; Saturn saves only the configured host and working tree. */
+  /** SSH keeps credentials; Eisoptric Workbench saves only the configured host and working tree. */
   remoteTarget(project: string): Promise<{ target: RemoteTarget | null; note: string }> {
     return this.runtime.request(`${this.route(project)}/remote`);
   }
@@ -158,12 +158,12 @@ export class ResearchService {
     return this.send(`${this.route(project)}/remote/check`, "POST");
   }
 
-  /** Finds this Saturn's worker on the SSH host; a ready one becomes the program runs use. */
+  /** Finds this Eisoptric Workbench's worker on the SSH host; a ready one becomes the program runs use. */
   pairRemoteWorker(project: string): Promise<WorkerPairing> {
     return this.send(`${this.route(project)}/remote/pair`, "POST");
   }
 
-  /** Installs this Saturn's worker on the SSH host, as the person asked, and pairs with it. */
+  /** Installs this Eisoptric Workbench's worker on the SSH host, as the person asked, and pairs with it. */
   installRemoteWorker(project: string): Promise<WorkerPairing> {
     return this.send(`${this.route(project)}/remote/install`, "POST");
   }
@@ -460,14 +460,14 @@ export class ResearchService {
     if (target.kind === "sample") this.saveSession(project, { ...session, review: target });
     else if (target.kind === "experiment") this.saveSession(project, { ...session, experimentId: target.experimentId });
     else this.saveSession(project, { ...session, file: target.path });
-    window.dispatchEvent(new CustomEvent<OpenTarget>("saturn-research-open", { detail: target }));
+    window.dispatchEvent(new CustomEvent<OpenTarget>("workbench-research-open", { detail: target }));
   }
 
   /** Hears what `open` asks for. */
   onOpen(listener: (target: OpenTarget) => void): () => void {
     const handle = (event: Event) => listener((event as CustomEvent<OpenTarget>).detail);
-    window.addEventListener("saturn-research-open", handle);
-    return () => window.removeEventListener("saturn-research-open", handle);
+    window.addEventListener("workbench-research-open", handle);
+    return () => window.removeEventListener("workbench-research-open", handle);
   }
 
   /** The moment this device last opened the project, and marks now as the newest visit. */
@@ -480,7 +480,7 @@ export class ResearchService {
   /** What this project's workbench had open. It is a convenience, so losing it loses no research. */
   loadSession(project: string): ResearchSession {
     try {
-      return JSON.parse(localStorage.getItem(`saturn-research-${project}`) ?? "{}") as ResearchSession;
+      return JSON.parse(localStorage.getItem(`workbench-research-${project}`) ?? "{}") as ResearchSession;
     } catch {
       return {};
     }
@@ -488,7 +488,7 @@ export class ResearchService {
 
   saveSession(project: string, session: ResearchSession): void {
     try {
-      localStorage.setItem(`saturn-research-${project}`, JSON.stringify(session));
+      localStorage.setItem(`workbench-research-${project}`, JSON.stringify(session));
     } catch {
       // A full or blocked store only loses where the workbench reopens.
     }

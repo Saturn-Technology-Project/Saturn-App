@@ -32,7 +32,7 @@ async function call(method, route, body) {
 }
 
 before(async () => {
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-tools-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-tools-")));
   runtime = await startRuntime();
   server = createServer((request, response) => {
     let raw = "";
@@ -224,7 +224,7 @@ test("plugins are packaged in the project, without links, and turned on and off"
   assert.equal(toggled[3].result.plugins[0].enabled, false);
 });
 
-test("the workspace is the chat's project, or Saturn's own without one", async () => {
+test("the workspace is the chat's project, or Eisoptric Workbench's own without one", async () => {
   const folder = path.join(scratch, "nothing");
   await mkdir(folder);
   const [answer] = await run([["customizations_list", {}]], folder);

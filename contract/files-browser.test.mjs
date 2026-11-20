@@ -11,7 +11,7 @@ import { bench } from "./files-support.mjs";
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-let saturn;
+let workbench;
 let driver;
 let setup;
 let workspace;
@@ -26,14 +26,14 @@ before(async () => {
     });
   });
   await new Promise((resolve) => driver.listen(0, "127.0.0.1", resolve));
-  saturn = await bench({ env: { SATURN_SAFARI_ENDPOINT: `http://127.0.0.1:${driver.address().port}` } });
-  await saturn.api("PATCH", "/settings", { browser: "safari" });
-  setup = await saturn.chat(undefined, { mcpConnectionIds: ["browser"] });
-  workspace = path.join(saturn.runtime.dataDir, "workspace");
+  workbench = await bench({ env: { WORKBENCH_SAFARI_ENDPOINT: `http://127.0.0.1:${driver.address().port}` } });
+  await workbench.api("PATCH", "/settings", { browser: "safari" });
+  setup = await workbench.chat(undefined, { mcpConnectionIds: ["browser"] });
+  workspace = path.join(workbench.runtime.dataDir, "workspace");
   await mkdir(workspace, { recursive: true });
 });
 after(async () => {
-  await saturn?.stop();
+  await workbench?.stop();
   driver?.closeAllConnections();
   driver?.close();
 });
@@ -46,15 +46,15 @@ test("a screenshot is saved in the workspace, creating its folders", async () =>
 
 test("a screenshot is not saved anywhere else, also through links", { skip: process.platform === "win32" }, async () => {
   await symlink(os.tmpdir(), path.join(workspace, "linked"));
-  await symlink(path.join(saturn.runtime.dataDir, "nowhere"), path.join(workspace, "dangling"));
-  for (const file of ["../escaped.jpg", "/etc/page.jpg", "linked/saturn-contract-page.jpg", "dangling", "dangling/page.jpg", "."]) {
+  await symlink(path.join(workbench.runtime.dataDir, "nowhere"), path.join(workspace, "dangling"));
+  for (const file of ["../escaped.jpg", "/etc/page.jpg", "linked/workbench-contract-page.jpg", "dangling", "dangling/page.jpg", "."]) {
     const run = await setup.turn([["browser_screenshot", { file }]]);
     assert.equal(run.actions[0].status, "failed", file);
     assert.match(run.actions[0].reason, /only be saved in the workspace/, file);
   }
-  assert.equal(existsSync(path.join(os.tmpdir(), "saturn-contract-page.jpg")), false);
-  assert.equal(existsSync(path.join(saturn.runtime.dataDir, "nowhere")), false);
-  assert.equal(existsSync(path.join(saturn.runtime.dataDir, "escaped.jpg")), false);
+  assert.equal(existsSync(path.join(os.tmpdir(), "workbench-contract-page.jpg")), false);
+  assert.equal(existsSync(path.join(workbench.runtime.dataDir, "nowhere")), false);
+  assert.equal(existsSync(path.join(workbench.runtime.dataDir, "escaped.jpg")), false);
 });
 
 test("a recording's name is one folder under recordings, never a way out", async () => {

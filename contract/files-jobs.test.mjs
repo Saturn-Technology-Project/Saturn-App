@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { bench, command, idle, node, until } from "./files-support.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 /** Whether a process is still there. */
 function alive(pid) {
@@ -23,10 +23,10 @@ function alive(pid) {
 const WAITING = idle(60);
 
 const gone = (pid) => until(`process ${pid} to end`, () => !alive(pid));
-const jobs = (thread) => saturn.api("GET", `/threads/${thread.id}/jobs`);
+const jobs = (thread) => workbench.api("GET", `/threads/${thread.id}/jobs`);
 
 test("a background command returns at once, and the agent can read it, wait for it and see it end", async () => {
-  const setup = await saturn.chat();
+  const setup = await workbench.chat();
   const started = await setup.turn([command(node("let i = 0; const timer = setInterval(() => { i += 1; console.log('tick' + i); if (i === 3) { clearInterval(timer); console.log('end'); } }, 200)"), { background: true })]);
   const job = started.actions[0].result;
   assert.match(job.jobId, /^job_/);
@@ -42,7 +42,7 @@ test("a background command returns at once, and the agent can read it, wait for 
 });
 
 test("a background command that fails at once comes back with its exit code", async () => {
-  const setup = await saturn.chat();
+  const setup = await workbench.chat();
   const run = await setup.turn([command("exit 3", { background: true })]);
   let { running, exitCode, jobId } = run.actions[0].result;
   // Windows's sandbox opens the chat's folder to the command before it starts it, which can take longer than the
@@ -55,7 +55,7 @@ test("a background command that fails at once comes back with its exit code", as
 });
 
 test("the app lists a chat's background commands and stops them, with the processes they started", async () => {
-  const setup = await saturn.chat();
+  const setup = await workbench.chat();
   const other = await setup.newThread("Another chat");
   assert.deepEqual(await jobs(setup.thread), []);
   const run = await setup.turn([command(WAITING, { background: true })]);
@@ -65,32 +65,32 @@ test("the app lists a chat's background commands and stops them, with the proces
   assert.deepEqual(listed.map((job) => [job.id, job.running, job.command]), [[jobId, true, WAITING]]);
   assert.deepEqual(await jobs(other), [], "jobs are per chat");
 
-  const wrongChat = await saturn.call("POST", `/threads/${other.id}/jobs/${jobId}/stop`);
+  const wrongChat = await workbench.call("POST", `/threads/${other.id}/jobs/${jobId}/stop`);
   assert.equal(wrongChat.status, 404);
   assert.match(wrongChat.body.error, /No such background command/);
-  assert.equal((await saturn.call("POST", `/threads/${setup.thread.id}/jobs/job_none/stop`)).status, 404);
+  assert.equal((await workbench.call("POST", `/threads/${setup.thread.id}/jobs/job_none/stop`)).status, 404);
   assert.ok(alive(pid), "still running");
 
-  assert.equal((await saturn.api("POST", `/threads/${setup.thread.id}/jobs/${jobId}/stop`)).id, jobId);
+  assert.equal((await workbench.api("POST", `/threads/${setup.thread.id}/jobs/${jobId}/stop`)).id, jobId);
   await gone(pid);
   await until("the list to show it ended", () => jobs(setup.thread), ([job]) => job.running === false);
 });
 
 test("the runtime says what is still working, so the app can ask before quitting", async () => {
-  const commands = async () => (await saturn.api("GET", "/activity")).commands;
-  const before = await saturn.api("GET", "/activity");
+  const commands = async () => (await workbench.api("GET", "/activity")).commands;
+  const before = await workbench.api("GET", "/activity");
   assert.deepEqual(Object.keys(before).sort(), ["chats", "commands", "runs"]);
   assert.equal(before.chats, 0);
-  const setup = await saturn.chat();
+  const setup = await workbench.chat();
   const run = await setup.turn([command(WAITING, { background: true })]);
   const { jobId } = run.actions[0].result;
   assert.equal(await commands(), before.commands + 1);
-  await saturn.api("POST", `/threads/${setup.thread.id}/jobs/${jobId}/stop`);
+  await workbench.api("POST", `/threads/${setup.thread.id}/jobs/${jobId}/stop`);
   await until("the command to count as ended", commands, (count) => count === before.commands);
 });
 
 test("the agent stops its own command with code_stop, and an unknown one is refused", async () => {
-  const setup = await saturn.chat();
+  const setup = await workbench.chat();
   const run = await setup.turn([command(WAITING, { background: true })]);
   const { jobId, pid } = run.actions[0].result;
   assert.ok(alive(pid));
@@ -108,30 +108,30 @@ test("the agent stops its own command with code_stop, and an unknown one is refu
 });
 
 test("deleting a chat ends what its background commands still run", async () => {
-  const setup = await saturn.chat();
+  const setup = await workbench.chat();
   const run = await setup.turn([command(WAITING, { background: true })]);
   const { pid } = run.actions[0].result;
   assert.ok(alive(pid));
-  await saturn.api("DELETE", `/threads/${setup.thread.id}`);
+  await workbench.api("DELETE", `/threads/${setup.thread.id}`);
   await gone(pid);
 });
 
 test("a chat runs at most eight background commands at once", async () => {
-  const setup = await saturn.chat();
+  const setup = await workbench.chat();
   const start = command(idle(30), { background: true });
   const run = await setup.turn(Array.from({ length: 9 }, () => start));
   assert.deepEqual(run.actions.map((action) => action.status), [...Array(8).fill("completed"), "failed"]);
   assert.match(run.actions[8].reason, /already runs 8 background commands/);
   const pids = run.actions.slice(0, 8).map((action) => action.result.pid);
-  await saturn.api("DELETE", `/threads/${setup.thread.id}`);
+  await workbench.api("DELETE", `/threads/${setup.thread.id}`);
   await Promise.all(pids.map(gone));
 });
 
 test("a chat cannot read or stop another chat's background command through the agent's tools", async () => {
-  const setup = await saturn.chat();
+  const setup = await workbench.chat();
   const run = await setup.turn([command(WAITING, { background: true })]);
   const { jobId, pid } = run.actions[0].result;
-  const other = await saturn.chat();
+  const other = await workbench.chat();
   const tried = await other.turn([["code_output", { jobId }], ["code_stop", { jobId }]]);
   for (const action of tried.actions) {
     assert.equal(action.status, "failed", JSON.stringify(action));
@@ -139,5 +139,5 @@ test("a chat cannot read or stop another chat's background command through the a
     assert.ok(!JSON.stringify(action.result ?? "").includes("setTimeout"));
   }
   assert.ok(alive(pid), "it keeps running");
-  await saturn.api("POST", `/threads/${setup.thread.id}/jobs/${jobId}/stop`);
+  await workbench.api("POST", `/threads/${setup.thread.id}/jobs/${jobId}/stop`);
 });

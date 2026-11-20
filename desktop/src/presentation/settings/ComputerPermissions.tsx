@@ -14,11 +14,11 @@ const ROWS: { which: Which; label: string; detail: string }[] = [
 ];
 
 /**
- * Asks macOS for a permission from the app itself, so macOS shows its prompt and lists Saturn in System Settings;
+ * Asks macOS for a permission from the app itself, so macOS shows its prompt and lists Eisoptric Workbench in System Settings;
  * in a plain browser (no desktop bridge) it opens the System Settings pane instead.
  */
 export async function requestPermission(which: Which): Promise<void> {
-  const request = (globalThis as { saturnDesktop?: { requestPermission?: (which: Which) => Promise<{ granted: boolean }> } }).saturnDesktop?.requestPermission;
+  const request = (globalThis as { workbenchDesktop?: { requestPermission?: (which: Which) => Promise<{ granted: boolean }> } }).workbenchDesktop?.requestPermission;
   const answer = request ? await request(which).catch(() => ({ granted: false })) : { granted: false };
   if (!answer.granted) await desktop.admin.openPermissionPane(which).catch(() => undefined);
 }

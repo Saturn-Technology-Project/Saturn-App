@@ -10,14 +10,14 @@ import { program as runtimeProgram, startRuntime } from "./runtime.mjs";
 export const VERSION = "9.9.9";
 /**
  * The platform the runtime looks its programs up under. It is the runtime's own, which is Node's too unless the two
- * were built for different processors, as on Windows on ARM, where Saturn is an x64 program: SATURN_CONTRACT_PLATFORM
+ * were built for different processors, as on Windows on ARM, where Eisoptric Workbench is an x64 program: WORKBENCH_CONTRACT_PLATFORM
  * then says which.
  */
-export const PLATFORM = process.env.SATURN_CONTRACT_PLATFORM ?? `${process.platform}-${process.arch}`;
+export const PLATFORM = process.env.WORKBENCH_CONTRACT_PLATFORM ?? `${process.platform}-${process.arch}`;
 
 /**
  * Puts a stand-in program at `file`. Elsewhere it is the script itself, made executable. Windows starts only an `.exe`
- * by a bare name, so there it is a copy of the `saturn-standin` program, which runs the script beside it with this
+ * by a bare name, so there it is a copy of the `workbench-standin` program, which runs the script beside it with this
  * Node. Gives back the path of the program.
  */
 export async function placeProgram(file, script) {
@@ -29,7 +29,7 @@ export async function placeProgram(file, script) {
   // A stand-in that was just stopped is still held by Windows for a moment, and cannot be replaced until it is let go.
   for (let attempt = 0; ; attempt += 1) {
     try {
-      await copyFile(path.join(path.dirname(runtimeProgram()), "saturn-standin.exe"), `${file}.exe`);
+      await copyFile(path.join(path.dirname(runtimeProgram()), "workbench-standin.exe"), `${file}.exe`);
       break;
     } catch (error) {
       if (error.code !== "EBUSY" || attempt === 50) throw error;
@@ -42,7 +42,7 @@ export async function placeProgram(file, script) {
 }
 
 /** Environment variables a stand-in writes down when it starts. */
-const NOTED = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "ELECTRON_RUN_AS_NODE", "NO_COLOR", "SATURN_SKILLS_TOKEN", "CLAUDE_CODE_USE_BEDROCK"];
+const NOTED = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_API_KEY", "CODEX_ACCESS_TOKEN", "ELECTRON_RUN_AS_NODE", "NO_COLOR", "WORKBENCH_SKILLS_TOKEN", "CLAUDE_CODE_USE_BEDROCK"];
 
 /** What both stand-ins share: the scenario file, and a journal of what happened. */
 const preamble = (folder) => `#!${process.execPath}
@@ -89,7 +89,7 @@ if (args[0] === "auth") {
         note({ permission: step.permission.id, response });
         if (response.behavior === "allow" && step.permission.write) fs.writeFileSync(step.permission.write.path, step.permission.write.content);
       }
-      if (step.mcp) note({ mcp: step.mcp.method, response: await ask({ subtype: "mcp_message", server_name: step.mcp.server ?? "saturn", message: { jsonrpc: "2.0", ...(step.mcp.notification ? {} : { id: step.mcp.id ?? 1 }), method: step.mcp.method, ...(step.mcp.params ? { params: step.mcp.params } : {}) } }) });
+      if (step.mcp) note({ mcp: step.mcp.method, response: await ask({ subtype: "mcp_message", server_name: step.mcp.server ?? "workbench", message: { jsonrpc: "2.0", ...(step.mcp.notification ? {} : { id: step.mcp.id ?? 1 }), method: step.mcp.method, ...(step.mcp.params ? { params: step.mcp.params } : {}) } }) });
       if (step.wait) await new Promise((resolve) => setTimeout(resolve, step.wait));
       if (step.hang) await new Promise(() => setInterval(() => undefined, 1000));
       if (step.exit !== undefined) { if (step.stderr) process.stderr.write(step.stderr); process.exit(step.exit); }
@@ -125,7 +125,7 @@ if (args[0] === "auth") {
 
 /**
  * The \`codex\` program: \`login\` and \`logout\` as scenario says, and \`exec\` reads its prompt from stdin, then plays the steps.
- * It reaches the skills server over HTTP, at the address and with the token Saturn gave it, as the real one does.
+ * It reaches the skills server over HTTP, at the address and with the token Eisoptric Workbench gave it, as the real one does.
  */
 const codexProgram = (folder) => `${preamble(folder)}
 if (args[0] === "login" && args[1] === "status") {
@@ -141,7 +141,7 @@ if (args[0] === "login" && args[1] === "status") {
 } else {
   const send = (message) => process.stdout.write(JSON.stringify(message) + "\\n");
   const setting = (name) => {
-    const found = args.find((item) => item.startsWith("mcp_servers.saturn." + name + "="));
+    const found = args.find((item) => item.startsWith("mcp_servers.workbench." + name + "="));
     return found ? JSON.parse(found.slice(found.indexOf("=") + 1)) : undefined;
   };
   const skills = async (step) => {
@@ -178,7 +178,7 @@ if [ "$1" = --version ]; then echo "uv 9.9.9 (stand-in)"; fi
 
 /** Starts a runtime that finds only stand-ins: `install` lists the programs placed in its data folder. */
 export async function startWithPrograms({ install = ["claude-code", "codex"], packages, env = {} } = {}) {
-  const folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-programs-")));
+  const folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-programs-")));
   const dataDir = path.join(folder, "data");
   const bin = path.join(folder, "bin");
   await mkdir(bin, { recursive: true });
@@ -203,7 +203,7 @@ export async function startWithPrograms({ install = ["claude-code", "codex"], pa
   await writeFile(manifestFile, JSON.stringify(packages ?? { "claude-code": { [PLATFORM]: pinned }, codex: { [PLATFORM]: pinned }, uv: { [PLATFORM]: pinned } }));
   const runtime = await startRuntime({
     dataDir,
-    env: { PATH: process.platform === "win32" ? `${bin};${process.env.SystemRoot}\\System32;${process.env.SystemRoot}` : `${bin}:/usr/bin:/bin`, SATURN_PROGRAM_PACKAGES: manifestFile, ...env },
+    env: { PATH: process.platform === "win32" ? `${bin};${process.env.SystemRoot}\\System32;${process.env.SystemRoot}` : `${bin}:/usr/bin:/bin`, WORKBENCH_PROGRAM_PACKAGES: manifestFile, ...env },
   });
   const token = (await readFile(path.join(dataDir, "runtime-token"), "utf8")).trim();
 
@@ -280,16 +280,16 @@ export async function startWithPrograms({ install = ["claude-code", "codex"], pa
 const finished = (run) => !["queued", "running", "waiting_approval"].includes(run.status);
 
 /** Starts a run and waits for it to end. */
-export async function runToEnd(saturn, agentId, body) {
-  const started = await saturn.api("POST", `/agents/${agentId}/runs`, body);
-  return await saturn.until("the run", () => saturn.api("GET", `/runs/${started.id}`), finished);
+export async function runToEnd(workbench, agentId, body) {
+  const started = await workbench.api("POST", `/agents/${agentId}/runs`, body);
+  return await workbench.until("the run", () => workbench.api("GET", `/runs/${started.id}`), finished);
 }
 
 /** Waits for a run to show an approval card, and answers the run and the action waiting on it. */
-export async function untilCard(saturn, runId) {
-  const run = await saturn.until("the card", () => saturn.api("GET", `/runs/${runId}`), (item) => item.status === "waiting_approval" || finished(item));
+export async function untilCard(workbench, runId) {
+  const run = await workbench.until("the card", () => workbench.api("GET", `/runs/${runId}`), (item) => item.status === "waiting_approval" || finished(item));
   if (run.status !== "waiting_approval") throw new Error(`The run ended without a card: ${JSON.stringify(run)}`);
   return { run, action: run.actions.find((item) => item.status === "waiting_approval") };
 }
 
-export const untilFinished = (saturn, runId) => saturn.until("the run", () => saturn.api("GET", `/runs/${runId}`), finished);
+export const untilFinished = (workbench, runId) => workbench.until("the run", () => workbench.api("GET", `/runs/${runId}`), finished);

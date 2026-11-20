@@ -1,0 +1,36 @@
+[package]
+name = "workbench-core"
+description = "The agent loop: a model's turns, its tool calls and approvals, hooks, compaction, sub-agents and checkpoints"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.23"
+# Time zones for schedules; its bundled database is what Windows, which has none, falls back on.
+percent-encoding = "2"
+regex = "1"
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+# The code index's file, the same SQLite file earlier versions wrote.
+workbench-browser = { path = "../workbench-browser" }
+workbench-computer = { path = "../workbench-computer" }
+workbench-domain = { path = "../workbench-domain" }
+workbench-llm = { path = "../workbench-llm" }
+workbench-mcp = { path = "../workbench-mcp" }
+workbench-store = { path = "../workbench-store" }
+workbench-telemetry = { path = "../workbench-telemetry" }
+workbench-tools = { path = "../workbench-tools" }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+sha2 = "0.11"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
+url = "2"
+
+[dev-dependencies]
+axum = "0.8"
+serde = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }

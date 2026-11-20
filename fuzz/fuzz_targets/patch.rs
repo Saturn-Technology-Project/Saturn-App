@@ -3,5 +3,5 @@
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|text: &str| {
-    let _ = saturn_domain::skills::patch::parse_patch(text);
+    let _ = workbench_domain::skills::patch::parse_patch(text);
 });

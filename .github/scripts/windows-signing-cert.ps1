@@ -1,17 +1,17 @@
 # Makes the Windows code-signing certificate available to signing (WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD), which
 # .github/scripts/sign-windows-file.ps1 reads for every file the Tauri bundler signs.
 #
-# With the repository's secrets: Saturn's self-signed certificate (desktop/build/saturn-code-signing.cer is its public
+# With the repository's secrets: Eisoptric Workbench's self-signed certificate (desktop/build/workbench-code-signing.cer is its public
 # half), so every build is signed by the same publisher and anyone can check the thumbprint. Without them (forks,
 # pull requests): a throwaway certificate, so the signing path is still exercised.
 $ErrorActionPreference = 'Stop'
-$file = Join-Path $env:RUNNER_TEMP 'saturn-signing.pfx'
+$file = Join-Path $env:RUNNER_TEMP 'workbench-signing.pfx'
 if ($env:PFX) {
   [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($env:PFX))
   $password = $env:PFX_PASSWORD
-  Write-Output 'Signing with Saturn''s self-signed certificate'
+  Write-Output 'Signing with Eisoptric Workbench''s self-signed certificate'
 } else {
-  $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=Saturn Technology Project (ephemeral, self-signed)' `
+  $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=Eisoptric (ephemeral, self-signed)' `
     -CertStoreLocation Cert:\CurrentUser\My -KeyAlgorithm RSA -KeyLength 3072 -HashAlgorithm SHA256 -NotAfter (Get-Date).AddDays(7)
   $password = [Guid]::NewGuid().ToString('N')
   Write-Output "::add-mask::$password"

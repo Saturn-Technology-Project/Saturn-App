@@ -1,7 +1,7 @@
 // A screen asking the research assistant something on the person's behalf: the panel opens with the request in its
 // box, for the person to read, change and send. Nothing is sent without them.
 
-const EVENT = "saturn-assistant-ask";
+const EVENT = "workbench-assistant-ask";
 
 /** A request made while the panel was closed, which the panel takes when it opens. */
 let waiting: string | null = null;

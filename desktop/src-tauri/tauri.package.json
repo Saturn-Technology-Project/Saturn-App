@@ -1,5 +1,5 @@
 {
   "bundle": {
-    "externalBin": ["binaries/saturn-server", "binaries/saturn"]
+    "externalBin": ["binaries/workbench-server", "binaries/workbench"]
   }
 }

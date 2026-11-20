@@ -7,7 +7,7 @@ import { classes } from "../ui/base/classes.js";
 export function RuntimeGate(props: { status: RuntimeStatus; restart: (() => Promise<void>) | null }) {
   const { status, restart } = props;
   if (status.state === "ready") return null;
-  const title = status.state === "blocked" ? t("Another Saturn is in the way") : status.state === "failed" ? t("Saturn's runtime stopped") : status.attempt > 1 ? t("Starting Saturn's runtime again") : t("Starting Saturn's runtime");
+  const title = status.state === "blocked" ? t("Another Eisoptric Workbench is in the way") : status.state === "failed" ? t("Eisoptric Workbench's runtime stopped") : status.attempt > 1 ? t("Starting Eisoptric Workbench's runtime again") : t("Starting Eisoptric Workbench's runtime");
   const detail = status.state === "blocked" || status.state === "failed" ? status.reason : status.attempt > 1 ? t("Attempt {attempt}. Your records are safe in the project folder.", { attempt: status.attempt }) : t("This takes a moment.");
   const log = status.state === "starting" || status.state === "failed" ? status.log : [];
   const tone = status.state === "failed" ? "bg-destructive" : status.state === "blocked" ? "bg-wait" : "bg-info";
@@ -30,7 +30,7 @@ export function RuntimeGate(props: { status: RuntimeStatus; restart: (() => Prom
             {t("Try again")}
           </Button>
         ) : null}
-        {!restart && status.state === "starting" ? <p className="text-xs text-muted-foreground">{t("Start the runtime with {command}, or open Saturn's app.", { command: "npm run dev" })}</p> : null}
+        {!restart && status.state === "starting" ? <p className="text-xs text-muted-foreground">{t("Start the runtime with {command}, or open Eisoptric Workbench's app.", { command: "npm run dev" })}</p> : null}
       </div>
     </div>
   );

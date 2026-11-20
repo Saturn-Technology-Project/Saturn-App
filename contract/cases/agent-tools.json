@@ -60,7 +60,7 @@
         "cron": "*/5 * * * *"
       },
       "status": "failed",
-      "reason": "Unsupported schedule \"*/5 * * * *\". Saturn runs hourly (\"M * * * *\"), daily (\"M H * * *\"), weekdays (\"M H * * 1-5\") or weekly (\"M H * * D\", 0 = Sunday) schedules."
+      "reason": "Unsupported schedule \"*/5 * * * *\". Eisoptric Workbench runs hourly (\"M * * * *\"), daily (\"M H * * *\"), weekdays (\"M H * * 1-5\") or weekly (\"M H * * D\", 0 = Sunday) schedules."
     },
     {
       "tool": "automation_create",
@@ -80,7 +80,7 @@
         "cron": "0 9 *"
       },
       "status": "failed",
-      "reason": "Unsupported schedule \"0 9 *\". Saturn runs hourly (\"M * * * *\"), daily (\"M H * * *\"), weekdays (\"M H * * 1-5\") or weekly (\"M H * * D\", 0 = Sunday) schedules."
+      "reason": "Unsupported schedule \"0 9 *\". Eisoptric Workbench runs hourly (\"M * * * *\"), daily (\"M H * * *\"), weekdays (\"M H * * 1-5\") or weekly (\"M H * * D\", 0 = Sunday) schedules."
     },
     {
       "tool": "automation_create",

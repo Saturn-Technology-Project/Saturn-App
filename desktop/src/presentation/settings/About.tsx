@@ -1,4 +1,4 @@
-import saturnIcon from "../../assets/saturn-icon.png";
+import workbenchIcon from "../../assets/workbench-icon.png";
 import type { RuntimeInfo } from "../../domain/model";
 import { Button } from "../ui/base/Button.js";
 import { Card } from "../ui/base/Card.js";
@@ -13,7 +13,7 @@ const PARTS: { name: string; role: string; body: string }[] = [
     body: t("Your questions, code, experiments, models, samples and findings, with a research assistant beside them."),
   },
   {
-    name: "Saturn Runtime",
+    name: "Eisoptric Workbench Runtime",
     role: t("The local core"),
     body: t("Runs on this computer at 127.0.0.1. It runs your experiments, calls the models, keeps your keys, and writes research records as plain files in each project."),
   },
@@ -46,15 +46,15 @@ const FEATURES: { title: string; body: string }[] = [
   },
 ];
 
-/** Settings → About: what Saturn is, what it is made of, and what it does; then this installation's details. */
+/** Settings → About: what Eisoptric Workbench is, what it is made of, and what it does; then this installation's details. */
 export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboarding?: () => void }) {
   const listen = props.info.listen.replace(/^https?:\/\//, "");
   return (
     <div className="flex max-w-[760px] flex-col gap-5.5">
       <header className="flex items-center gap-4">
-        <img className="size-16 shrink-0 rounded-[15px] shadow-md" src={saturnIcon} alt="" width={64} height={64} />
+        <img className="size-16 shrink-0 rounded-[15px] shadow-md" src={workbenchIcon} alt="" width={64} height={64} />
         <div>
-          <h3 className="m-0 text-[22px] font-semibold tracking-tight text-foreground">Saturn</h3>
+          <h3 className="m-0 text-[22px] font-semibold tracking-tight text-foreground">Eisoptric Workbench</h3>
           <p className="mt-0.5 mb-0 text-[13.5px] text-muted-foreground">{t("A workbench for AI research, on your own computer.")}</p>
         </div>
         {props.onRerunOnboarding ? (
@@ -65,7 +65,7 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
       </header>
 
       <p className="m-0 text-[13.5px] leading-relaxed text-foreground">
-        {t("Saturn is a desktop workbench for AI research. Read the method, write the code yourself, run the experiment and inspect every sample, with as much help from AI as you choose. The app and its runtime run locally, and your records stay in your project.")}
+        {t("Eisoptric Workbench is a desktop workbench for AI research. Read the method, write the code yourself, run the experiment and inspect every sample, with as much help from AI as you choose. The app and its runtime run locally, and your records stay in your project.")}
       </p>
 
       <section className="flex flex-col">
@@ -101,7 +101,7 @@ export function About(props: { info: RuntimeInfo; version?: string; onRerunOnboa
           <Fact label={t("Version")} value={props.version ?? props.info.version} />
           <Fact label={t("Runtime")} value={listen} />
           <Fact label={t("Workspace")} value={props.info.name} />
-          <Fact label={t("Data folder")} value="~/.saturn-app" />
+          <Fact label={t("Data folder")} value="~/.workbench-app" />
           {props.info.secrets ? (
             <Fact label={t("API keys")} value={props.info.secrets.encrypted ? t("Encrypted (AES-256-GCM), key in the {store}", { store: props.info.secrets.label }) : t("Not encrypted")} />
           ) : null}

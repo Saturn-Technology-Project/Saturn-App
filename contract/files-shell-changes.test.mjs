@@ -1,5 +1,5 @@
 // What a shell command changes joins the turn's checkpoint, in a git folder through git's view and elsewhere through a
-// private snapshot in Saturn's data; Settings → Storage lists and deletes those snapshots.
+// private snapshot in Eisoptric Workbench's data; Settings → Storage lists and deletes those snapshots.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
@@ -7,20 +7,20 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, command, commitAll, files, git, node, sha, until, write } from "./files-support.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 const COMMAND = files(["write", "tracked.txt", "v2\n"], ["append", "edited.txt", "more\n"], ["write", "added.txt", "new\n"], ["remove", "gone.txt"], ["write", "build/out.js", "x"]);
 const EXPECTED = { "added.txt": "added", "edited.txt": "modified", "gone.txt": "deleted", "tracked.txt": "modified" };
 
-const changes = (run) => saturn.api("GET", `/runs/${run.id}/changes`);
-const revert = (run, body = {}) => saturn.api("POST", `/runs/${run.id}/changes/revert`, body);
+const changes = (run) => workbench.api("GET", `/runs/${run.id}/changes`);
+const revert = (run, body = {}) => workbench.api("POST", `/runs/${run.id}/changes/revert`, body);
 const text = (...parts) => readFile(path.join(...parts), "utf8");
 const statuses = (seen) => Object.fromEntries(seen.files.map((file) => [file.path, file.status]));
 
 test("files a command changes in a git project join the turn's changes, and revert undoes them", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "tracked.txt"), "v1\n");
   await writeFile(path.join(folder, "edited.txt"), "base\n");
   await writeFile(path.join(folder, "gone.txt"), "bye\n");
@@ -32,7 +32,7 @@ test("files a command changes in a git project join the turn's changes, and reve
   git(folder, "add", "staged.txt");
   const head = git(folder, "rev-parse", "HEAD");
 
-  const setup = await saturn.chat(folder);
+  const setup = await workbench.chat(folder);
   const run = await setup.turn([command(COMMAND)]);
   assert.equal(run.actions[0].status, "completed");
   const seen = await changes(run);
@@ -54,7 +54,7 @@ test("files a command changes in a git project join the turn's changes, and reve
 });
 
 test("a project in a subfolder of a repository lists paths relative to itself", async () => {
-  const repository = await saturn.folder();
+  const repository = await workbench.folder();
   await mkdir(path.join(repository, "packages/site"), { recursive: true });
   await writeFile(path.join(repository, "packages/site/page.txt"), "page\n");
   await writeFile(path.join(repository, "packages/site/dirty.txt"), "clean\n");
@@ -63,7 +63,7 @@ test("a project in a subfolder of a repository lists paths relative to itself", 
   await writeFile(path.join(repository, "root.txt"), "the user's change above the project\n");
   await writeFile(path.join(repository, "packages/site/dirty.txt"), "the user's change\n");
   const folder = path.join(repository, "packages/site");
-  const setup = await saturn.chat(folder);
+  const setup = await workbench.chat(folder);
   const run = await setup.turn([command(files(["write", "page.txt", "edited\n"], ["write", "new.txt", "made\n"], ["append", "dirty.txt", "more\n"]))]);
   const seen = await changes(run);
   assert.deepEqual(statuses(seen), { "dirty.txt": "modified", "new.txt": "added", "page.txt": "modified" });
@@ -76,11 +76,11 @@ test("a project in a subfolder of a repository lists paths relative to itself", 
 
 test("a file name with spaces or other scripts is tracked under its real name, in git and outside it", async () => {
   for (const inGit of [true, false]) {
-    const folder = await saturn.folder();
+    const folder = await workbench.folder();
     const name = "with space é 日本.txt";
     await writeFile(path.join(folder, name), "original\n");
     if (inGit) commitAll(folder);
-    const setup = await saturn.chat(folder);
+    const setup = await workbench.chat(folder);
     const run = await setup.turn([command(files(["write", name, "edited\n"], ["write", "new é.txt", "new\n"]))]);
     assert.deepEqual(statuses(await changes(run)), { [name]: "modified", "new é.txt": "added" }, `in git: ${inGit}`);
     await revert(run);
@@ -91,10 +91,10 @@ test("a file name with spaces or other scripts is tracked under its real name, i
 
 test("a file a command moves counts as deleted and added, and comes back", async () => {
   for (const inGit of [true, false]) {
-    const folder = await saturn.folder();
+    const folder = await workbench.folder();
     await writeFile(path.join(folder, "old-name.txt"), "contents\n");
     if (inGit) commitAll(folder);
-    const setup = await saturn.chat(folder);
+    const setup = await workbench.chat(folder);
     const run = await setup.turn([command(files(["move", "old-name.txt", "new-name.txt"]))]);
     assert.equal(run.actions[0].status, "completed", run.actions[0].reason);
     assert.deepEqual(statuses(await changes(run)), { "new-name.txt": "added", "old-name.txt": "deleted" }, `in git: ${inGit}`);
@@ -105,11 +105,11 @@ test("a file a command moves counts as deleted and added, and comes back", async
 });
 
 test("a file a command stages itself keeps its original: git mv and git add can be reviewed and reverted", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "old-name.txt"), "contents\n");
   await writeFile(path.join(folder, "staged.txt"), "before\n");
   commitAll(folder);
-  const setup = await saturn.chat(folder);
+  const setup = await workbench.chat(folder);
   const run = await setup.turn([command(`git mv old-name.txt new-name.txt && ${files(["write", "staged.txt", "after\n"])} && git add staged.txt`)]);
   assert.equal(run.actions[0].status, "completed", run.actions[0].reason);
   assert.deepEqual(statuses(await changes(run)), { "new-name.txt": "added", "old-name.txt": "deleted", "staged.txt": "modified" });
@@ -121,10 +121,10 @@ test("a file a command stages itself keeps its original: git mv and git add can 
 
 test("a command that changes nothing, or changes a file back, leaves nothing to review", async () => {
   for (const inGit of [true, false]) {
-    const folder = await saturn.folder();
+    const folder = await workbench.folder();
     await writeFile(path.join(folder, "same.txt"), "same\n");
     if (inGit) commitAll(folder);
-    const setup = await saturn.chat(folder);
+    const setup = await workbench.chat(folder);
     const quiet = await setup.turn([command(node("process.stdout.write(require('fs').readFileSync('same.txt'))"))]);
     assert.deepEqual((await changes(quiet)).files, [], `in git: ${inGit}`);
     const back = await setup.turn([command(files(["write", "same.txt", "other\n"])), command(files(["write", "same.txt", "same\n"]))]);
@@ -135,10 +135,10 @@ test("a command that changes nothing, or changes a file back, leaves nothing to 
 
 test("a file changed by the files tool and then a command keeps the first original", async () => {
   for (const inGit of [true, false]) {
-    const folder = await saturn.folder();
+    const folder = await workbench.folder();
     await writeFile(path.join(folder, "a.txt"), "first original\n");
     if (inGit) commitAll(folder);
-    const setup = await saturn.chat(folder);
+    const setup = await workbench.chat(folder);
     const run = await setup.turn([write("a.txt", "by the tool\n"), command(files(["append", "a.txt", "by the command\n"]))]);
     const [file, ...rest] = (await changes(run)).files;
     assert.deepEqual(rest, []);
@@ -150,55 +150,55 @@ test("a file changed by the files tool and then a command keeps the first origin
 
 test("restoring to a command's step undoes that command and the ones after it", async () => {
   for (const inGit of [true, false]) {
-    const folder = await saturn.folder();
+    const folder = await workbench.folder();
     await writeFile(path.join(folder, "a.txt"), "v0\n");
     if (inGit) commitAll(folder);
-    const setup = await saturn.chat(folder);
+    const setup = await workbench.chat(folder);
     const run = await setup.turn([command(files(["write", "a.txt", "v1\n"])), command(files(["write", "a.txt", "v2\n"], ["write", "b.txt", "x"])), command(files(["write", "a.txt", "v3\n"]))]);
-    const result = await saturn.api("POST", `/runs/${run.id}/restore`, { actionId: run.actions[1].id });
+    const result = await workbench.api("POST", `/runs/${run.id}/restore`, { actionId: run.actions[1].id });
     assert.deepEqual(result.files.sort(), ["a.txt", "b.txt"], `in git: ${inGit}`);
     assert.equal(await text(folder, "a.txt"), "v1\n", `in git: ${inGit}`);
     assert.equal(existsSync(path.join(folder, "b.txt")), false, `in git: ${inGit}`);
-    await saturn.api("POST", `/runs/${run.id}/restore`, { actionId: run.actions[0].id });
+    await workbench.api("POST", `/runs/${run.id}/restore`, { actionId: run.actions[0].id });
     assert.equal(await text(folder, "a.txt"), "v0\n", `in git: ${inGit}`);
   }
 });
 
 test("a file over 10 MB that a command writes is not kept", async () => {
   for (const inGit of [true, false]) {
-    const folder = await saturn.folder();
+    const folder = await workbench.folder();
     await writeFile(path.join(folder, "small.txt"), "small\n");
     if (inGit) commitAll(folder);
-    const setup = await saturn.chat(folder);
+    const setup = await workbench.chat(folder);
     const run = await setup.turn([command(`${node("require('fs').writeFileSync('huge.bin', Buffer.alloc(11 * 1048576))")} && ${files(["write", "small.txt", "edited\n"])}`)]);
     assert.deepEqual(statuses(await changes(run)), { "small.txt": "modified" }, `in git: ${inGit}`);
   }
 });
 
 test("outside git, a private snapshot tracks the same changes, leaves the folder alone, and Settings lists and deletes it", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "tracked.txt"), "v1\n");
   await writeFile(path.join(folder, "edited.txt"), "base\nmine\n");
   await writeFile(path.join(folder, "gone.txt"), "bye\n");
-  const setup = await saturn.chat(folder);
+  const setup = await workbench.chat(folder);
   const run = await setup.turn([command(COMMAND)]);
   const seen = await changes(run);
   assert.deepEqual(statuses(seen), EXPECTED, "build/ is left out by default");
-  assert.deepEqual((await readdir(folder)).sort(), ["added.txt", "build", "edited.txt", "tracked.txt"], "nothing of Saturn's is written into the folder");
+  assert.deepEqual((await readdir(folder)).sort(), ["added.txt", "build", "edited.txt", "tracked.txt"], "nothing of Eisoptric Workbench's is written into the folder");
 
-  const storage = await saturn.api("GET", "/storage/snapshots");
+  const storage = await workbench.api("GET", "/storage/snapshots");
   const listed = storage.folders.find((item) => item.folder === folder);
   assert.ok(listed, JSON.stringify(storage));
   assert.match(listed.id, /^[0-9a-f]{16}$/);
   assert.ok(listed.bytes > 0);
   assert.equal(storage.bytes, storage.folders.reduce((sum, item) => sum + item.bytes, 0));
 
-  assert.equal((await saturn.call("DELETE", `/storage/snapshots/${encodeURIComponent("../../etc")}`)).status, 404);
-  const unknown = await saturn.call("DELETE", "/storage/snapshots/notasnapshot");
+  assert.equal((await workbench.call("DELETE", `/storage/snapshots/${encodeURIComponent("../../etc")}`)).status, 404);
+  const unknown = await workbench.call("DELETE", "/storage/snapshots/notasnapshot");
   assert.equal(unknown.status, 404);
   assert.match(unknown.body.error, /No such snapshot folder/);
-  assert.deepEqual(await saturn.api("DELETE", `/storage/snapshots/${listed.id}`), { deleted: true });
-  assert.equal((await saturn.api("GET", "/storage/snapshots")).folders.some((item) => item.id === listed.id), false);
+  assert.deepEqual(await workbench.api("DELETE", `/storage/snapshots/${listed.id}`), { deleted: true });
+  assert.equal((await workbench.api("GET", "/storage/snapshots")).folders.some((item) => item.id === listed.id), false);
 
   // Deleting it keeps the turn revertible.
   await revert(run);
@@ -210,17 +210,17 @@ test("outside git, a private snapshot tracks the same changes, leaves the folder
   // The folder's next command takes a fresh one, and deleting them all clears it.
   const next = await setup.turn([command(files(["write", "tracked.txt", "again\n"]))]);
   assert.deepEqual(statuses(await changes(next)), { "tracked.txt": "modified" });
-  assert.ok((await saturn.api("GET", "/storage/snapshots")).folders.some((item) => item.folder === folder));
-  assert.deepEqual(await saturn.api("DELETE", "/storage/snapshots"), { deleted: true });
-  assert.deepEqual(await saturn.api("GET", "/storage/snapshots"), { folders: [], bytes: 0 });
+  assert.ok((await workbench.api("GET", "/storage/snapshots")).folders.some((item) => item.folder === folder));
+  assert.deepEqual(await workbench.api("DELETE", "/storage/snapshots"), { deleted: true });
+  assert.deepEqual(await workbench.api("GET", "/storage/snapshots"), { folders: [], bytes: 0 });
   await revert(next);
   assert.equal(await text(folder, "tracked.txt"), "v1\n");
 });
 
 test("outside git, dependencies, builds, caches and logs stay out of the snapshot", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "kept.txt"), "kept\n");
-  const setup = await saturn.chat(folder);
+  const setup = await workbench.chat(folder);
   const made = ["node_modules/a.js", ".venv/a", "venv/a", "__pycache__/a", "dist/a", "build/a", "target/a", ".next/a", ".nuxt/a", ".cache/a", ".turbo/a", ".gradle/a", "Pods/a", "DerivedData/a", "server.log", ".DS_Store"];
   const run = await setup.turn([command(files(...made.map((file) => ["write", file, "x"]), ["write", "kept.txt", "edited\n"]))]);
   assert.equal(run.actions[0].status, "completed", run.actions[0].reason);
@@ -229,17 +229,17 @@ test("outside git, dependencies, builds, caches and logs stay out of the snapsho
 
 test("a background command's changes are recorded under the step that started it, once it ends", async () => {
   for (const inGit of [true, false]) {
-    const folder = await saturn.folder();
+    const folder = await workbench.folder();
     await writeFile(path.join(folder, "server.log.txt"), "start\n");
     if (inGit) commitAll(folder);
-    const setup = await saturn.chat(folder);
+    const setup = await workbench.chat(folder);
     const run = await setup.turn([command(files(["wait", 500], ["write", "made-later.txt", "later\n"], ["append", "server.log.txt", "more\n"]), { background: true })]);
     assert.equal(run.actions[0].status, "completed");
     const paths = async () => (await changes(run)).files.map((file) => file.path).sort();
     await until("the command's changes", paths, (list) => list.length === 2);
     assert.deepEqual(await paths(), ["made-later.txt", "server.log.txt"], `in git: ${inGit}`);
 
-    const restored = await saturn.api("POST", `/runs/${run.id}/restore`, { actionId: run.actions[0].id });
+    const restored = await workbench.api("POST", `/runs/${run.id}/restore`, { actionId: run.actions[0].id });
     assert.deepEqual(restored.files.sort(), ["made-later.txt", "server.log.txt"], "they belong to the step that started it");
     assert.equal(await text(folder, "server.log.txt"), "start\n");
     assert.equal(existsSync(path.join(folder, "made-later.txt")), false);
@@ -247,10 +247,10 @@ test("a background command's changes are recorded under the step that started it
 });
 
 test("a background command's changes can be reverted like any other", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "log.txt"), "start\n");
   commitAll(folder);
-  const setup = await saturn.chat(folder);
+  const setup = await workbench.chat(folder);
   const run = await setup.turn([command(files(["wait", 300], ["append", "log.txt", "more\n"]), { background: true })]);
   await until("the command's change", () => changes(run), (seen) => seen.files.length === 1);
   await revert(run);

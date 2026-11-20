@@ -127,7 +127,7 @@ function inputsText(inputs: { code?: string[]; data?: string[]; scorer?: string[
 }
 
 /**
- * A run's evidence in three columns: what the version expected, what Saturn observed, and what the program reported.
+ * A run's evidence in three columns: what the version expected, what Eisoptric Workbench observed, and what the program reported.
  * The verdicts say how far each goes, and the limits of hashes are always stated.
  */
 export function Evidence(props: { projectId: string; runId: string }) {
@@ -147,7 +147,7 @@ export function Evidence(props: { projectId: string; runId: string }) {
 
   if (problem) return <div className={WARNING}>{problem}</div>;
   if (!evidence) return <div className={MUTED}>{t("Loading…")}</div>;
-  if (!evidence.recorded) return <div className={MUTED}>{t("This run was recorded before Saturn kept run evidence.")}</div>;
+  if (!evidence.recorded) return <div className={MUTED}>{t("This run was recorded before Eisoptric Workbench kept run evidence.")}</div>;
 
   const { expected, observed, reported, verdicts, outputs } = evidence;
   const snapshot = observed?.snapshot;
@@ -186,10 +186,10 @@ export function Evidence(props: { projectId: string; runId: string }) {
           {expected?.resumeFrom ? <div className={MUTED}>{t("Resumes from")}: <code className="wrap-anywhere">{expected.resumeFrom}</code></div> : null}
         </section>
         <section>
-          <div className={LABEL}>{t("Observed by Saturn")}</div>
+          <div className={LABEL}>{t("Observed by Eisoptric Workbench")}</div>
           {observed?.executor === "ssh" ? (
             <div className={MUTED}>
-              {t("On {host}, by its Saturn worker", { host: observed.host ?? "" })}
+              {t("On {host}, by its Eisoptric Workbench worker", { host: observed.host ?? "" })}
               {observed.workdir ? <> · <code className="wrap-anywhere">{observed.workdir}</code></> : null}
               {observed.system?.platform ? <> · {observed.system.platform}{observed.system.cpus ? t(", {count} CPUs", { count: observed.system.cpus }) : ""}</> : null}
             </div>
@@ -226,7 +226,7 @@ export function Evidence(props: { projectId: string; runId: string }) {
               <code>{model.source}</code> · {model.weightsSha256 ? <>{t("weights")} <code title={model.weightsSha256}>{model.weightsSha256.slice(0, 12)}</code></> : model.floating ? t("revision can change, weights not checked") : t("pinned revision, weights not checked here")}
             </div>
           ))}
-          {observed?.seedsPassed?.length ? <div className={MUTED}>{t("Seeds passed as SATURN_RUN_SEED: {seeds}", { seeds: observed.seedsPassed.join(", ") })}</div> : null}
+          {observed?.seedsPassed?.length ? <div className={MUTED}>{t("Seeds passed as WORKBENCH_RUN_SEED: {seeds}", { seeds: observed.seedsPassed.join(", ") })}</div> : null}
           {observed?.resume ? (
             <div className={MUTED}>
               {t("Took over from run {run}: {samples} samples, {metrics} metric lines", { run: observed.resume.run.slice(0, 8), samples: observed.resume.samples, metrics: observed.resume.metrics })}

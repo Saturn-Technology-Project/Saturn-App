@@ -3,6 +3,6 @@
  * (on macOS it answers false without showing anything), the browser's in a plain browser.
  */
 export async function askToConfirm(message: string): Promise<boolean> {
-  const confirm = (globalThis as { saturnDesktop?: { confirm?: (text: string) => Promise<boolean> } }).saturnDesktop?.confirm;
+  const confirm = (globalThis as { workbenchDesktop?: { confirm?: (text: string) => Promise<boolean> } }).workbenchDesktop?.confirm;
   return confirm ? await confirm(message) : window.confirm(message);
 }

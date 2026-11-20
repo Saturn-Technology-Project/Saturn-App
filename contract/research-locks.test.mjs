@@ -7,20 +7,20 @@ import { after, before, test } from "node:test";
 import { bench, command, files, sha, until, write } from "./files-support.mjs";
 import { startWithPrograms, untilCard, untilFinished } from "./programs.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 /** A project chat in a folder with these files. */
 async function bed(files = { "probe.py": "mine\n", "data.py": "theirs\n", "pair.py": "ours\n" }) {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   for (const [name, content] of Object.entries(files)) await writeFile(path.join(folder, name), content);
-  const setup = await saturn.chat(folder);
-  const projectId = (await saturn.api("GET", "/projects")).find((item) => item.path === folder).id;
+  const setup = await workbench.chat(folder);
+  const projectId = (await workbench.api("GET", "/projects")).find((item) => item.path === folder).id;
   const route = `/projects/${projectId}/research`;
-  const lock = (...locked) => saturn.api("PUT", `${route}/policy`, { expectedRevision: 0, locked });
-  const chatMode = (mode) => saturn.api("PATCH", `/threads/${setup.thread.id}`, { chatMode: mode });
-  const events = async () => (await saturn.api("GET", `${route}/events`)).items;
+  const lock = (...locked) => workbench.api("PUT", `${route}/policy`, { expectedRevision: 0, locked });
+  const chatMode = (mode) => workbench.api("PATCH", `/threads/${setup.thread.id}`, { chatMode: mode });
+  const events = async () => (await workbench.api("GET", `${route}/events`)).items;
   return { ...setup, folder, route, lock, chatMode, events };
 }
 
@@ -28,17 +28,17 @@ const text = (folder, name) => readFile(path.join(folder, name), "utf8");
 
 test("a policy needs the revision it was based on", async () => {
   const { route } = await bed();
-  assert.deepEqual((await saturn.api("GET", `${route}/policy`)).locked, []);
-  assert.equal((await saturn.call("PUT", `${route}/policy`, { locked: [] })).status, 400);
-  assert.equal((await saturn.api("PUT", `${route}/policy`, { expectedRevision: 0, locked: ["a.py"] })).revision, 1);
-  assert.equal((await saturn.call("PUT", `${route}/policy`, { expectedRevision: 0, locked: [] })).status, 409);
+  assert.deepEqual((await workbench.api("GET", `${route}/policy`)).locked, []);
+  assert.equal((await workbench.call("PUT", `${route}/policy`, { locked: [] })).status, 400);
+  assert.equal((await workbench.api("PUT", `${route}/policy`, { expectedRevision: 0, locked: ["a.py"] })).revision, 1);
+  assert.equal((await workbench.call("PUT", `${route}/policy`, { expectedRevision: 0, locked: [] })).status, 409);
 });
 
 test("a chat's mode must be a known one, and the chat keeps it", async () => {
   const { agent, thread, chatMode } = await bed();
-  assert.equal((await saturn.call("PATCH", `/threads/${thread.id}`, { chatMode: "maybe" })).status, 400);
+  assert.equal((await workbench.call("PATCH", `/threads/${thread.id}`, { chatMode: "maybe" })).status, 400);
   assert.equal((await chatMode("pair")).chatMode, "pair");
-  const listed = (await saturn.api("GET", `/agents/${agent.id}/threads`)).find((item) => item.id === thread.id);
+  const listed = (await workbench.api("GET", `/agents/${agent.id}/threads`)).find((item) => item.id === thread.id);
   assert.equal(listed.chatMode, "pair");
 });
 
@@ -46,8 +46,8 @@ test("a Manual chat only reads, even when a run asks for more", async () => {
   const { folder, chatMode, agent, thread, model } = await bed();
   await chatMode("manual");
   model.queue.push(write("probe.py", "agent\n"));
-  const started = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id, mode: "agent" });
-  const run = await saturn.finished(started.id);
+  const started = await workbench.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id, mode: "agent" });
+  const run = await workbench.finished(started.id);
   assert.equal(run.mode, "ask");
   assert.notEqual(run.actions[0]?.status, "completed");
   assert.equal(await text(folder, "probe.py"), "mine\n");
@@ -57,11 +57,11 @@ test("a run already going is refused a write once its chat becomes Manual, and t
   const { folder, chatMode, events, agent, thread, model } = await bed();
   await chatMode("pair");
   model.queue.push(write("probe.py", "agent\n"));
-  const started = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id });
-  const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
+  const started = await workbench.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id });
+  const waiting = await until("the approval", () => workbench.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
   await chatMode("manual");
-  await saturn.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: true });
-  const run = await saturn.finished(started.id);
+  await workbench.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: true });
+  const run = await workbench.finished(started.id);
   assert.equal(run.actions[0].status, "failed");
   assert.match(run.actions[0].reason, /Ask mode/);
   assert.equal(await text(folder, "probe.py"), "mine\n");
@@ -93,8 +93,8 @@ test("a Delegate chat still cannot write a locked file", async () => {
 
 test("the data and scorer of a frozen version are locked for agents, and the code is not", async () => {
   const { folder, route, turn } = await bed({ "probe.py": "c\n", "set.jsonl": "{}\n", "score.py": "s\n" });
-  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "x", inputs: { code: ["probe.py"], data: ["set.jsonl"], scorer: ["score.py"] } });
-  await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const experiment = await workbench.api("POST", `${route}/experiments`, { title: "E", command: "x", inputs: { code: ["probe.py"], data: ["set.jsonl"], scorer: ["score.py"] } });
+  await workbench.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
   const run = await turn([[write("set.jsonl", "x\n"), write("score.py", "x\n"), write("probe.py", "x\n")]]);
   assert.deepEqual(run.actions.map((item) => item.status), ["failed", "failed", "completed"]);
   assert.match(run.actions[0].reason, /locked/);
@@ -103,19 +103,19 @@ test("the data and scorer of a frozen version are locked for agents, and the cod
 
 test("a lock can be released for the next version, and freezing it locks the file again", async () => {
   const { folder, route, turn, events } = await bed({ "probe.py": "c\n", "set.jsonl": "{}\n", "score.py": "s\n" });
-  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "x", inputs: { code: ["probe.py"], scorer: ["score.py"] } });
-  await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const experiment = await workbench.api("POST", `${route}/experiments`, { title: "E", command: "x", inputs: { code: ["probe.py"], scorer: ["score.py"] } });
+  await workbench.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
   const refused = await turn([write("score.py", "v4\n")]);
   assert.equal(refused.actions[0].status, "failed");
-  const policy = await saturn.api("GET", `${route}/policy`);
-  assert.equal((await saturn.call("PUT", `${route}/policy`, { expectedRevision: policy.revision, locked: [], released: "score.py" })).status, 400);
-  await saturn.api("PUT", `${route}/policy`, { expectedRevision: policy.revision, locked: [], released: ["score.py"] });
+  const policy = await workbench.api("GET", `${route}/policy`);
+  assert.equal((await workbench.call("PUT", `${route}/policy`, { expectedRevision: policy.revision, locked: [], released: "score.py" })).status, 400);
+  await workbench.api("PUT", `${route}/policy`, { expectedRevision: policy.revision, locked: [], released: ["score.py"] });
   const allowed = await turn([write("score.py", "v4\n")]);
   assert.equal(allowed.actions[0].status, "completed");
   assert.equal(await text(folder, "score.py"), "v4\n");
-  const next = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const next = await workbench.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
   assert.equal(next.number, 2, "the changed scorer is a new version; the old one keeps its results");
-  assert.deepEqual((await saturn.api("GET", `${route}/policy`)).released, []);
+  assert.deepEqual((await workbench.api("GET", `${route}/policy`)).released, []);
   const again = await turn([write("score.py", "v5\n")]);
   assert.equal(again.actions[0].status, "failed", "the new version locks the scorer again");
   assert.deepEqual((await events()).map((event) => event.kind), ["refused", "refused"]);
@@ -123,10 +123,10 @@ test("a lock can be released for the next version, and freezing it locks the fil
 
 test("records cannot be written by an agent's file tool, so neither a verdict nor a policy can", async () => {
   const { folder, route, turn } = await bed();
-  const hypothesis = await saturn.api("POST", `${route}/hypotheses`, { title: "H" });
-  const file = `.saturn/research/hypotheses/${hypothesis.id}.json`;
+  const hypothesis = await workbench.api("POST", `${route}/hypotheses`, { title: "H" });
+  const file = `.workbench/research/hypotheses/${hypothesis.id}.json`;
   const before = await text(folder, file);
-  const run = await turn([[write(file, "{}"), write(".saturn/research/policy.json", "{}")]]);
+  const run = await turn([[write(file, "{}"), write(".workbench/research/policy.json", "{}")]]);
   assert.deepEqual(run.actions.map((item) => item.status), ["failed", "failed"]);
   assert.equal(await text(folder, file), before);
 });
@@ -135,13 +135,13 @@ test("a Pair chat waits for the user even with approvals off, and an accepted ch
   const { folder, chatMode, events, agent, thread, model } = await bed();
   await chatMode("pair");
   model.queue.push(write("pair.py", "changed\n"));
-  const started = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id });
-  const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
+  const started = await workbench.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id });
+  const waiting = await until("the approval", () => workbench.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
   const action = waiting.actions[0];
   assert.match(action.reason, /Approve mode/);
   assert.equal(await text(folder, "pair.py"), "ours\n");
-  await saturn.api("POST", `/runs/${started.id}/actions/${action.id}/decision`, { allow: true });
-  const run = await saturn.finished(started.id);
+  await workbench.api("POST", `/runs/${started.id}/actions/${action.id}/decision`, { allow: true });
+  const run = await workbench.finished(started.id);
   assert.equal(run.actions[0].status, "completed");
   assert.equal(await text(folder, "pair.py"), "changed\n");
   const [event] = await events();
@@ -149,28 +149,28 @@ test("a Pair chat waits for the user even with approvals off, and an accepted ch
   assert.equal(event.path, "pair.py");
   assert.equal(event.policyRevision, 0);
   assert.equal(event.changeSha256, sha("changed\n"));
-  assert.equal(await text(folder, `.saturn/research/objects/${sha("changed\n")}`), "changed\n");
+  assert.equal(await text(folder, `.workbench/research/objects/${sha("changed\n")}`), "changed\n");
 });
 
 test("a chat's mode decides how much it asks, over the agent's own setting", async () => {
-  const folder = await saturn.folder();
-  const asks = await saturn.chat(folder, { autonomy: "bypass" });
-  await saturn.api("PATCH", `/threads/${asks.thread.id}`, { chatMode: "delegate" });
+  const folder = await workbench.folder();
+  const asks = await workbench.chat(folder, { autonomy: "bypass" });
+  await workbench.api("PATCH", `/threads/${asks.thread.id}`, { chatMode: "delegate" });
   const started = await asks.start([command("rm -rf nothing-here")]);
-  const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
+  const waiting = await until("the approval", () => workbench.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
   assert.equal(waiting.actions[0].toolId, "code", "delegate asks before what is sensitive, though the agent says bypass");
-  await saturn.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: false });
-  await saturn.finished(started.id);
+  await workbench.api("POST", `/runs/${started.id}/actions/${waiting.actions[0].id}/decision`, { allow: false });
+  await workbench.finished(started.id);
 
-  const free = await saturn.chat(await saturn.folder(), { autonomy: "review" });
-  await saturn.api("PATCH", `/threads/${free.thread.id}`, { chatMode: "delegate_auto" });
+  const free = await workbench.chat(await workbench.folder(), { autonomy: "review" });
+  await workbench.api("PATCH", `/threads/${free.thread.id}`, { chatMode: "delegate_auto" });
   const run = await free.turn([command("rm -rf nothing-here")]);
   assert.equal(run.actions[0].status, "completed", "auto asks nothing, though the agent says review");
 
-  const unset = await saturn.chat(await saturn.folder(), { autonomy: "review" });
+  const unset = await workbench.chat(await workbench.folder(), { autonomy: "review" });
   const started2 = await unset.start([command("true")]);
-  await until("the approval", () => saturn.api("GET", `/runs/${started2.id}`), (item) => item.status === "waiting_approval");
-  await saturn.api("POST", `/runs/${started2.id}/stop`, {});
+  await until("the approval", () => workbench.api("GET", `/runs/${started2.id}`), (item) => item.status === "waiting_approval");
+  await workbench.api("POST", `/runs/${started2.id}/stop`, {});
 });
 
 test("auto still cannot write a locked file", async () => {
@@ -188,14 +188,14 @@ test("a Pair chat asks before a command too, and not before a read", async () =>
   await chatMode("pair");
   model.queue.push(["files", { action: "read", path: "pair.py" }]);
   model.queue.push(command("printf 'by a shell\\n' > pair.py"));
-  const started = await saturn.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id });
-  const waiting = await until("the approval", () => saturn.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
+  const started = await workbench.api("POST", `/agents/${agent.id}/runs`, { input: "go", threadId: thread.id });
+  const waiting = await until("the approval", () => workbench.api("GET", `/runs/${started.id}`), (run) => run.status === "waiting_approval");
   const asked = waiting.actions.find((action) => action.status === "waiting_approval");
   assert.equal(asked.toolId, "code");
   assert.equal(waiting.actions[0].status, "completed", "the read did not wait");
   assert.equal(await text(folder, "pair.py"), "ours\n");
-  await saturn.api("POST", `/runs/${started.id}/actions/${asked.id}/decision`, { allow: false });
-  await saturn.finished(started.id);
+  await workbench.api("POST", `/runs/${started.id}/actions/${asked.id}/decision`, { allow: false });
+  await workbench.finished(started.id);
   assert.equal(await text(folder, "pair.py"), "ours\n");
 });
 
@@ -213,8 +213,8 @@ test("a shell command is not stopped, and its change is recorded without naming 
 test("a shell writing a record is recorded too", async () => {
   const { route, lock, events, turn } = await bed();
   await lock("probe.py");
-  const hypothesis = await saturn.api("POST", `${route}/hypotheses`, { title: "H" });
-  const file = `.saturn/research/hypotheses/${hypothesis.id}.json`;
+  const hypothesis = await workbench.api("POST", `${route}/hypotheses`, { title: "H" });
+  const file = `.workbench/research/hypotheses/${hypothesis.id}.json`;
   await turn([command(`printf '{}' > ${file}`)]);
   const [event] = await events();
   assert.deepEqual(event.paths, [file]);

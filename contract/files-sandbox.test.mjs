@@ -1,4 +1,4 @@
-// What a sandboxed command cannot reach: Saturn's own data (its token, its keys, the conversations) and the usual
+// What a sandboxed command cannot reach: Eisoptric Workbench's own data (its token, its keys, the conversations) and the usual
 // credential folders. A command that could read the token could use the runtime's API to turn its own sandbox off and
 // allow itself; one that could read the keys could send them anywhere. Driven through a chat in the default approval
 // mode, where a command that matches no risky pattern runs without a card.
@@ -8,9 +8,9 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, command, node } from "./files-support.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 /** Skips the rest of a test, saying why, when this computer could not sandbox the command. */
 function sandboxed(t, result) {
@@ -19,18 +19,18 @@ function sandboxed(t, result) {
   return false;
 }
 
-test("a sandboxed command can neither read nor change Saturn's token, keys or records, so it cannot loosen its own approvals", async (t) => {
-  const data = saturn.runtime.dataDir;
+test("a sandboxed command can neither read nor change Eisoptric Workbench's token, keys or records, so it cannot loosen its own approvals", async (t) => {
+  const data = workbench.runtime.dataDir;
   const token = (await readFile(path.join(data, "runtime-token"), "utf8")).trim();
-  await saturn.api("POST", "/connections/models", { name: "Victim", provider: "openai", model: "gpt-x", secret: "sk-sandbox-test-value" });
-  const folder = await saturn.folder();
+  await workbench.api("POST", "/connections/models", { name: "Victim", provider: "openai", model: "gpt-x", secret: "sk-sandbox-test-value" });
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "README.md"), "# project\n");
-  const setup = await saturn.chat(folder, { autonomy: "execute_when_allowed" });
+  const setup = await workbench.chat(folder, { autonomy: "execute_when_allowed" });
   const projectId = setup.project.id;
   // One command that the risky patterns miss (the token's name is looked up, not written, as an injected command can do),
   // so the default mode does not ask: it reads the token and tries to use it. Only the sandbox stands in the way. It
   // is Node, so `sh` and `cmd` run the same thing; what it is to reach travels as base64.
-  const target = Buffer.from(JSON.stringify({ data, url: `${saturn.runtime.origin}/projects/${projectId}` })).toString("base64");
+  const target = Buffer.from(JSON.stringify({ data, url: `${workbench.runtime.origin}/projects/${projectId}` })).toString("base64");
   const steal = node([
     "const fs = require('fs'), path = require('path')",
     `const { data, url } = JSON.parse(Buffer.from('${target}', 'base64').toString())`,
@@ -54,13 +54,13 @@ test("a sandboxed command can neither read nor change Saturn's token, keys or re
   // cannot reach a server on this computer outside it.
   assert.match(action.result.stdout, process.platform === "win32" ? /answered 401|unreachable/ : /answered 401/);
   assert.equal((await readFile(path.join(data, "runtime-token"), "utf8")).trim(), token, "and the token file is unchanged");
-  const project = (await saturn.api("GET", "/projects")).find((item) => item.id === projectId);
+  const project = (await workbench.api("GET", "/projects")).find((item) => item.id === projectId);
   assert.equal(project.sandbox, undefined, "the project's sandbox is as it was");
   assert.match(action.result.stderr, /credential folders/, "the model is told why");
 });
 
-test("a chat outside any project still works in its own folder inside Saturn's data, but not in the rest of it", async (t) => {
-  const setup = await saturn.chat();
+test("a chat outside any project still works in its own folder inside Eisoptric Workbench's data, but not in the rest of it", async (t) => {
+  const setup = await workbench.chat();
   const run = await setup.turn([
     command(node("require('fs').writeFileSync('notes.txt', 'kept'); console.log(require('fs').readFileSync('notes.txt', 'utf8'))")),
     command(node("console.log(require('fs').readFileSync('../runtime-token', 'utf8'))")),
@@ -74,18 +74,18 @@ test("a chat outside any project still works in its own folder inside Saturn's d
 });
 
 test("the runtime says whether this computer can sandbox commands, and offers a setup only where one would help", async () => {
-  const status = await saturn.api("GET", "/sandbox");
+  const status = await workbench.api("GET", "/sandbox");
   assert.equal(typeof status.available, "boolean");
   if (status.available) {
     const mechanism = { darwin: "seatbelt", linux: "bubblewrap", win32: "AppContainer" }[process.platform];
     assert.deepEqual(status, { available: true, mechanism, reason: null, setup: false });
     // Nothing to set up where the sandbox works: the answer is how it stands, and nobody is asked anything.
-    assert.deepEqual(await saturn.api("POST", "/sandbox/setup"), status);
+    assert.deepEqual(await workbench.api("POST", "/sandbox/setup"), status);
     return;
   }
   assert.equal(status.mechanism, null);
   assert.ok(status.reason, "says why not");
   // Only Windows has a setup. It asks for an administrator on the screen, so it is not run from here.
   assert.equal(status.setup, process.platform === "win32");
-  if (!status.setup) assert.equal((await saturn.call("POST", "/sandbox/setup")).status, 409);
+  if (!status.setup) assert.equal((await workbench.call("POST", "/sandbox/setup")).status, 409);
 });

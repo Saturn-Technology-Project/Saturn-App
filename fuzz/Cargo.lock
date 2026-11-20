@@ -426,7 +426,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
-name = "saturn-appcontainer"
+name = "workbench-appcontainer"
 version = "0.6.4"
 dependencies = [
  "serde",
@@ -436,7 +436,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "saturn-domain"
+name = "workbench-domain"
 version = "0.6.4"
 dependencies = [
  "getrandom",
@@ -450,12 +450,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "saturn-fuzz"
+name = "workbench-fuzz"
 version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
- "saturn-appcontainer",
- "saturn-domain",
+ "workbench-appcontainer",
+ "workbench-domain",
 ]
 
 [[package]]

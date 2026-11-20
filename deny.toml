@@ -1,8 +1,8 @@
 # cargo deny check: the Rust counterpart of scripts/check-lockfiles.mjs and npm audit. Crates come from crates.io only,
-# advisories fail the build, and licenses must be ones Saturn can ship under Apache-2.0.
+# advisories fail the build, and licenses must be ones Eisoptric Workbench can ship under Apache-2.0.
 [advisories]
 yanked = "deny"
-# Unmaintained, with no known vulnerability and no version to move to yet; each is pulled in by a dependency, not chosen by Saturn.
+# Unmaintained, with no known vulnerability and no version to move to yet; each is pulled in by a dependency, not chosen by Eisoptric Workbench.
 # Looked at again with every dependency update, and listed in docs/known-advisories.md.
 ignore = [
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error, a build-time macro, through Tauri's toolkit on Linux" },

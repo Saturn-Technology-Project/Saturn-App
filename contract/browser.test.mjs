@@ -17,14 +17,14 @@ const casesFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "cases
 const ELEMENT = "element-6066-11e4-a52f-4a8f-b8c4-f3bc2b7a1b40";
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const chromes = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium", "/usr/bin/google-chrome", "/usr/bin/chromium", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"];
-const hasChrome = Boolean(process.env.SATURN_BROWSER) || chromes.some((item) => existsSync(item));
+const hasChrome = Boolean(process.env.WORKBENCH_BROWSER) || chromes.some((item) => existsSync(item));
 
 let scratch;
 const servers = [];
 const stops = [];
 
 before(async () => {
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-browser-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-browser-")));
 });
 after(async () => {
   for (const stop of stops) await stop().catch(() => undefined);
@@ -158,7 +158,7 @@ async function fakeSafaridriver({ refuse } = {}) {
       if (route === "/element") return sent.value === "#missing" ? answer(null, 404) : answer({ [ELEMENT]: "e1" });
       if (route === "/execute/sync") {
         const script = String(sent.script);
-        if (script.includes("data-saturn-ref")) return answer('[1] heading name="Demo"\n[2] button name="Go"');
+        if (script.includes("data-workbench-ref")) return answer('[1] heading name="Demo"\n[2] button name="Go"');
         if (script.includes("getBoundingClientRect()")) return answer({ x: 300, y: 230 });
         return answer(null);
       }
@@ -204,7 +204,7 @@ test("in Safari mode the tools become WebDriver commands, and a run's recordings
   await placeProgram(path.join(programs, "ffmpeg"), process.platform === "win32"
     ? 'const fs = require("node:fs");\nlet count = 0;\ntry { count = Number(fs.readFileSync("count", "utf8")); } catch {}\nfs.writeFileSync("count", String(count + 1) + "\\n");\nfs.writeFileSync("out.mp4", fs.readFileSync("frames.txt"));\n'
     : '#!/bin/sh\ncount=$(/bin/cat count 2>/dev/null || echo 0)\necho $((count + 1)) > count\n/bin/cat frames.txt > out.mp4\n');
-  const runtime = await start({ SATURN_SAFARI_ENDPOINT: driver.endpoint, PATH: programs });
+  const runtime = await start({ WORKBENCH_SAFARI_ENDPOINT: driver.endpoint, PATH: programs });
   const workspace = path.join(runtime.dataDir, "workspace");
   await mkdir(workspace, { recursive: true });
   await symlink(scratch, path.join(workspace, "linked"));
@@ -314,8 +314,8 @@ test("in Safari mode the tools become WebDriver commands, and a run's recordings
   assert.equal((await api(runtime, "GET", "/browser")).open, true);
 
   // Another browser in Settings ends the Safari session.
-  await api(runtime, "PATCH", "/settings", { browser: "saturn" });
-  assert.deepEqual(await api(runtime, "GET", "/browser"), { open: false, mode: "saturn", url: "about:blank", title: "" });
+  await api(runtime, "PATCH", "/settings", { browser: "workbench" });
+  assert.deepEqual(await api(runtime, "GET", "/browser"), { open: false, mode: "workbench", url: "about:blank", title: "" });
   await live.close();
   const ended = driver.commands.filter((item) => item.method === "DELETE" && item.route === "").length;
   assert.equal(ended, 2);
@@ -326,7 +326,7 @@ test("an export without ffmpeg says how to get it", async () => {
   const driver = await fakeSafaridriver();
   const empty = path.join(scratch, "no-programs");
   await mkdir(empty, { recursive: true });
-  const runtime = await start({ SATURN_SAFARI_ENDPOINT: driver.endpoint, PATH: empty });
+  const runtime = await start({ WORKBENCH_SAFARI_ENDPOINT: driver.endpoint, PATH: empty });
   await api(runtime, "PATCH", "/settings", { browser: "safari" });
   const run = await toolRunner(runtime);
   await api(runtime, "GET", "/browser");
@@ -346,7 +346,7 @@ test("Safari without remote automation says how to turn it on, and another sessi
     ["Something else went wrong.", /Safari could not start an automation window: Something else went wrong\./],
   ]) {
     const driver = await fakeSafaridriver({ refuse });
-    const runtime = await start({ SATURN_SAFARI_ENDPOINT: driver.endpoint });
+    const runtime = await start({ WORKBENCH_SAFARI_ENDPOINT: driver.endpoint });
     await api(runtime, "PATCH", "/settings", { browser: "safari" });
     const { answers } = await (await toolRunner(runtime))([["browser_snapshot", {}]]);
     assert.equal(answers[0].status, "failed");
@@ -356,11 +356,11 @@ test("Safari without remote automation says how to turn it on, and another sessi
 });
 
 test("a browser that cannot start says so, and the runtime keeps running", async () => {
-  const runtime = await start({ SATURN_BROWSER: path.join(scratch, "no-such-browser") });
+  const runtime = await start({ WORKBENCH_BROWSER: path.join(scratch, "no-such-browser") });
   const { answers } = await (await toolRunner(runtime))([["browser_snapshot", {}]]);
   assert.equal(answers[0].status, "failed");
   assert.match(answers[0].reason, /The browser could not start/);
-  assert.match(answers[0].reason, /SATURN_BROWSER/);
+  assert.match(answers[0].reason, /WORKBENCH_BROWSER/);
   assert.equal((await api(runtime, "GET", "/browser")).open, false);
 });
 
@@ -369,7 +369,7 @@ test("a browser that ends as it starts is tried once more, and then says what it
   const tries = path.join(scratch, "crashing-browser-tries");
   await writeFile(fake, `#!/bin/sh\necho started >> "${tries}"\necho "Missing X server or \\$DISPLAY" >&2\nexit 1\n`);
   await chmod(fake, 0o755);
-  const runtime = await start({ SATURN_BROWSER: fake });
+  const runtime = await start({ WORKBENCH_BROWSER: fake });
   const began = Date.now();
   const { answers } = await (await toolRunner(runtime))([["browser_snapshot", {}]]);
   assert.equal(answers[0].status, "failed");
@@ -388,7 +388,7 @@ test("a real Chrome: the tools read and work a page, the live view streams it, a
   const runtime = await start();
   const workspace = path.join(runtime.dataDir, "workspace");
   const run = await toolRunner(runtime);
-  assert.deepEqual(await api(runtime, "GET", "/browser"), { open: false, mode: "saturn", url: "about:blank", title: "" });
+  assert.deepEqual(await api(runtime, "GET", "/browser"), { open: false, mode: "workbench", url: "about:blank", title: "" });
   const live = await liveView(runtime);
   try {
     // browser_navigate refuses this computer's addresses, before a browser even starts.
@@ -399,20 +399,20 @@ test("a real Chrome: the tools read and work a page, the live view streams it, a
     const opened = await run([["browser_evaluate", { expression: `location.href = ${JSON.stringify(url)}` }]]);
     assert.notEqual(opened.answers[0].status, "failed", `the browser opens: ${JSON.stringify(opened.answers[0])}`);
     const shown = await until("the page", () => api(runtime, "GET", "/browser"), (state) => state.title === "Demo page");
-    assert.deepEqual(shown, { open: true, mode: "saturn", url, title: "Demo page" });
+    assert.deepEqual(shown, { open: true, mode: "workbench", url, title: "Demo page" });
 
     const { answers: read } = await run([["browser_snapshot", {}]]);
     const snapshot = read[0].result.snapshot;
     assert.match(snapshot, /^\[1\] RootWebArea name="Demo page"/);
     assert.match(snapshot, /heading name="Welcome"/);
     assert.match(snapshot, /textbox name="Query" value="old"/);
-    assert.ok(!snapshot.includes("__saturn_cursor"));
+    assert.ok(!snapshot.includes("__workbench_cursor"));
     assert.ok(!snapshot.includes("Hidden"));
     const button = Number(/\[(\d+)\] button name="Go"/.exec(snapshot)[1]);
 
     const { answers: worked } = await run([
       ["browser_click", { id: button }],
-      ["browser_evaluate", { expression: "[document.getElementById('go').textContent, getComputedStyle(document.getElementById('__saturn_cursor')).transform]" }],
+      ["browser_evaluate", { expression: "[document.getElementById('go').textContent, getComputedStyle(document.getElementById('__workbench_cursor')).transform]" }],
       ["browser_click", { id: 9999 }],
       ["browser_click", { selector: "#nothing" }],
       ["browser_click", {}],
@@ -491,7 +491,7 @@ test("a real Chrome: the tools read and work a page, the live view streams it, a
     // Closing ends the browser.
     const { answers: closed } = await run([["browser_close", {}]]);
     assert.deepEqual(closed[0].result, { closed: true });
-    assert.deepEqual(await api(runtime, "GET", "/browser"), { open: false, mode: "saturn", url: "about:blank", title: "" });
+    assert.deepEqual(await api(runtime, "GET", "/browser"), { open: false, mode: "workbench", url: "about:blank", title: "" });
     await until("the browser to end", () => browsersOn(runtime.dataDir) === "");
 
     // A runtime that stops takes its browser with it.

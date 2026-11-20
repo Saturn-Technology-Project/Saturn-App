@@ -13,7 +13,7 @@ const stops = [];
 
 /**
  * What the stand-in for Anthropic says of two models when asked about one (`GET /v1/models/:id`), in the form its Models
- * API answers. Saturn reads what a model accepts from this and from nothing else: no rule about a model's name is in it.
+ * API answers. Eisoptric Workbench reads what a model accepts from this and from nothing else: no rule about a model's name is in it.
  */
 const supported = (value) => ({ supported: value });
 const DESCRIBED = {

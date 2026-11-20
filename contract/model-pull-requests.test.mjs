@@ -19,7 +19,7 @@ let runtime;
 const stops = [];
 
 /** The pull request GitHub knows, with the given changes. */
-const pull = (extra = {}) => ({ number: 7, title: "x", state: "open", merged_at: null, draft: false, user: { login: "dev" }, head: { ref: "saturn/x", sha: github.state.head }, base: { ref: "main" }, html_url: "https://github.com/acme/site/pull/7", body: "", ...extra });
+const pull = (extra = {}) => ({ number: 7, title: "x", state: "open", merged_at: null, draft: false, user: { login: "dev" }, head: { ref: "workbench/x", sha: github.state.head }, base: { ref: "main" }, html_url: "https://github.com/acme/site/pull/7", body: "", ...extra });
 
 /** GitHub for acme/site: `state` says how creating a pull request goes and what its checks conclude. */
 async function fakeGitHub() {
@@ -58,9 +58,9 @@ const git = (cwd, ...args) => execFileSync("git", args, {
 }).trim();
 
 before(async () => {
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-prs-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-prs-")));
   github = await fakeGitHub();
-  runtime = await startRuntime({ env: { SATURN_GITHUB_API: github.url, GH_TOKEN: TOKEN, GITHUB_TOKEN: "", GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
+  runtime = await startRuntime({ env: { WORKBENCH_GITHUB_API: github.url, GH_TOKEN: TOKEN, GITHUB_TOKEN: "", GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
 });
 after(async () => {
   await runtime?.stop();
@@ -166,7 +166,7 @@ test("without any GitHub token, opening a pull request says how to sign in, and 
     await symlink(execFileSync("/bin/sh", ["-c", "command -v git"], { encoding: "utf8" }).trim(), path.join(tools, "git"));
   }
   const quiet = await fakeGitHub();
-  const own = await startRuntime({ env: { SATURN_GITHUB_API: quiet.url, GH_TOKEN: "", GITHUB_TOKEN: "", PATH: tools, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
+  const own = await startRuntime({ env: { WORKBENCH_GITHUB_API: quiet.url, GH_TOKEN: "", GITHUB_TOKEN: "", PATH: tools, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
   try {
     const setup = await chatOnBranch(own);
     const refused = await request(own, "POST", `/threads/${setup.thread.id}/pull-request`, {});

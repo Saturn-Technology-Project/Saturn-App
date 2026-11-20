@@ -1253,7 +1253,7 @@
       "temperature": 1.5,
       "maxOutput": 300,
       "effort": "xhigh",
-      "cacheKey": "saturn:agent_1",
+      "cacheKey": "workbench:agent_1",
       "tools": [
         {
           "function": {

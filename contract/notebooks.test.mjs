@@ -7,9 +7,9 @@ import { after, before, test } from "node:test";
 import { bench, until } from "./files-support.mjs";
 import { placeProgram } from "./programs.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 /** The stand-in Python: notes the first line of the helper it is handed, then becomes the helper beside it. */
 const python = `#!${process.execPath}
@@ -74,22 +74,22 @@ for await (const line of createInterface({ input: process.stdin })) {
 
 /** A project with a notebook in a folder, the stand-in as its Python, and `mode` for how the helper starts. */
 async function project(mode = "") {
-  const folder = await saturn.folder();
-  const made = await saturn.api("POST", "/projects", { path: folder });
-  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const folder = await workbench.folder();
+  const made = await workbench.api("POST", "/projects", { path: folder });
+  await workbench.api("POST", `/projects/${made.id}/access`, {});
   await mkdir(path.join(folder, "notes"));
   await writeFile(path.join(folder, "notes/a.ipynb"), JSON.stringify({ cells: [], metadata: {}, nbformat: 4, nbformat_minor: 5 }));
   await placeProgram(path.join(folder, "python"), python);
   await writeFile(path.join(folder, "helper.mjs"), helper);
   if (mode) await writeFile(path.join(folder, "mode"), mode);
   const route = `/projects/${made.id}/research`;
-  await saturn.api("PUT", `${route}/environment`, { python: "./python" });
+  await workbench.api("PUT", `${route}/environment`, { python: "./python" });
   return { folder, id: made.id, route, notebook: `${route}/notebook` };
 }
 
 const NOTEBOOK = "notes/a.ipynb";
-const run = (place, ...cells) => saturn.api("POST", `${place.notebook}/run`, { path: NOTEBOOK, cells: cells.map(([cell, code]) => ({ cell, code })) });
-const status = (place) => saturn.api("GET", `${place.notebook}?path=${encodeURIComponent(NOTEBOOK)}`);
+const run = (place, ...cells) => workbench.api("POST", `${place.notebook}/run`, { path: NOTEBOOK, cells: cells.map(([cell, code]) => ({ cell, code })) });
+const status = (place) => workbench.api("GET", `${place.notebook}?path=${encodeURIComponent(NOTEBOOK)}`);
 
 /** Whether a process is there. One that ended and has not been reaped does not count: nothing is left of it but its record. */
 function alive(pid) {
@@ -112,9 +112,9 @@ const gone = (pid, seconds = 15) => until(`process ${pid} to end`, async () => !
 
 /** Follows a kernel's events as they come: `.seen` so far, and `.until` to wait for one. Ends with the stream. */
 async function follow(place, kernel, from = 0) {
-  const token = (await readFile(path.join(saturn.runtime.dataDir, "runtime-token"), "utf8")).trim();
+  const token = (await readFile(path.join(workbench.runtime.dataDir, "runtime-token"), "utf8")).trim();
   const controller = new AbortController();
-  const response = await fetch(`${saturn.runtime.origin}${place.notebook}/events?path=${encodeURIComponent(NOTEBOOK)}&kernel=${kernel}&after=${from}`, { headers: { authorization: `Bearer ${token}` }, signal: controller.signal });
+  const response = await fetch(`${workbench.runtime.origin}${place.notebook}/events?path=${encodeURIComponent(NOTEBOOK)}&kernel=${kernel}&after=${from}`, { headers: { authorization: `Bearer ${token}` }, signal: controller.signal });
   assert.equal(response.status, 200);
   const seen = [];
   const done = (async () => {
@@ -147,9 +147,9 @@ test("a cell runs in the notebook's kernel, its output streams, and the notebook
   const before = await status(place);
   assert.equal(before.state, "none");
   assert.equal(before.kernel, null);
-  const started = await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
+  const started = await workbench.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   assert.ok(started.kernel);
-  const again = await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
+  const again = await workbench.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   assert.equal(again.kernel, started.kernel);
   const events = await follow(place, started.kernel);
   await events.until("the kernel to be ready", (event) => event.type === "state" && event.state === "idle");
@@ -165,12 +165,12 @@ test("a cell runs in the notebook's kernel, its output streams, and the notebook
   const now = await until("it to rest", () => status(place), (view) => view.state === "idle");
   assert.equal(now.python, "/env/bin/python");
   events.stop();
-  await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
 });
 
-test("the helper gets no SATURN_ variable from the runtime", async () => {
+test("the helper gets no WORKBENCH_ variable from the runtime", async () => {
   const place = await project();
-  await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   const pid = await helperPid(place);
   const names = await until("the helper's environment", async () => {
     try {
@@ -179,8 +179,8 @@ test("the helper gets no SATURN_ variable from the runtime", async () => {
       return null;
     }
   });
-  assert.deepEqual(names.filter((name) => name.startsWith("SATURN_")), []);
-  await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
+  assert.deepEqual(names.filter((name) => name.startsWith("WORKBENCH_")), []);
+  await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
   await gone(pid);
 });
 
@@ -193,7 +193,7 @@ test("cells run in order, and an interrupt stops the running one with the error 
   const running = await status(place);
   assert.equal(running.running, "first");
   assert.equal(running.state, "busy");
-  await saturn.api("POST", `${place.notebook}/interrupt`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/interrupt`, { path: NOTEBOOK });
   const finished = await events.until("it to stop", (event) => event.type === "finished" && event.cell === "first");
   assert.equal(finished.status, "error");
   assert.ok(events.seen.some((event) => event.type === "output" && event.output.ename === "KeyboardInterrupt"));
@@ -202,23 +202,23 @@ test("cells run in order, and an interrupt stops the running one with the error 
   assert.equal(events.seen.some((event) => event.type === "started" && event.cell === "second"), false);
   assert.equal((await until("it to rest", () => status(place), (item) => item.state === "idle")).running, null);
   events.stop();
-  await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
 });
 
 test("a restart keeps the helper, lets the running cell go, and a kernel it does not have cannot be restarted", async () => {
   const place = await project();
-  assert.equal((await saturn.call("POST", `${place.notebook}/restart`, { path: NOTEBOOK })).status, 409);
-  assert.equal((await saturn.call("POST", `${place.notebook}/interrupt`, { path: NOTEBOOK })).status, 409);
+  assert.equal((await workbench.call("POST", `${place.notebook}/restart`, { path: NOTEBOOK })).status, 409);
+  assert.equal((await workbench.call("POST", `${place.notebook}/interrupt`, { path: NOTEBOOK })).status, 409);
   const view = await run(place, ["first", "hang"]);
   const events = await follow(place, view.kernel);
   await events.until("it to start", (event) => event.type === "started");
-  await saturn.api("POST", `${place.notebook}/restart`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/restart`, { path: NOTEBOOK });
   const finished = await events.until("it to be let go", (event) => event.type === "finished");
   assert.equal(finished.status, "aborted");
   const after = await until("it to rest", () => status(place), (item) => item.state === "idle");
   assert.equal(after.kernel, view.kernel);
   events.stop();
-  await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
 });
 
 test("without the packages the runtime says which, points at the kit, and running again checks again", async () => {
@@ -240,20 +240,20 @@ test("without the packages the runtime says which, points at the kit, and runnin
   const running = await follow(place, next.kernel);
   await running.until("it to run now", (event) => event.type === "finished" && event.cell === "two" && event.status === "ok");
   running.stop();
-  await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
   // The notebook itself never needed a kernel.
-  const opened = await saturn.api("GET", `${place.route}/source?path=${encodeURIComponent(NOTEBOOK)}`);
+  const opened = await workbench.api("GET", `${place.route}/source?path=${encodeURIComponent(NOTEBOOK)}`);
   assert.equal(opened.kind, "file");
 });
 
 test("a Python that is not there, or none at all, is refused with what to do", async () => {
   const place = await project();
-  await saturn.api("PUT", `${place.route}/environment`, { python: "./no-such-python" });
-  const absent = await saturn.call("POST", `${place.notebook}/start`, { path: NOTEBOOK });
+  await workbench.api("PUT", `${place.route}/environment`, { python: "./no-such-python" });
+  const absent = await workbench.call("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   assert.equal(absent.status, 422);
   assert.match(absent.body.error, /could not start.*Environment/s);
-  await saturn.api("PUT", `${place.route}/environment`, { python: "" });
-  const none = await saturn.call("POST", `${place.notebook}/run`, { path: NOTEBOOK, cells: [{ cell: "a", code: "b" }] });
+  await workbench.api("PUT", `${place.route}/environment`, { python: "" });
+  const none = await workbench.call("POST", `${place.notebook}/run`, { path: NOTEBOOK, cells: [{ cell: "a", code: "b" }] });
   assert.equal(none.status, 422);
   assert.match(none.body.error, /No Python is set/);
 });
@@ -297,13 +297,13 @@ test("output has a limit, its text keeps its start, and a note says what happene
   assert.ok(!kept.includes("�"));
   assert.ok(!kept.includes("after the limit"));
   const note = flood.at(-1);
-  assert.equal(note.metadata.saturn.truncated, true);
+  assert.equal(note.metadata.workbench.truncated, true);
   assert.match(note.data["text/plain"], /kept the first 2 MB/);
-  assert.equal(flood.filter((output) => output.metadata?.saturn?.truncated).length, 1);
+  assert.equal(flood.filter((output) => output.metadata?.workbench?.truncated).length, 1);
 
   const image = of("image");
   assert.equal(image.length, 1);
-  assert.equal(image[0].metadata.saturn.truncated, true);
+  assert.equal(image[0].metadata.workbench.truncated, true);
   assert.equal(image[0].data["image/png"], undefined);
 
   assert.match(of("huge")[0].data["text/plain"], /kept the first 2 MB/);
@@ -311,7 +311,7 @@ test("output has a limit, its text keeps its start, and a note says what happene
   assert.deepEqual(of("after"), []);
   assert.equal(of("small")[0].text, "still here");
   events.stop();
-  await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
 });
 
 test("a client that comes back hears what it missed, once", async () => {
@@ -326,8 +326,8 @@ test("a client that comes back hears what it missed, once", async () => {
   assert.equal(back.seen.some((event) => event.cell === "one"), false);
   assert.ok(back.seen.every((event, index) => index === 0 || event.seq === back.seen[index - 1].seq + 1));
   back.stop();
-  await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
-  const reconnect = await saturn.call("GET", `${place.notebook}/events?path=${encodeURIComponent(NOTEBOOK)}&kernel=${view.kernel}`);
+  await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK });
+  const reconnect = await workbench.call("GET", `${place.notebook}/events?path=${encodeURIComponent(NOTEBOOK)}&kernel=${view.kernel}`);
   assert.equal(reconnect.status, 404);
 });
 
@@ -336,9 +336,9 @@ test("a path out of the project, into its records, or not a notebook is refused"
   await writeFile(path.join(place.folder, "note.txt"), "text");
   const refused = async (requested, code) => {
     for (const call of [
-      () => saturn.call("POST", `${place.notebook}/start`, { path: requested }),
-      () => saturn.call("POST", `${place.notebook}/run`, { path: requested, cells: [{ cell: "a", code: "b" }] }),
-      () => saturn.call("GET", `${place.notebook}?path=${encodeURIComponent(requested)}`),
+      () => workbench.call("POST", `${place.notebook}/start`, { path: requested }),
+      () => workbench.call("POST", `${place.notebook}/run`, { path: requested, cells: [{ cell: "a", code: "b" }] }),
+      () => workbench.call("GET", `${place.notebook}?path=${encodeURIComponent(requested)}`),
     ]) {
       assert.equal((await call()).status, code, requested);
     }
@@ -346,60 +346,60 @@ test("a path out of the project, into its records, or not a notebook is refused"
   await refused("../outside.ipynb", 403);
   await refused("notes/../../outside.ipynb", 403);
   await refused("/etc/outside.ipynb", 403);
-  await refused(".saturn/research/x.ipynb", 403);
+  await refused(".workbench/research/x.ipynb", 403);
   await refused("note.txt", 400);
   await refused("notes/none.ipynb", 404);
-  assert.equal((await saturn.call("POST", `${place.notebook}/stop`, { path: "../outside.ipynb" })).status, 403);
+  assert.equal((await workbench.call("POST", `${place.notebook}/stop`, { path: "../outside.ipynb" })).status, 403);
   assert.equal(await readdir(place.folder).then((names) => names.includes("helper.pid")), false);
-  const empty = await saturn.call("POST", `${place.notebook}/run`, { path: NOTEBOOK, cells: [] });
+  const empty = await workbench.call("POST", `${place.notebook}/run`, { path: NOTEBOOK, cells: [] });
   assert.equal(empty.status, 400);
 });
 
 test("stopping ends the helper, and one that ignores being asked and signalled is ended by force", async () => {
   const place = await project();
-  await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   const pid = await helperPid(place);
   assert.equal(alive(pid), true);
-  assert.deepEqual(await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK }), { stopped: true });
+  assert.deepEqual(await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK }), { stopped: true });
   assert.equal(alive(pid), false);
-  assert.deepEqual(await saturn.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK }), { stopped: false });
+  assert.deepEqual(await workbench.api("POST", `${place.notebook}/stop`, { path: NOTEBOOK }), { stopped: false });
   assert.equal((await status(place)).state, "none");
 
   const stubborn = await project("stubborn");
-  await saturn.api("POST", `${stubborn.notebook}/start`, { path: NOTEBOOK });
+  await workbench.api("POST", `${stubborn.notebook}/start`, { path: NOTEBOOK });
   const held = await helperPid(stubborn);
-  await saturn.api("POST", `${stubborn.notebook}/stop`, { path: NOTEBOOK });
+  await workbench.api("POST", `${stubborn.notebook}/stop`, { path: NOTEBOOK });
   assert.equal(alive(held), false);
 });
 
-test("a kernel goes when its project is removed, and when Saturn loses access to the project", async () => {
+test("a kernel goes when its project is removed, and when Eisoptric Workbench loses access to the project", async () => {
   const place = await project();
-  await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
+  await workbench.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
   const pid = await helperPid(place);
-  await saturn.call("DELETE", `/projects/${place.id}`);
+  await workbench.call("DELETE", `/projects/${place.id}`);
   assert.equal(alive(pid), false);
 
   const other = await project();
-  await saturn.api("POST", `${other.notebook}/start`, { path: NOTEBOOK });
+  await workbench.api("POST", `${other.notebook}/start`, { path: NOTEBOOK });
   const held = await helperPid(other);
-  await saturn.api("POST", `/projects/${other.id}/access`, { granted: false });
+  await workbench.api("POST", `/projects/${other.id}/access`, { granted: false });
   assert.equal(alive(held), false);
 });
 
 test("a kernel goes when the runtime stops, and when it dies without a word", async () => {
   for (const signal of ["SIGTERM", "SIGKILL"]) {
-    const own = saturn;
-    saturn = await bench();
+    const own = workbench;
+    workbench = await bench();
     try {
       const place = await project();
-      await saturn.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
+      await workbench.api("POST", `${place.notebook}/start`, { path: NOTEBOOK });
       const pid = await helperPid(place);
       assert.equal(alive(pid), true);
-      saturn.runtime.child.kill(signal);
+      workbench.runtime.child.kill(signal);
       await gone(pid);
     } finally {
-      await saturn.stop();
-      saturn = own;
+      await workbench.stop();
+      workbench = own;
     }
   }
 });
@@ -410,7 +410,7 @@ test("a notebook opens up to 8 MB, and another file only up to 2 MB", async () =
   await writeFile(path.join(place.folder, "large.ipynb"), large);
   await writeFile(path.join(place.folder, "large.txt"), large);
   await writeFile(path.join(place.folder, "larger.ipynb"), "x".repeat(9 * 1024 * 1024));
-  assert.equal((await saturn.api("GET", `${place.route}/source?path=large.ipynb`)).content.length, large.length);
-  assert.equal((await saturn.call("GET", `${place.route}/source?path=large.txt`)).status, 413);
-  assert.equal((await saturn.call("GET", `${place.route}/source?path=larger.ipynb`)).status, 413);
+  assert.equal((await workbench.api("GET", `${place.route}/source?path=large.ipynb`)).content.length, large.length);
+  assert.equal((await workbench.call("GET", `${place.route}/source?path=large.txt`)).status, 413);
+  assert.equal((await workbench.call("GET", `${place.route}/source?path=larger.ipynb`)).status, 413);
 });

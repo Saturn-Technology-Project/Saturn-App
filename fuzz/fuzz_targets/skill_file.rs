@@ -3,5 +3,5 @@
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|text: &str| {
-    let _ = saturn_domain::skill_files::parse_skill(text, "fallback");
+    let _ = workbench_domain::skill_files::parse_skill(text, "fallback");
 });

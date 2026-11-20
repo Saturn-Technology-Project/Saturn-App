@@ -12,7 +12,7 @@ function Check-Signature([string]$Path) {
   $thumbprint = $signature.SignerCertificate.Thumbprint
   # A self-signed certificate is not trusted by Windows, so Status reads UnknownError; what matters is who signed.
   Write-Output ("{0}: {1}  {2}  timestamped={3}" -f (Split-Path $Path -Leaf), $signature.SignerCertificate.Subject, $thumbprint, [bool]$signature.TimeStamperCertificate)
-  if ($Expected -and $thumbprint -ne $Expected) { throw "$Path is signed by $thumbprint, not Saturn's certificate $Expected" }
+  if ($Expected -and $thumbprint -ne $Expected) { throw "$Path is signed by $thumbprint, not Eisoptric Workbench's certificate $Expected" }
 }
 
 function Check-Runtime([string]$Path) {
@@ -26,7 +26,7 @@ $installers = @(Get-ChildItem -Path $Release -Filter '*-setup.exe' | ForEach-Obj
 if ($installers.Count -eq 0) { throw "No installer in $Release" }
 foreach ($installer in $installers) {
   Check-Signature $installer
-  $folder = Join-Path $env:RUNNER_TEMP ('saturn-install-' + [System.IO.Path]::GetRandomFileName())
+  $folder = Join-Path $env:RUNNER_TEMP ('workbench-install-' + [System.IO.Path]::GetRandomFileName())
   # NSIS takes the folder as the last argument, unquoted.
   $install = Start-Process -FilePath $installer -ArgumentList '/S', "/D=$folder" -PassThru
   if (-not $install.WaitForExit(300000)) { $install.Kill(); throw "$(Split-Path $installer -Leaf) did not finish installing in five minutes" }
@@ -34,7 +34,7 @@ foreach ($installer in $installers) {
   $programs = @(Get-ChildItem -Path $folder -Recurse -Filter '*.exe' | ForEach-Object { $_.FullName })
   Write-Output "Installed: $(($programs | ForEach-Object { Split-Path $_ -Leaf }) -join ', ')"
   if (-not ($programs | Where-Object { (Split-Path $_ -Leaf) -like 'uninstall*.exe' })) { throw 'The installer left no uninstaller' }
-  if ($programs.Count -lt 4) { throw "Only $($programs.Count) programs were installed; the app, the runtime, the saturn command and the uninstaller were expected" }
+  if ($programs.Count -lt 4) { throw "Only $($programs.Count) programs were installed; the app, the runtime, the workbench command and the uninstaller were expected" }
   foreach ($program in $programs) { Check-Signature $program; Check-Runtime $program }
   $uninstaller = $programs | Where-Object { (Split-Path $_ -Leaf) -like 'uninstall*.exe' } | Select-Object -First 1
   $remove = Start-Process -FilePath $uninstaller -ArgumentList '/S' -PassThru

@@ -16,7 +16,7 @@ export class RunService {
           ...(options.mode && options.mode !== "agent" ? { mode: options.mode } : {}),
         }),
       });
-      span.setAttribute("saturn.run.id", run.id);
+      span.setAttribute("workbench.run.id", run.id);
       return run;
     });
   }
@@ -31,14 +31,14 @@ export class RunService {
   }
 
   stop(id: string): Promise<Run> {
-    return userAction("ui.stop_run", { "saturn.run.id": id }, () =>
+    return userAction("ui.stop_run", { "workbench.run.id": id }, () =>
       this.runtime.request<Run>(`/runs/${id}/stop`, { method: "POST" }),
     );
   }
 
   /** Answers an approval card: lets a waiting tool call run, or denies it. */
   decide(runId: string, actionId: string, allow: boolean): Promise<{ ok: boolean }> {
-    return userAction(allow ? "ui.approve_action" : "ui.deny_action", { "saturn.run.id": runId }, () =>
+    return userAction(allow ? "ui.approve_action" : "ui.deny_action", { "workbench.run.id": runId }, () =>
       this.runtime.request(`/runs/${encodeURIComponent(runId)}/actions/${encodeURIComponent(actionId)}/decision`, {
         method: "POST",
         body: JSON.stringify({ allow }),
@@ -48,7 +48,7 @@ export class RunService {
 
   /** "Always allow": saves an allow rule for the waiting call's tool where the user chose, then approves it. */
   allowAlways(runId: string, actionId: string, input: { scope: PermissionScope; pattern?: string }): Promise<{ ok: boolean; rule: PermissionRule; scope: PermissionScope }> {
-    return userAction("ui.allow_always", { "saturn.run.id": runId }, () =>
+    return userAction("ui.allow_always", { "workbench.run.id": runId }, () =>
       this.runtime.request(`/runs/${encodeURIComponent(runId)}/actions/${encodeURIComponent(actionId)}/allow-always`, {
         method: "POST",
         body: JSON.stringify(input),
@@ -58,7 +58,7 @@ export class RunService {
 
   /** Ends a computer_wait early so the run continues now. */
   wake(id: string): Promise<Run> {
-    return userAction("ui.wake_run", { "saturn.run.id": id }, () =>
+    return userAction("ui.wake_run", { "workbench.run.id": id }, () =>
       this.runtime.request<Run>(`/runs/${id}/wake`, { method: "POST" }),
     );
   }
@@ -70,7 +70,7 @@ export class RunService {
 
   /** Restores one file, or every file the run changed, to how it was before the run. */
   revertChanges(id: string, path?: string): Promise<RunChanges> {
-    return userAction("ui.revert_changes", { "saturn.run.id": id }, () =>
+    return userAction("ui.revert_changes", { "workbench.run.id": id }, () =>
       this.runtime.request<RunChanges>(`/runs/${encodeURIComponent(id)}/changes/revert`, {
         method: "POST",
         body: JSON.stringify(path === undefined ? {} : { path }),
@@ -79,7 +79,7 @@ export class RunService {
   }
 
   keepChanges(id: string): Promise<RunChanges> {
-    return userAction("ui.keep_changes", { "saturn.run.id": id }, () =>
+    return userAction("ui.keep_changes", { "workbench.run.id": id }, () =>
       this.runtime.request<RunChanges>(`/runs/${encodeURIComponent(id)}/changes/keep`, { method: "POST" }),
     );
   }
@@ -87,13 +87,13 @@ export class RunService {
   /** Restores the chat's files to before this turn: reverts it and every later turn in the chat. */
   /** Puts the chat's files back to before this turn, or (with `actionId`) to just before one of its tool steps. */
   restoreTo(id: string, actionId?: string): Promise<{ reverted: string[]; files: string[] }> {
-    return userAction("ui.restore_checkpoint", { "saturn.run.id": id }, () =>
+    return userAction("ui.restore_checkpoint", { "workbench.run.id": id }, () =>
       this.runtime.request(`/runs/${encodeURIComponent(id)}/restore`, { method: "POST", ...(actionId ? { body: JSON.stringify({ actionId }) } : {}) }),
     );
   }
 
   revise(id: string, input: string): Promise<{ run: Run; removed: string[] }> {
-    return userAction("ui.edit_message", { "saturn.run.id": id }, () =>
+    return userAction("ui.edit_message", { "workbench.run.id": id }, () =>
       this.runtime.request(`/runs/${id}`, { method: "PATCH", body: JSON.stringify({ input }) }),
     );
   }

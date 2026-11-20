@@ -1,7 +1,7 @@
-// The computer-use tools, whichever language runs them. Nothing here touches the real screen: SATURN_DESKTOP_BIN puts
+// The computer-use tools, whichever language runs them. Nothing here touches the real screen: WORKBENCH_DESKTOP_BIN puts
 // stand-ins for osascript, screencapture, sips and open in place, and what they were asked to do is compared with
 // contract/cases/computer.json, recorded from the TypeScript runtime before it was removed; a change here is a deliberate one. macOS only, since that is
-// what the stand-ins stand in for; Windows' helper has its own tests in crates/saturn-computer.
+// what the stand-ins stand in for; Windows' helper has its own tests in crates/workbench-computer.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -55,7 +55,7 @@ else process.stdout.write("null\\n");
 
 before(async () => {
   if (process.platform !== "darwin") return;
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-computer-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-computer-")));
   const programs = path.join(scratch, "programs");
   await mkdir(programs);
   for (const name of ["osascript", "screencapture", "sips", "open"]) {
@@ -66,7 +66,7 @@ before(async () => {
   logFile = path.join(scratch, "log.jsonl");
   await writeFile(logFile, "");
   await configure({});
-  runtime = await startRuntime({ env: { SATURN_DESKTOP_BIN: programs, FAKE_CONFIG: configFile, FAKE_LOG: logFile } });
+  runtime = await startRuntime({ env: { WORKBENCH_DESKTOP_BIN: programs, FAKE_CONFIG: configFile, FAKE_LOG: logFile } });
   run = await toolRunner();
 });
 after(async () => {
@@ -141,7 +141,7 @@ function plain(value) {
   const tmp = os.tmpdir().replace(/\/$/, "");
   return JSON.parse(JSON.stringify(value)
     .replaceAll(tmp, "<tmp>")
-    .replace(/saturn-shot-\d+-\d+/g, "saturn-shot")
+    .replace(/workbench-shot-\d+-\d+/g, "workbench-shot")
     .replace(/snap_[a-z0-9]+/g, "snap")
     .replace(/"timestamp":"[^"]*"/g, '"timestamp":"<now>"')
     .replace(/"elapsed_ms":\d+/g, '"elapsed_ms":0'));
@@ -342,7 +342,7 @@ test("a locked screen and missing permissions are said plainly, and the settings
   assert.deepEqual(await api("GET", "/computer/permissions"), { platform: "darwin", required: true, accessibility: true, screenRecording: true });
 });
 
-test("the pointer stream says where each action lands, before it lands, so Saturn can draw the assistant's cursor", macOnly, async () => {
+test("the pointer stream says where each action lands, before it lands, so Eisoptric Workbench can draw the assistant's cursor", macOnly, async () => {
   await configure({});
   const token = (await readFile(path.join(runtime.dataDir, "runtime-token"), "utf8")).trim();
   const stop = new AbortController();

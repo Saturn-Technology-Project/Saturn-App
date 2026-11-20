@@ -1,13 +1,13 @@
 name: Computer use (Windows)
 
-# Drives Notepad on a real Windows desktop through Saturn's computer-use tools: screenshots, the UI Automation tree,
+# Drives Notepad on a real Windows desktop through Eisoptric Workbench's computer-use tools: screenshots, the UI Automation tree,
 # Unicode typing, shortcuts, clicks and scrolling. Runs on its own (a few minutes).
 
 on:
   push:
     branches: [main]
     paths:
-      - "crates/saturn-computer/**"
+      - "crates/workbench-computer/**"
       - ".github/workflows/computer-use-windows.yml"
   workflow_dispatch:
 
@@ -34,5 +34,5 @@ jobs:
 
       - name: Drive Notepad
         env:
-          SATURN_TEST_DESKTOP: "1"
-        run: cargo test --locked -p saturn-computer --test notepad
+          WORKBENCH_TEST_DESKTOP: "1"
+        run: cargo test --locked -p workbench-computer --test notepad

@@ -8,8 +8,8 @@ export function useNotifications(): void {
   useEffect(
     () =>
       desktop.live.onChange((change) => {
-        const notify = window.saturnDesktop?.notify;
-        if (!notify || window.saturnDesktop?.isFocused?.()) return;
+        const notify = window.workbenchDesktop?.notify;
+        if (!notify || window.workbenchDesktop?.isFocused?.()) return;
         for (const run of change.runs) {
           const key = `${run.id}:${run.status}`;
           if (told.current.has(key)) continue;

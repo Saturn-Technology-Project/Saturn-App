@@ -14,8 +14,8 @@ let outside;
 
 before(async () => {
   runtime = await startRuntime();
-  folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-settings-")));
-  outside = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-outside-")));
+  folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-settings-")));
+  outside = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-outside-")));
 });
 after(async () => {
   await runtime?.stop();
@@ -51,7 +51,7 @@ async function api(method, route, body, expected = 200) {
 test("a model's key is saved, serves its provider and is never returned", async () => {
   const secret = "contract-secret-value";
   const model = await api("POST", "/connections/models", { provider: "openai", model: "gpt-6-astra", secret }, 201);
-  assert.equal(model.name, "gpt-6-astra", "its id, when no name came with it: Saturn has no names of its own for a provider's models");
+  assert.equal(model.name, "gpt-6-astra", "its id, when no name came with it: Eisoptric Workbench has no names of its own for a provider's models");
   assert.equal(model.hasSecret, true);
   const other = await api("POST", "/connections/models", { provider: "openai", model: "gpt-6-luna" }, 201);
   assert.equal(other.hasSecret, true, "the provider's saved key");
@@ -78,10 +78,10 @@ test("a connection an agent uses cannot be removed, and removing a model turns o
   assert.equal((await call("GET", `/agents/${agent.id}`)).status, 404);
 });
 
-test("providers are listed, and Saturn names no version of any model", async () => {
+test("providers are listed, and Eisoptric Workbench names no version of any model", async () => {
   const providers = await api("GET", "/llm/providers");
   assert.deepEqual(providers.map((item) => item.id), ["openai", "claude", "claude-code", "codex", "gemini", "deepseek", "lmstudio"]);
-  // A provider reached with a key lists its own models: Saturn carries no list of them to go out of date.
+  // A provider reached with a key lists its own models: Eisoptric Workbench carries no list of them to go out of date.
   for (const id of ["openai", "claude", "gemini", "deepseek"]) {
     assert.deepEqual(providers.find((item) => item.id === id).models, [], id);
   }
@@ -201,7 +201,7 @@ test("a local server's model is connected without a key, from the models any Ope
 });
 
 test("a model saved as MLX by an earlier version is a local-server model at the same address", async () => {
-  const dataDir = await mkdtemp(path.join(os.tmpdir(), "saturn-contract-mlx-"));
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "workbench-contract-mlx-"));
   await writeFile(path.join(dataDir, "state.json"), JSON.stringify({
     models: [{ id: "mdl_mlx", name: "Qwen on MLX", provider: "mlx", model: "mlx-community/Qwen3-8B-4bit", baseUrl: "http://127.0.0.1:8080" }],
     agents: [{ id: "agt_1", name: "Local", modelConnectionId: "mdl_mlx" }],
@@ -301,8 +301,8 @@ test("rules and skills come from the project's folder", async () => {
   const rules = await api("GET", `/projects/${project.id}/rules`);
   assert.equal(rules.source, "agents");
   assert.equal(rules.content, "Be careful.");
-  await mkdir(path.join(folder, ".saturn/skills/deploy"), { recursive: true });
-  await writeFile(path.join(folder, ".saturn/skills/deploy/SKILL.md"), "---\nname: deploy\ndescription: Ship it\n---\nRun it.\n");
+  await mkdir(path.join(folder, ".workbench/skills/deploy"), { recursive: true });
+  await writeFile(path.join(folder, ".workbench/skills/deploy/SKILL.md"), "---\nname: deploy\ndescription: Ship it\n---\nRun it.\n");
   const skills = await api("GET", `/skills?projectId=${project.id}`);
   assert.equal(skills.find((item) => item.name === "deploy").description, "Ship it");
   assert.equal((await api("GET", `/skills/deploy?projectId=${project.id}`)).instructions, "Run it.");
@@ -346,13 +346,13 @@ test("the terminal panel runs a command in the folder and follows cd", async () 
 
 test("the token a launcher gives the runtime reaches no command the terminal panel runs", async () => {
   const launcherToken = "0123456789abcdef".repeat(4);
-  const launched = await startRuntime({ env: { SATURN_RUNTIME_TOKEN: launcherToken } });
+  const launched = await startRuntime({ env: { WORKBENCH_RUNTIME_TOKEN: launcherToken } });
   try {
     assert.equal((await readFile(path.join(launched.dataDir, "runtime-token"), "utf8")).trim(), launcherToken, "the launcher's token is the runtime's");
     const answer = await fetch(`${launched.origin}/workspace/terminal`, {
       method: "POST",
       headers: { authorization: `Bearer ${launcherToken}`, "content-type": "application/json" },
-      body: JSON.stringify({ command: node("process.stdout.write('[' + (process.env.SATURN_RUNTIME_TOKEN || '') + ']' + Object.keys(process.env).filter((name) => name.toUpperCase() === 'SATURN_RUNTIME_TOKEN').length)"), cwd: folder }),
+      body: JSON.stringify({ command: node("process.stdout.write('[' + (process.env.WORKBENCH_RUNTIME_TOKEN || '') + ']' + Object.keys(process.env).filter((name) => name.toUpperCase() === 'WORKBENCH_RUNTIME_TOKEN').length)"), cwd: folder }),
     }).then((response) => response.json());
     assert.equal(answer.stdout.trim(), "[]0", JSON.stringify(answer));
   } finally {
@@ -381,15 +381,15 @@ test("a terminal panel keeps what activate and export set for its next command, 
   assert.equal((await run(". venv/bin/activate")).exitCode, 0);
   assert.equal((await run('printf "%s" "$VIRTUAL_ENV"')).stdout, path.join(folder, "venv"), "activate holds for the next command");
   assert.match((await run('printf "%s" "$PATH"')).stdout, new RegExp(`^${path.join(folder, "venv/bin")}:`));
-  await run("export SATURN_PANEL_NOTE=kept");
-  assert.equal((await run('printf "%s" "$SATURN_PANEL_NOTE"')).stdout, "kept");
+  await run("export WORKBENCH_PANEL_NOTE=kept");
+  assert.equal((await run('printf "%s" "$WORKBENCH_PANEL_NOTE"')).stdout, "kept");
   const answer = await run("true");
   assert.deepEqual(Object.keys(answer).sort(), ["cwd", "exitCode", "stderr", "stdout"], "the environment is never returned");
-  assert.doesNotMatch(answer.stdout, /SATURN_(DEFINITIONS|ENVIRONMENT)/);
+  assert.doesNotMatch(answer.stdout, /WORKBENCH_(DEFINITIONS|ENVIRONMENT)/);
   // Output that looks like the runtime's own markers is only output: the markers are made anew for every command.
-  const spoofed = await run('printf "%s" "__SATURN_ENVIRONMENT__:SATURN_PANEL_NOTE=spoofed"');
-  assert.equal(spoofed.stdout, "__SATURN_ENVIRONMENT__:SATURN_PANEL_NOTE=spoofed");
-  assert.equal((await run('printf "%s" "$SATURN_PANEL_NOTE"')).stdout, "kept", "and changes nothing for the next command");
+  const spoofed = await run('printf "%s" "__WORKBENCH_ENVIRONMENT__:WORKBENCH_PANEL_NOTE=spoofed"');
+  assert.equal(spoofed.stdout, "__WORKBENCH_ENVIRONMENT__:WORKBENCH_PANEL_NOTE=spoofed");
+  assert.equal((await run('printf "%s" "$WORKBENCH_PANEL_NOTE"')).stdout, "kept", "and changes nothing for the next command");
 
   assert.equal((await run('printf "%s" "$VIRTUAL_ENV"', "panel-b")).stdout, "", "another panel starts fresh");
   assert.equal((await api("POST", "/workspace/terminal", { command: 'printf "%s" "$VIRTUAL_ENV"' })).stdout, "", "so does a command with no panel");
@@ -411,27 +411,27 @@ test("hooks: the user's are saved, a project file's wait for that exact set", as
   assert.deepEqual(saved[0].hooks, [{ event: "pre_tool", matcher: "code", command: "echo hi" }]);
   await api("PUT", "/hooks", { hooks: [] });
   const project = await api("POST", "/projects", { path: folder, grant: true }, 201);
-  await writeFile(path.join(folder, ".saturn/hooks.json"), JSON.stringify({ hooks: [{ event: "stop", command: "true" }] }));
+  await writeFile(path.join(folder, ".workbench/hooks.json"), JSON.stringify({ hooks: [{ event: "stop", command: "true" }] }));
   const held = (await api("GET", `/hooks?projectId=${project.id}`)).find((item) => item.source === "project-file");
   assert.equal(held.approved, false);
-  assert.equal((await call("POST", `/projects/${project.id}/hooks/approve`, { file: ".saturn/hooks.json", fingerprint: "other" })).status, 409);
-  const allowed = await api("POST", `/projects/${project.id}/hooks/approve`, { file: ".saturn/hooks.json", fingerprint: held.fingerprint });
+  assert.equal((await call("POST", `/projects/${project.id}/hooks/approve`, { file: ".workbench/hooks.json", fingerprint: "other" })).status, 409);
+  const allowed = await api("POST", `/projects/${project.id}/hooks/approve`, { file: ".workbench/hooks.json", fingerprint: held.fingerprint });
   assert.equal(allowed.find((item) => item.source === "project-file").approved, true);
-  const revoked = await api("DELETE", `/projects/${project.id}/hooks/approve`, { file: ".saturn/hooks.json" });
+  const revoked = await api("DELETE", `/projects/${project.id}/hooks/approve`, { file: ".workbench/hooks.json" });
   assert.equal(revoked.find((item) => item.source === "project-file").approved, false);
 });
 
 test("a project file's allow rules wait for that exact set, and one that allows everything never applies", async () => {
   const project = await api("POST", "/projects", { path: folder, grant: true }, 201);
-  await writeFile(path.join(folder, ".saturn/settings.json"), JSON.stringify({ permissions: { rules: [{ tool: "code", pattern: "npm *", effect: "allow" }, { tool: "code", pattern: "*", effect: "allow" }, { tool: "code", pattern: "rm *", effect: "deny" }] } }));
+  await writeFile(path.join(folder, ".workbench/settings.json"), JSON.stringify({ permissions: { rules: [{ tool: "code", pattern: "npm *", effect: "allow" }, { tool: "code", pattern: "*", effect: "allow" }, { tool: "code", pattern: "rm *", effect: "deny" }] } }));
   const layers = await api("GET", `/permissions?projectId=${project.id}`);
   const file = layers.find((item) => item.scope === "project-file");
   assert.deepEqual(file.rules.map((rule) => rule.effect), ["deny"]);
   assert.equal(file.held.length, 1);
   assert.equal(file.refused.length, 1);
-  const allowed = await api("POST", `/projects/${project.id}/permissions/approve`, { file: ".saturn/settings.json", fingerprint: file.fingerprint });
+  const allowed = await api("POST", `/projects/${project.id}/permissions/approve`, { file: ".workbench/settings.json", fingerprint: file.fingerprint });
   assert.equal(allowed.find((item) => item.scope === "project-file").approved, true);
-  const revoked = await api("DELETE", `/projects/${project.id}/permissions/approve`, { file: ".saturn/settings.json" });
+  const revoked = await api("DELETE", `/projects/${project.id}/permissions/approve`, { file: ".workbench/settings.json" });
   assert.equal(revoked.find((item) => item.scope === "project-file").approved, false);
   assert.equal((await call("POST", "/permissions/rules", { scope: "user", rule: { tool: "code", pattern: "*", effect: "allow" } })).status, 400);
 });

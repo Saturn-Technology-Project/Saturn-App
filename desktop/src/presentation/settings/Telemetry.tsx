@@ -27,7 +27,7 @@ import { SubTitle } from "./Parts";
 type Tab = "traces" | "metrics" | "logs" | "network";
 
 const EXPORTS: { format: TelemetryExportFormat; label: string; detail: string }[] = [
-  { format: "saturn", label: "Saturn JSON", detail: t("telemetry.json as saved, for this page") },
+  { format: "workbench", label: "Eisoptric Workbench JSON", detail: t("telemetry.json as saved, for this page") },
   { format: "otlp", label: "OTLP JSON", detail: t("JSON Lines for the OpenTelemetry Collector (otlpjsonfile)") },
   { format: "siem", label: "SIEM · ECS NDJSON", detail: t("One event per line for Elastic, Splunk, Sentinel") },
 ];
@@ -565,9 +565,9 @@ function AttributeTable(props: { attributes: Attributes }) {
 
 const GROUPS: { prefix: string; title: string }[] = [
   { prefix: "gen_ai.", title: "LLM" },
-  { prefix: "saturn.agent", title: t("Agents") },
-  { prefix: "saturn.tool", title: t("Tools") },
-  { prefix: "saturn.mcp", title: "MCP" },
+  { prefix: "workbench.agent", title: t("Agents") },
+  { prefix: "workbench.tool", title: t("Tools") },
+  { prefix: "eisoptric.mcp", title: "MCP" },
   { prefix: "http.", title: "HTTP" },
   { prefix: "", title: t("Runtime") },
 ];
@@ -727,7 +727,7 @@ function severityClass(severity: number): keyof typeof SEVERITY_TONES {
 
 function LogRow(props: { line: TelemetryLog; onOpenTrace?: (traceId: string) => void }) {
   const { line } = props;
-  const service = line.attributes["saturn.service"];
+  const service = line.attributes["workbench.service"];
   return (
     <div className="grid grid-cols-[96px_58px_max-content_minmax(0,1fr)_max-content] items-baseline gap-2.5 border-b border-border px-3.5 py-1.25 last:border-b-0">
       <span className="font-mono text-[11px] text-muted-foreground">{formatClock(line.timeMs)}</span>
@@ -754,7 +754,7 @@ function Network(props: { view: NetworkView | null }) {
   return (
     <div className="flex flex-col gap-3">
       <p className={HINT}>
-        {t("Every HTTP(S) request the Saturn runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.", { time: new Date(view.since).toLocaleString() })}
+        {t("Every HTTP(S) request the Eisoptric Workbench runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.", { time: new Date(view.since).toLocaleString() })}
         {view.file ? <> {t("Also written to:")} <code>{view.file}</code></> : null}
       </p>
       <Card className="gap-0 overflow-hidden p-0">

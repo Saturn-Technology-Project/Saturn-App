@@ -25,7 +25,7 @@ import { useConversation } from "./useConversation.js";
 type Attachment = "file" | "selection" | "error" | "sample";
 
 /** Where the chat a project last had open is remembered, in this browser only: losing it only opens the newest chat. */
-const LAST_CHAT = "saturn.assistant.chat.";
+const LAST_CHAT = "workbench.assistant.chat.";
 
 function lastChat(projectId: string): string | null {
   try {
@@ -230,7 +230,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
     if (files.length) {
       const items: ContextItem[] = files.map((path) => ({ kind: "file", path, label: path }));
       const expanded = await desktop.projects.expandContext(project.id, items);
-      if (expanded.text) input += `\n\n<saturn_context sources="${expanded.sources.join("; ").replace(/"/g, "'")}">\n<attached_context>\n${expanded.text}\n</attached_context>\n</saturn_context>`;
+      if (expanded.text) input += `\n\n<workbench_context sources="${expanded.sources.join("; ").replace(/"/g, "'")}">\n<attached_context>\n${expanded.text}\n</attached_context>\n</workbench_context>`;
     }
     if (attached("selection") && focus?.selection && focus.file) input += selectionContext(focus.file, focus.selection.line, focus.selection.text);
     if (attached("error") && focus?.errorOutput) input += errorContext(focus.errorOutput);
@@ -374,7 +374,7 @@ export function AssistantPanel(props: ScreenProps & { screen: Screen; focus: Wor
         {conversation.runs.map((run) => (
           <Turn key={run.id} run={run} onComment={(comment) => void ask(comment)} />
         ))}
-        {ready && !conversation.runs.length ? <p className="m-auto max-w-[220px] text-center text-xs text-muted-foreground">{t("Ask about your work, or how to do something in Saturn.")}</p> : null}
+        {ready && !conversation.runs.length ? <p className="m-auto max-w-[220px] text-center text-xs text-muted-foreground">{t("Ask about your work, or how to do something in Eisoptric Workbench.")}</p> : null}
       </div>
 
       <div className="flex flex-none flex-col gap-1.5 border-t border-border px-3 py-2.5">

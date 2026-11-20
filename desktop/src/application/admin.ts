@@ -22,7 +22,7 @@ export type ProgramStatus = {
   id: "claude-code" | "codex" | "uv";
   label: string;
   installed: boolean;
-  source: "saturn" | "bundled" | "system" | null;
+  source: "workbench" | "bundled" | "system" | null;
   path: string | null;
   version: string | null;
   downloadVersion: string | null;
@@ -46,21 +46,21 @@ export class AdminService {
     return this.runtime.request(`/programs/${id}`);
   }
 
-  /** Starts downloading Saturn's tested copy of the program; the status reports progress. */
+  /** Starts downloading Eisoptric Workbench's tested copy of the program; the status reports progress. */
   installProgram(id: ProgramStatus["id"]): Promise<ProgramStatus> {
-    return userAction("program.install", { "saturn.program": id }, () => this.runtime.request<ProgramStatus>(`/programs/${id}/install`, { method: "POST" }));
+    return userAction("program.install", { "workbench.program": id }, () => this.runtime.request<ProgramStatus>(`/programs/${id}/install`, { method: "POST" }));
   }
 
   removeProgram(id: ProgramStatus["id"]): Promise<ProgramStatus> {
     return this.runtime.request(`/programs/${id}`, { method: "DELETE" });
   }
 
-  /** Claude Code's login, as the official `claude` program reports it; Saturn never handles the credential. */
+  /** Claude Code's login, as the official `claude` program reports it; Eisoptric Workbench never handles the credential. */
   claudeCodeStatus(): Promise<{ loggedIn: boolean; authMethod: string; email?: string; subscriptionType?: string; loginCommand: string; configDir: string; error?: string }> {
     return this.runtime.request("/claude-code/status");
   }
 
-  /** Signs Saturn's Claude Code out through the official program; returns the new status. */
+  /** Signs Eisoptric Workbench's Claude Code out through the official program; returns the new status. */
   claudeCodeLogout(): Promise<Awaited<ReturnType<AdminService["claudeCodeStatus"]>>> {
     return this.runtime.request("/claude-code/logout", { method: "POST" });
   }
@@ -88,7 +88,7 @@ export class AdminService {
     return this.runtime.request("/codex/logout", { method: "POST" });
   }
 
-  /** Saturn's notes about the user (scope "global") or a project (its id), as editable text. */
+  /** Eisoptric Workbench's notes about the user (scope "global") or a project (its id), as editable text. */
   memory(scope: string): Promise<{ scope: string; content: string }> {
     return this.runtime.request(`/memory/${encodeURIComponent(scope)}`);
   }
@@ -159,7 +159,7 @@ export class AdminService {
     return this.runtime.request<HookSet[]>(`/projects/${encodeURIComponent(projectId)}/hooks/approve`, { method: "DELETE", body: JSON.stringify({ file }) });
   }
 
-  /** The `saturn` command's launcher in ~/.local/bin: installed, current, and whether that folder is on PATH. */
+  /** The `workbench` command's launcher in ~/.local/bin: installed, current, and whether that folder is on PATH. */
   cliStatus(): Promise<CliStatus> {
     return this.runtime.request<CliStatus>("/cli");
   }
@@ -224,7 +224,7 @@ export class AdminService {
   }
 
   updateModelKey(id: string, secret: string): Promise<void> {
-    return userAction("ui.save_model_key", { "saturn.model.id": id }, () =>
+    return userAction("ui.save_model_key", { "workbench.model.id": id }, () =>
       this.runtime.request(`/connections/models/${id}`, { method: "PATCH", body: JSON.stringify({ secret }) }),
     );
   }
@@ -271,12 +271,12 @@ export class AdminService {
     return this.runtime.request("/connections/rag", { method: "POST", body: JSON.stringify({ name: "RAG", url }) });
   }
 
-  /** Whether this computer lets Saturn control it (macOS Accessibility and Screen Recording). */
+  /** Whether this computer lets Eisoptric Workbench control it (macOS Accessibility and Screen Recording). */
   computerPermissions(): Promise<{ platform: string; required: boolean; accessibility: boolean; screenRecording: boolean; error?: string }> {
     return this.runtime.request("/computer/permissions");
   }
 
-  /** The private snapshots Saturn keeps of project folders outside git, with their size on disk. */
+  /** The private snapshots Eisoptric Workbench keeps of project folders outside git, with their size on disk. */
   snapshotStorage(): Promise<{ folders: { id: string; folder: string | null; bytes: number }[]; bytes: number }> {
     return this.runtime.request("/storage/snapshots");
   }

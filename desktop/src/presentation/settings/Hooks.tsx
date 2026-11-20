@@ -83,7 +83,7 @@ export function HooksPage(props: { projects: Project[]; onError: (message: strin
       <Explained summary={t("A hook is a shell command that runs around an agent's tool calls, or when its turn ends.")}>
         <li>{t("It runs in the chat's project folder, and gets the event as JSON on stdin: the tool, its arguments and result, and the turn's answer.")}</li>
         <li>{t("Your hooks below run in every project.")}</li>
-        <li>{t("A project can bring its own hooks file:")} <code>.saturn/hooks.json</code>. {t("The hooks in its Claude Code settings are read too (PreToolUse, PostToolUse and Stop):")} <code>.claude/settings.json</code>. {t("Those run only after you allow them here, and any change to the file asks again.")}</li>
+        <li>{t("A project can bring its own hooks file:")} <code>.workbench/hooks.json</code>. {t("The hooks in its Claude Code settings are read too (PreToolUse, PostToolUse and Stop):")} <code>.claude/settings.json</code>. {t("Those run only after you allow them here, and any change to the file asks again.")}</li>
       </Explained>
 
       <div>
@@ -123,7 +123,7 @@ export function HooksPage(props: { projects: Project[]; onError: (message: strin
               <HookList hooks={set.hooks} />
               {!set.approved ? <RowDescription>{t("These commands come with the folder and run with your permissions. Read them before allowing.")}</RowDescription> : null}
             </SettingsRow>
-          ))) : <RowDescription>{t("No project has hooks in either file:")} <code>.saturn/hooks.json</code>, <code>.claude/settings.json</code></RowDescription>}
+          ))) : <RowDescription>{t("No project has hooks in either file:")} <code>.workbench/hooks.json</code>, <code>.claude/settings.json</code></RowDescription>}
         </SettingsCard>
       </div>
     </div>

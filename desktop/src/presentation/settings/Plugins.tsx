@@ -45,7 +45,7 @@ export function PluginsPage(props: { onError: (message: string) => void; onChang
   }
 
   async function pickFolder() {
-    const picked = await (globalThis as { saturnDesktop?: { pickFolders?: () => Promise<string[]> } }).saturnDesktop?.pickFolders?.();
+    const picked = await (globalThis as { workbenchDesktop?: { pickFolders?: () => Promise<string[]> } }).workbenchDesktop?.pickFolders?.();
     if (picked?.[0]) setSource(picked[0]);
   }
 
@@ -55,7 +55,7 @@ export function PluginsPage(props: { onError: (message: string) => void; onChang
         <SectionTitle>{t("Install a plugin")}</SectionTitle>
         <SettingsCard className="flex flex-col gap-2.5">
           <p className="m-0 text-xs text-muted-foreground">
-            {t("A plugin bundles skills, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.")}
+            {t("A plugin bundles skills, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Eisoptric Workbench and runs nothing: its hooks and local MCP servers each wait for your approval.")}
           </p>
           <RuleForm onSubmit={(event) => { event.preventDefault(); if (source.trim()) void act("install", async () => { await desktop.admin.installPlugin(source.trim()); setSource(""); }); }}>
             <Input className="w-auto flex-[1_1_260px] font-mono" aria-label={t("Plugin folder or git URL")} placeholder={t("/path/to/plugin or https://github.com/owner/plugin")} value={source} onChange={(event) => setSource(event.target.value)} />
@@ -97,7 +97,7 @@ export function PluginsPage(props: { onError: (message: string) => void; onChang
                 {[
                   plugin.skills.length ? `${plugin.skills.length === 1 ? t("1 skill") : t("{count} skills", { count: plugin.skills.length })} (${plugin.skills.join(", ")})` : "",
                   plugin.mcpServers.length ? (plugin.mcpServers.length === 1 ? t("1 MCP server (allow it under MCP & Skills)") : t("{count} MCP servers (allow each under MCP & Skills)", { count: plugin.mcpServers.length })) : "",
-                ].filter(Boolean).join(" · ") || t("Nothing Saturn can use yet")}
+                ].filter(Boolean).join(" · ") || t("Nothing Eisoptric Workbench can use yet")}
                 {` · ${t("from {source}", { source: plugin.source })}`}
               </RowDescription>
               {plugin.hooks.length ? (

@@ -1,4 +1,4 @@
-// Writes the latest.json installed Saturns check, from the updater-<platform>.json entry each release job left.
+// Writes the latest.json installed Workbenchs check, from the updater-<platform>.json entry each release job left.
 //
 //   node scripts/updater-manifest.mjs <version> <folder> <output>
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";

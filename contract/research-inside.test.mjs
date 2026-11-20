@@ -10,9 +10,9 @@ import { after, before, test } from "node:test";
 import { bench, shellPython, sha, until } from "./files-support.mjs";
 import { placeProgram } from "./programs.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 const evaluation = { dataset: "ioi", split: "all", sampleSet: "all", scorer: "name-logit", promptFormat: "continuation", chatTemplate: null, generation: {} };
 
@@ -72,60 +72,60 @@ const HERE = process.platform === "win32" ? ".\\" : "./";
 const PROBE = `
 import { appendFileSync } from "node:fs";
 const line = (sampleId, modelId, input, expected) => JSON.stringify({ schemaVersion: 1, sampleId, modelId, input, expected, alternative: expected ? " John" : undefined, output: "o", scores: { s: 1 } }) + "\\n";
-appendFileSync(process.env.SATURN_RUN_SAMPLES, line("a", process.argv[2], "When Mary and John went", " Mary"));
-appendFileSync(process.env.SATURN_RUN_SAMPLES, line("b", process.argv[3], "boom", null));
+appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, line("a", process.argv[2], "When Mary and John went", " Mary"));
+appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, line("b", process.argv[3], "boom", null));
 `;
 
 test("Inspect can start from model and Python snapshots without any experiment or completed run", async () => {
-  const folder = await saturn.folder();
-  const made = await saturn.api("POST", "/projects", { path: folder, grant: true });
+  const folder = await workbench.folder();
+  const made = await workbench.api("POST", "/projects", { path: folder, grant: true });
   const route = `/projects/${made.id}/research`;
   await placeProgram(path.join(folder, "python"), PYTHON);
-  await saturn.api("PUT", `${route}/environment`, { python: path.join(folder, "python") });
-  const base = await saturn.api("POST", `${route}/models`, { source: "org/base", weightsRevision: "step1" });
-  const other = await saturn.api("POST", `${route}/models`, { source: "org/other", weightsRevision: "step2" });
-  const session = await saturn.api("POST", `${route}/inspection-sessions`, { title: "Explore", modelIds: [base.id, other.id] });
-  assert.deepEqual((await saturn.api("GET", `${route}/runs`)).items, []);
-  assert.deepEqual((await saturn.api("GET", `${route}/experiments`)).items, []);
-  await saturn.api("PATCH", `${route}/models/${base.id}`, { expectedRevision: base.revision, weightsRevision: "changed" });
-  await saturn.api("PUT", `${route}/environment`, { python: "does-not-exist" });
-  const answer = await saturn.api("POST", `${route}/inspection-sessions/${session.id}/actions`, { action: "compare", modelId: base.id, otherModelId: other.id, input: "a b" });
+  await workbench.api("PUT", `${route}/environment`, { python: path.join(folder, "python") });
+  const base = await workbench.api("POST", `${route}/models`, { source: "org/base", weightsRevision: "step1" });
+  const other = await workbench.api("POST", `${route}/models`, { source: "org/other", weightsRevision: "step2" });
+  const session = await workbench.api("POST", `${route}/inspection-sessions`, { title: "Explore", modelIds: [base.id, other.id] });
+  assert.deepEqual((await workbench.api("GET", `${route}/runs`)).items, []);
+  assert.deepEqual((await workbench.api("GET", `${route}/experiments`)).items, []);
+  await workbench.api("PATCH", `${route}/models/${base.id}`, { expectedRevision: base.revision, weightsRevision: "changed" });
+  await workbench.api("PUT", `${route}/environment`, { python: "does-not-exist" });
+  const answer = await workbench.api("POST", `${route}/inspection-sessions/${session.id}/actions`, { action: "compare", modelId: base.id, otherModelId: other.id, input: "a b" });
   assert.equal(answer.modelId, base.id);
   const asked = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
   assert.deepEqual(asked.target, { source: "org/base", revision: "step1" });
-  const recorded = await saturn.api("GET", `${route}/inspection-sessions/${session.id}/inside`);
+  const recorded = await workbench.api("GET", `${route}/inspection-sessions/${session.id}/inside`);
   assert.equal(recorded.items.length, 1);
-  assert.equal((await saturn.call("PATCH", `${route}/inspection_sessions/${session.id}`, { expectedRevision: session.revision, python: "changed" })).status, 405);
-  const stranger = await saturn.api("POST", `${route}/models`, { source: "org/stranger", weightsRevision: "x" });
-  assert.equal((await saturn.call("POST", `${route}/inspection-sessions/${session.id}/actions`, { action: "compare", modelId: stranger.id, otherModelId: base.id, input: "a b" })).status, 422);
+  assert.equal((await workbench.call("PATCH", `${route}/inspection_sessions/${session.id}`, { expectedRevision: session.revision, python: "changed" })).status, 405);
+  const stranger = await workbench.api("POST", `${route}/models`, { source: "org/stranger", weightsRevision: "x" });
+  assert.equal((await workbench.call("POST", `${route}/inspection-sessions/${session.id}/actions`, { action: "compare", modelId: stranger.id, otherModelId: base.id, input: "a b" })).status, 422);
 });
 
 /** A project with two models bound to an experiment, run once with the stand-in python. */
 async function project() {
-  const folder = await saturn.folder();
-  const made = await saturn.api("POST", "/projects", { path: folder });
-  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const folder = await workbench.folder();
+  const made = await workbench.api("POST", "/projects", { path: folder });
+  await workbench.api("POST", `/projects/${made.id}/access`, {});
   const route = `/projects/${made.id}/research`;
   await placeProgram(path.join(folder, "python"), PYTHON);
   await writeFile(path.join(folder, "probe.mjs"), PROBE);
-  const base = await saturn.api("POST", `${route}/models`, { source: "org/base", weightsRevision: "step1" });
-  const tuned = await saturn.api("POST", `${route}/models`, { source: "org/tuned", weightsRevision: "v1", parentId: base.id });
-  const experiment = await saturn.api("POST", `${route}/experiments`, {
+  const base = await workbench.api("POST", `${route}/models`, { source: "org/base", weightsRevision: "step1" });
+  const tuned = await workbench.api("POST", `${route}/models`, { source: "org/tuned", weightsRevision: "v1", parentId: base.id });
+  const experiment = await workbench.api("POST", `${route}/experiments`, {
     title: "E",
     command: `${HERE}python probe.mjs ${base.id} ${tuned.id}`,
     evaluation,
     models: [{ modelId: base.id, role: "base" }, { modelId: tuned.id, role: "policy" }],
   });
-  const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
-  const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: "c1" });
-  const run = await until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  const version = await workbench.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const started = await workbench.api("POST", `${route}/versions/${version.id}/runs`, { clientId: "c1" });
+  const run = await until("the run to end", () => workbench.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
   assert.equal(run.status, "completed");
   return { folder, route, run, base, tuned };
 }
 
 test("activations are read by the experiment's own python, saved with the run, and given again without running", async () => {
   const { folder, route, run, base } = await project();
-  const first = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  const first = await workbench.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
   assert.equal(first.modelId, base.id);
   assert.deepEqual(first.tokens, ["When", "Mary", "and", "John", "went"]);
   assert.equal(first.layers.length, 2);
@@ -134,46 +134,46 @@ test("activations are read by the experiment's own python, saved with the run, a
   const asked = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
   assert.deepEqual(asked.target, { source: "org/base", revision: "step1" });
   assert.equal(asked.expected, " Mary");
-  const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id, "inside"));
+  const saved = await readdir(path.join(folder, ".workbench/research/runs", run.id, "inside"));
   assert.equal(saved.length, 1);
-  const again = await saturn.api("GET", `${route}/runs/${run.id}/activations?sample=a`);
+  const again = await workbench.api("GET", `${route}/runs/${run.id}/activations?sample=a`);
   assert.equal(again.recordedAt, first.recordedAt);
-  const repeated = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  const repeated = await workbench.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
   assert.equal(repeated.recordedAt, first.recordedAt);
-  assert.equal((await saturn.call("GET", `${route}/runs/${run.id}/activations?sample=zzz`)).status, 404);
+  assert.equal((await workbench.call("GET", `${route}/runs/${run.id}/activations?sample=zzz`)).status, 404);
 });
 
 test("a changed helper computes a new reading and leaves an earlier helper's result intact", async () => {
   const { folder, route, run, base } = await project();
-  const directory = path.join(folder, ".saturn/research/runs", run.id, "inside");
+  const directory = path.join(folder, ".workbench/research/runs", run.id, "inside");
   await mkdir(directory, { recursive: true });
   // The old cache key did not include the helper. Keep that result in the history, but do not reuse it.
   const key = sha(JSON.stringify({ layer: null, modelId: null, sampleId: "a", sourceModelId: null }));
   const legacy = path.join(directory, `${key.slice(0, 16)}.json`);
   const original = JSON.stringify({ schemaVersion: 1, sampleId: "a", modelId: base.id, legacy: true });
   await writeFile(legacy, original);
-  const current = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
-  const helper = await readFile(new URL("../crates/saturn-core/src/research/inside.py", import.meta.url));
+  const current = await workbench.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  const helper = await readFile(new URL("../crates/workbench-core/src/research/inside.py", import.meta.url));
   assert.equal(current.helperSha256, sha(helper));
   assert.equal(current.legacy, undefined);
   assert.equal(await readFile(legacy, "utf8"), original);
   assert.equal((await readdir(directory)).length, 2);
-  const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
+  const listed = await workbench.api("GET", `${route}/runs/${run.id}/inside`);
   assert.deepEqual(listed.items.map((item) => [Boolean(item.legacy), item.current]).sort(), [[false, true], [true, false]], "the earlier result is listed, and said not to be current");
 });
 
 test("an intervention patches a layer from one bound model into another, and the helper's failure is reported", async () => {
   const { route, run, base, tuned } = await project();
-  const patched = await saturn.api("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: tuned.id, targetModelId: base.id, layer: 1 });
+  const patched = await workbench.api("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: tuned.id, targetModelId: base.id, layer: 1 });
   assert.equal(patched.patched.layer, 1);
   assert.equal(patched.patched.sourceModelId, tuned.id);
   assert.equal(patched.patched.top, "y");
-  const unbound = await saturn.call("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: "model_0000000000000000", layer: 1 });
+  const unbound = await workbench.call("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: "model_0000000000000000", layer: 1 });
   assert.equal(unbound.status, 422);
-  const failed = await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "b" });
+  const failed = await workbench.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "b" });
   assert.equal(failed.status, 422);
   assert.match(failed.body.error, /a traceback/);
-  const missing = await saturn.call("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: tuned.id });
+  const missing = await workbench.call("POST", `${route}/interventions`, { runId: run.id, sampleId: "a", sourceModelId: tuned.id });
   assert.equal(missing.status, 400);
 });
 
@@ -181,27 +181,27 @@ test("prompts of the person's own are looked at with a run's python and weights,
   const { folder, route, run, base, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   const asked = { action: "prompts", modelId: tuned.id, clean: "John gave to", corrupted: "Mary gave to", expected: " Mary", alternative: " John" };
-  const first = await saturn.api("POST", place, asked);
+  const first = await workbench.api("POST", place, asked);
   assert.deepEqual(first.recovery, [[0, 0.8]]);
   assert.equal(first.action, "prompts");
   const heard = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
   assert.deepEqual(heard.target, { source: "org/tuned", revision: "v1" });
   assert.equal(heard.clean, "John gave to");
   await writeFile(path.join(folder, "asked.json"), "untouched");
-  const again = await saturn.api("POST", place, asked);
+  const again = await workbench.api("POST", place, asked);
   assert.equal(again.recordedAt, first.recordedAt, "answered from what was saved");
   assert.equal(await readFile(path.join(folder, "asked.json"), "utf8"), "untouched");
 
-  const compared = await saturn.api("POST", place, { action: "compare", modelId: tuned.id, otherModelId: base.id, input: "When Mary" });
+  const compared = await workbench.api("POST", place, { action: "compare", modelId: tuned.id, otherModelId: base.id, input: "When Mary" });
   assert.equal(compared.otherTop, "y");
   assert.deepEqual(JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8")).other, { source: "org/base", revision: "step1" });
 
-  const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
+  const listed = await workbench.api("GET", `${route}/runs/${run.id}/inside`);
   assert.deepEqual(listed.items.map((item) => item.kind).sort(), ["compare", "prompts"]);
   assert.ok(listed.items.every((item) => item.current === true));
   // The helper that reads samples did not change, so what it already made stays current.
-  await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
-  assert.ok((await saturn.api("GET", `${route}/runs/${run.id}/inside`)).items.every((item) => item.current === true));
+  await workbench.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  assert.ok((await workbench.api("GET", `${route}/runs/${run.id}/inside`)).items.every((item) => item.current === true));
 });
 
 test("a look at prompts that cannot mean anything is refused, and a helper's refusal is passed on", async () => {
@@ -215,20 +215,20 @@ test("a look at prompts that cannot mean anything is refused, and a helper's ref
     [{ clean: "z".repeat(4001) }, /longer/],
     [{ action: "other" }, /nothing to do/],
   ]) {
-    const refused = await saturn.call("POST", place, { ...good, ...change });
+    const refused = await workbench.call("POST", place, { ...good, ...change });
     assert.equal(refused.status, 400, JSON.stringify(change).slice(0, 60));
     assert.match(JSON.stringify(refused.body), why);
   }
-  assert.equal((await saturn.call("POST", place, { action: "compare", modelId: base.id, otherModelId: base.id, input: "a" })).status, 400);
-  assert.equal((await saturn.call("POST", `${route}/runs/run_0000000000000000/inspections`, good)).status, 404);
-  const failed = await saturn.call("POST", place, { ...good, clean: "boom" });
+  assert.equal((await workbench.call("POST", place, { action: "compare", modelId: base.id, otherModelId: base.id, input: "a" })).status, 400);
+  assert.equal((await workbench.call("POST", `${route}/runs/run_0000000000000000/inspections`, good)).status, 404);
+  const failed = await workbench.call("POST", place, { ...good, clean: "boom" });
   assert.equal(failed.status, 422);
   assert.match(JSON.stringify(failed.body), /different lengths/);
 });
 
 /** The helper's whole program for features, as the runtime composes it. */
 async function featuresHelper() {
-  const folder = new URL("../crates/saturn-core/src/research/", import.meta.url);
+  const folder = new URL("../crates/workbench-core/src/research/", import.meta.url);
   const functions = (await readFile(new URL("inside.py", folder), "utf8")).split("\nif __name__")[0];
   return `${functions}\n${await readFile(new URL("inside_features.py", folder), "utf8")}`;
 }
@@ -237,7 +237,7 @@ test("features are read through an SAE with a run's python and weights, saved wi
   const { folder, route, run, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   const asked = { action: "features", modelId: tuned.id, prompt: "When Mary", layer: 1, saeRelease: "some-release", saeId: "blocks.1.hook_resid_post", expected: " Mary", alternative: " John", ablate: 3 };
-  const first = await saturn.api("POST", place, asked);
+  const first = await workbench.api("POST", place, asked);
   assert.equal(first.action, "features");
   assert.deepEqual(first.features[0], [{ feature: 3, activation: 5 }]);
   assert.equal(first.ablation.control.feature, 4);
@@ -249,20 +249,20 @@ test("features are read through an SAE with a run's python and weights, saved wi
   assert.equal(heard.layer, 1);
   assert.equal(heard.ablate, 3);
   await writeFile(path.join(folder, "asked.json"), "untouched");
-  const again = await saturn.api("POST", place, asked);
+  const again = await workbench.api("POST", place, asked);
   assert.equal(again.recordedAt, first.recordedAt, "answered from what was saved");
   assert.equal(await readFile(path.join(folder, "asked.json"), "utf8"), "untouched");
-  const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id, "inside"));
+  const saved = await readdir(path.join(folder, ".workbench/research/runs", run.id, "inside"));
   assert.equal(saved.filter((name) => name.startsWith("inspect-")).length, 1);
 
   // Without two words there is no margin, and asking without an ablation is another question.
-  const plain = await saturn.api("POST", place, { action: "features", modelId: tuned.id, prompt: "When Mary", layer: 1, saeRelease: "some-release", saeId: "blocks.1.hook_resid_post" });
+  const plain = await workbench.api("POST", place, { action: "features", modelId: tuned.id, prompt: "When Mary", layer: 1, saeRelease: "some-release", saeId: "blocks.1.hook_resid_post" });
   assert.equal(plain.margins, null);
   assert.equal(plain.ablation, null);
   assert.notEqual(plain.key, first.key);
 
-  await saturn.api("POST", place, { action: "prompts", modelId: tuned.id, clean: "a", corrupted: "b", expected: " x", alternative: " y" });
-  const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
+  await workbench.api("POST", place, { action: "prompts", modelId: tuned.id, clean: "a", corrupted: "b", expected: " x", alternative: " y" });
+  const listed = await workbench.api("GET", `${route}/runs/${run.id}/inside`);
   assert.deepEqual(listed.items.map((item) => item.kind).sort(), ["features", "features", "prompts"]);
   assert.ok(listed.items.every((item) => item.current === true), "each is judged by the helper that makes its own kind");
 });
@@ -286,19 +286,19 @@ test("a request for features that cannot mean anything is refused, and a helper'
     [{ ablate: 3 }, /margin/],
     [{ ablate: "three", expected: " x", alternative: " y" }, /whole number/],
   ]) {
-    const refused = await saturn.call("POST", place, { ...good, ...change });
+    const refused = await workbench.call("POST", place, { ...good, ...change });
     assert.equal(refused.status, 400, JSON.stringify(change).slice(0, 60));
     assert.match(JSON.stringify(refused.body), why);
   }
-  assert.equal((await saturn.call("POST", `${route}/runs/run_0000000000000000/inspections`, good)).status, 404);
+  assert.equal((await workbench.call("POST", `${route}/runs/run_0000000000000000/inspections`, good)).status, 404);
 
-  const missing = await saturn.call("POST", place, { ...good, prompt: "no-kit" });
+  const missing = await workbench.call("POST", place, { ...good, prompt: "no-kit" });
   assert.equal(missing.status, 422);
   assert.match(missing.body.error, /^sae_lens is not installed/, "the reason itself, not a failure around it");
-  const failed = await saturn.call("POST", place, { ...good, prompt: "boom" });
+  const failed = await workbench.call("POST", place, { ...good, prompt: "boom" });
   assert.equal(failed.status, 422);
   assert.match(failed.body.error, /a traceback/);
-  const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id)).then((names) => names.includes("inside"));
+  const saved = await readdir(path.join(folder, ".workbench/research/runs", run.id)).then((names) => names.includes("inside"));
   assert.equal(saved, false, "neither is kept, so asking again after installing runs");
 });
 
@@ -306,17 +306,17 @@ test("an SAE in a local folder is asked about afresh when its files change", asy
   const { folder, route, run, tuned } = await project();
   const place = `${route}/runs/${run.id}/inspections`;
   const asked = { action: "features", modelId: tuned.id, prompt: "a", layer: 1, saePath: "saes/one" };
-  const absent = await saturn.call("POST", place, asked);
+  const absent = await workbench.call("POST", place, asked);
   assert.equal(absent.status, 422);
   assert.match(absent.body.error, /no SAE folder at saes\/one/);
   await mkdir(path.join(folder, "saes/one"), { recursive: true });
   await writeFile(path.join(folder, "saes/one/cfg.json"), "{}");
-  const first = await saturn.api("POST", place, asked);
+  const first = await workbench.api("POST", place, asked);
   assert.equal(first.sae.path, "saes/one");
   assert.equal(JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8")).sae.path, "saes/one");
-  assert.equal((await saturn.api("POST", place, asked)).recordedAt, first.recordedAt);
+  assert.equal((await workbench.api("POST", place, asked)).recordedAt, first.recordedAt);
   await writeFile(path.join(folder, "saes/one/weights.safetensors"), "trained again");
-  const fresh = await saturn.api("POST", place, asked);
+  const fresh = await workbench.api("POST", place, asked);
   assert.notEqual(fresh.key, first.key);
 });
 
@@ -329,7 +329,7 @@ test("the real helper says when sae_lens is missing or an SAE reads another laye
   await writeFile(path.join(folder, "transformers.py"), `class Config:\n    num_hidden_layers = 4\nclass Model:\n    config = Config()\n    def eval(self):\n        return self\nclass AutoModelForCausalLM:\n    @staticmethod\n    def from_pretrained(*args, **kwargs):\n        return Model()\nclass AutoTokenizer:\n    @staticmethod\n    def from_pretrained(*args, **kwargs):\n        return object()\n`);
   await writeFile(path.join(folder, "sae_lens.py"), `raise ModuleNotFoundError("No module named 'sae_lens'", name="sae_lens")\n`);
   const good = { action: "features", modelId: tuned.id, prompt: "a", layer: 1, saeRelease: "r", saeId: "blocks.1.hook_resid_post" };
-  const missing = await saturn.call("POST", place, good);
+  const missing = await workbench.call("POST", place, good);
   assert.equal(missing.status, 422, JSON.stringify(missing.body));
   assert.match(missing.body.error, /^sae_lens is not installed in this project's Python\. Install the Interpretability kit on the Environment screen\.$/);
 
@@ -343,7 +343,7 @@ test("the real helper says when sae_lens is missing or an SAE reads another laye
     [{ layer: 0, saeId: "blocks.0.hook_resid_pre" }, /embeddings before the first block/],
     [{ saeRelease: "bad" }, /could not be loaded: no such release/],
   ]) {
-    const refused = await saturn.call("POST", place, { ...good, ...change });
+    const refused = await workbench.call("POST", place, { ...good, ...change });
     assert.equal(refused.status, 422, JSON.stringify(change));
     assert.match(refused.body.error, why);
   }
@@ -351,7 +351,7 @@ test("the real helper says when sae_lens is missing or an SAE reads another laye
 
 test("a sweep patches every layer on several samples in one helper process, and is saved with the run", async () => {
   const { folder, route, run, base, tuned } = await project();
-  const swept = await saturn.api("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["a"], sourceModelId: tuned.id, targetModelId: base.id, layers: [0, 1, 2] });
+  const swept = await workbench.api("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["a"], sourceModelId: tuned.id, targetModelId: base.id, layers: [0, 1, 2] });
   assert.deepEqual(swept.layers, [0, 1, 2]);
   assert.equal(swept.samples.length, 1);
   assert.deepEqual(swept.samples[0].byLayer.map((item) => item.top), ["x", " Mary", "x"]);
@@ -360,52 +360,52 @@ test("a sweep patches every layer on several samples in one helper process, and 
   assert.deepEqual(asked.sweep.samples.map((item) => item.expected), [" Mary"]);
   assert.deepEqual(asked.sweep.samples.map((item) => item.alternative), [" John"], "the line's alternative goes to the helper");
   assert.deepEqual(swept.samples[0].byLayer.map((item) => item.margin), [-1, -1, 0.5]);
-  const again = await saturn.api("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["a"], sourceModelId: tuned.id, targetModelId: base.id, layers: [0, 1, 2] });
+  const again = await workbench.api("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["a"], sourceModelId: tuned.id, targetModelId: base.id, layers: [0, 1, 2] });
   assert.equal(again.recordedAt, swept.recordedAt);
-  const saved = await readdir(path.join(folder, ".saturn/research/runs", run.id, "inside"));
+  const saved = await readdir(path.join(folder, ".workbench/research/runs", run.id, "inside"));
   assert.equal(saved.filter((name) => name.startsWith("sweep-")).length, 1);
-  await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
-  const listed = await saturn.api("GET", `${route}/runs/${run.id}/inside`);
+  await workbench.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  const listed = await workbench.api("GET", `${route}/runs/${run.id}/inside`);
   assert.deepEqual(listed.items.map((item) => item.kind).sort(), ["reading", "sweep"]);
   assert.ok(listed.items.every((item) => item.current === true), "made by this runtime's helper");
   assert.equal(listed.items.find((item) => item.kind === "sweep").samples[0].sampleId, "a");
-  assert.deepEqual((await saturn.api("GET", `${route}/runs/run_0000000000000000/inside`)).items, []);
-  assert.equal((await saturn.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: [], sourceModelId: tuned.id, targetModelId: base.id })).status, 400);
-  assert.equal((await saturn.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["zzz"], sourceModelId: tuned.id, targetModelId: base.id })).status, 404);
+  assert.deepEqual((await workbench.api("GET", `${route}/runs/run_0000000000000000/inside`)).items, []);
+  assert.equal((await workbench.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: [], sourceModelId: tuned.id, targetModelId: base.id })).status, 400);
+  assert.equal((await workbench.call("POST", `${route}/interventions/sweep`, { runId: run.id, sampleIds: ["zzz"], sourceModelId: tuned.id, targetModelId: base.id })).status, 404);
 });
 
 test("a command that does not start with a python is refused with what to do", async () => {
-  const folder = await saturn.folder();
-  const made = await saturn.api("POST", "/projects", { path: folder });
-  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const folder = await workbench.folder();
+  const made = await workbench.api("POST", "/projects", { path: folder });
+  await workbench.api("POST", `/projects/${made.id}/access`, {});
   const route = `/projects/${made.id}/research`;
-  await writeFile(path.join(folder, "probe.mjs"), `import { appendFileSync } from "node:fs"; appendFileSync(process.env.SATURN_RUN_SAMPLES, '{"schemaVersion":1,"sampleId":"a","input":"i","output":"o"}\\n');`);
-  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", evaluation });
-  const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
-  const started = await saturn.api("POST", `${route}/versions/${version.id}/runs`, { clientId: "c1" });
-  await until("the run to end", () => saturn.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
-  const refused = await saturn.call("POST", `${route}/runs/${started.id}/activations`, { sampleId: "a" });
+  await writeFile(path.join(folder, "probe.mjs"), `import { appendFileSync } from "node:fs"; appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, '{"schemaVersion":1,"sampleId":"a","input":"i","output":"o"}\\n');`);
+  const experiment = await workbench.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", evaluation });
+  const version = await workbench.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const started = await workbench.api("POST", `${route}/versions/${version.id}/runs`, { clientId: "c1" });
+  await until("the run to end", () => workbench.api("GET", `${route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  const refused = await workbench.call("POST", `${route}/runs/${started.id}/activations`, { sampleId: "a" });
   assert.equal(refused.status, 422);
   assert.match(refused.body.error, /Python/);
 });
 
 test("the raw residual stream can be kept as an .npz in the project, outside the records, and hashed", async () => {
   const { folder, route, run } = await project();
-  const saved = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/a" });
+  const saved = await workbench.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/a" });
   assert.equal(saved.saved.path, "activations/a.npz");
   assert.equal(saved.saved.sha256, sha("NPZ"));
   assert.equal(await readFile(path.join(folder, "activations/a.npz"), "utf8"), "NPZ");
   const asked = JSON.parse(await readFile(path.join(folder, "asked.json"), "utf8"));
   assert.match(asked.save, /[\\/]activations[\\/]a\.npz$/, "the helper is given the whole path, as this system writes it");
-  const plain = await saturn.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
+  const plain = await workbench.api("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a" });
   assert.equal(plain.saved, undefined, "a reading without save is its own saved result");
-  assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "../outside.npz" })).status, 403);
-  assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: ".saturn/research/x.npz" })).status, 403);
+  assert.equal((await workbench.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "../outside.npz" })).status, 403);
+  assert.equal((await workbench.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: ".workbench/research/x.npz" })).status, 403);
   // A reading never replaces a file, and a locked input is as closed to it as to a file tool.
   await writeFile(path.join(folder, "activations/exists.npz"), "someone's data");
-  assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/exists" })).status, 409);
+  assert.equal((await workbench.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/exists" })).status, 409);
   assert.equal(await readFile(path.join(folder, "activations/exists.npz"), "utf8"), "someone's data");
-  await saturn.api("PUT", `${route}/policy`, { expectedRevision: 0, locked: ["activations/locked.npz"] });
-  assert.equal((await saturn.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/locked" })).status, 403);
+  await workbench.api("PUT", `${route}/policy`, { expectedRevision: 0, locked: ["activations/locked.npz"] });
+  assert.equal((await workbench.call("POST", `${route}/runs/${run.id}/activations`, { sampleId: "a", save: "activations/locked" })).status, 403);
   assert.equal(existsSync(path.join(folder, "activations/locked.npz")), false);
 });

@@ -1,17 +1,17 @@
 # Research skills
 
-The skills that ship with Saturn, in `crates/saturn-core/src/research/skills`. They teach a research assistant to carry out a study through the [research tools](research-contract.md#what-an-agent-does-with-the-records). The assistant reads them with `research_skill`, on any backend, and starts with `research-autopilot`.
+The skills that ship with Eisoptric Workbench, in `crates/workbench-core/src/research/skills`. They teach a research assistant to carry out a study through the [research tools](research-contract.md#what-an-agent-does-with-the-records). The assistant reads them with `research_skill`, on any backend, and starts with `research-autopilot`.
 
-Beside the skills, `research_template` hands out programs to start from: `saturn_run.py`, the SDK an experiment imports to write its records, and one runnable template per kind of study. The assistant copies one into the project and changes it; the copy is the project's own program.
+Beside the skills, `research_template` hands out programs to start from: `workbench_run.py`, the SDK an experiment imports to write its records, and one runnable template per kind of study. The assistant copies one into the project and changes it; the copy is the project's own program.
 
-To change one for a project, put a skill of the same name in the project's `.agents/skills/<name>/SKILL.md` (or `.saturn/skills` or `.claude/skills`): a project's skill is used first, then one in Saturn's own `skills` folder for every project, then an enabled plugin's, and the bundled one last.
+To change one for a project, put a skill of the same name in the project's `.agents/skills/<name>/SKILL.md` (or `.workbench/skills` or `.claude/skills`): a project's skill is used first, then one in Eisoptric Workbench's own `skills` folder for every project, then an enabled plugin's, and the bundled one last.
 
 ## Running a study
 
 | Skill | What it is for |
 |---|---|
 | `research-autopilot` | Carry out a whole study on your own, from a question to a report. Read this first when asked to do research independently. |
-| `saturn-research-tools` | The research_* tools, the records they work on, and how they fit together. Read when unsure which call does what. |
+| `workbench-research-tools` | The research_* tools, the records they work on, and how they fit together. Read when unsure which call does what. |
 | `modes-and-boundaries` | What Ask, Approve, Auto and Agent allow, what is always the person's, and what a refusal means. Read when a tool is refused or before changing anything. |
 | `task-worktrees` | How a task's git worktree relates to the project's records, runs and merging. Read when working as a task. |
 | `starting-tasks` | Hand part of the work to another agent in its own worktree, and follow it. Read before starting a task. |
@@ -64,7 +64,7 @@ The audit and the tools skill use `research_read` with `data_list`, `data_profil
 | Skill | What it is for |
 |---|---|
 | `training-smoke-test` | Prove a training pipeline works in minutes before the real run. Read before any training run. |
-| `pretraining` | Train a base model from scratch as a Saturn experiment, with checkpoints in the lineage. Read when training a model from raw text. |
+| `pretraining` | Train a base model from scratch as an Eisoptric Workbench experiment, with checkpoints in the lineage. Read when training a model from raw text. |
 | `fine-tuning` | Supervised fine-tuning of a checkpoint on instruction data, with a fair before-and-after. Read when doing SFT. |
 | `preference-training` | Train with preference data using DPO against a frozen reference model. Read when doing post-training beyond SFT. |
 | `training-debugging` | Diagnose loss that is NaN, flat, exploding or too good. Read when training misbehaves. |
@@ -134,8 +134,8 @@ Beyond SFT and DPO, and the experiments that make a training claim fair.
 |---|---|
 | `reward-models-and-rl` | Train a reward model from preference pairs, then optimize a policy against it with PPO or GRPO, watching for reward hacking. Read before any RL post-training. |
 | `ablation-studies` | Design an ablation as a family of matched experiments, one factor removed at a time, read with intervals. Read before removing parts of a method to see what matters. |
-| `scaling-and-efficiency` | Scaling curves on a small grid, distillation and quantization as Saturn experiments with fair evaluation. Read before claiming a trend, a smaller model or a cheaper one. |
-| `model-cards` | Write a model card, datasheet or system card from Saturn's records, claiming only what runs measured. Read before describing a model for others. |
+| `scaling-and-efficiency` | Scaling curves on a small grid, distillation and quantization as Eisoptric Workbench experiments with fair evaluation. Read before claiming a trend, a smaller model or a cheaper one. |
+| `model-cards` | Write a model card, datasheet or system card from Eisoptric Workbench's records, claiming only what runs measured. Read before describing a model for others. |
 
 ## Finishing the work
 

@@ -33,8 +33,8 @@ test("notes take the version's CHANGELOG section, or Unreleased", () => {
   assert.equal(changes(changelog, "0.3.1"), "### Fixed\n\n- Old fix.");
   assert.equal(changes(changelog, "0.4.0"), "### Added\n\n- New thing.");
   assert.equal(changes("# Changelog\n", "0.4.0"), "");
-  const written = notes("Download Saturn-__VERSION__.dmg.", changelog, "0.4.0");
-  assert.match(written, /^Download Saturn-0\.4\.0\.dmg\.\n\n## What changed\n\n### Added/);
+  const written = notes("Download Workbench-__VERSION__.dmg.", changelog, "0.4.0");
+  assert.match(written, /^Download Workbench-0\.4\.0\.dmg\.\n\n## What changed\n\n### Added/);
 });
 
 /** The four files a version lives in, small, at 0.4.0, with a crates.io crate at the same version. */
@@ -43,12 +43,12 @@ function versionFiles({ desktop = "0.4.0" } = {}) {
     cargoToml: '[workspace]\nmembers = ["crates/*"]\n\n[workspace.package]\nversion = "0.4.0"\nedition = "2024"\n\n[workspace.dependencies]\nserde = "1"\n',
     cargoLock: [
       "version = 4",
-      '[[package]]\nname = "saturn-core"\nversion = "0.4.0"\ndependencies = [\n "same",\n]',
+      '[[package]]\nname = "workbench-core"\nversion = "0.4.0"\ndependencies = [\n "same",\n]',
       '[[package]]\nname = "same"\nversion = "0.4.0"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "00"',
-      '[[package]]\nname = "saturn-server"\nversion = "0.4.0"',
+      '[[package]]\nname = "workbench-server"\nversion = "0.4.0"',
     ].join("\n\n") + "\n",
-    packageJson: `${JSON.stringify({ name: "@saturn/desktop", version: desktop, private: true }, null, 2)}\n`,
-    packageLock: `${JSON.stringify({ name: "@saturn/desktop", version: desktop, lockfileVersion: 3, packages: { "": { name: "@saturn/desktop", version: desktop }, "node_modules/same": { version: "0.4.0" } } }, null, 2)}\n`,
+    packageJson: `${JSON.stringify({ name: "@workbench/desktop", version: desktop, private: true }, null, 2)}\n`,
+    packageLock: `${JSON.stringify({ name: "@workbench/desktop", version: desktop, lockfileVersion: 3, packages: { "": { name: "@workbench/desktop", version: desktop }, "node_modules/same": { version: "0.4.0" } } }, null, 2)}\n`,
   };
 }
 
@@ -56,8 +56,8 @@ test("one command moves the version in every file that records it, and nothing e
   const changed = setVersion(versionFiles(), "0.4.1");
   assert.match(changed.cargoToml, /\[workspace\.package\]\nversion = "0\.4\.1"/);
   assert.match(changed.cargoToml, /serde = "1"/);
-  assert.match(changed.cargoLock, /name = "saturn-core"\nversion = "0\.4\.1"/);
-  assert.match(changed.cargoLock, /name = "saturn-server"\nversion = "0\.4\.1"/);
+  assert.match(changed.cargoLock, /name = "workbench-core"\nversion = "0\.4\.1"/);
+  assert.match(changed.cargoLock, /name = "workbench-server"\nversion = "0\.4\.1"/);
   assert.match(changed.cargoLock, /name = "same"\nversion = "0\.4\.0"\nsource/, "a crate from crates.io keeps its version");
   assert.equal(JSON.parse(changed.packageJson).version, "0.4.1");
   const lock = JSON.parse(changed.packageLock);

@@ -1,6 +1,6 @@
 name: CodeQL
 
-# Code scanning of the languages Saturn is written in, on every change and weekly (so a new query also looks at unchanged
+# Code scanning of the languages Eisoptric Workbench is written in, on every change and weekly (so a new query also looks at unchanged
 # code). Results appear under Security → Code scanning. This replaces GitHub's default setup, whose API cannot choose
 # Rust; the two cannot run together, so default setup stays off in the repository settings.
 

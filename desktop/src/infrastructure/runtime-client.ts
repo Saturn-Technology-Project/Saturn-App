@@ -1,12 +1,12 @@
 /** Where the runtime listens: what the desktop bridge says (the port can move), or the default. */
 export const RUNTIME_ORIGIN =
-  (globalThis as { saturnDesktop?: { runtimeOrigin?: () => string } }).saturnDesktop?.runtimeOrigin?.() ?? "http://127.0.0.1:4700";
+  (globalThis as { workbenchDesktop?: { runtimeOrigin?: () => string } }).workbenchDesktop?.runtimeOrigin?.() ?? "http://127.0.0.1:4700";
 
 /** The session token the desktop preload exposes; the runtime rejects requests without it. Read once, then cached. */
 let cachedToken: string | null = null;
 function runtimeToken(): string {
   if (cachedToken !== null) return cachedToken;
-  const token = (globalThis as { saturnDesktop?: { runtimeToken?: () => string } }).saturnDesktop?.runtimeToken?.() ?? "";
+  const token = (globalThis as { workbenchDesktop?: { runtimeToken?: () => string } }).workbenchDesktop?.runtimeToken?.() ?? "";
   // In a plain browser (no desktop preload) there is no token; keep re-reading until the bridge appears.
   if (token) cachedToken = token;
   return token;
@@ -22,7 +22,7 @@ let confirmedAt = 0;
  * browser has no app to ask (and no token).
  */
 async function runtimeConfirmed(): Promise<boolean> {
-  const status = (globalThis as { saturnDesktop?: { runtimeStatus?: () => Promise<{ state: string }> } }).saturnDesktop?.runtimeStatus;
+  const status = (globalThis as { workbenchDesktop?: { runtimeStatus?: () => Promise<{ state: string }> } }).workbenchDesktop?.runtimeStatus;
   if (!status) return true;
   if (Date.now() - confirmedAt < CONFIRMED_FOR) return true;
   const state = (await status().catch(() => null))?.state;
@@ -31,7 +31,7 @@ async function runtimeConfirmed(): Promise<boolean> {
   return true;
 }
 
-/** HTTP adapter for the local Saturn Runtime. The UI does not call fetch itself. */
+/** HTTP adapter for the local Eisoptric Workbench Runtime. The UI does not call fetch itself. */
 export class RuntimeClient {
   private readonly origin: string;
 
@@ -96,7 +96,7 @@ export class RuntimeClient {
   }
 
   private async send(path: string, init?: RequestInit): Promise<Response> {
-    if (!(await runtimeConfirmed())) throw new Error("Saturn's runtime is not running yet.");
+    if (!(await runtimeConfirmed())) throw new Error("Eisoptric Workbench's runtime is not running yet.");
     const token = runtimeToken();
     const response = await fetch(`${this.origin}${path}`, {
       ...init,
@@ -108,7 +108,7 @@ export class RuntimeClient {
     });
     if (!response.ok) {
       const text = await response.text();
-      let message = text.trim() || `Saturn Runtime returned ${response.status}`;
+      let message = text.trim() || `Eisoptric Workbench Runtime returned ${response.status}`;
       try {
         const body = JSON.parse(text) as { error?: string };
         if (body.error) message = body.error;
@@ -116,9 +116,9 @@ export class RuntimeClient {
         // Express's own HTML page ("Cannot POST /path") means the route is missing: the runtime is older than this app.
         const missing = /Cannot (GET|POST|PUT|PATCH|DELETE) ([^<\s]+)/.exec(text);
         if (missing) {
-          message = `The Saturn Runtime on this computer is out of date (it has no ${missing[1]} ${missing[2]}). Restart Saturn, or restart the runtime in development.`;
+          message = `The Eisoptric Workbench Runtime on this computer is out of date (it has no ${missing[1]} ${missing[2]}). Restart Eisoptric Workbench, or restart the runtime in development.`;
         } else if (/<html/i.test(text)) {
-          message = `Saturn Runtime returned ${response.status} ${response.statusText}`.trim();
+          message = `Eisoptric Workbench Runtime returned ${response.status} ${response.statusText}`.trim();
         }
       }
       throw new Error(message);

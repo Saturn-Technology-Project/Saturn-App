@@ -16,7 +16,7 @@ const NO_CONFIG = process.platform === "win32" ? emptyFile() : os.devNull;
 export const GIT_ALONE = { GIT_CONFIG_GLOBAL: NO_CONFIG, GIT_CONFIG_SYSTEM: NO_CONFIG };
 
 function emptyFile() {
-  const file = path.join(mkdtempSync(path.join(os.tmpdir(), "saturn-contract-git-")), "empty.gitconfig");
+  const file = path.join(mkdtempSync(path.join(os.tmpdir(), "workbench-contract-git-")), "empty.gitconfig");
   writeFileSync(file, "");
   return file;
 }
@@ -150,7 +150,7 @@ export async function bench({ env = {}, dataDir, keepData, cwd } = {}) {
 
   /** A new empty folder, by its real path: on macOS the temporary folder is reached through a link. */
   const folder = async () => {
-    const made = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-files-")));
+    const made = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-files-")));
     folders.push(made);
     return made;
   };

@@ -1,4 +1,4 @@
-//! Keeps a Saturn runtime running for this app: starts it, knows it apart from any other Saturn on the port, restarts it
+//! Keeps an Eisoptric Workbench runtime running for this app: starts it, knows it apart from any other Eisoptric Workbench on the port, restarts it
 //! when it dies, and says where it stands. The runtime holds a pipe from this app; closing it asks the runtime to stop,
 //! on every system, and it closes by itself if this app crashes.
 use std::collections::VecDeque;
@@ -76,14 +76,14 @@ pub enum Layout {
 
 impl Runtime {
     pub fn new() -> Self {
-        // SATURN_RUNTIME_PORT moves the runtime (and lets a second copy run beside another, e.g. for testing).
-        let chosen_port = env::var("SATURN_RUNTIME_PORT")
+        // WORKBENCH_RUNTIME_PORT moves the runtime (and lets a second copy run beside another, e.g. for testing).
+        let chosen_port = env::var("WORKBENCH_RUNTIME_PORT")
             .ok()
             .and_then(|port| port.parse().ok());
-        let data_directory = env::var_os("SATURN_DATA_DIR")
+        let data_directory = env::var_os("WORKBENCH_DATA_DIR")
             .map(PathBuf::from)
-            .or_else(|| env::home_dir().map(|home| home.join(".saturn-app")))
-            .unwrap_or_else(|| PathBuf::from(".saturn-app"));
+            .or_else(|| env::home_dir().map(|home| home.join(".workbench-app")))
+            .unwrap_or_else(|| PathBuf::from(".workbench-app"));
         Self {
             port: chosen_port.unwrap_or(4700),
             data_directory,
@@ -177,7 +177,7 @@ impl Runtime {
                 Some(answering) => {
                     self.set_status(Status::Blocked {
                         reason: format!(
-                            "Another Saturn runtime (version {}) is on port {}. Quit it, or start this Saturn with another SATURN_RUNTIME_PORT.",
+                            "Another Eisoptric Workbench runtime (version {}) is on port {}. Quit it, or start this Eisoptric Workbench with another WORKBENCH_RUNTIME_PORT.",
                             answering.version, self.port
                         ),
                     });
@@ -216,7 +216,7 @@ impl Runtime {
             if up_since.elapsed() > STEADY {
                 attempt = 0;
             }
-            let reason = format!("Saturn's runtime stopped unexpectedly ({ended}).");
+            let reason = format!("Eisoptric Workbench's runtime stopped unexpectedly ({ended}).");
             eprintln!("{reason}");
             if attempt >= RESTARTS {
                 self.set_status(Status::Failed {
@@ -245,8 +245,10 @@ impl Runtime {
             .lock()
             .expect("the log lock is not poisoned")
             .clear();
-        let mut child = spawn(layout, self.port, &self.instance, &self.session_token)
-            .map_err(|error| format!("Saturn's runtime could not be started: {error}"))?;
+        let mut child =
+            spawn(layout, self.port, &self.instance, &self.session_token).map_err(|error| {
+                format!("Eisoptric Workbench's runtime could not be started: {error}")
+            })?;
         if let Some(stderr) = child.stderr.take() {
             let log = Arc::clone(&self.log);
             std::thread::spawn(move || {
@@ -274,12 +276,14 @@ impl Runtime {
                 _ => {}
             }
             if let Some(code) = self.exited() {
-                return Err(format!("Saturn's runtime ended as it started ({code})."));
+                return Err(format!(
+                    "Eisoptric Workbench's runtime ended as it started ({code})."
+                ));
             }
             sleep(Duration::from_millis(250)).await;
         }
         self.end_child();
-        Err("Saturn's runtime did not answer within 20 seconds.".to_owned())
+        Err("Eisoptric Workbench's runtime did not answer within 20 seconds.".to_owned())
     }
 
     /// How the child ended, if it has.
@@ -374,7 +378,7 @@ impl Runtime {
     }
 
     /// A JSON request without the token; None when nothing answers or it refuses. The health probe needs no token, and
-    /// whoever answers on the port is not known to be Saturn until it has said so: something else listening there, while
+    /// whoever answers on the port is not known to be Eisoptric Workbench until it has said so: something else listening there, while
     /// the runtime is down, must not be handed the token.
     async fn request(&self, method: &str, route: &str, limit: Duration) -> Option<Value> {
         let exchange = async {
@@ -422,17 +426,17 @@ fn parse_answer(answer: &[u8]) -> Option<Value> {
     }
 }
 
-/// The runtime's program, next to its sibling `saturn`: beside the app's own when packaged, the workspace's build in development.
+/// The runtime's program, next to its sibling `workbench`: beside the app's own when packaged, the workspace's build in development.
 fn runtime_program(folder: &Path) -> PathBuf {
     folder.join(if cfg!(windows) {
-        "saturn-server.exe"
+        "workbench-server.exe"
     } else {
-        "saturn-server"
+        "workbench-server"
     })
 }
 
 /// Starts the runtime with this app's instance id and, when there is one, its session token (which the runtime also
-/// writes to its token file, for the `saturn` command and the SDK).
+/// writes to its token file, for the `workbench` command and the SDK).
 fn spawn(layout: &Layout, port: u16, instance: &str, token: &str) -> std::io::Result<Child> {
     let mut command = match layout {
         Layout::Packaged { resources } => {
@@ -451,12 +455,12 @@ fn spawn(layout: &Layout, port: u16, instance: &str, token: &str) -> std::io::Re
     command
         .stdin(Stdio::piped())
         .stderr(Stdio::piped())
-        .env("SATURN_RUNTIME_HOST", HOST)
-        .env("SATURN_RUNTIME_PORT", port.to_string())
-        .env("SATURN_RUNTIME_INSTANCE", instance)
-        .env("SATURN_DESKTOP_ATTACHED", "1");
+        .env("WORKBENCH_RUNTIME_HOST", HOST)
+        .env("WORKBENCH_RUNTIME_PORT", port.to_string())
+        .env("WORKBENCH_RUNTIME_INSTANCE", instance)
+        .env("WORKBENCH_DESKTOP_ATTACHED", "1");
     if !token.is_empty() {
-        command.env("SATURN_RUNTIME_TOKEN", token);
+        command.env("WORKBENCH_RUNTIME_TOKEN", token);
     }
     // A console program started by a windowed one gets a console window of its own on Windows unless told not to. The
     // runtime's output comes down the pipes, and it starts its own programs without a window too.
@@ -521,7 +525,7 @@ mod tests {
 
     #[test]
     fn each_app_session_has_a_new_token_and_an_adopted_runtime_keeps_its_own() {
-        let data = std::env::temp_dir().join(format!("saturn-shell-token-{}", nanos()));
+        let data = std::env::temp_dir().join(format!("workbench-shell-token-{}", nanos()));
         std::fs::create_dir_all(&data).unwrap();
         std::fs::write(data.join("runtime-token"), "from-the-file\n").unwrap();
         let (first, second) = (on_port(1, &data, false), on_port(1, &data, false));

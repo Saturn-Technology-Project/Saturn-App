@@ -1,13 +1,13 @@
 // The renderer's only bridge to the app, in the main frame only: it holds the runtime token, which no iframe may see.
 (() => {
-  // This script runs on whatever the main frame navigates to; only Saturn's own interface gets anything from it.
-  if (window.location.origin !== __SATURN_INTERFACE__) return;
+  // This script runs on whatever the main frame navigates to; only Eisoptric Workbench's own interface gets anything from it.
+  if (window.location.origin !== __WORKBENCH_INTERFACE__) return;
   const invoke = (command, args) => window.__TAURI_INTERNALS__.invoke(command, args);
   const threadListeners = new Set();
   const closeListeners = new Set();
   let windowButtons = null;
 
-  // On Windows the window has no frame: Saturn draws the three buttons over the top right of the page.
+  // On Windows the window has no frame: Eisoptric Workbench draws the three buttons over the top right of the page.
   function drawWindowButtons() {
     windowButtons = document.createElement("div");
     windowButtons.style.cssText = "position:fixed;top:0;right:0;height:38px;display:flex;z-index:2147483647;background:#1c1c1f;color:#f4f4f5;--app-region:no-drag";
@@ -21,7 +21,7 @@
       windowButtons.append(button);
     }
     document.documentElement.append(windowButtons);
-    document.documentElement.style.setProperty("--saturn-window-buttons", "138px");
+    document.documentElement.style.setProperty("--workbench-window-buttons", "138px");
   }
 
   function paintWindowButtons(colors) {
@@ -31,27 +31,27 @@
     windowButtons.style.color = colors.symbolColor;
   }
 
-  if (__SATURN_WINDOW_BUTTONS__) {
+  if (__WORKBENCH_WINDOW_BUTTONS__) {
     if (document.documentElement) drawWindowButtons();
     else document.addEventListener("DOMContentLoaded", drawWindowButtons, { once: true });
   }
 
-  window.saturnDesktop = Object.freeze({
+  window.workbenchDesktop = Object.freeze({
     /** Opens the native folder picker; resolves the chosen absolute paths (empty when cancelled). */
     pickFolders: (options) => invoke("pick_folders", { options: options ?? {} }),
     /** The runtime session token; every runtime request carries it. */
-    runtimeToken: () => __SATURN_TOKEN__,
+    runtimeToken: () => __WORKBENCH_TOKEN__,
     /** Where the runtime listens. */
-    runtimeOrigin: () => __SATURN_ORIGIN__,
+    runtimeOrigin: () => __WORKBENCH_ORIGIN__,
     /** Whether this window is the one the user is looking at (notifications are skipped then). */
     isFocused: () => document.hasFocus() && document.visibilityState === "visible",
     /** Asks the user to confirm, in the system's own dialog: this web view has no window.confirm. */
     confirm: (message) => invoke("confirm_action", { message: String(message) }),
-    /** A system notification; clicking it brings Saturn forward and opens the chat named by `threadId`. */
+    /** A system notification; clicking it brings Eisoptric Workbench forward and opens the chat named by `threadId`. */
     notify: (options) => void invoke("notify", { options: options ?? {} }),
-    /** Asks macOS for Accessibility or Screen Recording (its own prompt, and Saturn listed in System Settings). */
+    /** Asks macOS for Accessibility or Screen Recording (its own prompt, and Eisoptric Workbench listed in System Settings). */
     requestPermission: (which) => invoke("request_permission", { which }),
-    /** Where the runtime stands: starting, ready, blocked by another Saturn, or failed, with its last output. */
+    /** Where the runtime stands: starting, ready, blocked by another Eisoptric Workbench, or failed, with its last output. */
     runtimeStatus: () => invoke("runtime_status"),
     /** Starts the runtime again, after it failed or when it is stuck. */
     restartRuntime: () => invoke("restart_runtime"),
@@ -64,7 +64,7 @@
       closeListeners.add(listener);
       return () => closeListeners.delete(listener);
     },
-    /** Quits Saturn and its runtime. */
+    /** Quits Eisoptric Workbench and its runtime. */
     quit: () => invoke("quit_app"),
     /** Called with { agentId, threadId } when a notification is clicked. */
     onOpenThread: (listener) => {
@@ -73,13 +73,13 @@
     },
   });
   // The app calls this when a notification is clicked.
-  Object.defineProperty(window, "__saturnOpenThread", {
+  Object.defineProperty(window, "__workbenchOpenThread", {
     value: (payload) => threadListeners.forEach((listener) => listener(payload)),
   });
 
   // The app calls this when the window is asked to close. With no listener (the interface never loaded) it quits; with
   // one, it tells the app it was heard, or the app quits after a moment anyway.
-  Object.defineProperty(window, "__saturnCloseRequested", {
+  Object.defineProperty(window, "__workbenchCloseRequested", {
     value: () => {
       if (closeListeners.size === 0) return void invoke("quit_app");
       void invoke("close_heard");

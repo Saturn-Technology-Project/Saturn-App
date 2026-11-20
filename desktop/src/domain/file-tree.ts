@@ -81,7 +81,7 @@ export function parentOf(path: string): string {
 
 /** The tree with a folder's entries read; entries the runtime keeps to itself are left out. */
 export function withFolder(state: TreeState, path: string, entries: readonly TreeEntry[]): TreeState {
-  const shown = sortEntries(entries.filter((entry) => entry.path !== ".saturn" && !entry.path.startsWith(".saturn/")));
+  const shown = sortEntries(entries.filter((entry) => entry.path !== ".workbench" && !entry.path.startsWith(".workbench/")));
   return { ...state, folders: { ...state.folders, [path]: shown } };
 }
 

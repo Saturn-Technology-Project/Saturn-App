@@ -1,5 +1,5 @@
-// Starts the Saturn runtime for the contract tests, on a free port with a temporary data folder, never the developer's
-// own Saturn. SATURN_RUST_BIN picks the program; the default is the workspace's debug build.
+// Starts the Eisoptric Workbench runtime for the contract tests, on a free port with a temporary data folder, never the developer's
+// own Eisoptric Workbench. WORKBENCH_RUST_BIN picks the program; the default is the workspace's debug build.
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -23,17 +23,17 @@ function freePort() {
 
 /** The runtime's program. */
 export function program() {
-  return process.env.SATURN_RUST_BIN ?? path.join(root, "target/debug", process.platform === "win32" ? "saturn-server.exe" : "saturn-server");
+  return process.env.WORKBENCH_RUST_BIN ?? path.join(root, "target/debug", process.platform === "win32" ? "workbench-server.exe" : "workbench-server");
 }
 
 /**
  * Starts a runtime and waits until it answers. `stop()` ends it and deletes its data folder, as does a failed start.
- * `host` is what SATURN_RUNTIME_HOST is set to and what clients connect to. `dataDir` and `keepData` restart a runtime
+ * `host` is what WORKBENCH_RUNTIME_HOST is set to and what clients connect to. `dataDir` and `keepData` restart a runtime
  * on the data of an earlier one. `env` adds to or replaces the runtime's environment. `stdin` "pipe" gives the runtime the pipe a
  * desktop app holds, as `child.stdin`. `cwd` is the folder it starts in, the repository unless given.
  */
 export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keepData = false, env = {}, stdin = "ignore", cwd = root } = {}) {
-  const dataDir = existing ?? await mkdtemp(path.join(os.tmpdir(), "saturn-contract-"));
+  const dataDir = existing ?? await mkdtemp(path.join(os.tmpdir(), "workbench-contract-"));
   const port = await freePort();
   const file = program();
   let output = "";
@@ -44,14 +44,14 @@ export async function startRuntime({ host = "127.0.0.1", dataDir: existing, keep
   const child = spawn(file, [], {
     cwd,
     stdio: [piped ? "pipe" : stdin, "pipe", "pipe"],
-    env: { ...process.env, SATURN_DATA_DIR: dataDir, SATURN_RUNTIME_HOST: host, SATURN_RUNTIME_PORT: String(port), SATURN_SECRET_STORE: "file", SATURN_RUNTIME_TOKEN: "", ...(piped ? { SATURN_DESKTOP_ATTACHED: "1" } : {}), ...env },
+    env: { ...process.env, WORKBENCH_DATA_DIR: dataDir, WORKBENCH_RUNTIME_HOST: host, WORKBENCH_RUNTIME_PORT: String(port), WORKBENCH_SECRET_STORE: "file", WORKBENCH_RUNTIME_TOKEN: "", ...(piped ? { WORKBENCH_DESKTOP_ATTACHED: "1" } : {}), ...env },
   });
   child.stdout.on("data", (chunk) => { output += chunk; });
   child.stderr.on("data", (chunk) => { output += chunk; });
   let failed;
   child.once("error", (error) => { failed = error; });
-  // For finding out why a runtime went: SATURN_CONTRACT_TRACE prints how each one ended and the last it said.
-  if (process.env.SATURN_CONTRACT_TRACE) child.once("exit", (code, signal) => console.error(`runtime ${child.pid} on ${port} ended: code ${code}, signal ${signal}\n${output.slice(-1500)}`));
+  // For finding out why a runtime went: WORKBENCH_CONTRACT_TRACE prints how each one ended and the last it said.
+  if (process.env.WORKBENCH_CONTRACT_TRACE) child.once("exit", (code, signal) => console.error(`runtime ${child.pid} on ${port} ended: code ${code}, signal ${signal}\n${output.slice(-1500)}`));
   // On Windows a program the runtime started holds the runtime's own output pipes, so they close only when that
   // program ends too: there the runtime is gone when it exits.
   const exited = new Promise((resolve) => child.once(process.platform === "win32" ? "exit" : "close", resolve));
@@ -120,5 +120,5 @@ export function placed(value, folders) {
   return each(value);
 }
 
-/** Why a test that waits for Saturn to open a web page is skipped on Windows, where it runs. */
+/** Why a test that waits for Eisoptric Workbench to open a web page is skipped on Windows, where it runs. */
 export const opensPages = { skip: process.platform === "win32" && "Windows opens a page through its own rundll32, found before anything on PATH, so no stand-in can note it" };

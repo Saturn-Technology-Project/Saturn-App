@@ -9,16 +9,16 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, cannotPause, commitAll, sha, until } from "./files-support.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 const line = (id, fields = {}) => JSON.stringify({ schemaVersion: 1, sampleId: id, input: "in", output: "out", scores: { s: 1 }, error: null, ...fields });
 
 /** A script that writes these sample lines and exits with this code. */
 const writes = (lines, code = 0) => `
 import { appendFileSync } from "node:fs";
-for (const text of ${JSON.stringify(lines)}) appendFileSync(process.env.SATURN_RUN_SAMPLES, text);
+for (const text of ${JSON.stringify(lines)}) appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, text);
 process.exit(${code});
 `;
 
@@ -27,11 +27,11 @@ const LONG = `
 import { appendFileSync } from "node:fs";
 let index = 0;
 process.on("SIGTERM", () => process.exit(0));
-setInterval(() => appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(line("X")).replace('"X"', '"s"')}.replace('"s"', () => '"s' + index++ + '"') + "\\n"), 50);
+setInterval(() => appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(line("X")).replace('"X"', '"s"')}.replace('"s"', () => '"s' + index++ + '"') + "\\n"), 50);
 `;
 
 /** A new allowed project, in the given bench, with an experiment that runs this script. */
-async function setup(script, { on = saturn, folder: given, inputs = {}, fields = {} } = {}) {
+async function setup(script, { on = workbench, folder: given, inputs = {}, fields = {} } = {}) {
   const folder = given ?? await on.folder();
   if (script !== null) await writeFile(path.join(folder, "probe.mjs"), script);
   const made = await on.api("POST", "/projects", { path: folder });
@@ -43,11 +43,11 @@ async function setup(script, { on = saturn, folder: given, inputs = {}, fields =
 }
 
 let clients = 0;
-const start = (bed, { client = `client-${clients += 1}`, on = saturn, ...fields } = {}) => on.api("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: client, ...fields });
+const start = (bed, { client = `client-${clients += 1}`, on = workbench, ...fields } = {}) => on.api("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: client, ...fields });
 
-const ended = (bed, id, on = saturn) => until(`run ${id} to end`, () => on.api("GET", `${bed.route}/runs/${id}`), (run) => !["starting", "running", "stopping"].includes(run.status));
+const ended = (bed, id, on = workbench) => until(`run ${id} to end`, () => on.api("GET", `${bed.route}/runs/${id}`), (run) => !["starting", "running", "stopping"].includes(run.status));
 
-const runFolder = (bed, id) => path.join(bed.folder, ".saturn/research/runs", id);
+const runFolder = (bed, id) => path.join(bed.folder, ".workbench/research/runs", id);
 
 /** Whether a process exists. */
 function alive(pid) {
@@ -71,15 +71,15 @@ test("a run that writes valid samples and exits 0 completes, sealed with what it
   assert.equal(run.samplesSha256, sha(lines.join("")));
   assert.equal(run.samplesSize, lines.join("").length);
   assert.deepEqual(run.inputsChanged, []);
-  assert.deepEqual((await saturn.api("GET", `${bed.route}/runs`)).items.map((item) => item.id), [run.id]);
+  assert.deepEqual((await workbench.api("GET", `${bed.route}/runs`)).items.map((item) => item.id), [run.id]);
 });
 
 test("the process is told where to write, and its output goes to log files", async () => {
   const bed = await setup(`
     import { appendFileSync } from "node:fs";
-    console.log("out", process.env.SATURN_RUN_ID, process.env.SATURN_RUN_VERSION, process.env.SATURN_DATA_DIR ?? "no-data-dir");
-    console.error("err", Boolean(process.env.SATURN_RUN_TOKEN));
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    console.log("out", process.env.WORKBENCH_RUN_ID, process.env.WORKBENCH_RUN_VERSION, process.env.WORKBENCH_DATA_DIR ?? "no-data-dir");
+    console.error("err", Boolean(process.env.WORKBENCH_RUN_TOKEN));
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
   `);
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed", JSON.stringify(run));
@@ -141,12 +141,12 @@ test("a very long line is read", async () => {
 });
 
 test("a command that does not exist fails and says so in its log", async () => {
-  const folder = await saturn.folder();
-  const made = await saturn.api("POST", "/projects", { path: folder });
-  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const folder = await workbench.folder();
+  const made = await workbench.api("POST", "/projects", { path: folder });
+  await workbench.api("POST", `/projects/${made.id}/access`, {});
   const route = `/projects/${made.id}/research`;
-  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "no-such-program-here" });
-  const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const experiment = await workbench.api("POST", `${route}/experiments`, { title: "E", command: "no-such-program-here" });
+  const version = await workbench.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
   const bed = { route, version, folder };
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "failed");
@@ -156,30 +156,30 @@ test("a command that does not exist fails and says so in its log", async () => {
 test("repeating a start returns the same run and starts nothing, even at the same moment", async () => {
   const bed = await setup(writes([`${line("a")}\n`]));
   const body = { clientId: "once" };
-  const answers = await Promise.all([1, 2, 3].map(() => saturn.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, body)));
+  const answers = await Promise.all([1, 2, 3].map(() => workbench.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, body)));
   assert.equal(new Set(answers.map((answer) => answer.body.id)).size, 1, JSON.stringify(answers.map((answer) => answer.status)));
   assert.deepEqual(answers.map((answer) => answer.status).sort(), [200, 200, 201]);
   await ended(bed, answers[0].body.id);
-  assert.equal((await saturn.api("GET", `${bed.route}/runs`)).items.length, 1);
-  assert.equal((await saturn.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, {})).status, 400);
+  assert.equal((await workbench.api("GET", `${bed.route}/runs`)).items.length, 1);
+  assert.equal((await workbench.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, {})).status, 400);
 });
 
 test("a start refuses when the frozen content has changed, and starts nothing", async () => {
   const bed = await setup(writes([`${line("a")}\n`]));
   await writeFile(path.join(bed.folder, "probe.mjs"), writes([`${line("b")}\n`]));
-  const refused = await saturn.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: "changed" });
+  const refused = await workbench.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: "changed" });
   assert.equal(refused.status, 409);
   assert.match(refused.body.error, /Freeze a new version/);
-  assert.equal((await saturn.api("GET", `${bed.route}/runs`)).items.length, 0);
+  assert.equal((await workbench.api("GET", `${bed.route}/runs`)).items.length, 0);
 });
 
 test("a run reads its own read-only snapshot: a write to an input is refused and the project is untouched", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "set.jsonl"), "{}\n");
   const bed = await setup(`
     import { appendFileSync, writeFileSync } from "node:fs";
     writeFileSync("set.jsonl", "{\\"changed\\":true}\\n");
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
   `, { folder, inputs: { data: ["set.jsonl"] } });
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "failed");
@@ -190,14 +190,14 @@ test("a run reads its own read-only snapshot: a write to an input is refused and
 
 // Without the sandbox only the files' permissions protect the snapshot; research-sandbox.test.mjs has the sandbox.
 test("without the sandbox, an input replaced during the run is recorded as changed, and the project keeps its own copy", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "set.jsonl"), "{}\n");
   const bed = await setup(`
     import { appendFileSync, rmSync, writeFileSync } from "node:fs";
     rmSync("set.jsonl");
     writeFileSync("set.jsonl", "{\\"changed\\":true}\\n");
     writeFileSync("made.txt", "output");
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
   `, { folder, inputs: { data: ["set.jsonl"] }, fields: { sandbox: { isolated: false } } });
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed");
@@ -211,8 +211,8 @@ test("without the sandbox, an input replaced during the run is recorded as chang
 });
 
 test("a committed link out of the project is uncontrolled, and its target changing during the run is caught", async () => {
-  const folder = await saturn.folder();
-  const outside = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-outside-")));
+  const folder = await workbench.folder();
+  const outside = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-outside-")));
   await writeFile(path.join(outside, "set.jsonl"), "{\"v\":1}\n");
   await mkdir(path.join(folder, "data"));
   await symlink(path.join(outside, "set.jsonl"), path.join(folder, "data", "set.jsonl"));
@@ -221,16 +221,16 @@ test("a committed link out of the project is uncontrolled, and its target changi
   await writeFile(path.join(folder, "probe.mjs"), `
     import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
     const read = readFileSync("data/set.jsonl", "utf8");
-    writeFileSync(process.env.SATURN_RUN_DIRECTORY + "/read", "");
-    const go = process.env.SATURN_RUN_DIRECTORY + "/go";
+    writeFileSync(process.env.WORKBENCH_RUN_DIRECTORY + "/read", "");
+    const go = process.env.WORKBENCH_RUN_DIRECTORY + "/go";
     for (const until = Date.now() + 20000; !existsSync(go) && Date.now() < until;) await new Promise((resolve) => setTimeout(resolve, 50));
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
     console.log(read.trim());
   `);
   commitAll(folder);
   const bed = await setup(null, { folder });
   const started = await start(bed);
-  const evidence = await until("the run's evidence", () => saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`), (item) => item.recorded && item.observed?.snapshot);
+  const evidence = await until("the run's evidence", () => workbench.api("GET", `${bed.route}/runs/${started.id}/evidence`), (item) => item.recorded && item.observed?.snapshot);
   const link = evidence.observed.snapshot.uncontrolled.find((item) => item.path === "data/set.jsonl");
   assert.ok(link, `the link is listed as uncontrolled: ${JSON.stringify(evidence.observed.snapshot.uncontrolled)}`);
   assert.equal(link.kind, "linked file");
@@ -239,7 +239,7 @@ test("a committed link out of the project is uncontrolled, and its target changi
   assert.equal(evidence.verdicts.inputs, "partial", "not verified: the version never fixed what the link reads");
   const reading = await until("the program to read the link, or the run to end", async () => {
     if (existsSync(path.join(runFolder(bed, started.id), "read"))) return "read";
-    const now = await saturn.api("GET", `${bed.route}/runs/${started.id}`);
+    const now = await workbench.api("GET", `${bed.route}/runs/${started.id}`);
     return ["starting", "running", "stopping"].includes(now.status) ? null : now;
   });
   assert.equal(reading, "read", `the program could not read through the link: ${JSON.stringify(reading)}\n${await readFile(path.join(runFolder(bed, started.id), "stderr.log"), "utf8").catch(() => "")}`);
@@ -249,7 +249,7 @@ test("a committed link out of the project is uncontrolled, and its target changi
   assert.equal(run.status, "completed", `${JSON.stringify(run)}\n${await readFile(path.join(runFolder(bed, started.id), "stderr.log"), "utf8").catch(() => "")}`);
   assert.equal((await readFile(path.join(runFolder(bed, started.id), "stdout.log"), "utf8")).trim(), "{\"v\":1}", "it read the target as it was at the start");
   assert.deepEqual(run.inputsChanged, ["data/set.jsonl"]);
-  const after = await saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`);
+  const after = await workbench.api("GET", `${bed.route}/runs/${started.id}/evidence`);
   assert.equal(after.verdicts.inputs, "changed");
   await rm(outside, { recursive: true, force: true });
 });
@@ -258,11 +258,11 @@ test("on Windows a run cannot be paused, says so, and goes on running", { skip: 
   const bed = await setup(LONG);
   const started = await start(bed);
   await until("samples", () => stat(path.join(runFolder(bed, started.id), "samples.jsonl")).then((info) => info.size > 0, () => false));
-  const refused = await saturn.call("POST", `${bed.route}/runs/${started.id}/pause`, {});
+  const refused = await workbench.call("POST", `${bed.route}/runs/${started.id}/pause`, {});
   assert.equal(refused.status, 409);
   assert.match(JSON.stringify(refused.body), /cannot be paused on Windows/);
-  assert.equal((await saturn.api("GET", `${bed.route}/runs/${started.id}`)).status, "running");
-  await saturn.api("POST", `${bed.route}/runs/${started.id}/stop`, {});
+  assert.equal((await workbench.api("GET", `${bed.route}/runs/${started.id}`)).status, "running");
+  await workbench.api("POST", `${bed.route}/runs/${started.id}/stop`, {});
   assert.equal((await ended(bed, started.id)).status, "stopped");
 });
 
@@ -273,49 +273,49 @@ test("a paused run writes nothing until it is continued, and a paused run still 
   const size = () => stat(samples).then((info) => info.size, () => 0);
   await until("the first samples", size, (bytes) => bytes > 0);
   const route = `${bed.route}/runs/${started.id}`;
-  const paused = await saturn.api("POST", `${route}/pause`, {});
+  const paused = await workbench.api("POST", `${route}/pause`, {});
   assert.equal(paused.status, "paused");
   assert.ok(paused.pausedAt);
-  assert.equal((await saturn.api("POST", `${route}/pause`, {})).status, "paused", "pausing twice is once");
+  assert.equal((await workbench.api("POST", `${route}/pause`, {})).status, "paused", "pausing twice is once");
   await new Promise((resolve) => setTimeout(resolve, 200));
   const still = await size();
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.equal(await size(), still, "nothing is written while paused");
-  const going = await saturn.api("POST", `${route}/continue`, {});
+  const going = await workbench.api("POST", `${route}/continue`, {});
   assert.equal(going.status, "running");
   assert.ok(going.pausedSeconds >= 0.5, `the pause is counted: ${going.pausedSeconds}`);
   assert.equal(going.pausedAt, undefined);
   await until("samples again", size, (bytes) => bytes > still);
-  await saturn.api("POST", `${route}/pause`, {});
-  await saturn.api("POST", `${route}/stop`, {});
+  await workbench.api("POST", `${route}/pause`, {});
+  await workbench.api("POST", `${route}/stop`, {});
   const run = await ended(bed, started.id);
   assert.equal(run.status, "stopped", "a paused run stops when asked");
-  assert.equal((await saturn.call("POST", `${route}/pause`, {})).status, 409, "an ended run cannot be paused");
-  assert.equal((await saturn.call("POST", `${route}/continue`, {})).status, 409);
+  assert.equal((await workbench.call("POST", `${route}/pause`, {})).status, 409, "an ended run cannot be paused");
+  assert.equal((await workbench.call("POST", `${route}/continue`, {})).status, 409);
 });
 
 test("a run that failed partway is resumed by a new run that keeps its samples and does only what is left", async () => {
-  // The program skips what SATURN_RUN_SAMPLES already holds; the first time it fails after two samples.
+  // The program skips what WORKBENCH_RUN_SAMPLES already holds; the first time it fails after two samples.
   const bed = await setup(`
     import { appendFileSync, existsSync, readFileSync } from "node:fs";
-    const file = process.env.SATURN_RUN_SAMPLES;
+    const file = process.env.WORKBENCH_RUN_SAMPLES;
     const done = new Set(existsSync(file) ? readFileSync(file, "utf8").split("\\n").filter(Boolean).map((line) => JSON.parse(line).sampleId) : []);
-    const line = (id) => JSON.stringify({ schemaVersion: 1, sampleId: id, input: "in", output: process.env.SATURN_RESUME_RUN ? "again" : "first", scores: { s: 1 }, error: null }) + "\\n";
+    const line = (id) => JSON.stringify({ schemaVersion: 1, sampleId: id, input: "in", output: process.env.WORKBENCH_RESUME_RUN ? "again" : "first", scores: { s: 1 }, error: null }) + "\\n";
     for (const id of ["a", "b", "c", "d", "e"]) {
       if (done.has(id)) continue;
       appendFileSync(file, line(id));
-      if (!process.env.SATURN_RESUME_RUN && id === "b") process.exit(1);
+      if (!process.env.WORKBENCH_RESUME_RUN && id === "b") process.exit(1);
     }
-    console.log(process.env.SATURN_RESUME_RUN ?? "");
+    console.log(process.env.WORKBENCH_RESUME_RUN ?? "");
   `);
   const first = await ended(bed, (await start(bed)).id);
   assert.equal(first.status, "failed");
   assert.equal(first.samples, 2);
   const route = `${bed.route}/runs/${first.id}`;
-  const resumed = await saturn.api("POST", `${route}/resume`, { clientId: "resume-1" });
+  const resumed = await workbench.api("POST", `${route}/resume`, { clientId: "resume-1" });
   assert.equal(resumed.resumes, first.id);
   assert.deepEqual([resumed.carried.run, resumed.carried.samples], [first.id, 2]);
-  const again = await saturn.api("POST", `${route}/resume`, { clientId: "resume-1" });
+  const again = await workbench.api("POST", `${route}/resume`, { clientId: "resume-1" });
   assert.equal(again.id, resumed.id, "repeating a resume starts nothing");
   const run = await ended(bed, resumed.id);
   assert.equal(run.status, "completed", JSON.stringify(run));
@@ -323,10 +323,10 @@ test("a run that failed partway is resumed by a new run that keeps its samples a
   const lines = (await readFile(path.join(runFolder(bed, run.id), "samples.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line));
   assert.deepEqual(lines.map((item) => [item.sampleId, item.output]), [["a", "first"], ["b", "first"], ["c", "again"], ["d", "again"], ["e", "again"]]);
   assert.equal((await readFile(path.join(runFolder(bed, run.id), "stdout.log"), "utf8")).trim(), first.id, "the program is told which run it resumes");
-  const evidence = await saturn.api("GET", `${bed.route}/runs/${run.id}/evidence`);
+  const evidence = await workbench.api("GET", `${bed.route}/runs/${run.id}/evidence`);
   assert.equal(evidence.observed.resume.samples, 2);
   assert.match(evidence.observed.resume.sha256, /^[0-9a-f]{64}$/);
-  assert.equal((await saturn.call("POST", `${bed.route}/runs/${run.id}/resume`, { clientId: "resume-2" })).status, 409, "a completed run has nothing left");
+  assert.equal((await workbench.call("POST", `${bed.route}/runs/${run.id}/resume`, { clientId: "resume-2" })).status, 409, "a completed run has nothing left");
 });
 
 test("a training run resumes from its last checkpoint, which it can read, and its curve goes on from that step", async () => {
@@ -336,29 +336,29 @@ test("a training run resumes from its last checkpoint, which it can read, and it
   const bed = await setup(`
     import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
     const metric = ${metric.toString()};
-    if (process.env.SATURN_RESUME_FROM) {
-      console.log(readFileSync(process.env.SATURN_RESUME_FROM, "utf8"));
-      for (const step of [3, 4]) appendFileSync(process.env.SATURN_RUN_METRICS, metric(step));
+    if (process.env.WORKBENCH_RESUME_FROM) {
+      console.log(readFileSync(process.env.WORKBENCH_RESUME_FROM, "utf8"));
+      for (const step of [3, 4]) appendFileSync(process.env.WORKBENCH_RUN_METRICS, metric(step));
     } else {
-      for (const step of [1, 2, 3, 4]) appendFileSync(process.env.SATURN_RUN_METRICS, metric(step));
-      writeFileSync(process.env.SATURN_RUN_OUTPUT + "/checkpoint-2", "state at step 2");
-      appendFileSync(process.env.SATURN_RUN_ARTIFACTS, JSON.stringify({ path: "written/checkpoint-2", kind: "checkpoint", step: 2 }) + "\\n");
+      for (const step of [1, 2, 3, 4]) appendFileSync(process.env.WORKBENCH_RUN_METRICS, metric(step));
+      writeFileSync(process.env.WORKBENCH_RUN_OUTPUT + "/checkpoint-2", "state at step 2");
+      appendFileSync(process.env.WORKBENCH_RUN_ARTIFACTS, JSON.stringify({ path: "written/checkpoint-2", kind: "checkpoint", step: 2 }) + "\\n");
       process.exit(1);
     }
   `, { fields: { kind: "training" } });
   const first = await ended(bed, (await start(bed)).id);
   assert.equal(first.status, "failed");
   const route = `${bed.route}/runs/${first.id}`;
-  assert.equal((await saturn.call("POST", `${route}/resume`, { clientId: "outside", checkpoint: "/etc/hosts" })).status, 400, "a checkpoint outside the run and the project is refused");
-  assert.equal((await saturn.call("POST", `${route}/resume`, { clientId: "climbing", checkpoint: "../../../../../../etc/hosts" })).status, 400);
-  const resumed = await saturn.api("POST", `${route}/resume`, { clientId: "resume-training" });
+  assert.equal((await workbench.call("POST", `${route}/resume`, { clientId: "outside", checkpoint: "/etc/hosts" })).status, 400, "a checkpoint outside the run and the project is refused");
+  assert.equal((await workbench.call("POST", `${route}/resume`, { clientId: "climbing", checkpoint: "../../../../../../etc/hosts" })).status, 400);
+  const resumed = await workbench.api("POST", `${route}/resume`, { clientId: "resume-training" });
   assert.equal(resumed.carried.metrics, 2, "the metrics up to the checkpoint's step come along");
   assert.equal(resumed.carried.step, 2);
   assert.equal(path.basename(resumed.carried.checkpoint), "checkpoint-2");
   const run = await ended(bed, resumed.id);
   assert.equal(run.status, "completed", `${JSON.stringify(run)}\n${await readFile(path.join(runFolder(bed, run.id), "stderr.log"), "utf8").catch(() => "")}`);
   assert.equal((await readFile(path.join(runFolder(bed, run.id), "stdout.log"), "utf8")).trim(), "state at step 2", "the program read the checkpoint inside its sandbox");
-  const metrics = await saturn.api("GET", `${bed.route}/runs/${run.id}/metrics`);
+  const metrics = await workbench.api("GET", `${bed.route}/runs/${run.id}/metrics`);
   assert.deepEqual(metrics.items.map((item) => item.step), [1, 2, 3, 4]);
 });
 
@@ -370,16 +370,16 @@ test("training metrics are read while the run writes them, and a reader goes on 
   // its own run folder, never longer than 20 seconds.
   const bed = await setup(`
     import { appendFileSync, existsSync } from "node:fs";
-    appendFileSync(process.env.SATURN_RUN_METRICS, ${JSON.stringify(first + third.slice(0, 12))});
-    const go = process.env.SATURN_RUN_DIRECTORY + "/go";
+    appendFileSync(process.env.WORKBENCH_RUN_METRICS, ${JSON.stringify(first + third.slice(0, 12))});
+    const go = process.env.WORKBENCH_RUN_DIRECTORY + "/go";
     for (const until = Date.now() + 20000; !existsSync(go) && Date.now() < until;) await new Promise((resolve) => setTimeout(resolve, 50));
-    appendFileSync(process.env.SATURN_RUN_METRICS, ${JSON.stringify(third.slice(12) + metric(4, 0.5))});
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    appendFileSync(process.env.WORKBENCH_RUN_METRICS, ${JSON.stringify(third.slice(12) + metric(4, 0.5))});
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
   `);
   const started = await start(bed);
-  const metrics = (cursor = 0) => saturn.api("GET", `${bed.route}/runs/${started.id}/metrics?cursor=${cursor}`);
+  const metrics = (cursor = 0) => workbench.api("GET", `${bed.route}/runs/${started.id}/metrics?cursor=${cursor}`);
   const running = await until("the first metrics, while the run goes on", () => metrics(), (page) => page.items.length === 2);
-  assert.equal((await saturn.api("GET", `${bed.route}/runs/${started.id}`)).status, "running");
+  assert.equal((await workbench.api("GET", `${bed.route}/runs/${started.id}`)).status, "running");
   assert.deepEqual(running.items.map((item) => item.step), [1, 2]);
   assert.equal(running.next, null, "no further page now");
   assert.equal(running.end, Buffer.byteLength(first), "the read stops after the last whole event");
@@ -394,8 +394,8 @@ test("training metrics are read while the run writes them, and a reader goes on 
 });
 
 test("a run started before the project was edited runs the version it was given", async () => {
-  const release = path.join(await saturn.folder(), "release");
-  const { home, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "before-process", SATURN_RESEARCH_TEST_RELEASE: release });
+  const release = path.join(await workbench.folder(), "release");
+  const { home, folder, first } = await restartable({ WORKBENCH_RESEARCH_TEST_HOLD: "before-process", WORKBENCH_RESEARCH_TEST_RELEASE: release });
   try {
     const bed = await setup(writes([`${line("a")}\n`]), { on: first, folder });
     void first.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: "held" }).catch(() => {});
@@ -421,9 +421,9 @@ test("a run started before the project was edited runs the version it was given"
 test("what the program reports about itself is kept apart from what was expected", async () => {
   const bed = await setup(`
     import { appendFileSync } from "node:fs";
-    appendFileSync(process.env.SATURN_RUN_REPORT, JSON.stringify({ kind: "seed", value: Number(process.env.SATURN_RUN_SEED ?? -1), applied: ["python", "numpy"] }) + "\\n");
-    appendFileSync(process.env.SATURN_RUN_REPORT, JSON.stringify({ kind: "model", source: "local", revision: "abc" }) + "\\nnot json\\n");
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    appendFileSync(process.env.WORKBENCH_RUN_REPORT, JSON.stringify({ kind: "seed", value: Number(process.env.WORKBENCH_RUN_SEED ?? -1), applied: ["python", "numpy"] }) + "\\n");
+    appendFileSync(process.env.WORKBENCH_RUN_REPORT, JSON.stringify({ kind: "model", source: "local", revision: "abc" }) + "\\nnot json\\n");
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
   `);
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed", JSON.stringify(run));
@@ -439,11 +439,11 @@ test("samples changed after the seal are caught wherever the run is read", async
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.sealIntact, true);
   await writeFile(path.join(runFolder(bed, run.id), "samples.jsonl"), `${line("a")}\n${line("b", { scores: { s: 0 } })}\n`);
-  assert.equal((await saturn.api("GET", `${bed.route}/runs/${run.id}`)).sealIntact, false);
-  const samples = await saturn.api("GET", `${bed.route}/runs/${run.id}/samples`);
+  assert.equal((await workbench.api("GET", `${bed.route}/runs/${run.id}`)).sealIntact, false);
+  const samples = await workbench.api("GET", `${bed.route}/runs/${run.id}/samples`);
   assert.equal(samples.sealIntact, false);
   // The list the Experiments and Workspace screens read says so too, not only the single run.
-  const listed = (await saturn.api("GET", `${bed.route}/runs`)).items.find((item) => item.id === run.id);
+  const listed = (await workbench.api("GET", `${bed.route}/runs`)).items.find((item) => item.id === run.id);
   assert.equal(listed.sealIntact, false);
 });
 
@@ -451,7 +451,7 @@ test("stopping a run stops it, keeps its samples, and is stopped rather than com
   const bed = await setup(LONG);
   const started = await start(bed);
   await until("samples", () => stat(path.join(runFolder(bed, started.id), "samples.jsonl")).then((info) => info.size > 0, () => false));
-  const stopping = await saturn.api("POST", `${bed.route}/runs/${started.id}/stop`, {});
+  const stopping = await workbench.api("POST", `${bed.route}/runs/${started.id}/stop`, {});
   assert.ok(["stopping", "stopped"].includes(stopping.status), stopping.status);
   const run = await ended(bed, started.id);
   assert.equal(run.status, "stopped");
@@ -462,7 +462,7 @@ test("stopping a run stops it, keeps its samples, and is stopped rather than com
 test("stopping a run that has ended leaves it as it ended", async () => {
   const bed = await setup(writes([`${line("a")}\n`]));
   const run = await ended(bed, (await start(bed)).id);
-  const again = await saturn.api("POST", `${bed.route}/runs/${run.id}/stop`, {});
+  const again = await workbench.api("POST", `${bed.route}/runs/${run.id}/stop`, {});
   assert.equal(again.status, "completed");
   assert.deepEqual(again, run);
 });
@@ -472,15 +472,15 @@ test("a process that ignores the request to stop is ended by force, with what it
     import { spawn } from "node:child_process";
     import { appendFileSync, writeFileSync } from "node:fs";
     const child = spawn(process.execPath, ["-e", "process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"], { stdio: "ignore" });
-    writeFileSync(process.env.SATURN_RUN_DIRECTORY + "/child.pid", String(child.pid));
+    writeFileSync(process.env.WORKBENCH_RUN_DIRECTORY + "/child.pid", String(child.pid));
     process.on("SIGTERM", () => {});
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
     setInterval(() => {}, 1000);
   `);
   const started = await start(bed);
   const childFile = path.join(runFolder(bed, started.id), "child.pid");
   const child = Number(await until("child", () => readFile(childFile, "utf8").catch(() => "")));
-  await saturn.api("POST", `${bed.route}/runs/${started.id}/stop`, {});
+  await workbench.api("POST", `${bed.route}/runs/${started.id}/stop`, {});
   const run = await ended(bed, started.id);
   assert.equal(run.status, "stopped");
   await until("the child to end", () => !alive(child));
@@ -492,8 +492,8 @@ test("what a finished process left running does not outlive the seal", async () 
     import { appendFileSync, writeFileSync } from "node:fs";
     const child = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { stdio: "ignore", detached: false });
     child.unref();
-    writeFileSync(process.env.SATURN_RUN_DIRECTORY + "/child.pid", String(child.pid));
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    writeFileSync(process.env.WORKBENCH_RUN_DIRECTORY + "/child.pid", String(child.pid));
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
     process.exit(0);
   `);
   const run = await ended(bed, (await start(bed)).id);
@@ -503,29 +503,29 @@ test("what a finished process left running does not outlive the seal", async () 
 });
 
 test("a run in a chat's worktree holds it until the run ends", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "probe.mjs"), LONG);
   commitAll(folder);
-  const { thread } = await saturn.chat(folder);
-  await saturn.api("POST", `/threads/${thread.id}/worktree`, {});
-  const projectId = (await saturn.api("GET", "/projects")).find((item) => item.path === folder).id;
+  const { thread } = await workbench.chat(folder);
+  await workbench.api("POST", `/threads/${thread.id}/worktree`, {});
+  const projectId = (await workbench.api("GET", "/projects")).find((item) => item.path === folder).id;
   const route = `/projects/${projectId}/research`;
-  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } });
-  const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, { threadId: thread.id });
+  const experiment = await workbench.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } });
+  const version = await workbench.api("POST", `${route}/experiments/${experiment.id}/versions`, { threadId: thread.id });
   const bed = { route, version, folder };
   const started = await start(bed, { threadId: thread.id });
-  assert.equal((await saturn.call("DELETE", `/threads/${thread.id}`)).status, 409);
-  await saturn.api("POST", `${route}/runs/${started.id}/stop`, {});
+  assert.equal((await workbench.call("DELETE", `/threads/${thread.id}`)).status, 409);
+  await workbench.api("POST", `${route}/runs/${started.id}/stop`, {});
   await ended(bed, started.id);
-  await until("the run to let go", async () => (await saturn.call("DELETE", `/threads/${thread.id}`)).status < 300);
+  await until("the run to let go", async () => (await workbench.call("DELETE", `/threads/${thread.id}`)).status < 300);
 });
 
 test("a change to a record is announced on the live updates, and is not in the app's own state", async () => {
   const bed = await setup(writes([`${line("a")}\n`]));
-  const token = (await readFile(path.join(saturn.runtime.dataDir, "runtime-token"), "utf8")).trim();
-  const response = await fetch(`${saturn.runtime.origin}/events`, { headers: { authorization: `Bearer ${token}` } });
+  const token = (await readFile(path.join(workbench.runtime.dataDir, "runtime-token"), "utf8")).trim();
+  const response = await fetch(`${workbench.runtime.origin}/events`, { headers: { authorization: `Bearer ${token}` } });
   const reader = response.body.getReader();
-  await saturn.api("POST", `${bed.route}/questions`, { title: "Announced" });
+  await workbench.api("POST", `${bed.route}/questions`, { title: "Announced" });
   let seen = "";
   // A read that never gets an event is cancelled at the deadline, rather than holding the stream and the test open.
   const deadline = setTimeout(() => reader.cancel().catch(() => undefined), 10_000);
@@ -538,12 +538,12 @@ test("a change to a record is announced on the live updates, and is not in the a
   await reader.cancel().catch(() => undefined);
   assert.match(seen, /event: research/);
   await new Promise((resolve) => setTimeout(resolve, 300));
-  assert.doesNotMatch(await readFile(path.join(saturn.runtime.dataDir, "state.json"), "utf8"), /Announced/);
+  assert.doesNotMatch(await readFile(path.join(workbench.runtime.dataDir, "state.json"), "utf8"), /Announced/);
 });
 
 /** A runtime whose data and project folder outlive it, with a project made through it. */
 async function restartable(env = {}) {
-  const home = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-research-")));
+  const home = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-research-")));
   const dataDir = path.join(home, "data");
   const folder = path.join(home, "project");
   await mkdir(dataDir);
@@ -587,7 +587,7 @@ test("a runtime killed mid-run: the process is ended, the run is interrupted, an
 });
 
 test("a runtime killed before the process existed: the run is interrupted and no process is claimed", async () => {
-  const { home, dataDir, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "before-process" });
+  const { home, dataDir, folder, first } = await restartable({ WORKBENCH_RESEARCH_TEST_HOLD: "before-process" });
   const bed = await setup(writes([`${line("a")}\n`]), { on: first, folder });
   await projectSaved(dataDir, folder);
   void first.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: "held" }).catch(() => {});
@@ -606,8 +606,8 @@ test("a runtime killed before the process existed: the run is interrupted and no
   }
 });
 
-test("a runtime killed just after the process started still finds it, by what Saturn recorded", async () => {
-  const { home, dataDir, folder, first } = await restartable({ SATURN_RESEARCH_TEST_HOLD: "after-process" });
+test("a runtime killed just after the process started still finds it, by what Eisoptric Workbench recorded", async () => {
+  const { home, dataDir, folder, first } = await restartable({ WORKBENCH_RESEARCH_TEST_HOLD: "after-process" });
   const bed = await setup(LONG, { on: first, folder });
   await projectSaved(dataDir, folder);
   void first.call("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: "held" }).catch(() => {});
@@ -673,24 +673,24 @@ test("a runtime stopped normally ends its runs and records them as interrupted",
   await rm(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 });
 
-test("what a run wrote to SATURN_RUN_OUTPUT is listed and read within that folder, and nothing outside it", async () => {
+test("what a run wrote to WORKBENCH_RUN_OUTPUT is listed and read within that folder, and nothing outside it", async () => {
   const bed = await setup(`
     import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
-    mkdirSync(process.env.SATURN_RUN_OUTPUT + "/notes", { recursive: true });
-    writeFileSync(process.env.SATURN_RUN_OUTPUT + "/notes/log.txt", "hello from the run");
-    writeFileSync(process.env.SATURN_RUN_OUTPUT + "/weights.bin", Buffer.from([0, 1, 2, 0]));
-    appendFileSync(process.env.SATURN_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
+    mkdirSync(process.env.WORKBENCH_RUN_OUTPUT + "/notes", { recursive: true });
+    writeFileSync(process.env.WORKBENCH_RUN_OUTPUT + "/notes/log.txt", "hello from the run");
+    writeFileSync(process.env.WORKBENCH_RUN_OUTPUT + "/weights.bin", Buffer.from([0, 1, 2, 0]));
+    appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, ${JSON.stringify(`${line("a")}\n`)});
   `);
   const run = await ended(bed, (await start(bed)).id);
   assert.equal(run.status, "completed", JSON.stringify(run));
-  const listed = await saturn.api("GET", `${bed.route}/runs/${run.id}/output`);
+  const listed = await workbench.api("GET", `${bed.route}/runs/${run.id}/output`);
   assert.deepEqual(listed.files.map((file) => [file.path, file.size]), [["notes/log.txt", 18], ["weights.bin", 4]]);
-  const read = await saturn.api("GET", `${bed.route}/runs/${run.id}/output?path=notes/log.txt`);
+  const read = await workbench.api("GET", `${bed.route}/runs/${run.id}/output?path=notes/log.txt`);
   assert.equal(read.text, "hello from the run");
   assert.equal(read.truncated, false);
-  const binary = await saturn.api("GET", `${bed.route}/runs/${run.id}/output?path=weights.bin`);
+  const binary = await workbench.api("GET", `${bed.route}/runs/${run.id}/output?path=weights.bin`);
   assert.equal(binary.binary, true); assert.equal(binary.text, null);
-  assert.equal((await saturn.call("GET", `${bed.route}/runs/${run.id}/output?path=../samples.jsonl`)).status, 403);
-  assert.equal((await saturn.call("GET", `${bed.route}/runs/${run.id}/output?path=notes/none.txt`)).status, 404);
-  assert.equal((await saturn.call("GET", `${bed.route}/runs/${run.id}/output?path=notes`)).status, 400);
+  assert.equal((await workbench.call("GET", `${bed.route}/runs/${run.id}/output?path=../samples.jsonl`)).status, 403);
+  assert.equal((await workbench.call("GET", `${bed.route}/runs/${run.id}/output?path=notes/none.txt`)).status, 404);
+  assert.equal((await workbench.call("GET", `${bed.route}/runs/${run.id}/output?path=notes`)).status, 400);
 });

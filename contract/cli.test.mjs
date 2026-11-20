@@ -1,4 +1,4 @@
-// The `saturn` command, whichever language it is written in, against a runtime of the same language: what it prints, on which
+// The `workbench` command, whichever language it is written in, against a runtime of the same language: what it prints, on which
 // stream, and its exit codes. Model servers are fake; the launcher goes in a scratch home folder.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -19,15 +19,15 @@ let server;
 let plain;
 const runs = {};
 
-/** The command line: the program and the arguments before saturn's own. */
+/** The command line: the program and the arguments before workbench's own. */
 function program() {
-  return [process.env.SATURN_RUST_CLI ?? path.join(root, "target/debug", process.platform === "win32" ? "saturn.exe" : "saturn")];
+  return [process.env.WORKBENCH_RUST_CLI ?? path.join(root, "target/debug", process.platform === "win32" ? "workbench.exe" : "workbench")];
 }
 
 /** Runs a command; what it printed and how it ended. */
 function run(command, args, { input = "", env = {}, cwd = scratch } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env: { ...process.env, SATURN_RUNTIME_PORT: new URL(runtime.origin).port, SATURN_DATA_DIR: runtime.dataDir, SATURN_RUNTIME_TOKEN: "", ...env }, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(command, args, { cwd, env: { ...process.env, WORKBENCH_RUNTIME_PORT: new URL(runtime.origin).port, WORKBENCH_DATA_DIR: runtime.dataDir, WORKBENCH_RUNTIME_TOKEN: "", ...env }, stdio: ["pipe", "pipe", "pipe"] });
     let out = "";
     let err = "";
     child.stdout.on("data", (chunk) => { out += chunk; });
@@ -40,9 +40,9 @@ function run(command, args, { input = "", env = {}, cwd = scratch } = {}) {
   });
 }
 
-function saturn(args, options = {}) {
+function workbench(args, options = {}) {
   const [command, ...before] = program();
-  return run(command, [...before, ...args], { ...options, env: { SATURN_RUNTIME_TOKEN: tokenValue, ...options.env } });
+  return run(command, [...before, ...args], { ...options, env: { WORKBENCH_RUNTIME_TOKEN: tokenValue, ...options.env } });
 }
 
 let tokenValue;
@@ -59,7 +59,7 @@ async function api(method, route, body) {
 }
 
 before(async () => {
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-cli-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-cli-")));
   home = path.join(scratch, "home");
   plain = path.join(scratch, "plain-project");
   await mkdir(home);
@@ -99,62 +99,62 @@ after(async () => {
 });
 
 test("help and mistakes in how it is called", async () => {
-  const none = await saturn([]);
+  const none = await workbench([]);
   assert.equal(none.code, 2);
-  assert.match(none.out, /^saturn: the Saturn runtime from a terminal\n\nUsage:\n {2}saturn run PROMPT/);
+  assert.match(none.out, /^workbench: the Eisoptric Workbench runtime from a terminal\n\nUsage:\n {2}workbench run PROMPT/);
   for (const args of [["help"], ["--help"], ["-h"], ["agents", "--help"]]) {
-    const help = await saturn(args);
+    const help = await workbench(args);
     assert.equal(help.code, 0, args.join(" "));
     assert.equal(help.out, none.out);
   }
-  const unknown = await saturn(["frobnicate"]);
+  const unknown = await workbench(["frobnicate"]);
   assert.equal(unknown.code, 2);
-  assert.match(unknown.err, /^saturn: Unknown command "frobnicate"\.\n\nsaturn: the Saturn runtime/);
+  assert.match(unknown.err, /^workbench: Unknown command "frobnicate"\.\n\nworkbench: the Eisoptric Workbench runtime/);
   for (const [args, expected] of [
     [["run", ""], /Give the prompt/],
-    [["show"], /saturn show RUN/],
-    [["changes"], /saturn changes RUN/],
-    [["approve", "r"], /saturn approve RUN ACTION/],
-    [["stop"], /saturn stop RUN/],
+    [["show"], /workbench show RUN/],
+    [["changes"], /workbench changes RUN/],
+    [["approve", "r"], /workbench approve RUN ACTION/],
+    [["stop"], /workbench stop RUN/],
     [["run", "x"], /Name the agent with --agent\. Agents: /],
     [["run", "x", "--agent", "Nobody"], /No agent named "Nobody"\. Agents: /],
     [["run", "x", "--agent", "Doer", "--mode", "wild"], /--mode is agent, ask or plan/],
-    [["run", "x", "--agent", "Doer", "--project", "/not/a/project"], /is not a Saturn project/],
+    [["run", "x", "--agent", "Doer", "--project", "/not/a/project"], /is not an Eisoptric Workbench project/],
   ]) {
-    const answer = await saturn(args);
+    const answer = await workbench(args);
     assert.equal(answer.code, 2, `${args.join(" ")}: ${answer.err}`);
     assert.match(answer.err, expected);
     assert.equal(answer.out, "");
   }
 });
 
-test("saturn says when Saturn cannot be reached", async () => {
+test("workbench says when Eisoptric Workbench cannot be reached", async () => {
   const [command, ...before] = program();
-  const away = await run(command, [...before, "agents"], { env: { SATURN_RUNTIME_PORT: "9", SATURN_RUNTIME_TOKEN: "made-up" } });
+  const away = await run(command, [...before, "agents"], { env: { WORKBENCH_RUNTIME_PORT: "9", WORKBENCH_RUNTIME_TOKEN: "made-up" } });
   assert.equal(away.code, 4);
-  assert.match(away.err, /^saturn: Saturn is not running \(nothing answers on http:\/\/127\.0\.0\.1:9\)\. Open Saturn and try again\.\n$/);
+  assert.match(away.err, /^workbench: Eisoptric Workbench is not running \(nothing answers on http:\/\/127\.0\.0\.1:9\)\. Open Eisoptric Workbench and try again\.\n$/);
   const empty = path.join(scratch, "never-ran");
   const unset = { ...process.env };
-  delete unset.SATURN_RUNTIME_TOKEN;
+  delete unset.WORKBENCH_RUNTIME_TOKEN;
   const fresh = await new Promise((resolve) => {
-    const child = spawn(command, [...before, "agents"], { env: { ...unset, SATURN_DATA_DIR: empty } });
+    const child = spawn(command, [...before, "agents"], { env: { ...unset, WORKBENCH_DATA_DIR: empty } });
     let err = "";
     child.stderr.on("data", (chunk) => { err += chunk; });
     child.once("close", (code) => resolve({ code, err }));
   });
   assert.equal(fresh.code, 4);
-  assert.match(fresh.err, /Saturn has not run on this computer yet \(no .*runtime-token\)\. Open Saturn first\./);
-  const refused = await run(command, [...before, "agents"], { env: { SATURN_RUNTIME_TOKEN: "wrong-token" } });
+  assert.match(fresh.err, /Workbench has not run on this computer yet \(no .*runtime-token\)\. Open Eisoptric Workbench first\./);
+  const refused = await run(command, [...before, "agents"], { env: { WORKBENCH_RUNTIME_TOKEN: "wrong-token" } });
   assert.equal(refused.code, 1);
-  assert.match(refused.err, /^saturn: Unauthorized\n$/);
+  assert.match(refused.err, /^workbench: Unauthorized\n$/);
 });
 
 test("the token comes from the data folder unless the environment gives one", async () => {
   const [command, ...before] = program();
   const unset = { ...process.env };
-  delete unset.SATURN_RUNTIME_TOKEN;
+  delete unset.WORKBENCH_RUNTIME_TOKEN;
   const answer = await new Promise((resolve) => {
-    const child = spawn(command, [...before, "agents"], { env: { ...unset, SATURN_RUNTIME_PORT: new URL(runtime.origin).port, SATURN_DATA_DIR: runtime.dataDir } });
+    const child = spawn(command, [...before, "agents"], { env: { ...unset, WORKBENCH_RUNTIME_PORT: new URL(runtime.origin).port, WORKBENCH_DATA_DIR: runtime.dataDir } });
     let out = "";
     child.stdout.on("data", (chunk) => { out += chunk; });
     child.once("close", (code) => resolve({ code, out }));
@@ -163,23 +163,23 @@ test("the token comes from the data folder unless the environment gives one", as
   assert.match(answer.out, /^Doer\tLocal\t/m);
 });
 
-test("saturn agents lists agents and their models", async () => {
-  const { code, out } = await saturn(["agents"]);
+test("workbench agents lists agents and their models", async () => {
+  const { code, out } = await workbench(["agents"]);
   assert.equal(code, 0);
   const lines = out.trim().split("\n");
   assert.ok(lines.some((line) => /^Doer\tLocal\tagent_|^Doer\tLocal\t/.test(line)), out);
   assert.ok(lines.some((line) => line.startsWith("Planner\t")), out);
 });
 
-test("saturn run follows a run to its answer", async () => {
-  const answer = await saturn(["run", "do", "it", "--agent", "Doer"]);
+test("workbench run follows a run to its answer", async () => {
+  const answer = await workbench(["run", "do", "it", "--agent", "Doer"]);
   assert.equal(answer.code, 0, answer.err);
   assert.equal(answer.out, "all done\n");
   assert.match(answer.err, /^Doer · run run_[0-9a-f]+ · chat \S+\n/);
   assert.match(answer.err, /\n {2}· code echo marker-output\n/);
   runs.done = /run (run_[0-9a-f]+)/.exec(answer.err)[1];
 
-  const json = await saturn(["run", "do it", "--agent=Doer", "--json"]);
+  const json = await workbench(["run", "do it", "--agent=Doer", "--json"]);
   assert.equal(json.code, 0);
   assert.equal(json.err, "");
   const done = JSON.parse(json.out);
@@ -188,51 +188,51 @@ test("saturn run follows a run to its answer", async () => {
   assert.equal(done.actions[0].status, "completed");
 
   // The prompt from stdin, an agent named with its id, and a name with = in it.
-  const piped = await saturn(["run", "-", "--agent", "Doer", "--json"], { input: "from stdin no tools please" });
+  const piped = await workbench(["run", "-", "--agent", "Doer", "--json"], { input: "from stdin no tools please" });
   assert.equal(piped.code, 0);
   assert.equal(JSON.parse(piped.out).input, "from stdin no tools please");
-  const equals = await saturn(["run", "no tools please", "--agent=A=B", "--json"]);
+  const equals = await workbench(["run", "no tools please", "--agent=A=B", "--json"]);
   assert.equal(equals.code, 0, equals.err);
   const agents = await api("GET", "/agents");
-  const byId = await saturn(["run", "no tools please", "--agent", agents.find((agent) => agent.name === "Doer").id, "--json"]);
+  const byId = await workbench(["run", "no tools please", "--agent", agents.find((agent) => agent.name === "Doer").id, "--json"]);
   assert.equal(byId.code, 0);
 
   // Later messages join a chat, and a mode is passed on.
   const chat = JSON.parse(json.out).threadId;
-  const joined = await saturn(["run", "no tools please", "--agent", "Doer", "--chat", chat, "--mode", "ask", "--json"]);
+  const joined = await workbench(["run", "no tools please", "--agent", "Doer", "--chat", chat, "--mode", "ask", "--json"]);
   assert.equal(JSON.parse(joined.out).threadId, chat);
   assert.equal(JSON.parse(joined.out).mode, "ask");
 });
 
-test("saturn run on a project works there, and only with access", async () => {
+test("workbench run on a project works there, and only with access", async () => {
   const project = await api("POST", "/projects", { path: plain, grant: true });
-  const answer = await saturn(["run", "no tools please", "--agent", "Doer", "--project", ".", "--json"], { cwd: plain });
+  const answer = await workbench(["run", "no tools please", "--agent", "Doer", "--project", ".", "--json"], { cwd: plain });
   assert.equal(answer.code, 0, answer.err);
   const thread = JSON.parse(answer.out).threadId;
   assert.equal((await api("GET", `/agents/${(await api("GET", "/agents")).find((agent) => agent.name === "Doer").id}/threads`)).find((item) => item.id === thread).projectId, project.id);
-  const dotted = await saturn(["run", "no tools please", "--agent", "Doer", "--project", path.join(plain, "sub", ".."), "--json"]);
+  const dotted = await workbench(["run", "no tools please", "--agent", "Doer", "--project", path.join(plain, "sub", ".."), "--json"]);
   assert.equal(dotted.code, 0, dotted.err);
   const locked = path.join(scratch, "locked-project");
   await mkdir(locked);
   await api("POST", "/projects", { path: locked });
-  const refused = await saturn(["run", "x", "--agent", "Doer", "--project", locked]);
+  const refused = await workbench(["run", "x", "--agent", "Doer", "--project", locked]);
   assert.equal(refused.code, 2);
   assert.match(refused.err, /does not have access to .*locked-project yet/);
 });
 
 test("an approval it cannot ask about exits 3 and says how to answer", async () => {
-  const waiting = await saturn(["run", "do it carefully", "--agent", "Careful"]);
+  const waiting = await workbench(["run", "do it carefully", "--agent", "Careful"]);
   assert.equal(waiting.code, 3, waiting.err);
   assert.equal(waiting.out, "");
-  const hint = /Waiting for approval: code echo marker-output.*\nAnswer with: saturn approve (\S+) (\S+)/s.exec(waiting.err);
+  const hint = /Waiting for approval: code echo marker-output.*\nAnswer with: workbench approve (\S+) (\S+)/s.exec(waiting.err);
   assert.ok(hint, waiting.err);
   const [, runId, actionId] = hint;
 
-  const shown = await saturn(["show", runId]);
+  const shown = await workbench(["show", runId]);
   assert.equal(shown.code, 0);
   assert.match(shown.out, new RegExp(`^${runId} · waiting_approval\\n {2}· code echo marker-output \\(waiting_approval: .*\\) {3}\\[${actionId}\\]\\n`));
 
-  const approved = await saturn(["approve", runId, actionId]);
+  const approved = await workbench(["approve", runId, actionId]);
   assert.equal(approved.code, 0);
   assert.equal(approved.out, "Approved.\n");
   let finished;
@@ -243,16 +243,16 @@ test("an approval it cannot ask about exits 3 and says how to answer", async () 
   }
   assert.equal(finished.status, "completed");
 
-  const json = await saturn(["run", "do it carefully again", "--agent", "Careful", "--json"]);
+  const json = await workbench(["run", "do it carefully again", "--agent", "Careful", "--json"]);
   assert.equal(json.code, 3);
   const asked = JSON.parse(json.out);
   assert.equal(asked.status, "waiting_approval");
-  const denied = await saturn(["approve", asked.id, asked.actions.find((item) => item.status === "waiting_approval").id, "--deny"]);
+  const denied = await workbench(["approve", asked.id, asked.actions.find((item) => item.status === "waiting_approval").id, "--deny"]);
   assert.equal(denied.out, "Denied.\n");
 
-  const missing = await saturn(["approve", "run_none", "a1"]);
+  const missing = await workbench(["approve", "run_none", "a1"]);
   assert.equal(missing.code, 1);
-  assert.match(missing.err, /^saturn: /);
+  assert.match(missing.err, /^workbench: /);
 });
 
 // Runs a command on a real terminal, answers "y" when it asks, and passes on what it printed and how it ended.
@@ -284,42 +284,42 @@ sys.exit(child.wait())
 
 test("on a terminal it asks about an approval itself", { skip: process.platform === "win32" && "needs a Unix terminal" }, async () => {
   const [command, ...before] = program();
-  const allowed = await run("python3", ["-c", ON_A_TERMINAL, command, ...before, "run", "do it on a terminal", "--agent", "Careful"], { env: { SATURN_RUNTIME_TOKEN: tokenValue } });
+  const allowed = await run("python3", ["-c", ON_A_TERMINAL, command, ...before, "run", "do it on a terminal", "--agent", "Careful"], { env: { WORKBENCH_RUNTIME_TOKEN: tokenValue } });
   assert.match(allowed.out, /Allow code echo marker-output .*\? \[y\/N\] /s, allowed.err);
   assert.match(allowed.out, /all done/);
   assert.equal(allowed.code, 0);
 });
 
 test("Claude Code is refused unattended", async () => {
-  const refused = await saturn(["run", "plan it", "--agent", "Planner", "--json"]);
+  const refused = await workbench(["run", "plan it", "--agent", "Planner", "--json"]);
   assert.equal(refused.code, 2);
   assert.match(refused.err, /Planner runs on Claude \(via Claude Code\).*violation of Anthropic's policy/s);
 });
 
-test("saturn runs, show, changes and stop", async () => {
-  const listed = await saturn(["runs", "--limit", "2"]);
+test("workbench runs, show, changes and stop", async () => {
+  const listed = await workbench(["runs", "--limit", "2"]);
   assert.equal(listed.code, 0);
   assert.match(listed.out, /^run_[0-9a-f]+\t\w+\t\S+\t/);
   assert.equal(listed.out.match(/^run_[0-9a-f]+\t/gm).length, 2);
-  const json = JSON.parse((await saturn(["runs", "--limit=1", "--json"])).out);
+  const json = JSON.parse((await workbench(["runs", "--limit=1", "--json"])).out);
   assert.equal(json.length, 1);
 
-  const shown = await saturn(["show", runs.done]);
+  const shown = await workbench(["show", runs.done]);
   assert.equal(shown.code, 0);
   assert.match(shown.out, new RegExp(`^${runs.done} · completed\\n {2}· code echo marker-output\\n\\nall done\\n$`));
-  assert.equal(JSON.parse((await saturn(["show", runs.done, "--json"])).out).id, runs.done);
-  const missing = await saturn(["show", "run_none"]);
+  assert.equal(JSON.parse((await workbench(["show", runs.done, "--json"])).out).id, runs.done);
+  const missing = await workbench(["show", "run_none"]);
   assert.equal(missing.code, 1);
-  assert.equal(missing.err, "saturn: Run not found\n");
+  assert.equal(missing.err, "workbench: Run not found\n");
 
-  const changes = await saturn(["changes", runs.done]);
+  const changes = await workbench(["changes", runs.done]);
   assert.equal(changes.code, 0);
   assert.equal(changes.out, "No file changes.\n");
-  assert.deepEqual(JSON.parse((await saturn(["changes", runs.done, "--json"])).out).files, []);
+  assert.deepEqual(JSON.parse((await workbench(["changes", runs.done, "--json"])).out).files, []);
 
   const agents = await api("GET", "/agents");
   const started = await api("POST", `/agents/${agents.find((agent) => agent.name === "Doer").id}/runs`, { input: "slowly no tools please" });
-  const stopped = await saturn(["stop", started.id]);
+  const stopped = await workbench(["stop", started.id]);
   assert.equal(stopped.code, 0);
   assert.equal(stopped.out, `${started.id} · cancelled\n`);
 });
@@ -327,16 +327,16 @@ test("saturn runs, show, changes and stop", async () => {
 test("a run that fails exits 1 and says why", async () => {
   const broken = await api("POST", "/connections/models", { name: "Gone", provider: "openai", model: "s", baseUrl: "http://127.0.0.1:9" });
   await api("POST", "/agents", { name: "Broken", modelConnectionId: broken.id, autonomy: "bypass" });
-  const answer = await saturn(["run", "no tools please", "--agent", "Broken"]);
+  const answer = await workbench(["run", "no tools please", "--agent", "Broken"]);
   assert.equal(answer.code, 1);
   assert.match(answer.err, /\nfailed: /);
-  const json = await saturn(["run", "no tools please", "--agent", "Broken", "--json"]);
+  const json = await workbench(["run", "no tools please", "--agent", "Broken", "--json"]);
   assert.equal(json.code, 1);
   assert.equal(JSON.parse(json.out).status, "failed");
 });
 
 test("Settings installs the command, and what it installs works", { skip: process.platform === "win32" && "HOME is not the home folder on Windows" }, async () => {
-  const launcher = path.join(home, ".local/bin/saturn");
+  const launcher = path.join(home, ".local/bin/workbench");
   const before = await api("GET", "/cli");
   assert.deepEqual(before, { path: launcher, installed: false, current: false, onPath: false, folder: path.dirname(launcher) });
   const installed = await api("POST", "/cli/install");
@@ -344,14 +344,14 @@ test("Settings installs the command, and what it installs works", { skip: proces
   assert.ok(existsSync(launcher));
   assert.ok(((await stat(launcher)).mode & 0o111) !== 0, "executable");
   const text = await readFile(launcher, "utf8");
-  assert.match(text, /^#!\/bin\/sh\n# Saturn command line: /);
-  assert.match(text, new RegExp(`export SATURN_RUNTIME_PORT='${new URL(runtime.origin).port}'`), "a second Saturn gets a launcher pointing at it");
-  assert.ok(text.includes(`export SATURN_DATA_DIR='${runtime.dataDir}'`));
+  assert.match(text, /^#!\/bin\/sh\n# Eisoptric Workbench command line: /);
+  assert.match(text, new RegExp(`export WORKBENCH_RUNTIME_PORT='${new URL(runtime.origin).port}'`), "a second Eisoptric Workbench gets a launcher pointing at it");
+  assert.ok(text.includes(`export WORKBENCH_DATA_DIR='${runtime.dataDir}'`));
 
   const unset = { ...process.env };
-  delete unset.SATURN_RUNTIME_TOKEN;
-  delete unset.SATURN_RUNTIME_PORT;
-  delete unset.SATURN_DATA_DIR;
+  delete unset.WORKBENCH_RUNTIME_TOKEN;
+  delete unset.WORKBENCH_RUNTIME_PORT;
+  delete unset.WORKBENCH_DATA_DIR;
   const ran = await new Promise((resolve) => {
     const child = spawn(launcher, ["agents"], { env: unset });
     let out = "";

@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const server = path.join(root, "crates/saturn-server/src");
+const server = path.join(root, "crates/workbench-server/src");
 const target = path.join(root, "contract/routes.json");
 
 // Each .route("/path", get(a).post(b)) in the router; `fallback` answers every other method.

@@ -15,7 +15,7 @@ test("a new project starts at its Python, and each record moves the study on", (
 test("results brought in count as much as an experiment written here", () => {
   const steps = firstStudySteps({ ...empty, imported: 1 });
   assert.equal(steps.find((step) => step.id === "results").done, true);
-  assert.equal(steps.find((step) => step.id === "run").done, false, "an import is not a run Saturn made");
+  assert.equal(steps.find((step) => step.id === "run").done, false, "an import is not a run Eisoptric Workbench made");
 });
 
 test("bringing results in can be handed to the assistant, which is told to ask before importing", () => {

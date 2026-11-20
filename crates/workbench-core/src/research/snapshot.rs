@@ -1,0 +1,653 @@
+//! A run's own copy of what its version froze, made before the run starts and checked file by file, so editing the
+//! project while it runs changes nothing it reads. What could not be fixed is listed as uncontrolled rather than
+//! passed off as part of the version.
+use std::path::{Path, PathBuf};
+
+use serde_json::{Value, json};
+use workbench_domain::research::sha256_hex;
+use workbench_domain::time::{iso_time, now_millis};
+
+use super::freeze::hash_file;
+use crate::records::text;
+use crate::worktrees::run_git;
+use crate::{CoreError, Kernel};
+
+/// Where runs' snapshots are made, in Eisoptric Workbench's own data folder.
+const SNAPSHOTS: &str = "run-snapshots";
+/// A data file larger than this is linked rather than copied where copying is not copy-on-write; it is then checked
+/// before and after the run instead of being fixed.
+#[cfg(not(target_os = "macos"))]
+const LINK_ABOVE: u64 = 1024 * 1024 * 1024;
+/// What a snapshot's files are protected by while the run reads them.
+pub(super) const ISOLATION: &str = "read-only permissions";
+
+/// A run's snapshot: the tree the command runs in, and what was observed while making it.
+pub(super) struct Snapshot {
+    pub tree: PathBuf,
+    pub observed: Value,
+}
+
+/// One file the snapshot holds, how it got there, and whether it matched the version.
+fn entry(path: &str, role: &str, sha256: &str, size: u64, how: &str) -> Value {
+    json!({ "path": path, "role": role, "sha256": sha256, "size": size, "how": how })
+}
+
+/// A path inside a snapshot as the records write it, with `/` between its parts on every system.
+fn written(path: &Path) -> String {
+    path.to_string_lossy()
+        .replace(std::path::MAIN_SEPARATOR, "/")
+}
+
+/// Every regular file under a folder, by path relative to it, not following links.
+pub(super) fn files_in(root: &Path) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut pending = vec![PathBuf::new()];
+    while let Some(relative) = pending.pop() {
+        let Ok(reading) = std::fs::read_dir(root.join(&relative)) else {
+            continue;
+        };
+        for item in reading.flatten() {
+            let Ok(kind) = item.file_type() else { continue };
+            let path = relative.join(item.file_name());
+            if kind.is_dir() {
+                pending.push(path);
+            } else if kind.is_file() {
+                found.push(written(&path));
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
+/// The links under `root` whose targets lie outside it, by path relative to it, with the target as the link names
+/// it. Links that stay inside are part of the snapshot like any file.
+fn outward_links(root: &Path) -> Vec<(String, String)> {
+    let Ok(inside) = std::fs::canonicalize(root) else {
+        return Vec::new();
+    };
+    let mut found = Vec::new();
+    let mut pending = vec![PathBuf::new()];
+    while let Some(relative) = pending.pop() {
+        let Ok(reading) = std::fs::read_dir(root.join(&relative)) else {
+            continue;
+        };
+        for item in reading.flatten() {
+            let Ok(kind) = item.file_type() else { continue };
+            let path = relative.join(item.file_name());
+            if kind.is_dir() {
+                pending.push(path);
+            } else if kind.is_symlink() {
+                let target = std::fs::read_link(item.path())
+                    .map(|target| target.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                let leaves = std::fs::canonicalize(item.path())
+                    .map_or(true, |resolved| !resolved.starts_with(&inside));
+                if leaves {
+                    found.push((written(&path), target));
+                }
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
+/// Copies a file, copy-on-write where the file system can (APFS, Btrfs, XFS), and creates its folders.
+fn copy_into(from: &Path, to: &Path) -> std::io::Result<()> {
+    if let Some(parent) = to.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let _ = std::fs::remove_file(to);
+    std::fs::copy(from, to).map(|_| ())
+}
+
+/// Whether a file of this size is linked instead of copied on this system.
+fn links(size: u64) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = size;
+        false
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        size > LINK_ABOVE
+    }
+}
+
+/// Makes the snapshot's files read-only; its folders stay writable, so a program can still write new files there.
+fn protect(tree: &Path, files: &[String]) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        for file in files {
+            let _ =
+                std::fs::set_permissions(tree.join(file), std::fs::Permissions::from_mode(0o444));
+        }
+    }
+    #[cfg(not(unix))]
+    for file in files {
+        // Not through a link: that would mark the file it leads to, outside the snapshot.
+        let path = tree.join(file);
+        if let Ok(info) = std::fs::symlink_metadata(&path)
+            && info.is_file()
+        {
+            let mut permissions = info.permissions();
+            permissions.set_readonly(true);
+            let _ = std::fs::set_permissions(&path, permissions);
+        }
+    }
+}
+
+/// Makes `at` a link that names `to`, as written.
+#[cfg(unix)]
+async fn make_link(to: &Path, at: &Path) -> std::io::Result<()> {
+    tokio::fs::symlink(to, at).await
+}
+
+/// Makes `at` a link that names `to`, as written. Windows has one kind of link for a folder and another for a file,
+/// and lets an account make either only with Developer Mode on or as an administrator; without that, a folder is
+/// joined by a junction, which any account may make.
+#[cfg(windows)]
+async fn make_link(to: &Path, at: &Path) -> std::io::Result<()> {
+    let resolved = match at.parent() {
+        Some(parent) if to.is_relative() => parent.join(to),
+        _ => to.to_path_buf(),
+    };
+    if !tokio::fs::metadata(&resolved)
+        .await
+        .is_ok_and(|info| info.is_dir())
+    {
+        return tokio::fs::symlink_file(to, at).await;
+    }
+    let refused = match tokio::fs::symlink_dir(to, at).await {
+        Ok(()) => return Ok(()),
+        Err(error) => error,
+    };
+    let mut joining = tokio::process::Command::new(
+        std::env::var_os("COMSPEC").unwrap_or_else(|| "cmd.exe".into()),
+    );
+    workbench_tools::no_window(&mut joining);
+    let joined = joining
+        .raw_arg(format!(
+            "/d /c mklink /J \"{}\" \"{}\"",
+            at.display(),
+            resolved.display()
+        ))
+        .output()
+        .await;
+    if joined.is_ok_and(|output| output.status.success()) {
+        Ok(())
+    } else {
+        Err(refused)
+    }
+}
+
+/// The program that unpacks an archive: Windows' own tar, since a `tar` first on the PATH there may be one that reads
+/// `C:` as the name of another computer.
+fn tar_program() -> PathBuf {
+    if cfg!(windows)
+        && let Some(root) = std::env::var_os("SYSTEMROOT")
+    {
+        return PathBuf::from(root).join("System32").join("tar.exe");
+    }
+    PathBuf::from("tar")
+}
+
+impl Kernel {
+    /// The folder a run's snapshot is made in.
+    pub(super) fn snapshot_folder(&self, run: &str) -> PathBuf {
+        self.store.root().join(SNAPSHOTS).join(run)
+    }
+
+    /// Makes the run's snapshot from the version: the commit's files from git itself, the uncommitted changes from
+    /// their saved copies, and the declared inputs, each checked against the hash the version recorded. Any difference
+    /// refuses the run, naming the files.
+    pub(super) async fn prepare_snapshot(
+        &self,
+        records: &Path,
+        source: &Path,
+        version: &Value,
+        run: &str,
+    ) -> Result<Snapshot, CoreError> {
+        let folder = self.snapshot_folder(run);
+        let tree = folder.join("tree");
+        let _ = tokio::fs::remove_dir_all(&folder).await;
+        tokio::fs::create_dir_all(&tree).await?;
+        let made = fill(
+            Some(&records.join("objects")),
+            source,
+            version,
+            &folder,
+            &tree,
+            "Freeze a new version to run them.",
+        )
+        .await;
+        match made {
+            Ok(observed) => Ok(Snapshot { tree, observed }),
+            Err(error) => {
+                let _ = tokio::fs::remove_dir_all(&folder).await;
+                Err(error)
+            }
+        }
+    }
+
+    /// After the run: checks the snapshot against what it was given, keeps what the program wrote, and removes it.
+    pub(super) async fn close_snapshot(
+        &self,
+        run: &str,
+        directory: &Path,
+        observed: &Value,
+        source: &Path,
+        remove: bool,
+    ) -> Value {
+        close(
+            &self.snapshot_folder(run),
+            &directory.join("written"),
+            observed,
+            source,
+            remove,
+        )
+        .await
+    }
+}
+
+/// Whether a path from a record stays inside the folder it is joined to: relative, with no `..` and no root.
+fn plain_path(path: &str) -> bool {
+    !path.is_empty()
+        && Path::new(path).components().all(|part| {
+            matches!(
+                part,
+                std::path::Component::Normal(_) | std::path::Component::CurDir
+            )
+        })
+}
+
+/// Builds a snapshot in `tree` from what `expected` names (a version, or the part of one sent to a remote host): the
+/// commit from `source`'s git, uncommitted files from `saved` copies when there are any or else from `source`, and
+/// the declared inputs from `source`. Every file is checked against its recorded hash; any difference is an error
+/// that names the files, and `hint` says what to do about it.
+pub(super) async fn fill(
+    saved: Option<&Path>,
+    source: &Path,
+    expected: &Value,
+    folder: &Path,
+    tree: &Path,
+    hint: &str,
+) -> Result<Value, CoreError> {
+    let version = expected;
+    {
+        let mut inputs: Vec<Value> = Vec::new();
+        let mut differences: Vec<String> = Vec::new();
+        for item in ["changedFiles", "inputs"].iter().flat_map(|field| {
+            version
+                .get(*field)
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+        }) {
+            if !plain_path(text(&item, "path")) {
+                return Err(CoreError::new(
+                    422,
+                    format!(
+                        "The version names a file outside its folder: {}",
+                        text(&item, "path")
+                    ),
+                ));
+            }
+        }
+
+        // The committed files come from git's own objects, not from the folder, which may have changed since.
+        if let Some(commit) = version.pointer("/git/commit").and_then(Value::as_str) {
+            let prefix = run_git(source, &["rev-parse", "--show-prefix"])
+                .await
+                .unwrap_or_default();
+            let prefix = prefix.trim();
+            let spec = if prefix.is_empty() {
+                commit.to_owned()
+            } else {
+                format!("{commit}:{prefix}")
+            };
+            let archive = folder.join("commit.tar");
+            let archive_path = archive.to_string_lossy().into_owned();
+            run_git(
+                source,
+                &["archive", "--format=tar", "-o", &archive_path, &spec],
+            )
+            .await
+            .map_err(|message| {
+                CoreError::new(
+                    409,
+                    format!("The version's commit could not be read from git: {message}"),
+                )
+            })?;
+            let mut tar = tokio::process::Command::new(tar_program());
+            workbench_tools::no_window(&mut tar);
+            let unpacked = tar
+                .args(["-xf", &archive_path, "-C"])
+                .arg(tree)
+                .output()
+                .await?;
+            let _ = tokio::fs::remove_file(&archive).await;
+            if !unpacked.status.success() {
+                return Err(CoreError::new(
+                    500,
+                    "The version's commit could not be unpacked.",
+                ));
+            }
+        }
+
+        // What differed from the commit when the version was frozen.
+        for item in version
+            .get("changedFiles")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let path = text(item, "path");
+            let target = tree.join(path);
+            match text(item, "state") {
+                "deleted" => {
+                    let _ = tokio::fs::remove_file(&target).await;
+                }
+                "link" => {
+                    let link = tokio::fs::read_link(source.join(path)).await;
+                    let matches = link.as_ref().is_ok_and(|to| {
+                        item.get("sha256").and_then(Value::as_str)
+                            == Some(sha256_hex(to.to_string_lossy().as_bytes()).as_str())
+                    });
+                    if !matches {
+                        differences.push(format!("{path} (a link that points elsewhere now)"));
+                        continue;
+                    }
+                    if let (Ok(to), Some(parent)) = (link, target.parent()) {
+                        tokio::fs::create_dir_all(parent).await?;
+                        let _ = tokio::fs::remove_file(&target).await;
+                        make_link(&to, &target).await?;
+                    }
+                }
+                _ => {
+                    let expected = text(item, "sha256");
+                    let copy = saved.filter(|_| item["saved"] == true);
+                    let saved = copy.is_some();
+                    let from = if let Some(objects) = copy {
+                        objects.join(expected)
+                    } else {
+                        source.join(path)
+                    };
+                    let to = target.clone();
+                    tokio::task::spawn_blocking(move || copy_into(&from, &to))
+                        .await
+                        .map_err(|error| CoreError::new(500, error.to_string()))??;
+                    let (sha256, size) = hash_file(&target).await?;
+                    if sha256 != expected {
+                        differences.push(format!(
+                            "{path} (expected {}…, found {}…)",
+                            expected.get(..12).unwrap_or(expected),
+                            &sha256[..12]
+                        ));
+                    }
+                    inputs.push(entry(
+                        path,
+                        "uncommitted",
+                        &sha256,
+                        size,
+                        if saved { "saved copy" } else { "copied" },
+                    ));
+                }
+            }
+        }
+
+        // Every declared input, which may be ignored by git and so not in the commit.
+        for item in version
+            .get("inputs")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let (path, role, expected) =
+                (text(item, "path"), text(item, "role"), text(item, "sha256"));
+            let target = tree.join(path);
+            // An uncommitted file already placed keeps how it got there.
+            let placed = inputs
+                .iter()
+                .find(|known| text(known, "path") == path)
+                .map(|known| text(known, "how").to_owned());
+            let how = if let Some(placed) = placed.as_deref() {
+                match placed {
+                    "saved copy" => "saved copy",
+                    _ => "copied",
+                }
+            } else if tokio::fs::try_exists(&target).await? {
+                "from the commit"
+            } else {
+                let from = source.join(path);
+                let size = tokio::fs::metadata(&from)
+                    .await
+                    .map(|info| info.len())
+                    .unwrap_or(0);
+                if links(size) {
+                    if let Some(parent) = target.parent() {
+                        tokio::fs::create_dir_all(parent).await?;
+                    }
+                    make_link(&from, &target).await?;
+                    "linked"
+                } else {
+                    let to = target.clone();
+                    tokio::task::spawn_blocking(move || copy_into(&from, &to))
+                        .await
+                        .map_err(|error| CoreError::new(500, error.to_string()))??;
+                    "copied"
+                }
+            };
+            let (sha256, size) = hash_file(&target).await.unwrap_or_default();
+            if sha256 != expected {
+                differences.push(format!(
+                    "{path}, the {role} input (expected {}…, found {})",
+                    expected.get(..12).unwrap_or(expected),
+                    if sha256.is_empty() {
+                        "nothing".to_owned()
+                    } else {
+                        format!("{}…", &sha256[..12])
+                    }
+                ));
+            }
+            inputs.retain(|known| text(known, "path") != path);
+            inputs.push(entry(path, role, &sha256, size, how));
+        }
+
+        if !differences.is_empty() {
+            return Err(CoreError::new(
+                409,
+                format!(
+                    "This run was not started: these files differ from version {} — {}. {hint}",
+                    version["number"],
+                    differences.join("; ")
+                ),
+            ));
+        }
+
+        // What the project has beside the version, such as an environment folder git ignores, stays reachable by the
+        // same path but is not part of the version: it is listed as uncontrolled.
+        let mut uncontrolled = Vec::new();
+        let mut reading = tokio::fs::read_dir(source).await?;
+        while let Some(item) = reading.next_entry().await? {
+            let name = item.file_name().to_string_lossy().into_owned();
+            if name == ".git"
+                || name == ".workbench"
+                || tokio::fs::symlink_metadata(tree.join(&name)).await.is_ok()
+            {
+                continue;
+            }
+            make_link(&item.path(), &tree.join(&name)).await?;
+            let kind = if item.file_type().await?.is_dir() {
+                "folder"
+            } else {
+                "file"
+            };
+            uncontrolled.push(json!({ "path": name, "kind": kind }));
+        }
+        // A link the version itself holds (committed, or saved as uncommitted) that leads out of the snapshot reads
+        // whatever is at its target now, which the version never fixed: listed as uncontrolled, with the target's
+        // content as it was when the run started, so a change during the run is caught too.
+        let made: Vec<String> = uncontrolled
+            .iter()
+            .map(|item| text(item, "path").to_owned())
+            .chain(
+                inputs
+                    .iter()
+                    .filter(|input| text(input, "how") == "linked")
+                    .map(|input| text(input, "path").to_owned()),
+            )
+            .collect();
+        let outward = {
+            let tree = tree.to_path_buf();
+            tokio::task::spawn_blocking(move || outward_links(&tree))
+                .await
+                .map_err(|error| CoreError::new(500, error.to_string()))?
+        };
+        for (path, target) in outward {
+            if made.contains(&path) {
+                continue;
+            }
+            let resolved = tree.join(&path);
+            let kind = match tokio::fs::metadata(&resolved).await {
+                Ok(info) if info.is_dir() => "linked folder",
+                Ok(_) => "linked file",
+                Err(_) => "broken link",
+            };
+            let mut item = json!({ "path": path, "kind": kind, "target": target });
+            if kind == "linked file"
+                && let Ok((sha256, size)) = hash_file(&resolved).await
+            {
+                item["sha256"] = json!(sha256);
+                item["size"] = json!(size);
+            }
+            uncontrolled.push(item);
+        }
+        uncontrolled.sort_by(|left, right| text(left, "path").cmp(text(right, "path")));
+
+        // Every file the run is given, by hash: what it read is checked against this when it ends.
+        let listed = {
+            let tree = tree.to_path_buf();
+            tokio::task::spawn_blocking(move || files_in(&tree))
+                .await
+                .map_err(|error| CoreError::new(500, error.to_string()))?
+        };
+        let mut files = Vec::with_capacity(listed.len());
+        for path in &listed {
+            let (sha256, size) = hash_file(&tree.join(path)).await?;
+            files.push(json!({ "path": path, "sha256": sha256, "size": size }));
+        }
+        {
+            let tree = tree.to_path_buf();
+            let listed = listed.clone();
+            let _ = tokio::task::spawn_blocking(move || protect(&tree, &listed)).await;
+        }
+        let manifest = sha256_hex(serde_json::to_string(&files).unwrap_or_default().as_bytes());
+        Ok(json!({
+            "at": iso_time(now_millis()),
+            "isolation": ISOLATION,
+            "manifestSha256": manifest,
+            "files": files,
+            "inputs": inputs,
+            "uncontrolled": uncontrolled,
+        }))
+    }
+}
+
+/// After the run: checks the snapshot's files in `folder` against what it was given, moves what the program wrote
+/// there into `written`, and removes the snapshot. Linked inputs are checked against their source. A snapshot a
+/// process may still be using (`remove` false) is checked and left in place.
+pub(super) async fn close(
+    folder: &Path,
+    written_to: &Path,
+    observed: &Value,
+    source: &Path,
+    remove: bool,
+) -> Value {
+    {
+        let tree = folder.join("tree");
+        if !tokio::fs::try_exists(&tree).await.unwrap_or(false) {
+            return json!({ "at": iso_time(now_millis()), "checked": false, "reason": "The snapshot was no longer there to check." });
+        }
+        let given: Vec<Value> = observed
+            .get("files")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let mut changed = Vec::new();
+        for file in &given {
+            let path = text(file, "path");
+            let now = hash_file(&tree.join(path))
+                .await
+                .map(|(sha256, _)| sha256)
+                .unwrap_or_default();
+            if now != text(file, "sha256") {
+                changed.push(path.to_owned());
+            }
+        }
+        for input in observed
+            .get("inputs")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            if text(input, "how") != "linked" {
+                continue;
+            }
+            let path = text(input, "path");
+            let now = hash_file(&source.join(path))
+                .await
+                .map(|(sha256, _)| sha256)
+                .unwrap_or_default();
+            if now != text(input, "sha256") && !changed.iter().any(|known| known == path) {
+                changed.push(path.to_owned());
+            }
+        }
+        // A link out of the snapshot whose target's content was taken at the start: still the same at the end?
+        for item in observed
+            .get("uncontrolled")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let Some(before) = item.get("sha256").and_then(Value::as_str) else {
+                continue;
+            };
+            let path = text(item, "path");
+            let now = hash_file(&tree.join(path))
+                .await
+                .map(|(sha256, _)| sha256)
+                .unwrap_or_default();
+            if now != before && !changed.iter().any(|known| known == path) {
+                changed.push(path.to_owned());
+            }
+        }
+        if !remove {
+            return json!({ "at": iso_time(now_millis()), "checked": true, "changed": changed, "written": [], "kept": true });
+        }
+        // Files the program wrote in its working folder are its output: they are kept with the run.
+        let present = {
+            let tree = tree.clone();
+            tokio::task::spawn_blocking(move || files_in(&tree))
+                .await
+                .unwrap_or_default()
+        };
+        let mut written = Vec::new();
+        for path in present {
+            if given.iter().any(|file| text(file, "path") == path) {
+                continue;
+            }
+            let to = written_to.join(&path);
+            if let Some(parent) = to.parent() {
+                let _ = tokio::fs::create_dir_all(parent).await;
+            }
+            if tokio::fs::rename(tree.join(&path), &to).await.is_ok() {
+                written.push(path);
+            }
+        }
+        let _ = tokio::fs::remove_dir_all(folder).await;
+        json!({ "at": iso_time(now_millis()), "checked": true, "changed": changed, "written": written })
+    }
+}

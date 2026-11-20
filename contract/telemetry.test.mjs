@@ -13,7 +13,7 @@ const servers = [];
 const stops = [];
 
 before(async () => {
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-telemetry-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-telemetry-")));
 });
 after(async () => {
   for (const stop of stops) await stop().catch(() => undefined);
@@ -74,7 +74,7 @@ async function scripted(runtime) {
   const model = await listen((_raw, response) => {
     calls += 1;
     const message = calls === 1
-      ? { role: "assistant", content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "github.search", arguments: '{"q":"saturn"}' } }] }
+      ? { role: "assistant", content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "github.search", arguments: '{"q":"workbench"}' } }] }
       : { role: "assistant", content: "done" };
     response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ id: "r", object: "chat.completion", model: "local-model", choices: [{ index: 0, finish_reason: "stop", message }], usage: { prompt_tokens: 12, completion_tokens: 5, total_tokens: 17 } }));
   });
@@ -101,14 +101,14 @@ test("a run is traced end to end, and the Telemetry page and exports read it bac
   const runtime = await start();
   const status = await api(runtime, "GET", "/telemetry/status");
   assert.equal(status.mode, "local");
-  assert.equal(status.serviceName, "saturn-runtime");
+  assert.equal(status.serviceName, "workbench-runtime");
   assert.equal(status.endpoint, null);
   assert.equal(status.file, path.join(runtime.dataDir, "telemetry.json"));
   assert.equal(typeof status.traces, "number");
 
   const { model, agent } = await scripted(runtime);
   const traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
-  const started = await api(runtime, "POST", `/agents/${agent.id}/runs`, { input: "search saturn" }, { traceparent: `00-${traceId}-00f067aa0ba902b7-01` });
+  const started = await api(runtime, "POST", `/agents/${agent.id}/runs`, { input: "search workbench" }, { traceparent: `00-${traceId}-00f067aa0ba902b7-01` });
   const run = await finished(runtime, started.id);
   assert.equal(run.status, "completed", run.error);
   assert.equal(run.actions[0].status, "completed", JSON.stringify(run.actions[0]));
@@ -123,35 +123,35 @@ test("a run is traced end to end, and the Telemetry page and exports read it bac
   assert.equal(request.attributes["http.route"], "/agents/:id/runs");
   assert.equal(request.attributes["http.request.method"], "POST");
   assert.equal(request.attributes["http.response.status_code"], 201);
-  assert.equal(request.scope, "saturn-runtime");
+  assert.equal(request.scope, "workbench-runtime");
 
   const invoke = named("invoke_agent Research");
   assert.equal(invoke.attributes["gen_ai.operation.name"], "invoke_agent");
   assert.equal(invoke.attributes["gen_ai.agent.id"], agent.id);
   assert.equal(invoke.attributes["gen_ai.agent.name"], "Research");
-  assert.equal(invoke.attributes["saturn.run.id"], run.id);
-  assert.equal(invoke.attributes["saturn.run.status"], "completed");
-  assert.equal(invoke.attributes["saturn.run.actions"], 1);
+  assert.equal(invoke.attributes["workbench.run.id"], run.id);
+  assert.equal(invoke.attributes["workbench.run.status"], "completed");
+  assert.equal(invoke.attributes["workbench.run.actions"], 1);
   assert.equal(invoke.attributes["gen_ai.provider.name"], "openai");
-  assert.equal(invoke.attributes["saturn.agent.autonomy"], "bypass");
+  assert.equal(invoke.attributes["workbench.agent.autonomy"], "bypass");
   assert.equal(invoke.parentSpanId, request.spanId, "the run belongs to the request that started it");
 
   const chats = spans.filter((span) => span.name === "chat local-model");
   assert.equal(chats[0].kind, "client");
   assert.equal(chats[0].attributes["gen_ai.provider.name"], "openai");
   assert.equal(chats[0].attributes["gen_ai.request.model"], "local-model");
-  assert.equal(chats[0].attributes["saturn.llm.adapter"], "openai-chat");
+  assert.equal(chats[0].attributes["workbench.llm.adapter"], "openai-chat");
   assert.equal(chats[0].attributes["server.address"], "127.0.0.1");
   assert.equal(chats[0].attributes["gen_ai.usage.input_tokens"], 12);
   assert.equal(chats[0].attributes["gen_ai.usage.output_tokens"], 5);
-  assert.equal(chats[0].attributes["saturn.llm.tool_calls"], 1);
+  assert.equal(chats[0].attributes["workbench.llm.tool_calls"], 1);
   assert.equal(chats[0].parentSpanId, invoke.spanId);
-  assert.ok(chats[0].attributes["saturn.llm.tools.offered"] >= 1);
+  assert.ok(chats[0].attributes["workbench.llm.tools.offered"] >= 1);
 
   const tool = named("execute_tool github.search");
   assert.equal(tool.attributes["gen_ai.tool.name"], "github.search");
-  assert.equal(tool.attributes["saturn.tool.kind"], "mcp");
-  assert.equal(tool.attributes["saturn.tool.status"], "completed");
+  assert.equal(tool.attributes["workbench.tool.kind"], "mcp");
+  assert.equal(tool.attributes["workbench.tool.status"], "completed");
   assert.equal(tool.parentSpanId, invoke.spanId);
   const rpc = named("mcp tools/call github.search");
   assert.equal(rpc.kind, "client");
@@ -177,19 +177,19 @@ test("a run is traced end to end, and the Telemetry page and exports read it bac
   assert.equal(input.histogram.counts.length, input.histogram.boundaries.length + 1);
   assert.deepEqual(input.histogram.boundaries, [1, 4, 16, 64, 256, 1024, 4096, 16384, 65536, 262144, 1048576]);
   assert.equal(input.histogram.counts[2], 2, "12 falls in the bucket up to 16");
-  const runs = metric("saturn.agent.runs");
+  const runs = metric("workbench.agent.runs");
   assert.equal(runs.type, "sum");
   assert.equal(runs.monotonic, true);
-  assert.equal(runs.points.find((point) => point.attributes["saturn.run.status"] === "completed").value, 1);
-  assert.equal(metric("saturn.tool.calls").points.find((point) => point.attributes["gen_ai.tool.name"] === "github.search").value, 1);
-  for (const name of ["gen_ai.client.operation.duration", "saturn.agent.run.duration", "saturn.tool.duration", "saturn.mcp.request.duration", "saturn.store.write.duration", "http.server.request.duration", "saturn.agent.runs.active"]) {
+  assert.equal(runs.points.find((point) => point.attributes["workbench.run.status"] === "completed").value, 1);
+  assert.equal(metric("workbench.tool.calls").points.find((point) => point.attributes["gen_ai.tool.name"] === "github.search").value, 1);
+  for (const name of ["gen_ai.client.operation.duration", "workbench.agent.run.duration", "workbench.tool.duration", "workbench.mcp.request.duration", "workbench.store.write.duration", "http.server.request.duration", "workbench.agent.runs.active"]) {
     assert.ok(metric(name)?.points.length, `${name} has points`);
   }
-  assert.equal(metric("saturn.agent.runs.active").points[0].value, 0);
+  assert.equal(metric("workbench.agent.runs.active").points[0].value, 0);
 
   // Logs carry the trace they happened in.
   const inTrace = await api(runtime, "GET", `/telemetry/logs?traceId=${traceId}`);
-  assert.ok(inTrace.some((line) => line.body.includes("Research completed") && line.severity === "INFO" && line.severityNumber === 9 && line.attributes["saturn.service"]), JSON.stringify(inTrace.map((line) => line.body)));
+  assert.ok(inTrace.some((line) => line.body.includes("Research completed") && line.severity === "INFO" && line.severityNumber === 9 && line.attributes["workbench.service"]), JSON.stringify(inTrace.map((line) => line.body)));
   assert.deepEqual(await api(runtime, "GET", "/telemetry/logs?minSeverity=23"), []);
 
   // Plain reads are routine, and looking at telemetry is not itself traced.
@@ -219,18 +219,18 @@ test("a run is traced end to end, and the Telemetry page and exports read it bac
 
   // The three formats.
   const saved = await raw(runtime, "GET", "/telemetry/export");
-  assert.match(saved.headers.get("content-disposition"), /attachment; filename="saturn-telemetry-\d{4}-\d\d-\d\d-\d\d-\d\d-\d\d\.json"/);
+  assert.match(saved.headers.get("content-disposition"), /attachment; filename="workbench-telemetry-\d{4}-\d\d-\d\d-\d\d-\d\d-\d\d\.json"/);
   assert.match(saved.headers.get("content-type"), /application\/json; charset=utf-8/i);
   const document = await saved.json();
-  assert.equal(document.format, "saturn-telemetry");
+  assert.equal(document.format, "workbench-telemetry");
   assert.equal(document.version, 1);
-  assert.equal(document.service.name, "saturn-runtime");
+  assert.equal(document.service.name, "workbench-runtime");
   assert.ok(document.traces.some((item) => item.traceId === traceId));
   assert.ok(document.metrics.some((item) => item.name === "gen_ai.client.token.usage"));
-  assert.deepEqual(JSON.parse(await readFile(path.join(runtime.dataDir, "telemetry.json"), "utf8")).format, "saturn-telemetry");
+  assert.deepEqual(JSON.parse(await readFile(path.join(runtime.dataDir, "telemetry.json"), "utf8")).format, "workbench-telemetry");
 
   const otlp = await raw(runtime, "GET", "/telemetry/export?format=otlp");
-  assert.match(otlp.headers.get("content-disposition"), /saturn-telemetry-otlp-.*\.jsonl"/);
+  assert.match(otlp.headers.get("content-disposition"), /workbench-telemetry-otlp-.*\.jsonl"/);
   assert.match(otlp.headers.get("content-type"), /application\/x-ndjson/);
   const [traces, logs, metricLines] = (await otlp.text()).trim().split("\n").map((line) => JSON.parse(line));
   const otlpSpans = traces.resourceSpans[0].scopeSpans.flatMap((scope) => scope.spans);
@@ -242,12 +242,12 @@ test("a run is traced end to end, and the Telemetry page and exports read it bac
   assert.equal(metricLines.resourceMetrics[0].scopeMetrics[0].metrics.find((item) => item.name === "gen_ai.client.token.usage").histogram.aggregationTemporality, 2);
 
   const siem = await raw(runtime, "GET", "/telemetry/export?format=siem");
-  assert.match(siem.headers.get("content-disposition"), /saturn-telemetry-siem-.*\.ndjson"/);
+  assert.match(siem.headers.get("content-disposition"), /workbench-telemetry-siem-.*\.ndjson"/);
   const events = (await siem.text()).trim().split("\n").map((line) => JSON.parse(line));
   assert.deepEqual(events.map((event) => event["@timestamp"]), events.map((event) => event["@timestamp"]).sort());
-  assert.ok(events.some((event) => event.event.dataset === "saturn.traces" && event.trace.id === traceId));
-  assert.ok(events.some((event) => event.event.dataset === "saturn.logs"));
-  assert.ok(events.some((event) => event.event.dataset === "saturn.metrics"));
+  assert.ok(events.some((event) => event.event.dataset === "workbench.traces" && event.trace.id === traceId));
+  assert.ok(events.some((event) => event.event.dataset === "workbench.logs"));
+  assert.ok(events.some((event) => event.event.dataset === "workbench.metrics"));
 
   // Clearing.
   assert.equal((await raw(runtime, "DELETE", "/telemetry")).status, 204);
@@ -258,7 +258,7 @@ test("a run is traced end to end, and the Telemetry page and exports read it bac
 });
 
 test("telemetry survives a restart, polling alone writes nothing, and a broken file is replaced", async () => {
-  const dataDir = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-telemetry-data-")));
+  const dataDir = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-telemetry-data-")));
   const file = path.join(dataDir, "telemetry.json");
   let runtime = await startRuntime({ dataDir, keepData: true });
   try {
@@ -270,7 +270,7 @@ test("telemetry survives a restart, polling alone writes nothing, and a broken f
   
     await runtime.stop();
     const stored = JSON.parse(await readFile(file, "utf8"));
-    assert.equal(stored.format, "saturn-telemetry");
+    assert.equal(stored.format, "workbench-telemetry");
     assert.ok(stored.traces.some((trace) => trace.spans.some((span) => span.name === "GET /runs/:id")), "saved when the runtime stops");
     assert.ok(!stored.traces.some((trace) => trace.spans.some((span) => span.name === "GET /agents")), "polling is not worth saving");
 
@@ -285,7 +285,7 @@ test("telemetry survives a restart, polling alone writes nothing, and a broken f
     assert.equal((await api(runtime, "GET", "/telemetry/status")).savedAt, null);
     assert.equal((await raw(runtime, "GET", "/runs/run_none")).status, 404);
     await until("the save", () => api(runtime, "GET", "/telemetry/export").then((document) => document.format));
-    assert.equal(JSON.parse(await readFile(file, "utf8")).format, "saturn-telemetry");
+    assert.equal(JSON.parse(await readFile(file, "utf8")).format, "workbench-telemetry");
     await runtime.stop();
     runtime = undefined;
   } finally {
@@ -312,10 +312,10 @@ test("with an endpoint set, telemetry goes to the collector, with its headers", 
   const collector = await listen((_raw, response) => {
     response.writeHead(200, { "content-type": "application/json" }).end("{}");
   });
-  const runtime = await start({ env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_EXPORTER_OTLP_HEADERS: "x-collector-key=made-up-value", OTEL_BSP_SCHEDULE_DELAY: "100", OTEL_BLRP_SCHEDULE_DELAY: "100", OTEL_METRIC_EXPORT_INTERVAL: "200", OTEL_SERVICE_NAME: "my-saturn" } });
+  const runtime = await start({ env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_EXPORTER_OTLP_HEADERS: "x-collector-key=made-up-value", OTEL_BSP_SCHEDULE_DELAY: "100", OTEL_BLRP_SCHEDULE_DELAY: "100", OTEL_METRIC_EXPORT_INTERVAL: "200", OTEL_SERVICE_NAME: "my-workbench" } });
   const status = await api(runtime, "GET", "/telemetry/status");
   assert.equal(status.mode, "otlp");
-  assert.equal(status.serviceName, "my-saturn");
+  assert.equal(status.serviceName, "my-workbench");
   assert.equal(status.endpoint, collector.url);
   assert.equal((await raw(runtime, "GET", "/runs/run_none")).status, 404);
   const paths = () => new Set(collector.seen.map((request) => request.url));
@@ -332,7 +332,7 @@ test("with an endpoint set, telemetry goes to the collector, with its headers", 
     // A request's span may come in a later batch than the first.
     const spans = () => collector.seen.filter((request) => request.url === "/v1/traces").flatMap((request) => JSON.parse(request.raw).resourceSpans.flatMap((resource) => resource.scopeSpans.flatMap((scope) => scope.spans)));
     await until("the request's span", spans, (found) => found.some((span) => span.name === "GET /runs/:id"));
-    assert.equal(body.resourceSpans[0].resource.attributes.find((item) => item.key === "service.name").value.stringValue, "my-saturn");
+    assert.equal(body.resourceSpans[0].resource.attributes.find((item) => item.key === "service.name").value.stringValue, "my-workbench");
   }
   assert.ok(!(await readFile(path.join(runtime.dataDir, "network.log"), "utf8")).includes("made-up-value"));
 });

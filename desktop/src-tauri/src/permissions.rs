@@ -1,4 +1,4 @@
-//! macOS permissions for computer use, asked by Saturn itself: macOS shows its own prompt and lists Saturn in System
+//! macOS permissions for computer use, asked by Eisoptric Workbench itself: macOS shows its own prompt and lists Eisoptric Workbench in System
 //! Settings, so there is nothing to find or add by hand.
 use serde::Serialize;
 

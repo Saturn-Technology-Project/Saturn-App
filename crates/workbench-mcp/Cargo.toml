@@ -1,0 +1,27 @@
+[package]
+name = "workbench-mcp"
+description = "An MCP client: Streamable HTTP, older SSE servers, plain JSON-RPC and local programs over stdio, with OAuth sign-in"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+base64 = "0.23"
+getrandom = { version = "0.4", features = ["std"] }
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+workbench-store = { path = "../workbench-store" }
+workbench-telemetry = { path = "../workbench-telemetry" }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
+sha2 = "0.11"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
+url = "2"
+
+[dev-dependencies]
+axum = "0.8"
+futures-util = { version = "0.3", default-features = false }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync"] }

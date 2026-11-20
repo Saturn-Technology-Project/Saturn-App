@@ -2,7 +2,7 @@
 //! policy that decodes encodes back to the same argument.
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use saturn_appcontainer::{Policy, split_command_line};
+use workbench_appcontainer::{Policy, split_command_line};
 
 fuzz_target!(|data: &[u8]| {
     let line: Vec<u16> = data

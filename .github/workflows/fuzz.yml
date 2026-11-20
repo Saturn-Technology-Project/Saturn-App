@@ -1,6 +1,6 @@
 name: Fuzz
 
-# Feeds the parsers that read text Saturn did not write (an agent's patch, a hook's answer, a project's skill file and
+# Feeds the parsers that read text Eisoptric Workbench did not write (an agent's patch, a hook's answer, a project's skill file and
 # the Windows sandbox launcher's command line) with generated input for a few minutes each, on changes to them and
 # weekly. A crash fails the run and its input is kept as an artifact. Targets are in fuzz/.
 
@@ -8,8 +8,8 @@ on:
   pull_request:
     paths:
       - "fuzz/**"
-      - "crates/saturn-domain/**"
-      - "crates/saturn-appcontainer/**"
+      - "crates/workbench-domain/**"
+      - "crates/workbench-appcontainer/**"
       - ".github/workflows/fuzz.yml"
   schedule:
     - cron: "17 3 * * 6"

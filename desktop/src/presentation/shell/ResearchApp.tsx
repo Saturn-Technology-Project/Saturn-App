@@ -44,7 +44,7 @@ const SCREEN_LABELS = screenLabels(t);
 
 function storedTheme(): "light" | "dark" {
   try {
-    const saved = localStorage.getItem("saturn-theme");
+    const saved = localStorage.getItem("workbench-theme");
     if (saved === "light" || saved === "dark") return saved;
   } catch {
     // Falls back on the system's choice.
@@ -91,7 +91,7 @@ export function ResearchApp() {
   const title = windowTitle(SCREEN_LABELS[screen], project?.name ?? null);
   useEffect(() => {
     document.title = title;
-    void window.saturnDesktop?.setTitle?.(title);
+    void window.workbenchDesktop?.setTitle?.(title);
   }, [title]);
 
   const syncProjects = useCallback(async () => {
@@ -109,14 +109,14 @@ export function ResearchApp() {
     if (!runtimeReady) return;
     syncProjects()
       .then(() => setNotice(null))
-      .catch((error: unknown) => setNotice(t("Saturn's runtime is not answering: {reason}", { reason: messageOf(error) })))
+      .catch((error: unknown) => setNotice(t("Eisoptric Workbench's runtime is not answering: {reason}", { reason: messageOf(error) })))
       .finally(() => setLoaded(true));
   }, [runtimeReady, syncProjects]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try {
-      localStorage.setItem("saturn-theme", theme);
+      localStorage.setItem("workbench-theme", theme);
     } catch {
       // Only remembers the choice.
     }
@@ -154,10 +154,10 @@ export function ResearchApp() {
   }, [go, toggleAssistant]);
 
   // Closing the window (outside macOS, where that quits) asks first while something still works, since quitting stops it.
-  useEffect(() => window.saturnDesktop?.onCloseRequested?.(() => void confirmQuit()), []);
+  useEffect(() => window.workbenchDesktop?.onCloseRequested?.(() => void confirmQuit()), []);
 
   // A notification about a task opens Tasks.
-  useEffect(() => window.saturnDesktop?.onOpenThread?.(() => go("Tasks")), [go]);
+  useEffect(() => window.workbenchDesktop?.onOpenThread?.(() => go("Tasks")), [go]);
 
   async function addProject() {
     try {
@@ -192,7 +192,7 @@ export function ResearchApp() {
       { id: "theme", label: theme === "dark" ? t("Use the light theme") : t("Use the dark theme"), run: () => setTheme(theme === "dark" ? "light" : "dark") },
       { id: "settings", label: t("Open Settings"), hint: shortcut("⌘,"), run: () => setSettings(true) },
       { id: "tour", label: t("Take the tour"), run: () => setTour(true) },
-      ...(runtime.restart ? [{ id: "restart-runtime", label: t("Restart Saturn's runtime"), run: () => void runtime.restart?.() }] : []),
+      ...(runtime.restart ? [{ id: "restart-runtime", label: t("Restart Eisoptric Workbench's runtime"), run: () => void runtime.restart?.() }] : []),
     ],
     // The commands close over the latest state each time they are rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,7 +211,7 @@ export function ResearchApp() {
   } else if (!project.access) {
     body = (
       <Empty title={t("Allow access to {project}", { project: project.name })} action={<Button onClick={() => setAccessRequest({ path: project.path, name: project.name, projectId: project.id })}>{t("Review access")}</Button>}>
-        {t("Saturn reads and writes this folder only after you allow it.")}
+        {t("Eisoptric Workbench reads and writes this folder only after you allow it.")}
       </Empty>
     );
   } else {
@@ -297,5 +297,5 @@ async function confirmQuit(): Promise<void> {
   const waited = new Promise<null>((resolve) => setTimeout(() => resolve(null), ACTIVITY_WAIT));
   const activity = await Promise.race([desktop.admin.activity().catch(() => null), waited]);
   const question = activity ? quitQuestion(activity, t) : null;
-  if (question === null || (await askToConfirm(question))) await window.saturnDesktop?.quit?.();
+  if (question === null || (await askToConfirm(question))) await window.workbenchDesktop?.quit?.();
 }

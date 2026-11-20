@@ -1,0 +1,711 @@
+//! A managed Python environment in the project: made with `uv` when it is on this computer (on PATH, or Eisoptric Workbench's own
+//! download of it), else with `python3 -m venv`, and filled with kits of packages, one that Eisoptric Workbench's own helpers need
+//! and others the person picks. A computer with uv and no Python gets one from uv as the environment is made. Every
+//! change is a job whose output is kept, and nothing is installed without being asked.
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::process::Stdio;
+use std::sync::Arc;
+use std::time::Duration;
+
+use serde_json::{Value, json};
+use tokio::process::Command;
+use workbench_domain::new_id;
+use workbench_domain::research::SCHEMA_VERSION;
+use workbench_domain::time::{iso_time, now_millis};
+use workbench_tools::sandbox::Platform;
+use workbench_tools::shell::{process_env, shell_invocation};
+use workbench_tools::{EndOnDrop, in_own_group, launch_env};
+
+use super::{pretty, read_record, write_whole};
+use crate::records::text;
+use crate::{CoreError, Kernel, locked};
+
+/// Where the managed environment lives in the project.
+pub(super) const VENV: &str = ".venv";
+/// The job's record and log in the research folder.
+const JOB_FILE: &str = "environment-job.json";
+const LOG_FILE: &str = "environment-job.log";
+/// How many lines of the log a reading gives.
+const LOG_TAIL: usize = 40;
+/// Installs may download large packages, but a stuck job must not hold its project forever.
+const DEFAULT_TIMEOUT_SECONDS: u64 = 30 * 60;
+
+/// The whole job's deadline, including every create/install step, from one second to one day.
+fn timeout_seconds(request: &Value) -> Result<u64, CoreError> {
+    match request.get("timeoutSeconds") {
+        None => Ok(DEFAULT_TIMEOUT_SECONDS),
+        Some(value) => value
+            .as_u64()
+            .filter(|seconds| (1..=86_400).contains(seconds))
+            .ok_or_else(|| {
+                CoreError::new(400, "timeoutSeconds must be an integer from 1 to 86400.")
+            }),
+    }
+}
+
+/// A kit of packages: what it is for, and what it holds.
+pub(super) struct Kit {
+    pub id: &'static str,
+    pub title: &'static str,
+    pub what: &'static str,
+    pub packages: &'static [&'static str],
+    /// Installed with the environment unless declined: Eisoptric Workbench's own helpers need it.
+    pub bundled: bool,
+}
+
+pub(super) const KITS: [Kit; 6] = [
+    Kit {
+        id: "core",
+        title: "What Eisoptric Workbench's helpers need",
+        what: "Looking inside a model and the environment check load models with these. Installed with the environment unless you say not to.",
+        packages: &["torch", "transformers", "numpy"],
+        bundled: true,
+    },
+    Kit {
+        id: "interpretability",
+        title: "Interpretability",
+        what: "TransformerLens for hooks and patching, SAELens for sparse autoencoders, einops for the tensor shapes.",
+        packages: &["transformer_lens", "sae_lens", "einops"],
+        bundled: false,
+    },
+    Kit {
+        id: "training",
+        title: "Post-training",
+        what: "TRL for SFT and DPO, PEFT for adapters, datasets and accelerate underneath them.",
+        packages: &["trl", "peft", "datasets", "accelerate"],
+        bundled: false,
+    },
+    Kit {
+        id: "analysis",
+        title: "Analysis",
+        what: "pandas and matplotlib for tables and figures from a run's samples.",
+        packages: &["pandas", "matplotlib"],
+        bundled: false,
+    },
+    Kit {
+        id: "notebooks",
+        title: "Notebooks",
+        what: "Jupyter and a kernel, for notebooks beside the code.",
+        packages: &["jupyter", "ipykernel"],
+        bundled: false,
+    },
+    Kit {
+        id: "language-server",
+        title: "Python language server",
+        what: "Basedpyright for type inference, completions, diagnostics and definition navigation in source files.",
+        packages: &["basedpyright"],
+        bundled: false,
+    },
+];
+
+/// The first place on PATH that has a program. Windows spells a program `name.exe`, and its Python is `python.exe`
+/// (the Store's `python3.exe` alias aside), so each name is tried as that system spells it. An empty file is not a
+/// program: the Store leaves zero-length `python.exe` and `python3.exe` aliases on PATH that only open the Store.
+pub(super) fn on_path(name: &str) -> Option<PathBuf> {
+    program_in(&std::env::var_os("PATH")?, name)
+}
+
+/// `on_path` against a given PATH.
+fn program_in(path: &std::ffi::OsStr, name: &str) -> Option<PathBuf> {
+    let spellings: Vec<String> = if cfg!(windows) && Path::new(name).extension().is_some() {
+        // Already spelled whole, as `python.exe` or a `python.bat` shim.
+        vec![name.to_owned()]
+    } else if cfg!(windows) {
+        let mut spellings = vec![format!("{name}.exe")];
+        if name == "python3" {
+            spellings.push("python.exe".to_owned());
+        }
+        spellings
+    } else {
+        vec![name.to_owned()]
+    };
+    std::env::split_paths(path).find_map(|folder| {
+        spellings
+            .iter()
+            .map(|spelling| folder.join(spelling))
+            .find(|candidate| {
+                candidate
+                    .metadata()
+                    .is_ok_and(|found| found.is_file() && found.len() > 0)
+            })
+    })
+}
+
+/// The managed interpreter's path inside the project, as the record says it.
+fn venv_python() -> String {
+    if cfg!(windows) {
+        format!("{VENV}/Scripts/python.exe")
+    } else {
+        format!("{VENV}/bin/python")
+    }
+}
+
+/// A package name as a command-line word: letters, digits, `-`, `_`, `.` (not first), and a version pin after them.
+fn clean_package(name: &str) -> Result<&str, CoreError> {
+    let allowed =
+        |character: char| character.is_ascii_alphanumeric() || "-_.[]=<>!~,".contains(character);
+    // A leading dot names a path (`.` builds the project's own setup.py), not a package from the index.
+    if name.is_empty()
+        || name.len() > 100
+        || !name.chars().all(allowed)
+        || name.starts_with('-')
+        || name.starts_with('.')
+    {
+        return Err(CoreError::new(
+            400,
+            format!("{name:?} is not a package name."),
+        ));
+    }
+    Ok(name)
+}
+
+/// A shell word with no interpretation: single quotes for the POSIX shell, double quotes for cmd, which knows no other.
+fn quoted(word: &str) -> String {
+    if cfg!(windows) {
+        format!("\"{}\"", word.replace('"', "\\\""))
+    } else {
+        format!("'{}'", word.replace('\'', "'\\''"))
+    }
+}
+
+/// The shell's arguments as it takes them: cmd gets the script verbatim, since it does not understand the \" escaping
+/// the usual quoting would add.
+#[cfg(windows)]
+fn shell_arguments(command: &mut Command, shell: &workbench_tools::shell::Invocation) {
+    if shell.verbatim {
+        for argument in &shell.args {
+            command.raw_arg(argument);
+        }
+    } else {
+        command.args(&shell.args);
+    }
+}
+
+#[cfg(not(windows))]
+fn shell_arguments(command: &mut Command, shell: &workbench_tools::shell::Invocation) {
+    command.args(&shell.args);
+}
+
+/// Where uv keeps the Pythons it installs, so a job that installs one may write there: UV_PYTHON_INSTALL_DIR when set,
+/// else uv's data folder.
+fn uv_python_folders() -> Vec<String> {
+    if let Some(folder) =
+        std::env::var_os("UV_PYTHON_INSTALL_DIR").filter(|folder| !folder.is_empty())
+    {
+        return vec![folder.to_string_lossy().into_owned()];
+    }
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .filter(|folder| !folder.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| std::env::home_dir().map(|home| home.join(".local/share")));
+    data.map(|folder| folder.join("uv").to_string_lossy().into_owned())
+        .into_iter()
+        .collect()
+}
+
+/// The word a job's command calls uv by: its name when the one on PATH is used, since the shell finds it as the person
+/// would, and its quoted path when it is Eisoptric Workbench's own download.
+fn uv_word(tools: &Value) -> Option<String> {
+    let path = tools.get("uv")?.as_str()?;
+    Some(if text(tools, "uvSource") == "system" {
+        "uv".to_owned()
+    } else {
+        quoted(path)
+    })
+}
+
+impl Kernel {
+    /// Which tools this computer has for making environments, and whether the project's managed one exists. uv is
+    /// Eisoptric Workbench's own download when there is one (`/programs/uv`), else the one on PATH.
+    pub(super) fn environment_tools(&self, source: &Path) -> Value {
+        let python = source.join(venv_python());
+        let uv = self.resolve_program("uv");
+        json!({
+            "uv": uv.as_ref().map(|(path, _)| path.to_string_lossy().into_owned()),
+            "uvSource": uv.as_ref().map(|(_, source)| *source),
+            "python3": on_path("python3").map(|path| path.to_string_lossy().into_owned()),
+            "managed": { "path": VENV, "python": venv_python(), "exists": python.is_file() },
+        })
+    }
+
+    /// The kits, each package with the version the last check reported, when the check was of the managed interpreter.
+    pub(super) fn environment_kits(record: &Value) -> Value {
+        let checked_managed = text(record, "checkedWith") == venv_python();
+        let installed = record
+            .get("report")
+            .and_then(|report| report.get("packages"));
+        json!(
+            KITS.iter()
+                .map(|kit| {
+                    json!({
+                        "id": kit.id,
+                        "title": kit.title,
+                        "what": kit.what,
+                        "bundled": kit.bundled,
+                        "packages": kit.packages.iter().map(|name| json!({
+                            "name": name,
+                            "installed": if checked_managed { installed.and_then(|found| found.get(*name)).cloned().unwrap_or(Value::Null) } else { Value::Null },
+                        })).collect::<Vec<_>>(),
+                    })
+                })
+                .collect::<Vec<_>>()
+        )
+    }
+
+    /// The job record with its log's end, and whether it is still running here.
+    pub(super) async fn environment_job(&self, records: &Path) -> Result<Value, CoreError> {
+        let Some(mut job) = read_record(&records.join(JOB_FILE))
+            .await
+            .map_err(|reason| CoreError::new(422, reason))?
+        else {
+            return Ok(Value::Null);
+        };
+        let running_here = locked(&self.research.environment_jobs).contains(records);
+        if text(&job, "status") == "running" && !running_here {
+            // This runtime did not start it, so the process is gone with the runtime that did.
+            job["status"] = json!("interrupted");
+        }
+        let log = tokio::fs::read_to_string(records.join(LOG_FILE))
+            .await
+            .unwrap_or_default();
+        let lines: Vec<&str> = log.lines().collect();
+        let start = lines.len().saturating_sub(LOG_TAIL);
+        job["logTail"] = json!(lines[start..].join("\n"));
+        job["logLines"] = json!(lines.len());
+        Ok(job)
+    }
+
+    /// Makes the managed environment, with the bundled kit unless declined.
+    pub async fn research_create_environment(
+        self: &Arc<Self>,
+        project: &str,
+        request: &Value,
+    ) -> Result<Value, CoreError> {
+        let timeout = timeout_seconds(request)?;
+        let source = self.research_source(project, None)?;
+        let tools = self.environment_tools(&source);
+        let version = text(request, "python").trim().to_owned();
+        if !version.is_empty()
+            && !version
+                .chars()
+                .all(|character| character.is_ascii_digit() || character == '.')
+        {
+            return Err(CoreError::new(
+                400,
+                "A Python version is digits and dots, such as 3.12.",
+            ));
+        }
+        let mut commands = Vec::new();
+        // A Python uv installs goes into uv's own folder alone: no links in ~/.local/bin, nothing in the Windows registry.
+        let mut environment = vec![
+            ("UV_PYTHON_INSTALL_BIN", "0"),
+            ("UV_PYTHON_INSTALL_REGISTRY", "0"),
+        ];
+        let has_python = tools.get("python3").is_some_and(|python| !python.is_null());
+        if let Some(uv) = uv_word(&tools) {
+            let pick = if version.is_empty() {
+                String::new()
+            } else {
+                format!(" {}", quoted(&version))
+            };
+            // With no Python on this computer, uv installs one first (the newest stable, or the version asked for);
+            // uv would fetch it on its own, but a step of its own shows in the log what was downloaded and why. The
+            // environment is then made from that Python, not from one uv finds elsewhere (a conda prefix, say).
+            if !has_python {
+                commands.push(format!("{uv} python install{pick}"));
+                environment.push(("UV_MANAGED_PYTHON", "1"));
+            }
+            let pick = if version.is_empty() {
+                String::new()
+            } else {
+                format!(" --python {}", quoted(&version))
+            };
+            commands.push(format!("{uv} venv{pick} {}", quoted(VENV)));
+        } else if has_python {
+            if !version.is_empty() {
+                return Err(CoreError::new(
+                    422,
+                    "Only uv can pick a Python version. Without it, the environment is made from the python3 on this computer: leave the version empty.",
+                ));
+            }
+            // Windows has python.exe rather than python3, so the Python found on PATH is named by its path there.
+            let python3 = if cfg!(windows) {
+                quoted(tools["python3"].as_str().unwrap_or("python"))
+            } else {
+                "python3".to_owned()
+            };
+            commands.push(format!("{python3} -m venv {}", quoted(VENV)));
+        } else {
+            return Err(CoreError::new(
+                422,
+                "Neither uv nor python3 is on this computer's PATH. Download uv in Environment (it installs Python too), or install Python, then try again.",
+            ));
+        }
+        if request
+            .get("withCore")
+            .and_then(Value::as_bool)
+            .unwrap_or(true)
+        {
+            let core = KITS
+                .iter()
+                .find(|kit| kit.bundled)
+                .map(|kit| kit.packages)
+                .unwrap_or(&[]);
+            commands.push(self.install_command(&tools, core));
+        }
+        self.start_environment_job(
+            project,
+            "create",
+            commands,
+            &environment,
+            Some(venv_python()),
+            timeout,
+        )
+        .await
+    }
+
+    /// Installs packages into the managed environment: a kit's, named ones, or what the project's lock file says.
+    pub async fn research_install_packages(
+        self: &Arc<Self>,
+        project: &str,
+        request: &Value,
+    ) -> Result<Value, CoreError> {
+        let timeout = timeout_seconds(request)?;
+        let source = self.research_source(project, None)?;
+        let tools = self.environment_tools(&source);
+        if !tools
+            .pointer("/managed/exists")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            return Err(CoreError::new(
+                422,
+                "There is no managed environment yet. Create it first.",
+            ));
+        }
+        let mut commands = Vec::new();
+        let kind;
+        if request
+            .get("sync")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            kind = "sync";
+            commands.push(self.sync_command(&source, &tools)?);
+        } else {
+            kind = "install";
+            let mut packages: Vec<String> = Vec::new();
+            if let Some(kit_id) = request.get("kit").and_then(Value::as_str) {
+                let kit = KITS
+                    .iter()
+                    .find(|kit| kit.id == kit_id)
+                    .ok_or_else(|| CoreError::new(404, format!("No kit {kit_id:?}.")))?;
+                packages.extend(kit.packages.iter().map(|name| (*name).to_owned()));
+            }
+            for name in request
+                .get("packages")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+            {
+                packages.push(clean_package(name.trim())?.to_owned());
+            }
+            if packages.is_empty() {
+                return Err(CoreError::new(400, "Name a kit or packages to install."));
+            }
+            let words: Vec<&str> = packages.iter().map(String::as_str).collect();
+            commands.push(self.install_command(&tools, &words));
+        }
+        self.start_environment_job(project, kind, commands, &[], None, timeout)
+            .await
+    }
+
+    /// Ends the running job's processes.
+    pub async fn research_stop_environment_job(&self, project: &str) -> Result<Value, CoreError> {
+        let records = self.records_folder(project).await?;
+        let job = self.environment_job(&records).await?;
+        if text(&job, "status") != "running" {
+            return Err(CoreError::new(409, "No job is running."));
+        }
+        if let Some(pid) = job.get("pid").and_then(Value::as_u64) {
+            super::runs::end_group(pid as u32).await;
+        }
+        Ok(job)
+    }
+
+    /// The install command the tools allow: uv's pip against the managed interpreter, else the interpreter's own pip.
+    fn install_command(&self, tools: &Value, packages: &[&str]) -> String {
+        let words: Vec<String> = packages.iter().map(|name| quoted(name)).collect();
+        if let Some(uv) = uv_word(tools) {
+            format!(
+                "{uv} pip install --python {} {}",
+                quoted(&venv_python()),
+                words.join(" ")
+            )
+        } else {
+            format!(
+                "{} -m pip install --disable-pip-version-check {}",
+                quoted(&venv_python()),
+                words.join(" ")
+            )
+        }
+    }
+
+    /// The command that brings the environment to what the project's lock file says.
+    fn sync_command(&self, source: &Path, tools: &Value) -> Result<String, CoreError> {
+        let has = |name: &str| source.join(name).is_file();
+        let uv = uv_word(tools);
+        if let Some(uv) = &uv
+            && has("uv.lock")
+        {
+            return Ok(format!("{uv} sync"));
+        }
+        for file in ["requirements.lock", "requirements.txt"] {
+            if has(file) {
+                return Ok(if let Some(uv) = &uv {
+                    format!(
+                        "{uv} pip install --python {} -r {}",
+                        quoted(&venv_python()),
+                        quoted(file)
+                    )
+                } else {
+                    format!(
+                        "{} -m pip install --disable-pip-version-check -r {}",
+                        quoted(&venv_python()),
+                        quoted(file)
+                    )
+                });
+            }
+        }
+        if has("pyproject.toml") {
+            return Ok(if let Some(uv) = &uv {
+                format!("{uv} sync")
+            } else {
+                format!(
+                    "{} -m pip install --disable-pip-version-check -e .",
+                    quoted(&venv_python())
+                )
+            });
+        }
+        Err(CoreError::new(
+            422,
+            "No lock file to sync from: a uv.lock, requirements.txt, requirements.lock or pyproject.toml at the project's root.",
+        ))
+    }
+
+    /// Runs commands one after another in the project, with `environment` set for them, recording the job and its
+    /// output; one job at a time per project.
+    async fn start_environment_job(
+        self: &Arc<Self>,
+        project: &str,
+        kind: &str,
+        commands: Vec<String>,
+        environment: &[(&str, &str)],
+        set_python_after: Option<String>,
+        timeout_seconds: u64,
+    ) -> Result<Value, CoreError> {
+        let source = self.research_source(project, None)?;
+        let records = self.records_for_writing(project).await?;
+        // The record is written before the running set is cleared, so a job whose record says it ended is over.
+        let ended = read_record(&records.join(JOB_FILE))
+            .await
+            .ok()
+            .flatten()
+            .is_some_and(|job| text(&job, "status") != "running");
+        {
+            let mut running = locked(&self.research.environment_jobs);
+            if running.contains(&records) && !ended {
+                return Err(CoreError::new(
+                    409,
+                    "A job is already running for this project. Wait for it or stop it.",
+                ));
+            }
+            running.insert(records.clone());
+        }
+        // Each command is echoed before it runs, so the log reads as a terminal would; cmd has no printf and echoes the
+        // line as written.
+        let script = commands
+            .iter()
+            .map(|command| {
+                if cfg!(windows) {
+                    format!("echo $ {command} && {command}")
+                } else {
+                    format!("printf '$ %s\\n' {} && {command}", quoted(command))
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" && ");
+        let log = match std::fs::File::create(records.join(LOG_FILE)) {
+            Ok(file) => file,
+            Err(error) => {
+                locked(&self.research.environment_jobs).remove(&records);
+                return Err(error.into());
+            }
+        };
+        let errors = match log.try_clone() {
+            Ok(errors) => errors,
+            Err(error) => {
+                locked(&self.research.environment_jobs).remove(&records);
+                return Err(error.into());
+            }
+        };
+        // The system shell runs the script: /bin/sh, or cmd on Windows. Installing runs code the packages bring (a build
+        // backend, a setup.py), so the job runs in the project's command sandbox: it writes to the project, the caches,
+        // the temporary folders and uv's own Python folder, and reads Eisoptric Workbench's download of uv, but not the rest of
+        // Eisoptric Workbench's data or the credential folders. cmd takes its line verbatim, in the sandbox as outside it.
+        let tools = self.environment_tools(&source);
+        let readable: Vec<String> = (text(&tools, "uvSource") == "workbench")
+            .then(|| {
+                Path::new(text(&tools, "uv"))
+                    .parent()
+                    .map(Path::to_path_buf)
+            })
+            .flatten()
+            .map(|folder| folder.to_string_lossy().into_owned())
+            .into_iter()
+            .collect();
+        let shell = super::isolation::sandboxed_invocation(
+            self.project_sandbox(project),
+            self.store.root(),
+            shell_invocation(&script, "/bin/sh", Platform::current(), &process_env()),
+            &source,
+            &uv_python_folders(),
+            &readable,
+        );
+        let mut command = Command::new(&shell.file);
+        shell_arguments(&mut command, &shell);
+        launch_env(&mut command);
+        for (name, _) in std::env::vars_os() {
+            if name.to_string_lossy().starts_with("WORKBENCH_") {
+                command.env_remove(&name);
+            }
+        }
+        command
+            .current_dir(&source)
+            .env("PIP_DISABLE_PIP_VERSION_CHECK", "1")
+            .envs(environment.iter().copied())
+            .stdin(Stdio::null())
+            .stdout(log)
+            .stderr(errors);
+        in_own_group(&mut command);
+        let mut child = match command.spawn() {
+            Ok(child) => child,
+            Err(error) => {
+                locked(&self.research.environment_jobs).remove(&records);
+                return Err(CoreError::new(
+                    422,
+                    format!("The job could not start: {error}"),
+                ));
+            }
+        };
+        let pid = child.id().unwrap_or(0);
+        let mut guard = EndOnDrop::new(child.id());
+        let id = new_id("job")?;
+        let now = iso_time(now_millis());
+        let job = json!({
+            "schemaVersion": SCHEMA_VERSION,
+            "id": id,
+            "kind": kind,
+            "commands": commands,
+            "env": environment.iter().map(|(name, value)| (name.to_string(), json!(value))).collect::<serde_json::Map<_, _>>(),
+            "status": "running",
+            "pid": pid,
+            "startedAt": now,
+            "endedAt": null,
+            "exitCode": null,
+            "timeoutSeconds": timeout_seconds,
+        });
+        if let Err(error) = write_whole(&records.join(JOB_FILE), &pretty(&job)?).await {
+            locked(&self.research.environment_jobs).remove(&records);
+            return Err(error);
+        }
+        self.research_changed();
+
+        let kernel = Arc::clone(self);
+        let owned_project = project.to_owned();
+        tokio::spawn(async move {
+            let (exit, timed_out) = match tokio::time::timeout(
+                Duration::from_secs(timeout_seconds),
+                child.wait(),
+            )
+            .await
+            {
+                Ok(status) => (status.ok().and_then(|status| status.code()), false),
+                Err(_) => (None, true),
+            };
+            // A finished launcher can still have children. Clear the whole group before announcing completion/retry.
+            super::runs::end_group(pid).await;
+            let _ = child.wait().await;
+            guard.finished();
+            // The interpreter is named before the job reads as done, so whoever sees it done sees the python too.
+            if !timed_out
+                && exit == Some(0)
+                && let Some(python) = set_python_after
+            {
+                let _ = kernel
+                    .research_set_environment(&owned_project, &json!({ "python": python }))
+                    .await;
+            }
+            let mut done = job;
+            done["status"] = json!(if timed_out {
+                "timed_out"
+            } else if exit == Some(0) {
+                "completed"
+            } else {
+                "failed"
+            });
+            done["exitCode"] = json!(exit);
+            done["endedAt"] = json!(iso_time(now_millis()));
+            if timed_out {
+                done["error"] = json!(format!(
+                    "The job exceeded {timeout_seconds} seconds; its process group was stopped. You can retry with a longer timeout."
+                ));
+            }
+            if let Ok(bytes) = pretty(&done) {
+                let _ = write_whole(&records.join(JOB_FILE), &bytes).await;
+            }
+            locked(&kernel.research.environment_jobs).remove(&records);
+            kernel.research_changed();
+        });
+        self.research_environment(project).await
+    }
+}
+
+/// The set of records folders with a job running, kept on the research state.
+pub(super) type RunningJobs = HashSet<PathBuf>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A program's file name as this system spells it.
+    fn spelled(name: &str) -> String {
+        if cfg!(windows) {
+            format!("{name}.exe")
+        } else {
+            name.to_owned()
+        }
+    }
+
+    #[test]
+    fn a_program_is_the_first_real_file_of_its_name_on_path() {
+        let root = tempfile::tempdir().expect("a temporary folder");
+        let aliases = root.path().join("aliases");
+        let real = root.path().join("real");
+        std::fs::create_dir_all(&aliases).unwrap();
+        std::fs::create_dir_all(&real).unwrap();
+        // An empty file of the right name, as the Store leaves on Windows, is not the program.
+        std::fs::write(aliases.join(spelled("uv")), b"").unwrap();
+        std::fs::write(real.join(spelled("uv")), b"#!/bin/sh\n").unwrap();
+        let path = std::env::join_paths([&aliases, &real]).unwrap();
+        assert_eq!(program_in(&path, "uv"), Some(real.join(spelled("uv"))));
+        assert_eq!(program_in(&path, "python3"), None);
+        if cfg!(windows) {
+            // Windows has python.exe where Unix has python3.
+            std::fs::write(real.join("python.exe"), b"MZ").unwrap();
+            assert_eq!(program_in(&path, "python3"), Some(real.join("python.exe")));
+        }
+    }
+}

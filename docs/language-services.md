@@ -6,11 +6,11 @@ hover, function signatures, diagnostics and F12 definition navigation. No model 
 ## Setup
 
 - **Python:** choose the project's interpreter under Environment. Install its **Python language server** kit in the
-  managed `.venv`, or install `basedpyright` in an existing environment. Saturn looks beside the selected interpreter,
+  managed `.venv`, or install `basedpyright` in an existing environment. Eisoptric Workbench looks beside the selected interpreter,
   in the managed environment and on PATH; Pyright on PATH or beside the interpreter is also supported. The server gets
   the selected interpreter as `python.pythonPath`, so imports use that environment. The default checking level is
   `basic`; a project's `pyrightconfig.json` / `pyproject.toml` can specify its checking rules.
-- **JavaScript/TypeScript, JSX/TSX:** TypeScript 7 includes its own LSP. Saturn prefers the project's
+- **JavaScript/TypeScript, JSX/TSX:** TypeScript 7 includes its own LSP. Eisoptric Workbench prefers the project's
   `node_modules/.bin/tsc`, then TypeScript 7 on PATH, and runs `tsc --lsp --stdio`. A compiler is recognized through its
   package name and major version. TypeScript 6 users can install `typescript-language-server` and `typescript@6` on
   PATH; the wrapper uses the project's classic `tsserver.js` or its installed fallback. TypeScript 7 no longer supplies
@@ -19,7 +19,7 @@ hover, function signatures, diagnostics and F12 definition navigation. No model 
   checks, build scripts and procedural macros are disabled by this client's settings. Parsing, inference and
   navigation remain available without starting a build on every save.
 
-Saturn never installs a language server merely because a file opened. A missing server leaves ordinary syntax/document completion available, and the status
+Eisoptric Workbench never installs a language server merely because a file opened. A missing server leaves ordinary syntax/document completion available, and the status
 bar explains why semantic services are unavailable. The Python setup control opens Environment. Restart the service
 from the status bar after installation or changing interpreters; changing Python stops old processes first.
 
@@ -60,10 +60,10 @@ All four routes require the normal runtime token and current project folder acce
 
 Messages are limited to 8 MiB, headers to 8 KiB, replay to 16 MiB and sessions to six per project. Lost clients expire
 after 90 seconds without a listener or client activity. Stderr is drained without storing or returning its contents.
-Runtime-only `SATURN_*` variables are removed from child environments. No assistant research tool exposes this bridge.
+Runtime-only `WORKBENCH_*` variables are removed from child environments. No assistant research tool exposes this bridge.
 
 Language servers are local development processes running as the user, outside the experiment sandbox. Project URI
-checks constrain the exposed client operations, not the server's OS-level filesystem access. Saturn forwards document
+checks constrain the exposed client operations, not the server's OS-level filesystem access. Eisoptric Workbench forwards document
 synchronization and semantic queries, answers configuration/progress requests, and refuses `workspace/executeCommand`,
 formatting, symbol rename and `workspace/applyEdit`. Explicitly accepted completion edits affect the current editor
 buffer; protocol traffic never saves a source file or creates a research run.

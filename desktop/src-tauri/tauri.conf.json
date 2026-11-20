@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Saturn",
+  "productName": "Eisoptric Workbench",
   "version": "../package.json",
-  "identifier": "inc.saturntechnology.desktop",
+  "identifier": "com.eisoptric.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:5174",
-    "beforeDevCommand": "cargo build -p saturn-server -p saturn-cli && vite --port 5174 --strictPort"
+    "beforeDevCommand": "cargo build -p workbench-server -p workbench-cli && vite --port 5174 --strictPort"
   },
   "app": {
     "macOSPrivateApi": true,

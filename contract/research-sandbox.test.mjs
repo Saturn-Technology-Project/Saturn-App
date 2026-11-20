@@ -1,5 +1,5 @@
 // The sandbox an experiment run's program runs in: it reads its snapshot, writes only its own records, output and
-// temporary folders, cannot read the project it came from, Saturn's data or the credential folders, uses the network
+// temporary folders, cannot read the project it came from, Eisoptric Workbench's data or the credential folders, uses the network
 // only when its version allows, and gets only the environment variables the version names. docs/research-contract.md
 // ("Run sandbox") is the contract. Where this computer has no working sandbox the runs say so and these tests say
 // why they were skipped.
@@ -12,18 +12,18 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, until } from "./files-support.mjs";
 
-let saturn;
+let workbench;
 let home;
 before(async () => {
-  home = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-sandbox-home-")));
+  home = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-sandbox-home-")));
   await mkdir(path.join(home, ".ssh"));
   await writeFile(path.join(home, ".ssh", "id_test"), "PRIVATE KEY");
   await mkdir(path.join(home, ".cache", "huggingface"), { recursive: true });
   await writeFile(path.join(home, ".cache", "huggingface", "token"), "hf_secret");
-  saturn = await bench({ env: { HOME: home, SANDBOX_TEST_SECRET_TOKEN: "hunter2", SANDBOX_TEST_DECLARED: "given" } });
+  workbench = await bench({ env: { HOME: home, SANDBOX_TEST_SECRET_TOKEN: "hunter2", SANDBOX_TEST_DECLARED: "given" } });
 });
 after(async () => {
-  await saturn?.stop();
+  await workbench?.stop();
   await rm(home, { recursive: true, force: true });
 });
 
@@ -41,8 +41,8 @@ import * as fs from "node:fs/promises";
 const env = process.env;
 const results = [];
 ${bodies.map((body) => `try { results.push(await (async () => { ${body} })() ?? true); } catch (error) { results.push("refused: " + (error.code ?? error.message)); }`).join("\n")}
-await fs.writeFile(env.SATURN_RUN_OUTPUT + "/results.json", JSON.stringify(results));
-await fs.appendFile(env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "a", input: "in", output: "out", scores: { s: 1 }, error: null }) + "\\n");
+await fs.writeFile(env.WORKBENCH_RUN_OUTPUT + "/results.json", JSON.stringify(results));
+await fs.appendFile(env.WORKBENCH_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "a", input: "in", output: "out", scores: { s: 1 }, error: null }) + "\\n");
 `;
   actionNames.set(script, Object.keys(actions));
   return script;
@@ -50,26 +50,26 @@ await fs.appendFile(env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, s
 
 /** A project whose experiment runs `script`, with these experiment fields. */
 async function setup(script, fields = {}) {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "probe.mjs"), script);
   await writeFile(path.join(folder, "notes.txt"), "not part of the version");
   await mkdir(path.join(folder, "env"));
   await writeFile(path.join(folder, "env", "tool.txt"), "an environment folder");
-  const made = await saturn.api("POST", "/projects", { path: folder });
-  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const made = await workbench.api("POST", "/projects", { path: folder });
+  await workbench.api("POST", `/projects/${made.id}/access`, {});
   const route = `/projects/${made.id}/research`;
-  const experiment = await saturn.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] }, ...fields });
-  const version = await saturn.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
+  const experiment = await workbench.api("POST", `${route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] }, ...fields });
+  const version = await workbench.api("POST", `${route}/experiments/${experiment.id}/versions`, {});
   return { folder, route, version, experiment };
 }
 
 let clients = 0;
 /** Runs the version to its end and returns the run, its evidence and what the script recorded. */
 async function run(bed) {
-  const started = await saturn.api("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: `sandbox-${clients += 1}` });
-  const ended = await until(`run ${started.id} to end`, () => saturn.api("GET", `${bed.route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
-  const evidence = await saturn.api("GET", `${bed.route}/runs/${started.id}/evidence`);
-  const directory = path.join(bed.folder, ".saturn/research/runs", started.id);
+  const started = await workbench.api("POST", `${bed.route}/versions/${bed.version.id}/runs`, { clientId: `sandbox-${clients += 1}` });
+  const ended = await until(`run ${started.id} to end`, () => workbench.api("GET", `${bed.route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  const evidence = await workbench.api("GET", `${bed.route}/runs/${started.id}/evidence`);
+  const directory = path.join(bed.folder, ".workbench/research/runs", started.id);
   const recorded = JSON.parse(await readFile(path.join(directory, "written", "results.json"), "utf8").catch(() => "[]"));
   const script = await readFile(path.join(bed.folder, "probe.mjs"), "utf8");
   const results = Object.fromEntries((actionNames.get(script) ?? []).map((name, index) => [name, recorded[index]]));
@@ -91,7 +91,7 @@ test("a sandboxed run writes only its output and temporary folders, never its sn
     snapshot: "await fs.writeFile('probe.mjs', 'changed'); return 'wrote';",
     newFile: "await fs.writeFile('made.txt', 'x'); return 'wrote';",
     temporary: "await fs.writeFile(env.TMPDIR + '/scratch.txt', 'x'); return 'wrote';",
-    output: "await fs.writeFile(env.SATURN_RUN_OUTPUT + '/model.bin', 'weights'); return 'wrote';",
+    output: "await fs.writeFile(env.WORKBENCH_RUN_OUTPUT + '/model.bin', 'weights'); return 'wrote';",
   }));
   const before = await readFile(path.join(bed.folder, "probe.mjs"), "utf8");
   const { run: ended, evidence, results, directory } = await run(bed);
@@ -113,27 +113,27 @@ test("a sandboxed run cannot write into its project by the project's path", asyn
   const bed = await setup("");
   const escaped = path.join(bed.folder, "escaped.txt");
   await writeFile(path.join(bed.folder, "probe.mjs"), tries({ project: `await fs.writeFile(${JSON.stringify(escaped)}, 'x'); return 'wrote';` }));
-  const version = await saturn.api("POST", `${bed.route}/experiments/${bed.experiment.id}/versions`, {});
+  const version = await workbench.api("POST", `${bed.route}/experiments/${bed.experiment.id}/versions`, {});
   const { evidence } = await run({ ...bed, version });
   if (!sandboxed(t, evidence)) return;
   assert.equal(existsSync(escaped), false, "nothing reached the project");
 });
 
-test("a sandboxed run cannot read the project's own files, its records, Saturn's data or the credential folders, but reads what the snapshot links to", async (t) => {
+test("a sandboxed run cannot read the project's own files, its records, Eisoptric Workbench's data or the credential folders, but reads what the snapshot links to", async (t) => {
   const bed = await setup("");
   await writeFile(path.join(bed.folder, "probe.mjs"), tries({
     live: `return await fs.readFile(${JSON.stringify(path.join(bed.folder, "probe.mjs"))}, 'utf8');`,
     listing: `return (await fs.readdir(${JSON.stringify(bed.folder)})).join(",");`,
-    records: `return (await fs.readdir(${JSON.stringify(path.join(bed.folder, ".saturn", "research"))})).join(",");`,
+    records: `return (await fs.readdir(${JSON.stringify(path.join(bed.folder, ".workbench", "research"))})).join(",");`,
     key: `return await fs.readFile(${JSON.stringify(path.join(home, ".ssh", "id_test"))}, 'utf8');`,
     hfToken: `return await fs.readFile(${JSON.stringify(path.join(home, ".cache", "huggingface", "token"))}, 'utf8');`,
     cache: `await fs.writeFile(${JSON.stringify(path.join(home, ".cache", "probe.txt"))}, 'x'); return 'wrote';`,
-    data: `return (await fs.readdir(${JSON.stringify(saturn.runtime.dataDir)})).join(",");`,
+    data: `return (await fs.readdir(${JSON.stringify(workbench.runtime.dataDir)})).join(",");`,
     linked: "return await fs.readFile('env/tool.txt', 'utf8');",
     beside: "return await fs.readFile('notes.txt', 'utf8');",
   }));
-  const experiment = await saturn.api("GET", `${bed.route}/experiments/${bed.experiment.id}`);
-  const version = await saturn.api("POST", `${bed.route}/experiments/${experiment.id}/versions`, {});
+  const experiment = await workbench.api("GET", `${bed.route}/experiments/${bed.experiment.id}`);
+  const version = await workbench.api("POST", `${bed.route}/experiments/${experiment.id}/versions`, {});
   const { evidence, results } = await run({ ...bed, version });
   if (!sandboxed(t, evidence)) return;
   // macOS refuses the listing; Linux shows an empty stand-in holding only what the run may reach.
@@ -149,25 +149,25 @@ test("a sandboxed run cannot read the project's own files, its records, Saturn's
   assert.equal(results.beside, "not part of the version", "what the project has beside the version stays reachable, as uncontrolled");
 });
 
-test("a model's source cannot open Saturn's data to the run, but a file in the project still can", async (t) => {
+test("a model's source cannot open Eisoptric Workbench's data to the run, but a file in the project still can", async (t) => {
   const bed = await setup("");
   await mkdir(path.join(bed.folder, "weights"));
   await writeFile(path.join(bed.folder, "weights", "model.bin"), "weights");
   await writeFile(path.join(bed.folder, "probe.mjs"), tries({
-    data: `return (await fs.readdir(${JSON.stringify(saturn.runtime.dataDir)})).join(",");`,
-    token: `return await fs.readFile(${JSON.stringify(path.join(saturn.runtime.dataDir, "runtime-token"))}, 'utf8');`,
+    data: `return (await fs.readdir(${JSON.stringify(workbench.runtime.dataDir)})).join(",");`,
+    token: `return await fs.readFile(${JSON.stringify(path.join(workbench.runtime.dataDir, "runtime-token"))}, 'utf8');`,
     weights: `return await fs.readFile(${JSON.stringify(path.join(bed.folder, "weights", "model.bin"))}, 'utf8');`,
   }));
   const models = [];
-  // Sources that do not change while the version runs: a folder that does (Saturn's data, the project with its records)
+  // Sources that do not change while the version runs: a folder that does (Eisoptric Workbench's data, the project with its records)
   // already stops the run as changed since it was frozen.
-  for (const [name, source] of [["saturn", path.join(saturn.runtime.dataDir, "runtime-token")], ["file", "weights/model.bin"]]) {
-    const model = await saturn.api("POST", `${bed.route}/models`, { name, source });
+  for (const [name, source] of [["workbench", path.join(workbench.runtime.dataDir, "runtime-token")], ["file", "weights/model.bin"]]) {
+    const model = await workbench.api("POST", `${bed.route}/models`, { name, source });
     models.push({ modelId: model.id, role: name });
   }
-  const current = await saturn.api("GET", `${bed.route}/experiments/${bed.experiment.id}`);
-  await saturn.api("PATCH", `${bed.route}/experiments/${bed.experiment.id}`, { models, expectedRevision: current.revision });
-  const version = await saturn.api("POST", `${bed.route}/experiments/${bed.experiment.id}/versions`, {});
+  const current = await workbench.api("GET", `${bed.route}/experiments/${bed.experiment.id}`);
+  await workbench.api("PATCH", `${bed.route}/experiments/${bed.experiment.id}`, { models, expectedRevision: current.revision });
+  const version = await workbench.api("POST", `${bed.route}/experiments/${bed.experiment.id}/versions`, {});
   const { evidence, results } = await run({ ...bed, version });
   if (!sandboxed(t, evidence)) return;
   const shows = (value, name) => !refused(value) && String(value).split(",").includes(name);
@@ -176,13 +176,13 @@ test("a model's source cannot open Saturn's data to the run, but a file in the p
   assert.equal(results.weights, "weights", "a model file inside the project is read where it is");
 });
 
-// On Linux a program can overwrite these files: bubblewrap cannot keep a file read-only that Saturn replaces by
+// On Linux a program can overwrite these files: bubblewrap cannot keep a file read-only that Eisoptric Workbench replaces by
 // renaming. docs/research-contract.md says so.
-test("a sandboxed run cannot change the records Saturn keeps about it, on macOS", { skip: process.platform !== "darwin" && "bubblewrap cannot protect a file that is replaced by renaming" }, async (t) => {
+test("a sandboxed run cannot change the records Eisoptric Workbench keeps about it, on macOS", { skip: process.platform !== "darwin" && "bubblewrap cannot protect a file that is replaced by renaming" }, async (t) => {
   const bed = await setup(tries({
-    run: "await fs.writeFile(env.SATURN_RUN_DIRECTORY + '/run.json', '{}'); return 'wrote';",
-    evidence: "await fs.writeFile(env.SATURN_RUN_DIRECTORY + '/evidence.json', '{}'); return 'wrote';",
-    removed: "await fs.rm(env.SATURN_RUN_DIRECTORY + '/evidence.json'); return 'removed';",
+    run: "await fs.writeFile(env.WORKBENCH_RUN_DIRECTORY + '/run.json', '{}'); return 'wrote';",
+    evidence: "await fs.writeFile(env.WORKBENCH_RUN_DIRECTORY + '/evidence.json', '{}'); return 'wrote';",
+    removed: "await fs.rm(env.WORKBENCH_RUN_DIRECTORY + '/evidence.json'); return 'removed';",
   }));
   const { run: ended, evidence, results } = await run(bed);
   if (!sandboxed(t, evidence)) return;
@@ -220,7 +220,7 @@ test("a sandboxed program gets the variables its version names, not the others",
     secret: "return env.SANDBOX_TEST_SECRET_TOKEN ?? 'unset';",
     declared: "return env.SANDBOX_TEST_DECLARED ?? 'unset';",
     path: "return Boolean(env.PATH);",
-    data: "return env.SATURN_DATA_DIR ?? 'unset';",
+    data: "return env.WORKBENCH_DATA_DIR ?? 'unset';",
   });
   const { evidence, results } = await run(await setup(script, { envNames: ["SANDBOX_TEST_DECLARED", "SANDBOX_TEST_MISSING"] }));
   assert.equal(results.secret, "unset");
@@ -251,9 +251,9 @@ test("a version with the sandbox off runs as before, and its evidence says so", 
 
 test("an experiment's sandbox holds only its two switches, and envNames only variable names", async () => {
   const bed = await setup(tries({}));
-  const change = (fields) => saturn.call("PATCH", `${bed.route}/experiments/${bed.experiment.id}`, { expectedRevision: bed.experiment.revision, ...fields });
+  const change = (fields) => workbench.call("PATCH", `${bed.route}/experiments/${bed.experiment.id}`, { expectedRevision: bed.experiment.revision, ...fields });
   assert.equal((await change({ sandbox: { network: "no" } })).status, 400);
   assert.equal((await change({ sandbox: { mounts: ["/"] } })).status, 400);
   assert.equal((await change({ envNames: ["NOT A NAME"] })).status, 400);
-  assert.equal((await change({ envNames: ["SATURN_RUNTIME_TOKEN"] })).status, 400);
+  assert.equal((await change({ envNames: ["WORKBENCH_RUNTIME_TOKEN"] })).status, 400);
 });

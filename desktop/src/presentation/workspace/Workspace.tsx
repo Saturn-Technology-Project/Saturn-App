@@ -209,7 +209,7 @@ export function Workspace(props: ScreenProps & { onFocus: (focus: WorkspaceFocus
   useEffect(() => {
     const stopFiles = desktop.live.onChange(readShownFolders);
     const stopRecords = desktop.live.onResearchChange(readShownFolders);
-    // Files changed outside Saturn, in a terminal or an editor, show when the window comes back.
+    // Files changed outside Eisoptric Workbench, in a terminal or an editor, show when the window comes back.
     window.addEventListener("focus", readShownFolders);
     return () => {
       stopFiles();

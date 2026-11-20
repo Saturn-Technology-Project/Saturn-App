@@ -1,4 +1,4 @@
-// Writes one CycloneDX 1.5 SBOM for a Saturn release: the crates of the runtime and the app (from Cargo.lock), the npm packages
+// Writes one CycloneDX 1.5 SBOM for an Eisoptric Workbench release: the crates of the runtime and the app (from Cargo.lock), the npm packages
 // the interface ships (from its lock file), without installing anything, plus the bundled embedding model with its pinned hashes.
 //
 //   node scripts/sbom.mjs <version> <output.cdx.json>
@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [version = "0.0.0", output = "saturn.cdx.json"] = process.argv.slice(2);
+const [version = "0.0.0", output = "workbench.cdx.json"] = process.argv.slice(2);
 
 /**
  * The production packages of one npm project, as CycloneDX components, read straight from its lock file: name,
@@ -51,7 +51,7 @@ function crateComponents() {
 const components = new Map();
 for (const [project, found] of [["desktop", npmComponents("desktop")], ["crates", crateComponents()]]) {
   for (const component of found) {
-    components.set(component.purl, { ...component, "bom-ref": component.purl, properties: [{ name: "saturn:project", value: project }] });
+    components.set(component.purl, { ...component, "bom-ref": component.purl, properties: [{ name: "workbench:project", value: project }] });
   }
 }
 
@@ -62,8 +62,8 @@ const sbom = {
   version: 1,
   metadata: {
     timestamp: new Date().toISOString(),
-    tools: [{ vendor: "Saturn", name: "scripts/sbom.mjs" }],
-    component: { type: "application", name: "Saturn", version, purl: `pkg:github/Saturn-Technology-Project/Saturn-App@v${version}`, "bom-ref": "saturn" },
+    tools: [{ vendor: "Eisoptric Workbench", name: "scripts/sbom.mjs" }],
+    component: { type: "application", name: "Eisoptric Workbench", version, purl: `pkg:github/eisoptric/Workbench@v${version}`, "bom-ref": "workbench" },
   },
   components: [...components.values()].sort((a, b) => a.purl.localeCompare(b.purl)),
 };
