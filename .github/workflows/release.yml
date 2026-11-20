@@ -389,7 +389,7 @@ jobs:
       - name: Check the signatures, and that no program needs the Visual C++ runtime
         shell: pwsh
         env:
-          EXPECTED: ${{ secrets.WINDOWS_SIGNING_PFX && 'D285DA425077C16A3D115D61F9748AFA574BC786' || '' }}
+          EXPECTED: ${{ secrets.WINDOWS_SIGNING_PFX && '9D9E3A5CDA1828A13D6F23C75E5D58E9E4E6ED8A' || '' }}
         run: .github/scripts/check-windows-signatures.ps1 -Release desktop/release -Expected "$env:EXPECTED"
 
       - name: Attest build provenance
