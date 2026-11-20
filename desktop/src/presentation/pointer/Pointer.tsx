@@ -9,12 +9,12 @@ const LINGER_MS = 4000;
 /** How long the pointer takes to glide to where it acts, a little under the runtime's lead before it acts. */
 const GLIDE_MS = 200;
 
-/** Eisoptric Workbench's colors, from its icon: the black of the ground and the ivory of the ringed planet. */
-const INK = "#06050a";
-const IVORY = "#f6f4ef";
-const IVORY_LINE = "rgba(246, 244, 239, 0.35)";
+/** Eisoptric Workbench's colors, from its Nocturne icon: the night ground and the ivory of the left E. */
+const INK = "#14161f";
+const IVORY = "#eee6d6";
+const IVORY_LINE = "rgba(238, 230, 214, 0.35)";
 /** The screen's edge while the assistant works: an ivory band, with a thin dark line so it shows on light screens too. */
-const GLOW = "inset 0 0 0 1px rgba(6, 5, 10, 0.55), inset 0 0 0 4px rgba(246, 244, 239, 0.9), inset 0 0 40px 10px rgba(246, 244, 239, 0.32)";
+const GLOW = "inset 0 0 0 1px rgba(20, 22, 31, 0.55), inset 0 0 0 4px rgba(238, 230, 214, 0.9), inset 0 0 40px 10px rgba(238, 230, 214, 0.32)";
 
 /** What the overlay shows now: where the pointer is, what it last did, and whether it is shown at all. */
 type Shown = { x: number; y: number; kind: PointerPlace["kind"]; at: number; visible: boolean };
@@ -73,7 +73,7 @@ export function Pointer() {
           <path d="M3 2 L3 24 L9 18.5 L13 27.5 L17 25.7 L13.2 17 L21 17 Z" fill={INK} stroke={IVORY} strokeWidth="1.8" strokeLinejoin="round" />
         </svg>
         <span className="absolute top-6 left-5 flex items-center gap-1 rounded-full py-0.5 pr-2 pl-1.5 text-[11px] font-semibold whitespace-nowrap shadow-md" style={{ background: INK, color: IVORY, boxShadow: `0 0 0 1px ${IVORY_LINE}, 0 4px 10px rgba(0, 0, 0, 0.35)` }}>
-          {/* Eisoptric Workbench's mark: the ringed planet from its icon, on a transparent ground. */}
+          {/* Eisoptric Workbench's icon: at this size the mark's serifs close up, so the brand asks for the icon instead. */}
           <img src={workbenchMark} alt="" width={15} height={15} />
           {shown.kind === "type" ? t("Eisoptric Workbench · typing…") : "Eisoptric Workbench"}
         </span>

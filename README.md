@@ -513,7 +513,7 @@ Report vulnerabilities privately to [security@eisoptric.com](mailto:security@eis
 
 Computer use tools observe the screen through screenshots and act through synthesized mouse and keyboard events and the platform's element tree: the accessibility API on macOS, UI Automation on Windows.
 
-While the assistant uses the computer, Eisoptric Workbench draws its pointer on the screen: a cursor in Eisoptric Workbench's black and ivory, marked with its ringed planet, glides to each point just before the click, drag or scroll lands there, and the screen's edge glows ivory until it stops. The pointer lets every click through and is kept out of screenshots, so the assistant never sees it; it is there for you.
+While the assistant uses the computer, Eisoptric Workbench draws its pointer on the screen: a cursor in Eisoptric Workbench's night blue and ivory, marked with its icon, glides to each point just before the click, drag or scroll lands there, and the screen's edge glows ivory until it stops. The pointer lets every click through and is kept out of screenshots, so the assistant never sees it; it is there for you.
 
 ### macOS
 

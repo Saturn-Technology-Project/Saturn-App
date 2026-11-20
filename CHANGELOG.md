@@ -8,6 +8,7 @@ The major changes in each Eisoptric Workbench release, for deciding whether to u
 
 - **Saturn is now Eisoptric Workbench.** The app, its window, the installers and the `workbench` command (was `saturn`) carry the new name, and the repository moved to [eisoptric/Workbench](https://github.com/eisoptric/Workbench). Updates still come from GitHub Releases; the app identifier is now `com.eisoptric.desktop`, so macOS and Windows treat it as a new app.
 - **Your data is in new places, and what was there before is not carried over.** The data folder is `~/.workbench-app` (was `~/.saturn-app`), a project's research is in `.workbench/` (was `.saturn/`), the variables are `WORKBENCH_*` (was `SATURN_*`, for example `WORKBENCH_DATA_DIR`, `WORKBENCH_RUN_SAMPLES`), and the helper a run imports is `workbench_run.py`. Saved API keys are sealed under a new label, so they have to be entered again. To keep earlier work, move `.saturn/` to `.workbench/` in each project before opening it.
+- **A new icon: the Speculum.** A capital E faces its reflection across a gilt mirror line, inside a ring, on the Nocturne night ground. It replaces the ringed planet in the Dock, the taskbar, Settings → About and the pointer the assistant draws while it uses the computer, which now glows in the icon's ivory.
 - Headers the runtime sends and reads start with `Eisoptric-` or `X-Eisoptric-` (was `Saturn-`, `X-Saturn-`).
 
 ## 0.6.4 (2026-11-16)
@@ -332,7 +333,7 @@ How Windows was tried: on Windows 11 for ARM in a virtual machine, running the x
 
 ### Changed
 
-- The TypeScript SDK (`@eisoptric/sdk`) moved to its own repository, [SDK](https://github.com/eisoptric/SDK), laid out for more languages.
+- The TypeScript SDK (`@eisoptric/sdk`) moved to its own repository, laid out for more languages.
 
 ### Added
 
