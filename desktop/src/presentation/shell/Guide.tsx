@@ -4,7 +4,7 @@ import { guidePlaces, type GuidePlace, type Screen } from "../../domain/workbenc
 import { Button } from "../ui/base/Button.js";
 import { followTourTarget, type TourBox } from "./tour-focus.js";
 
-const EVENT = "saturn-guide";
+const EVENT = "workbench-guide";
 const CARD_WIDTH = 300;
 const GAP = 12;
 

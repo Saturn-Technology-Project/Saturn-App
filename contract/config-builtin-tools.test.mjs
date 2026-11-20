@@ -1,25 +1,25 @@
 // The built-in tool servers: which tools they list, a user's disabled tools being saved, honoured and kept when the
-// built-ins are installed again, and what is left of the removed Saturn IDE and automations, whichever language runs them.
+// built-ins are installed again, and what is left of the removed Eisoptric Workbench IDE and automations, whichever language runs them.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { open } from "./config-harness.mjs";
 
-let saturn;
+let workbench;
 
 before(async () => {
-  saturn = await open();
+  workbench = await open();
 });
 after(async () => {
-  await saturn?.close();
+  await workbench?.close();
 });
 
-const server = async (id, target = saturn) => (await target.api("GET", "/connections/mcp")).find((item) => item.id === id);
+const server = async (id, target = workbench) => (await target.api("GET", "/connections/mcp")).find((item) => item.id === id);
 const offered = (body) => (body.tools ?? []).map((tool) => tool.function.name);
 
 test("the built-in servers list their tools, in the categories approval goes by", async () => {
-  const listed = await saturn.api("GET", "/connections/mcp");
+  const listed = await workbench.api("GET", "/connections/mcp");
   assert.deepEqual(listed.slice(0, 5).map((item) => item.id), ["general-skills", "computer-use", "origin", "customizations", "browser"]);
 
   const customizations = await server("customizations");
@@ -53,22 +53,22 @@ test("the built-in servers list their tools, in the categories approval goes by"
 });
 
 test("a built-in server's own name, address and tools are not the user's to change, only which tools are off", async () => {
-  await saturn.refused("PATCH", "/connections/mcp/general-skills", { name: "Mine" }, 403);
-  await saturn.refused("PATCH", "/connections/mcp/general-skills", { url: "https://example.com/" }, 403);
-  await saturn.refused("PATCH", "/connections/mcp/general-skills", { tools: [] }, 403);
-  await saturn.refused("POST", "/connections/mcp/general-skills/discover", undefined, 403);
-  const off = await saturn.api("PATCH", "/connections/mcp/general-skills", { disabledTools: ["web"] });
+  await workbench.refused("PATCH", "/connections/mcp/general-skills", { name: "Mine" }, 403);
+  await workbench.refused("PATCH", "/connections/mcp/general-skills", { url: "https://example.com/" }, 403);
+  await workbench.refused("PATCH", "/connections/mcp/general-skills", { tools: [] }, 403);
+  await workbench.refused("POST", "/connections/mcp/general-skills/discover", undefined, 403);
+  const off = await workbench.api("PATCH", "/connections/mcp/general-skills", { disabledTools: ["web"] });
   assert.deepEqual(off.disabledTools, ["web"]);
-  assert.deepEqual((await saturn.api("PATCH", "/connections/mcp/general-skills", { disabledTools: [] })).disabledTools, []);
+  assert.deepEqual((await workbench.api("PATCH", "/connections/mcp/general-skills", { disabledTools: [] })).disabledTools, []);
 });
 
 test("a disabled tool is saved, not offered to the model, not handed out by load_tools, and refused if called", async () => {
-  const updated = await saturn.api("PATCH", "/connections/mcp/customizations", { disabledTools: ["plugins_toggle"] });
+  const updated = await workbench.api("PATCH", "/connections/mcp/customizations", { disabledTools: ["plugins_toggle"] });
   assert.deepEqual(updated.disabledTools, ["plugins_toggle"]);
   assert.equal(updated.tools.length, 9, "off is not gone: the list still shows it");
   assert.deepEqual((await server("customizations")).disabledTools, ["plugins_toggle"]);
 
-  const setup = await saturn.chat({
+  const setup = await workbench.chat({
     autonomy: "bypass",
     mcpConnectionIds: ["general-skills", "customizations"],
     steps: [
@@ -77,7 +77,7 @@ test("a disabled tool is saved, not offered to the model, not handed out by load
       ["customizations_list", {}],
     ],
   });
-  const run = await saturn.finished((await saturn.start(setup)).id);
+  const run = await workbench.finished((await workbench.start(setup)).id);
   assert.equal(run.status, "completed", run.error);
   const [loaded, toggled, list] = run.actions;
   const names = loaded.result.loaded.flatMap((item) => item.tools);
@@ -89,27 +89,27 @@ test("a disabled tool is saved, not offered to the model, not handed out by load
   const last = setup.model.requests.filter((body) => body.tools?.length).at(-1);
   assert.ok(offered(last).includes("customizations_list"), "loaded by now");
   assert.ok(!offered(last).includes("plugins_toggle"));
-  await saturn.api("PATCH", "/connections/mcp/customizations", { disabledTools: [] });
+  await workbench.api("PATCH", "/connections/mcp/customizations", { disabledTools: [] });
 });
 
 test("a disabled tool of the user's own MCP server is not offered either", async () => {
-  const url = await saturn.serve((_request, raw, response) => {
+  const url = await workbench.serve((_request, raw, response) => {
     const message = JSON.parse(raw);
     const result = message.method === "tools/list"
       ? { tools: [{ name: "keep", description: "Kept", inputSchema: { type: "object" } }, { name: "drop", description: "Dropped", inputSchema: { type: "object" } }] }
       : { ok: true };
     response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
   });
-  const remote = await saturn.api("POST", "/connections/mcp", { name: "Remote", url });
-  await saturn.api("POST", `/connections/mcp/${remote.id}/discover`);
-  await saturn.api("PATCH", `/connections/mcp/${remote.id}`, { disabledTools: ["drop"] });
-  const setup = await saturn.chat({ autonomy: "bypass", mcpConnectionIds: ["general-skills", remote.id], steps: [["drop", {}]] });
-  const run = await saturn.finished((await saturn.start(setup)).id);
+  const remote = await workbench.api("POST", "/connections/mcp", { name: "Remote", url });
+  await workbench.api("POST", `/connections/mcp/${remote.id}/discover`);
+  await workbench.api("PATCH", `/connections/mcp/${remote.id}`, { disabledTools: ["drop"] });
+  const setup = await workbench.chat({ autonomy: "bypass", mcpConnectionIds: ["general-skills", remote.id], steps: [["drop", {}]] });
+  const run = await workbench.finished((await workbench.start(setup)).id);
   assert.equal(run.actions[0].reason, "Unknown tool: drop");
   const asked = setup.model.requests.find((body) => body.tools?.length);
   assert.ok(offered(asked).includes("keep"));
   assert.ok(!offered(asked).includes("drop"));
-  await saturn.api("DELETE", `/mcp/${remote.id}`);
+  await workbench.api("DELETE", `/mcp/${remote.id}`);
 });
 
 test("disabled tools outlast a restart and the built-ins being installed again, under their old names too", async () => {
@@ -157,13 +157,13 @@ test("disabled tools outlast a restart and the built-ins being installed again, 
   }
 });
 
-test("state saved by a version with Saturn IDE loads without its server, its tools or its settings", async () => {
+test("state saved by a version with Eisoptric Workbench IDE loads without its server, its tools or its settings", async () => {
   const fresh = await open();
   try {
     const connection = await fresh.api("POST", "/connections/models", { name: "Local", provider: "openai", baseUrl: "http://127.0.0.1:9" });
     const agent = await fresh.api("POST", "/agents", { name: "Builder", modelConnectionId: connection.id, autonomy: "review" });
     await fresh.restart((state) => {
-      state.mcp.push({ id: "ide", name: "Saturn IDE", url: "builtin://ide", tools: [] });
+      state.mcp.push({ id: "ide", name: "Eisoptric Workbench IDE", url: "builtin://ide", tools: [] });
       state.agents.find((item) => item.id === agent.id).mcpConnectionIds.push("ide");
       state.settings.launchApp = "ide";
       state.settings.claudeCodeAuth = "api-key";
@@ -240,17 +240,17 @@ test("state saved by a version with automations loads, keeps them in the file, a
   }
 });
 
-test("a call to a tool of Saturn IDE fails and says why, and any other unknown tool says that", async () => {
-  const setup = await saturn.chat({ autonomy: "bypass", steps: [["ide_rename", { path: "a.ts" }], ["no_such_tool", {}]] });
-  const run = await saturn.finished((await saturn.start(setup)).id);
+test("a call to a tool of Eisoptric Workbench IDE fails and says why, and any other unknown tool says that", async () => {
+  const setup = await workbench.chat({ autonomy: "bypass", steps: [["ide_rename", { path: "a.ts" }], ["no_such_tool", {}]] });
+  const run = await workbench.finished((await workbench.start(setup)).id);
   assert.equal(run.status, "completed", run.error);
   const [removed, unknown] = run.actions;
   assert.equal(removed.status, "failed");
-  assert.match(removed.reason, /ide_rename was part of Saturn IDE/);
+  assert.match(removed.reason, /ide_rename was part of Eisoptric Workbench IDE/);
   assert.equal(unknown.status, "failed");
   assert.equal(unknown.reason, "Unknown tool: no_such_tool");
 });
 
-test("the routes only Saturn IDE used are gone", async () => {
-  for (const route of ["/v1/traces", "/v1/logs", "/runtime/wakeup"]) await saturn.refused("POST", route, {}, 404);
+test("the routes only Eisoptric Workbench IDE used are gone", async () => {
+  for (const route of ["/v1/traces", "/v1/logs", "/runtime/wakeup"]) await workbench.refused("POST", route, {}, 404);
 });

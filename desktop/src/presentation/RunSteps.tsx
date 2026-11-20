@@ -207,7 +207,7 @@ function ActionRow(props: { runId: string; action: RunAction; restorable?: boole
     try {
       const result = await desktop.runs.restoreTo(props.runId, action.id);
       setDecisionError(result.files.length ? "" : t("Nothing to restore."));
-      window.dispatchEvent(new Event("saturn:changes"));
+      window.dispatchEvent(new Event("workbench:changes"));
     } catch (reason) {
       setDecisionError(reason instanceof Error ? reason.message : t("Could not restore"));
     } finally {

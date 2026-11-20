@@ -13,7 +13,7 @@ async function ended(child, ms) {
 }
 
 test("a runtime the app started stops, and exits cleanly, when the app's pipe closes", async () => {
-  const runtime = await startRuntime({ stdin: "pipe", env: { SATURN_DESKTOP_ATTACHED: "1" } });
+  const runtime = await startRuntime({ stdin: "pipe", env: { WORKBENCH_DESKTOP_ATTACHED: "1" } });
   try {
     assert.equal((await fetch(`${runtime.origin}/health`)).ok, true);
     assert.equal(await ended(runtime.child, 300), "still running", "it stays up while the pipe is open");

@@ -1,0 +1,470 @@
+//! What a run costs while it lives: its process group's processor time and memory, the GPUs when `nvidia-smi` can
+//! say, and how fast its samples file grows. Sampled every two seconds into the run's folder, more often in its first
+//! seconds, never interpreted.
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant, SystemTime};
+
+use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
+use tokio::process::Command;
+use workbench_domain::research::is_id;
+use workbench_domain::time::{iso_time, now_millis};
+
+use super::runs::group_exists;
+use crate::records::text;
+use crate::{CoreError, Kernel};
+
+/// How often a run is sampled once it has run a while.
+const EVERY: Duration = Duration::from_secs(2);
+/// The wait after a run's first reading, doubled after each reading until it reaches `EVERY`, so a run of a second or
+/// two is read while it works and not only as it starts.
+const FIRST_WAIT: Duration = Duration::from_millis(250);
+/// The file in a run's folder that holds its samples.
+const FILE: &str = "resources.jsonl";
+/// How many of the newest points a reading gives.
+const POINTS_KEPT: usize = 900;
+
+/// The processor share and memory of every process of a command, added up. Windows gives each process's processor
+/// time so far, so the share is what was used since the reading before, kept in `earlier`, over the time that passed;
+/// the first reading has none.
+#[cfg(windows)]
+async fn group_usage(pid: u32, earlier: &mut Option<(u64, Instant)>) -> Option<(f64, u64, u64)> {
+    let (processor_millis, memory, processes) =
+        tokio::task::spawn_blocking(move || workbench_tools::tree_usage(pid))
+            .await
+            .ok()
+            .flatten()?;
+    let now = Instant::now();
+    let share = earlier.map_or(0.0, |(before, at)| {
+        let passed = now.duration_since(at).as_secs_f64() * 1000.0;
+        if passed > 0.0 {
+            processor_millis.saturating_sub(before) as f64 / passed * 100.0
+        } else {
+            0.0
+        }
+    });
+    *earlier = Some((processor_millis, now));
+    Some((share, memory, processes))
+}
+
+/// The processor share and memory of every process in a group, added up. `ps` gives the share itself, so nothing is
+/// kept between readings.
+#[cfg(not(windows))]
+async fn group_usage(pgid: u32, _earlier: &mut Option<(u64, Instant)>) -> Option<(f64, u64, u64)> {
+    let output = Command::new("ps")
+        .args(["-axo", "pid=,pgid=,%cpu=,rss="])
+        .output()
+        .await
+        .ok()?;
+    let mut cpu = 0.0;
+    let mut memory = 0;
+    let mut processes = 0;
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let mut fields = line.split_whitespace();
+        let (Some(_pid), Some(group), Some(share), Some(resident)) =
+            (fields.next(), fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        if group.parse::<u32>().ok() != Some(pgid) {
+            continue;
+        }
+        processes += 1;
+        cpu += share.parse::<f64>().unwrap_or(0.0);
+        memory += resident.parse::<u64>().unwrap_or(0) * 1024;
+    }
+    Some((cpu, memory, processes))
+}
+
+/// Each GPU's load and memory, when `nvidia-smi` is on this computer. `None` when it is not or it fails.
+async fn gpus() -> Option<Vec<Value>> {
+    let mut command = Command::new("nvidia-smi");
+    workbench_tools::no_window(&mut command);
+    let output = command
+        .args([
+            "--query-gpu=name,utilization.gpu,memory.used,memory.total",
+            "--format=csv,noheader,nounits",
+        ])
+        .output()
+        .await
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let mebibyte = 1024 * 1024;
+    Some(
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter_map(|line| {
+                let fields: Vec<&str> = line.split(',').map(str::trim).collect();
+                let [name, load, used, total] = fields[..] else {
+                    return None;
+                };
+                Some(json!({
+                    "name": name,
+                    "utilizationPercent": load.parse::<f64>().ok(),
+                    "memoryUsedBytes": used.parse::<u64>().ok().map(|value| value * mebibyte),
+                    "memoryTotalBytes": total.parse::<u64>().ok().map(|value| value * mebibyte),
+                }))
+            })
+            .collect(),
+    )
+}
+
+/// What the samples file has said so far: how far it was read, how many lines, the tokens the program reported under
+/// `usage`, and the device memory it last reported holding.
+#[derive(Clone, Copy, Default)]
+struct Counted {
+    read: u64,
+    lines: u64,
+    input_tokens: u64,
+    output_tokens: u64,
+    device_memory: Option<u64>,
+    stamp: Option<FileStamp>,
+    prefix: [u8; 32],
+    rewrites: u64,
+}
+
+/// Metadata lets an unchanged file skip reading; a changed file's consumed prefix is verified before reusing counts.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct FileStamp {
+    size: u64,
+    modified: Option<SystemTime>,
+    #[cfg(unix)]
+    identity: (u64, u64, i64, i64),
+}
+
+/// How long after a change a file's times may not yet tell it from the next change: Windows keeps file times by a
+/// clock that moves in steps of up to about 16 ms, so two quick writes of the same size can leave the same stamp.
+const RACY: std::time::Duration = std::time::Duration::from_secs(2);
+
+impl FileStamp {
+    /// Whether the file changed so recently that an equal stamp does not show it is unchanged; it is then read to check.
+    fn racy(&self) -> bool {
+        // A time ahead of the clock counts as recent too.
+        self.modified.is_none_or(|modified| {
+            SystemTime::now()
+                .duration_since(modified)
+                .map_or(true, |age| age < RACY)
+        })
+    }
+
+    /// The metadata that changes when samples are edited or the file is replaced.
+    fn from(metadata: &std::fs::Metadata) -> Self {
+        #[cfg(unix)]
+        use std::os::unix::fs::MetadataExt;
+        Self {
+            size: metadata.len(),
+            modified: metadata.modified().ok(),
+            #[cfg(unix)]
+            identity: (
+                metadata.dev(),
+                metadata.ino(),
+                metadata.ctime(),
+                metadata.ctime_nsec(),
+            ),
+        }
+    }
+}
+
+/// Counts appended complete lines; truncation or a changed prefix starts fresh and records the protocol violation.
+fn count_lines(path: &Path, mut counted: Counted) -> Counted {
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return counted;
+    };
+    let Ok(metadata) = file.metadata() else {
+        return counted;
+    };
+    let stamp = FileStamp::from(&metadata);
+    if counted.stamp == Some(stamp) && !stamp.racy() {
+        return counted;
+    }
+    let mut hash = Sha256::new();
+    let mut remaining = counted.read;
+    let mut chunk = [0_u8; 64 * 1024];
+    while remaining > 0 {
+        let room = remaining.min(chunk.len() as u64) as usize;
+        let Ok(read) = file.read(&mut chunk[..room]) else {
+            return counted;
+        };
+        if read == 0 {
+            break;
+        }
+        hash.update(&chunk[..read]);
+        remaining -= read as u64;
+    }
+    if counted.stamp.is_some()
+        && (remaining > 0 || <[u8; 32]>::from(hash.clone().finalize()) != counted.prefix)
+    {
+        counted = Counted {
+            rewrites: counted.rewrites + 1,
+            ..Counted::default()
+        };
+        if file.seek(SeekFrom::Start(0)).is_err() {
+            return counted;
+        }
+        hash = Sha256::new();
+    }
+    let mut reader = BufReader::new(file);
+    let mut buffer = Vec::new();
+    while let Ok(bytes) = reader.read_until(b'\n', &mut buffer) {
+        if bytes == 0 || buffer.last() != Some(&b'\n') {
+            break;
+        }
+        counted.lines += 1;
+        counted.read += bytes as u64;
+        hash.update(&buffer);
+        if let Ok(line) = serde_json::from_slice::<Value>(&buffer)
+            && let Some(usage) = line.get("usage").and_then(Value::as_object)
+        {
+            let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+            counted.input_tokens += count("inputTokens");
+            counted.output_tokens += count("outputTokens");
+            if let Some(held) = usage.get("deviceMemoryBytes").and_then(Value::as_u64) {
+                counted.device_memory = Some(held);
+            }
+        }
+        buffer.clear();
+    }
+    counted.stamp = Some(stamp);
+    counted.prefix = hash.finalize().into();
+    counted
+}
+
+/// This computer, as the readings are measured against it.
+pub(super) fn system() -> Value {
+    json!({
+        "cpus": std::thread::available_parallelism().map(usize::from).unwrap_or(0),
+        "platform": std::env::consts::OS,
+    })
+}
+
+/// The wait after a reading: `FIRST_WAIT` after the first, twice the one before after each next, `EVERY` at most.
+fn next_wait(before: Duration) -> Duration {
+    (before * 2).min(EVERY)
+}
+
+/// Samples a process group into `resources.jsonl` in its folder, often at first and then every two seconds, until the
+/// group is gone or `stop` is set. A local run and a remote worker's job are sampled alike, so their readings read alike.
+pub(super) async fn sample_until(pid: u32, directory: PathBuf, stop: Option<Arc<AtomicBool>>) {
+    let started = Instant::now();
+    let samples = directory.join("samples.jsonl");
+    let file = directory.join(FILE);
+    let stopped = || {
+        stop.as_ref()
+            .is_some_and(|flag| flag.load(Ordering::SeqCst))
+    };
+    let mut counted = Counted::default();
+    let mut gpu_present = true;
+    let mut earlier = None;
+    let mut wait = FIRST_WAIT;
+    loop {
+        if !group_exists(pid) || stopped() {
+            break;
+        }
+        let usage = group_usage(pid, &mut earlier).await;
+        let gpu = if gpu_present { gpus().await } else { None };
+        gpu_present = gpu.is_some();
+        let path = samples.clone();
+        let before = counted;
+        counted = tokio::task::spawn_blocking(move || count_lines(&path, before))
+            .await
+            .unwrap_or(counted);
+        // A worker writes its final state once sampling has stopped, so nothing is added after it.
+        if stopped() {
+            break;
+        }
+        let point = json!({
+            "at": iso_time(now_millis()),
+            "elapsedMs": started.elapsed().as_millis() as u64,
+            "cpuPercent": usage.map(|(cpu, _, _)| cpu),
+            "memoryBytes": usage.map(|(_, memory, _)| memory),
+            "processes": usage.map(|(_, _, count)| count),
+            "samplesBytes": counted.read,
+            "samplesLines": counted.lines,
+            "samplesRewrites": counted.rewrites,
+            "inputTokens": counted.input_tokens,
+            "outputTokens": counted.output_tokens,
+            "deviceMemoryBytes": counted.device_memory,
+            "gpus": gpu,
+        });
+        let line = format!("{point}\n");
+        let target = file.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            use std::io::Write;
+            std::fs::OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(target)
+                .and_then(|mut handle| handle.write_all(line.as_bytes()))
+        })
+        .await;
+        tokio::time::sleep(wait).await;
+        wait = next_wait(wait);
+    }
+}
+
+impl Kernel {
+    /// Samples a run's group until it is gone, appending to the run's folder. Started when the run starts.
+    pub(super) fn sample_resources(self: &Arc<Self>, pid: u32, directory: PathBuf) {
+        tokio::spawn(sample_until(pid, directory, None));
+    }
+
+    /// What a run has cost so far, or cost in all: the newest points, and this computer.
+    pub async fn research_resources(&self, project: &str, run: &str) -> Result<Value, CoreError> {
+        if !is_id(run) {
+            return Err(CoreError::new(404, "No such run"));
+        }
+        let record = self.research_run(project, run).await?;
+        let records = self.records_folder(project).await?;
+        let path = records.join("runs").join(run).join(FILE);
+        let points = tokio::task::spawn_blocking(move || {
+            let Ok(file) = std::fs::File::open(&path) else {
+                return Vec::new();
+            };
+            let mut points: Vec<Value> = BufReader::new(file)
+                .lines()
+                .map_while(Result::ok)
+                .filter_map(|line| serde_json::from_str(&line).ok())
+                .collect();
+            if points.len() > POINTS_KEPT {
+                points.drain(..points.len() - POINTS_KEPT);
+            }
+            points
+        })
+        .await
+        .map_err(|error| CoreError::new(500, error.to_string()))?;
+        // A remote run's readings were taken on its host, and say so.
+        let computer = match record
+            .get("remoteSystem")
+            .filter(|system| system.is_object())
+        {
+            Some(remote) => {
+                let mut remote = remote.clone();
+                remote["host"] = record["remote"]["host"].clone();
+                remote
+            }
+            None => system(),
+        };
+        Ok(json!({
+            "runId": run,
+            "status": text(&record, "status"),
+            "system": computer,
+            "points": points,
+        }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn a_fresh_rewrite_with_an_equal_stamp_is_still_read() {
+        // As on Windows, where two quick writes of the same size can leave the same size and time.
+        let folder = std::env::temp_dir().join(workbench_domain::new_id("research_racy").unwrap());
+        std::fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("samples.jsonl");
+        let line = |name: &str, tokens: u64| {
+            format!(
+                "{}\n",
+                json!({"sampleId": name, "usage": {"inputTokens": tokens}})
+            )
+        };
+        std::fs::write(&path, line("a", 10)).unwrap();
+        let mut before = count_lines(&path, Counted::default());
+        std::fs::write(&path, line("b", 20)).unwrap();
+        before.stamp = Some(FileStamp::from(&std::fs::metadata(&path).unwrap()));
+        let after = count_lines(&path, before);
+        assert_eq!((after.lines, after.input_tokens), (1, 20));
+        std::fs::remove_dir_all(&folder).unwrap();
+    }
+
+    #[test]
+    fn counts_follow_truncation_same_size_and_larger_rewrites() {
+        let folder =
+            std::env::temp_dir().join(workbench_domain::new_id("research_counts").unwrap());
+        std::fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("samples.jsonl");
+        let line = |name, tokens| {
+            format!(
+                "{}\n",
+                json!({"sampleId": name, "usage": {"inputTokens": tokens, "outputTokens": tokens, "deviceMemoryBytes": tokens}})
+            )
+        };
+        std::fs::write(&path, line("a", 10).repeat(3)).unwrap();
+        let before = count_lines(&path, Counted::default());
+        assert_eq!((before.lines, before.input_tokens), (3, 30));
+        std::fs::write(&path, line("b", 90)).unwrap();
+        let shorter = count_lines(&path, before);
+        assert_eq!(
+            (shorter.lines, shorter.input_tokens, shorter.device_memory),
+            (1, 90, Some(90))
+        );
+        std::fs::write(&path, line("c", 70)).unwrap();
+        let same_size = count_lines(&path, shorter);
+        assert_eq!((same_size.lines, same_size.input_tokens), (1, 70));
+        std::fs::write(&path, line("d", 50).repeat(5)).unwrap();
+        let larger = count_lines(&path, same_size);
+        assert_eq!((larger.lines, larger.input_tokens), (5, 250));
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
+        let last = line("e", 20);
+        file.write_all(&last.as_bytes()[..last.len() - 1]).unwrap();
+        let partial = count_lines(&path, larger);
+        assert_eq!((partial.lines, partial.input_tokens), (5, 250));
+        file.write_all(b"\n").unwrap();
+        let appended = count_lines(&path, partial);
+        assert_eq!((appended.lines, appended.input_tokens), (6, 270));
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn the_waits_grow_from_a_quarter_second_to_two_seconds() {
+        let mut wait = FIRST_WAIT;
+        let mut waits = vec![wait];
+        for _ in 0..5 {
+            wait = next_wait(wait);
+            waits.push(wait);
+        }
+        let millis: Vec<u128> = waits.iter().map(Duration::as_millis).collect();
+        assert_eq!(millis, [250, 500, 1000, 2000, 2000, 2000]);
+    }
+
+    /// A run that lives about a second, as the SSH contract's job does, was read once, as it started, before it had
+    /// any memory to show; it is now read while it works.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_run_of_a_second_is_read_while_it_works() {
+        let folder = std::env::temp_dir().join(workbench_domain::new_id("research_short").unwrap());
+        std::fs::create_dir_all(&folder).unwrap();
+        let mut command = Command::new("sleep");
+        command.arg("1.2");
+        workbench_tools::in_own_group(&mut command);
+        let mut child = command.spawn().unwrap();
+        let pid = child.id().unwrap();
+        // The run is reaped while it is sampled, as a run's own loop does, or its group would outlive it.
+        let sampler = tokio::spawn(sample_until(pid, folder.clone(), None));
+        child.wait().await.unwrap();
+        sampler.await.unwrap();
+        let points: Vec<Value> = std::fs::read_to_string(folder.join(FILE))
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert!(points.len() >= 3, "{points:?}");
+        let working = points
+            .iter()
+            .filter(|point| point["elapsedMs"].as_u64().unwrap() >= 200)
+            .filter(|point| point["memoryBytes"].as_u64().unwrap_or(0) > 0)
+            .count();
+        assert!(working >= 1, "{points:?}");
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+}

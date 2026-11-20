@@ -6,15 +6,15 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench } from "./files-support.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 /** A project chat whose agent has the research tools. */
 async function bed(files = {}) {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   for (const [name, content] of Object.entries(files)) await writeFile(path.join(folder, name), content);
-  const setup = await saturn.chat(folder, { mcpConnectionIds: ["research"] });
+  const setup = await workbench.chat(folder, { mcpConnectionIds: ["research"] });
   return { ...setup, folder, route: `/projects/${setup.project.id}/research` };
 }
 
@@ -42,7 +42,7 @@ test("results come in through a preview, are marked imported, and compare sample
   const columns = { sampleId: "id", input: "prompt", output: "answer" };
   const preview = await call(setup, "research_read", { what: "import_preview", path: "old.jsonl", columns, scoreColumns: ["correct"] });
   assert.equal(preview.samples, 4);
-  assert.deepEqual(await saturn.api("GET", `${setup.route}/runs`).then((runs) => runs.items), [], "a preview writes nothing");
+  assert.deepEqual(await workbench.api("GET", `${setup.route}/runs`).then((runs) => runs.items), [], "a preview writes nothing");
 
   const left = await call(setup, "research_evidence", { action: "import", path: "old.jsonl", columns, scoreColumns: ["correct"], title: "Old", expectedSha256: preview.provenance.sha256 });
   const right = await call(setup, "research_evidence", { action: "import", path: "new.jsonl", columns, scoreColumns: ["correct"], title: "New" });
@@ -56,11 +56,11 @@ test("results come in through a preview, are marked imported, and compare sample
   assert.equal(paired.summary.regressed, 1);
   assert.equal(paired.summary.interval95, null, "imports never get an interval");
   assert.equal(paired.saved, undefined, "reading a comparison keeps nothing");
-  assert.deepEqual((await saturn.api("GET", `${setup.route}/counterexample_sets`)).items, []);
+  assert.deepEqual((await workbench.api("GET", `${setup.route}/counterexample_sets`)).items, []);
 
   const saved = await call(setup, "research_evidence", { action: "save_counterexamples", ...request, title: "Lost" });
   assert.deepEqual(saved.saved.members.map((member) => member.sampleId), ["s-3"]);
-  assert.equal((await saturn.api("GET", `${setup.route}/counterexample_sets`)).items[0].title, "Lost");
+  assert.equal((await workbench.api("GET", `${setup.route}/counterexample_sets`)).items[0].title, "Lost");
 });
 
 test("a kept output is a snapshot with its hash, and a bundle is previewed before it comes in", async () => {
@@ -74,9 +74,9 @@ test("a kept output is a snapshot with its hash, and a bundle is previewed befor
   assert.match(Buffer.from(content.data, "base64").toString("utf8"), /effect/);
 
   await call(setup, "research_evidence", { action: "import", path: "old.jsonl", columns: { sampleId: "id", input: "prompt", output: "answer" }, scoreColumns: ["correct"] });
-  const exported = await call(setup, "research_evidence", { action: "bundle_export", path: "exports/study.saturn.json" });
-  assert.match(JSON.stringify(exported), /study\.saturn\.json/);
-  const preview = await call(setup, "research_read", { what: "bundle_preview", path: "exports/study.saturn.json" });
+  const exported = await call(setup, "research_evidence", { action: "bundle_export", path: "exports/study.workbench.json" });
+  assert.match(JSON.stringify(exported), /study\.workbench\.json/);
+  const preview = await call(setup, "research_read", { what: "bundle_preview", path: "exports/study.workbench.json" });
   assert.equal(preview.conflicts?.length ?? 0, 0, JSON.stringify(preview).slice(0, 400));
 });
 
@@ -103,7 +103,7 @@ test("inspection sessions and notebooks are reached through the tools, and say w
 
 test("an Ask chat reads the new things and is refused every new tool that writes", async () => {
   const setup = await bed({ "old.jsonl": rows([1]) });
-  await saturn.api("PATCH", `/threads/${setup.thread.id}`, { chatMode: "manual" });
+  await workbench.api("PATCH", `/threads/${setup.thread.id}`, { chatMode: "manual" });
   await call(setup, "research_read", { what: "remote" });
   await call(setup, "research_read", { what: "import_preview", path: "old.jsonl", columns: { sampleId: "id", input: "prompt", output: "answer" }, scoreColumns: ["correct"] });
   for (const [name, args] of [
@@ -114,5 +114,5 @@ test("an Ask chat reads the new things and is refused every new tool that writes
     const run = await setup.turn([[name, args]]);
     assert.notEqual(run.actions.at(-1).status, "completed", name);
   }
-  assert.deepEqual((await saturn.api("GET", `${setup.route}/runs`)).items, []);
+  assert.deepEqual((await workbench.api("GET", `${setup.route}/runs`)).items, []);
 });

@@ -116,15 +116,15 @@ python scripts/research/name_tracking_followup.py \
   --models docs/research/name-tracking-2026-11-05/models.json \
   --output /tmp/pythia-followup-replay
 
-python crates/saturn-core/tests/research_followup_test.py
-cargo build -p saturn-server -p saturn-cli
+python crates/workbench-core/tests/research_followup_test.py
+cargo build -p workbench-server -p workbench-cli
 node --test contract/research-inside.test.mjs
 ```
 
-若用 Saturn 執行，省略 `--output`；baseline JSONL 寫入 `SATURN_RUN_SAMPLES`，介入證據另存
-`SATURN_RUN_DIRECTORY/followup/`。不得把 baseline 與 patch 分數混成同一個平均。
+若用 Eisoptric Workbench 執行，省略 `--output`；baseline JSONL 寫入 `WORKBENCH_RUN_SAMPLES`，介入證據另存
+`WORKBENCH_RUN_DIRECTORY/followup/`。不得把 baseline 與 patch 分數混成同一個平均。
 
-本次通過 111 個研究契約／桌面規則測試、46 個 saturn-core／saturn-domain Rust 測試、6 個研究 Python
+本次通過 111 個研究契約／桌面規則測試、46 個 workbench-core／workbench-domain Rust 測試、6 個研究 Python
 檢查，以及 `cargo fmt --all --check`、`cargo clippy --all-targets`、`cargo deny check`。
 涉及行程與內層 shell sandbox 的測試在代理沙箱外，以隔離的暫存專案與假模型執行。
 

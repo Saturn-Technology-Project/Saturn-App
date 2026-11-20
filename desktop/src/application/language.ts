@@ -3,7 +3,7 @@
 import { type LanguageChoice, type Locale, resolveLocale, setDictionary, setMacShortcuts } from "../domain/i18n";
 import { dictionaryFor } from "../locales";
 
-const KEY = "saturn-language";
+const KEY = "workbench-language";
 
 /** What the person chose, or "auto" when nothing is stored. */
 export function languageChoice(): LanguageChoice {

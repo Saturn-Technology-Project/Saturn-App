@@ -14,7 +14,7 @@ const servers = [];
 before(async () => {
   // Stands for a credential in the runtime's own environment, which a local server must not inherit.
   runtime = await startRuntime({ env: { CONTRACT_KEY_FROM_PARENT: "leaked-from-the-runtime" } });
-  folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-mcp-")));
+  folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-mcp-")));
 });
 after(async () => {
   await runtime?.stop();
@@ -158,7 +158,7 @@ test("a local program starts only once its exact command is allowed, with only t
   const server = await api("POST", "/connections/mcp", { name: "Local", command: { program: process.execPath, args: [script], env: { MY_VAR: "given" } } });
   const refused = await fetch(`${runtime.origin}/connections/mcp/${server.id}/discover`, { method: "POST", headers: { authorization: `Bearer ${(await readFile(path.join(runtime.dataDir, "runtime-token"), "utf8")).trim()}` } });
   assert.equal(refused.status, 409);
-  assert.match((await refused.json()).error, /Allow it in Saturn Settings/);
+  assert.match((await refused.json()).error, /Allow it in Eisoptric Workbench Settings/);
   await api("POST", `/connections/mcp/${server.id}/approve`, { fingerprint: server.commandFingerprint });
   assert.deepEqual((await api("POST", `/connections/mcp/${server.id}/discover`)).tools.map((tool) => tool.toolId), ["local_tool"]);
   const { run, requests } = await agentCalling(server.id, "local_tool");

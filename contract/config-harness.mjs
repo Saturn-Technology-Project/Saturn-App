@@ -1,5 +1,5 @@
 // What the contract/config-*.test.mjs share: one isolated runtime with its token, temporary folders, fake servers, and
-// runs of agents on a scripted model. Nothing here reaches the developer's own Saturn, keys or any real provider.
+// runs of agents on a scripted model. Nothing here reaches the developer's own Eisoptric Workbench, keys or any real provider.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -12,7 +12,7 @@ export const settled = (run) => !["queued", "running", "waiting_approval"].inclu
 
 /** Starts a runtime on a temporary data folder, with a temporary folder for the test's own files. */
 export async function open({ env = {} } = {}) {
-  const scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-config-")));
+  const scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-config-")));
   const dataDir = path.join(scratch, "data");
   await mkdir(dataDir);
   let runtime = await startRuntime({ dataDir, keepData: true, env });

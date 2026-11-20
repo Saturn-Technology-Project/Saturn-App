@@ -8,8 +8,8 @@ release/
 # The embedding model the app ships (desktop: npm run fetch:model)
 desktop/.staging/
 
-# A personal MV project about building Saturn (kept out of the repository)
-saturn-mv/
+# A personal MV project about building Eisoptric Workbench (kept out of the repository)
+workbench-mv/
 
 # Rust build output
 /target/

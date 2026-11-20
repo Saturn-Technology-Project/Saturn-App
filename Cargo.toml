@@ -1,8 +1,8 @@
-# The Rust rewrite of Saturn's runtime (see contract/ for what it must keep doing).
+# The Rust rewrite of Eisoptric Workbench's runtime (see contract/ for what it must keep doing).
 [workspace]
 resolver = "3"
 members = ["crates/*", "desktop/src-tauri"]
-# The desktop app needs a web view to build, so plain cargo commands leave it out; use -p saturn-desktop.
+# The desktop app needs a web view to build, so plain cargo commands leave it out; use -p workbench-desktop.
 default-members = ["crates/*"]
 
 [workspace.package]

@@ -1,6 +1,6 @@
-// Writes an osv-scanner.toml next to each lock file whose advisories do not reach what Saturn ships, so OpenSSF
+// Writes an osv-scanner.toml next to each lock file whose advisories do not reach what Eisoptric Workbench ships, so OpenSSF
 // Scorecard's Vulnerabilities check (and osv-scanner) report only the ones that do. An advisory in a production
-// dependency of something Saturn ships is never waived here: fix it, or record it in docs/known-advisories.md.
+// dependency of something Eisoptric Workbench ships is never waived here: fix it, or record it in docs/known-advisories.md.
 //
 //   node scripts/osv-waivers.mjs          rewrite the waivers from the OSV database
 //   node scripts/osv-waivers.mjs --check  exit 1 when they are out of date

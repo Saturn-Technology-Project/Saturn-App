@@ -1,7 +1,7 @@
 /** One entry of the composer's "/" menu. */
 export type SlashEntry = { name: string; description: string; kind: "builtin" | "skill" | "command" };
 
-/** Commands Saturn itself understands in the composer. */
+/** Commands Eisoptric Workbench itself understands in the composer. */
 export const BUILTIN_COMMANDS: SlashEntry[] = [
   { name: "compact", description: "Fold this chat's earlier turns into a summary now", kind: "builtin" },
   { name: "plan", description: "Send the rest as a Plan turn: the agent reads and plans, changes nothing", kind: "builtin" },
@@ -17,23 +17,23 @@ export function parseSlash(text: string): { name: string; rest: string } | undef
 
 /** The hidden block a skill or command adds to a message (the chat shows only what the user typed). */
 export function hiddenContext(source: string, text: string): string {
-  return `\n\n<saturn_context sources="${source.replace(/"/g, "'")}">\n<attached_context>\n${text}\n</attached_context>\n</saturn_context>`;
+  return `\n\n<workbench_context sources="${source.replace(/"/g, "'")}">\n<attached_context>\n${text}\n</attached_context>\n</workbench_context>`;
 }
 
 /** The user's own words: what they typed, without the attached-context block sent along. */
 export function shownInput(input: string): string {
-  const at = input.indexOf("\n\n<saturn_context");
+  const at = input.indexOf("\n\n<workbench_context");
   return at >= 0 ? input.slice(0, at) : input;
 }
 
 /** The "sources" a message's attached-context block names, for a small line under it. */
 export function contextSources(input: string): string {
-  return /<saturn_context sources="([^"]*)">/.exec(input)?.[1] ?? "";
+  return /<workbench_context sources="([^"]*)">/.exec(input)?.[1] ?? "";
 }
 
 /** What went with a message that is worth saying: not the screen, which goes with every message. */
 export function shownSources(input: string): string {
-  return [...input.matchAll(/<saturn_context sources="([^"]*)">/g)]
+  return [...input.matchAll(/<workbench_context sources="([^"]*)">/g)]
     .map((match) => match[1])
     .filter((source) => source !== "the screen you are on")
     .join(", ");

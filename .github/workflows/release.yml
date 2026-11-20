@@ -8,7 +8,7 @@ name: Release
 #   2. version   reads the version from desktop/package.json (Cargo.toml must agree). It releases when that version is
 #                newer than every v* tag; an older one fails, an existing one only packages.
 #   3. macos-test, windows-test   the Rust tests (and on macOS the HTTP contract) on that system, beside the check.
-#   4. worker    the SSH worker for Linux hosts (x86-64 and ARM): this version's saturn-server, built on Ubuntu 22.04 so
+#   4. worker    the SSH worker for Linux hosts (x86-64 and ARM): this version's workbench-server, built on Ubuntu 22.04 so
 #                older systems run it, started once, hashed and attested. worker-pins hands the hashes to the packages.
 #   5. macos, windows   package, sign and attest, once the check and that system's tests pass. The runtime in each is
 #                built with the workers' hashes, so it installs on a host only a worker that matches. The files are
@@ -116,15 +116,15 @@ jobs:
 
       - name: Git identity for the tests
         run: |
-          git config --global user.name "Saturn CI"
-          git config --global user.email "ci@saturn.invalid"
+          git config --global user.name "Eisoptric Workbench CI"
+          git config --global user.email "ci@example.invalid"
 
       - name: Rust tests
         run: cargo test --locked --no-fail-fast
 
       - name: The HTTP contract
         run: |
-          cargo build --locked -p saturn-server -p saturn-cli
+          cargo build --locked -p workbench-server -p workbench-cli
           node --test --test-timeout=120000 --test-force-exit contract/*.test.mjs
 
       - name: Type checks
@@ -158,14 +158,14 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libssl-dev pkg-config
 
       - name: Build the worker
-        run: cargo build --release --locked -p saturn-server
+        run: cargo build --release --locked -p workbench-server
 
       - name: Name it for the release, and start it once
         id: named
         run: |
-          name="saturn-worker-${{ needs.version.outputs.version }}-${{ matrix.target }}"
+          name="workbench-worker-${{ needs.version.outputs.version }}-${{ matrix.target }}"
           mkdir -p worker
-          cp target/release/saturn-server "worker/$name"
+          cp target/release/workbench-server "worker/$name"
           (cd worker && sha256sum "$name" > "$name.sha256")
           printf '%s' "{\"action\":\"check\",\"workdir\":\"$PWD\"}" | "./worker/$name" --research-worker | tee check.json
           grep -q '"version":"${{ needs.version.outputs.version }}"' check.json
@@ -182,7 +182,7 @@ jobs:
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: saturn-worker-${{ matrix.target }}
+          name: workbench-worker-${{ matrix.target }}
           path: worker/
           if-no-files-found: error
 
@@ -195,7 +195,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: saturn-worker-*
+          pattern: workbench-worker-*
           path: worker
           merge-multiple: true
 
@@ -203,9 +203,9 @@ jobs:
         id: pins
         run: |
           pins=""
-          for file in worker/saturn-worker-*.sha256; do
+          for file in worker/workbench-worker-*.sha256; do
             hash=$(cut -d' ' -f1 "$file")
-            target=$(basename "$file" .sha256 | sed -E 's/^saturn-worker-.*-(linux-[a-z0-9]+)$/\1/')
+            target=$(basename "$file" .sha256 | sed -E 's/^workbench-worker-.*-(linux-[a-z0-9]+)$/\1/')
             pins="${pins:+$pins,}$target=$hash"
           done
           echo "$pins"
@@ -239,14 +239,14 @@ jobs:
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
 
-      - name: Package Saturn.app
+      - name: Package Eisoptric Workbench.app
         working-directory: desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          UPDATER_PUBKEY: ${{ vars.SATURN_UPDATER_PUBKEY }}
+          UPDATER_PUBKEY: ${{ vars.WORKBENCH_UPDATER_PUBKEY }}
           # Built into the runtime: the only Linux workers it will install on an SSH host.
-          SATURN_WORKER_SHA256: ${{ needs.worker-pins.outputs.pins }}
+          WORKBENCH_WORKER_SHA256: ${{ needs.worker-pins.outputs.pins }}
         run: |
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
           npm run package -- --bundles app $(node scripts/updater-config.mjs)
@@ -262,13 +262,13 @@ jobs:
             desktop/release/*-update.tar.gz
 
       # The signed attestation (a Sigstore bundle) ships beside the downloads, so it can be checked offline:
-      # gh attestation verify <file> --bundle <bundle> -R Saturn-Technology-Project/Saturn-App
+      # gh attestation verify <file> --bundle <bundle> -R eisoptric/Workbench
       - name: Keep the signed attestation
-        run: cp "${{ steps.attest.outputs.bundle-path }}" "desktop/release/Saturn-${{ steps.version.outputs.version }}-mac-arm64.sigstore.json"
+        run: cp "${{ steps.attest.outputs.bundle-path }}" "desktop/release/Workbench-${{ steps.version.outputs.version }}-mac-arm64.sigstore.json"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: saturn-macos
+          name: workbench-macos
           path: |
             desktop/release/*.dmg
             desktop/release/*.dmg.sha256
@@ -316,8 +316,8 @@ jobs:
 
       - name: Git identity for the tests
         run: |
-          git config --global user.name "Saturn CI"
-          git config --global user.email "ci@saturn.invalid"
+          git config --global user.name "Eisoptric Workbench CI"
+          git config --global user.email "ci@example.invalid"
 
       - name: Rust tests
         run: cargo test --locked --no-fail-fast
@@ -362,15 +362,15 @@ jobs:
           PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
         run: .github/scripts/windows-signing-cert.ps1
 
-      - name: Package the Saturn installer
+      - name: Package the Eisoptric Workbench installer
         working-directory: desktop
         shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          UPDATER_PUBKEY: ${{ vars.SATURN_UPDATER_PUBKEY }}
+          UPDATER_PUBKEY: ${{ vars.WORKBENCH_UPDATER_PUBKEY }}
           # Built into the runtime: the only Linux workers it will install on an SSH host.
-          SATURN_WORKER_SHA256: ${{ needs.worker-pins.outputs.pins }}
+          WORKBENCH_WORKER_SHA256: ${{ needs.worker-pins.outputs.pins }}
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true  # a failing command fails the step, not only the last one
@@ -400,11 +400,11 @@ jobs:
 
       - name: Keep the signed attestation
         shell: bash
-        run: cp "${{ steps.attest.outputs.bundle-path }}" "desktop/release/Saturn-${{ steps.version.outputs.version }}-win-x64.sigstore.json"
+        run: cp "${{ steps.attest.outputs.bundle-path }}" "desktop/release/Workbench-${{ steps.version.outputs.version }}-win-x64.sigstore.json"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: saturn-windows
+          name: workbench-windows
           path: |
             desktop/release/*.exe
             desktop/release/*.exe.sha256
@@ -434,7 +434,7 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # Installed Saturns look here for updates. It is a release of its own because GitHub's "latest" link skips pre-releases.
+      # Installed Workbenchs look here for updates. It is a release of its own because GitHub's "latest" link skips pre-releases.
       - name: Update manifest
         run: |
           version="${VERSION#v}"
@@ -446,8 +446,8 @@ jobs:
       - name: Software bill of materials (CycloneDX)
         run: |
           version="${VERSION#v}"
-          node scripts/sbom.mjs "$version" "dist/Saturn-$version-sbom.cdx.json"
-          (cd dist && sha256sum "Saturn-$version-sbom.cdx.json" > "Saturn-$version-sbom.cdx.json.sha256")
+          node scripts/sbom.mjs "$version" "dist/Workbench-$version-sbom.cdx.json"
+          (cd dist && sha256sum "Workbench-$version-sbom.cdx.json" > "Workbench-$version-sbom.cdx.json.sha256")
 
       - name: Attest the SBOM
         id: attest
@@ -456,15 +456,15 @@ jobs:
           subject-path: dist/*-sbom.cdx.json
 
       - name: Keep the SBOM's signed attestation
-        run: cp "${{ steps.attest.outputs.bundle-path }}" "dist/Saturn-${VERSION#v}-sbom.cdx.json.sigstore.json"
+        run: cp "${{ steps.attest.outputs.bundle-path }}" "dist/Workbench-${VERSION#v}-sbom.cdx.json.sigstore.json"
 
       # Every signed provenance attestation of the release in one JSON-lines file, the name SLSA tools look for:
-      # gh attestation verify <file> --bundle Saturn-<version>.intoto.jsonl -R Saturn-Technology-Project/Saturn-App
+      # gh attestation verify <file> --bundle Workbench-<version>.intoto.jsonl -R eisoptric/Workbench
       - name: Provenance of the whole release
         run: |
           version="${VERSION#v}"
-          for bundle in dist/*.sigstore.json; do jq -c . "$bundle"; done > "dist/Saturn-$version.intoto.jsonl"
-          test -s "dist/Saturn-$version.intoto.jsonl"
+          for bundle in dist/*.sigstore.json; do jq -c . "$bundle"; done > "dist/Workbench-$version.intoto.jsonl"
+          test -s "dist/Workbench-$version.intoto.jsonl"
 
       - name: Publish
         env:
@@ -483,7 +483,7 @@ jobs:
           else
             # Creating the release tags this commit v<version>.
             gh release create "$tag" dist/* \
-              --title "Saturn $tag" \
+              --title "Eisoptric Workbench $tag" \
               --target "$GITHUB_SHA" \
               --notes-file notes.md \
               --generate-notes \
@@ -491,6 +491,6 @@ jobs:
           fi
           gh release view "$tag" --json url --jq .url
           if [[ -f latest.json ]]; then
-            gh release view updates >/dev/null 2>&1 || gh release create updates --title "Saturn updates" --notes "What installed Saturns check for updates." --prerelease --target "$GITHUB_SHA"
+            gh release view updates >/dev/null 2>&1 || gh release create updates --title "Eisoptric Workbench updates" --notes "What installed Workbenchs check for updates." --prerelease --target "$GITHUB_SHA"
             gh release upload updates latest.json --clobber
           fi

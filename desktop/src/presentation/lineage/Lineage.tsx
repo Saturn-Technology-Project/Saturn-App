@@ -235,7 +235,7 @@ export function Lineage(props: ScreenProps) {
 
   return (
     <Split id="lineage" side="right" size={320} minimum={240} label={t("Model details")} open={Boolean(current)} pane={details}>
-      <Page title={t("Model lineage")} lead={t("From checkpoints to fine-tuned and preference-trained branches. Saturn records where weights are, and does not copy them.")}>
+      <Page title={t("Model lineage")} lead={t("From checkpoints to fine-tuned and preference-trained branches. Eisoptric Workbench records where weights are, and does not copy them.")}>
           {!value ? <Loading /> : null}
           {value && models.length === 0 && !adding ? (
             <Empty title={t("No models yet")} action={<Button data-tour="lineage-add" onClick={() => setAdding(true)}>{t("Add the first model")}</Button>}>

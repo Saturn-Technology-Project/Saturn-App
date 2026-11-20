@@ -16,7 +16,7 @@ pub struct Options {
 fn open_thread_script(options: &Options) -> Option<String> {
     let thread_id = options.thread_id.as_ref()?;
     let payload = serde_json::json!({ "agentId": options.agent_id, "threadId": thread_id });
-    Some(format!("window.__saturnOpenThread({payload})"))
+    Some(format!("window.__workbenchOpenThread({payload})"))
 }
 
 /// What a click does: brings the window forward and opens the chat.
@@ -47,7 +47,7 @@ fn deliver(app: &AppHandle, options: &Options) -> Result<(), Box<dyn std::error:
     use mac_notification_sys::{Notification, NotificationResponse, set_application};
     // Already set after the first notification; the library only allows it once.
     let _ = set_application(&app.config().identifier);
-    let title = options.title.as_deref().unwrap_or("Saturn");
+    let title = options.title.as_deref().unwrap_or("Eisoptric Workbench");
     let body = options.body.as_deref().unwrap_or("");
     let mut notification = Notification::new();
     notification.title(title).message(body).wait_for_click(true);
@@ -66,7 +66,7 @@ fn deliver(app: &AppHandle, options: &Options) -> Result<(), Box<dyn std::error:
     let handle = app.clone();
     let chosen = options.clone();
     Toast::new(&app.config().identifier)
-        .title(options.title.as_deref().unwrap_or("Saturn"))
+        .title(options.title.as_deref().unwrap_or("Eisoptric Workbench"))
         .text1(options.body.as_deref().unwrap_or(""))
         .sound(if options.silent == Some(true) {
             None
@@ -81,7 +81,7 @@ fn deliver(app: &AppHandle, options: &Options) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-/// Saturn ships for macOS and Windows; other builds have no notifications yet.
+/// Eisoptric Workbench ships for macOS and Windows; other builds have no notifications yet.
 #[cfg(not(any(target_os = "macos", windows)))]
 fn deliver(_app: &AppHandle, _options: &Options) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
@@ -103,7 +103,7 @@ mod tests {
         let script = open_thread_script(&options).expect("a thread id gives a script");
         assert_eq!(
             script,
-            r#"window.__saturnOpenThread({"agentId":null,"threadId":"\");alert(1);(\""})"#
+            r#"window.__workbenchOpenThread({"agentId":null,"threadId":"\");alert(1);(\""})"#
         );
         let none = Options {
             title: None,

@@ -10,7 +10,7 @@ export type RuntimeStatus =
 
 /** Asks the app, or in a plain browser the runtime itself. */
 async function readStatus(client: RuntimeClient): Promise<RuntimeStatus> {
-  const fromApp = window.saturnDesktop?.runtimeStatus;
+  const fromApp = window.workbenchDesktop?.runtimeStatus;
   if (fromApp) return fromApp();
   try {
     const answer = await client.request<{ version?: string }>("/health");
@@ -39,6 +39,6 @@ export function useRuntimeStatus(): { status: RuntimeStatus; restart: (() => Pro
       window.clearTimeout(timer);
     };
   }, []);
-  const restart = window.saturnDesktop?.restartRuntime ?? null;
+  const restart = window.workbenchDesktop?.restartRuntime ?? null;
   return { status, restart: restart ? () => restart() : null };
 }

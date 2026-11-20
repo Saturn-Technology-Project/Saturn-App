@@ -20,10 +20,10 @@ let folder;
 const models = [];
 
 /** A runtime whose desktop programs are an empty folder, so nothing here can reach the real screen. */
-const fresh = (options = {}) => startRuntime({ ...options, env: { SATURN_DESKTOP_BIN: desktop, ...options.env } });
+const fresh = (options = {}) => startRuntime({ ...options, env: { WORKBENCH_DESKTOP_BIN: desktop, ...options.env } });
 
 before(async () => {
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-runs-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-runs-")));
   desktop = path.join(scratch, "no-desktop-programs");
   folder = path.join(scratch, "project");
   await mkdir(desktop);
@@ -210,7 +210,7 @@ test("a long wait suspends the run without calling the model, a restart keeps it
     assert.equal(model.turns().length, 1, "not due yet: nothing happens");
     await second.stop();
 
-    // The time passes while Saturn is closed.
+    // The time passes while Eisoptric Workbench is closed.
     const past = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
     await editState(first.dataDir, (state) => {
       const wake = state.runs.find((item) => item.id === started.id).wake;
@@ -319,7 +319,7 @@ test("a turn left over from a group chat is ended at start, and what the group s
     second = await fresh({ dataDir: first.dataDir });
     const run = await getRun(started.id, second);
     assert.equal(run.status, "failed");
-    assert.match(run.error, /Group chats are no longer part of Saturn/);
+    assert.match(run.error, /Group chats are no longer part of Eisoptric Workbench/);
     assert.equal(model.turns().length, 1, "it does not go on under the agent's own setting");
     assert.ok((await api(second, "GET", `/agents/${agent.id}/messages`)).every((item) => item.id !== started.id), "it is not a chat's turn");
     assert.equal((await raw(second, "GET", "/groups")).status, 404, "there is no route to a group");
@@ -552,7 +552,7 @@ test("an Ask turn is offered only reading tools, is told so, and a write it trie
   assert.match(run.actions[0].reason, /Switch to Agent mode/);
 });
 
-test("a run's mode must be one Saturn knows", async () => {
+test("a run's mode must be one Eisoptric Workbench knows", async () => {
   const agent = await agentOn(await fakeModel());
   const answer = await raw(runtime, "POST", `/agents/${agent.id}/runs`, { input: "go", mode: "yolo" });
   assert.equal(answer.status, 400);
@@ -561,9 +561,9 @@ test("a run's mode must be one Saturn knows", async () => {
 
 test("a project's rule files reach the agent's prompt once the user allowed them", async () => {
   const site = path.join(scratch, "ruled");
-  await mkdir(path.join(site, ".saturn/rules"), { recursive: true });
+  await mkdir(path.join(site, ".workbench/rules"), { recursive: true });
   await writeFile(path.join(site, "AGENTS.md"), "Use pnpm.");
-  await writeFile(path.join(site, ".saturn/rules/a-tests.md"), "Every fix gets a test.");
+  await writeFile(path.join(site, ".workbench/rules/a-tests.md"), "Every fix gets a test.");
   const project = await api(runtime, "POST", "/projects", { path: site, grant: true });
   const instructions = await api(runtime, "GET", `/projects/${project.id}/instructions`);
   await api(runtime, "POST", `/projects/${project.id}/instructions/approve`, { fingerprint: instructions.fingerprint });
@@ -594,7 +594,7 @@ test("the Agents board lists the runs still going first, then the latest finishe
     const threadB = await api(target, "POST", `/agents/${agent.id}/threads`, { title: "In B", projectId: projectB.id });
     const worktree = await api(target, "POST", `/threads/${threadA.id}/worktree`);
 
-    const old = await untilFinished((await startRun(agent, 'old\n<saturn_context sources="x">hidden</saturn_context>', { threadId: threadA.id }, target)).id, target);
+    const old = await untilFinished((await startRun(agent, 'old\n<workbench_context sources="x">hidden</workbench_context>', { threadId: threadA.id }, target)).id, target);
     const live = await untilStatus((await startRun(agent, "live", { threadId: threadA.id }, target)).id, "waiting_approval", target);
     const inProjectB = await untilFinished((await startRun(agent, "b", { threadId: threadB.id }, target)).id, target);
 
@@ -839,7 +839,7 @@ test("usage from before costs were stored is priced at the time it was made", as
   try {
     const summary = await api(second, "GET", "/usage/summary");
     assert.equal(summary.totals.costUsd, 6);
-    assert.equal(summary.models[0].label, "gemini-4-argon", "its id: the connection is gone, and Saturn has no names of its own for a provider's models");
+    assert.equal(summary.models[0].label, "gemini-4-argon", "its id: the connection is gone, and Eisoptric Workbench has no names of its own for a provider's models");
     assert.equal(summary.agents[0].name, "Deleted agent");
     assert.equal(summary.since, "2026-11-01T00:00:00Z");
   } finally {

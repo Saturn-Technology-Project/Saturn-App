@@ -1,11 +1,11 @@
 # The research workbench's contract
 
-What Saturn's research records and experiment runs promise, and what they do not. Tests in
+What Eisoptric Workbench's research records and experiment runs promise, and what they do not. Tests in
 `contract/research-*.test.mjs` hold the runtime to it.
 
 ## Where records live
 
-A project's records are plain files in `<project>/.saturn/research/`, readable without Saturn:
+A project's records are plain files in `<project>/.workbench/research/`, readable without Eisoptric Workbench:
 
 ```
 .gitignore         one line, *
@@ -27,16 +27,16 @@ runs/<id>/stdout.log, stderr.log
 
 There are two roots. The record root is always the project's main folder, so chats in different worktrees share one
 set of records. The source root is where a run's code is: the main folder, or the worktree of the chat a request names.
-A client names a project and a chat, never a path to either root. A symbolic link at `.saturn` or
-`.saturn/research` is refused rather than followed.
+A client names a project and a chat, never a path to either root. A symbolic link at `.workbench` or
+`.workbench/research` is refused rather than followed.
 
 Records hold environment variable names and lock file fingerprints, never credential values.
 
 ### Git
 
-Saturn writes the `.gitignore` above, so records do not make the project dirty, do not block merging a chat, and do not
+Eisoptric Workbench writes the `.gitignore` above, so records do not make the project dirty, do not block merging a chat, and do not
 change when a branch does. To share records, export them. Removing that `.gitignore` is allowed; tracked records that
-keep changing then make Saturn's merge refuse with "uncommitted changes".
+keep changing then make Eisoptric Workbench's merge refuse with "uncommitted changes".
 
 ## Saving
 
@@ -145,16 +145,16 @@ starting → running ⇄ paused
   evidence as `observed.resume`, with the hash of what came along):
   - an evaluation's whole sample lines are copied into the new run's `samples.jsonl` before its program starts, and the
     program is expected to skip their identities;
-  - a training run's program gets `SATURN_RESUME_FROM`: the `checkpoint` given (a path in the resumed run's folder or the
+  - a training run's program gets `WORKBENCH_RESUME_FROM`: the `checkpoint` given (a path in the resumed run's folder or the
     project, 400 otherwise), or the last `{"kind": "checkpoint"}` entry of the resumed run's `artifacts.jsonl` that is still
     there. With the checkpoint's `step` known, the metric lines up to it are copied into the new run's `metrics.jsonl`.
-  - `SATURN_RESUME_RUN` and `SATURN_RESUME_DIRECTORY` name the resumed run and its folder, which the sandbox lets the
+  - `WORKBENCH_RESUME_RUN` and `WORKBENCH_RESUME_DIRECTORY` name the resumed run and its folder, which the sandbox lets the
     program read, with the checkpoint. Whether the program skipped and restored anything is for its `resume` report to say.
 - Ending a run seals it: the hash of `samples.jsonl` is recorded, and later writes to the file do not count. Reading a
   run, the list of runs, a run's samples or its summary checks the seal again: `sealIntact: false` means the samples
   changed after the run ended, and they no longer stand for its results. The summary still gives the figures the
   changed file adds up to, beside the flag; a paired comparison refuses such a run.
-- `GET .../runs/{id}/output` lists the files the program wrote to `SATURN_RUN_OUTPUT` (its `written/` folder), and with
+- `GET .../runs/{id}/output` lists the files the program wrote to `WORKBENCH_RUN_OUTPUT` (its `written/` folder), and with
   `path` answers one file's text up to 256 KiB (`binary: true` and no text for a file with NUL bytes). A path that leads
   out of the folder, or through a link, is refused with 403. Nothing in the folder is run.
 - A running run holds its worktree: discarding it, or the chat that owns it, gets 409.
@@ -163,14 +163,14 @@ starting → running ⇄ paused
 
 ## Run evidence
 
-A local run starts from its own snapshot in Saturn's data folder (`run-snapshots/<run>`), never from the folder being
+A local run starts from its own snapshot in Eisoptric Workbench's data folder (`run-snapshots/<run>`), never from the folder being
 edited:
 
 - Committed files come from git's objects for the version's commit (`git archive`), uncommitted files from the copies
   saved at freezing (or copied from the project and checked), and declared inputs are copied in, copy-on-write where the
   file system can. Every file is checked against the hash the version recorded.
 - On systems without copy-on-write, a data file over 1 GiB is linked instead and checked before and after the run.
-- Top-level entries of the project that the version does not hold (except `.git` and `.saturn`) are linked and listed
+- Top-level entries of the project that the version does not hold (except `.git` and `.workbench`) are linked and listed
   as uncontrolled.
 - A link the version holds (committed, or saved as uncommitted) that leads out of the snapshot reads whatever is at its
   target, which the version never fixed. It is listed as uncontrolled with its `target`, and, for a file, the target's
@@ -192,14 +192,14 @@ version frozen before there was a `sandbox` gets the default.
 In the sandbox the program:
 
 - reads its snapshot, and cannot write it, new files included;
-- writes its records (`SATURN_RUN_SAMPLES` and the others, in `runs/<id>/`), `SATURN_RUN_OUTPUT` (`runs/<id>/written/`),
+- writes its records (`WORKBENCH_RUN_SAMPLES` and the others, in `runs/<id>/`), `WORKBENCH_RUN_OUTPUT` (`runs/<id>/written/`),
   its own `TMPDIR`, and the shared caches (`~/.cache`, `~/.npm`, `~/.cargo/registry`, `~/Library/Caches` and the like).
   On macOS it may also write the system's shared temporary folders; on Linux `/tmp` is its own;
 - on macOS, cannot write `run.json`, `evidence.json` or `resources.jsonl` (on a remote host, the job's `start.json`,
   `state.json`, `snapshot.json` and claims). On Linux it can: bubblewrap keeps a file read-only only until it is
-  replaced by a rename, which is how Saturn saves every record. Its own run's records are the most it can change;
+  replaced by a rename, which is how Eisoptric Workbench saves every record. Its own run's records are the most it can change;
   other runs' records are hidden from it;
-- cannot read the project's or worktree's own files, its `.git` and `.saturn` (other runs' records included), Saturn's
+- cannot read the project's or worktree's own files, its `.git` and `.workbench` (other runs' records included), Eisoptric Workbench's
   data folders, or the credential folders (`~/.ssh`, `~/.aws`, `~/.azure`, `~/.gnupg`, `~/.kube`, `~/.docker`,
   `~/.config/gcloud`, `~/.config/gh`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc`, `~/.codex`,
   `~/.claude`, `~/.kaggle`, `~/Library/Keychains`, and the Hugging Face token even inside the writable `~/.cache`).
@@ -208,18 +208,18 @@ In the sandbox the program:
   model files the version names, such as a checkpoint another run wrote;
 - gets the variables `envNames` lists and those that say where things are: `PATH`, `HOME`, `LANG`, `TZ`, `HF_HOME`,
   `TORCH_HOME`, the proxies, and the families `LC_`, `CUDA_`, `PYTHON`, `CONDA_`, `OMP_`, `XDG_`, `UV_` and similar,
-  except any whose name contains `TOKEN`, `KEY`, `SECRET`, `PASSWORD`, `CREDENTIAL` or `AUTH`. No `SATURN_` variable
+  except any whose name contains `TOKEN`, `KEY`, `SECRET`, `PASSWORD`, `CREDENTIAL` or `AUTH`. No `WORKBENCH_` variable
   but the run's own;
 - uses the network unless `sandbox.network` is `false`, which blocks every connection, to this computer included.
 
 `observed.sandbox` in the evidence records what applied: `isolation` (`sandbox` or `read-only permissions`),
 `mechanism`, `network` (`allowed`, `blocked`, `not restricted`), the folders written and hidden, and the names (never the
-values) of the variables passed, declared and missing. Before starting, Saturn checks once that the sandbox can start a
+values) of the variables passed, declared and missing. Before starting, Eisoptric Workbench checks once that the sandbox can start a
 program at all. Where it cannot (Linux without bubblewrap, or with unprivileged user namespaces turned off), the run
 goes ahead with read-only permissions and `unavailable` says why. With `isolated: false` the program inherits the
 environment and can read and write anything the account can, and the evidence says so.
 
-On macOS a sandboxed program cannot run setuid programs such as `/bin/ps`; Saturn records the process's identity
+On macOS a sandboxed program cannot run setuid programs such as `/bin/ps`; Eisoptric Workbench records the process's identity
 itself. An agent may make an experiment's sandbox stricter but not looser: turning it off, allowing the network or
 adding a name to `envNames` is the person's, in Experiments.
 
@@ -227,10 +227,10 @@ adding a name to `envNames` is the person's, in Experiments.
 sources apart:
 
 - `expected`: the version's command, commit, inputs, models and seeds.
-- `observed`: what Saturn saw. That is the snapshot's files and their hashes with a manifest hash, how each input got
-  there, what is uncontrolled, the seeds passed as `SATURN_RUN_SEED` and `SATURN_RUN_SEEDS`, and, after the run, what
+- `observed`: what Eisoptric Workbench saw. That is the snapshot's files and their hashes with a manifest hash, how each input got
+  there, what is uncontrolled, the seeds passed as `WORKBENCH_RUN_SEED` and `WORKBENCH_RUN_SEEDS`, and, after the run, what
   changed and what was written.
-- `reported`: what the program wrote to `SATURN_RUN_REPORT`, one JSON object per line with `kind` of `seed`, `model`,
+- `reported`: what the program wrote to `WORKBENCH_RUN_REPORT`, one JSON object per line with `kind` of `seed`, `model`,
   `config` or `resume`. What it did not report is `null` and is never filled in from `expected`.
 
 Three verdicts: `execution` (the run's status), `inputs` (`verified`, `partial`, `changed`, `unverified`) and
@@ -245,12 +245,12 @@ not the files themselves. The host's worker builds the snapshot in the job's fol
 checks every file, and only then runs the command there. A difference ends the job as `refused` before anything runs,
 and the run is `failed` with `refused: true` and the files named. The snapshot's list (`snapshot.json`), the
 program's report and what changed come back with the outputs, and the evidence says `executor: "ssh"`: the host
-observed it, and Saturn here only received what the host recorded.
+observed it, and Eisoptric Workbench here only received what the host recorded.
 
 ## Deleting an experiment
 
 `DELETE .../research/experiments/:id?expectedRevision=N` moves the experiment, its versions, their runs (each run's
-folder) and their labels to `.saturn/research/trash/<time>-<id>/`, with a `deleted.json` saying what moved, when, by
+folder) and their labels to `.workbench/research/trash/<time>-<id>/`, with a `deleted.json` saying what moved, when, by
 whom and how to put it back. Nothing is erased. It is refused while a run of it is going, at a revision other than the
 one given, and while another record (a finding, a counterexample, a saved set, an inspection session, an analysis
 output, a question, hypothesis or model) names the experiment, a version or a run: the answer names those records. Only
@@ -274,29 +274,29 @@ Imported versions cannot be executed: set the experiment's command and freeze a 
 
 Trainer `log_history` is saved as `metrics.jsonl`, not as scored samples. `GET .../runs/{run}/metrics?cursor=0` pages up to
 200 events using byte offsets. Each event has `schemaVersion: 1`, non-negative integer `step`, and finite numeric `values`.
-The process environment now names `SATURN_RUN_METRICS` and `SATURN_RUN_ARTIFACTS` alongside `SATURN_RUN_SAMPLES`; writing
+The process environment now names `WORKBENCH_RUN_METRICS` and `WORKBENCH_RUN_ARTIFACTS` alongside `WORKBENCH_RUN_SAMPLES`; writing
 samples remains the execution contract for evaluation runs. The UI reads metrics separately and plots their source steps.
 
 ### Persistent SSH jobs
 
 `GET/PUT .../research/remote` reads or saves `host`, absolute remote `workdir`, and `program` (the worker: this version
-of `saturn-server` on that host). `POST .../remote/check` checks the worker without starting compute.
-Saturn invokes OpenSSH with no terminal, no agent forwarding, BatchMode and a connection deadline. It keeps host-key
+of `workbench-server` on that host). `POST .../remote/check` checks the worker without starting compute.
+Eisoptric Workbench invokes OpenSSH with no terminal, no agent forwarding, BatchMode and a connection deadline. It keeps host-key
 verification and uses the user's SSH configuration; it neither stores keys nor provisions or pays for a machine.
 
-Every request to the worker carries Saturn's version, and a worker of another version refuses it (409); a check also
+Every request to the worker carries Eisoptric Workbench's version, and a worker of another version refuses it (409); a check also
 compares the worker's version, so a worker from before versions were told is refused too. `POST .../remote/pair` asks
 the host, in one SSH exchange, for `uname -s`, `uname -m`, its home folder and whether
-`~/.saturn/worker/<version>/saturn-server` is there, then checks that worker. It answers `state` (`ready`, `missing`,
+`~/.workbench/worker/<version>/workbench-server` is there, then checks that worker. It answers `state` (`ready`, `missing`,
 `wrong_version`, `broken`, `unsupported`), the host's `target` (`linux-x64`, `linux-arm64`, `macos-arm64`), the worker's
 `path` and `source`, where an install would take it from. A ready worker becomes the target's `program`. The
 assistant's `research_remote` with `action: "pair"` answers the same and saves nothing.
 
 `POST .../remote/install`, the person's alone, installs that worker and pairs with it. When the host is the same kind
 of system as this computer, the worker is this runtime's own program; otherwise it is the release's
-`saturn-worker-<version>-<target>`, downloaded through the network log and used only if its SHA-256 is the one the
-release workflow built into this runtime (`SATURN_WORKER_SHA256`; a build without it reads the variable from its
-environment, and `SATURN_WORKER_DOWNLOAD` names a mirror, checked the same way). It is sent over the same SSH, written
+`workbench-worker-<version>-<target>`, downloaded through the network log and used only if its SHA-256 is the one the
+release workflow built into this runtime (`WORKBENCH_WORKER_SHA256`; a build without it reads the variable from its
+environment, and `WORKBENCH_WORKER_DOWNLOAD` names a mirror, checked the same way). It is sent over the same SSH, written
 beside its place and moved there whole, with mode 700 in the user's home and no administrator rights, then hashed on
 the host; a different hash removes it and fails. A build with no hash for the host's target refuses to install.
 
@@ -311,8 +311,8 @@ A stale heartbeat is unresponsive, not proof the computation stopped. A dead rem
 Code and data are not uploaded. The worker rebuilds the version from the host's working tree and git and checks every
 file against the version's hashes before the command runs (see the run's evidence above); it records the working
 directory and the commit it observed, and lists what the version does not name as uncontrolled. `resumeFrom` is passed
-as `SATURN_RESUME_FROM`, and only that: the resumed run's folder is not on the host, so `SATURN_RESUME_RUN` and
-`SATURN_RESUME_DIRECTORY` are not set there. The user's framework must restore weights, optimizer, scheduler and RNG
+as `WORKBENCH_RESUME_FROM`, and only that: the resumed run's folder is not on the host, so `WORKBENCH_RESUME_RUN` and
+`WORKBENCH_RESUME_DIRECTORY` are not set there. The user's framework must restore weights, optimizer, scheduler and RNG
 state. A resumed attempt is a new run. The wall-clock limit stops the process group; it is not a guarantee about a provider's GPU bill.
 
 The first exchange starts the job; while it runs, one SSH connection stays open and the worker streams a message
@@ -323,7 +323,7 @@ meanwhile goes down the open connection. Logs, metrics and resource readings may
 report, the snapshot and the artifact list to 64 MiB. Completion waits for every chunk and verifies the remote hashes.
 A transfer failure keeps the run pending/disconnected, with a warning that computation may continue. Large weights remain external artifacts. Neither source nor outputs may
 escape the configured job's state directory through symlinks. The worker's state lives under the remote project's
-`.saturn/remote-jobs/<run>` and does not load Saturn settings or credentials or expose an HTTP server.
+`.workbench/remote-jobs/<run>` and does not load Eisoptric Workbench settings or credentials or expose an HTTP server.
 
 An experiment can explicitly set `kind: "training"` before freezing. Local and remote training runs can complete with
 valid metrics alone; evaluation runs still require scored samples. Malformed metrics are protocol errors. The detached
@@ -331,8 +331,8 @@ worker is POSIX-only.
 
 ## Samples: JSONL version 1
 
-One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`. The process also gets `SATURN_RUN_ID`,
-`SATURN_RUN_TOKEN`, `SATURN_RUN_VERSION` and `SATURN_RUN_DIRECTORY`.
+One JSON object per line, in UTF-8, written to the path in `WORKBENCH_RUN_SAMPLES`. The process also gets `WORKBENCH_RUN_ID`,
+`WORKBENCH_RUN_TOKEN`, `WORKBENCH_RUN_VERSION` and `WORKBENCH_RUN_DIRECTORY`.
 
 ```json
 {"schemaVersion":1,"sampleId":"sample-0412","trial":0,"modelId":"model-1","input":"...","output":"...","scores":{"name-logit":0.42},"error":null}
@@ -346,7 +346,7 @@ One JSON object per line, in UTF-8, written to the path in `SATURN_RUN_SAMPLES`.
 - `scorerLabel`, optional, is the scorer's verdict in the words a person would label it with. Agreement with a person's
   labels counts only samples that have it, in the same run, so with the same version of the scorer.
 - An experiment's optional `labelAliases` explicitly maps a person's words to the scorer's, for example
-  `{"Wrong name":"Wrong"}`. Comparisons trim whitespace and ignore case; Saturn does not guess that differently
+  `{"Wrong name":"Wrong"}`. Comparisons trim whitespace and ignore case; Eisoptric Workbench does not guess that differently
   worded labels mean the same thing. Editing the map updates review comparisons for that experiment, including
   earlier labels, without changing the saved labels or scores. The labels response adds `agreesWithScorer` to each
   entry: true, false, or null when no matching sample with a scorer word was found.
@@ -385,7 +385,7 @@ same evaluation, since a stated evaluation can go stale while the program change
 that failed or was stopped neither gets this warning nor is compared with. A warning changes nothing else.
 
 A run that writes new untracked files into the project makes the next run's content differ, so the next run is a new
-version. Write outputs to `SATURN_RUN_DIRECTORY`, or to a folder git ignores.
+version. Write outputs to `WORKBENCH_RUN_DIRECTORY`, or to a folder git ignores.
 
 Model output is data. It is shown as plain text and is never put in a system prompt.
 
@@ -402,7 +402,7 @@ environment that ran the experiment; a command that starts with anything else is
   `expected` on the sample line it is the log-probability of `expected`'s first token read through the final norm and
   the unembedding; without one it is the residual stream's norm. `top` is the token the model ends on. The model is the
   one the sample line names unless `modelId` says otherwise; its weights are as the version pinned them, else as the
-  project's model record says. With `save`, a project path (`.npz` is added when missing, and Saturn's records and
+  project's model record says. With `save`, a project path (`.npz` is added when missing, and Eisoptric Workbench's records and
   git's folder are refused), the helper also writes every layer's raw residual stream there, `layer_<n>` arrays of
   tokens × hidden with `tokens` (and `patched_layer_<n>` for a patch), and the answer's `saved` gives the path, hash and
   size, so a run can declare the file as data. A reading with `save` is its own saved result. The path must be new
@@ -470,19 +470,19 @@ A reference copies no contents. A project file reference records its measured ha
 has unverified contents and must not contain passwords, tokens, query strings or fragments. Nothing is downloaded merely
 to register an external URI. Large activation stores and SAE weights can remain references with framework/hook metadata.
 
-Programs may append ordinary JSON objects to `SATURN_RUN_ARTIFACTS`, e.g.
+Programs may append ordinary JSON objects to `WORKBENCH_RUN_ARTIFACTS`, e.g.
 `{"path":"figure.png","kind":"figure","metadata":{"framework":"TransformerLens"}}`. Paths are relative to
-`SATURN_RUN_DIRECTORY`. `POST .../artifacts/from-run` explicitly validates every entry before saving any; repeated
+`WORKBENCH_RUN_DIRECTORY`. `POST .../artifacts/from-run` explicitly validates every entry before saving any; repeated
 imports are idempotent. The manifest is bounded to 1 MiB/100 entries. For remote runs, explicitly importing a small
 output fetches it in bounded SSH chunks and checks its hash; it cannot read outside the job or read worker control files.
 Archived remote references are never automatically reconnected. The optional `scripts/research/analysis_artifacts.py`
-example writes plain files/JSONL and needs no Saturn SDK. Existing Notebook cells and kernels are reused.
+example writes plain files/JSONL and needs no Eisoptric Workbench SDK. Existing Notebook cells and kernels are reused.
 
 ## The data experiments read
 
 Routes under `/projects/{id}/research/data` read a project's data files for the Data screen and the assistant. They read
 only inside the project's main folder (not a chat's worktree), and refuse with 403 a path that climbs out, a path through
-a symbolic link even one that stays inside the project, and Saturn's records and git's folder. Nothing is written. What a
+a symbolic link even one that stays inside the project, and Eisoptric Workbench's records and git's folder. Nothing is written. What a
 file's rows say is data: it is shown as plain text and counted, and it is never put in a system prompt. An answer that
 carries rows has a `note` saying so.
 
@@ -573,27 +573,27 @@ version, platform, processor count, the versions of the packages research code l
 see (CUDA names, MPS), and `programs`: for git, uv, elan, lake, lean, tectonic, latexmk, pdflatex and pandoc, where
 each is on the interpreter's PATH and the first line of its `--version`, or null, and keeps the report. No interpreter, one that cannot start, or one whose report cannot be read
 answers 422 with what to do. Looking inside uses this interpreter when an experiment's command does not start with
-one. The record lives in `.saturn/research/environment.json`, and the lock files are not changed by Saturn.
+one. The record lives in `.workbench/research/environment.json`, and the lock files are not changed by Eisoptric Workbench.
 
-Every program Saturn starts for a project's research (the interpreter for the check, a notebook's kernel, looking
+Every program Eisoptric Workbench starts for a project's research (the interpreter for the check, a notebook's kernel, looking
 inside a model, reading data through the helper, the language server and its import-path probe, and the environment
 jobs below) runs in the project's command sandbox: it writes only to the project, the temporary folders and the
-caches (an environment job also to uv's own Python folder), and reads neither Saturn's data folder (but Saturn's own
+caches (an environment job also to uv's own Python folder), and reads neither Eisoptric Workbench's data folder (but Eisoptric Workbench's own
 download of uv) nor the credential folders. The interpreter is named in the project's own files, and any interpreter
 runs its environment's `.pth` files as it starts, so the sandbox is what keeps a cloned project's environment from
-Saturn's token and keys. Where the system has no sandbox (Linux without bubblewrap, Windows before its one-time setup), or the project's sandbox
+Eisoptric Workbench's token and keys. Where the system has no sandbox (Linux without bubblewrap, Windows before its one-time setup), or the project's sandbox
 is off, they run unconfined. The assistant's `research_environment_action` with `action: "set"` asks first in the
 default approval mode, and a package name may not start with a dot (`.` would build the project's own `setup.py`).
 
 ### The managed environment
 
-Saturn can make a Python environment in the project, at `.venv`, with `uv` when this computer has it and `python3 -m
-venv` otherwise, and fill it with kits of packages. uv is Saturn's own download when there is one, else the one on
+Eisoptric Workbench can make a Python environment in the project, at `.venv`, with `uv` when this computer has it and `python3 -m
+venv` otherwise, and fill it with kits of packages. uv is Eisoptric Workbench's own download when there is one, else the one on
 PATH: `GET /programs/uv` says which, and `POST /programs/uv/install` downloads the pinned release archive and checks it
-against its sha512, as for Claude Code and Codex. The record carries `tools` (`uv` with `uvSource`, `saturn` or
+against its sha512, as for Claude Code and Codex. The record carries `tools` (`uv` with `uvSource`, `workbench` or
 `system`; `python3` as found on PATH; and `managed`: the path, its python, and whether it exists), `kits`, and `job`.
 
-- Kits: `core` (torch, transformers, numpy: what Saturn's own helpers load models with, `bundled`, so it goes in
+- Kits: `core` (torch, transformers, numpy: what Eisoptric Workbench's own helpers load models with, `bundled`, so it goes in
   with the environment unless declined), `interpretability` (transformer_lens, sae_lens, einops), `training` (trl,
   peft, datasets, accelerate), `analysis` (pandas, matplotlib), `notebooks` (jupyter, ipykernel). Each package carries
   the version the last check of the managed interpreter reported, or null.
@@ -613,13 +613,13 @@ against its sha512, as for Claude Code and Codex. The record carries `tools` (`u
   It preserves the log and records `status: "timed_out"`, `timeoutSeconds` and `error`, and never switches the project's
   interpreter to an environment whose creation timed out. The user can retry with a longer limit.
 - A job runs the commands one after another in the project's folder, writes their output to
-  `.saturn/research/environment-job.log`, and records itself in `environment-job.json`: `kind`, `commands`, `status`
+  `.workbench/research/environment-job.log`, and records itself in `environment-job.json`: `kind`, `commands`, `status`
   (`running`, `completed`, `failed`, `timed_out`, or `interrupted` when the runtime that started it is gone), `exitCode`,
   `startedAt`, `endedAt`. The record's `job` adds `logTail` and `logLines`. One job at a time per project (409).
   `POST .../environment/job/stop` ends the whole group, including children that ignore the initial stop signal;
-  `.saturn/research` changes as it starts and ends.
+  `.workbench/research` changes as it starts and ends.
 - The installs are made by uv or pip, which reach the package index on their own, as uv's Python download reaches its
-  release; Saturn's network log does not see them (the download of uv itself it does). On Windows the job runs
+  release; Eisoptric Workbench's network log does not see them (the download of uv itself it does). On Windows the job runs
   through cmd.
 
 ## Notebooks
@@ -646,11 +646,11 @@ above), `started` (`cell`), `output` (`cell`, and `output` as a notebook stores 
 client reconnecting; one that was away longer first hears `gap`, without a `seq`.
 
 One run of one cell keeps 2 MB of output as stored JSON. Text keeps its start; an image or table past the limit is left out.
-Either way, one `display_data` output with `metadata.saturn.truncated` says so, which is valid in the notebook when saved.
+Either way, one `display_data` output with `metadata.workbench.truncated` says so, which is valid in the notebook when saved.
 The cell itself goes on. The interface shows output only as text and PNG images: HTML, SVG and the like appear in their
 text form, and output is never read as instructions.
 
-The kernel runs with the project's Python, in the notebook's folder, with `SATURN_*` removed from its environment. A
+The kernel runs with the project's Python, in the notebook's folder, with `WORKBENCH_*` removed from its environment. A
 helper in that Python holds it with `jupyter_client`, and asks for `ipykernel_launcher` directly rather than by kernel
 name, as a `python3` kernel spec in the person's own Jupyter folder could start another Python. Without `jupyter_client`
 or `ipykernel` the state is `missing` and `message` points at the Notebooks kit under Environment; no Python, or one that
@@ -658,7 +658,7 @@ cannot start, answers 422. The notebook still opens, edits and saves. `input()` 
 
 A kernel ends when its notebook is closed, its project is removed or loses access, or the runtime stops. The helper is
 asked, then signalled, then ended by force. If the runtime dies, the helper's standard input closes and it ends the kernel,
-and a kernel whose helper was killed ends by itself. A path that leads out of the project or into `.saturn` or `.git` answers
+and a kernel whose helper was killed ends by itself. A path that leads out of the project or into `.workbench` or `.git` answers
 403, as for the editor, and one that is not a `.ipynb` answers 400.
 
 ## What is enforced, and what is not
@@ -671,7 +671,7 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
 | API and local models | Refused before writing | A command is compared by hash afterwards |
 | Claude Code | Refused through `can_use_tool` for the tools it asks about | Compared afterwards |
 | Codex | Not possible per file: its sandbox is read-only or writable, so an Approve chat runs read-only | Compared afterwards; a task runs in a worktree |
-| MCP tools | Saturn cannot tell what they write | Compared afterwards |
+| MCP tools | Eisoptric Workbench cannot tell what they write | Compared afterwards |
 
 - A chat's mode is `manual`, `pair`, `delegate` or `delegate_auto` (`chatMode`, set with `PATCH /threads/{id}`), kept on the
   chat rather than in the project's records. It also decides how much the chat asks, in place of the agent's own approval
@@ -682,7 +682,7 @@ cannot tell the user from an agent that obtained it, and an agent with a shell c
   user can release a lock (`released` in the policy) when an agent asks to change such a file: it may then change it,
   and the next frozen version locks what it uses again and ends every release, so older versions keep their results.
 - Changes are noticed by a file's size and time, so an edit that keeps both is not.
-- No agent tool sets a verdict, a label, a chat's mode, an approval or a lock, or changes a frozen version, and file tools refuse `.saturn/research/`. An agent can make new versions and start runs: see below.
+- No agent tool sets a verdict, a label, a chat's mode, an approval or a lock, or changes a frozen version, and file tools refuse `.workbench/research/`. An agent can make new versions and start runs: see below.
 - A refused tool call is recorded as a confirmed violation. A hash that changed is recorded as `integrity_changed` with
   no claim about who changed it, since the user may have edited the file. A file changed and restored between checks
   is not detected.
@@ -696,8 +696,8 @@ helper the runtime ships and hashes), tested in `contract/`, and the assistant c
 
 The science is the assistant's, as a program in the project: what the model is asked, how the answer is scored, how
 training goes, which attacks are tried, which direction is added to which layer. A tool would fix one method where
-methods change by the month, and would put the computation outside the version the evidence describes. So Saturn hands
-out starting points instead, through `research_template`: a small SDK (`saturn_run.py`) that writes the records the way
+methods change by the month, and would put the computation outside the version the evidence describes. So Eisoptric Workbench hands
+out starting points instead, through `research_template`: a small SDK (`workbench_run.py`) that writes the records the way
 the contract above reads them, and one template per kind of study the skills teach. A copy in the project is the
 project's own file, frozen with each version, hashed in the evidence and read by the sandbox like any other input.
 
@@ -712,7 +712,7 @@ An agent with the built-in `research` server, which an agent has only when its l
 | Tool | Reads or writes | What it does |
 |---|---|---|
 | `research_skill` | Reads | Lists or reads a skill. A project's or user's skill of the same name comes first |
-| `research_template` | Reads | Lists or reads a program to start from: `saturn_run`, the SDK an experiment imports to write samples, metrics, reports and checkpoints right, and one runnable template per kind of study (`eval_harness`, `red_team`, `trajectory`, `lean_check`, `probe_train`, `steering_sweep`, `train_loop`, `compile_paper`). The agent writes a copy into the project with its file tools; it is then the project's program |
+| `research_template` | Reads | Lists or reads a program to start from: `workbench_run`, the SDK an experiment imports to write samples, metrics, reports and checkpoints right, and one runnable template per kind of study (`eval_harness`, `red_team`, `trajectory`, `lean_check`, `probe_train`, `steering_sweep`, `train_loop`, `compile_paper`). The agent writes a copy into the project with its file tools; it is then the project's program |
 | `research_read` | Reads | Status, records, runs, summaries, samples (50 at most at a time), logs, resources, training metrics, labels, comparisons by condition and sample by sample (`paired`, which saves nothing), events, the environment, the policy, saved readings, the SSH host and remote runs, inspection sessions, kept outputs, a notebook kernel's state, previews of an import or a bundle, and the project's data: which files were read (`data_list`), what is in one (`data_profile`, `data_preview`), and what two share (`data_overlap`) |
 | `research_wait` | Reads | Holds the turn until a run ends, for up to 600 seconds at a time, and ends with the turn |
 | `research_write` | Writes | Makes questions, hypotheses, experiments, models, findings and counterexamples, changes them with `expectedRevision`, and deletes an imported experiment (`delete: true`) |
@@ -739,6 +739,6 @@ An agent with the built-in `research` server, which an agent has only when its l
 - A task reports back to the chat that started it. When its newest turn completes, fails, is stopped or waits for approval, the chat keeps the report (`taskReports`) and a turn starts there by itself (`automatic`, with `fromTasks`), carrying the report as context; a chat in the middle of a turn hears when that turn ends. Each report is passed on once, and the turn keeps the chat's mode.
 - A start's `attempt` (default 1) makes its `clientId` with the turn and the version: repeating a call in a turn starts nothing, and a new attempt runs the version again.
 - An answer over 60,000 characters is cut, and says to read less.
-- A turn of an agent with these tools may take 400 tool steps, where others take 60. This applies to Saturn's own agent loop. Claude Code and Codex keep their own limits. No limit caps what a study spends on a paid model: a person or a skill's budget has to.
+- A turn of an agent with these tools may take 400 tool steps, where others take 60. This applies to Eisoptric Workbench's own agent loop. Claude Code and Codex keep their own limits. No limit caps what a study spends on a paid model: a person or a skill's budget has to.
 - A freeze that ends lifted locks changes `policy.json`, and is not recorded as an unexplained change.
 

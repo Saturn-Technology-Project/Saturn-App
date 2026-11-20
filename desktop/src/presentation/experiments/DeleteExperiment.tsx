@@ -37,7 +37,7 @@ export function DeleteExperiment(props: { projectId: string; experiment: Experim
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("Delete “{title}”?", { title: props.experiment.title })}</DialogTitle>
-            <DialogDescription>{t("The experiment, its versions, runs and labels move to .saturn/research/trash in the project. Nothing is erased, and you can move them back by hand.")}</DialogDescription>
+            <DialogDescription>{t("The experiment, its versions, runs and labels move to .workbench/research/trash in the project. Nothing is erased, and you can move them back by hand.")}</DialogDescription>
           </DialogHeader>
           {problem ? <Notice tone="bad">{problem}</Notice> : null}
           <DialogFooter>

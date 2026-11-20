@@ -250,7 +250,7 @@ test("streams, errors and notes are shown plainly, and what is not understood sa
   assert.deepEqual(outputView({ output_type: "stream", name: "stdout", text: ["a\n", "b"] }), { kind: "text", text: "a\nb", failure: false });
   assert.equal(outputView({ output_type: "stream", name: "stderr", text: "x" }).failure, true);
   assert.deepEqual(outputView({ output_type: "error", ename: "ValueError", evalue: "boom", traceback: ["\u001b[0;31mValueError\u001b[0m", "line"] }), { kind: "error", title: "ValueError: boom", traceback: "ValueError\nline" });
-  assert.deepEqual(outputView({ output_type: "display_data", data: { "text/plain": "left out" }, metadata: { saturn: { truncated: true } } }), { kind: "note", text: "left out" });
+  assert.deepEqual(outputView({ output_type: "display_data", data: { "text/plain": "left out" }, metadata: { workbench: { truncated: true } } }), { kind: "note", text: "left out" });
   assert.equal(outputView({ output_type: "future" }).kind, "note");
   assert.equal(outputView(5).kind, "note");
 });

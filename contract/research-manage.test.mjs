@@ -60,42 +60,42 @@ const q = (word) => (WINDOWS ? `"${word}"` : `'${word}'`);
 /** Some tests' stand-ins are shell scripts, or need the command sandbox. */
 const shellOnly = { skip: WINDOWS && "its stand-ins are shell scripts" };
 
-let saturn;
+let workbench;
 let tools;
 before(async () => {
   tools = await import("node:fs/promises").then(async (fs) => {
-    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "saturn-stand-in-uv-"));
+    const folder = await fs.mkdtemp(path.join(os.tmpdir(), "workbench-stand-in-uv-"));
     await placeProgram(path.join(folder, "uv"), UV);
     // A Python on the PATH whatever this computer has, so uv is not asked to install one first. Nothing runs it.
     await placeProgram(path.join(folder, "python3"), `#!${process.execPath}\n`);
     return folder;
   });
-  saturn = await bench({ env: { PATH: `${tools}${path.delimiter}${process.env.PATH}` } });
+  workbench = await bench({ env: { PATH: `${tools}${path.delimiter}${process.env.PATH}` } });
 });
-after(async () => { await saturn?.stop(); });
+after(async () => { await workbench?.stop(); });
 
 const settled = (record) => record.job && record.job.status !== "running";
 
 async function project() {
-  const folder = await saturn.folder();
-  const made = await saturn.api("POST", "/projects", { path: folder });
-  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const folder = await workbench.folder();
+  const made = await workbench.api("POST", "/projects", { path: folder });
+  await workbench.api("POST", `/projects/${made.id}/access`, {});
   return { folder, route: `/projects/${made.id}/research/environment` };
 }
 
 test("creating the environment makes a venv with uv, installs the bundled kit, and names its python", async () => {
   const { folder, route } = await project();
-  const before = await saturn.api("GET", route);
+  const before = await workbench.api("GET", route);
   assert.equal(path.parse(before.tools.uv).name, "uv");
   assert.equal(before.tools.uvSource, "system");
   assert.equal(before.tools.managed.exists, false);
   assert.equal(before.job, null);
   assert.deepEqual(before.kits.map((kit) => [kit.id, kit.bundled]), [["core", true], ["interpretability", false], ["training", false], ["analysis", false], ["notebooks", false], ["language-server", false]]);
 
-  const started = await saturn.api("POST", `${route}/create`, {});
+  const started = await workbench.api("POST", `${route}/create`, {});
   assert.equal(started.job.status, "running");
   assert.equal(started.job.kind, "create");
-  const done = await until("the job to end", () => saturn.api("GET", route), settled);
+  const done = await until("the job to end", () => workbench.api("GET", route), settled);
   assert.equal(done.job.status, "completed", done.job.logTail);
   assert.equal(done.job.exitCode, 0);
   assert.deepEqual(done.job.commands, [`uv venv ${q(".venv")}`, `uv pip install --python ${q(VENV_PYTHON)} ${q("torch")} ${q("transformers")} ${q("numpy")}`]);
@@ -104,10 +104,10 @@ test("creating the environment makes a venv with uv, installs the bundled kit, a
   assert.equal(done.tools.managed.exists, true);
   assert.equal(done.python, VENV_PYTHON);
   assert.deepEqual((await readFile(path.join(folder, "installed.txt"), "utf8")).trim().split("\n"), ["torch", "transformers", "numpy"]);
-  const log = await readFile(path.join(folder, ".saturn/research/environment-job.log"), "utf8");
+  const log = await readFile(path.join(folder, ".workbench/research/environment-job.log"), "utf8");
   assert.match(log, /installed torch transformers numpy/);
 
-  const checked = await saturn.api("POST", `${route}/check`);
+  const checked = await workbench.api("POST", `${route}/check`);
   assert.equal(checked.report.version, "3.12.0");
   const core = checked.kits.find((kit) => kit.id === "core");
   assert.deepEqual(core.packages.map((item) => [item.name, item.installed]), [["torch", "2.5.0"], ["transformers", null], ["numpy", null]]);
@@ -115,37 +115,37 @@ test("creating the environment makes a venv with uv, installs the bundled kit, a
 
 test("a kit, named packages and a lock file are installed by jobs, one at a time, and bad names are refused", async () => {
   const { folder, route } = await project();
-  const nothing = await saturn.call("POST", `${route}/install`, { kit: "interpretability" });
+  const nothing = await workbench.call("POST", `${route}/install`, { kit: "interpretability" });
   assert.equal(nothing.status, 422);
-  await saturn.api("POST", `${route}/create`, { withCore: false });
-  const made = await until("the environment", () => saturn.api("GET", route), settled);
+  await workbench.api("POST", `${route}/create`, { withCore: false });
+  const made = await until("the environment", () => workbench.api("GET", route), settled);
   assert.deepEqual(made.job.commands, [`uv venv ${q(".venv")}`]);
 
-  await saturn.api("POST", `${route}/install`, { kit: "interpretability", packages: ["rich>=13"] });
-  const installed = await until("the install", () => saturn.api("GET", route), settled);
+  await workbench.api("POST", `${route}/install`, { kit: "interpretability", packages: ["rich>=13"] });
+  const installed = await until("the install", () => workbench.api("GET", route), settled);
   assert.equal(installed.job.kind, "install");
   assert.deepEqual(installed.job.env, {});
   assert.equal(installed.job.commands[0], `uv pip install --python ${q(VENV_PYTHON)} ${q("transformer_lens")} ${q("sae_lens")} ${q("einops")} ${q("rich>=13")}`);
-  const bad = await saturn.call("POST", `${route}/install`, { packages: ["--upgrade"] });
+  const bad = await workbench.call("POST", `${route}/install`, { packages: ["--upgrade"] });
   assert.equal(bad.status, 400);
-  const unknown = await saturn.call("POST", `${route}/install`, { kit: "nope" });
+  const unknown = await workbench.call("POST", `${route}/install`, { kit: "nope" });
   assert.equal(unknown.status, 404);
-  const empty = await saturn.call("POST", `${route}/install`, {});
+  const empty = await workbench.call("POST", `${route}/install`, {});
   assert.equal(empty.status, 400);
 
-  const noLock = await saturn.call("POST", `${route}/install`, { sync: true });
+  const noLock = await workbench.call("POST", `${route}/install`, { sync: true });
   assert.equal(noLock.status, 422);
   await writeFile(path.join(folder, "requirements.txt"), "einops\n");
-  await saturn.api("POST", `${route}/install`, { sync: true });
-  const synced = await until("the sync", () => saturn.api("GET", route), settled);
+  await workbench.api("POST", `${route}/install`, { sync: true });
+  const synced = await until("the sync", () => workbench.api("GET", route), settled);
   assert.equal(synced.job.kind, "sync");
   assert.equal(synced.job.commands[0], `uv pip install --python ${q(VENV_PYTHON)} -r ${q("requirements.txt")}`);
   await writeFile(path.join(folder, "uv.lock"), "version = 1\n");
-  await saturn.api("POST", `${route}/install`, { sync: true });
-  const locked = await until("the uv sync", () => saturn.api("GET", route), settled);
+  await workbench.api("POST", `${route}/install`, { sync: true });
+  const locked = await until("the uv sync", () => workbench.api("GET", route), settled);
   assert.deepEqual(locked.job.commands, ["uv sync"]);
-  assert.equal((await saturn.call("POST", `${route}/job/stop`)).status, 409);
-  const checked = await saturn.api("POST", `${route}/check`);
+  assert.equal((await workbench.call("POST", `${route}/job/stop`)).status, 409);
+  const checked = await workbench.api("POST", `${route}/check`);
   assert.equal(checked.kits.find((kit) => kit.id === "interpretability").packages[0].installed, "2.0.0");
   assert.ok(await readFile(path.join(folder, VENV_PYTHON)));
   await mkdir(path.join(folder, "unused"));
@@ -153,7 +153,7 @@ test("a kit, named packages and a lock file are installed by jobs, one at a time
 
 test("with uv and no Python on this computer, making the environment has uv install a Python first", shellOnly, async () => {
   // A PATH with the stand-in uv and only what its venv step runs: no python3 anywhere on it.
-  const bare = await mkdtemp(path.join(os.tmpdir(), "saturn-no-python-"));
+  const bare = await mkdtemp(path.join(os.tmpdir(), "workbench-no-python-"));
   await writeFile(path.join(bare, "uv"), UV);
   await chmod(path.join(bare, "uv"), 0o755);
   for (const name of ["mkdir", "cat", "chmod", "git"]) {
@@ -192,14 +192,14 @@ test("with uv and no Python on this computer, making the environment has uv inst
 test("a job can be stopped, and one started by another runtime reads as interrupted", async () => {
   const { folder, route } = await project();
   await placeProgram(path.join(tools, "uv"), `#!${process.execPath}\nif (process.argv[2] === "venv") setTimeout(() => {}, 30_000);\n`);
-  const started = await saturn.api("POST", `${route}/create`, { withCore: false });
+  const started = await workbench.api("POST", `${route}/create`, { withCore: false });
   assert.equal(started.job.status, "running");
-  const stopped = await saturn.api("POST", `${route}/job/stop`);
+  const stopped = await workbench.api("POST", `${route}/job/stop`);
   assert.equal(stopped.status, "running");
-  const ended = await until("the stop", () => saturn.api("GET", route), settled);
+  const ended = await until("the stop", () => workbench.api("GET", route), settled);
   assert.equal(ended.job.status, "failed");
-  await writeFile(path.join(folder, ".saturn/research/environment-job.json"), JSON.stringify({ ...ended.job, status: "running", logTail: undefined, logLines: undefined }));
-  const orphan = await saturn.api("GET", route);
+  await writeFile(path.join(folder, ".workbench/research/environment-job.json"), JSON.stringify({ ...ended.job, status: "running", logTail: undefined, logLines: undefined }));
+  const orphan = await workbench.api("GET", route);
   assert.equal(orphan.job.status, "interrupted");
   await placeProgram(path.join(tools, "uv"), UV);
 });
@@ -207,16 +207,16 @@ test("a job can be stopped, and one started by another runtime reads as interrup
 test("an environment job times out, stops even uncooperative descendants, and releases the project for retry", shellOnly, async () => {
   const { folder, route } = await project();
   for (const timeoutSeconds of [0, -1, 1.5, "1", 86401]) {
-    assert.equal((await saturn.call("POST", `${route}/create`, { withCore: false, timeoutSeconds })).status, 400);
+    assert.equal((await workbench.call("POST", `${route}/create`, { withCore: false, timeoutSeconds })).status, 400);
   }
   await writeFile(path.join(tools, "uv"), `#!/bin/sh
 trap '' TERM
 node -e 'process.on("SIGTERM", () => {}); setInterval(() => require("node:fs").appendFileSync("late.txt", "tick\\n"), 20)' &
 wait
 `);
-  const started = await saturn.api("POST", `${route}/create`, { withCore: false, timeoutSeconds: 1 });
+  const started = await workbench.api("POST", `${route}/create`, { withCore: false, timeoutSeconds: 1 });
   assert.equal(started.job.timeoutSeconds, 1);
-  const done = await until("the deadline and process group cleanup", () => saturn.api("GET", route), settled);
+  const done = await until("the deadline and process group cleanup", () => workbench.api("GET", route), settled);
   assert.equal(done.job.status, "timed_out");
   assert.match(done.job.error, /1 second/);
   assert.match(done.job.logTail, /uv venv/);
@@ -224,8 +224,8 @@ wait
   await new Promise((resolve) => setTimeout(resolve, 200));
   assert.equal(await readFile(path.join(folder, "late.txt"), "utf8"), before);
   await writeFile(path.join(tools, "uv"), UV);
-  await saturn.api("POST", `${route}/create`, { withCore: false });
-  const retried = await until("the retry", () => saturn.api("GET", route), settled);
+  await workbench.api("POST", `${route}/create`, { withCore: false });
+  const retried = await until("the retry", () => workbench.api("GET", route), settled);
   assert.equal(retried.job.status, "completed");
   assert.equal(retried.job.timeoutSeconds, 1800);
 });
@@ -242,11 +242,11 @@ function canSandbox() {
   }
 }
 
-test("the project's interpreter and its environment jobs run in the sandbox: neither reads Saturn's data", shellOnly, async (t) => {
+test("the project's interpreter and its environment jobs run in the sandbox: neither reads Eisoptric Workbench's data", shellOnly, async (t) => {
   if (!canSandbox()) return t.skip("no sandbox for commands here");
-  const data = await mkdtemp(path.join(os.tmpdir(), "saturn-interpreter-data-"));
-  const outside = await mkdtemp(path.join(os.tmpdir(), "saturn-interpreter-"));
-  // An interpreter (here a stand-in) that the project names, which tries to read Saturn's token as it starts: a cloned
+  const data = await mkdtemp(path.join(os.tmpdir(), "workbench-interpreter-data-"));
+  const outside = await mkdtemp(path.join(os.tmpdir(), "workbench-interpreter-"));
+  // An interpreter (here a stand-in) that the project names, which tries to read Eisoptric Workbench's token as it starts: a cloned
   // project's environment can run code that way, through a .pth file in its site-packages.
   const python = path.join(outside, "python");
   await writeFile(python, `#!/bin/sh
@@ -284,19 +284,19 @@ mkdir -p "$3/bin" 2>/dev/null; mkdir -p .venv/bin
 });
 
 test("the assistant asks before it changes the project's interpreter, and a path is never a package", async () => {
-  const folder = await saturn.folder();
-  const setup = await saturn.chat(folder, { autonomy: "execute_when_allowed", mcpConnectionIds: ["research"] });
+  const folder = await workbench.folder();
+  const setup = await workbench.chat(folder, { autonomy: "execute_when_allowed", mcpConnectionIds: ["research"] });
   const run = await setup.start([["research_environment_action", { action: "set", python: "/somewhere/python" }]], "use my python");
-  const waiting = await until("the card", () => saturn.api("GET", `/runs/${run.id}`), (item) => item.status !== "running" && item.status !== "queued");
+  const waiting = await until("the card", () => workbench.api("GET", `/runs/${run.id}`), (item) => item.status !== "running" && item.status !== "queued");
   assert.equal(waiting.status, "waiting_approval", JSON.stringify(waiting.actions));
   assert.match(waiting.actions[0].reason, /Sensitive operation/);
-  await saturn.api("POST", `/runs/${run.id}/stop`);
+  await workbench.api("POST", `/runs/${run.id}/stop`);
   const environment = `/projects/${setup.project.id}/research/environment`;
-  assert.equal((await saturn.api("GET", environment)).python ?? null, null, "nothing changed while it waited");
+  assert.equal((await workbench.api("GET", environment)).python ?? null, null, "nothing changed while it waited");
 
-  await saturn.api("POST", `${environment}/create`, { withCore: false });
-  await until("the environment", () => saturn.api("GET", environment), settled);
+  await workbench.api("POST", `${environment}/create`, { withCore: false });
+  await until("the environment", () => workbench.api("GET", environment), settled);
   for (const name of [".", "./", ".venv", "..", ".[dev]"]) {
-    assert.equal((await saturn.call("POST", `${environment}/install`, { packages: [name] })).status, 400, name);
+    assert.equal((await workbench.call("POST", `${environment}/install`, { packages: [name] })).status, 400, name);
   }
 });

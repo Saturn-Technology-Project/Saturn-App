@@ -24,22 +24,22 @@ test("every place the assistant may point at is marked in the interface", () => 
 });
 
 test("an answer's marks become known places, once each and in order, and never reach the reader", () => {
-  const { text, places } = guideIn("First freeze.\n[[saturn:show experiments-freeze]]\nThen sweep. [[saturn:show experiments-sweep]] [[saturn:show experiments-freeze]]");
+  const { text, places } = guideIn("First freeze.\n[[workbench:show experiments-freeze]]\nThen sweep. [[workbench:show experiments-sweep]] [[workbench:show experiments-freeze]]");
   assert.deepEqual(places.map((place) => place.id), ["experiments-freeze", "experiments-sweep"]);
-  assert.doesNotMatch(text, /saturn:show/);
+  assert.doesNotMatch(text, /workbench:show/);
   assert.match(text, /First freeze/);
 });
 
 test("a mark for anything else is dropped: model output cannot name a place, a script or a screen of its own", () => {
   for (const mark of ["not-a-real-place", "../../etc", "x\"]<script>", "Settings"]) {
-    assert.deepEqual(guideIn(`Look. [[saturn:show ${mark}]]`).places, [], mark);
+    assert.deepEqual(guideIn(`Look. [[workbench:show ${mark}]]`).places, [], mark);
   }
-  assert.deepEqual(guideIn("[[saturn:click experiments-freeze]]").places, [], "there is no such thing as a click");
+  assert.deepEqual(guideIn("[[workbench:click experiments-freeze]]").places, [], "there is no such thing as a click");
   assert.deepEqual(guideIn("nothing here"), { text: "nothing here", places: [] });
 });
 
 test("a mark still arriving is not shown while the answer streams", () => {
-  for (const partial of ["[", "[[", "[[sat", "[[saturn:", "[[saturn:show exper", "[[saturn:show experiments-freeze]"]) {
+  for (const partial of ["[", "[[", "[[wor", "[[workbench:", "[[workbench:show exper", "[[workbench:show experiments-freeze]"]) {
     assert.equal(guideIn(`Next. ${partial}`).text, "Next.", partial);
   }
   assert.equal(guideIn("A list [1] stays").text, "A list [1] stays");
@@ -50,7 +50,7 @@ test("the assistant is told every screen and place, and that the person does the
   for (const screen of SCREENS) assert.ok(told.includes(`${screen}:`), screen);
   for (const place of GUIDE_PLACES) assert.ok(told.includes(`- ${place.id}:`), place.id);
   assert.match(told, /Without computer use you cannot click/);
-  assert.match(told, /you may operate Saturn itself/);
+  assert.match(told, /you may operate Eisoptric Workbench itself/);
   assert.match(told, /Never click in the Assistant panel itself/);
   assert.match(told, /set a hypothesis's verdict, label samples and write conclusions/);
   assert.match(told, /Never overwrite a verdict or a label the person set/);
@@ -61,8 +61,8 @@ test("the assistant is told every screen and place, and that the person does the
 test("the state sent with a message and the names read from outside say where things stand", () => {
   assert.equal(workbenchState({ screen: "Home", project: "P" }), "Screen: Home\nProject: P");
   assert.equal(workbenchState({ screen: "Workspace", project: "P", chatMode: "manual", file: "a.py", run: { id: "r", status: "running" }, sampleId: "s" }), "Screen: Workspace\nProject: P\nThis chat's mode: manual\nOpen file: a.py\nLatest run: r, running\nSample on screen: s");
-  assert.equal(windowTitle("Samples", "Pythia"), "Samples – Pythia – Saturn");
-  assert.equal(windowTitle("Home", null), "Home – Saturn");
+  assert.equal(windowTitle("Samples", "Pythia"), "Samples – Pythia – Eisoptric Workbench");
+  assert.equal(windowTitle("Home", null), "Home – Eisoptric Workbench");
   assert.equal(statusText({ screen: "Home", project: "P", runtime: "ready" }), "Home screen, project P. Runtime ready.");
   assert.deepEqual(SCREENS.filter(isWorkScreen), ["Workspace", "Samples", "Inspect"]);
   assert.ok(HELP_REQUESTS.length >= 1);
@@ -83,7 +83,7 @@ test("a chat's mode says what the assistant may do, and a chat nobody has set on
 });
 
 test("a message says what went with it, leaving out the screen that goes with every message", () => {
-  const block = (name) => `<saturn_context sources="${name}">x</saturn_context>`;
+  const block = (name) => `<workbench_context sources="${name}">x</workbench_context>`;
   assert.equal(shownSources(`hi${block("the screen you are on")}`), "");
   assert.equal(shownSources(`hi${block("a.py; b.py")}${block("the screen you are on")}${block("sample s1")}`), "a.py; b.py, sample s1");
 });
@@ -102,7 +102,7 @@ test("a step waiting for an answer can be told apart, however much the turn has 
 
 test("quitting asks first only while something still works, and names only what does", () => {
   assert.equal(quitQuestion({ chats: 0, runs: 0, commands: 0 }), null);
-  assert.equal(quitQuestion({ chats: 1, runs: 0, commands: 2 }), "Quit Saturn? These stop when it quits:\n• Chats still answering: 1\n• Background commands: 2");
+  assert.equal(quitQuestion({ chats: 1, runs: 0, commands: 2 }), "Quit Eisoptric Workbench? These stop when it quits:\n• Chats still answering: 1\n• Background commands: 2");
   const runs = quitQuestion({ chats: 0, runs: 3, commands: 0 });
   assert.match(runs, /Experiment runs on this computer: 3/);
   assert.match(runs, /can be resumed later/);

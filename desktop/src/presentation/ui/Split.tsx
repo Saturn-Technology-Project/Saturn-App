@@ -5,7 +5,7 @@ import { t } from "../../domain/i18n.js";
 /** Reads a remembered size; it only sets where a splitter starts. */
 function rememberedSize(key: string, fallback: number): number {
   try {
-    const saved = Number(localStorage.getItem(`saturn-split-${key}`));
+    const saved = Number(localStorage.getItem(`workbench-split-${key}`));
     return Number.isFinite(saved) && saved > 0 ? saved : fallback;
   } catch {
     return fallback;
@@ -37,7 +37,7 @@ export function Split(props: {
       const bounded = Math.round(Math.min(Math.max(next, minimum), limit));
       setSize(bounded);
       try {
-        localStorage.setItem(`saturn-split-${id}`, String(bounded));
+        localStorage.setItem(`workbench-split-${id}`, String(bounded));
       } catch {
         // Only where the splitter starts next time.
       }

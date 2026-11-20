@@ -16,7 +16,7 @@ const SSHD = ["/usr/sbin/sshd", "/usr/bin/sshd"].find((candidate) => existsSync(
 // A remote host is Linux or macOS: the worker is started and talked to through a POSIX shell, which Windows's sshd
 // does not give.
 const skip = process.platform === "win32" ? "a remote host is Linux or macOS, and this test's host is this computer" : !SSHD ? "needs an sshd binary" : false;
-const worker = path.resolve("target/debug/saturn-server");
+const worker = path.resolve("target/debug/workbench-server");
 let folder, runtime, data, route;
 
 /** A free port on this computer. */
@@ -37,7 +37,7 @@ async function api(method, route, body) {
 
 before(async () => {
   if (skip) return;
-  folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-real-ssh-")));
+  folder = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-real-ssh-")));
   await chmod(folder, 0o700);
   const bin = path.join(folder, "bin");
   await mkdir(bin);
@@ -54,7 +54,7 @@ before(async () => {
   const hostKey = (await readFile(path.join(folder, "host_key.pub"), "utf8")).split(" ").slice(0, 2).join(" ");
   await writeFile(path.join(folder, "known_hosts"), `[127.0.0.1]:${port} ${hostKey}\n`);
   await writeFile(path.join(folder, "ssh_config"), ["Host testhost", "  HostName 127.0.0.1", `  Port ${port}`, `  User ${user}`, `  IdentityFile ${folder}/client_key`, "  IdentitiesOnly yes", `  UserKnownHostsFile ${folder}/known_hosts`, "  GlobalKnownHostsFile /dev/null", ""].join("\n"));
-  // Saturn calls plain `ssh`; this one is the real client, given the test's own configuration.
+  // Eisoptric Workbench calls plain `ssh`; this one is the real client, given the test's own configuration.
   await writeFile(path.join(bin, "ssh"), `#!/bin/sh\nexec /usr/bin/ssh -F ${folder}/ssh_config "$@"\n`);
   await chmod(path.join(bin, "ssh"), 0o755);
   // Started as a daemon, as the system's sshd is: one left in the foreground keeps the test's own session, under which
@@ -84,7 +84,7 @@ async function version(script) {
 }
 
 test("over a real SSH session a detached job starts, outlives the session, and syncs to the end", { skip }, async () => {
-  await writeFile(path.join(folder, "remote", "eval.mjs"), "import { appendFileSync } from 'node:fs'; let n = 0; const t = setInterval(() => { appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: 's' + n, input: 'i', output: 'o', scores: { s: n % 2 } }) + '\\n'); if (++n === 6) clearInterval(t); }, 200);");
+  await writeFile(path.join(folder, "remote", "eval.mjs"), "import { appendFileSync } from 'node:fs'; let n = 0; const t = setInterval(() => { appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: 's' + n, input: 'i', output: 'o', scores: { s: n % 2 } }) + '\\n'); if (++n === 6) clearInterval(t); }, 200);");
   const checked = await api("POST", `${route}/remote/check`, {});
   assert.equal(checked.status, 200, JSON.stringify(checked.body));
   const run = (await api("POST", `${route}/remote/runs`, { versionId: (await version("eval.mjs")).id, clientId: "real", timeoutSeconds: 60 })).body;

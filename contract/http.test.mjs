@@ -1,4 +1,4 @@
-// What the Saturn runtime must do over HTTP: the desktop app depends on it.
+// What the Eisoptric Workbench runtime must do over HTTP: the desktop app depends on it.
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import http from "node:http";
@@ -39,7 +39,7 @@ test("the health probe answers without the token", async () => {
 });
 
 test("a launcher's instance id is what the health probe reports", async () => {
-  const own = await startRuntime({ env: { SATURN_RUNTIME_INSTANCE: "launcher-7" } });
+  const own = await startRuntime({ env: { WORKBENCH_RUNTIME_INSTANCE: "launcher-7" } });
   try {
     const answer = await fetch(`${own.origin}/health`);
     assert.equal((await answer.json()).instance, "launcher-7");
@@ -89,7 +89,7 @@ test("only loopback origins are allowed across origins", async () => {
   assert.equal(allowed.headers["access-control-allow-origin"], "http://127.0.0.1:5174");
   assert.equal(allowed.headers.vary, "Origin");
   assert.match(allowed.headers["access-control-allow-headers"], /authorization/);
-  assert.match(allowed.headers["access-control-expose-headers"], /X-Saturn-Url/);
+  assert.match(allowed.headers["access-control-expose-headers"], /X-Eisoptric-Url/);
 
   for (const origin of ["https://evil.example", "null", "file://"]) {
     const refused = await preflight(origin);

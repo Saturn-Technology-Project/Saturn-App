@@ -2,8 +2,8 @@
   "bundle": { "createUpdaterArtifacts": true },
   "plugins": {
     "updater": {
-      "pubkey": "__SATURN_UPDATER_PUBKEY__",
-      "endpoints": ["https://github.com/Saturn-Technology-Project/Saturn-App/releases/download/updates/latest.json"]
+      "pubkey": "__WORKBENCH_UPDATER_PUBKEY__",
+      "endpoints": ["https://github.com/eisoptric/Workbench/releases/download/updates/latest.json"]
     }
   }
 }

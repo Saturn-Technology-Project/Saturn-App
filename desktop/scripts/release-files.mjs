@@ -45,44 +45,44 @@ function updaterPackage(source, name, platform) {
   writeFileSync(path.join(release, `updater-${platform}.json`), JSON.stringify({
     platform,
     signature: readFileSync(`${source}.sig`, "utf8").trim(),
-    url: `https://github.com/Saturn-Technology-Project/Saturn-App/releases/download/v${version}/${name}`,
+    url: `https://github.com/eisoptric/Workbench/releases/download/v${version}/${name}`,
   }));
 }
 
 if (process.platform === "darwin") {
   const arch = process.arch === "arm64" ? "arm64" : "x64";
-  const app = path.join(bundles, "macos", "Saturn.app");
+  const app = path.join(bundles, "macos", "Eisoptric Workbench.app");
   if (!existsSync(app)) throw new Error(`No packaged app at ${app}; run npm run package first.`);
-  const base = path.join(release, `Saturn-${version}-mac-${arch}-unsigned`);
+  const base = path.join(release, `Workbench-${version}-mac-${arch}-unsigned`);
   rmSync(`${base}.zip`, { force: true });
   execFileSync("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", app, `${base}.zip`], { stdio: "inherit" });
   // The disk image: the app next to an Applications link, so installing is one drag.
-  const staging = mkdtempSync(path.join(os.tmpdir(), "saturn-dmg-"));
+  const staging = mkdtempSync(path.join(os.tmpdir(), "workbench-dmg-"));
   try {
-    execFileSync("ditto", [app, path.join(staging, "Saturn.app")]);
+    execFileSync("ditto", [app, path.join(staging, "Eisoptric Workbench.app")]);
     symlinkSync("/Applications", path.join(staging, "Applications"));
     rmSync(`${base}.dmg`, { force: true });
-    diskImage(["create", "-volname", "Saturn", "-srcfolder", staging, "-ov", "-format", "ULMO", "-fs", "HFS+", `${base}.dmg`]);
+    diskImage(["create", "-volname", "Eisoptric Workbench", "-srcfolder", staging, "-ov", "-format", "ULMO", "-fs", "HFS+", `${base}.dmg`]);
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
   sha256(`${base}.dmg`);
   sha256(`${base}.zip`);
-  updaterPackage(path.join(bundles, "macos", "Saturn.app.tar.gz"), `Saturn-${version}-mac-${arch}-update.tar.gz`, `darwin-${arch === "arm64" ? "aarch64" : "x86_64"}`);
+  updaterPackage(path.join(bundles, "macos", "Eisoptric Workbench.app.tar.gz"), `Workbench-${version}-mac-${arch}-update.tar.gz`, `darwin-${arch === "arm64" ? "aarch64" : "x86_64"}`);
 } else if (process.platform === "win32") {
   const folder = path.join(bundles, "nsis");
   const installer = readdirSync(folder).find((name) => name.endsWith("-setup.exe"));
   if (!installer) throw new Error(`No installer in ${folder}; run npm run package first.`);
-  const target = path.join(release, `Saturn-${version}-win-x64-setup.exe`);
+  const target = path.join(release, `Workbench-${version}-win-x64-setup.exe`);
   copyFileSync(path.join(folder, installer), target);
   sha256(target);
   if (existsSync(path.join(folder, `${installer}.sig`))) {
     writeFileSync(path.join(release, "updater-windows-x86_64.json"), JSON.stringify({
       platform: "windows-x86_64",
       signature: readFileSync(path.join(folder, `${installer}.sig`), "utf8").trim(),
-      url: `https://github.com/Saturn-Technology-Project/Saturn-App/releases/download/v${version}/${path.basename(target)}`,
+      url: `https://github.com/eisoptric/Workbench/releases/download/v${version}/${path.basename(target)}`,
     }));
   }
 } else {
-  throw new Error(`Saturn is released for macOS and Windows, not ${process.platform}`);
+  throw new Error(`Eisoptric Workbench is released for macOS and Windows, not ${process.platform}`);
 }

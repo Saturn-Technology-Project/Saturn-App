@@ -52,7 +52,7 @@ const models = [];
 
 before(async () => {
   runtime = await startRuntime();
-  folder = await mkdtemp(path.join(os.tmpdir(), "saturn-contract-project-"));
+  folder = await mkdtemp(path.join(os.tmpdir(), "workbench-contract-project-"));
 });
 after(async () => {
   await Promise.all(models.map((model) => model.stop()));

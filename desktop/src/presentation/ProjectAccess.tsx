@@ -11,7 +11,7 @@ import type { RuntimeStatus } from "../infrastructure/runtime-status";
 declare global {
   interface Window {
     /** Exposed by preload.cjs in the desktop app; absent in a plain browser. */
-    saturnDesktop?: {
+    workbenchDesktop?: {
       pickFolders(options?: { title?: string; multiple?: boolean }): Promise<string[]>;
       notify?(options: { title: string; body?: string; agentId?: string; threadId?: string; silent?: boolean }): void;
       onOpenThread?(listener: (payload: { agentId?: string; threadId?: string }) => void): () => void;
@@ -40,7 +40,7 @@ export function homeShortened(folder: string): string {
  * Resolves undefined when the user cancels.
  */
 export async function chooseFolder(): Promise<string | undefined> {
-  const picker = window.saturnDesktop?.pickFolders;
+  const picker = window.workbenchDesktop?.pickFolders;
   if (picker) return (await picker({ title: t("Open Project Folder"), multiple: false }))[0];
   const typed = window.prompt(t("Folder to open as a project (absolute path or ~/...)"));
   return typed?.trim() || undefined;
@@ -106,7 +106,7 @@ export function AccessDialog(props: { path: string; name?: string; onAllow: () =
           </ul>
           <p className="text-xs text-muted-foreground">
             {t("You can revoke access any time from the project's menu.")}
-            {/Mac/i.test(navigator.platform) ? ` ${t("macOS may also ask once to let Saturn read this location.")}` : null}
+            {/Mac/i.test(navigator.platform) ? ` ${t("macOS may also ask once to let Eisoptric Workbench read this location.")}` : null}
           </p>
           {error ? <Notice tone="bad">{error}</Notice> : null}
         </div>

@@ -20,7 +20,7 @@ test("a path's folders and parent", () => {
 });
 
 test("open folders show their entries under them, and the project's records are never listed", () => {
-  let tree = withFolder(EMPTY_TREE, ".", [file("probe.py"), folder("src"), folder(".saturn"), folder("node_modules")]);
+  let tree = withFolder(EMPTY_TREE, ".", [file("probe.py"), folder("src"), folder(".workbench"), folder("node_modules")]);
   assert.deepEqual(names(treeRows(tree)), ["node_modules/+", "src/+", "probe.py"]);
   assert.equal(treeRows(tree)[0].generated, true);
 

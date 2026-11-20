@@ -1,37 +1,37 @@
-**Saturn** is a workbench for AI research on your own computer: the app, its research assistant and its local runtime in one download.
+**Eisoptric Workbench** is a workbench for AI research on your own computer: the app, its research assistant and its local runtime in one download.
 
-> **Preview build.** The macOS app is not signed with an Apple Developer ID (Apple Silicon only), and the Windows installer is signed with Saturn's self-signed certificate, which Windows does not trust, so both systems warn the first time you open them.
+> **Preview build.** The macOS app is not signed with an Apple Developer ID (Apple Silicon only), and the Windows installer is signed with Eisoptric Workbench's self-signed certificate, which Windows does not trust, so both systems warn the first time you open them.
 
 ## Install
 
 **macOS (Apple Silicon)**
 
-1. Download `Saturn-__VERSION__-mac-arm64-unsigned.dmg`, open it, and drag **Saturn** into **Applications** (the `.zip` has the same app).
-2. Open Saturn. When macOS says it can't verify the developer, go to **System Settings → Privacy & Security** and click **Open Anyway**.
+1. Download `Workbench-__VERSION__-mac-arm64-unsigned.dmg`, open it, and drag **Eisoptric Workbench** into **Applications** (the `.zip` has the same app).
+2. Open Eisoptric Workbench. When macOS says it can't verify the developer, go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
 **Windows (x64)**
 
-1. Download `Saturn-__VERSION__-win-x64-setup.exe` and run it.
+1. Download `Workbench-__VERSION__-win-x64-setup.exe` and run it.
 2. If SmartScreen stops it, click **More info → Run anyway**.
-3. Optional: confirm the installer is Saturn's. In PowerShell, `(Get-AuthenticodeSignature .\Saturn-__VERSION__-win-x64-setup.exe).SignerCertificate.Thumbprint` should print `D285DA425077C16A3D115D61F9748AFA574BC786`.
+3. Optional: confirm the installer is Eisoptric Workbench's. In PowerShell, `(Get-AuthenticodeSignature .\Workbench-__VERSION__-win-x64-setup.exe).SignerCertificate.Thumbprint` should print `D285DA425077C16A3D115D61F9748AFA574BC786`.
 
 Then open **Settings → Models** and connect a model, add a project folder, and write your first question (the first launch walks you through it). The interface is in English or Traditional Chinese, following the system or chosen in **Settings → General**.
 
-**Updating:** from a version before the rewrite in Rust and Tauri (0.3.1 or earlier), install this one by hand; your data in `~/.saturn-app` keeps working. Later versions update themselves: the update downloads in the background and installs when you quit Saturn, and it must carry a signature from Saturn's updater key.
+**Updating:** from a version before the rewrite in Rust and Tauri (0.3.1 or earlier), install this one by hand; your data in `~/.workbench-app` keeps working. Later versions update themselves: the update downloads in the background and installs when you quit Eisoptric Workbench, and it must carry a signature from Eisoptric Workbench's updater key.
 
 **Check a download** (optional): each file has a `.sha256` beside it, and a signed build attestation that proves it was built from this repository's source by its public release workflow:
 
 ```bash
-shasum -a 256 -c Saturn-__VERSION__-mac-arm64-unsigned.dmg.sha256
-gh attestation verify Saturn-__VERSION__-mac-arm64-unsigned.dmg -R Saturn-Technology-Project/Saturn-App
+shasum -a 256 -c Workbench-__VERSION__-mac-arm64-unsigned.dmg.sha256
+gh attestation verify Workbench-__VERSION__-mac-arm64-unsigned.dmg -R eisoptric/Workbench
 ```
 
-The signed attestations are attached too (`*.sigstore.json`); with one, `gh attestation verify <file> --bundle Saturn-__VERSION__-mac-arm64.sigstore.json -R Saturn-Technology-Project/Saturn-App` checks a macOS download offline (`-win-x64.sigstore.json` for Windows).
+The signed attestations are attached too (`*.sigstore.json`); with one, `gh attestation verify <file> --bundle Workbench-__VERSION__-mac-arm64.sigstore.json -R eisoptric/Workbench` checks a macOS download offline (`-win-x64.sigstore.json` for Windows).
 
-`Saturn-__VERSION__-sbom.cdx.json` lists the crates, npm packages and model this release is built from (CycloneDX 1.5, with their hashes), for your scanner or your security team.
+`Workbench-__VERSION__-sbom.cdx.json` lists the crates, npm packages and model this release is built from (CycloneDX 1.5, with their hashes), for your scanner or your security team.
 
-`saturn-worker-__VERSION__-linux-x64` and `-linux-arm64` are the worker Saturn installs on a Linux SSH host when you press **Install worker** in Environment; you do not need to download them. Saturn checks each against the hash built into this release before sending it, and the host needs libssl 3 (Ubuntu 22.04, Debian 12, RHEL 9 or later).
+`workbench-worker-__VERSION__-linux-x64` and `-linux-arm64` are the worker Eisoptric Workbench installs on a Linux SSH host when you press **Install worker** in Environment; you do not need to download them. Eisoptric Workbench checks each against the hash built into this release before sending it, and the host needs libssl 3 (Ubuntu 22.04, Debian 12, RHEL 9 or later).
 
 ## Changes
 
-What changed in each version, and whether it affects you, is in [CHANGELOG.md](https://github.com/Saturn-Technology-Project/Saturn-App/blob/main/CHANGELOG.md).
+What changed in each version, and whether it affects you, is in [CHANGELOG.md](https://github.com/eisoptric/Workbench/blob/main/CHANGELOG.md).

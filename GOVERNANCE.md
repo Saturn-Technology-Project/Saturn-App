@@ -2,18 +2,18 @@
 
 [中文](#專案治理)
 
-How Saturn is run: who decides, how, and what each role is responsible for. It describes the project as it is today and changes, through a pull request, as the project grows.
+How Eisoptric Workbench is run: who decides, how, and what each role is responsible for. It describes the project as it is today and changes, through a pull request, as the project grows.
 
 ## Model
 
-Saturn is maintained by the **Saturn Technology Project** organization on GitHub. It currently has **one maintainer**, [@rickwengdev](https://github.com/rickwengdev), who has final say on what is merged and released (a benevolent-dictator model, usual for a young project). Decisions are made in the open: in issues, pull requests and their reviews, and recorded in the git history, [`CHANGELOG.md`](CHANGELOG.md) and the release notes.
+Eisoptric Workbench is maintained by the **Eisoptric** organization on GitHub. It currently has **one maintainer**, [@rickwengdev](https://github.com/rickwengdev), who has final say on what is merged and released (a benevolent-dictator model, usual for a young project). Decisions are made in the open: in issues, pull requests and their reviews, and recorded in the git history, [`CHANGELOG.md`](CHANGELOG.md) and the release notes.
 
 ## Roles and responsibilities
 
 | Role | Who | Responsibilities |
 |---|---|---|
 | **Maintainer** | @rickwengdev | Sets direction and the [roadmap](README.md#roadmap); reviews and merges changes; keeps CI, the supply-chain checks and the dependencies healthy; publishes releases (tagging and approving the `release` environment); keeps the documentation current with each release; answers issues. |
-| **Security contact** | The maintainer, at [security@saturn-core.com](mailto:security@saturn-core.com) | Receives private vulnerability reports, acknowledges them, fixes them, coordinates disclosure and credits reporters, as [`SECURITY.md`](SECURITY.md) describes. |
+| **Security contact** | The maintainer, at [security@eisoptric.com](mailto:security@eisoptric.com) | Receives private vulnerability reports, acknowledges them, fixes them, coordinates disclosure and credits reporters, as [`SECURITY.md`](SECURITY.md) describes. |
 | **Code owner** | Listed in [`.github/CODEOWNERS`](.github/CODEOWNERS) | Reviews changes to the paths they own before they merge. |
 | **Contributor** | Anyone | Proposes changes by pull request following [`CONTRIBUTING.md`](CONTRIBUTING.md) (tests, the coding standard, the supply-chain rules), reports issues, and follows the [code of conduct](CODE_OF_CONDUCT.md). |
 
@@ -30,7 +30,7 @@ A contributor with a record of sustained, high-quality contributions and reviews
 
 ## Continuity
 
-Everything needed to continue Saturn is public or held by GitHub, not on one person's machine: the source, the history, issues, the CI and release workflows that build every download, the documentation, and the release signing (build provenance is signed by GitHub Actions through Sigstore, with no private key to hand over). Saturn is MIT-licensed, so anyone may continue it in a fork. Access to the organization, the `release` environment and the security mailbox is today held by the single maintainer; adding a second person with admin access, so the project can continue without interruption if one person cannot, is an open goal.
+Everything needed to continue Eisoptric Workbench is public or held by GitHub, not on one person's machine: the source, the history, issues, the CI and release workflows that build every download, the documentation, and the release signing (build provenance is signed by GitHub Actions through Sigstore, with no private key to hand over). Eisoptric Workbench is MIT-licensed, so anyone may continue it in a fork. Access to the organization, the `release` environment and the security mailbox is today held by the single maintainer; adding a second person with admin access, so the project can continue without interruption if one person cannot, is an open goal.
 
 ---
 
@@ -38,18 +38,18 @@ Everything needed to continue Saturn is public or held by GitHub, not on one per
 
 [English](#governance)
 
-Saturn 如何運作：誰做決定、如何決定，以及每個角色的職責。本文描述專案目前的實際狀況，並隨專案成長以 pull request 更新。
+Eisoptric Workbench 如何運作：誰做決定、如何決定，以及每個角色的職責。本文描述專案目前的實際狀況，並隨專案成長以 pull request 更新。
 
 ## 模式
 
-Saturn 由 GitHub 上的 **Saturn Technology Project** 組織維護。目前只有**一位維護者** [@rickwengdev](https://github.com/rickwengdev)，對合併與發布擁有最終決定權（年輕專案常見的「仁慈獨裁者」模式）。決策公開進行：在 issue、pull request 與其審查中討論，並記錄於 git 歷史、[`CHANGELOG.md`](CHANGELOG.md) 與發布說明。
+Eisoptric Workbench 由 GitHub 上的 **Eisoptric** 組織維護。目前只有**一位維護者** [@rickwengdev](https://github.com/rickwengdev)，對合併與發布擁有最終決定權（年輕專案常見的「仁慈獨裁者」模式）。決策公開進行：在 issue、pull request 與其審查中討論，並記錄於 git 歷史、[`CHANGELOG.md`](CHANGELOG.md) 與發布說明。
 
 ## 角色與職責
 
 | 角色 | 人員 | 職責 |
 |---|---|---|
 | **維護者** | @rickwengdev | 決定方向與[路線圖](README_ZH.md)；審查並合併變更；維持 CI、供應鏈檢查與相依套件的健全；發布版本（打 tag 並核准 `release` 環境）；每次發布時更新文件；回覆 issue。 |
-| **安全聯絡人** | 維護者，[security@saturn-core.com](mailto:security@saturn-core.com) | 依 [`SECURITY.md`](SECURITY.md) 接收私密的漏洞回報、確認、修補、協調公開時程並列出回報者的貢獻。 |
+| **安全聯絡人** | 維護者，[security@eisoptric.com](mailto:security@eisoptric.com) | 依 [`SECURITY.md`](SECURITY.md) 接收私密的漏洞回報、確認、修補、協調公開時程並列出回報者的貢獻。 |
 | **程式碼負責人** | 列於 [`.github/CODEOWNERS`](.github/CODEOWNERS) | 在變更合併前審查其負責的路徑。 |
 | **貢獻者** | 任何人 | 依 [`CONTRIBUTING.md`](CONTRIBUTING.md)（測試、程式碼規範、供應鏈規則）以 pull request 提出變更、回報問題，並遵守[行為準則](CODE_OF_CONDUCT.md)。 |
 
@@ -66,4 +66,4 @@ Saturn 由 GitHub 上的 **Saturn Technology Project** 組織維護。目前只�
 
 ## 延續性
 
-延續 Saturn 所需的一切都是公開的或由 GitHub 保管，而不在某個人的電腦上：原始碼、歷史、issue、建置所有下載檔的 CI 與發布 workflow、文件，以及發布簽章（建置來源證明由 GitHub Actions 經 Sigstore 簽署，沒有需要交接的私鑰）。Saturn 採 MIT 授權，任何人都可以 fork 延續。組織、`release` 環境與安全信箱的存取權目前由唯一的維護者持有；增加第二位具管理權限的人，讓專案在任何一人無法繼續時仍能不中斷地延續，是尚待完成的目標。
+延續 Eisoptric Workbench 所需的一切都是公開的或由 GitHub 保管，而不在某個人的電腦上：原始碼、歷史、issue、建置所有下載檔的 CI 與發布 workflow、文件，以及發布簽章（建置來源證明由 GitHub Actions 經 Sigstore 簽署，沒有需要交接的私鑰）。Eisoptric Workbench 採 MIT 授權，任何人都可以 fork 延續。組織、`release` 環境與安全信箱的存取權目前由唯一的維護者持有；增加第二位具管理權限的人，讓專案在任何一人無法繼續時仍能不中斷地延續，是尚待完成的目標。

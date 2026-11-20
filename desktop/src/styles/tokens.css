@@ -1,4 +1,4 @@
-/* Saturn's colors, type and sizes, in light and dark. Every screen's style uses these names. */
+/* Eisoptric Workbench's colors, type and sizes, in light and dark. Every screen's style uses these names. */
 :root {
   --bg: #f1f0ec;
   --stage: rgba(255, 255, 255, 0.3);
@@ -144,7 +144,7 @@
   --radius: 8px;
   /* Room for the macOS window buttons, and for those the Windows bridge draws. */
   --traffic-space: 0px;
-  --window-buttons: var(--saturn-window-buttons, 0px);
+  --window-buttons: var(--workbench-window-buttons, 0px);
 }
 
 :root[data-platform="darwin"] {

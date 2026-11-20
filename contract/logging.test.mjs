@@ -73,7 +73,7 @@ test("configuration changes are logged with what changed, and never the key or t
 });
 
 test("an unreadable state file is kept aside, and Settings → Logs says so", async () => {
-  const dataDir = await mkdtemp(path.join(os.tmpdir(), "saturn-contract-broken-"));
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "workbench-contract-broken-"));
   await mkdir(dataDir, { recursive: true });
   await writeFile(path.join(dataDir, "state.json"), "{ not json");
   const runtime = await startRuntime({ dataDir });

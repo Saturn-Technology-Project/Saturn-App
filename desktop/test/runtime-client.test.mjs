@@ -6,7 +6,7 @@ import { test } from "node:test";
 let state = "starting";
 let asked = 0;
 const sent = [];
-globalThis.saturnDesktop = {
+globalThis.workbenchDesktop = {
   runtimeOrigin: () => "http://127.0.0.1:4700",
   runtimeToken: () => "session-token",
   runtimeStatus: async () => {

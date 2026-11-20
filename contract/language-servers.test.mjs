@@ -12,9 +12,9 @@ import { placeProgram } from "./programs.mjs";
 /** A program that is surely there and is not the Python the project starts with. */
 const OTHER_PROGRAM = process.platform === "win32" ? process.env.ComSpec : "/bin/sh";
 
-let saturn, tools, token;
+let workbench, tools, token;
 before(async () => {
-  tools = await mkdtemp(path.join(os.tmpdir(), "saturn-lsp-tools-"));
+  tools = await mkdtemp(path.join(os.tmpdir(), "workbench-lsp-tools-"));
   // The stand-in's script is copied beside it: a sandbox that opens only named folders (Windows's) opens the folder
   // of a program on PATH, not this repository.
   const fixture = path.join(tools, "language-server.mjs");
@@ -22,29 +22,29 @@ before(async () => {
   for (const name of ["basedpyright-langserver", "pyright-langserver", "typescript-language-server", "rust-analyzer"]) {
     await placeProgram(path.join(tools, name), `#!${process.execPath}\nimport(${JSON.stringify(pathToFileURL(fixture).href)});\n`);
   }
-  saturn = await bench({ env: { PATH: `${tools}${path.delimiter}${process.env.PATH}` } });
-  token = (await readFile(path.join(saturn.runtime.dataDir, "runtime-token"), "utf8")).trim();
+  workbench = await bench({ env: { PATH: `${tools}${path.delimiter}${process.env.PATH}` } });
+  token = (await readFile(path.join(workbench.runtime.dataDir, "runtime-token"), "utf8")).trim();
 });
-after(async () => { await saturn?.stop(); await rm(tools, { recursive: true, force: true }); });
+after(async () => { await workbench?.stop(); await rm(tools, { recursive: true, force: true }); });
 
 /** A granted project with a selected interpreter; no interpreter or model is executed by the stand-in server. */
 async function project(mode = "") {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "main.py"), "result = 1\n");
   await writeFile(path.join(folder, "helpers.py"), "\n\ndef train():\n    pass\n");
   if (mode) await writeFile(path.join(folder, "lsp-mode"), mode);
-  const made = await saturn.api("POST", "/projects", { path: folder, grant: true });
+  const made = await workbench.api("POST", "/projects", { path: folder, grant: true });
   const base = `/projects/${made.id}/research`;
-  await saturn.api("PUT", `${base}/environment`, { python: process.execPath });
+  await workbench.api("PUT", `${base}/environment`, { python: process.execPath });
   return { folder, base, id: made.id };
 }
 
 /** Open the authenticated event stream, gathering whole events while tests make requests. */
 async function client(base, language = "python") {
-  const session = await saturn.api("POST", `${base}/lsp/start`, { language });
+  const session = await workbench.api("POST", `${base}/lsp/start`, { language });
   const route = `${base}/lsp/${session.id}`;
   const controller = new AbortController(), messages = [];
-  const response = await fetch(`${saturn.runtime.origin}${route}/events`, { headers: { authorization: `Bearer ${token}` }, signal: controller.signal });
+  const response = await fetch(`${workbench.runtime.origin}${route}/events`, { headers: { authorization: `Bearer ${token}` }, signal: controller.signal });
   assert.equal(response.status, 200);
   const reader = response.body.getReader();
   const reading = (async () => {
@@ -62,13 +62,13 @@ async function client(base, language = "python") {
     } catch (error) { if (!controller.signal.aborted) throw error; }
   })();
   let next = 0;
-  const send = message => saturn.api("POST", `${route}/messages`, { messages: [{ jsonrpc: "2.0", ...message }] });
+  const send = message => workbench.api("POST", `${route}/messages`, { messages: [{ jsonrpc: "2.0", ...message }] });
   const request = async (method, params) => {
     const id = ++next; await send({ id, method, params });
     const answer = await until(method, () => Promise.resolve(messages.find(event => event.message?.id === id)?.message), Boolean);
     assert.equal(answer.error, undefined, JSON.stringify(answer)); return answer.result;
   };
-  return { session, route, messages, send, request, close: async () => { controller.abort(); await reading; await saturn.call("DELETE", route); } };
+  return { session, route, messages, send, request, close: async () => { controller.abort(); await reading; await workbench.call("DELETE", route); } };
 }
 
 test("real stdio framing carries initialization, project Python settings, changes and semantic requests", async () => {
@@ -103,17 +103,17 @@ test("real stdio framing carries initialization, project Python settings, change
 test("messages cannot escape the project, invoke commands, apply edits, or name another project's session", async () => {
   const a = await project(), b = await project(); const c = await client(a.base);
   try {
-    assert.equal((await saturn.call("GET", `${c.route}/events?after=18446744073709551615`)).status, 400);
-    for (const uri of ["file:///etc/passwd", `${c.session.rootUri}.saturn/research/environment.json`, `${c.session.rootUri}.git/config`]) {
-      const answer = await saturn.call("POST", `${c.route}/messages`, { messages: [{ jsonrpc: "2.0", id: 10, method: "textDocument/hover", params: { textDocument: { uri }, position: { line: 0, character: 0 } } }] });
+    assert.equal((await workbench.call("GET", `${c.route}/events?after=18446744073709551615`)).status, 400);
+    for (const uri of ["file:///etc/passwd", `${c.session.rootUri}.workbench/research/environment.json`, `${c.session.rootUri}.git/config`]) {
+      const answer = await workbench.call("POST", `${c.route}/messages`, { messages: [{ jsonrpc: "2.0", id: 10, method: "textDocument/hover", params: { textDocument: { uri }, position: { line: 0, character: 0 } } }] });
       assert.equal(answer.status, 403, uri);
     }
     for (const method of ["workspace/executeCommand", "workspace/applyEdit", "textDocument/rename", "textDocument/formatting"]) {
-      assert.equal((await saturn.call("POST", `${c.route}/messages`, { messages: [{ jsonrpc: "2.0", id: 2, method, params: {} }] })).status, 403);
+      assert.equal((await workbench.call("POST", `${c.route}/messages`, { messages: [{ jsonrpc: "2.0", id: 2, method, params: {} }] })).status, 403);
     }
-    assert.equal((await saturn.call("POST", `${c.route}/messages`, { messages: [{ jsonrpc: "2.0", method: "workspace/didChangeWatchedFiles", params: { changes: [{ uri: "file:///etc/passwd", type: 2 }] } }] })).status, 403);
-    assert.equal((await saturn.call("POST", `${b.base}/lsp/${c.session.id}/messages`, { messages: [] })).status, 404);
-    for (const params of ["wrong", { capabilities: [] }, { capabilities: "wrong" }]) assert.equal((await saturn.call("POST", `${c.route}/messages`, { messages: [{ jsonrpc: "2.0", id: 1, method: "initialize", params }] })).status, 400);
+    assert.equal((await workbench.call("POST", `${c.route}/messages`, { messages: [{ jsonrpc: "2.0", method: "workspace/didChangeWatchedFiles", params: { changes: [{ uri: "file:///etc/passwd", type: 2 }] } }] })).status, 403);
+    assert.equal((await workbench.call("POST", `${b.base}/lsp/${c.session.id}/messages`, { messages: [] })).status, 404);
+    for (const params of ["wrong", { capabilities: [] }, { capabilities: "wrong" }]) assert.equal((await workbench.call("POST", `${c.route}/messages`, { messages: [{ jsonrpc: "2.0", id: 1, method: "initialize", params }] })).status, 400);
     await c.request("initialize", { capabilities: { workspace: "wrong", general: [] } });
   } finally { await c.close(); }
 });
@@ -123,10 +123,10 @@ test("stop reaps the entire process group and access revocation ends an existing
   try {
     await c.request("initialize", { capabilities: {} });
     const processIds = JSON.parse(await readFile(path.join(p.folder, "lsp-process.json"), "utf8"));
-    await saturn.api("POST", `/projects/${p.id}/access`, { granted: false });
+    await workbench.api("POST", `/projects/${p.id}/access`, { granted: false });
     await until("closed stream", () => Promise.resolve(c.messages.some(event => event.closed)), Boolean);
     for (const pid of [processIds.pid, processIds.child]) await until(`process ${pid} reaped`, () => { try { process.kill(pid, 0); return Promise.resolve(false); } catch { return Promise.resolve(true); } }, Boolean);
-    assert.equal((await saturn.call("POST", `${c.route}/messages`, { messages: [] })).status, 403);
+    assert.equal((await workbench.call("POST", `${c.route}/messages`, { messages: [] })).status, 403);
   } finally { await c.close(); }
 });
 
@@ -142,7 +142,7 @@ test("a malformed server frame closes its connection, and Rust and TypeScript us
     try { assert.ok((await c.request("initialize", { capabilities: {} })).capabilities.definitionProvider); }
     finally { await c.close(); }
   }
-  assert.equal((await saturn.call("POST", `${healthy.base}/lsp/start`, { language: "shell" })).status, 400);
+  assert.equal((await workbench.call("POST", `${healthy.base}/lsp/start`, { language: "shell" })).status, 400);
 });
 
 test("TypeScript 7's project compiler runs its own LSP without a legacy tsserver", async () => {
@@ -172,23 +172,23 @@ test("changing Python or the project folder stops its old language-server sessio
   const p = await project(), c = await client(p.base);
   try {
     await c.request("initialize", { capabilities: {} });
-    await saturn.api("PUT", `${p.base}/environment`, { python: OTHER_PROGRAM });
+    await workbench.api("PUT", `${p.base}/environment`, { python: OTHER_PROGRAM });
     await until("Python change closes server", () => Promise.resolve(c.messages.some(event => event.closed)));
   } finally { await c.close(); }
   const next = await client(p.base);
   try {
     assert.equal(next.session.python, OTHER_PROGRAM);
     await next.request("initialize", { capabilities: {} });
-    const folder = await saturn.folder();
-    await saturn.api("PATCH", `/projects/${p.id}`, { folders: [folder] });
+    const folder = await workbench.folder();
+    await workbench.api("PATCH", `/projects/${p.id}`, { folders: [folder] });
     await until("folder change closes server", () => Promise.resolve(next.messages.some(event => event.closed)));
   } finally { await next.close(); }
 });
 
 test("an absent selected interpreter cannot silently fall back to another Python", async () => {
   const p = await project();
-  await saturn.api("PUT", `${p.base}/environment`, { python: "/no-such-python/bin/python" });
-  const answer = await saturn.call("POST", `${p.base}/lsp/start`, { language: "python" });
+  await workbench.api("PUT", `${p.base}/environment`, { python: "/no-such-python/bin/python" });
+  const answer = await workbench.call("POST", `${p.base}/lsp/start`, { language: "python" });
   assert.equal(answer.status, 422);
   assert.match(answer.body.error, /selected Python/);
 });
@@ -198,19 +198,19 @@ test("a definition in an installed package opens read-only, and nothing else out
   if (found.status !== 0) { context.skip("needs python3"); return; }
   const { python, file } = JSON.parse(found.stdout);
   const p = await project();
-  await saturn.api("PUT", `${p.base}/environment`, { python });
+  await workbench.api("PUT", `${p.base}/environment`, { python });
   const c = await client(p.base);
   try {
-    const library = (target) => saturn.call("GET", `${c.route}/library?uri=${encodeURIComponent(pathToFileURL(target).href)}`);
+    const library = (target) => workbench.call("GET", `${c.route}/library?uri=${encodeURIComponent(pathToFileURL(target).href)}`);
     const opened = await library(file);
     assert.equal(opened.status, 200, JSON.stringify(opened.body));
     assert.equal(opened.body.content, await readFile(file, "utf8"), "the standard library's json module, as on disk");
     // Outside the interpreter's packages, a folder, and a file of another kind are refused.
-    const elsewhere = path.join(await saturn.folder(), "secret.py");
+    const elsewhere = path.join(await workbench.folder(), "secret.py");
     await writeFile(elsewhere, "TOKEN = 'made-up'\n");
     assert.equal((await library(elsewhere)).status, 403);
     assert.equal((await library(path.dirname(file))).status, 403);
-    assert.equal((await saturn.call("GET", `${c.route}/library?uri=${encodeURIComponent("https://example.com/x.py")}`)).status, 400);
+    assert.equal((await workbench.call("GET", `${c.route}/library?uri=${encodeURIComponent("https://example.com/x.py")}`)).status, 400);
     // A link is read as where it leads: one inside the project that leads out of the packages is refused.
     await symlink(elsewhere, path.join(p.folder, "linked.py"));
     assert.equal((await library(path.join(p.folder, "linked.py"))).status, 403);

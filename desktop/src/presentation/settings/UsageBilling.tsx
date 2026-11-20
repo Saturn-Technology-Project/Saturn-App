@@ -18,7 +18,7 @@ const PERIODS: [Period, string][] = [
   ["all", t("All time")],
   ["custom", t("Custom")],
 ];
-const PERIOD_KEY = "saturn.usage.period";
+const PERIOD_KEY = "workbench.usage.period";
 
 function startOfDay(day: Date): Date {
   return new Date(day.getFullYear(), day.getMonth(), day.getDate());

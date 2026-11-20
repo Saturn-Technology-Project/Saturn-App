@@ -1,5 +1,5 @@
 # Signs one file with the certificate windows-signing-cert.ps1 made available. The Tauri bundler calls this for each program
-# and for the installer (bundle.windows.signCommand), so everything Saturn ships carries the same publisher.
+# and for the installer (bundle.windows.signCommand), so everything Eisoptric Workbench ships carries the same publisher.
 param([Parameter(Mandatory)][string]$File)
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true

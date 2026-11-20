@@ -6,7 +6,7 @@ export default {
   // Workspace
   "This notebook is over 8 MB with its outputs, so it would not open again. Clear its outputs, then save.":
     "With its outputs, this notebook is over 8 MB and couldn't be opened again. Clear the outputs, then save.",
-  "Its process could not be confirmed, so it was not ended.": "Couldn't confirm this run's process, so Saturn didn't end it.",
+  "Its process could not be confirmed, so it was not ended.": "Couldn't confirm this run's process, so Eisoptric Workbench didn't end it.",
   "Enter a command above and run it. What it writes appears here.": "Run a command above to see its output here.",
   "Run the experiment to see what it costs.": "Run the experiment to see its resource use.",
   "Choose a sample under Samples, then look inside it here.": "Choose a sample in Samples to inspect it here.",
@@ -20,9 +20,9 @@ export default {
   "This file could not be read as a notebook, so it is shown as text.": "This file couldn't be read as a notebook, so it's shown as text.",
   "Running a cell records no run: it is not an experiment. For results to compare, freeze an experiment. Outputs are shown as text and images, never read as instructions.":
     "Running a cell doesn't record a run, because a notebook isn't an experiment. To get comparable results, freeze an experiment. Outputs are shown as text and images, never read as instructions.",
-  "This notebook is written for {language}. Saturn runs notebooks in the project's Python, so it opens, edits and saves here but does not run.":
-    "This notebook is written for {language}. Saturn runs notebooks with the project's Python, so you can open, edit, and save it here, but not run it.",
-  "A cell Saturn does not edit. It stays in the file as it is.": "Saturn doesn't edit this kind of cell. It's kept in the file unchanged.",
+  "This notebook is written for {language}. Eisoptric Workbench runs notebooks in the project's Python, so it opens, edits and saves here but does not run.":
+    "This notebook is written for {language}. Eisoptric Workbench runs notebooks with the project's Python, so you can open, edit, and save it here, but not run it.",
+  "A cell Eisoptric Workbench does not edit. It stays in the file as it is.": "Eisoptric Workbench doesn't edit this kind of cell. It's kept in the file unchanged.",
 
   // Resources
   "The first reading comes within two seconds.": "The first reading appears within 2 seconds.",
@@ -95,18 +95,18 @@ export default {
   // Reading a notebook and its kernel
   "It is not JSON: {reason}.": "It isn't valid JSON: {reason}.",
   "It is not a JSON object.": "It isn't a JSON object.",
-  "It is nbformat {version}, and Saturn opens nbformat 4.": "It uses nbformat {version}. Saturn opens nbformat 4.",
+  "It is nbformat {version}, and Eisoptric Workbench opens nbformat 4.": "It uses nbformat {version}. Eisoptric Workbench opens nbformat 4.",
   "It has no list of cells.": "It has no cell list.",
   "Its list of cells could not be found.": "Its cell list couldn't be found.",
   "Cannot run": "Can't run",
   "Could not start": "Couldn't start",
   "Not run: an earlier cell did not finish.": "Not run because an earlier cell didn't finish.",
   "The kernel stopped while this ran.": "The kernel stopped while this cell was running.",
-  "An output Saturn does not show: {types}.": "Saturn doesn't display this output type: {types}.",
-  "An output Saturn does not show: it is empty.": "This output is empty.",
-  "An output Saturn does not understand. It is kept in the file.": "Saturn doesn't recognize this output. It's kept in the file.",
+  "An output Eisoptric Workbench does not show: {types}.": "Eisoptric Workbench doesn't display this output type: {types}.",
+  "An output Eisoptric Workbench does not show: it is empty.": "This output is empty.",
+  "An output Eisoptric Workbench does not understand. It is kept in the file.": "Eisoptric Workbench doesn't recognize this output. It's kept in the file.",
   "Some of this cell's output was left out.": "Some of this cell's output isn't shown.",
-  "An output Saturn does not understand ({type}). It is kept in the file.": "Saturn doesn't recognize this output ({type}). It's kept in the file.",
+  "An output Eisoptric Workbench does not understand ({type}). It is kept in the file.": "Eisoptric Workbench doesn't recognize this output ({type}). It's kept in the file.",
   "No file matches.": "No matching files.",
   "Measured on {host}, where the run ran.": "Measured on {host}, the run's host.",
   "nvidia-smi is not on that host": "nvidia-smi isn't available on that host",

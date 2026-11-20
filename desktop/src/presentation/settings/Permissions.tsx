@@ -22,7 +22,7 @@ const EFFECT_WORDS: Record<PermissionRule["effect"], string> = { allow: t("allow
 const TOOLS = ["code", "files", "web", "*"];
 
 /**
- * One layer's rules, with a form to add one. Rules from the project's own files (`.saturn/settings.json`,
+ * One layer's rules, with a form to add one. Rules from the project's own files (`.workbench/settings.json`,
  * `.claude/settings.json`) are shown but edited in those files.
  */
 export function RulesEditor(props: { layer: PermissionLayer; target: { projectId?: string; agentId?: string }; onChanged: (layers: PermissionLayer[]) => void; onError: (message: string) => void }) {
@@ -163,7 +163,7 @@ export function PermissionsPage(props: { projects: Project[]; agents: { id: stri
       <Explained summary={t("Rules decide which tool calls run, wait for you, or are refused, before any approval setting applies.")}>
         <li>{t("A rule names a tool and a pattern. Deny refuses the call, ask shows an approval card, and allow runs it without asking. Deny beats ask, and ask beats allow.")}</li>
         <li>{t("When no rule applies, the approval setting decides. In the default setting, sensitive commands always ask:")} <code>rm -rf</code>, <code>sudo</code>, <code>git push --force</code>, {t("deleting files, and paths outside the project.")}</li>
-        <li>{t("Rules in these project files apply too:")} <code>.saturn/settings.json</code>, <code>.claude/settings.json</code> (<code>permissions</code>). {t("They come with the folder (a cloned repository, say), so their deny and ask rules apply at once, but their allow rules only after you allow them in the project's rules here.")}</li>
+        <li>{t("Rules in these project files apply too:")} <code>.workbench/settings.json</code>, <code>.claude/settings.json</code> (<code>permissions</code>). {t("They come with the folder (a cloned repository, say), so their deny and ask rules apply at once, but their allow rules only after you allow them in the project's rules here.")}</li>
         <li>{t("A rule that allows every command is never applied.")}</li>
       </Explained>
       <div>

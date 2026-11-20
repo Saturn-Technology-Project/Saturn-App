@@ -1,7 +1,7 @@
 import type { MetricView, SpanRecord, TelemetryLog, TelemetryStatus, TraceSummary } from "../domain/model.js";
 import type { RuntimeClient } from "../infrastructure/runtime-client.js";
 
-export type TelemetryExportFormat = "saturn" | "otlp" | "siem";
+export type TelemetryExportFormat = "workbench" | "otlp" | "siem";
 
 /** The runtime's recent OpenTelemetry traces, metrics and logs. */
 export class TelemetryService {
@@ -38,7 +38,7 @@ export class TelemetryService {
 
   /**
    * Has the runtime save telemetry.json now and returns it as a file:
-   * "saturn" (the file itself), "otlp" (OTLP/JSON lines) or "siem" (ECS NDJSON).
+   * "workbench" (the file itself), "otlp" (OTLP/JSON lines) or "siem" (ECS NDJSON).
    */
   export(format: TelemetryExportFormat): Promise<{ blob: Blob; filename: string }> {
     return this.runtime.download(`/telemetry/export?format=${format}`);

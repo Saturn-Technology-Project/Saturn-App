@@ -13,7 +13,7 @@ const servers = [];
 
 before(async () => {
   runtime = await startRuntime();
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-plugins-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-plugins-")));
 });
 after(async () => {
   await runtime?.stop();
@@ -140,8 +140,8 @@ test("a project's links cannot bring a file from elsewhere on the computer into 
   const root = await folder("linking-project", { "real.md": "inside rule" });
   await symlink(path.join(outside, "private.txt"), path.join(root, "AGENTS.md"));
   await symlink(path.join(root, "real.md"), path.join(root, "CLAUDE.md"));
-  await mkdir(path.join(root, ".saturn/skills/leak"), { recursive: true });
-  await symlink(path.join(outside, "private.txt"), path.join(root, ".saturn/skills/leak/SKILL.md"));
+  await mkdir(path.join(root, ".workbench/skills/leak"), { recursive: true });
+  await symlink(path.join(outside, "private.txt"), path.join(root, ".workbench/skills/leak/SKILL.md"));
   const { requests, url } = await model(() => "done");
   const connection = await api("POST", "/connections/models", { name: "Scripted", provider: "openai", model: "s", baseUrl: url });
   const agent = await api("POST", "/agents", { name: "Reader", modelConnectionId: connection.id, autonomy: "bypass" });

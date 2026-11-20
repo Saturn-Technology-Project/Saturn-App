@@ -6,40 +6,40 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { open } from "./config-harness.mjs";
 
-let saturn;
+let workbench;
 
 before(async () => {
-  saturn = await open();
+  workbench = await open();
 });
 after(async () => {
-  await saturn?.close();
+  await workbench?.close();
 });
 
 test("plan models take no API key, and the provider is named Claude (via Claude Code)", async () => {
   for (const [provider, name] of [["claude-code", "claude-sonnet-5-5"], ["codex", "gpt-5.5"]]) {
-    await saturn.refused("POST", "/connections/models", { provider, model: name, secret: "contract-value" }, 400, /takes no API key/);
-    const model = await saturn.api("POST", "/connections/models", { provider, model: name });
+    await workbench.refused("POST", "/connections/models", { provider, model: name, secret: "contract-value" }, 400, /takes no API key/);
+    const model = await workbench.api("POST", "/connections/models", { provider, model: name });
     assert.equal(model.hasSecret, false);
-    await saturn.refused("PATCH", `/connections/models/${model.id}`, { secret: "contract-value" }, 400, /takes no API key/);
-    await saturn.api("DELETE", `/connections/models/${model.id}`);
+    await workbench.refused("PATCH", `/connections/models/${model.id}`, { secret: "contract-value" }, 400, /takes no API key/);
+    await workbench.api("DELETE", `/connections/models/${model.id}`);
   }
-  const providers = await saturn.api("GET", "/llm/providers");
+  const providers = await workbench.api("GET", "/llm/providers");
   assert.equal(providers.find((item) => item.id === "claude-code").label, "Claude (via Claude Code)");
 });
 
 test("a provider's saved API key serves its other models, and a model without one says so before any request", async () => {
-  const first = await saturn.api("POST", "/connections/models", { provider: "gemini", model: "gemini-flash", secret: "contract-gemini-value" });
+  const first = await workbench.api("POST", "/connections/models", { provider: "gemini", model: "gemini-flash", secret: "contract-gemini-value" });
   assert.equal(first.hasSecret, true);
-  const second = await saturn.api("POST", "/connections/models", { provider: "gemini", model: "gemini-pro" });
+  const second = await workbench.api("POST", "/connections/models", { provider: "gemini", model: "gemini-pro" });
   assert.equal(second.hasSecret, true);
 
-  const keyless = await saturn.api("POST", "/connections/models", { provider: "claude", model: "claude-sonnet-5-5" });
+  const keyless = await workbench.api("POST", "/connections/models", { provider: "claude", model: "claude-sonnet-5-5" });
   assert.equal(keyless.hasSecret, false);
-  const agent = await saturn.api("POST", "/agents", { name: "Writer", modelConnectionId: keyless.id });
-  await saturn.refused("POST", `/agents/${agent.id}/runs`, { input: "hi" }, 409, /no Claude API key/);
+  const agent = await workbench.api("POST", "/agents", { name: "Writer", modelConnectionId: keyless.id });
+  await workbench.refused("POST", `/agents/${agent.id}/runs`, { input: "hi" }, 409, /no Claude API key/);
 
-  assert.equal((await saturn.api("PATCH", `/connections/models/${keyless.id}`, { secret: "contract-claude-value" })).hasSecret, true);
-  const listed = await saturn.api("GET", "/connections/models");
+  assert.equal((await workbench.api("PATCH", `/connections/models/${keyless.id}`, { secret: "contract-claude-value" })).hasSecret, true);
+  const listed = await workbench.api("GET", "/connections/models");
   assert.ok(listed.filter((item) => ["gemini", "claude"].includes(item.provider)).every((item) => item.hasSecret));
   assert.doesNotMatch(JSON.stringify(listed), /contract-gemini-value|contract-claude-value/);
 });

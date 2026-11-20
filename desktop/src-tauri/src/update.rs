@@ -1,5 +1,5 @@
-//! Updates from GitHub Releases: downloaded in the background and installed when Saturn quits. The package must carry a signature
-//! from Saturn's updater key; a build made without that key has no updater at all (see `tauri.updater.json`).
+//! Updates from GitHub Releases: downloaded in the background and installed when Eisoptric Workbench quits. The package must carry a signature
+//! from Eisoptric Workbench's updater key; a build made without that key has no updater at all (see `tauri.updater.json`).
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Manager};
@@ -9,9 +9,9 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 #[derive(Default)]
 pub struct Waiting(Mutex<Option<(Update, Vec<u8>)>>);
 
-/// Looks for a newer version and downloads it. Only logs what happens: an offline Saturn works as usual.
+/// Looks for a newer version and downloads it. Only logs what happens: an offline Eisoptric Workbench works as usual.
 pub async fn check(app: AppHandle) {
-    if std::env::var_os("SATURN_NO_UPDATES").is_some() {
+    if std::env::var_os("WORKBENCH_NO_UPDATES").is_some() {
         return;
     }
     let found = match app.updater() {
@@ -29,7 +29,7 @@ pub async fn check(app: AppHandle) {
     match update.download(|_, _| {}, || {}).await {
         Ok(bytes) => {
             eprintln!(
-                "[updates] {} downloaded; it installs when Saturn quits",
+                "[updates] {} downloaded; it installs when Eisoptric Workbench quits",
                 update.version
             );
             *app.state::<Waiting>()

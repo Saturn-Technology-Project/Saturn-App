@@ -11,18 +11,18 @@ import { bench, shellPython, sha, until } from "./files-support.mjs";
 const run = promisify(execFile);
 const MIB = 1024 * 1024;
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 /** A project on a temporary folder, with these files in it. */
 async function project(files = {}) {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   for (const [name, content] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(folder, name)), { recursive: true });
     await writeFile(path.join(folder, name), content);
   }
-  const made = await saturn.api("POST", "/projects", { path: folder, grant: true });
+  const made = await workbench.api("POST", "/projects", { path: folder, grant: true });
   return { folder, route: `/projects/${made.id}/research`, id: made.id };
 }
 
@@ -33,20 +33,20 @@ function query(fields) {
   return search.toString();
 }
 
-const preview = (route, fields) => saturn.call("GET", `${route}/data/preview?${query(fields)}`);
-const profile = (route, fields) => saturn.call("GET", `${route}/data/profile?${query(fields)}`);
-const overlap = (route, fields) => saturn.call("GET", `${route}/data/overlap?${query(fields)}`);
+const preview = (route, fields) => workbench.call("GET", `${route}/data/preview?${query(fields)}`);
+const profile = (route, fields) => workbench.call("GET", `${route}/data/profile?${query(fields)}`);
+const overlap = (route, fields) => workbench.call("GET", `${route}/data/overlap?${query(fields)}`);
 const lines = (rows) => rows.map((row) => `${JSON.stringify(row)}\n`).join("");
 
-const SAMPLE_PROGRAM = `import { appendFileSync } from "node:fs"; appendFileSync(process.env.SATURN_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "a", error: null }) + "\\n");`;
+const SAMPLE_PROGRAM = `import { appendFileSync } from "node:fs"; appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, JSON.stringify({ schemaVersion: 1, sampleId: "a", error: null }) + "\\n");`;
 const evaluation = (split) => ({ dataset: "d", split, sampleSet: "all", scorer: "s", promptFormat: "none", chatTemplate: null, generation: {} });
 
 /** An experiment on these data inputs, frozen and run to its end. */
 async function ran(setup, data, split) {
-  const experiment = await saturn.api("POST", `${setup.route}/experiments`, { title: `On ${data.join(", ")}`, command: "node probe.mjs", inputs: { data, code: ["probe.mjs"] }, ...(split ? { evaluation: evaluation(split) } : {}) });
-  const version = await saturn.api("POST", `${setup.route}/experiments/${experiment.id}/versions`, {});
-  const started = await saturn.api("POST", `${setup.route}/versions/${version.id}/runs`, { clientId: `start-${experiment.id}` });
-  const ended = await until("the run", () => saturn.api("GET", `${setup.route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  const experiment = await workbench.api("POST", `${setup.route}/experiments`, { title: `On ${data.join(", ")}`, command: "node probe.mjs", inputs: { data, code: ["probe.mjs"] }, ...(split ? { evaluation: evaluation(split) } : {}) });
+  const version = await workbench.api("POST", `${setup.route}/experiments/${experiment.id}/versions`, {});
+  const started = await workbench.api("POST", `${setup.route}/versions/${version.id}/runs`, { clientId: `start-${experiment.id}` });
+  const ended = await until("the run", () => workbench.api("GET", `${setup.route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
   assert.equal(ended.status, "completed", ended.error);
   return { experiment, version, run: ended };
 }
@@ -54,11 +54,11 @@ async function ran(setup, data, split) {
 test("the list names every data input of an experiment or a version, with what froze it and who read it", async () => {
   const setup = await project({ "probe.mjs": SAMPLE_PROGRAM, "data/train.jsonl": lines([{ a: 1 }]), "data/test.jsonl": lines([{ a: 2 }]), "other/set.csv": "a\n1\n", "draft.csv": "a\n" });
   const { experiment, version, run: first } = await ran(setup, ["data/train.jsonl", "data/test.jsonl"], undefined);
-  await saturn.api("POST", `${setup.route}/experiments`, { title: "Not frozen", inputs: { data: ["draft.csv"] } });
+  await workbench.api("POST", `${setup.route}/experiments`, { title: "Not frozen", inputs: { data: ["draft.csv"] } });
   const declared = await ran(setup, ["other/set.csv"], "test");
   const named = await ran(setup, ["data/test.jsonl"], "validation");
 
-  const list = await saturn.api("GET", `${setup.route}/data`);
+  const list = await workbench.api("GET", `${setup.route}/data`);
   assert.deepEqual(list.items.map((item) => item.path), ["data/test.jsonl", "data/train.jsonl", "draft.csv", "other/set.csv"]);
   assert.match(list.note, /not proof/);
   assert.match(list.note, /never declared/);
@@ -103,7 +103,7 @@ test("the list says when a file changed since the newest version froze it, or is
   await writeFile(path.join(setup.folder, "same-size.jsonl"), "{\"a\":2}\n");
   await writeFile(path.join(setup.folder, "longer.jsonl"), "{\"a\":1}\n{\"a\":2}\n");
   await rm(path.join(setup.folder, "gone.jsonl"));
-  const { items } = await saturn.api("GET", `${setup.route}/data`);
+  const { items } = await workbench.api("GET", `${setup.route}/data`);
   const state = Object.fromEntries(items.map((item) => [item.path, [item.exists, item.changed]]));
   assert.deepEqual(state, { "gone.jsonl": [false, true], "kept.jsonl": [true, false], "longer.jsonl": [true, true], "same-size.jsonl": [true, true] });
 });
@@ -151,7 +151,7 @@ test("what a file says is only shown: an instruction in a row is a row like any 
   assert.match(profiled.note, /never as instructions/);
 });
 
-test("kinds of file Saturn does not read say so, and a .json that is not an array is not a table", async () => {
+test("kinds of file Eisoptric Workbench does not read say so, and a .json that is not an array is not a table", async () => {
   const { route } = await project({ "weights.bin": "x", "config.json": "{\"a\":1}", "data/x.csv": "a\n1\n" });
   const other = await preview(route, { path: "weights.bin" });
   assert.equal(other.status, 415);
@@ -175,7 +175,7 @@ test("a large file stays within its limits", async () => {
   const tooLong = JSON.stringify({ id: -1, text: "y".repeat(2 * MIB) });
   await writeFile(path.join(folder, "big.jsonl"), `${tooLong}\n${chunks.join("\n")}\n${tooLong}\n`);
 
-  const page = await saturn.call("GET", `${route}/data/preview?${query({ path: "big.jsonl", limit: 100000 })}`);
+  const page = await workbench.call("GET", `${route}/data/preview?${query({ path: "big.jsonl", limit: 100000 })}`);
   assert.equal(page.status, 200);
   assert.equal(page.body.items.length, 200, "a page has its limit whatever is asked");
   assert.match(page.body.items[0].problem, /longer than/);
@@ -190,7 +190,7 @@ test("a large file stays within its limits", async () => {
   assert.ok(widePage.items.length < 12 && widePage.items.length >= 4, String(widePage.items.length));
   assert.equal(typeof widePage.next, "number");
 
-  const { pid } = saturn.runtime.child;
+  const { pid } = workbench.runtime.child;
   // The memory the runtime holds: `ps` says it in KiB, and Windows' task list as "12,345 K" in its last column.
   const resident = async () => process.platform === "win32"
     ? Number((await run("tasklist", ["/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"])).stdout.trim().split('","').at(-1).replace(/\D/g, "")) * 1024
@@ -314,7 +314,7 @@ test("an overlap counts identical rows on each side, whole or by chosen columns,
 test("a path that climbs out or goes through a symbolic link is refused, on every read and in the list", async () => {
   const setup = await project({ "probe.mjs": SAMPLE_PROGRAM, "data/real.jsonl": lines([{ a: 1 }]) });
   const { folder, route } = setup;
-  const outside = await saturn.folder();
+  const outside = await workbench.folder();
   await writeFile(path.join(outside, "secret.jsonl"), lines([{ secret: "the value" }]));
   await symlink(path.join(outside, "secret.jsonl"), path.join(folder, "out.jsonl"));
   await symlink(outside, path.join(folder, "away"));
@@ -327,12 +327,12 @@ test("a path that climbs out or goes through a symbolic link is refused, on ever
       assert.doesNotMatch(JSON.stringify(answer.body), /the value/);
     }
   }
-  await saturn.api("POST", `${route}/questions`, { title: "Q" });
-  assert.equal((await preview(route, { path: ".saturn/research/questions" })).status, 403);
+  await workbench.api("POST", `${route}/questions`, { title: "Q" });
+  assert.equal((await preview(route, { path: ".workbench/research/questions" })).status, 403);
   assert.equal((await preview(route, { path: ".git/config" })).status, 403);
 
-  await saturn.api("POST", `${route}/experiments`, { title: "Named badly", inputs: { data: ["../secret.jsonl", "out.jsonl", "data/real.jsonl"] } });
-  const { items } = await saturn.api("GET", `${route}/data`);
+  await workbench.api("POST", `${route}/experiments`, { title: "Named badly", inputs: { data: ["../secret.jsonl", "out.jsonl", "data/real.jsonl"] } });
+  const { items } = await workbench.api("GET", `${route}/data`);
   const named = Object.fromEntries(items.map((item) => [item.path, item]));
   for (const name of ["../secret.jsonl", "out.jsonl"]) {
     assert.ok(named[name].problem, name);
@@ -344,7 +344,7 @@ test("a path that climbs out or goes through a symbolic link is refused, on ever
 
 /** An interpreter that runs the real Python with these modules first on its path, standing in for what a project has. */
 async function interpreter(modules) {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   for (const [name, content] of Object.entries(modules)) await writeFile(path.join(folder, name), content);
   const file = path.join(folder, "python");
   await writeFile(file, `#!/bin/sh\nPYTHONPATH='${folder}' exec python3 "$@"\n`);
@@ -385,7 +385,7 @@ test("Parquet, Arrow and dataset folders are read by a helper in the project's P
     "datasets/__init__.py": "raise RuntimeError('the project folder was imported')\n",
   });
   const { route } = setup;
-  await saturn.api("PUT", `${route}/environment`, { python: await interpreter({ "datasets.py": FAKE_DATASETS }) });
+  await workbench.api("PUT", `${route}/environment`, { python: await interpreter({ "datasets.py": FAKE_DATASETS }) });
 
   const page = await preview(route, { path: "train.parquet", limit: 2 });
   assert.equal(page.status, 200, JSON.stringify(page.body));
@@ -421,28 +421,28 @@ test("Parquet, Arrow and dataset folders are read by a helper in the project's P
   assert.equal(missingSplit.status, 422);
   assert.match(missingSplit.body.error, /no split called nope/);
 
-  await saturn.api("POST", `${route}/experiments`, { title: "On a folder", inputs: { data: ["set"] } });
-  const { items } = await saturn.api("GET", `${route}/data`);
+  await workbench.api("POST", `${route}/experiments`, { title: "On a folder", inputs: { data: ["set"] } });
+  const { items } = await workbench.api("GET", `${route}/data`);
   assert.deepEqual(items.map((item) => [item.path, item.kind, item.format]), [["set", "dataset", "dataset"]]);
 });
 
 test("a frozen dataset folder is one entry, and any change in it counts", async () => {
   const setup = await project({ "probe.mjs": SAMPLE_PROGRAM, "set/test/dataset_dict.json": "{}", "set/test/train.lines": lines([{ a: 1 }]) });
   await ran(setup, ["set/test"]);
-  let [item] = (await saturn.api("GET", `${setup.route}/data`)).items;
+  let [item] = (await workbench.api("GET", `${setup.route}/data`)).items;
   assert.equal(item.path, "set/test");
   assert.equal(item.kind, "dataset");
   assert.equal(item.changed, false);
   assert.equal(item.testReads, 1, "named as a test split by its own folder");
   assert.ok(item.frozen.sha256);
   await writeFile(path.join(setup.folder, "set/test/train.lines"), lines([{ a: 2 }]));
-  [item] = (await saturn.api("GET", `${setup.route}/data`)).items;
+  [item] = (await workbench.api("GET", `${setup.route}/data`)).items;
   assert.equal(item.changed, true);
 });
 
 test("without datasets the answer says so and points at the Post-training kit, without failing silently", shellPython, async () => {
   const { route } = await project({ "train.parquet": "x", "set/state.json": "{}", "plain.csv": "a\n1\n" });
-  await saturn.api("PUT", `${route}/environment`, { python: await interpreter({ "datasets.py": "raise ImportError('no such package')\n" }) });
+  await workbench.api("PUT", `${route}/environment`, { python: await interpreter({ "datasets.py": "raise ImportError('no such package')\n" }) });
   for (const answer of [await preview(route, { path: "train.parquet" }), await profile(route, { path: "set" }), await overlap(route, { left: "train.parquet", right: "plain.csv" })]) {
     assert.equal(answer.status, 422, JSON.stringify(answer.body));
     assert.match(answer.body.error, /datasets package/);
@@ -458,7 +458,7 @@ test("a helper that fails says how, and a project with no Python is told to name
   assert.equal(none.status, 422);
   assert.match(none.body.error, /No Python is set/);
   const broken = "def disable_progress_bars(): pass\ndef load_dataset(*args, **kwargs): raise ValueError('this file is not parquet')\n";
-  await saturn.api("PUT", `${route}/environment`, { python: await interpreter({ "datasets.py": broken }) });
+  await workbench.api("PUT", `${route}/environment`, { python: await interpreter({ "datasets.py": broken }) });
   const failed = await profile(route, { path: "train.parquet" });
   assert.equal(failed.status, 422);
   assert.match(failed.body.error, /this file is not parquet/);
@@ -466,13 +466,13 @@ test("a helper that fails says how, and a project with no Python is told to name
 });
 
 test("the assistant can list, profile and compare data through research_read, in a Manual chat too", async () => {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   await writeFile(path.join(folder, "train.jsonl"), lines([{ q: "a" }, { q: "b" }]));
   await writeFile(path.join(folder, "test.jsonl"), lines([{ q: "b" }, { q: "c" }]));
   await writeFile(path.join(folder, "probe.mjs"), SAMPLE_PROGRAM);
-  const setup = await saturn.chat(folder, { mcpConnectionIds: ["research"] });
-  await saturn.api("PATCH", `/threads/${setup.thread.id}`, { chatMode: "manual" });
-  await saturn.api("POST", `/projects/${setup.project.id}/research/experiments`, { title: "E", inputs: { data: ["train.jsonl", "test.jsonl"] } });
+  const setup = await workbench.chat(folder, { mcpConnectionIds: ["research"] });
+  await workbench.api("PATCH", `/threads/${setup.thread.id}`, { chatMode: "manual" });
+  await workbench.api("POST", `/projects/${setup.project.id}/research/experiments`, { title: "E", inputs: { data: ["train.jsonl", "test.jsonl"] } });
   const read = async (args) => {
     const turn = await setup.turn([["research_read", args]]);
     return turn.actions.at(-1);
@@ -489,6 +489,6 @@ test("the assistant can list, profile and compare data through research_read, in
   assert.equal(refused.status, "failed");
   const nameless = await read({ what: "data_profile" });
   assert.match(nameless.reason, /"path"/);
-  const tools = (await saturn.api("GET", "/connections/mcp")).find((item) => item.id === "research").tools;
+  const tools = (await workbench.api("GET", "/connections/mcp")).find((item) => item.id === "research").tools;
   assert.ok(tools.find((tool) => tool.toolId === "research_read").inputSchema.properties.what.enum.includes("data_overlap"));
 });

@@ -115,7 +115,7 @@ async function fakeGitHub() {
 }
 
 before(async () => {
-  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "saturn-contract-github-")));
+  scratch = await realpath(await mkdtemp(path.join(os.tmpdir(), "workbench-contract-github-")));
   github = await fakeGitHub();
   // The one repository a mirror may clone, from a local folder; anything else named would fail, not reach the network.
   const mirrored = path.join(scratch, "mirrored.git");
@@ -128,7 +128,7 @@ before(async () => {
   git(seed, "push", "-q", mirrored, "main");
   const gitConfig = path.join(scratch, "gitconfig");
   await writeFile(gitConfig, `[url "${pathToFileURL(mirrored).href}"]\n\tinsteadOf = https://github.com/acme/mirrored.git\n[url "file:///nonexistent/blocked/"]\n\tinsteadOf = https://github.com/acme/never/\n`);
-  runtime = await startRuntime({ env: { SATURN_GITHUB_API: github.url, GH_TOKEN: TOKEN, GITHUB_TOKEN: "", GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
+  runtime = await startRuntime({ env: { WORKBENCH_GITHUB_API: github.url, GH_TOKEN: TOKEN, GITHUB_TOKEN: "", GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" } });
 });
 after(async () => {
   await runtime?.stop();
@@ -283,7 +283,7 @@ test("the repository tools read a local checkout, and refuse what would climb ou
     ["commit_read", { ...site, sha: main }],
     ["commit_read", { ...site, sha: feature, view: "files" }],
     ["commit_read", { ...site, sha: feature, view: "patch", startLine: 1, endLine: 4 }],
-    ["commit_read", { ...site, sha: "--output=/tmp/saturn-contract-x" }],
+    ["commit_read", { ...site, sha: "--output=/tmp/workbench-contract-x" }],
     ["commit_read", { ...site, sha: "main:README.md" }],
     ["compare_commits", { ...site, base: "main", head: "feature" }],
     ["compare_commits", { ...site, base: "feature", head: "main" }],
@@ -310,7 +310,7 @@ test("the repository tools read a local checkout, and refuse what would climb ou
   await matchesRecording("repository tools", answers);
 });
 
-test("the hosted tools ask GitHub with the user's token and answer in Saturn's shapes", async () => {
+test("the hosted tools ask GitHub with the user's token and answer in Eisoptric Workbench's shapes", async () => {
   const folder = await repository_("hosted", "https://github.com/acme/site.git");
   github.requests.length = 0;
   github.state.head = "sha-one";
@@ -442,7 +442,7 @@ test("a pull request from a chat's branch: pending work is committed and pushed,
   assert.deepEqual(opened.body, { url: "https://github.com/acme/site/pull/7", number: 7, branch: setup.worktree.branch });
   assert.equal(git(setup.bare, "rev-parse", "--verify", `refs/heads/${opened.body.branch}`).length, 40, "the branch was pushed");
   assert.equal(git(setup.worktree.path, "status", "--porcelain"), "", "pending work was committed first");
-  assert.equal(git(setup.bare, "log", "--format=%s %an", "-1", opened.body.branch), "Saturn: Add a feature Saturn");
+  assert.equal(git(setup.bare, "log", "--format=%s %an", "-1", opened.body.branch), "Eisoptric Workbench: Add a feature Eisoptric Workbench");
   const create = github.requests.find((request) => request.method === "POST");
   assert.equal(create.url, "/repos/acme/site/pulls");
   assert.deepEqual(create.body, { title: "Add a feature", head: opened.body.branch, base: "main", body: "Added feature.ts.", draft: false });
@@ -521,7 +521,7 @@ test("a followed pull request: failing checks go to the agent with their logs, t
   // The fix round ends: its change is committed and pushed.
   await runEnds(first.fixRunId);
   const pushed = await noFixRun();
-  assert.equal(git(setup.bare, "log", "--format=%s", "-1", setup.worktree.branch), "Saturn: fix the checks on #7 (round 1)");
+  assert.equal(git(setup.bare, "log", "--format=%s", "-1", setup.worktree.branch), "Eisoptric Workbench: fix the checks on #7 (round 1)");
   assert.equal(git(setup.bare, "show", `${setup.worktree.branch}:fix.txt`), "fixed-1");
   assert.equal(pushed.pullRequest.checks, "pending");
   assert.equal(pushed.pullRequest.head, git(setup.bare, "rev-parse", setup.worktree.branch));
@@ -589,7 +589,7 @@ test("a chat with no pull request says so", async () => {
 test("without a GitHub token the tools and the follow-up say what to do", async () => {
   const quiet = await fakeGitHub();
   // No gh on this PATH, so the developer's own token is never looked at.
-  const env = { SATURN_GITHUB_API: quiet.url, GH_TOKEN: "", GITHUB_TOKEN: "", PATH: path.join(scratch, "no-tools") };
+  const env = { WORKBENCH_GITHUB_API: quiet.url, GH_TOKEN: "", GITHUB_TOKEN: "", PATH: path.join(scratch, "no-tools") };
   const first = await startRuntime({ env, keepData: true });
   let second;
   try {

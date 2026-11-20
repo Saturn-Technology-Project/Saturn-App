@@ -1,4 +1,4 @@
-//! The Saturn desktop app: starts the runtime and shows the interface in the system's web view.
+//! The Eisoptric Workbench desktop app: starts the runtime and shows the interface in the system's web view.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod notify;
 mod permissions;
@@ -20,7 +20,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 pub(crate) const MAIN_WINDOW: &str = "main";
 /// The window the assistant's pointer is drawn in, and the title computer use knows it by and passes over.
 pub(crate) const POINTER_WINDOW: &str = "pointer";
-const POINTER_TITLE: &str = "Saturn pointer";
+const POINTER_TITLE: &str = "Eisoptric Workbench pointer";
 const BACKGROUND: tauri::window::Color = tauri::window::Color(0x19, 0x19, 0x19, 0xff);
 
 /// Where the interface is served, known once it is up.
@@ -60,7 +60,7 @@ async fn confirm_action(window: WebviewWindow, message: String) -> bool {
         .dialog()
         .message(message)
         .parent(&window)
-        .title("Saturn")
+        .title("Eisoptric Workbench")
         .buttons(MessageDialogButtons::OkCancel)
         .blocking_show()
 }
@@ -78,7 +78,7 @@ fn close_heard() {
     CLOSE_HEARD.store(true, Ordering::SeqCst);
 }
 
-/// Quits Saturn and its runtime.
+/// Quits Eisoptric Workbench and its runtime.
 #[tauri::command]
 fn quit_app(app: AppHandle) {
     QUITTING.store(true, Ordering::SeqCst);
@@ -91,7 +91,7 @@ fn ask_before_quitting(app: &AppHandle) {
     CLOSE_HEARD.store(false, Ordering::SeqCst);
     let asked = app
         .get_webview_window(MAIN_WINDOW)
-        .is_some_and(|window| window.eval("window.__saturnCloseRequested?.()").is_ok());
+        .is_some_and(|window| window.eval("window.__workbenchCloseRequested?.()").is_ok());
     if !asked {
         quit_app(app.clone());
         return;
@@ -157,7 +157,7 @@ fn close_window(window: WebviewWindow) -> tauri::Result<()> {
     window.close()
 }
 
-/// A system notification; clicking it brings Saturn forward and opens the chat it names.
+/// A system notification; clicking it brings Eisoptric Workbench forward and opens the chat it names.
 #[tauri::command]
 fn notify(app: AppHandle, options: notify::Options) {
     notify::show(app, options);
@@ -207,11 +207,11 @@ fn bridge_script(runtime: &Runtime, interface: &Url, window_buttons: bool) -> St
 fn fill_bridge(interface: &str, token: &str, origin: &str, window_buttons: bool) -> String {
     let quoted = |text: &str| serde_json::Value::from(text).to_string();
     include_str!("bridge.js")
-        .replace("__SATURN_INTERFACE__", &quoted(interface))
-        .replace("__SATURN_TOKEN__", &quoted(token))
-        .replace("__SATURN_ORIGIN__", &quoted(origin))
+        .replace("__WORKBENCH_INTERFACE__", &quoted(interface))
+        .replace("__WORKBENCH_TOKEN__", &quoted(token))
+        .replace("__WORKBENCH_ORIGIN__", &quoted(origin))
         .replace(
-            "__SATURN_WINDOW_BUTTONS__",
+            "__WORKBENCH_WINDOW_BUTTONS__",
             if window_buttons { "true" } else { "false" },
         )
 }
@@ -278,10 +278,10 @@ pub(crate) fn show_main_window(app: &AppHandle) {
     // On Windows the window has no frame, so the page draws the three buttons.
     let script = bridge_script(&app.state::<Runtime>(), &interface, cfg!(windows));
     let builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::External(interface))
-        .title("Saturn")
+        .title("Eisoptric Workbench")
         .background_color(BACKGROUND)
         .disable_drag_drop_handler()
-        // A hidden window keeps running: chats update and notifications arrive with Saturn in the background.
+        // A hidden window keeps running: chats update and notifications arrive with Eisoptric Workbench in the background.
         .background_throttling(BackgroundThrottlingPolicy::Disabled)
         .initialization_script(script)
         .on_new_window(|address, _| {
@@ -303,11 +303,11 @@ pub(crate) fn show_main_window(app: &AppHandle) {
     #[cfg(not(target_os = "macos"))]
     let builder = builder.decorations(false);
     if let Err(error) = builder.build() {
-        eprintln!("Could not open the Saturn window: {error}");
+        eprintln!("Could not open the Eisoptric Workbench window: {error}");
     }
 }
 
-/// Opens the window Saturn draws the assistant's pointer in while it uses the computer: over the whole main display,
+/// Opens the window Eisoptric Workbench draws the assistant's pointer in while it uses the computer: over the whole main display,
 /// transparent, letting every click through, on every desktop, and kept out of screenshots so the assistant never sees
 /// its own pointer. It shows nothing until the assistant acts.
 fn open_pointer_window(app: &AppHandle) {
@@ -349,7 +349,7 @@ fn open_pointer_window(app: &AppHandle) {
     }
 }
 
-/// Allows the commands to Saturn's own pages, at the exact port the interface got.
+/// Allows the commands to Eisoptric Workbench's own pages, at the exact port the interface got.
 fn allow_interface_commands(app: &AppHandle, port: u16) -> tauri::Result<()> {
     let capability = serde_json::json!({
         "identifier": "interface",
@@ -403,7 +403,7 @@ async fn start_up(app: AppHandle, layout: Layout) {
 
 fn main() {
     let context = tauri::generate_context!();
-    // Only a build made with Saturn's updater key has this setting, and only such a build looks for updates.
+    // Only a build made with Eisoptric Workbench's updater key has this setting, and only such a build looks for updates.
     let updates = context.config().plugins.0.contains_key("updater");
     let mut builder = tauri::Builder::default();
     if updates {
@@ -452,7 +452,7 @@ fn main() {
             Ok(())
         })
         .build(context)
-        .expect("the Saturn app builds");
+        .expect("the Eisoptric Workbench app builds");
 
     app.run(|app, event| match event {
         RunEvent::Exit => {
@@ -461,8 +461,8 @@ fn main() {
         }
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } if INTERFACE.get().is_some() => show_main_window(app),
-        // Closing the window quits Saturn, except on macOS, where the Dock still shows the app and brings the window
-        // back. Elsewhere nothing showed it: the pointer window kept Saturn and its runtime running out of sight. The
+        // Closing the window quits Eisoptric Workbench, except on macOS, where the Dock still shows the app and brings the window
+        // back. Elsewhere nothing showed it: the pointer window kept Eisoptric Workbench and its runtime running out of sight. The
         // interface is asked first, since quitting stops what still works.
         RunEvent::WindowEvent {
             label,
@@ -521,6 +521,6 @@ mod tests {
         let without = fill(false);
         assert!(without.contains("if (false) {"));
         assert!(!without.contains("if (true) {"));
-        assert!(!without.contains("__SATURN_"));
+        assert!(!without.contains("__WORKBENCH_"));
     }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../../application/desktop.js";
 import { t } from "../../domain/i18n.js";
-import saturnMark from "../../assets/saturn-mark.png";
+import workbenchMark from "../../assets/workbench-mark.png";
 import type { PointerPlace } from "../../domain/model.js";
 
 /** How long the pointer stays after the assistant's last action. */
@@ -9,7 +9,7 @@ const LINGER_MS = 4000;
 /** How long the pointer takes to glide to where it acts, a little under the runtime's lead before it acts. */
 const GLIDE_MS = 200;
 
-/** Saturn's colors, from its icon: the black of the ground and the ivory of the ringed planet. */
+/** Eisoptric Workbench's colors, from its icon: the black of the ground and the ivory of the ringed planet. */
 const INK = "#06050a";
 const IVORY = "#f6f4ef";
 const IVORY_LINE = "rgba(246, 244, 239, 0.35)";
@@ -46,7 +46,7 @@ export function Pointer() {
       window.clearTimeout(hide.current);
       hide.current = window.setTimeout(() => setShown((current) => ({ ...current, visible: false })), LINGER_MS);
     };
-    // The stream ends when the runtime restarts; it is opened again, as the rest of Saturn reconnects.
+    // The stream ends when the runtime restarts; it is opened again, as the rest of Eisoptric Workbench reconnects.
     const watch = async () => {
       while (!stop.signal.aborted) {
         await desktop.live.watchPointer(place, stop.signal).catch(() => undefined);
@@ -62,20 +62,20 @@ export function Pointer() {
 
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
-      {/* The edge glows in Saturn's ivory while the assistant works, so it is clear the screen is not only the person's. */}
+      {/* The edge glows in Eisoptric Workbench's ivory while the assistant works, so it is clear the screen is not only the person's. */}
       <div className="absolute inset-0 rounded-[10px] transition-opacity duration-500" style={{ opacity: shown.visible ? 1 : 0, boxShadow: GLOW }} />
       <div
         className="absolute top-0 left-0 transition-[transform,opacity] ease-out"
         style={{ transform: `translate(${shown.x}px, ${shown.y}px)`, opacity: shown.visible ? 1 : 0, transitionDuration: `${GLIDE_MS}ms, 400ms` }}
       >
-        {shown.kind === "click" || shown.kind === "drag" ? <span key={shown.at} className="saturn-pointer-ripple absolute -top-4 -left-4 size-8 rounded-full border-2" style={{ borderColor: IVORY, boxShadow: `0 0 0 1px ${INK}` }} /> : null}
+        {shown.kind === "click" || shown.kind === "drag" ? <span key={shown.at} className="workbench-pointer-ripple absolute -top-4 -left-4 size-8 rounded-full border-2" style={{ borderColor: IVORY, boxShadow: `0 0 0 1px ${INK}` }} /> : null}
         <svg width="26" height="30" viewBox="0 0 26 30" className="-translate-x-[3px] -translate-y-[2px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]">
           <path d="M3 2 L3 24 L9 18.5 L13 27.5 L17 25.7 L13.2 17 L21 17 Z" fill={INK} stroke={IVORY} strokeWidth="1.8" strokeLinejoin="round" />
         </svg>
         <span className="absolute top-6 left-5 flex items-center gap-1 rounded-full py-0.5 pr-2 pl-1.5 text-[11px] font-semibold whitespace-nowrap shadow-md" style={{ background: INK, color: IVORY, boxShadow: `0 0 0 1px ${IVORY_LINE}, 0 4px 10px rgba(0, 0, 0, 0.35)` }}>
-          {/* Saturn's mark: the ringed planet from its icon, on a transparent ground. */}
-          <img src={saturnMark} alt="" width={15} height={15} />
-          {shown.kind === "type" ? t("Saturn · typing…") : "Saturn"}
+          {/* Eisoptric Workbench's mark: the ringed planet from its icon, on a transparent ground. */}
+          <img src={workbenchMark} alt="" width={15} height={15} />
+          {shown.kind === "type" ? t("Eisoptric Workbench · typing…") : "Eisoptric Workbench"}
         </span>
       </div>
     </div>

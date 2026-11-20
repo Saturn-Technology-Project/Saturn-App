@@ -257,7 +257,7 @@ function TaskDetail(props: {
         <div>
           <div className="text-muted-foreground">{t("Limits")}</div>
           <div>{task.worktree ? t("Sandboxed to worktree {branch}", { branch: task.worktree.branch }) : t("Worktree closed")}</div>
-          <div>{t("Network: not restricted by Saturn")}</div>
+          <div>{t("Network: not restricted by Eisoptric Workbench")}</div>
           <div>{t("Budget: none set")}</div>
         </div>
       </div>

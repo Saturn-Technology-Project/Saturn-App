@@ -10,7 +10,7 @@ import { Input } from "./ui/base/Input.js";
 import { Notice } from "./ui/base/Notice.js";
 
 /** Sent after any revert or restore, so every card (chat and Changes tab) reloads its files. */
-const CHANGED_EVENT = "saturn:run-changes";
+const CHANGED_EVENT = "workbench:run-changes";
 
 /** True when the run left a reviewable change in its project folder. */
 export function hasFileChanges(run: Run): boolean {

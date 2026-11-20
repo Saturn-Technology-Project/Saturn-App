@@ -1,7 +1,7 @@
 """Offline follow-up to the Pythia name-tracking runs: embedding drift and residual prefix transplants.
 
 Uses an existing samples file and checkpoint map, never regenerates prompts, and never changes prior results.
-Run with the research project's Python (torch and transformers). Outputs baseline JSONL for Saturn and separate
+Run with the research project's Python (torch and transformers). Outputs baseline JSONL for Eisoptric Workbench and separate
 intervention artifacts: aggregating baseline and patched scores together would change the evaluation.
 """
 import argparse
@@ -276,7 +276,7 @@ def main():
     torch.set_num_threads(args.threads)
     torch.manual_seed(0)
     torch.use_deterministic_algorithms(True)
-    output = args.output or Path(os.environ["SATURN_RUN_DIRECTORY"]) / "followup"
+    output = args.output or Path(os.environ["WORKBENCH_RUN_DIRECTORY"]) / "followup"
     output.mkdir(parents=True, exist_ok=False)
     weights = json.loads(args.models.read_text())
     wanted = {"step100000", "step120000", "step130000", "step143000"}
@@ -298,7 +298,7 @@ def main():
     }
     save(output / "manifest.json", manifest)
     samples, recorded = samples_from(args.samples)
-    sample_file = Path(os.environ.get("SATURN_RUN_SAMPLES", str(output / "samples.jsonl")))
+    sample_file = Path(os.environ.get("WORKBENCH_RUN_SAMPLES", str(output / "samples.jsonl")))
     with sample_file.open("x") as lines:
         baseline = baselines(weights, samples, recorded, output, lines)
     by_revision = {spec["revision"]: spec for spec in weights.values()}

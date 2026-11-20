@@ -31,8 +31,8 @@ export default {
   "Show the tour again": "再次顯示導覽",
   "Take the tour again": "重新導覽",
   "Copied": "已複製",
-  "Saturn is a desktop workbench for AI research. Read the method, write the code yourself, run the experiment and inspect every sample, with as much help from AI as you choose. The app and its runtime run locally, and your records stay in your project.":
-    "Saturn 是用於 AI 研究的桌面工作台。閱讀方法、親手撰寫程式碼、執行實驗並檢視每個樣本，AI 協助的程度由你決定。應用程式與執行環境都在本機執行，你的紀錄會保留在專案中。",
+  "Eisoptric Workbench is a desktop workbench for AI research. Read the method, write the code yourself, run the experiment and inspect every sample, with as much help from AI as you choose. The app and its runtime run locally, and your records stay in your project.":
+    "Eisoptric Workbench 是用於 AI 研究的桌面工作台。閱讀方法、親手撰寫程式碼、執行實驗並檢視每個樣本，AI 協助的程度由你決定。應用程式與執行環境都在本機執行，你的紀錄會保留在專案中。",
   "How it fits together": "架構概覽",
   "What it does": "功能",
   "This installation": "安裝資訊",
@@ -174,8 +174,8 @@ export default {
   "Could not load plugins": "無法載入外掛",
   "Something went wrong": "發生錯誤",
   "Install a plugin": "安裝外掛",
-  "A plugin bundles skills, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Saturn and runs nothing: its hooks and local MCP servers each wait for your approval.":
-    "外掛將技能、Hooks 與 MCP 伺服器打包在一個含 plugin.json 的資料夾中；Claude Code 外掛（.claude-plugin/plugin.json）可直接安裝。安裝時會將資料夾複製（或將 git 儲存庫 clone）到 Saturn，不會執行任何內容：其 Hooks 與本機 MCP 伺服器都會各自等待你的核准。",
+  "A plugin bundles skills, hooks and MCP servers in one folder with a plugin.json; Claude Code plugins (.claude-plugin/plugin.json) install as they are. Installing copies the folder, or clones the git repository, into Eisoptric Workbench and runs nothing: its hooks and local MCP servers each wait for your approval.":
+    "外掛將技能、Hooks 與 MCP 伺服器打包在一個含 plugin.json 的資料夾中；Claude Code 外掛（.claude-plugin/plugin.json）可直接安裝。安裝時會將資料夾複製（或將 git 儲存庫 clone）到 Eisoptric Workbench，不會執行任何內容：其 Hooks 與本機 MCP 伺服器都會各自等待你的核准。",
   "Plugin folder or git URL": "外掛資料夾或 git URL",
   "/path/to/plugin or https://github.com/owner/plugin": "/path/to/plugin 或 https://github.com/owner/plugin",
   "Choose Folder…": "選擇資料夾…",
@@ -190,7 +190,7 @@ export default {
   "{count} skills": "{count} 個技能",
   "1 MCP server (allow it under MCP & Skills)": "1 個 MCP 伺服器（請在「MCP 與技能」中允許）",
   "{count} MCP servers (allow each under MCP & Skills)": "{count} 個 MCP 伺服器（請在「MCP 與技能」中逐一允許）",
-  "Nothing Saturn can use yet": "目前沒有 Saturn 可使用的內容",
+  "Nothing Eisoptric Workbench can use yet": "目前沒有 Eisoptric Workbench 可使用的內容",
   "from {source}": "來自 {source}",
   "1 hook": "1 個 Hook",
   "{count} hooks": "{count} 個 Hooks",
@@ -207,8 +207,8 @@ export default {
     "要刪除這個資料夾的快照嗎？先前對話中的變更仍可還原；資料夾中的下一個指令會建立新的快照。",
   "Could not delete": "無法刪除",
   "Folder snapshots": "資料夾快照",
-  "For project folders outside git, Saturn keeps a private snapshot in its own data folder, so what a shell command changes can be reviewed and reverted.":
-    "對於不在 git 中的專案資料夾，Saturn 會在自己的資料目錄中保留私有快照，讓你可以審閱並還原 shell 指令所做的變更。",
+  "For project folders outside git, Eisoptric Workbench keeps a private snapshot in its own data folder, so what a shell command changes can be reviewed and reverted.":
+    "對於不在 git 中的專案資料夾，Eisoptric Workbench 會在自己的資料目錄中保留私有快照，讓你可以審閱並還原 shell 指令所做的變更。",
   "1 folder, {size} in all.": "1 個資料夾，共 {size}。",
   "{count} folders, {size} in all.": "{count} 個資料夾，共 {size}。",
   "Reading…": "讀取中…",
@@ -263,7 +263,7 @@ export default {
   unpriced: "未計價",
 
   // Telemetry
-  "telemetry.json as saved, for this page": "Saturn 儲存的 telemetry.json 原始檔",
+  "telemetry.json as saved, for this page": "Eisoptric Workbench 儲存的 telemetry.json 原始檔",
   "JSON Lines for the OpenTelemetry Collector (otlpjsonfile)": "供 OpenTelemetry Collector 使用的 JSON Lines（otlpjsonfile）",
   "One event per line for Elastic, Splunk, Sentinel": "每行一個事件，適用於 Elastic、Splunk 或 Sentinel",
   "All levels": "所有等級",
@@ -333,8 +333,8 @@ export default {
   "No log records": "尚無日誌",
   "Runtime log lines show up here as OpenTelemetry log records.": "執行環境的日誌會以 OpenTelemetry 日誌紀錄的形式顯示在這裡。",
   "trace {id}": "追蹤 {id}",
-  "Every HTTP(S) request the Saturn runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.":
-    "自 {time} 起 Saturn 執行環境送出的每個 HTTP(S) 請求，只記錄主機與路徑，不含查詢字串或內容。Claude Code、Codex 與 git 是獨立的程式，不會列在這裡；請使用系統的防火牆或網路監控工具查看它們。",
+  "Every HTTP(S) request the Eisoptric Workbench runtime has sent since {time}: hosts and paths only, never query strings or bodies. Claude Code, Codex and git run as their own programs and are not listed here; watch them with your system's firewall or network monitor.":
+    "自 {time} 起 Eisoptric Workbench 執行環境送出的每個 HTTP(S) 請求，只記錄主機與路徑，不含查詢字串或內容。Claude Code、Codex 與 git 是獨立的程式，不會列在這裡；請使用系統的防火牆或網路監控工具查看它們。",
   "Also written to:": "同時寫入：",
   "1 outside host": "1 個外部主機",
   "{count} outside hosts": "{count} 個外部主機",

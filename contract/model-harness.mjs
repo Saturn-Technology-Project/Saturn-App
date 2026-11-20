@@ -1,5 +1,5 @@
 // What the contract/model-*.test.mjs files share: API calls with the token, waiting with a deadline, and fake model
-// servers on this computer. Nothing here reaches a real provider, the developer's Saturn or GitHub.
+// servers on this computer. Nothing here reaches a real provider, the developer's Eisoptric Workbench or GitHub.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";

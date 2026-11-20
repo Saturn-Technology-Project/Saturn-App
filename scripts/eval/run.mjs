@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// Saturn task evals: small coding tasks run end to end through Saturn's own agent loop with a real model, graded by
+// Eisoptric Workbench task evals: small coding tasks run end to end through Eisoptric Workbench's own agent loop with a real model, graded by
 // tests the agent never sees. They show whether a change to the loop, the prompts or the tools made agents better
 // or worse at real work, in pass rate, steps, tokens and cost.
 //
-//   SATURN_EVAL_PROVIDER=claude SATURN_EVAL_MODEL=claude-sonnet-5-5 SATURN_EVAL_API_KEY=… node scripts/eval/run.mjs
+//   WORKBENCH_EVAL_PROVIDER=claude WORKBENCH_EVAL_MODEL=claude-sonnet-5-5 WORKBENCH_EVAL_API_KEY=… node scripts/eval/run.mjs
 //   node scripts/eval/run.mjs --tasks off-by-one,rename-across-files --out results.json
 //   node scripts/eval/run.mjs --baseline scripts/eval/baseline.json      (exit 1 when the pass rate drops)
 //
-// Optional: SATURN_EVAL_BASE_URL (an OpenAI-compatible server), SATURN_EVAL_EFFORT. Each run starts its own runtime on
-// a free port with a temporary data folder, so it never touches a running Saturn. Every task costs model tokens.
+// Optional: WORKBENCH_EVAL_BASE_URL (an OpenAI-compatible server), WORKBENCH_EVAL_EFFORT. Each run starts its own runtime on
+// a free port with a temporary data folder, so it never touches a running Eisoptric Workbench. Every task costs model tokens.
 
 import { execFile, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -53,11 +53,11 @@ function freePort() {
  */
 export async function startRuntime() {
 	const port = await freePort();
-	const data = await mkdtemp(path.join(os.tmpdir(), 'saturn-eval-data-'));
-	const program = process.env.SATURN_RUST_BIN ?? path.join(root, 'target', 'debug', process.platform === 'win32' ? 'saturn-server.exe' : 'saturn-server');
+	const data = await mkdtemp(path.join(os.tmpdir(), 'workbench-eval-data-'));
+	const program = process.env.WORKBENCH_RUST_BIN ?? path.join(root, 'target', 'debug', process.platform === 'win32' ? 'workbench-server.exe' : 'workbench-server');
 	const child = spawn(program, [], {
 		cwd: root,
-		env: { ...process.env, SATURN_DATA_DIR: data, SATURN_RUNTIME_PORT: String(port), SATURN_RUNTIME_TOKEN: TOKEN, SATURN_SECRET_STORE: 'file' },
+		env: { ...process.env, WORKBENCH_DATA_DIR: data, WORKBENCH_RUNTIME_PORT: String(port), WORKBENCH_RUNTIME_TOKEN: TOKEN, WORKBENCH_SECRET_STORE: 'file' },
 		stdio: ['ignore', 'ignore', 'inherit'],
 	});
 	const base = `http://127.0.0.1:${port}`;
@@ -96,7 +96,7 @@ async function waitForRun(api, runId, timeoutMs) {
 export async function runTask(api, agentId, name) {
 	const folder = path.join(here, 'tasks', name);
 	const task = JSON.parse(await readFile(path.join(folder, 'task.json'), 'utf8'));
-	const work = await mkdtemp(path.join(os.tmpdir(), `saturn-eval-${name}-`));
+	const work = await mkdtemp(path.join(os.tmpdir(), `workbench-eval-${name}-`));
 	await cp(path.join(folder, 'repo'), work, { recursive: true });
 	await run('git', ['init', '-q'], { cwd: work });
 	const project = await api('POST', '/projects', { path: work, grant: true });
@@ -138,15 +138,15 @@ export async function runTask(api, agentId, name) {
 
 /** Sets up a model connection and an agent from the environment (or the given values). */
 export async function setUp(api, env = process.env) {
-	const provider = env.SATURN_EVAL_PROVIDER;
-	const model = env.SATURN_EVAL_MODEL;
-	if (!provider || !model) throw new Error('Set SATURN_EVAL_PROVIDER and SATURN_EVAL_MODEL (and SATURN_EVAL_API_KEY for a hosted model).');
+	const provider = env.WORKBENCH_EVAL_PROVIDER;
+	const model = env.WORKBENCH_EVAL_MODEL;
+	if (!provider || !model) throw new Error('Set WORKBENCH_EVAL_PROVIDER and WORKBENCH_EVAL_MODEL (and WORKBENCH_EVAL_API_KEY for a hosted model).');
 	if (provider === 'claude-code' || provider === 'codex') throw new Error(`${provider} runs on a personal plan and is not for unattended evals; use an API provider.`);
 	const connection = await api('POST', '/connections/models', {
 		name: `Eval ${model}`, provider, model,
-		...(env.SATURN_EVAL_BASE_URL ? { baseUrl: env.SATURN_EVAL_BASE_URL } : {}),
-		...(env.SATURN_EVAL_API_KEY ? { secret: env.SATURN_EVAL_API_KEY } : {}),
-		...(env.SATURN_EVAL_EFFORT ? { effort: env.SATURN_EVAL_EFFORT } : {}),
+		...(env.WORKBENCH_EVAL_BASE_URL ? { baseUrl: env.WORKBENCH_EVAL_BASE_URL } : {}),
+		...(env.WORKBENCH_EVAL_API_KEY ? { secret: env.WORKBENCH_EVAL_API_KEY } : {}),
+		...(env.WORKBENCH_EVAL_EFFORT ? { effort: env.WORKBENCH_EVAL_EFFORT } : {}),
 	});
 	// Full autonomy inside the sandbox: an eval has nobody to answer approval cards.
 	const agent = await api('POST', '/agents', { name: 'Eval', modelConnectionId: connection.id, autonomy: 'bypass' });
@@ -173,7 +173,7 @@ export function summarize(results, model) {
 
 export function markdown(summary, baseline) {
 	const lines = [
-		`## Saturn evals: ${summary.model}`,
+		`## Eisoptric Workbench evals: ${summary.model}`,
 		'',
 		`${summary.passed}/${summary.total} passed (${Math.round(summary.passRate * 100)}%)${baseline ? `, baseline ${Math.round(baseline.passRate * 100)}%` : ''} · ${summary.steps} steps · ${summary.inputTokens + summary.outputTokens} tokens · $${summary.cost} · ${summary.seconds}s`,
 		'',

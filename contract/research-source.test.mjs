@@ -5,24 +5,24 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { bench, fileModes, sha, until } from "./files-support.mjs";
 
-let saturn;
-before(async () => { saturn = await bench(); });
-after(async () => { await saturn?.stop(); });
+let workbench;
+before(async () => { workbench = await bench(); });
+after(async () => { await workbench?.stop(); });
 
 async function project(files = {}) {
-  const folder = await saturn.folder();
+  const folder = await workbench.folder();
   for (const [name, content] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(folder, name)), { recursive: true });
     await writeFile(path.join(folder, name), content);
   }
-  const made = await saturn.api("POST", "/projects", { path: folder });
-  await saturn.api("POST", `/projects/${made.id}/access`, {});
+  const made = await workbench.api("POST", "/projects", { path: folder });
+  await workbench.api("POST", `/projects/${made.id}/access`, {});
   return { folder, route: `/projects/${made.id}/research` };
 }
 
-const open = (route, file) => saturn.call("GET", `${route}/source?path=${encodeURIComponent(file)}`);
-const save = (route, body) => saturn.call("PUT", `${route}/source`, body);
-const rename = (route, body) => saturn.call("POST", `${route}/source/rename`, body);
+const open = (route, file) => workbench.call("GET", `${route}/source?path=${encodeURIComponent(file)}`);
+const save = (route, body) => workbench.call("PUT", `${route}/source`, body);
+const rename = (route, body) => workbench.call("POST", `${route}/source/rename`, body);
 
 test("a file is renamed without replacing another file, with its bytes and permissions intact", async () => {
   const { route, folder } = await project({ "old.py": "print('hello')\n", "existing.py": "keep" });
@@ -59,7 +59,7 @@ test("renaming stays inside the granted project and never moves a link, records 
   await symlink(path.join(folder, ".git"), path.join(folder, "git-link"));
   for (const body of [
     { path: "a.py", newPath: "../outside.py" },
-    { path: "a.py", newPath: ".saturn/research/escape.json" },
+    { path: "a.py", newPath: ".workbench/research/escape.json" },
     { path: ".git/config", newPath: "config" },
     { path: "link.py", newPath: "moved.py" },
     { path: "b.py", newPath: "link.py" },
@@ -75,20 +75,20 @@ test("a new nested file is created once and renaming requires the project's gran
   assert.equal(created.body.path, "src/new.py");
   assert.equal((await save(route, { path: "src/new.py", content: "replace" })).status, 409);
   assert.equal(await readFile(path.join(folder, "src/new.py"), "utf8"), "");
-  const elsewhere = await saturn.folder();
-  const made = await saturn.api("POST", "/projects", { path: elsewhere });
+  const elsewhere = await workbench.folder();
+  const made = await workbench.api("POST", "/projects", { path: elsewhere });
   await writeFile(path.join(elsewhere, "a.py"), "a");
   assert.equal((await rename(`/projects/${made.id}/research`, { path: "a.py", newPath: "b.py" })).status, 403);
 });
 
-test("a folder lists its entries without Saturn's records or git's folder", async () => {
+test("a folder lists its entries without Eisoptric Workbench's records or git's folder", async () => {
   const { route } = await project({ "b.py": "b", "src/a.py": "a", ".git/config": "x" });
-  await saturn.api("POST", `${route}/questions`, { title: "Q" });
+  await workbench.api("POST", `${route}/questions`, { title: "Q" });
   const listed = (await open(route, ".")).body;
   assert.equal(listed.kind, "directory");
-  assert.deepEqual(listed.entries.map((entry) => [entry.path, entry.kind]), [[".saturn", "directory"], ["src", "directory"], ["b.py", "file"]]);
-  assert.deepEqual((await open(route, ".saturn")).body.entries, []);
-  assert.equal((await open(route, ".saturn/research/questions")).status, 403);
+  assert.deepEqual(listed.entries.map((entry) => [entry.path, entry.kind]), [[".workbench", "directory"], ["src", "directory"], ["b.py", "file"]]);
+  assert.deepEqual((await open(route, ".workbench")).body.entries, []);
+  assert.equal((await open(route, ".workbench/research/questions")).status, 403);
   assert.equal((await open(route, ".git/config")).status, 403);
 });
 
@@ -145,14 +145,14 @@ test("saving keeps a file's permissions", fileModes, async () => {
 
 test("the editor cannot reach outside the project, or write the records", async () => {
   const { route, folder } = await project({ "probe.py": "a" });
-  const elsewhere = await saturn.folder();
+  const elsewhere = await workbench.folder();
   await writeFile(path.join(elsewhere, "secret.txt"), "secret");
   await symlink(path.join(elsewhere, "secret.txt"), path.join(folder, "linked.txt"));
   assert.equal((await open(route, "../secret.txt")).status, 403);
   assert.equal((await open(route, "linked.txt")).status, 403);
   assert.equal((await save(route, { path: "linked.txt", content: "x", expectedRevision: sha("secret") })).status, 403);
   assert.equal(await readFile(path.join(elsewhere, "secret.txt"), "utf8"), "secret");
-  assert.equal((await save(route, { path: ".saturn/research/questions/q.json", content: "{}" })).status, 403);
+  assert.equal((await save(route, { path: ".workbench/research/questions/q.json", content: "{}" })).status, 403);
 });
 
 test("binary and very large files say they cannot be opened", async () => {
@@ -168,16 +168,16 @@ test("binary and very large files say they cannot be opened", async () => {
 async function runWith(lines, code = 0) {
   const script = `
     import { appendFileSync } from "node:fs";
-    for (const text of ${JSON.stringify(lines)}) appendFileSync(process.env.SATURN_RUN_SAMPLES, text);
+    for (const text of ${JSON.stringify(lines)}) appendFileSync(process.env.WORKBENCH_RUN_SAMPLES, text);
     console.log("hello from the run");
     console.error("a warning");
     process.exit(${code});
   `;
   const bed = await project({ "probe.mjs": script });
-  const experiment = await saturn.api("POST", `${bed.route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } });
-  const version = await saturn.api("POST", `${bed.route}/experiments/${experiment.id}/versions`, {});
-  const started = await saturn.api("POST", `${bed.route}/versions/${version.id}/runs`, { clientId: "one" });
-  const run = await until("the run to end", () => saturn.api("GET", `${bed.route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
+  const experiment = await workbench.api("POST", `${bed.route}/experiments`, { title: "E", command: "node probe.mjs", inputs: { code: ["probe.mjs"] } });
+  const version = await workbench.api("POST", `${bed.route}/experiments/${experiment.id}/versions`, {});
+  const started = await workbench.api("POST", `${bed.route}/versions/${version.id}/runs`, { clientId: "one" });
+  const run = await until("the run to end", () => workbench.api("GET", `${bed.route}/runs/${started.id}`), (item) => !["starting", "running", "stopping"].includes(item.status));
   return { ...bed, run };
 }
 
@@ -185,7 +185,7 @@ const sampleLine = (id) => `${JSON.stringify({ schemaVersion: 1, sampleId: id, i
 
 test("samples come a page at a time, from a cursor, to the end", async () => {
   const { route, run } = await runWith(Array.from({ length: 5 }, (_, index) => sampleLine(`s${index}`)));
-  const page = (cursor, limit) => saturn.api("GET", `${route}/runs/${run.id}/samples?cursor=${cursor}&limit=${limit}`);
+  const page = (cursor, limit) => workbench.api("GET", `${route}/runs/${run.id}/samples?cursor=${cursor}&limit=${limit}`);
   const first = await page(0, 2);
   assert.deepEqual(first.items.map((item) => item.sample.sampleId), ["s0", "s1"]);
   assert.equal(first.items[0].sample.output, "瑪麗");
@@ -198,14 +198,14 @@ test("samples come a page at a time, from a cursor, to the end", async () => {
 
 test("a position that is not the start of a sample is refused", async () => {
   const { route, run } = await runWith([sampleLine("a"), sampleLine("b")]);
-  assert.equal((await saturn.call("GET", `${route}/runs/${run.id}/samples?cursor=3`)).status, 400);
-  assert.equal((await saturn.call("GET", `${route}/runs/${run.id}/samples?cursor=999999`)).status, 400);
-  assert.equal((await saturn.call("GET", `${route}/runs/run_nothere/samples`)).status, 404);
+  assert.equal((await workbench.call("GET", `${route}/runs/${run.id}/samples?cursor=3`)).status, 400);
+  assert.equal((await workbench.call("GET", `${route}/runs/${run.id}/samples?cursor=999999`)).status, 400);
+  assert.equal((await workbench.call("GET", `${route}/runs/run_nothere/samples`)).status, 404);
 });
 
 test("a bad line is shown as a problem with its raw text, in its place", async () => {
   const { route, run } = await runWith([sampleLine("a"), "not json\n", sampleLine("b")]);
-  const { items } = await saturn.api("GET", `${route}/runs/${run.id}/samples`);
+  const { items } = await workbench.api("GET", `${route}/runs/${run.id}/samples`);
   assert.equal(items.length, 3);
   assert.equal(items[1].raw, "not json\n");
   assert.match(items[1].problem, /not JSON/);
@@ -213,15 +213,15 @@ test("a bad line is shown as a problem with its raw text, in its place", async (
 
 test("what is written after a run was sealed does not count", async () => {
   const { route, run, folder } = await runWith([sampleLine("a")]);
-  const file = path.join(folder, ".saturn/research/runs", run.id, "samples.jsonl");
+  const file = path.join(folder, ".workbench/research/runs", run.id, "samples.jsonl");
   await writeFile(file, await readFile(file, "utf8") + sampleLine("late"));
-  const { items } = await saturn.api("GET", `${route}/runs/${run.id}/samples`);
+  const { items } = await workbench.api("GET", `${route}/runs/${run.id}/samples`);
   assert.deepEqual(items.map((item) => item.sample.sampleId), ["a"]);
 });
 
 test("a run's logs can be read", async () => {
   const { route, run } = await runWith([sampleLine("a")]);
-  assert.equal((await saturn.api("GET", `${route}/runs/${run.id}/log?stream=stdout`)).text.trim(), "hello from the run");
-  assert.equal((await saturn.api("GET", `${route}/runs/${run.id}/log?stream=stderr`)).text.trim(), "a warning");
-  assert.equal((await saturn.call("GET", `${route}/runs/${run.id}/log?stream=../run.json`)).status, 404);
+  assert.equal((await workbench.api("GET", `${route}/runs/${run.id}/log?stream=stdout`)).text.trim(), "hello from the run");
+  assert.equal((await workbench.api("GET", `${route}/runs/${run.id}/log?stream=stderr`)).text.trim(), "a warning");
+  assert.equal((await workbench.call("GET", `${route}/runs/${run.id}/log?stream=../run.json`)).status, 404);
 });

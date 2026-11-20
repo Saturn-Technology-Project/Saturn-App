@@ -43,7 +43,7 @@ test('the harness runs tasks end to end and grades them with the hidden checks',
 	const model = await scriptedModel();
 	const runtime = await startRuntime();
 	try {
-		const { agent, model: name } = await setUp(runtime.api, { SATURN_EVAL_PROVIDER: 'openai', SATURN_EVAL_MODEL: 'scripted', SATURN_EVAL_BASE_URL: model.url, SATURN_EVAL_API_KEY: 'k' });
+		const { agent, model: name } = await setUp(runtime.api, { WORKBENCH_EVAL_PROVIDER: 'openai', WORKBENCH_EVAL_MODEL: 'scripted', WORKBENCH_EVAL_BASE_URL: model.url, WORKBENCH_EVAL_API_KEY: 'k' });
 		const results = [];
 		for (const task of ['off-by-one', 'explain-without-changing', 'implement-function']) results.push(await runTask(runtime.api, agent.id, task));
 		const [fixed, explained, missed] = results;
@@ -63,15 +63,15 @@ test('the harness runs tasks end to end and grades them with the hidden checks',
 });
 
 test('plan providers are refused for unattended evals', async () => {
-	await assert.rejects(setUp(async () => ({}), { SATURN_EVAL_PROVIDER: 'claude-code', SATURN_EVAL_MODEL: 'x' }), /not for unattended evals/);
-	await assert.rejects(setUp(async () => ({}), {}), /Set SATURN_EVAL_PROVIDER/);
+	await assert.rejects(setUp(async () => ({}), { WORKBENCH_EVAL_PROVIDER: 'claude-code', WORKBENCH_EVAL_MODEL: 'x' }), /not for unattended evals/);
+	await assert.rejects(setUp(async () => ({}), {}), /Set WORKBENCH_EVAL_PROVIDER/);
 });
 
 /** Runs a task's check in a copy of its repo, optionally with the reference fix laid over it. */
 async function checkPasses(name, withSolution) {
 	const folder = path.join(tasksDir, name);
 	const task = JSON.parse(await readFile(path.join(folder, 'task.json'), 'utf8'));
-	const work = await mkdtemp(path.join(os.tmpdir(), `saturn-eval-check-${name}-`));
+	const work = await mkdtemp(path.join(os.tmpdir(), `workbench-eval-check-${name}-`));
 	try {
 		await cp(path.join(folder, 'repo'), work, { recursive: true });
 		if (withSolution) await cp(path.join(folder, 'solution'), work, { recursive: true });

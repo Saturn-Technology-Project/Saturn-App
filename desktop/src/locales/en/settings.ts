@@ -15,10 +15,10 @@ export default {
   "OpenTelemetry traces & logs": "OpenTelemetry traces and logs",
   "Live runtime event stream": "Live runtime events",
   "Project configuration & custom rules ({path})": "Project settings and rules ({path})",
-  "Quick keyboard shortcuts for Saturn": "Keyboard shortcuts in Saturn",
+  "Quick keyboard shortcuts for Eisoptric Workbench": "Keyboard shortcuts in Eisoptric Workbench",
   "What the earlier interface set going": "Work the previous interface started that is still running",
 
-  // Saturn's own tool servers
+  // Eisoptric Workbench's own tool servers
   "Files, commands, web and plans": "Files, commands, web, and plans",
   "Rules, skills and plugins": "Rules, skills, and plugins",
   "A browser agents can drive": "A browser that agents can control",
@@ -27,13 +27,13 @@ export default {
   // Command line
   "Command Line": "Command line",
   ". It uses this app's own runtime, so it never goes out of date.": ". It uses this app's runtime, so it's always up to date.",
-  "Installed at {path}, for another copy of Saturn: reinstall to point it here.":
-    "Installed at {path} for another copy of Saturn. Reinstall to use this copy.",
-  'Add {folder} to your PATH to type just "saturn".': 'Add {folder} to your PATH to run it as "saturn".',
+  "Installed at {path}, for another copy of Eisoptric Workbench: reinstall to point it here.":
+    "Installed at {path} for another copy of Eisoptric Workbench. Reinstall to use this copy.",
+  'Add {folder} to your PATH to type just "workbench".': 'Add {folder} to your PATH to run it as "workbench".',
 
   // Memory
-  "One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Saturn forget it.":
-    "One fact per line. Agents read these at the start of every chat: project notes in that project's chats, notes about you in every chat. Delete a line to make Saturn forget it.",
+  "One line per fact. Agents read these at the start of every chat (project notes in that project's chats, user notes everywhere). Delete a line to make Eisoptric Workbench forget it.":
+    "One fact per line. Agents read these at the start of every chat: project notes in that project's chats, notes about you in every chat. Delete a line to make Eisoptric Workbench forget it.",
   "About you (every chat)": "About you (all chats)",
   'Nothing remembered yet. Notes appear after a few turns of chat, or write your own: "- Prefers short answers".':
     'No notes yet. Notes appear after a few turns of chat, or you can write your own, like "- Prefers short answers".',
@@ -46,15 +46,15 @@ export default {
   '"{line}" is not NAME=value': '"{line}" isn\'t in NAME=value format',
   "Could not connect knowledge": "Could not connect the knowledge source",
   "Built in": "Built-in",
-  ", with your user account's permissions. Allow it only if you trust it. It starts with only a minimal environment, not Saturn's keys.":
-    ", with your user account's permissions. Allow it only if you trust it. It starts with a minimal environment and none of Saturn's keys.",
+  ", with your user account's permissions. Allow it only if you trust it. It starts with only a minimal environment, not Eisoptric Workbench's keys.":
+    ", with your user account's permissions. Allow it only if you trust it. It starts with a minimal environment and none of Eisoptric Workbench's keys.",
   "Allow and Start": "Allow and start",
   "Kind of MCP server": "MCP server type",
   "Local Program": "Local program",
-  "An MCP server reached over HTTP(S). Tools are discovered automatically.": "An MCP server you reach over HTTP(S). Saturn finds its tools automatically.",
+  "An MCP server reached over HTTP(S). Tools are discovered automatically.": "An MCP server you reach over HTTP(S). Eisoptric Workbench finds its tools automatically.",
   "Connect MCP": "Connect server",
-  "A server Saturn starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is used, so ~, $VARIABLES and pipes are not expanded: write full paths.":
-    "A server Saturn starts on this computer and talks to over stdio. It runs only after you allow its exact command. Commands don't run in a shell, so ~, $VARIABLES, and pipes aren't expanded. Use full paths.",
+  "A server Eisoptric Workbench starts on this computer and talks to over stdio. It runs only after you allow its exact command. No shell is used, so ~, $VARIABLES and pipes are not expanded: write full paths.":
+    "A server Eisoptric Workbench starts on this computer and talks to over stdio. It runs only after you allow its exact command. Commands don't run in a shell, so ~, $VARIABLES, and pipes aren't expanded. Use full paths.",
   "Add Local Server": "Add local server",
   "Installed MCP Servers": "Installed MCP servers",
   "Could not save tool configuration": "Could not save the tool settings",
@@ -72,8 +72,8 @@ export default {
   "Failed to remove model": "Could not remove the model",
   "Paste {provider} API key…": "Paste your {provider} API key…",
   "Save Key": "Save key",
-  "Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Saturn never sends API requests for it, takes no API key, and does not schedule it.":
-    "Runs through the official Claude Code program with your own Claude login (Settings → General → Claude Code). Saturn sends no API requests for it, needs no API key, and doesn't schedule it.",
+  "Runs through the official Claude Code program on your own Claude login (Settings → General → Claude Code). Eisoptric Workbench never sends API requests for it, takes no API key, and does not schedule it.":
+    "Runs through the official Claude Code program with your own Claude login (Settings → General → Claude Code). Eisoptric Workbench sends no API requests for it, needs no API key, and doesn't schedule it.",
   "Runs through the official Codex on your own ChatGPT login (Settings → General → Codex). No API key.":
     "Runs through the official Codex program with your own ChatGPT login (Settings → General → Codex). No API key needed.",
   "API Key": "API key",
@@ -87,18 +87,18 @@ export default {
   "No log lines matching filter.": "No log lines match the filter.",
 
   // General
-  "Agents browse in a visible window of your Chrome (or Edge, Brave), with Saturn's own profile: your logins and tabs stay out of it. You watch the cursor there.":
-    "Agents browse in a visible Chrome (or Edge or Brave) window with Saturn's own profile, so your logins and tabs stay out of it. You can watch the cursor there.",
+  "Agents browse in a visible window of your Chrome (or Edge, Brave), with Eisoptric Workbench's own profile: your logins and tabs stay out of it. You watch the cursor there.":
+    "Agents browse in a visible Chrome (or Edge or Brave) window with Eisoptric Workbench's own profile, so your logins and tabs stay out of it. You can watch the cursor there.",
   "Agents browse in a Safari automation window (striped address bar), clean of your logins; you cannot click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.":
     "Agents browse in a Safari automation window (striped address bar) without your logins. You can't click into it while the agent works. Turn on Develop → Allow Remote Automation in Safari once. The Browser tab shows it about once a second.",
-  "The interface's language. Saturn reloads to show it.": "The language of the interface. Saturn reloads to apply it.",
+  "The interface's language. Eisoptric Workbench reloads to show it.": "The language of the interface. Eisoptric Workbench reloads to apply it.",
   ": its hooks, permission rules and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, since a project's hooks run commands.":
     ": its hooks, permission rules, and settings, as it would in a terminal there. Your own Claude settings are never loaded. Off by default, because a project's hooks run commands.",
   "Background Model": "Background model",
   "Writes memory notes from your chats. Chat content goes to this model. On Automatic, memory notes use the agent's model.":
     "Writes memory notes from your chats. Chat content is sent to this model. On Automatic, memory notes use the agent's model.",
-  "Every few turns, Saturn notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.":
-    "Every few turns, Saturn notes lasting facts from the chat (how you like to work, a project's conventions) and shares them with agents in later chats. View and edit the notes under Memory.",
+  "Every few turns, Eisoptric Workbench notes durable facts from the chat (how you like to work, a project's conventions) and gives them to agents in later chats. Read and edit the notes under Memory.":
+    "Every few turns, Eisoptric Workbench notes lasting facts from the chat (how you like to work, a project's conventions) and shares them with agents in later chats. View and edit the notes under Memory.",
   "A system notification when an agent finishes, fails or needs your approval while you are not looking at its chat. Click it to open the chat.":
     "Get a system notification when an agent finishes, fails, or needs your approval while you're not viewing its chat. Click it to open the chat.",
   "Where a shell command run by an agent may write. ": "Where a shell command run by an agent can write. ",
@@ -137,8 +137,8 @@ export default {
   "Kept on this Mac in a file only your user account can read.": "Stored on this Mac in a file only your user account can read.",
 
   // A project
-  "Remove {name} from Saturn? Its chats go with it. The folder and its files stay where they are.":
-    "Remove {name} from Saturn? Its chats are removed too. The folder and its files stay on disk.",
+  "Remove {name} from Eisoptric Workbench? Its chats go with it. The folder and its files stay where they are.":
+    "Remove {name} from Eisoptric Workbench? Its chats are removed too. The folder and its files stay on disk.",
   "Failed to save project rules": "Could not save the project rules",
   "Project Details": "Project details",
   "Project Name": "Project name",
@@ -158,26 +158,26 @@ export default {
   "Keyboard Shortcuts": "Keyboard shortcuts",
 
   // Claude Code and Codex
-  "Remove Saturn's copy of {program}? {program} models stop working until it is downloaded again or found on your system.":
-    "Remove Saturn's copy of {program}? {program} models stop working until you download it again or Saturn finds it on your system.",
+  "Remove Eisoptric Workbench's copy of {program}? {program} models stop working until it is downloaded again or found on your system.":
+    "Remove Eisoptric Workbench's copy of {program}? {program} models stop working until you download it again or Eisoptric Workbench finds it on your system.",
   "{program} is not installed": "{program} isn't installed",
   "Checking the download against its pinned checksum…": "Verifying the download against its pinned checksum…",
-  "Saturn downloads the official {program} program ({version}) from the npm registry and checks it against a checksum pinned in Saturn, or uses one you have installed yourself.":
-    "Saturn downloads the official {program} program ({version}) from the npm registry and verifies it against a checksum pinned in Saturn. You can also use a copy you installed yourself.",
-  "Saturn downloads the official {program} program from the npm registry and checks it against a checksum pinned in Saturn, or uses one you have installed yourself.":
-    "Saturn downloads the official {program} program from the npm registry and verifies it against a checksum pinned in Saturn. You can also use a copy you installed yourself.",
+  "Eisoptric Workbench downloads the official {program} program ({version}) from the npm registry and checks it against a checksum pinned in Eisoptric Workbench, or uses one you have installed yourself.":
+    "Eisoptric Workbench downloads the official {program} program ({version}) from the npm registry and verifies it against a checksum pinned in Eisoptric Workbench. You can also use a copy you installed yourself.",
+  "Eisoptric Workbench downloads the official {program} program from the npm registry and checks it against a checksum pinned in Eisoptric Workbench, or uses one you have installed yourself.":
+    "Eisoptric Workbench downloads the official {program} program from the npm registry and verifies it against a checksum pinned in Eisoptric Workbench. You can also use a copy you installed yourself.",
   "Try Again": "Try again",
   "Development copy": "Development build",
   "Codex Sign-In": "Codex sign-in",
-  "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; Saturn never sees your credentials.":
-    "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan. Saturn never sees your credentials.",
+  "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan; Eisoptric Workbench never sees your credentials.":
+    "Not signed in. You sign in to the official Codex program, which uses your ChatGPT plan. Eisoptric Workbench never sees your credentials.",
   "Sign Out": "Sign out",
   "Sign In to Codex": "Sign in to Codex",
   "Codex shows this one-time code: open the OpenAI page, sign in, and enter it. It expires in 15 minutes; this card updates once you're done.":
     "Codex shows this one-time code. Open the OpenAI page, sign in, and enter it. The code expires in 15 minutes, and this card updates when you're done.",
   "Open Page": "Open page",
-  "Finish signing in on the page that opened in your browser. Saturn keeps Codex listening for it until you're done.":
-    "Finish signing in on the page that opened in your browser. Saturn keeps Codex waiting until you're done.",
+  "Finish signing in on the page that opened in your browser. Eisoptric Workbench keeps Codex listening for it until you're done.":
+    "Finish signing in on the page that opened in your browser. Eisoptric Workbench keeps Codex waiting until you're done.",
   "Claude Account": "Claude account",
   "Check Again": "Check again",
   "To sign in, run this in Terminal and keep that window open until it says you're signed in. This card updates on its own.":

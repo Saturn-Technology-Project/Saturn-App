@@ -1,0 +1,726 @@
+//! A person's labels on a run's samples, kept apart from its scores, and one sample across runs.
+use std::collections::BTreeMap;
+use std::io::{BufRead, BufReader, Read};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, PoisonError};
+use std::time::SystemTime;
+
+use serde_json::{Map, Value, json};
+use workbench_domain::research::{
+    MAX_SAMPLE_LINE, SCHEMA_VERSION, compare_versions, is_id, labels_agree, sample_identity,
+};
+use workbench_domain::time::{iso_time, now_millis};
+
+use super::{pretty, read_record, write_whole};
+use crate::records::text;
+use crate::{CoreError, Kernel};
+
+/// Calls `visit` with each valid sample a sealed or running file holds, without holding the file in memory.
+pub(super) fn each_sample(
+    path: &Path,
+    end: Option<u64>,
+    mut visit: impl FnMut(&Value, &str),
+) -> std::io::Result<()> {
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error),
+    };
+    let end = end.unwrap_or(file.metadata()?.len());
+    let mut reader = BufReader::new(file);
+    let mut offset = 0;
+    let mut line = Vec::new();
+    while offset < end {
+        line.clear();
+        let room = (end - offset).min(MAX_SAMPLE_LINE + 1);
+        let read = (&mut reader).take(room).read_until(b'\n', &mut line)? as u64;
+        if read == 0 || line.last() != Some(&b'\n') {
+            return Ok(());
+        }
+        offset += read;
+        if let Ok(value) = serde_json::from_slice::<Value>(&line)
+            && let Ok(identity) = sample_identity(&value)
+        {
+            visit(&value, &identity);
+        }
+    }
+    Ok(())
+}
+
+/// The most sealed runs whose digests are kept. Going past it starts over, which only costs reading them again.
+const MOST_DIGESTS: usize = 64;
+
+/// What a run's samples add up to, in one pass: what its summary says, and each scorer's word to compare labels with.
+#[derive(Debug)]
+pub struct RunDigest {
+    /// The file as it was when read: a changed file does not answer from here.
+    stamp: (u64, Option<SystemTime>, Option<u64>),
+    models: Vec<Value>,
+    scorer_words: Vec<(String, String)>,
+}
+
+/// Reads a samples file through once.
+fn digest_samples(
+    path: &Path,
+    end: Option<u64>,
+    stamp: (u64, Option<SystemTime>, Option<u64>),
+) -> std::io::Result<RunDigest> {
+    let mut models: BTreeMap<String, ModelTally> = BTreeMap::new();
+    let mut scorer_words = Vec::new();
+    each_sample(path, end, |value, identity| {
+        models
+            .entry(text(value, "modelId").to_owned())
+            .or_default()
+            .add(value);
+        if let Some(word) = value.get("scorerLabel").and_then(Value::as_str)
+            && !word.trim().is_empty()
+        {
+            scorer_words.push((identity.to_owned(), word.to_owned()));
+        }
+    })?;
+    let models = models
+        .into_iter()
+        .map(|(model, tally)| tally.into_json(&model))
+        .collect();
+    Ok(RunDigest {
+        stamp,
+        models,
+        scorer_words,
+    })
+}
+
+/// The identity a label request names, the same way a sample line would.
+fn requested_identity(request: &Value) -> Result<String, CoreError> {
+    let line = json!({
+        "schemaVersion": 1,
+        "sampleId": request.get("sampleId"),
+        "trial": request.get("trial").cloned().unwrap_or_else(|| json!(0)),
+        "modelId": request.get("modelId"),
+    });
+    sample_identity(&line).map_err(|message| CoreError::new(400, message))
+}
+
+impl Kernel {
+    /// A run's labels and how far they agree with its scorer.
+    pub async fn research_labels(&self, project: &str, run: &str) -> Result<Value, CoreError> {
+        let found = self.research_run(project, run).await?;
+        let records = self.records_folder(project).await?;
+        let saved = read_labels(&records, run).await?;
+        let labels = saved.get("labels").cloned().unwrap_or_else(|| json!({}));
+        let path = records.join("runs").join(run).join("samples.jsonl");
+        let end = found.get("samplesSize").and_then(Value::as_u64);
+        let aliases = self.research_label_aliases(project, &found).await?;
+        // With nothing labeled there is nothing to compare, so the samples need no reading.
+        let digest = if labels.as_object().is_some_and(|labels| !labels.is_empty()) {
+            Some(self.run_digest(path, end).await?)
+        } else {
+            None
+        };
+        let (labels, agreement) = agreement_with_scorer(digest.as_deref(), labels, &aliases);
+        let raters: Vec<Value> = saved["raters"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .map(|(name, entries)| json!({ "name": name, "labeled": entries.as_object().map_or(0, |entries| entries.len()) }))
+            .collect();
+        Ok(json!({ "runId": run, "labels": labels, "agreement": agreement, "raters": raters }))
+    }
+
+    /// How far a run's raters agree with each other, with the adjudicated labels and with the scorer: Cohen's kappa for
+    /// each pair of raters on the samples both labelled, Fleiss' kappa over the samples every rater labelled, and each
+    /// rater's agreement and kappa against the scorer's word and against the adjudicated label. Words are compared
+    /// through the experiment's aliases, as everywhere; nothing is changed.
+    pub async fn research_label_agreement(
+        &self,
+        project: &str,
+        run: &str,
+    ) -> Result<Value, CoreError> {
+        let found = self.research_run(project, run).await?;
+        let records = self.records_folder(project).await?;
+        let saved = read_labels(&records, run).await?;
+        let aliases = self.research_label_aliases(project, &found).await?;
+        let word = |label: &str| normalized_label(label, &aliases);
+        let raters: Vec<(String, &Map<String, Value>)> = saved["raters"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter_map(|(name, entries)| {
+                entries.as_object().map(|entries| (name.clone(), entries))
+            })
+            .collect();
+        let mut pairs = Vec::new();
+        for (index, (left_name, left)) in raters.iter().enumerate() {
+            for (right_name, right) in raters.iter().skip(index + 1) {
+                let both: Vec<(String, String)> = left
+                    .iter()
+                    .filter_map(|(identity, entry)| {
+                        right
+                            .get(identity)
+                            .map(|other| (word(text(entry, "label")), word(text(other, "label"))))
+                    })
+                    .collect();
+                let agreed = both.iter().filter(|(a, b)| a == b).count();
+                pairs.push(json!({ "raters": [left_name, right_name], "items": both.len(), "agreed": agreed, "kappa": cohen_kappa(&both) }));
+            }
+        }
+        let fleiss = if raters.len() >= 2 {
+            let items: Vec<Vec<String>> = raters[0]
+                .1
+                .keys()
+                .filter(|identity| {
+                    raters
+                        .iter()
+                        .all(|(_, entries)| entries.contains_key(*identity))
+                })
+                .map(|identity| {
+                    raters
+                        .iter()
+                        .map(|(_, entries)| word(text(&entries[identity], "label")))
+                        .collect()
+                })
+                .collect();
+            json!({ "raters": raters.len(), "items": items.len(), "kappa": fleiss_kappa(&items) })
+        } else {
+            Value::Null
+        };
+        let adjudicated = saved["labels"].as_object();
+        let versus_adjudicated: Vec<Value> = raters
+            .iter()
+            .map(|(name, entries)| {
+                let both: Vec<(String, String)> = entries
+                    .iter()
+                    .filter_map(|(identity, entry)| adjudicated.and_then(|labels| labels.get(identity)).map(|final_label| (word(text(entry, "label")), word(text(final_label, "label")))))
+                    .collect();
+                let agreed = both.iter().filter(|(a, b)| a == b).count();
+                json!({ "rater": name, "compared": both.len(), "agreed": agreed, "kappa": cohen_kappa(&both) })
+            })
+            .collect();
+        // The scorer's words come from the samples, read once for a sealed run.
+        let path = records.join("runs").join(run).join("samples.jsonl");
+        let end = found.get("samplesSize").and_then(Value::as_u64);
+        let scorer_words: Vec<(String, String)> =
+            if raters.is_empty() && adjudicated.is_none_or(Map::is_empty) {
+                Vec::new()
+            } else {
+                self.run_digest(path, end).await?.scorer_words.clone()
+            };
+        let versus_scorer: Vec<Value> = raters
+            .iter()
+            .map(|(name, entries)| (name.as_str(), entries.iter().map(|(identity, entry)| (identity.clone(), text(entry, "label").to_owned())).collect::<Vec<_>>()))
+            .chain(adjudicated.map(|labels| ("adjudicated", labels.iter().map(|(identity, entry)| (identity.clone(), text(entry, "label").to_owned())).collect())))
+            .map(|(name, labels)| {
+                let both: Vec<(String, String)> = scorer_words
+                    .iter()
+                    .filter_map(|(identity, scored)| labels.iter().find(|(own, _)| own == identity).map(|(_, label)| (word(label), word(scored))))
+                    .collect();
+                let agreed = both.iter().filter(|(a, b)| a == b).count();
+                json!({ "rater": name, "compared": both.len(), "agreed": agreed, "kappa": cohen_kappa(&both) })
+            })
+            .collect();
+        Ok(json!({
+            "runId": run,
+            "raters": raters.iter().map(|(name, entries)| json!({ "name": name, "labeled": entries.len() })).collect::<Vec<_>>(),
+            "pairs": pairs,
+            "fleiss": fleiss,
+            "versusAdjudicated": versus_adjudicated,
+            "versusScorer": versus_scorer,
+            "note": "Kappa subtracts the agreement expected by chance. Below 0.4 the words mean different things to different people; above 0.8 is as good as labels get. A kappa from a few samples is a pilot number.",
+        }))
+    }
+
+    /// A run's digest. A sealed run's file does not change, so it is read once; a running one's is read each time.
+    async fn run_digest(
+        &self,
+        path: PathBuf,
+        end: Option<u64>,
+    ) -> Result<Arc<RunDigest>, CoreError> {
+        let stamp_of = |path: &Path| {
+            std::fs::metadata(path).map_or((0, None, end), |file| {
+                (file.len(), file.modified().ok(), end)
+            })
+        };
+        let remembered = |kernel: &Self, stamp: &(u64, Option<SystemTime>, Option<u64>)| {
+            kernel
+                .run_digests
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .get(&path)
+                .filter(|digest| digest.stamp == *stamp)
+                .cloned()
+        };
+        let sealed = end.is_some();
+        let _digesting = if sealed {
+            if let Some(found) = remembered(self, &stamp_of(&path)) {
+                return Ok(found);
+            }
+            let held = self.digesting.lock().await;
+            if let Some(found) = remembered(self, &stamp_of(&path)) {
+                return Ok(found);
+            }
+            Some(held)
+        } else {
+            None
+        };
+        let stamp = stamp_of(&path);
+        let reading = path.clone();
+        let digest = Arc::new(
+            tokio::task::spawn_blocking(move || digest_samples(&reading, end, stamp))
+                .await
+                .map_err(|error| CoreError::new(500, error.to_string()))??,
+        );
+        if sealed {
+            let mut digests = self
+                .run_digests
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            if digests.len() >= MOST_DIGESTS {
+                digests.clear();
+            }
+            digests.insert(path, Arc::clone(&digest));
+        }
+        Ok(digest)
+    }
+
+    /// The experiment's current annotation vocabulary; it changes the comparison of labels, never the scorer's output.
+    pub(super) async fn research_label_aliases(
+        &self,
+        project: &str,
+        run: &Value,
+    ) -> Result<Value, CoreError> {
+        let records = self.records_folder(project).await?;
+        let experiment = text(run, "experimentId");
+        if !is_id(experiment) {
+            return Ok(json!({}));
+        }
+        let record = read_record(
+            &records
+                .join("experiments")
+                .join(format!("{experiment}.json")),
+        )
+        .await
+        .map_err(|reason| super::cannot_use(experiment, &reason))?;
+        Ok(record
+            .and_then(|record| record.get("labelAliases").cloned())
+            .unwrap_or_else(|| json!({})))
+    }
+
+    /// Saves a label on one sample, saying whether the person or the assistant (`by`) set it. It never touches the
+    /// sample's score.
+    pub async fn research_set_label(
+        &self,
+        project: &str,
+        run: &str,
+        request: &Value,
+        by: &str,
+    ) -> Result<Value, CoreError> {
+        let label = text(request, "label");
+        if label.trim().is_empty() {
+            return Err(CoreError::new(400, "A label needs its \"label\"."));
+        }
+        let identity = requested_identity(request)?;
+        let rater = rater_name(request)?;
+        self.research_run(project, run).await?;
+        let records = self.records_for_writing(project).await?;
+        let folder = records.join("labels");
+        if super::is_link(&folder).await {
+            return Err(CoreError::new(
+                409,
+                "The labels folder is a symbolic link, which Eisoptric Workbench does not follow.",
+            ));
+        }
+        tokio::fs::create_dir_all(&folder).await?;
+        let lock = self.records_lock(&records);
+        let _writing = lock.lock().await;
+        let mut saved = read_labels(&records, run).await?;
+        // A rater's label goes in that rater's own set, beside the adjudicated labels, so several people can label the
+        // same sample and their agreement can be measured. Who entered it is kept with it.
+        if let Some(rater) = rater {
+            if !saved["raters"].is_object() {
+                saved["raters"] = json!({});
+            }
+            saved["raters"][&rater][&identity] = json!({
+                "sampleId": request.get("sampleId"),
+                "trial": request.get("trial").cloned().unwrap_or_else(|| json!(0)),
+                "modelId": request.get("modelId"),
+                "label": label,
+                "note": request.get("note"),
+                "by": by,
+                "updatedAt": iso_time(now_millis()),
+            });
+            write_whole(&folder.join(format!("{run}.json")), &pretty(&saved)?).await?;
+            self.research_changed();
+            let mut entry = saved["raters"][&rater][&identity].clone();
+            entry["rater"] = json!(rater);
+            return Ok(entry);
+        }
+        // The assistant labels only what the person has not: a label from before labels said who set them is theirs.
+        let existing = &saved["labels"][&identity];
+        if by == workbench_domain::research::BY_ASSISTANT
+            && existing.is_object()
+            && existing["by"] != workbench_domain::research::BY_ASSISTANT
+        {
+            return Err(CoreError::new(
+                409,
+                "The person labelled this sample. Say in a finding why you read it differently.",
+            ));
+        }
+        saved["labels"][&identity] = json!({
+            "sampleId": request.get("sampleId"),
+            "trial": request.get("trial").cloned().unwrap_or_else(|| json!(0)),
+            "modelId": request.get("modelId"),
+            "label": label,
+            "note": request.get("note"),
+            "by": by,
+            "updatedAt": iso_time(now_millis()),
+        });
+        write_whole(&folder.join(format!("{run}.json")), &pretty(&saved)?).await?;
+        self.research_changed();
+        Ok(saved["labels"][&identity].clone())
+    }
+
+    /// What a run's samples add up to for each model: how many, how many errors of each kind, and each score's mean.
+    /// Only number and true-or-false scores have a mean; text scores are counted.
+    pub async fn research_summary(&self, project: &str, run: &str) -> Result<Value, CoreError> {
+        let found = self.research_run(project, run).await?;
+        let records = self.records_folder(project).await?;
+        let path = records.join("runs").join(run).join("samples.jsonl");
+        let end = found.get("samplesSize").and_then(Value::as_u64);
+        let models = self.run_digest(path, end).await?.models.clone();
+        Ok(
+            json!({ "runId": run, "versionId": text(&found, "versionId"), "status": text(&found, "status"), "sealIntact": found.get("sealIntact"), "models": models }),
+        )
+    }
+
+    /// One sample in several runs, each with whether its evaluation compares to the first run's.
+    pub async fn research_sample_across(
+        &self,
+        project: &str,
+        sample: &str,
+        runs: &[&str],
+    ) -> Result<Value, CoreError> {
+        let records = self.records_folder(project).await?;
+        let mut rows = Vec::new();
+        let mut first_version: Option<Value> = None;
+        for run_id in runs {
+            let run = self.research_run(project, run_id).await?;
+            let version = self
+                .research_record(project, "versions", text(&run, "versionId"))
+                .await?;
+            let mut comparison = match &first_version {
+                None => json!({ "result": "comparable", "differs": [], "missing": [] }),
+                Some(first) => compare_versions(first, &version),
+            };
+            let changed = super::comparison::inputs_changed(&run);
+            if !changed.is_empty() {
+                comparison["result"] = json!("not_comparable");
+                comparison["differs"] = json!([super::comparison::changed_inputs_text(&changed)]);
+            }
+            if first_version.is_none() {
+                first_version = Some(version.clone());
+            }
+            let path = records.join("runs").join(run_id).join("samples.jsonl");
+            let end = run.get("samplesSize").and_then(Value::as_u64);
+            let wanted = sample.to_owned();
+            let matched = tokio::task::spawn_blocking(move || {
+                let mut matched = Vec::new();
+                each_sample(&path, end, |value, _| {
+                    if text(value, "sampleId") == wanted {
+                        matched.push(value.clone());
+                    }
+                })?;
+                Ok::<_, std::io::Error>(matched)
+            })
+            .await
+            .map_err(|error| CoreError::new(500, error.to_string()))??;
+            rows.push(json!({
+                "runId": run_id,
+                "versionId": text(&run, "versionId"),
+                "status": text(&run, "status"),
+                "models": version.get("models"),
+                "comparison": comparison,
+                "samples": matched,
+            }));
+        }
+        Ok(json!({ "sampleId": sample, "rows": rows }))
+    }
+}
+
+/// What one model's samples in a run add up to.
+#[derive(Default)]
+struct ModelTally {
+    samples: u64,
+    errors: BTreeMap<String, u64>,
+    scores: BTreeMap<String, (f64, u64, u64)>,
+    /// Tokens the program reported under `usage`, added up: in, out, and how many samples said.
+    tokens: (u64, u64, u64),
+    /// The most device memory the program reported holding, in bytes.
+    device_memory_peak: Option<u64>,
+}
+
+impl ModelTally {
+    /// Counts one sample. A sample with an infrastructure error has no score worth averaging, even if it wrote one.
+    fn add(&mut self, sample: &Value) {
+        self.samples += 1;
+        if let Some(usage) = sample.get("usage").and_then(Value::as_object) {
+            let count = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+            self.tokens.0 += count("inputTokens");
+            self.tokens.1 += count("outputTokens");
+            if usage.contains_key("inputTokens") || usage.contains_key("outputTokens") {
+                self.tokens.2 += 1;
+            }
+            if let Some(held) = usage.get("deviceMemoryBytes").and_then(Value::as_u64) {
+                self.device_memory_peak =
+                    Some(self.device_memory_peak.map_or(held, |peak| peak.max(held)));
+            }
+        }
+        let error = sample.pointer("/error/kind").and_then(Value::as_str);
+        if let Some(kind) = error {
+            *self.errors.entry(kind.to_owned()).or_default() += 1;
+        }
+        if error == Some("infrastructure") {
+            return;
+        }
+        for (name, score) in sample
+            .get("scores")
+            .and_then(Value::as_object)
+            .into_iter()
+            .flatten()
+        {
+            let entry = self.scores.entry(name.clone()).or_default();
+            let number = score
+                .as_f64()
+                .or_else(|| score.as_bool().map(|yes| f64::from(u8::from(yes))));
+            match number {
+                Some(number) if number.is_finite() => {
+                    entry.0 += number;
+                    entry.1 += 1;
+                }
+                _ => entry.2 += 1,
+            }
+        }
+    }
+
+    fn into_json(self, model: &str) -> Value {
+        let scores: serde_json::Map<String, Value> = self
+            .scores
+            .into_iter()
+            .map(|(name, (sum, count, other))| {
+                let mean = (count > 0).then(|| sum / count as f64);
+                (
+                    name,
+                    json!({ "mean": mean, "count": count, "notNumbers": other }),
+                )
+            })
+            .collect();
+        json!({
+            "modelId": (!model.is_empty()).then_some(model),
+            "samples": self.samples,
+            "errors": self.errors,
+            "scores": scores,
+            "tokens": { "input": self.tokens.0, "output": self.tokens.1, "samplesReporting": self.tokens.2 },
+            "deviceMemoryPeakBytes": self.device_memory_peak,
+        })
+    }
+}
+
+/// The rater a label request names, when it names one: a short plain name, so it can be a key in the labels file.
+fn rater_name(request: &Value) -> Result<Option<String>, CoreError> {
+    let Some(rater) = request
+        .get("rater")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|rater| !rater.is_empty())
+    else {
+        return Ok(None);
+    };
+    if rater.len() > 64
+        || !rater
+            .chars()
+            .all(|letter| letter.is_alphanumeric() || matches!(letter, '-' | '_' | '.' | ' '))
+    {
+        return Err(CoreError::new(
+            400,
+            "A rater's name is up to 64 letters, digits, spaces, dots, dashes or underscores.",
+        ));
+    }
+    Ok(Some(rater.to_owned()))
+}
+
+/// A label as a category for agreement: trimmed, lowercased, and taken through the experiment's aliases.
+fn normalized_label(label: &str, aliases: &Value) -> String {
+    let normalized = label.trim().to_lowercase();
+    aliases
+        .as_object()
+        .into_iter()
+        .flatten()
+        .find(|(name, _)| name.trim().to_lowercase() == normalized)
+        .and_then(|(_, target)| target.as_str())
+        .map_or(normalized, |target| target.trim().to_lowercase())
+}
+
+/// Cohen's kappa between two raters over the items both labelled: observed agreement against the agreement their
+/// own label frequencies would give by chance. None with no items, or when chance agreement is already total.
+pub(super) fn cohen_kappa(pairs: &[(String, String)]) -> Option<f64> {
+    if pairs.is_empty() {
+        return None;
+    }
+    let total = pairs.len() as f64;
+    let observed = pairs.iter().filter(|(a, b)| a == b).count() as f64 / total;
+    let mut left: BTreeMap<&str, f64> = BTreeMap::new();
+    let mut right: BTreeMap<&str, f64> = BTreeMap::new();
+    for (a, b) in pairs {
+        *left.entry(a).or_default() += 1.0;
+        *right.entry(b).or_default() += 1.0;
+    }
+    let expected: f64 = left
+        .iter()
+        .map(|(category, count)| {
+            count / total * right.get(category).copied().unwrap_or(0.0) / total
+        })
+        .sum();
+    if (1.0 - expected).abs() < f64::EPSILON {
+        return Some(if observed >= 1.0 { 1.0 } else { 0.0 });
+    }
+    Some(((observed - expected) / (1.0 - expected) * 10000.0).round() / 10000.0)
+}
+
+/// Fleiss' kappa over items that every rater labelled, each item a list of the raters' categories.
+pub(super) fn fleiss_kappa(items: &[Vec<String>]) -> Option<f64> {
+    let raters = items.first().map_or(0, Vec::len);
+    if items.is_empty() || raters < 2 || items.iter().any(|item| item.len() != raters) {
+        return None;
+    }
+    let n = raters as f64;
+    let mut totals: BTreeMap<&str, f64> = BTreeMap::new();
+    let mut agreement_sum = 0.0;
+    for item in items {
+        let mut counts: BTreeMap<&str, f64> = BTreeMap::new();
+        for category in item {
+            *counts.entry(category).or_default() += 1.0;
+            *totals.entry(category).or_default() += 1.0;
+        }
+        let squares: f64 = counts.values().map(|count| count * count).sum();
+        agreement_sum += (squares - n) / (n * (n - 1.0));
+    }
+    let observed = agreement_sum / items.len() as f64;
+    let all = items.len() as f64 * n;
+    let expected: f64 = totals
+        .values()
+        .map(|count| (count / all) * (count / all))
+        .sum();
+    if (1.0 - expected).abs() < f64::EPSILON {
+        return Some(if observed >= 1.0 { 1.0 } else { 0.0 });
+    }
+    Some(((observed - expected) / (1.0 - expected) * 10000.0).round() / 10000.0)
+}
+
+/// A run's labels file, or an empty one.
+pub(super) async fn read_labels(records: &Path, run: &str) -> Result<Value, CoreError> {
+    if !is_id(run) {
+        return Err(CoreError::new(404, "No such run"));
+    }
+    let path = records.join("labels").join(format!("{run}.json"));
+    let saved = read_record(&path)
+        .await
+        .map_err(|reason| super::cannot_use(run, &reason))?;
+    Ok(saved
+        .unwrap_or_else(|| json!({ "schemaVersion": SCHEMA_VERSION, "runId": run, "labels": {} })))
+}
+
+/// How many labels can be compared with a scorer's own label, and how many agree. A sample without a `scorerLabel`,
+/// or a label on a sample this run does not hold, is not counted as agreeing or disagreeing.
+fn agreement_with_scorer(
+    digest: Option<&RunDigest>,
+    mut labels: Value,
+    aliases: &Value,
+) -> (Value, Value) {
+    let labeled = labels.as_object().map_or(0, |labels| labels.len());
+    for entry in labels
+        .as_object_mut()
+        .into_iter()
+        .flat_map(|labels| labels.values_mut())
+    {
+        if let Some(fields) = entry.as_object_mut() {
+            fields.insert("agreesWithScorer".to_owned(), Value::Null);
+        }
+    }
+    let mut compared = 0;
+    let mut agreed = 0;
+    for (identity, scored) in digest.map_or(&[][..], |digest| &digest.scorer_words) {
+        if let Some(entry) = labels.get_mut(identity)
+            && entry.is_object()
+        {
+            compared += 1;
+            let same = labels_agree(text(entry, "label"), scored, aliases);
+            entry["agreesWithScorer"] = json!(same);
+            if same {
+                agreed += 1;
+            }
+        }
+    }
+    (
+        labels,
+        json!({ "labeled": labeled, "compared": compared, "agreed": agreed }),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pairs(list: &[(&str, &str)]) -> Vec<(String, String)> {
+        list.iter()
+            .map(|(a, b)| ((*a).to_owned(), (*b).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn cohen_kappa_is_one_for_full_agreement_zero_at_chance_and_none_without_items() {
+        assert_eq!(
+            cohen_kappa(&pairs(&[("a", "a"), ("b", "b"), ("a", "a")])),
+            Some(1.0)
+        );
+        // Each rater says a half the time, independently of the other: observed agreement is what chance gives.
+        assert_eq!(
+            cohen_kappa(&pairs(&[("a", "a"), ("a", "b"), ("b", "a"), ("b", "b")])),
+            Some(0.0)
+        );
+        assert_eq!(cohen_kappa(&[]), None);
+        // 20 items, 15 agreed; left says a 12 times and right 11, so chance agreement is 0.51 and kappa 0.24 / 0.49.
+        let mut list = vec![("a", "a"); 9];
+        list.extend([("b", "b"); 6]);
+        list.extend([("a", "b"); 3]);
+        list.extend([("b", "a"); 2]);
+        let kappa = cohen_kappa(&pairs(&list)).unwrap();
+        assert!((kappa - 0.4898).abs() < 0.001, "{kappa}");
+    }
+
+    #[test]
+    fn fleiss_kappa_needs_every_rater_on_every_item() {
+        let items: Vec<Vec<String>> = vec![
+            vec!["a".into(), "a".into(), "a".into()],
+            vec!["b".into(), "b".into(), "b".into()],
+        ];
+        assert_eq!(fleiss_kappa(&items), Some(1.0));
+        let uneven: Vec<Vec<String>> = vec![vec!["a".into(), "a".into()], vec!["b".into()]];
+        assert_eq!(fleiss_kappa(&uneven), None);
+        assert_eq!(fleiss_kappa(&[]), None);
+        let mixed: Vec<Vec<String>> = vec![
+            vec!["a".into(), "b".into()],
+            vec!["a".into(), "a".into()],
+            vec!["b".into(), "b".into()],
+            vec!["b".into(), "a".into()],
+        ];
+        assert_eq!(fleiss_kappa(&mixed), Some(0.0));
+    }
+
+    #[test]
+    fn a_rater_name_is_short_and_plain() {
+        assert_eq!(
+            rater_name(&json!({ "rater": " alice " })).unwrap(),
+            Some("alice".to_owned())
+        );
+        assert_eq!(rater_name(&json!({})).unwrap(), None);
+        assert!(rater_name(&json!({ "rater": "../x" })).is_err());
+    }
+}

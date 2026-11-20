@@ -6,6 +6,6 @@
 /.github/                                              @rickwengdev
 /scripts/                                              @rickwengdev
 /desktop/package-lock.json                             @rickwengdev
-/desktop/build/saturn-code-signing.cer                 @rickwengdev
+/desktop/build/workbench-code-signing.cer                 @rickwengdev
 /desktop/scripts/                                      @rickwengdev
-/crates/saturn-core/src/agent-programs.json            @rickwengdev
+/crates/workbench-core/src/agent-programs.json            @rickwengdev

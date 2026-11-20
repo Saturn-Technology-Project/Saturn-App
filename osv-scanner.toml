@@ -6,7 +6,7 @@
 [[IgnoredVulns]]
 id = "RUSTSEC-2024-0429"
 ignoreUntil = 2027-05-07
-reason = "glib 0.18 (unsound VariantStrIter, GHSA-wrw7-89jp-8q8g): Linux builds of the Tauri shell only, through muda and gtk; Saturn has no Linux package"
+reason = "glib 0.18 (unsound VariantStrIter, GHSA-wrw7-89jp-8q8g): Linux builds of the Tauri shell only, through muda and gtk; Eisoptric Workbench has no Linux package"
 
 [[IgnoredVulns]]
 id = "GHSA-wrw7-89jp-8q8g"

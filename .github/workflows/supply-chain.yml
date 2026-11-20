@@ -1,6 +1,6 @@
 name: Supply chain
 
-# Checks what Saturn installs and ships, on every change and weekly (so an advisory published against an unchanged
+# Checks what Eisoptric Workbench installs and ships, on every change and weekly (so an advisory published against an unchanged
 # dependency still fails the check):
 # - every lock file resolves only to the npm registry, with sha512 integrity (scripts/check-lockfiles.mjs);
 # - every installed package has a valid npm registry signature, and provenance where its publisher provides it;
@@ -90,5 +90,5 @@ jobs:
         # that leaves something open still ends, and the step as a whole cannot hold the job.
         timeout-minutes: 12
         run: |
-          cargo build --locked -p saturn-server -p saturn-cli
+          cargo build --locked -p workbench-server -p workbench-cli
           node --test --test-timeout=120000 --test-force-exit contract/*.test.mjs

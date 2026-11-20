@@ -4,10 +4,10 @@ import type { Dictionary } from "../../domain/i18n";
 
 export default {
   // The screens, the tour and the places the guide points at (domain/workbench.ts).
-  "Read the method, write the code yourself, run the experiment and inspect every sample, on your own computer. This tour boxes each part of Saturn and says what it is for, then helps you start a piece of research. Skip it any time; it is in Commands (⌘K) as \"Take the tour\".":
-    "Read the method, write your own code, run experiments, and inspect every sample, all on your own computer. This tour highlights each part of Saturn and what it's for, then helps you start your research. Skip it anytime and reopen it from Commands (⌘K) with \"Take the tour\".",
-  "Saturn is organized around your research, not around chats: questions, code, models, experiments, samples, data, long tasks, protection and the environment. ⌘1 to ⌘9 switch to the first nine.":
-    "Saturn is organized around your research, not chats: questions, code, models, experiments, samples, data, long-running tasks, protection, and the environment. Press ⌘1–⌘9 to switch to the first nine.",
+  "Read the method, write the code yourself, run the experiment and inspect every sample, on your own computer. This tour boxes each part of Eisoptric Workbench and says what it is for, then helps you start a piece of research. Skip it any time; it is in Commands (⌘K) as \"Take the tour\".":
+    "Read the method, write your own code, run experiments, and inspect every sample, all on your own computer. This tour highlights each part of Eisoptric Workbench and what it's for, then helps you start your research. Skip it anytime and reopen it from Commands (⌘K) with \"Take the tour\".",
+  "Eisoptric Workbench is organized around your research, not around chats: questions, code, models, experiments, samples, data, long tasks, protection and the environment. ⌘1 to ⌘9 switch to the first nine.":
+    "Eisoptric Workbench is organized around your research, not chats: questions, code, models, experiments, samples, data, long-running tasks, protection, and the environment. Press ⌘1–⌘9 to switch to the first nine.",
   "Home: where the work stands": "Home: where your research stands",
   "The question you are on, its hypotheses and their verdicts, what changed since you last looked, and what is still open. You or the assistant set a verdict, and it says which of you did; a run that finishes says only that it executed.":
     "The question you are working on, its hypotheses and verdicts, what changed since your last visit, and what is still open. A verdict is set by you or the assistant, and shows which. A finished run only means it executed.",
@@ -17,8 +17,8 @@ export default {
   "The research assistant": "Research assistant",
   "A panel beside your work, on every screen (⌘J). Ask it what a screen is for or how to do something, and it can walk you through it, boxing each place while you do the work. Beside its name you choose how much it may do: in Ask it only reads and explains; in Approve it proposes changes you approve; in Auto it works on the project itself and asks before anything sensitive; in Agent it asks nothing. Samples it is given are marked as data, never as instructions.":
     "A panel beside your work on every screen (⌘J). Ask what a screen is for or how to do something, and it can walk you through it, highlighting each place as you work. Next to its name, choose how much it can do: Ask only reads and explains; Approve proposes changes for you to approve; Auto works on the project directly and asks before anything sensitive; Agent asks nothing. Samples it receives are marked as data, never as instructions.",
-  "Connect pretraining checkpoints to fine-tuned and preference-trained branches. Each node shows what was last measured on it, and Saturn warns when two nodes were not measured the same way, so a difference in method never reads as a difference in the model.":
-    "Connect pretraining checkpoints to their fine-tuned and preference-trained branches. Each node shows its latest measurement, and Saturn warns you when two nodes weren't measured the same way, so a difference in method never looks like a difference in the model.",
+  "Connect pretraining checkpoints to fine-tuned and preference-trained branches. Each node shows what was last measured on it, and Eisoptric Workbench warns when two nodes were not measured the same way, so a difference in method never reads as a difference in the model.":
+    "Connect pretraining checkpoints to their fine-tuned and preference-trained branches. Each node shows its latest measurement, and Eisoptric Workbench warns you when two nodes weren't measured the same way, so a difference in method never looks like a difference in the model.",
   "Running freezes a version: the code, data, scorer and models exactly as they were. Here you see each model's score, where the score comes from (what the scorer judged, what you disputed, what was excluded), and you write the conclusion, kept with the run it rests on.":
     "Each run freezes a version: the code, data, scorer, and models exactly as they were. See each model's score and where it comes from (what the scorer judged, what you disputed, what was excluded), and write your conclusion, which stays with the run it's based on.",
   "One sample across every model that saw it, with the scorer's own word next to your label. Your label never overwrites a score. Keep a sample as a counterexample, or look inside: read activations at every layer, or patch a layer in from another model.":
@@ -31,14 +31,14 @@ export default {
   "Tasks: long work, apart": "Tasks: long-running work, kept separate",
   "Batch runs and cleanups go to an agent in its own worktree. It cannot touch locked files, and nothing reaches the project until you merge it. When it wants to change a locked file, you decide: release it for the next version, keep it, or edit it yourself.":
     "Hand off batch runs and cleanups to an agent in its own worktree. It can't touch locked files, and nothing reaches the project until you merge it. When it wants to change a locked file, you decide: unlock it for the next version, keep it as is, or edit it yourself.",
-  "Every refusal and every change noticed outside Saturn's tools is recorded here, with what each backend can and cannot enforce. Modes are a workflow constraint, not a security boundary, and this screen says so plainly.":
-    "Every refusal, and every change Saturn notices outside its own tools, is recorded here, along with what each backend can and can't enforce. Modes are a workflow constraint, not a security boundary, and this screen says so plainly.",
+  "Every refusal and every change noticed outside Eisoptric Workbench's tools is recorded here, with what each backend can and cannot enforce. Modes are a workflow constraint, not a security boundary, and this screen says so plainly.":
+    "Every refusal, and every change Eisoptric Workbench notices outside its own tools, is recorded here, along with what each backend can and can't enforce. Modes are a workflow constraint, not a security boundary, and this screen says so plainly.",
   "Environment: the Python it runs in": "Environment: the Python your code runs in",
-  "Name the Python your experiments run with, or have Saturn make one in the project. Ask it for its version, packages and devices, install kits of packages, and freeze the lock files with each version, so a changed environment is a new version rather than a surprise.":
-    "Choose the Python your experiments run with, or let Saturn create one in the project. Check its version, packages, and devices, install package kits, and freeze lock files with each version, so a changed environment becomes a new version instead of a surprise.",
+  "Name the Python your experiments run with, or have Eisoptric Workbench make one in the project. Ask it for its version, packages and devices, install kits of packages, and freeze the lock files with each version, so a changed environment is a new version rather than a surprise.":
+    "Choose the Python your experiments run with, or let Eisoptric Workbench create one in the project. Check its version, packages, and devices, install package kits, and freeze lock files with each version, so a changed environment becomes a new version instead of a surprise.",
   "Start a piece of research": "Start your research",
-  "Research lives in a project folder, as plain files under .saturn/research that you can keep. Choose the folder, write down the question you are trying to answer, and the rest connects back to it.":
-    "Research lives in your project folder, as plain files under .saturn/research that you keep. Choose the folder and write down the question you want to answer. Everything else connects back to it.",
+  "Research lives in a project folder, as plain files under .workbench/research that you can keep. Choose the folder, write down the question you are trying to answer, and the rest connects back to it.":
+    "Research lives in your project folder, as plain files under .workbench/research that you keep. Choose the folder and write down the question you want to answer. Everything else connects back to it.",
   "Select {screen} in the rail to open it.": "Select {screen} in the sidebar to open it.",
   "Choose the project here, or add a folder.": "Choose a project here, or add a folder.",
   "Show or hide the assistant here, or with ⌘J.": "Show or hide the assistant here, or press ⌘J.",
@@ -90,17 +90,17 @@ export default {
   "Not on this screen yet: it appears once {condition}.": "Not on this screen yet. It appears once {condition}.",
 
   // The workbench's frame (shell/ResearchApp.tsx and what it shows).
-  "Saturn's runtime is not answering: {reason}": "Saturn's runtime isn't responding: {reason}",
+  "Eisoptric Workbench's runtime is not answering: {reason}": "Eisoptric Workbench's runtime isn't responding: {reason}",
   "Use the light theme": "Switch to light theme",
   "Use the dark theme": "Switch to dark theme",
   "Research records live in a project's own folder, as plain files you can keep.": "Research records live in the project's own folder, as plain files you keep.",
-  "Saturn reads and writes this folder only after you allow it.": "Saturn reads and writes this folder only after you allow access.",
+  "Eisoptric Workbench reads and writes this folder only after you allow it.": "Eisoptric Workbench reads and writes this folder only after you allow access.",
   "Runtime not answering": "Runtime not responding",
-  "Another Saturn is in the way": "Another Saturn is blocking the runtime",
-  "Starting Saturn's runtime again": "Restarting Saturn's runtime",
+  "Another Eisoptric Workbench is in the way": "Another Eisoptric Workbench is blocking the runtime",
+  "Starting Eisoptric Workbench's runtime again": "Restarting Eisoptric Workbench's runtime",
   "This takes a moment.": "This may take a moment.",
   "Its last output": "Last output",
-  "Start the runtime with {command}, or open Saturn's app.": "Start the runtime with {command}, or open the Saturn app.",
+  "Start the runtime with {command}, or open Eisoptric Workbench's app.": "Start the runtime with {command}, or open the Eisoptric Workbench app.",
 
   // The tour's last step.
   "No model yet; code and experiments work without one": "No model yet. Code and experiments work without one.",
@@ -133,25 +133,25 @@ export default {
 
   // Protection.
   "Modes and locks keep an agent to how you want to work. They are not a security boundary: a shell or another program can still write a file, and that is only noticed afterwards.":
-    "Modes and locks keep an agent working the way you want. They aren't a security boundary: a shell or another program can still write a file, and Saturn only notices afterward.",
+    "Modes and locks keep an agent working the way you want. They aren't a security boundary: a shell or another program can still write a file, and Eisoptric Workbench only notices afterward.",
   "Released until the next version is frozen: {paths}. Freezing a version, as a run does, locks what it uses again.":
     "Unlocked until the next version is frozen: {paths}. Freezing a version, as every run does, locks what it uses again.",
   "Changed, by someone or something: {paths} (noticed after {tool})": "Changed by an unknown source: {paths} (noticed after {tool})",
   "Let it change {path} for the next version": "Allow changes to {path} for the next version",
   "Refused for the tools it asks about": "Refused for the tools it asks permission for",
   "Cannot be refused per file": "Can't be refused per file",
-  "Saturn cannot tell what they write": "Saturn can't tell what they write",
+  "Eisoptric Workbench cannot tell what they write": "Eisoptric Workbench can't tell what they write",
 
   // Environment.
   "Making the environment": "Creating environment",
   "Syncing from the lock file": "Syncing from lock file",
-  "Experiments and looking inside run with this Python. Saturn can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.":
-    "Experiments and model inspection run with this Python. Saturn can create one in the project and install what your work needs. It never installs anything you didn't ask for.",
+  "Experiments and looking inside run with this Python. Eisoptric Workbench can make one in the project and fill it with what the work needs; it installs nothing you did not ask for.":
+    "Experiments and model inspection run with this Python. Eisoptric Workbench can create one in the project and install what your work needs. It never installs anything you didn't ask for.",
   "Choose 1 to 1440 whole minutes.": "Enter a whole number of minutes from 1 to 1440.",
   "Use it": "Use",
   "Brings it to what the lock file says": "Matches it to the lock file",
   "No lock file at the project's root": "No lock file in the project root",
-  "No managed environment yet. Saturn can make one in the project with {tool}:": "No managed environment yet. Saturn can create one in the project with {tool}:",
+  "No managed environment yet. Eisoptric Workbench can make one in the project with {tool}:": "No managed environment yet. Eisoptric Workbench can create one in the project with {tool}:",
   "interrupted: the runtime that started it is gone": "interrupted: the runtime that started it is no longer running",
   "Nothing written yet.": "No output yet.",
   "The last 40 of {count} lines; the whole log is in {path}.": "Showing the last 40 of {count} lines. Full log: {path}.",
@@ -170,19 +170,19 @@ export default {
     "When a lock file is frozen with a version, any change to it makes a new version, so two runs with different environments are never treated as the same.",
 
   // Remote execution.
-  "Remote launch recorded: {run}. Closing Saturn detaches; Stop requests cancellation.": "Remote launch recorded: {run}. Closing Saturn only detaches; Stop requests cancellation.",
+  "Remote launch recorded: {run}. Closing Eisoptric Workbench detaches; Stop requests cancellation.": "Remote launch recorded: {run}. Closing Eisoptric Workbench only detaches; Stop requests cancellation.",
   "Configure the host in Environment. Remote code is not uploaded or certified identical to these local frozen files. The remote worker records its working directory and git commit. Existing remote jobs keep their original target when settings change.":
     "Set up the host in Environment. Code isn't uploaded, and the remote copy isn't verified to match these local frozen files. The remote worker records its working directory and git commit. Existing remote jobs keep their original target if settings change.",
   "Executable version": "Version to run",
   "Resume checkpoint on remote host (optional)": "Resume from checkpoint on remote host (optional)",
-  "The command receives SATURN_RESUME_FROM; its framework must restore model, optimizer and random state. A new attempt is a new run. The wall-clock limit stops the process group; it is not a guarantee of GPU billing.":
-    "The command receives SATURN_RESUME_FROM, and its framework must restore the model, optimizer, and random state. Each new attempt is a new run. The wall-clock limit stops the process group; it doesn't guarantee that GPU billing stops.",
+  "The command receives WORKBENCH_RESUME_FROM; its framework must restore model, optimizer and random state. A new attempt is a new run. The wall-clock limit stops the process group; it is not a guarantee of GPU billing.":
+    "The command receives WORKBENCH_RESUME_FROM, and its framework must restore the model, optimizer, and random state. Each new attempt is a new run. The wall-clock limit stops the process group; it doesn't guarantee that GPU billing stops.",
 
   // Project folders and access (ProjectAccess.tsx).
   "Open Project Folder": "Open project folder",
   "Could not open the folder": "Couldn't open the folder",
   "You can revoke access any time from the project's menu.": "You can revoke access anytime from the project menu.",
-  "macOS may also ask once to let Saturn read this location.": "macOS may also ask once for permission for Saturn to read this location.",
+  "macOS may also ask once to let Eisoptric Workbench read this location.": "macOS may also ask once for permission for Eisoptric Workbench to read this location.",
   "Allow Access": "Allow access",
   "Workspace name cannot be empty": "Workspace name can't be empty",
   "At least one folder is required": "Add at least one folder",
@@ -190,15 +190,15 @@ export default {
   "Edit Workspace": "Edit workspace",
   "Configure project name and folder paths.": "Set the project name and folder paths.",
   "Add Folder…": "Add folder…",
-  "What Saturn's helpers need": "Saturn helpers",
+  "What Eisoptric Workbench's helpers need": "Eisoptric Workbench helpers",
   "Looking inside a model and the environment check load models with these. Installed with the environment unless you say not to.": "Model inspection and the environment check use these to load models. Installed with the environment unless you opt out.",
   "Jupyter and a kernel, for notebooks beside the code.": "Jupyter and a kernel, for notebooks alongside your code.",
-  "Experiments and the look inside a model run with it. Saturn can make one in the project and install what research code needs.": "Experiments and model inspection run with it. Saturn can create one in the project and install what your research code needs.",
+  "Experiments and the look inside a model run with it. Eisoptric Workbench can make one in the project and install what research code needs.": "Experiments and model inspection run with it. Eisoptric Workbench can create one in the project and install what your research code needs.",
   "Write a hypothesis before any result": "Write a hypothesis before seeing results",
   "A prediction written after seeing the number is only a description. The verdict is yours to set later.": "A prediction written after you see the numbers is only a description. You set the verdict later.",
   "Bring in results you have, or write an experiment": "Import existing results, or write an experiment",
-  "Results from earlier work come in marked as imported, so they are never mistaken for a run Saturn made. The assistant can find and map them for you; you approve the import.":
-    "Results from earlier work are marked as imported, so they're never mistaken for a run Saturn made. The assistant can find and map them for you; you approve the import.",
+  "Results from earlier work come in marked as imported, so they are never mistaken for a run Eisoptric Workbench made. The assistant can find and map them for you; you approve the import.":
+    "Results from earlier work are marked as imported, so they're never mistaken for a run Eisoptric Workbench made. The assistant can find and map them for you; you approve the import.",
   "Ask the assistant to help": "Ask the assistant for help",
   "Read the samples and label some": "Review and label samples",
   "Write what you found": "Record your findings",

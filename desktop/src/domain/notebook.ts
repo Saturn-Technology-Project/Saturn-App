@@ -3,10 +3,10 @@
 // survives an edit somewhere else. nbformat 4 is what is read and written.
 import { t } from "./i18n.ts";
 
-/** What a cell holds, as far as Saturn understands it. A kind it does not know is kept and not edited. */
+/** What a cell holds, as far as Eisoptric Workbench understands it. A kind it does not know is kept and not edited. */
 export type CellKind = "code" | "markdown" | "raw" | "other";
 
-/** One cell. `raw` is what the file holds for it, with everything Saturn does not understand; `text` its exact text in the file until it changes. */
+/** One cell. `raw` is what the file holds for it, with everything Eisoptric Workbench does not understand; `text` its exact text in the file until it changes. */
 export interface NotebookCell {
   /** Names the cell while it is open: its id when it has a good one. Not written to the file by itself. */
   key: string;
@@ -136,7 +136,7 @@ function findCells(text: string): { open: number; close: number; items: [number,
   }
 }
 
-/** A cell as Saturn sees it, with the key it goes by. */
+/** A cell as Eisoptric Workbench sees it, with the key it goes by. */
 function readCell(raw: unknown, text: string | null, key: string): NotebookCell {
   const fields = isObject(raw) ? raw : {};
   const known = fields.cell_type === "code" || fields.cell_type === "markdown" || fields.cell_type === "raw";
@@ -162,7 +162,7 @@ export function parseNotebook(text: string): NotebookReading {
     return { problem: t("It is not JSON: {reason}.", { reason: error instanceof Error ? error.message : String(error) }) };
   }
   if (!isObject(parsed)) return { problem: t("It is not a JSON object.") };
-  if (parsed.nbformat !== 4) return { problem: t("It is nbformat {version}, and Saturn opens nbformat 4.", { version: String(parsed.nbformat) }) };
+  if (parsed.nbformat !== 4) return { problem: t("It is nbformat {version}, and Eisoptric Workbench opens nbformat 4.", { version: String(parsed.nbformat) }) };
   if (!Array.isArray(parsed.cells)) return { problem: t("It has no list of cells.") };
   const place = findCells(text);
   if (!place || place.items.length !== parsed.cells.length) return { problem: t("Its list of cells could not be found.") };
@@ -434,12 +434,12 @@ function viewOfData(data: Record<string, unknown>): OutputView {
     if (type.endsWith("json")) return { kind: "text", text: JSON.stringify(value, null, 2), failure: false };
   }
   const types = Object.keys(data).join(", ");
-  return { kind: "note", text: types ? t("An output Saturn does not show: {types}.", { types }) : t("An output Saturn does not show: it is empty.") };
+  return { kind: "note", text: types ? t("An output Eisoptric Workbench does not show: {types}.", { types }) : t("An output Eisoptric Workbench does not show: it is empty.") };
 }
 
 /** How one stored output is shown. */
 export function outputView(output: unknown): OutputView {
-  if (!isObject(output)) return { kind: "note", text: t("An output Saturn does not understand. It is kept in the file.") };
+  if (!isObject(output)) return { kind: "note", text: t("An output Eisoptric Workbench does not understand. It is kept in the file.") };
   switch (output.output_type) {
     case "stream":
       return { kind: "text", text: plainText(joined(output.text) ?? ""), failure: output.name === "stderr" };
@@ -453,10 +453,10 @@ export function outputView(output: unknown): OutputView {
     case "execute_result": {
       const data = isObject(output.data) ? output.data : {};
       const metadata = isObject(output.metadata) ? output.metadata : {};
-      if (isObject(metadata.saturn) && metadata.saturn.truncated === true) return { kind: "note", text: joined(data["text/plain"]) ?? t("Some of this cell's output was left out.") };
+      if (isObject(metadata.workbench) && metadata.workbench.truncated === true) return { kind: "note", text: joined(data["text/plain"]) ?? t("Some of this cell's output was left out.") };
       return viewOfData(data);
     }
     default:
-      return { kind: "note", text: t("An output Saturn does not understand ({type}). It is kept in the file.", { type: String(output.output_type) }) };
+      return { kind: "note", text: t("An output Eisoptric Workbench does not understand ({type}). It is kept in the file.", { type: String(output.output_type) }) };
   }
 }

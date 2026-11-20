@@ -130,7 +130,7 @@ function FileDetail(props: { projectId: string; file: DataFile; go: ScreenProps[
       </div>
       {file.problem ? <Notice tone="bad">{file.problem}</Notice> : null}
       {!file.problem && !file.exists ? <Notice tone="bad">{t("This file is not in the project's folder now.")}{file.frozen ? ` ${t("A version froze it, so a run of that version will refuse to start.")}` : ""}</Notice> : null}
-      {file.exists && !file.problem && file.format === "other" && view !== "Reads" ? <Notice>{t("Saturn reads .jsonl, .json arrays, .csv and .tsv itself, and .parquet, .arrow and Hugging Face dataset folders through the project's Python. This file is none of these.")}</Notice> : null}
+      {file.exists && !file.problem && file.format === "other" && view !== "Reads" ? <Notice>{t("Eisoptric Workbench reads .jsonl, .json arrays, .csv and .tsv itself, and .parquet, .arrow and Hugging Face dataset folders through the project's Python. This file is none of these.")}</Notice> : null}
       {view === "Rows" && readable ? <RowsView key={split} projectId={props.projectId} file={file} split={split} onSplit={setSplit} go={props.go} /> : null}
       {view === "Profile" && readable ? <ProfileView key={split} projectId={props.projectId} file={file} split={split} onSplit={setSplit} go={props.go} /> : null}
       {view === "Reads" ? <ReadsView file={file} /> : null}

@@ -68,7 +68,7 @@ export function Protection(props: ScreenProps) {
           <tr><td>{t("API and local models")}</td><td>{t("Refused before writing")}</td><td>{t("Compared afterwards")}</td></tr>
           <tr><td>Claude Code</td><td>{t("Refused for the tools it asks about")}</td><td>{t("Compared afterwards")}</td></tr>
           <tr><td>Codex</td><td>{t("Cannot be refused per file")}</td><td>{t("Compared after its turn")}</td></tr>
-          <tr><td>{t("MCP tools")}</td><td>{t("Saturn cannot tell what they write")}</td><td>{t("Compared afterwards")}</td></tr>
+          <tr><td>{t("MCP tools")}</td><td>{t("Eisoptric Workbench cannot tell what they write")}</td><td>{t("Compared afterwards")}</td></tr>
         </tbody>
       </Table>
     </Page>

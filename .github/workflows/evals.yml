@@ -1,9 +1,9 @@
 name: Evals
 
-# Saturn's task evals (scripts/eval): small coding tasks run end to end through Saturn's agent loop with a real
+# Eisoptric Workbench's task evals (scripts/eval): small coding tasks run end to end through Eisoptric Workbench's agent loop with a real
 # model, graded by hidden tests, nightly and on demand. A drop of more than 15 points under the committed baseline
 # fails the run. Each run spends model tokens, so it runs only where the repository has the secret
-# SATURN_EVAL_API_KEY and the variables SATURN_EVAL_PROVIDER and SATURN_EVAL_MODEL (an API provider, never a plan).
+# WORKBENCH_EVAL_API_KEY and the variables WORKBENCH_EVAL_PROVIDER and WORKBENCH_EVAL_MODEL (an API provider, never a plan).
 # The harness self-test (a scripted model, no tokens) runs on every change instead.
 
 on:
@@ -37,15 +37,15 @@ jobs:
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
       - name: Build the runtime
-        run: cargo build --locked -p saturn-server
+        run: cargo build --locked -p workbench-server
       - name: Git identity for the task repositories
-        run: git config --global user.name "Saturn CI" && git config --global user.email "ci@saturn.invalid"
+        run: git config --global user.name "Eisoptric Workbench CI" && git config --global user.email "ci@example.invalid"
       - name: Harness self-test (scripted model)
         run: node --test scripts/eval/self-test.mjs
 
   evals:
     needs: self-test
-    if: github.event_name != 'push' && vars.SATURN_EVAL_PROVIDER != '' && vars.SATURN_EVAL_MODEL != ''
+    if: github.event_name != 'push' && vars.WORKBENCH_EVAL_PROVIDER != '' && vars.WORKBENCH_EVAL_MODEL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -56,15 +56,15 @@ jobs:
       - name: Rust toolchain (rust-toolchain.toml)
         run: rustup show active-toolchain || rustup toolchain install
       - name: Build the runtime
-        run: cargo build --locked -p saturn-server
+        run: cargo build --locked -p workbench-server
       - name: Git identity for the task repositories
-        run: git config --global user.name "Saturn CI" && git config --global user.email "ci@saturn.invalid"
+        run: git config --global user.name "Eisoptric Workbench CI" && git config --global user.email "ci@example.invalid"
       - name: Run the evals
         env:
-          SATURN_EVAL_PROVIDER: ${{ vars.SATURN_EVAL_PROVIDER }}
-          SATURN_EVAL_MODEL: ${{ vars.SATURN_EVAL_MODEL }}
-          SATURN_EVAL_EFFORT: ${{ vars.SATURN_EVAL_EFFORT }}
-          SATURN_EVAL_API_KEY: ${{ secrets.SATURN_EVAL_API_KEY }}
+          WORKBENCH_EVAL_PROVIDER: ${{ vars.WORKBENCH_EVAL_PROVIDER }}
+          WORKBENCH_EVAL_MODEL: ${{ vars.WORKBENCH_EVAL_MODEL }}
+          WORKBENCH_EVAL_EFFORT: ${{ vars.WORKBENCH_EVAL_EFFORT }}
+          WORKBENCH_EVAL_API_KEY: ${{ secrets.WORKBENCH_EVAL_API_KEY }}
           TASKS: ${{ inputs.tasks }}
         run: node scripts/eval/run.mjs --baseline scripts/eval/baseline.json --out eval-results.json ${TASKS:+--tasks "$TASKS"}
       - name: Keep the results

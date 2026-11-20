@@ -3432,227 +3432,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "saturn-appcontainer"
-version = "0.6.4"
-dependencies = [
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "saturn-browser"
-version = "0.6.4"
-dependencies = [
- "axum",
- "base64 0.23.1",
- "futures-util",
- "reqwest",
- "saturn-domain",
- "saturn-telemetry",
- "saturn-tools",
- "serde_json",
- "tempfile",
- "tokio",
- "tokio-tungstenite",
-]
-
-[[package]]
-name = "saturn-cli"
-version = "0.6.4"
-dependencies = [
- "percent-encoding",
- "reqwest",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "saturn-computer"
-version = "0.6.4"
-dependencies = [
- "base64 0.23.1",
- "regex",
- "saturn-domain",
- "saturn-tools",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "saturn-core"
-version = "0.6.4"
-dependencies = [
- "axum",
- "base64 0.23.1",
- "percent-encoding",
- "regex",
- "reqwest",
- "saturn-browser",
- "saturn-computer",
- "saturn-domain",
- "saturn-llm",
- "saturn-mcp",
- "saturn-store",
- "saturn-telemetry",
- "saturn-tools",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "saturn-desktop"
-version = "0.6.4"
-dependencies = [
- "axum",
- "core-graphics",
- "getrandom 0.4.3",
- "mac-notification-sys",
- "macos-accessibility-client",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tauri-winrt-notification",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "saturn-domain"
-version = "0.6.4"
-dependencies = [
- "getrandom 0.4.3",
- "jiff",
- "regex",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "similar",
- "url",
-]
-
-[[package]]
-name = "saturn-llm"
-version = "0.6.4"
-dependencies = [
- "axum",
- "percent-encoding",
- "regex",
- "reqwest",
- "saturn-domain",
- "saturn-store",
- "saturn-telemetry",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "saturn-mcp"
-version = "0.6.4"
-dependencies = [
- "axum",
- "base64 0.23.1",
- "futures-util",
- "getrandom 0.4.3",
- "reqwest",
- "saturn-store",
- "saturn-telemetry",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "saturn-server"
-version = "0.6.4"
-dependencies = [
- "axum",
- "futures-util",
- "getrandom 0.4.3",
- "regex",
- "saturn-appcontainer",
- "saturn-core",
- "saturn-domain",
- "saturn-store",
- "saturn-telemetry",
- "saturn-tools",
- "serde",
- "serde_json",
- "subtle",
- "tokio",
- "tokio-stream",
- "url",
-]
-
-[[package]]
-name = "saturn-standin"
-version = "0.6.4"
-
-[[package]]
-name = "saturn-store"
-version = "0.6.4"
-dependencies = [
- "aes-gcm",
- "base64 0.23.1",
- "getrandom 0.4.3",
- "saturn-domain",
- "saturn-telemetry",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "saturn-telemetry"
-version = "0.6.4"
-dependencies = [
- "reqwest",
- "saturn-domain",
- "serde_json",
- "tempfile",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "saturn-tools"
-version = "0.6.4"
-dependencies = [
- "axum",
- "flate2",
- "regex",
- "reqwest",
- "rustix",
- "saturn-appcontainer",
- "saturn-domain",
- "saturn-telemetry",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "tokio",
- "url",
-]
-
-[[package]]
 name = "schannel"
 version = "0.1.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5807,6 +5586,227 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+
+[[package]]
+name = "workbench-appcontainer"
+version = "0.6.4"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "workbench-browser"
+version = "0.6.4"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "futures-util",
+ "reqwest",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite",
+ "workbench-domain",
+ "workbench-telemetry",
+ "workbench-tools",
+]
+
+[[package]]
+name = "workbench-cli"
+version = "0.6.4"
+dependencies = [
+ "percent-encoding",
+ "reqwest",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "workbench-computer"
+version = "0.6.4"
+dependencies = [
+ "base64 0.23.1",
+ "regex",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "tokio",
+ "workbench-domain",
+ "workbench-tools",
+]
+
+[[package]]
+name = "workbench-core"
+version = "0.6.4"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "percent-encoding",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "tokio",
+ "url",
+ "workbench-browser",
+ "workbench-computer",
+ "workbench-domain",
+ "workbench-llm",
+ "workbench-mcp",
+ "workbench-store",
+ "workbench-telemetry",
+ "workbench-tools",
+]
+
+[[package]]
+name = "workbench-desktop"
+version = "0.6.4"
+dependencies = [
+ "axum",
+ "core-graphics",
+ "getrandom 0.4.3",
+ "mac-notification-sys",
+ "macos-accessibility-client",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tauri-winrt-notification",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "workbench-domain"
+version = "0.6.4"
+dependencies = [
+ "getrandom 0.4.3",
+ "jiff",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "similar",
+ "url",
+]
+
+[[package]]
+name = "workbench-llm"
+version = "0.6.4"
+dependencies = [
+ "axum",
+ "percent-encoding",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "url",
+ "workbench-domain",
+ "workbench-store",
+ "workbench-telemetry",
+]
+
+[[package]]
+name = "workbench-mcp"
+version = "0.6.4"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "futures-util",
+ "getrandom 0.4.3",
+ "reqwest",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "tokio",
+ "url",
+ "workbench-store",
+ "workbench-telemetry",
+]
+
+[[package]]
+name = "workbench-server"
+version = "0.6.4"
+dependencies = [
+ "axum",
+ "futures-util",
+ "getrandom 0.4.3",
+ "regex",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tokio",
+ "tokio-stream",
+ "url",
+ "workbench-appcontainer",
+ "workbench-core",
+ "workbench-domain",
+ "workbench-store",
+ "workbench-telemetry",
+ "workbench-tools",
+]
+
+[[package]]
+name = "workbench-standin"
+version = "0.6.4"
+
+[[package]]
+name = "workbench-store"
+version = "0.6.4"
+dependencies = [
+ "aes-gcm",
+ "base64 0.23.1",
+ "getrandom 0.4.3",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "tokio",
+ "workbench-domain",
+ "workbench-telemetry",
+]
+
+[[package]]
+name = "workbench-telemetry"
+version = "0.6.4"
+dependencies = [
+ "reqwest",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "url",
+ "workbench-domain",
+]
+
+[[package]]
+name = "workbench-tools"
+version = "0.6.4"
+dependencies = [
+ "axum",
+ "flate2",
+ "regex",
+ "reqwest",
+ "rustix",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "tokio",
+ "url",
+ "workbench-appcontainer",
+ "workbench-domain",
+ "workbench-telemetry",
+]
 
 [[package]]
 name = "writeable"
