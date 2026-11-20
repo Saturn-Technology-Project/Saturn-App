@@ -190,7 +190,7 @@ export default {
   "Edit Workspace": "Edit workspace",
   "Configure project name and folder paths.": "Set the project name and folder paths.",
   "Add Folder…": "Add folder…",
-  "What the app's helpers need": "The app helpers",
+  "What the app's helpers need": "The app's helpers",
   "Looking inside a model and the environment check load models with these. Installed with the environment unless you say not to.": "Model inspection and the environment check use these to load models. Installed with the environment unless you opt out.",
   "Jupyter and a kernel, for notebooks beside the code.": "Jupyter and a kernel, for notebooks alongside your code.",
   "Experiments and the look inside a model run with it. The app can make one in the project and install what research code needs.": "Experiments and model inspection run with it. The app can create one in the project and install what your research code needs.",

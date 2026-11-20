@@ -209,7 +209,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let stopping = Arc::clone(&kernel);
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
-    println!("The app Runtime listening on http://{host}:{port}");
+    println!("Runtime listening on http://{host}:{port}");
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             stop_requested().await;
@@ -218,7 +218,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tokio::time::sleep(STOP_LIMIT).await;
                 let step = STOPPING_STEP.lock().map(|step| *step).unwrap_or_default();
                 eprintln!(
-                    "The app Runtime: stopping took longer than {} s, at {step}; exiting",
+                    "Runtime: stopping took longer than {} s, at {step}; exiting",
                     STOP_LIMIT.as_secs()
                 );
                 std::process::exit(0);
