@@ -112,7 +112,7 @@ test("Claude Code is asked for a model by a name that follows its newest, and \"
   }
 });
 
-test("Workbench's rules, memory, mode and an image reach Claude Code; Plan is the program's own plan mode", async () => {
+test("The app's rules, memory, mode and an image reach Claude Code; Plan is the program's own plan mode", async () => {
   const workbench = await startWithPrograms();
   try {
     const agent = await coder(workbench, "claude-code", { instructions: "Be brief." });
@@ -342,7 +342,7 @@ test("An edit in a project keeps its original, so the chat can show the change a
   }
 });
 
-test("Workbench's skills reach Claude Code as a server in its own process, and their calls run through the app", async () => {
+test("The app's skills reach Claude Code as a server in its own process, and their calls run through the app", async () => {
   const workbench = await startWithPrograms();
   try {
     const agent = await coder(workbench, "claude-code", { autonomy: "bypass", mcpConnectionIds: ["customizations"] });
@@ -673,7 +673,7 @@ test("A Codex turn that fails says why, or how to sign in", async () => {
   }
 });
 
-test("Workbench's skills reach Codex over /agent-mcp with a token only that turn holds, and Review asks for them", async () => {
+test("The app's skills reach Codex over /agent-mcp with a token only that turn holds, and Review asks for them", async () => {
   const workbench = await startWithPrograms();
   try {
     const agent = await coder(workbench, "codex", { model: "default", autonomy: "review", mcpConnectionIds: ["customizations"] });

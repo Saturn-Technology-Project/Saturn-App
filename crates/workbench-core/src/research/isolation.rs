@@ -560,7 +560,7 @@ mod tests {
                 ("ANTHROPIC_API_KEY", "not named"),
                 ("HF_TOKEN", "not named"),
                 ("PYTHON_KEYRING", "looks like a key"),
-                ("WORKBENCH_RUNTIME_TOKEN", "Workbench's own"),
+                ("WORKBENCH_RUNTIME_TOKEN", "The app's own"),
             ])
             .into_iter(),
         );

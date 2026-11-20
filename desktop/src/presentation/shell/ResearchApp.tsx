@@ -109,7 +109,7 @@ export function ResearchApp() {
     if (!runtimeReady) return;
     syncProjects()
       .then(() => setNotice(null))
-      .catch((error: unknown) => setNotice(t("Workbench's runtime is not answering: {reason}", { reason: messageOf(error) })))
+      .catch((error: unknown) => setNotice(t("The app's runtime is not answering: {reason}", { reason: messageOf(error) })))
       .finally(() => setLoaded(true));
   }, [runtimeReady, syncProjects]);
 

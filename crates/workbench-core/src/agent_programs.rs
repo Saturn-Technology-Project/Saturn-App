@@ -222,13 +222,15 @@ impl Kernel {
 
     /// The program to run, or a 409 that says where to get it.
     pub(crate) fn program_path(&self, id: &str) -> Result<PathBuf, CoreError> {
-        self.resolve_program(id).map(|(file, _)| file).ok_or_else(|| {
-            let name = label(id);
-            CoreError::new(
-                409,
-                format!("{name} is not installed. Download it in Settings → General → {name}."),
-            )
-        })
+        self.resolve_program(id)
+            .map(|(file, _)| file)
+            .ok_or_else(|| {
+                let name = label(id);
+                CoreError::new(
+                    409,
+                    format!("{name} is not installed. Download it in Settings → General → {name}."),
+                )
+            })
     }
 
     /// What the program itself reports (`--version`), once per copy of it.

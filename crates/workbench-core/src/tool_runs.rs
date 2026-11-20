@@ -369,9 +369,7 @@ impl Kernel {
         let Some(server) = self.tool_server(&agent, tool) else {
             // A saved chat can still hold a call to a tool of the app's IDE, such as an approval waiting since before the upgrade.
             return Ok(failed(&if tool.starts_with("ide_") {
-                format!(
-                    "{tool} was part of the app's IDE, which the app no longer includes"
-                )
+                format!("{tool} was part of the app's IDE, which the app no longer includes")
             } else {
                 format!("Unknown tool: {tool}")
             }));

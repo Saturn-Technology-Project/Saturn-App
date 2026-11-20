@@ -1,6 +1,6 @@
 [package]
 name = "workbench-store"
-description = "Workbench's data folder: state.json, and secrets.json with its key in the operating system's key store"
+description = "The app's data folder: state.json, and secrets.json with its key in the operating system's key store"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

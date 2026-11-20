@@ -1840,7 +1840,7 @@ export function ProgramGate(props: { id: ProgramStatus["id"]; children: ReactNod
     );
   }
   const where =
-    status.source === "workbench" ? `${t("Workbench's copy")}${status.version ? ` · ${status.version}` : ""}`
+    status.source === "workbench" ? `${t("The app's copy")}${status.version ? ` · ${status.version}` : ""}`
     : status.source === "system" ? `${t("Your installed {program}", { program: label })}${status.version ? ` · ${status.version}` : ""} · ${status.path}`
     : `${t("Development copy")}${status.version ? ` · ${status.version}` : ""}`;
   return (

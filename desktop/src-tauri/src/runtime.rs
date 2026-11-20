@@ -216,7 +216,7 @@ impl Runtime {
             if up_since.elapsed() > STEADY {
                 attempt = 0;
             }
-            let reason = format!("Workbench's runtime stopped unexpectedly ({ended}).");
+            let reason = format!("The app's runtime stopped unexpectedly ({ended}).");
             eprintln!("{reason}");
             if attempt >= RESTARTS {
                 self.set_status(Status::Failed {
@@ -245,10 +245,8 @@ impl Runtime {
             .lock()
             .expect("the log lock is not poisoned")
             .clear();
-        let mut child =
-            spawn(layout, self.port, &self.instance, &self.session_token).map_err(|error| {
-                format!("Workbench's runtime could not be started: {error}")
-            })?;
+        let mut child = spawn(layout, self.port, &self.instance, &self.session_token)
+            .map_err(|error| format!("The app's runtime could not be started: {error}"))?;
         if let Some(stderr) = child.stderr.take() {
             let log = Arc::clone(&self.log);
             std::thread::spawn(move || {
@@ -276,14 +274,12 @@ impl Runtime {
                 _ => {}
             }
             if let Some(code) = self.exited() {
-                return Err(format!(
-                    "Workbench's runtime ended as it started ({code})."
-                ));
+                return Err(format!("The app's runtime ended as it started ({code})."));
             }
             sleep(Duration::from_millis(250)).await;
         }
         self.end_child();
-        Err("Workbench's runtime did not answer within 20 seconds.".to_owned())
+        Err("The app's runtime did not answer within 20 seconds.".to_owned())
     }
 
     /// How the child ended, if it has.

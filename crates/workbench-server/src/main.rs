@@ -95,11 +95,7 @@ async fn app_is_gone() {
     let mut pipe = tokio::io::stdin();
     let mut chunk = [0_u8; 256];
     while matches!(pipe.read(&mut chunk).await, Ok(read) if read > 0) {}
-    workbench_core::logger::log(
-        "runtime",
-        "info",
-        "The app is gone; stopping",
-    );
+    workbench_core::logger::log("runtime", "info", "The app is gone; stopping");
 }
 
 /// Resumes sleeping runs whose wake time has come, including runs that slept through a restart.

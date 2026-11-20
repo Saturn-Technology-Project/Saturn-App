@@ -7,7 +7,7 @@ import { classes } from "../ui/base/classes.js";
 export function RuntimeGate(props: { status: RuntimeStatus; restart: (() => Promise<void>) | null }) {
   const { status, restart } = props;
   if (status.state === "ready") return null;
-  const title = status.state === "blocked" ? t("Another copy of the app is in the way") : status.state === "failed" ? t("Workbench's runtime stopped") : status.attempt > 1 ? t("Starting the app's runtime again") : t("Starting the app's runtime");
+  const title = status.state === "blocked" ? t("Another copy of the app is in the way") : status.state === "failed" ? t("The app's runtime stopped") : status.attempt > 1 ? t("Starting the app's runtime again") : t("Starting the app's runtime");
   const detail = status.state === "blocked" || status.state === "failed" ? status.reason : status.attempt > 1 ? t("Attempt {attempt}. Your records are safe in the project folder.", { attempt: status.attempt }) : t("This takes a moment.");
   const log = status.state === "starting" || status.state === "failed" ? status.log : [];
   const tone = status.state === "failed" ? "bg-destructive" : status.state === "blocked" ? "bg-wait" : "bg-info";

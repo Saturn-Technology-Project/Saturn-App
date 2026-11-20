@@ -716,8 +716,7 @@ impl Kernel {
             ));
         };
         let title = text(&thread, "title").to_owned();
-        self.push_worktree(thread_id, &title)
-            .await?;
+        self.push_worktree(thread_id, &title).await?;
         let (owner, name) = repository.split_once('/').unwrap_or((&repository, ""));
         let given = js::trim(text(input, "title"));
         let wanted_title = if given.is_empty() {

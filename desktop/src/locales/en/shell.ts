@@ -90,7 +90,7 @@ export default {
   "Not on this screen yet: it appears once {condition}.": "Not on this screen yet. It appears once {condition}.",
 
   // The workbench's frame (shell/ResearchApp.tsx and what it shows).
-  "Workbench's runtime is not answering: {reason}": "Workbench's runtime isn't responding: {reason}",
+  "The app's runtime is not answering: {reason}": "The app's runtime isn't responding: {reason}",
   "Use the light theme": "Switch to light theme",
   "Use the dark theme": "Switch to dark theme",
   "Research records live in a project's own folder, as plain files you can keep.": "Research records live in the project's own folder, as plain files you keep.",

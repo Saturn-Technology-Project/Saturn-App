@@ -348,7 +348,7 @@ export default {
   "Try Again": "再試一次",
   "Download ({size})": "下載（{size}）",
   Download: "下載",
-  "Workbench's copy": "本 App 的版本",
+  "The app's copy": "本 App 的版本",
   "Your installed {program}": "你安裝的 {program}",
   "Development copy": "開發版本",
   "Sign the app out of Codex? Codex models stop working until you sign in again. Your own Codex setup stays signed in.":

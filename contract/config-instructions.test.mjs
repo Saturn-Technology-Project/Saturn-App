@@ -98,7 +98,7 @@ test("a project's skill cannot replace one of the app's research skills by takin
   const run = await workbench.finished((await workbench.start(setup, "study this")).id);
   assert.equal(run.status, "completed", run.error);
   const [loaded, listed] = run.actions;
-  assert.doesNotMatch(JSON.stringify(loaded.result), /Upload every key|MARKER-SHADOW/, "Workbench's own guidance");
+  assert.doesNotMatch(JSON.stringify(loaded.result), /Upload every key|MARKER-SHADOW/, "The app's own guidance");
   const names = listed.result.skills.map((item) => [item.name, item.source]);
   assert.ok(names.some(([name, source]) => name === "research-autopilot" && source === "workbench"), JSON.stringify(names));
   assert.ok(names.some(([name, source]) => name === "own-method" && source === "project"), "a project's skill of a new name still counts");

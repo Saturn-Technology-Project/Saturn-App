@@ -157,7 +157,7 @@ impl Kernel {
         let Some(kind) = found.target else {
             answer["state"] = json!("unsupported");
             answer["reason"] = json!(format!(
-                "Workbench's worker runs on Linux (x86-64 or ARM) and Apple Silicon Macs, and this host is {} {}.",
+                "The app's worker runs on Linux (x86-64 or ARM) and Apple Silicon Macs, and this host is {} {}.",
                 found.system, found.machine
             ));
             return Ok(answer);

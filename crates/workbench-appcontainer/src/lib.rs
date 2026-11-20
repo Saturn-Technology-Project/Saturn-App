@@ -122,7 +122,7 @@ pub fn launch() -> i32 {
     match windows::launch() {
         Ok(code) => code,
         Err(reason) => {
-            eprintln!("Workbench's sandbox could not start the command: {reason}");
+            eprintln!("The app's sandbox could not start the command: {reason}");
             126
         }
     }

@@ -99,7 +99,7 @@ test("with no program anywhere the status says so, and everything that needs one
     const agent = await workbench.api("POST", "/agents", { name: "Coder", modelConnectionId: connection.id });
     const started = await workbench.api("POST", `/agents/${agent.id}/runs`, { input: "hi" });
     const run = await workbench.until("the run", () => workbench.api("GET", `/runs/${started.id}`), (item) => item.status === "failed");
-    assert.match(run.error, /Codex is not installed\. Download it in the app Settings/);
+    assert.match(run.error, /Codex is not installed\. Download it in Settings/);
   } finally {
     await workbench.stop();
   }
@@ -109,7 +109,7 @@ test("a program on the system is used when the app has none, and removing the ap
   const workbench = await startWithPrograms({ install: ["claude-code"] });
   try {
     const system = await placeProgram(path.join(workbench.bin, "claude"), process.platform === "win32" ? "console.log('from the system');\n" : "#!/bin/sh\necho 'from the system'\n");
-    assert.equal((await workbench.api("GET", "/programs/claude-code")).source, "workbench", "Workbench's own copy comes first");
+    assert.equal((await workbench.api("GET", "/programs/claude-code")).source, "workbench", "The app's own copy comes first");
     const removed = await workbench.api("DELETE", "/programs/claude-code");
     assert.deepEqual([removed.source, removed.path, removed.version], ["system", system, "from the system"]);
     assert.equal(existsSync(path.join(workbench.dataDir, "tools", "claude-code")), false);

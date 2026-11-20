@@ -123,7 +123,7 @@ async fn checked_path(root: &Path, requested: &str) -> Result<(PathBuf, String),
     if relative == "." || is_bookkeeping(&relative) {
         return Err(CoreError::new(
             403,
-            "Workbench's records and git's own folder are not data.",
+            "The app's records and git's own folder are not data.",
         ));
     }
     let mut walked = root.to_path_buf();

@@ -183,7 +183,7 @@ export default {
   "Next": "下一步",
 
   // The workbench's frame (shell/ResearchApp.tsx and what it shows).
-  "Workbench's runtime is not answering: {reason}": "本 App 的執行環境沒有回應：{reason}",
+  "The app's runtime is not answering: {reason}": "本 App 的執行環境沒有回應：{reason}",
   "Go to {screen}": "前往「{screen}」",
   "Switch to {project}": "切換到 {project}",
   "Add a project folder": "新增專案資料夾",
@@ -210,7 +210,7 @@ export default {
   "Assistant": "助理",
   "Dismiss": "關閉",
   "Another copy of the app is in the way": "另一個本 App 正在阻擋執行環境",
-  "Workbench's runtime stopped": "本 App 的執行環境已停止",
+  "The app's runtime stopped": "本 App 的執行環境已停止",
   "Starting the app's runtime again": "正在重新啟動本 App 的執行環境",
   "Starting the app's runtime": "正在啟動本 App 的執行環境",
   "Attempt {attempt}. Your records are safe in the project folder.": "第 {attempt} 次嘗試。你的紀錄安全地保存在專案資料夾中。",

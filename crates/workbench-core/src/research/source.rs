@@ -61,7 +61,7 @@ impl Kernel {
         if is_bookkeeping(&relative) {
             return Err(CoreError::new(
                 403,
-                "Workbench's records and git's own folder are not edited here.",
+                "The app's records and git's own folder are not edited here.",
             ));
         }
         Ok((target, relative))

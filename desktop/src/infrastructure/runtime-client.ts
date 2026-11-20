@@ -96,7 +96,7 @@ export class RuntimeClient {
   }
 
   private async send(path: string, init?: RequestInit): Promise<Response> {
-    if (!(await runtimeConfirmed())) throw new Error("Workbench's runtime is not running yet.");
+    if (!(await runtimeConfirmed())) throw new Error("The app's runtime is not running yet.");
     const token = runtimeToken();
     const response = await fetch(`${this.origin}${path}`, {
       ...init,

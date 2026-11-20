@@ -15,7 +15,7 @@ after(async () => {
   await workbench?.close();
 });
 
-const refusedUrl = /Workbench does not start local programs/;
+const refusedUrl = /The app does not start local programs/;
 
 test("a server added by URL is an HTTP(S) endpoint: no address ever makes the app start a program", async () => {
   for (const url of ["npx -y @evil/mcp-server", "node server.js", "stdio:node server.js", "file:///usr/bin/python3", "javascript:alert(1)", "/usr/local/bin/mcp", ""]) {
@@ -111,7 +111,7 @@ test("a local server starts only after its exact command is allowed, with a trim
   assert.notEqual(changed.commandFingerprint, created.commandFingerprint);
   await workbench.until("the old server to stop", () => running(pid), (alive) => !alive);
   await workbench.refused("POST", `/connections/mcp/${created.id}/approve`, { fingerprint: created.commandFingerprint }, 409, /command changed/);
-  await workbench.refused("POST", `/connections/mcp/${created.id}/discover`, undefined, 409, /Allow it in the app Settings/);
+  await workbench.refused("POST", `/connections/mcp/${created.id}/discover`, undefined, 409, /Allow it in Settings/);
 
   // An agent that already knows its tool cannot start it either.
   setup.model.queue.push(["probe", { word: "again" }]);
@@ -147,6 +147,6 @@ test("a call to a local server whose command changed is a failed step that says 
   await workbench.api("DELETE", `/mcp/${created.id}`);
   assert.equal(starts, 1, "it did not start");
   assert.equal(run.actions[0].status, "failed", JSON.stringify(run));
-  assert.match(run.actions[0].reason, /Allow it in the app Settings/);
+  assert.match(run.actions[0].reason, /Allow it in Settings/);
 });
 

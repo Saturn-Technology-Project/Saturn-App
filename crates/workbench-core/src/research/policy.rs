@@ -290,9 +290,7 @@ impl Kernel {
                 "{path} is locked for this experiment. Changing it needs the user, and makes a new version."
             ),
             PolicyVerdict::Records => {
-                format!(
-                    "{path} is one of the app's research records, which agents do not change."
-                )
+                format!("{path} is one of the app's research records, which agents do not change.")
             }
             PolicyVerdict::NeedsApproval | PolicyVerdict::Allowed => return None,
         };

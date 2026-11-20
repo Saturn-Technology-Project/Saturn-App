@@ -132,7 +132,7 @@ test("workbench says when the app cannot be reached", async () => {
   const [command, ...before] = program();
   const away = await run(command, [...before, "agents"], { env: { WORKBENCH_RUNTIME_PORT: "9", WORKBENCH_RUNTIME_TOKEN: "made-up" } });
   assert.equal(away.code, 4);
-  assert.match(away.err, /^workbench: the app is not running \(nothing answers on http:\/\/127\.0\.0\.1:9\)\. Open the app and try again\.\n$/);
+  assert.match(away.err, /^workbench: The app is not running \(nothing answers on http:\/\/127\.0\.0\.1:9\)\. Open the app and try again\.\n$/);
   const empty = path.join(scratch, "never-ran");
   const unset = { ...process.env };
   delete unset.WORKBENCH_RUNTIME_TOKEN;
@@ -143,7 +143,7 @@ test("workbench says when the app cannot be reached", async () => {
     child.once("close", (code) => resolve({ code, err }));
   });
   assert.equal(fresh.code, 4);
-  assert.match(fresh.err, /Workbench has not run on this computer yet \(no .*runtime-token\)\. Open the app first\./);
+  assert.match(fresh.err, /The app has not run on this computer yet \(no .*runtime-token\)\. Open the app first\./);
   const refused = await run(command, [...before, "agents"], { env: { WORKBENCH_RUNTIME_TOKEN: "wrong-token" } });
   assert.equal(refused.code, 1);
   assert.match(refused.err, /^workbench: Unauthorized\n$/);

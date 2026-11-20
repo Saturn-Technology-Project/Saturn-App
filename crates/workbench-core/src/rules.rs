@@ -164,10 +164,7 @@ async fn pieces_of(root: &Path, stored: &str, skip: &[&str]) -> Vec<(String, Str
     }
     let stored = js::trim(stored);
     if !stored.is_empty() {
-        pieces.push((
-            "The app project settings".to_owned(),
-            stored.to_owned(),
-        ));
+        pieces.push(("The app project settings".to_owned(), stored.to_owned()));
     }
     pieces
 }

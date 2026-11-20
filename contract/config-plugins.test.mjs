@@ -55,7 +55,7 @@ test("a plugin in Claude Code's layout brings its skills, held hooks and held se
   assert.deepEqual(server.command.args, [`${folder}/server.js`]);
   assert.deepEqual(server.command.env, ["TOKEN_FILE"], "names only");
   assert.equal(server.approval, "needed");
-  await workbench.refused("POST", `/connections/mcp/${server.id}/discover`, undefined, 409, /Allow it in the app Settings/);
+  await workbench.refused("POST", `/connections/mcp/${server.id}/discover`, undefined, 409, /Allow it in Settings/);
   assert.equal(installed.mcpServers[0].id, server.id);
 
   // Off: silent, and its server gone. On again: back, and still not allowed.
