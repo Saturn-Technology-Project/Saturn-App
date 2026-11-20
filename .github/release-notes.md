@@ -13,7 +13,7 @@
 
 1. Download `Workbench-__VERSION__-win-x64-setup.exe` and run it.
 2. If SmartScreen stops it, click **More info → Run anyway**.
-3. Optional: confirm the installer is Eisoptric Workbench's. In PowerShell, `(Get-AuthenticodeSignature .\Workbench-__VERSION__-win-x64-setup.exe).SignerCertificate.Thumbprint` should print `D285DA425077C16A3D115D61F9748AFA574BC786`.
+3. Optional: confirm the installer is Eisoptric Workbench's. In PowerShell, `(Get-AuthenticodeSignature .\Workbench-__VERSION__-win-x64-setup.exe).SignerCertificate.Thumbprint` should print `9D9E3A5CDA1828A13D6F23C75E5D58E9E4E6ED8A`.
 
 Then open **Settings → Models** and connect a model, add a project folder, and write your first question (the first launch walks you through it). The interface is in English or Traditional Chinese, following the system or chosen in **Settings → General**.
 

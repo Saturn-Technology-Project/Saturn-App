@@ -150,7 +150,7 @@ JS／TS 與 JSX 優先使用專案的 TypeScript 7 原生 LSP（`node_modules/.b
 
 從 [Releases](../../releases) 下載最新版本：macOS（Apple Silicon）提供 `.dmg`（或 `.zip`），Windows x64 提供安裝程式 `.exe`。預覽階段的版本皆以 pre-release 發佈；[`CHANGELOG.md`](CHANGELOG.md) 整理了每個版本的變更。每個檔案都附有 SHA-256 校驗碼與經簽署的建置來源證明（[驗證下載檔](#5-驗證發行檔的建置來源)）。
 
-macOS 版本尚未以 Apple Developer ID 簽章：首次開啟時請到 **系統設定 → 隱私權與安全性 → 強制打開**。Windows 版本以 Eisoptric Workbench 的自簽憑證進行 Authenticode 簽章（SHA-1 指紋 `D285DA425077C16A3D115D61F9748AFA574BC786`，公開憑證位於 [`desktop/build/workbench-code-signing.cer`](desktop/build/workbench-code-signing.cer)）。Windows 不信任自簽的發行者，所以 SmartScreen 仍會詢問：請選擇 **其他資訊 → 仍要執行**。Windows 版本只在虛擬機裡試過（見[已知限制](#已知限制)）。不需另外安裝任何東西：Runtime 是 App 內的原生程式，介面則使用系統的網頁檢視（macOS 12 以上的 WebKit、Windows 的 WebView2）。
+macOS 版本尚未以 Apple Developer ID 簽章：首次開啟時請到 **系統設定 → 隱私權與安全性 → 強制打開**。Windows 版本以 Eisoptric Workbench 的自簽憑證進行 Authenticode 簽章（SHA-1 指紋 `9D9E3A5CDA1828A13D6F23C75E5D58E9E4E6ED8A`，公開憑證位於 [`desktop/build/workbench-code-signing.cer`](desktop/build/workbench-code-signing.cer)）。Windows 不信任自簽的發行者，所以 SmartScreen 仍會詢問：請選擇 **其他資訊 → 仍要執行**。Windows 版本只在虛擬機裡試過（見[已知限制](#已知限制)）。不需另外安裝任何東西：Runtime 是 App 內的原生程式，介面則使用系統的網頁檢視（macOS 12 以上的 WebKit、Windows 的 WebView2）。
 
 **只有一個 App。** Runtime 與 `workbench` 指令都包在 Eisoptric Workbench 裡。「應用程式」、Launchpad 與 Spotlight 都只會列出 Eisoptric Workbench。
 
@@ -430,7 +430,7 @@ gh attestation verify Workbench-<version>-mac-arm64-unsigned.dmg --bundle Workbe
 在 Windows 上，安裝程式的 Authenticode 簽章應指向 Eisoptric Workbench 的憑證：
 
 ```powershell
-(Get-AuthenticodeSignature .\Workbench-<version>-win-x64-setup.exe).SignerCertificate.Thumbprint   # D285DA425077C16A3D115D61F9748AFA574BC786
+(Get-AuthenticodeSignature .\Workbench-<version>-win-x64-setup.exe).SignerCertificate.Thumbprint   # 9D9E3A5CDA1828A13D6F23C75E5D58E9E4E6ED8A
 ```
 
 建置紀錄公開於 [Actions](../../actions/workflows/release.yml) 頁面。也可以直接[從原始碼建置](#從原始碼建置)。

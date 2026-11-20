@@ -155,7 +155,7 @@ are not inferred. See [setup, protocol and boundaries](docs/language-services.md
 
 Download the latest build from [Releases](../../releases): a `.dmg` (or `.zip`) for macOS on Apple Silicon, and a setup `.exe` for Windows x64. Releases are pre-releases while Eisoptric Workbench is in preview; [`CHANGELOG.md`](CHANGELOG.md) summarizes what changed in each. Each file ships with a SHA-256 checksum and a signed build provenance attestation ([verify a download](#5-verify-the-release-provenance)).
 
-The macOS app is not signed with an Apple Developer ID yet: approve the first launch in **System Settings → Privacy & Security → Open Anyway**. Windows builds are Authenticode-signed with Eisoptric Workbench's self-signed certificate (SHA-1 thumbprint `D285DA425077C16A3D115D61F9748AFA574BC786`, public half in [`desktop/build/workbench-code-signing.cer`](desktop/build/workbench-code-signing.cer)). Windows does not trust a self-signed publisher, so SmartScreen still asks: choose **More info → Run anyway**. The Windows version has been tried in a virtual machine only ([Known limitations](#known-limitations)). There is nothing else to install: the runtime is a native program inside the app, and the interface runs in the system's web view (WebKit on macOS 12 or later, WebView2 on Windows).
+The macOS app is not signed with an Apple Developer ID yet: approve the first launch in **System Settings → Privacy & Security → Open Anyway**. Windows builds are Authenticode-signed with Eisoptric Workbench's self-signed certificate (SHA-1 thumbprint `9D9E3A5CDA1828A13D6F23C75E5D58E9E4E6ED8A`, public half in [`desktop/build/workbench-code-signing.cer`](desktop/build/workbench-code-signing.cer)). Windows does not trust a self-signed publisher, so SmartScreen still asks: choose **More info → Run anyway**. The Windows version has been tried in a virtual machine only ([Known limitations](#known-limitations)). There is nothing else to install: the runtime is a native program inside the app, and the interface runs in the system's web view (WebKit on macOS 12 or later, WebView2 on Windows).
 
 **One app.** The runtime and the `workbench` command ship inside Eisoptric Workbench. Applications, Launchpad and Spotlight list Eisoptric Workbench alone.
 
@@ -435,7 +435,7 @@ From the next release on, `Workbench-<version>.intoto.jsonl` holds all of a rele
 On Windows, the installer's Authenticode signature names Eisoptric Workbench's certificate:
 
 ```powershell
-(Get-AuthenticodeSignature .\Workbench-<version>-win-x64-setup.exe).SignerCertificate.Thumbprint   # D285DA425077C16A3D115D61F9748AFA574BC786
+(Get-AuthenticodeSignature .\Workbench-<version>-win-x64-setup.exe).SignerCertificate.Thumbprint   # 9D9E3A5CDA1828A13D6F23C75E5D58E9E4E6ED8A
 ```
 
 Build logs are public on the [Actions](../../actions/workflows/release.yml) page. Alternatively, [build from source](#build-from-source).
