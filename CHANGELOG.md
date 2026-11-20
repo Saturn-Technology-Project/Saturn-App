@@ -2,7 +2,7 @@
 
 The major changes in each Eisoptric Workbench release, for deciding whether to upgrade and what changes when you do. Every release is on [GitHub Releases](https://github.com/eisoptric/Workbench/releases) with its downloads, checksums and build provenance; versions below 1.0.0 are previews. Security fixes are also published as [GitHub security advisories](https://github.com/eisoptric/Workbench/security/advisories).
 
-## Unreleased
+## 0.7.0 (2026-11-20)
 
 ### Changed
 
