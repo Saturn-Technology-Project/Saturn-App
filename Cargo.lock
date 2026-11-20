@@ -5589,7 +5589,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "workbench-appcontainer"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5599,7 +5599,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-browser"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -5616,7 +5616,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-cli"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "percent-encoding",
  "reqwest",
@@ -5626,7 +5626,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-computer"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "regex",
@@ -5640,7 +5640,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-core"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -5665,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-desktop"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "axum",
  "core-graphics",
@@ -5686,7 +5686,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-domain"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "getrandom 0.4.3",
  "jiff",
@@ -5700,7 +5700,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-llm"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "axum",
  "percent-encoding",
@@ -5718,7 +5718,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-mcp"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -5736,7 +5736,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-server"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "axum",
  "futures-util",
@@ -5758,11 +5758,11 @@ dependencies = [
 
 [[package]]
 name = "workbench-standin"
-version = "0.6.4"
+version = "0.7.0"
 
 [[package]]
 name = "workbench-store"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "aes-gcm",
  "base64 0.23.1",
@@ -5778,7 +5778,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-telemetry"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "reqwest",
  "serde_json",
@@ -5790,7 +5790,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-tools"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "axum",
  "flate2",
